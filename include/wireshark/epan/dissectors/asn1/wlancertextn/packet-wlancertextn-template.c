@@ -15,6 +15,8 @@
 #include <epan/oids.h>
 #include <epan/asn1.h>
 
+#include <wsutil/array.h>
+
 #include "packet-ber.h"
 #include "packet-wlancertextn.h"
 #include "packet-x509af.h"
@@ -29,7 +31,7 @@ void proto_register_wlancertextn(void);
 void proto_reg_handoff_wlancertextn(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_wlancertextn = -1;
+static int proto_wlancertextn;
 #include "packet-wlancertextn-hf.c"
 
 /* Initialize the subtree pointers */
@@ -47,7 +49,7 @@ void proto_register_wlancertextn(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 #include "packet-wlancertextn-ettarr.c"
   };
 

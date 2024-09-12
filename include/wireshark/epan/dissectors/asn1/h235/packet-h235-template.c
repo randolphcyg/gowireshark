@@ -14,6 +14,7 @@
 #include <epan/packet.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-per.h"
 #include "packet-h235.h"
@@ -35,7 +36,7 @@ void proto_register_h235(void);
 void proto_reg_handoff_h235(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_h235 = -1;
+static int proto_h235;
 #include "packet-h235-hf.c"
 
 /* Initialize the subtree pointers */
@@ -60,7 +61,7 @@ void proto_register_h235(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 #include "packet-h235-ettarr.c"
   };
 

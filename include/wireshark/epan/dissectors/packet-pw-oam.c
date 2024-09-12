@@ -22,19 +22,19 @@ void proto_reg_handoff_pw_oam(void);
 static dissector_handle_t pw_oam_handle;
 
 /* MPLS-TP FM protocol specific variables */
-static gint proto_pw_oam             = -1;
-static gint ett_pw_oam               = -1;
-static gint ett_pw_oam_flags         = -1;
-static gint ett_pw_oam_tlv_tree      = -1;
+static int proto_pw_oam;
+static int ett_pw_oam;
+static int ett_pw_oam_flags;
+static int ett_pw_oam_tlv_tree;
 
-static int hf_pw_oam_tlv_reserved    = -1;
-static int hf_pw_oam_tlv_type        = -1;
-static int hf_pw_oam_total_tlv_len   = -1;
-static int hf_pw_oam_code            = -1;
-static int hf_pw_oam_flags           = -1;
-static int hf_pw_oam_flags_a         = -1;
-static int hf_pw_oam_refresh_timer   = -1;
-static int hf_pw_oam_tlv_len         = -1;
+static int hf_pw_oam_tlv_reserved;
+static int hf_pw_oam_tlv_type;
+static int hf_pw_oam_total_tlv_len;
+static int hf_pw_oam_code;
+static int hf_pw_oam_flags;
+static int hf_pw_oam_flags_a;
+static int hf_pw_oam_refresh_timer;
+static int hf_pw_oam_tlv_len;
 
 static const value_string pw_oam_code[] = {
   {0x00000002, "Local Attachment Circuit(ingress) Receive Fault"},
@@ -46,7 +46,7 @@ static const value_string pw_oam_code[] = {
 
 /* PW-Status TLV dissector */
 static void
-dissect_pw_status_tlv (tvbuff_t *tvb, proto_tree *tree, gint offset)
+dissect_pw_status_tlv (tvbuff_t *tvb, proto_tree *tree, int offset)
 {
   proto_item *ti;
   proto_tree *pw_oam_tlv_tree;
@@ -84,8 +84,8 @@ dissect_pw_oam(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
   proto_item  *ti = NULL, *ti_flags = NULL;
   proto_tree  *pw_oam_tree = NULL, *pw_oam_flags = NULL;
 
-  guint8  offset        = 0;
-  guint16 pw_tlv_type   = 0;
+  uint8_t offset        = 0;
+  uint16_t pw_tlv_type   = 0;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "PW OAM");
   col_clear(pinfo->cinfo, COL_INFO);
@@ -177,7 +177,7 @@ proto_register_pw_oam(void)
 
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_pw_oam,
     &ett_pw_oam_tlv_tree,
     &ett_pw_oam_flags,

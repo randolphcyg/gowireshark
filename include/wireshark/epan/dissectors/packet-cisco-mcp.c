@@ -44,29 +44,29 @@ void proto_reg_handoff_mcp(void);
 
 static dissector_handle_t mcp_handle;
 
-static int proto_mcp = -1;
+static int proto_mcp;
 /* TLV header */
-static int hf_mcp_tlv_type = -1;
-static int hf_mcp_strict_tlv_type = -1;
-static int hf_mcp_tlv_length = -1;
+static int hf_mcp_tlv_type;
+static int hf_mcp_strict_tlv_type;
+static int hf_mcp_tlv_length;
 /* Values */
-static int hf_mcp_fabric_id = -1;
-static int hf_mcp_node_id = -1;
-static int hf_mcp_vpc_domain = -1;
-static int hf_mcp_vpc_id = -1;
-static int hf_mcp_vpc_vtep = -1;
-static int hf_mcp_port_id = -1;
-static int hf_mcp_send_time = -1;
-static int hf_mcp_strictmode = -1;
-static int hf_mcp_digest = -1;
-static int hf_mcp_unknown = -1;
+static int hf_mcp_fabric_id;
+static int hf_mcp_node_id;
+static int hf_mcp_vpc_domain;
+static int hf_mcp_vpc_id;
+static int hf_mcp_vpc_vtep;
+static int hf_mcp_port_id;
+static int hf_mcp_send_time;
+static int hf_mcp_strictmode;
+static int hf_mcp_digest;
+static int hf_mcp_unknown;
 
-static expert_field ei_mcp_short_tlv = EI_INIT;
-static expert_field ei_mcp_trailing_bytes = EI_INIT;
-static expert_field ei_mcp_unexpected_tlv_length = EI_INIT;
+static expert_field ei_mcp_short_tlv;
+static expert_field ei_mcp_trailing_bytes;
+static expert_field ei_mcp_unexpected_tlv_length;
 
-static gint ett_mcp = -1;
-static gint ett_mcp_tlv_header = -1;
+static int ett_mcp;
+static int ett_mcp_tlv_header;
 
 #define PROTO_SHORT_NAME "MCP"
 #define PROTO_LONG_NAME "Miscabling Protocol"
@@ -125,14 +125,14 @@ dissect_mcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 	proto_item *ti, *pi;
 	proto_tree *mcp_tree;
 	proto_tree *tlv_tree;
-	guint32 offset = 0;
-	gboolean last = FALSE;
-	gboolean strict_mode = TRUE;
-	guint8 tlv_type, use_tlv;
-	guint16 tlv_length;
-	guint16 data_length = tvb_reported_length_remaining(tvb, offset);
-	guint32 fabricid, nodeid, vpcdomain, vpcid, portid, sendtime, strictmode;
-	gchar *sendtime_str, *vpcvtep_str;
+	uint32_t offset = 0;
+	bool last = false;
+	bool strict_mode = true;
+	uint8_t tlv_type, use_tlv;
+	uint16_t tlv_length;
+	uint16_t data_length = tvb_reported_length_remaining(tvb, offset);
+	uint32_t fabricid, nodeid, vpcdomain, vpcid, portid, sendtime, strictmode;
+	char *sendtime_str, *vpcvtep_str;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_SHORT_NAME);
 	col_clear(pinfo->cinfo, COL_INFO);
@@ -148,17 +148,17 @@ dissect_mcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 				offset, data_length, "Too few bytes left for TLV (%u < 2)", data_length - offset);
 			break;
 		}
-		tlv_type = tvb_get_guint8(tvb, offset);
+		tlv_type = tvb_get_uint8(tvb, offset);
 		// HACK: Interestring version handling
 		use_tlv = tlv_type;
 		if (data_length == 62) {
-			strict_mode = FALSE;
+			strict_mode = false;
 			if (tlv_type >= MCPS_TYPE_STRICTMODE) {
 				use_tlv = tlv_type + 1;
 			}
 		}
 
-		tlv_length = tvb_get_guint8(tvb, offset + 1);
+		tlv_length = tvb_get_uint8(tvb, offset + 1);
 
 		if (strict_mode) {
 			tlv_tree = proto_tree_add_subtree_format(mcp_tree, tvb, offset, tlv_length + 2,
@@ -227,7 +227,7 @@ dissect_mcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 			if (tlv_length == 4) {
 				proto_tree_add_item(tlv_tree, hf_mcp_send_time, tvb, offset, tlv_length, ENC_TIME_SECS|ENC_BIG_ENDIAN);
 				sendtime = tvb_get_ntohl(tvb, offset);
-				sendtime_str = abs_time_secs_to_str(pinfo->pool, sendtime, ABSOLUTE_TIME_LOCAL, TRUE);
+				sendtime_str = abs_time_secs_to_str(pinfo->pool, sendtime, ABSOLUTE_TIME_LOCAL, true);
 				proto_item_append_text(tlv_tree, ": %s", sendtime_str);
 				col_append_fstr(pinfo->cinfo, COL_INFO, "SendTime/%s ", sendtime_str);
 			} else {
@@ -257,7 +257,7 @@ dissect_mcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 			}
 			break;
 		case MCPS_TYPE_END:
-			last = TRUE;
+			last = true;
 			if (tlv_length != 0) {
 				proto_tree_add_expert_format(mcp_tree, pinfo, &ei_mcp_unexpected_tlv_length, tvb,
 					offset, tlv_length, "Expected value length differs from seen length (%u != %u)",
@@ -339,7 +339,7 @@ proto_register_mcp(void)
 
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_mcp,
 		&ett_mcp_tlv_header,
 	};

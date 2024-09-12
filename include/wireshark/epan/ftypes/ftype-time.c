@@ -12,13 +12,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <math.h>
 
 #include <epan/to_str.h>
 #include <wsutil/time_util.h>
 #include <wsutil/ws_strptime.h>
 #include <wsutil/safe-math.h>
-
+#include <wsutil/array.h>
 
 static enum ft_result
 cmp_order(const fvalue_t *a, const fvalue_t *b, int *cmp)
@@ -155,14 +155,33 @@ val_from_unix_time(fvalue_t *fv, const char *s)
 }
 
 static bool
-relative_val_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value _U_, char **err_msg)
+relative_val_from_uinteger64(fvalue_t *fv, const char *s _U_, uint64_t value, char **err_msg _U_)
+{
+	fv->value.time.secs = (time_t)value;
+	fv->value.time.nsecs = 0;
+	return true;
+}
+
+static bool
+relative_val_from_sinteger64(fvalue_t *fv, const char *s _U_, int64_t value, char **err_msg _U_)
+{
+	fv->value.time.secs = (time_t)value;
+	fv->value.time.nsecs = 0;
+	return true;
+}
+
+static bool
+relative_val_from_float(fvalue_t *fv, const char *s, double value, char **err_msg _U_)
 {
 	if (val_from_unix_time(fv, s))
 		return true;
 
-	if (err_msg != NULL)
-		*err_msg = ws_strdup_printf("\"%s\" is not a valid time.", s);
-	return false;
+	double whole, fraction;
+
+	fraction = modf(value, &whole);
+	fv->value.time.secs = (time_t)whole;
+	fv->value.time.nsecs = (int)(fraction * 1000000000);
+	return true;
 }
 
 /*
@@ -373,6 +392,24 @@ absolute_val_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value 
 	return absolute_val_from_string(fv, s, 0, err_msg);
 }
 
+static bool
+absolute_val_from_uinteger64(fvalue_t *fv, const char *s, uint64_t value _U_, char **err_msg)
+{
+	return absolute_val_from_literal(fv, s, FALSE, err_msg);
+}
+
+static bool
+absolute_val_from_sinteger64(fvalue_t *fv, const char *s, int64_t value _U_, char **err_msg)
+{
+	return absolute_val_from_literal(fv, s, FALSE, err_msg);
+}
+
+static bool
+absolute_val_from_float(fvalue_t *fv, const char *s, double value _U_, char **err_msg)
+{
+	return absolute_val_from_literal(fv, s, FALSE, err_msg);
+}
+
 static void
 time_fvalue_new(fvalue_t *fv)
 {
@@ -503,11 +540,11 @@ time_unary_minus(fvalue_t * dst, const fvalue_t *src, char **err_ptr _U_)
 static void
 check_ns_wraparound(nstime_t *ns, jmp_buf env)
 {
-	if (ns->nsecs >= NS_PER_S || (ns->nsecs > 0 && ns->secs < 0)) {
+	while(ns->nsecs >= NS_PER_S || (ns->nsecs > 0 && ns->secs < 0)) {
 		ws_safe_sub_jmp(&ns->nsecs, ns->nsecs, NS_PER_S, env);
 		ws_safe_add_jmp(&ns->secs, ns->secs, 1, env);
 	}
-	else if(ns->nsecs <= -NS_PER_S || (ns->nsecs < 0 && ns->secs > 0)) {
+	while (ns->nsecs <= -NS_PER_S || (ns->nsecs < 0 && ns->secs > 0)) {
 		ws_safe_add_jmp(&ns->nsecs, ns->nsecs, NS_PER_S, env);
 		ws_safe_sub_jmp(&ns->secs, ns->secs, 1, env);
 	}
@@ -521,16 +558,8 @@ _nstime_add(nstime_t *res, nstime_t a, const nstime_t b, jmp_buf env)
 	check_ns_wraparound(res, env);
 }
 
-static void
-_nstime_sub(nstime_t *res, nstime_t a, const nstime_t b, jmp_buf env)
-{
-	ws_safe_sub_jmp(&res->secs, a.secs, b.secs, env);
-	ws_safe_sub_jmp(&res->nsecs, a.nsecs, b.nsecs, env);
-	check_ns_wraparound(res, env);
-}
-
 static enum ft_result
-time_add(fvalue_t * dst, const fvalue_t *a, const fvalue_t *b, char **err_ptr)
+time_add(fvalue_t *dst, const fvalue_t *a, const fvalue_t *b, char **err_ptr)
 {
 	jmp_buf env;
 	if (setjmp(env) != 0) {
@@ -541,8 +570,16 @@ time_add(fvalue_t * dst, const fvalue_t *a, const fvalue_t *b, char **err_ptr)
 	return FT_OK;
 }
 
+static void
+_nstime_sub(nstime_t *res, nstime_t a, const nstime_t b, jmp_buf env)
+{
+	ws_safe_sub_jmp(&res->secs, a.secs, b.secs, env);
+	ws_safe_sub_jmp(&res->nsecs, a.nsecs, b.nsecs, env);
+	check_ns_wraparound(res, env);
+}
+
 static enum ft_result
-time_subtract(fvalue_t * dst, const fvalue_t *a, const fvalue_t *b, char **err_ptr)
+time_subtract(fvalue_t *dst, const fvalue_t *a, const fvalue_t *b, char **err_ptr)
 {
 	jmp_buf env;
 	if (setjmp(env) != 0) {
@@ -553,14 +590,100 @@ time_subtract(fvalue_t * dst, const fvalue_t *a, const fvalue_t *b, char **err_p
 	return FT_OK;
 }
 
+static void
+_nstime_mul_int(nstime_t *res, nstime_t a, int64_t val, jmp_buf env)
+{
+	ws_safe_mul_jmp(&res->secs, a.secs, (time_t)val, env);
+	ws_safe_mul_jmp(&res->nsecs, a.nsecs, (int)val, env);
+	check_ns_wraparound(res, env);
+}
+
+static void
+_nstime_mul_float(nstime_t *res, nstime_t a, double val, jmp_buf env)
+{
+	res->secs = (time_t)(a.secs * val);
+	res->nsecs = (int)(a.nsecs * val);
+	check_ns_wraparound(res, env);
+}
+
+static enum ft_result
+time_multiply(fvalue_t *dst, const fvalue_t *a, const fvalue_t *b, char **err_ptr)
+{
+	jmp_buf env;
+	if (setjmp(env) != 0) {
+		*err_ptr = ws_strdup_printf("time_subtract: overflow");
+		return FT_ERROR;
+	}
+
+	ftenum_t ft_b = fvalue_type_ftenum(b);
+	if (ft_b == FT_INT64) {
+		int64_t val = fvalue_get_sinteger64((fvalue_t *)b);
+		_nstime_mul_int(&dst->value.time, a->value.time, val, env);
+	}
+	else if (ft_b == FT_DOUBLE) {
+		double val = fvalue_get_floating((fvalue_t *)b);
+		_nstime_mul_float(&dst->value.time, a->value.time, val, env);
+	}
+	else {
+		ws_critical("Invalid RHS ftype: %s", ftype_pretty_name(ft_b));
+		return FT_BADARG;
+	}
+	return FT_OK;
+}
+
+static void
+_nstime_div_int(nstime_t *res, nstime_t a, int64_t val, jmp_buf env)
+{
+	ws_safe_div_jmp(&res->secs, a.secs, (time_t)val, env);
+	ws_safe_div_jmp(&res->nsecs, a.nsecs, (int)val, env);
+}
+
+static void
+_nstime_div_float(nstime_t *res, nstime_t a, double val)
+{
+	res->secs = (time_t)(a.secs / val);
+	res->nsecs = (int)(a.nsecs / val);
+}
+
+static enum ft_result
+time_divide(fvalue_t *dst, const fvalue_t *a, const fvalue_t *b, char **err_ptr)
+{
+	jmp_buf env;
+	if (setjmp(env) != 0) {
+		*err_ptr = ws_strdup_printf("time_divide: overflow");
+		return FT_ERROR;
+	}
+
+	ftenum_t ft_b = fvalue_type_ftenum(b);
+	if (ft_b == FT_INT64) {
+		int64_t val = fvalue_get_sinteger64((fvalue_t *)b);
+		if (val == 0) {
+			*err_ptr = ws_strdup_printf("time_divide: division by zero");
+			return FT_ERROR;
+		}
+		_nstime_div_int(&dst->value.time, a->value.time, val, env);
+	}
+	else if (ft_b == FT_DOUBLE) {
+		double val = fvalue_get_floating((fvalue_t *)b);
+		if (val == 0) {
+			*err_ptr = ws_strdup_printf("time_divide: division by zero");
+			return FT_ERROR;
+		}
+		_nstime_div_float(&dst->value.time, a->value.time, val);
+	}
+	else {
+		ws_critical("Invalid RHS ftype: %s", ftype_pretty_name(ft_b));
+		return FT_BADARG;
+	}
+	return FT_OK;
+}
+
 void
 ftype_register_time(void)
 {
 
-	static ftype_t abstime_type = {
+	static const ftype_t abstime_type = {
 		FT_ABSOLUTE_TIME,		/* ftype */
-		"FT_ABSOLUTE_TIME",		/* name */
-		"Date and time",		/* pretty_name */
 		0,				/* wire_size */
 		time_fvalue_new,		/* new_value */
 		time_fvalue_copy,		/* copy_value */
@@ -568,10 +691,14 @@ ftype_register_time(void)
 		absolute_val_from_literal,	/* val_from_literal */
 		absolute_val_from_string,	/* val_from_string */
 		NULL,				/* val_from_charconst */
+		absolute_val_from_uinteger64,	/* val_from_uinteger64 */
+		absolute_val_from_sinteger64,	/* val_from_sinteger64 */
+		absolute_val_from_float,	/* val_from_double */
 		absolute_val_to_repr,		/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_from_double */
 
 		{ .set_value_time = time_fvalue_set },	/* union set_value */
 		{ .get_value_time = value_get },	/* union get_value */
@@ -589,25 +716,27 @@ ftype_register_time(void)
 		time_unary_minus,		/* unary_minus */
 		time_add,			/* add */
 		time_subtract,			/* subtract */
-		NULL,				/* multiply */
-		NULL,				/* divide */
+		time_multiply,			/* multiply */
+		time_divide,			/* divide */
 		NULL,				/* modulo */
 	};
-	static ftype_t reltime_type = {
+	static const ftype_t reltime_type = {
 		FT_RELATIVE_TIME,		/* ftype */
-		"FT_RELATIVE_TIME",		/* name */
-		"Time offset",			/* pretty_name */
 		0,				/* wire_size */
 		time_fvalue_new,		/* new_value */
 		time_fvalue_copy,		/* copy_value */
 		NULL,				/* free_value */
-		relative_val_from_literal,	/* val_from_literal */
+		NULL,				/* val_from_literal */
 		NULL,				/* val_from_string */
 		NULL,				/* val_from_charconst */
+		relative_val_from_uinteger64,	/* val_from_uinteger64 */
+		relative_val_from_sinteger64,	/* val_from_sinteger64 */
+		relative_val_from_float,	/* val_from_double */
 		relative_val_to_repr,		/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_from_double */
 
 		{ .set_value_time = time_fvalue_set },	/* union set_value */
 		{ .get_value_time = value_get },	/* union get_value */
@@ -625,8 +754,8 @@ ftype_register_time(void)
 		time_unary_minus,		/* unary_minus */
 		time_add,			/* add */
 		time_subtract,			/* subtract */
-		NULL,				/* multiply */
-		NULL,				/* divide */
+		time_multiply,			/* multiply */
+		time_divide,			/* divide */
 		NULL,				/* modulo */
 	};
 

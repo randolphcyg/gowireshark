@@ -18,6 +18,7 @@
 #include <epan/oids.h>
 #include <epan/asn1.h>
 #include <epan/expert.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-ansi_tcap.h"
@@ -41,41 +42,41 @@ void proto_reg_handoff_ain(void);
 
 
 /* Initialize the protocol and registered fields */
-static int proto_ain = -1;
+static int proto_ain;
 
 static dissector_handle_t   ain_handle;
 
 /* include constants */
 #include "packet-ain-val.h"
 
-static int hf_ain_ext_type_oid = -1;
-static int hf_ain_odd_even_indicator = -1;
-static int hf_ain_nature_of_address = -1;
-static int hf_ain_numbering_plan = -1;
-static int hf_ain_bcd_digits = -1;
-static int hf_ain_carrier_selection = -1;
-static int hf_ain_nature_of_carrier = -1;
-static int hf_ain_nr_digits = -1;
-static int hf_ain_carrier_bcd_digits = -1;
-static int hf_ain_amaslpid = -1;
+static int hf_ain_ext_type_oid;
+static int hf_ain_odd_even_indicator;
+static int hf_ain_nature_of_address;
+static int hf_ain_numbering_plan;
+static int hf_ain_bcd_digits;
+static int hf_ain_carrier_selection;
+static int hf_ain_nature_of_carrier;
+static int hf_ain_nr_digits;
+static int hf_ain_carrier_bcd_digits;
+static int hf_ain_amaslpid;
 
 #include "packet-ain-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_ain = -1;
-static int ett_ain_digits = -1;
-static int ett_ain_carrierformat = -1;
-static int ett_ain_amaslpid = -1;
+static int ett_ain;
+static int ett_ain_digits;
+static int ett_ain_carrierformat;
+static int ett_ain_amaslpid;
 
 #include "packet-ain-ett.c"
 
-static expert_field ei_ain_unknown_invokeData = EI_INIT;
-static expert_field ei_ain_unknown_returnResultData = EI_INIT;
-static expert_field ei_ain_unknown_returnErrorData = EI_INIT;
+static expert_field ei_ain_unknown_invokeData;
+static expert_field ei_ain_unknown_returnResultData;
+static expert_field ei_ain_unknown_returnErrorData;
 
 /* Global variables */
-static guint32 opcode = 0;
-static guint32 errorCode = 0;
+static uint32_t opcode;
+static uint32_t errorCode;
 //static const char *obj_id = NULL;
 
 static int ain_opcode_type;
@@ -84,7 +85,7 @@ static int ain_opcode_type;
 #define AIN_OPCODE_RETURN_ERROR  3
 #define AIN_OPCODE_REJECT        4
 
-/* Forvard declarations */
+/* Forward declarations */
 static int dissect_invokeData(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_ctx_t *actx _U_);
 static int dissect_returnResultData(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_ctx_t *actx _U_);
 static int dissect_returnErrorData(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_ctx_t *actx);
@@ -135,7 +136,7 @@ dissect_ain(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *da
     proto_tree *ain_tree = NULL;
     struct ansi_tcap_private_t *p_private_tcap = (struct ansi_tcap_private_t *)data;
     asn1_ctx_t asn1_ctx;
-    asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+    asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
     /* The TCAP dissector should have provided data but didn't so reject it. */
     if (data == NULL)
@@ -160,7 +161,7 @@ dissect_ain(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *da
         */
     case 1:
         opcode = p_private_tcap->d.OperationCode_private;
-        /*ansi_map_is_invoke = TRUE;*/
+        /*ansi_map_is_invoke = true;*/
         col_add_fstr(pinfo->cinfo, COL_INFO, "%s Invoke ", val_to_str(opcode, ain_opr_code_strings, "Unknown AIN PDU (%u)"));
         proto_item_append_text(p_private_tcap->d.OperationCode_item, " %s", val_to_str(opcode, ain_opr_code_strings, "Unknown AIN PDU (%u)"));
         dissect_invokeData(ain_tree, tvb, 0, &asn1_ctx);
@@ -189,7 +190,7 @@ dissect_ain(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *da
 
 void proto_reg_handoff_ain(void) {
 
-    /*static gboolean ain_prefs_initialized = FALSE;*/
+    /*static bool ain_prefs_initialized = false;*/
     /*static range_t *ssn_range;*/
 
 }
@@ -246,7 +247,7 @@ void proto_register_ain(void) {
     };
 
     /* List of subtrees */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_ain,
         &ett_ain_digits,
         &ett_ain_carrierformat,

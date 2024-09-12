@@ -24,12 +24,14 @@
  * TPG (TRM, TCM, VDRM, VDPM, EOFM)   ETSI TS 101 556-2
  * Charging (EV-RSR, SRM, SCM)        ETSI TS 101 556-3
  * GPC (RTCMEM)                       ETSI TS 103 301
+ * VA (VAM)                           ETSI TS 103 300-3   V2.2.1 (2023-02)
  *
  * Not supported:
  * SA (SAEM)                          ETSI TS 102 890-1
  * CTL (CTLM)                         ETSI TS 102 941
  * CRL (CRLM)                         ETSI TS 102 941
  * Certificate request                ETSI TS 102 941
+ * MCD (MCDM)                         ETSI TS 103 152
  */
 #include "config.h"
 
@@ -42,6 +44,8 @@
 #include <epan/conversation.h>
 #include <epan/tap.h>
 #include <wsutil/utf8_entities.h>
+#include <wsutil/array.h>
+
 #include "packet-ber.h"
 #include "packet-per.h"
 
@@ -81,6 +85,8 @@
  * 2014       CTL (CTLM)              ETSI TS 102 941
  * 2015       CRL (CRLM)              ETSI TS 102 941
  * 2016       Certificate request     ETSI TS 102 941
+ * 2017       MCD (MCDM)              ETSI TS 103 152
+ * 2018       VA (VAM)                ETSI TS 103 300-3   V2.2.1 (2023-02)
  */
 
 // Applications Well Known Ports
@@ -100,6 +106,8 @@
 #define ITS_WKP_CTL        2014
 #define ITS_WKP_CRL        2015
 #define ITS_WKP_CERTIF_REQ 2016
+#define ITS_WKP_MCD        2017
+#define ITS_WKP_VA         2018
 
 /*
  * Prototypes
@@ -109,88 +117,88 @@ void proto_register_its(void);
 
 static dissector_handle_t its_handle;
 
-static expert_field ei_its_no_sub_dis = EI_INIT;
+static expert_field ei_its_no_sub_dis;
 
 // TAP
-static int its_tap = -1;
+static int its_tap;
 
 // Protocols
-static int proto_its = -1;
-static int proto_its_denm = -1;
-static int proto_its_denmv1 = -1;
-static int proto_its_cam = -1;
-static int proto_its_camv1 = -1;
-static int proto_its_evcsn = -1;
-static int proto_its_evrsr = -1;
-static int proto_its_ivimv1 = -1;
-static int proto_its_ivim = -1;
-static int proto_its_tistpg = -1;
-static int proto_its_ssem = -1;
-static int proto_its_srem = -1;
-static int proto_its_rtcmemv1 = -1;
-static int proto_its_rtcmem = -1;
-static int proto_its_mapemv1 = -1;
-static int proto_its_mapem = -1;
-static int proto_its_spatemv1 = -1;
-static int proto_its_spatem = -1;
-static int proto_its_cpm = -1;
-static int proto_its_imzm = -1;
-static int proto_its_vam = -1;
-static int proto_addgrpc = -1;
+static int proto_its;
+static int proto_its_denm;
+static int proto_its_denmv1;
+static int proto_its_cam;
+static int proto_its_camv1;
+static int proto_its_evcsn;
+static int proto_its_evrsr;
+static int proto_its_ivimv1;
+static int proto_its_ivim;
+static int proto_its_tistpg;
+static int proto_its_ssem;
+static int proto_its_srem;
+static int proto_its_rtcmemv1;
+static int proto_its_rtcmem;
+static int proto_its_mapemv1;
+static int proto_its_mapem;
+static int proto_its_spatemv1;
+static int proto_its_spatem;
+static int proto_its_cpm;
+static int proto_its_imzm;
+static int proto_its_vam;
+static int proto_addgrpc;
 
 /*
  * DENM SSP
  */
-static int hf_denmssp_version = -1;
-static int hf_denmssp_flags = -1;
-static int hf_denmssp_trafficCondition = -1;
-static int hf_denmssp_accident = -1;
-static int hf_denmssp_roadworks = -1;
-static int hf_denmssp_adverseWeatherConditionAdhesion = -1;
-static int hf_denmssp_hazardousLocationSurfaceCondition = -1;
-static int hf_denmssp_hazardousLocationObstacleOnTheRoad = -1;
-static int hf_denmssp_hazardousLocationAnimalOnTheRoad = -1;
-static int hf_denmssp_humanPresenceOnTheRoad = -1;
-static int hf_denmssp_wrongWayDriving = -1;
-static int hf_denmssp_rescueAndRecoveryWorkInProgress = -1;
-static int hf_denmssp_ExtremeWeatherCondition = -1;
-static int hf_denmssp_adverseWeatherConditionVisibility = -1;
-static int hf_denmssp_adverseWeatherConditionPrecipitation = -1;
-static int hf_denmssp_slowVehicle = -1;
-static int hf_denmssp_dangerousEndOfQueue = -1;
-static int hf_denmssp_vehicleBreakdown = -1;
-static int hf_denmssp_postCrash = -1;
-static int hf_denmssp_humanProblem = -1;
-static int hf_denmssp_stationaryVehicle = -1;
-static int hf_denmssp_emergencyVehicleApproaching = -1;
-static int hf_denmssp_hazardousLocationDangerousCurve = -1;
-static int hf_denmssp_collisionRisk = -1;
-static int hf_denmssp_signalViolation = -1;
-static int hf_denmssp_dangerousSituation = -1;
+static int hf_denmssp_version;
+static int hf_denmssp_flags;
+static int hf_denmssp_trafficCondition;
+static int hf_denmssp_accident;
+static int hf_denmssp_roadworks;
+static int hf_denmssp_adverseWeatherConditionAdhesion;
+static int hf_denmssp_hazardousLocationSurfaceCondition;
+static int hf_denmssp_hazardousLocationObstacleOnTheRoad;
+static int hf_denmssp_hazardousLocationAnimalOnTheRoad;
+static int hf_denmssp_humanPresenceOnTheRoad;
+static int hf_denmssp_wrongWayDriving;
+static int hf_denmssp_rescueAndRecoveryWorkInProgress;
+static int hf_denmssp_ExtremeWeatherCondition;
+static int hf_denmssp_adverseWeatherConditionVisibility;
+static int hf_denmssp_adverseWeatherConditionPrecipitation;
+static int hf_denmssp_slowVehicle;
+static int hf_denmssp_dangerousEndOfQueue;
+static int hf_denmssp_vehicleBreakdown;
+static int hf_denmssp_postCrash;
+static int hf_denmssp_humanProblem;
+static int hf_denmssp_stationaryVehicle;
+static int hf_denmssp_emergencyVehicleApproaching;
+static int hf_denmssp_hazardousLocationDangerousCurve;
+static int hf_denmssp_collisionRisk;
+static int hf_denmssp_signalViolation;
+static int hf_denmssp_dangerousSituation;
 
 /*
  * CAM SSP
  */
-static int hf_camssp_version = -1;
-static int hf_camssp_flags = -1;
-static int hf_camssp_cenDsrcTollingZone = -1;
-static int hf_camssp_publicTransport = -1;
-static int hf_camssp_specialTransport = -1;
-static int hf_camssp_dangerousGoods = -1;
-static int hf_camssp_roadwork = -1;
-static int hf_camssp_rescue = -1;
-static int hf_camssp_emergency = -1;
-static int hf_camssp_safetyCar = -1;
-static int hf_camssp_closedLanes = -1;
-static int hf_camssp_requestForRightOfWay = -1;
-static int hf_camssp_requestForFreeCrossingAtATrafficLight = -1;
-static int hf_camssp_noPassing = -1;
-static int hf_camssp_noPassingForTrucks = -1;
-static int hf_camssp_speedLimit = -1;
-static int hf_camssp_reserved = -1;
+static int hf_camssp_version;
+static int hf_camssp_flags;
+static int hf_camssp_cenDsrcTollingZone;
+static int hf_camssp_publicTransport;
+static int hf_camssp_specialTransport;
+static int hf_camssp_dangerousGoods;
+static int hf_camssp_roadwork;
+static int hf_camssp_rescue;
+static int hf_camssp_emergency;
+static int hf_camssp_safetyCar;
+static int hf_camssp_closedLanes;
+static int hf_camssp_requestForRightOfWay;
+static int hf_camssp_requestForFreeCrossingAtATrafficLight;
+static int hf_camssp_noPassing;
+static int hf_camssp_noPassingForTrucks;
+static int hf_camssp_speedLimit;
+static int hf_camssp_reserved;
 
-static gint ett_denmssp_flags = -1;
-static gint ett_camssp_flags = -1;
+static int ett_denmssp_flags;
+static int ett_camssp_flags;
 
 // Subdissectors
 static dissector_table_t its_version_subdissector_table;
@@ -201,21 +209,32 @@ static dissector_table_t cam_pt_activation_table;
 
 typedef struct its_private_data {
     enum regext_type_enum type;
-    guint32 region_id;
-    guint32 cause_code;
+    uint32_t region_id;
+    uint32_t cause_code;
 } its_private_data_t;
 
 typedef struct its_pt_activation_data {
-    guint32 type;
+    uint32_t type;
     tvbuff_t *data;
 } its_pt_activation_data_t;
+
+static its_header_t*
+its_get_private_data(packet_info* pinfo)
+{
+    its_header_t* its_hdr = (its_header_t*)p_get_proto_data(pinfo->pool, pinfo, proto_its, 0);
+    if (!its_hdr) {
+        its_hdr = wmem_new0(pinfo->pool, its_header_t);
+        p_add_proto_data(pinfo->pool, pinfo, proto_its, 0, its_hdr);
+    }
+    return its_hdr;
+}
 
 // Specific dissector for content of open type for regional extensions
 static int dissect_regextval_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     its_private_data_t *re = (its_private_data_t*)data;
     // XXX What to do when region_id = noRegion? Test length is zero?
-    if (!dissector_try_uint_new(regionid_subdissector_table, ((guint32) re->region_id<<16) + (guint32) re->type, tvb, pinfo, tree, FALSE, NULL))
+    if (!dissector_try_uint_new(regionid_subdissector_table, ((uint32_t) re->region_id<<16) + (uint32_t) re->type, tvb, pinfo, tree, false, NULL))
         call_data_dissector(tvb, pinfo, tree);
     return tvb_captured_length(tvb);
 }
@@ -223,12 +242,14 @@ static int dissect_regextval_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 // Specific dissector for content of open type for regional extensions
 static int dissect_cpmcontainers_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
 {
-    its_header_t* hdr = (its_header_t*)data;
     // XXX What to do when region_id = noRegion? Test length is zero?
-    if (!dissector_try_uint_new(cpmcontainer_subdissector_table, hdr->CpmContainerId, tvb, pinfo, tree, FALSE, NULL))
+    if (!dissector_try_uint_new(cpmcontainer_subdissector_table, its_get_private_data(pinfo)->CpmContainerId, tvb, pinfo, tree, false, NULL))
         call_data_dissector(tvb, pinfo, tree);
     return tvb_captured_length(tvb);
 }
+
+
+
 
 static int dissect_denmssp_pdu(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
 {
@@ -260,7 +281,7 @@ static int dissect_denmssp_pdu(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
         NULL
     };
 
-    guint32 version;
+    uint32_t version;
 
     proto_tree_add_item_ret_uint(tree, hf_denmssp_version, tvb, 0, 1, ENC_BIG_ENDIAN, &version);
     if (version == 1) {
@@ -290,7 +311,7 @@ static int dissect_camssp_pdu(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree 
         NULL
     };
 
-    guint32 version;
+    uint32_t version;
 
     proto_tree_add_item_ret_uint(tree, hf_camssp_version, tvb, 0, 1, ENC_BIG_ENDIAN, &version);
     if (version == 1) {
@@ -302,12 +323,12 @@ static int dissect_camssp_pdu(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree 
 // Generated by asn2wrs
 #include "packet-its-hf.c"
 
-static gint ett_its = -1;
+static int ett_its;
 
 #include "packet-its-ett.c"
 
 // Deal with cause/subcause code management
-struct { CauseCodeType_enum cause; int* hf; } cause_to_subcause[] = {
+static struct { CauseCodeType_enum cause; int* hf; } cause_to_subcause[] = {
     { trafficCondition, &hf_its_trafficCondition1 },
     { accident, &hf_its_accident2 },
     { roadworks, &hf_its_roadworks3 },
@@ -332,7 +353,7 @@ struct { CauseCodeType_enum cause; int* hf; } cause_to_subcause[] = {
     { collisionRisk, &hf_its_collisionRisk97 },
     { signalViolation, &hf_its_signalViolation98 },
     { dangerousSituation, &hf_its_dangerousSituation99 },
-    { reserved, NULL },
+    { 0, NULL },
 };
 
 static int*
@@ -354,19 +375,19 @@ static unsigned char ita2_ascii[32] = {
 static void
 append_country_code_fmt(proto_item *item, tvbuff_t *val_tvb)
 {
-  guint16 v = tvb_get_guint16(val_tvb, 0, ENC_BIG_ENDIAN);
+  uint16_t v = tvb_get_uint16(val_tvb, 0, ENC_BIG_ENDIAN);
   v >>= 6;  /* 10 bits */
-  guint16 v1 = (v >> 5) & 0x1F;
-  guint16 v2 = v & 0x1F;
+  uint16_t v1 = (v >> 5) & 0x1F;
+  uint16_t v2 = v & 0x1F;
   proto_item_append_text(item, " - %c%c", ita2_ascii[v1], ita2_ascii[v2]);
 }
 
 #include "packet-its-fn.c"
 
 static void
-its_latitude_fmt(gchar *s, guint32 v)
+its_latitude_fmt(char *s, uint32_t v)
 {
-  gint32 lat = (gint32)v;
+  int32_t lat = (int32_t)v;
   if (lat == 900000001) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", lat);
   } else {
@@ -380,9 +401,9 @@ its_latitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_longitude_fmt(gchar *s, guint32 v)
+its_longitude_fmt(char *s, uint32_t v)
 {
-  gint32 lng = (gint32)v;
+  int32_t lng = (int32_t)v;
   if (lng == 1800000001) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", lng);
   } else {
@@ -396,9 +417,9 @@ its_longitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_altitude_fmt(gchar *s, guint32 v)
+its_altitude_fmt(char *s, uint32_t v)
 {
-  gint32 alt = (gint32)v;
+  int32_t alt = (int32_t)v;
   if (alt == 800001) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", alt);
   } else {
@@ -407,9 +428,9 @@ its_altitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_delta_latitude_fmt(gchar *s, guint32 v)
+its_delta_latitude_fmt(char *s, uint32_t v)
 {
-  gint32 lat = (gint32)v;
+  int32_t lat = (int32_t)v;
   if (lat == 131072) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", lat);
   } else {
@@ -423,9 +444,9 @@ its_delta_latitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_delta_longitude_fmt(gchar *s, guint32 v)
+its_delta_longitude_fmt(char *s, uint32_t v)
 {
-  gint32 lng = (gint32)v;
+  int32_t lng = (int32_t)v;
   if (lng == 131072) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", lng);
   } else {
@@ -439,9 +460,9 @@ its_delta_longitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_delta_altitude_fmt(gchar *s, guint32 v)
+its_delta_altitude_fmt(char *s, uint32_t v)
 {
-  gint32 alt = (gint32)v;
+  int32_t alt = (int32_t)v;
   if (alt == 12800) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", alt);
   } else {
@@ -450,15 +471,15 @@ its_delta_altitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_path_delta_time_fmt(gchar *s, guint32 v)
+its_path_delta_time_fmt(char *s, uint32_t v)
 {
-  gint32 dt = (gint32)v;
+  int32_t dt = (int32_t)v;
   snprintf(s, ITEM_LABEL_LENGTH, "%.2fs (%d)", dt * 0.01, dt);
 }
 
 
 static void
-its_sax_length_fmt(gchar *s, guint32 v)
+its_sax_length_fmt(char *s, uint32_t v)
 {
   if (v == 4095) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -470,9 +491,9 @@ its_sax_length_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_heading_value_fmt(gchar *s, guint32 v)
+its_heading_value_fmt(char *s, uint32_t v)
 {
-  const gchar *p = try_val_to_str(v, VALS(its_HeadingValue_vals));
+  const char *p = try_val_to_str(v, VALS(its_HeadingValue_vals));
   if (p) {
     snprintf(s, ITEM_LABEL_LENGTH, "%s (%d)", p, v);
   } else {
@@ -481,7 +502,7 @@ its_heading_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_heading_confidence_fmt(gchar *s, guint32 v)
+its_heading_confidence_fmt(char *s, uint32_t v)
 {
   if (v == 127) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -493,7 +514,7 @@ its_heading_confidence_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_speed_value_fmt(gchar *s, guint32 v)
+its_speed_value_fmt(char *s, uint32_t v)
 {
   if (v == 0) {
     snprintf(s, ITEM_LABEL_LENGTH, "standstill (%d)", v);
@@ -507,7 +528,7 @@ its_speed_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_speed_confidence_fmt(gchar *s, guint32 v)
+its_speed_confidence_fmt(char *s, uint32_t v)
 {
   if (v == 127) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -519,13 +540,13 @@ its_speed_confidence_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_speed_limit_fmt(gchar *s, guint32 v)
+its_speed_limit_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%dkm/h (%d)", v, v);
 }
 
 static void
-its_vehicle_length_value_fmt(gchar *s, guint32 v)
+its_vehicle_length_value_fmt(char *s, uint32_t v)
 {
   if (v == 1023) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -537,7 +558,7 @@ its_vehicle_length_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_vehicle_width_fmt(gchar *s, guint32 v)
+its_vehicle_width_fmt(char *s, uint32_t v)
 {
   if (v == 62) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -549,9 +570,9 @@ its_vehicle_width_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_acceleration_value_fmt(gchar *s, guint32 v)
+its_acceleration_value_fmt(char *s, uint32_t v)
 {
-  gint32 acc = (gint32)v;
+  int32_t acc = (int32_t)v;
   if (acc == 161) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
   } else {
@@ -560,7 +581,7 @@ its_acceleration_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_acceleration_confidence_fmt(gchar *s, guint32 v)
+its_acceleration_confidence_fmt(char *s, uint32_t v)
 {
   if (v == 102) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -572,9 +593,9 @@ its_acceleration_confidence_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_curvature_value_fmt(gchar *s, guint32 v)
+its_curvature_value_fmt(char *s, uint32_t v)
 {
-  gint32 curv = (gint32)v;
+  int32_t curv = (int32_t)v;
   if (curv == 0) {
     snprintf(s, ITEM_LABEL_LENGTH, "straight (%d)", v);
   } else if (curv == 30001) {
@@ -588,9 +609,9 @@ its_curvature_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_yaw_rate_value_fmt(gchar *s, guint32 v)
+its_yaw_rate_value_fmt(char *s, uint32_t v)
 {
-  gint32 yaw = (gint32)v;
+  int32_t yaw = (int32_t)v;
   if (yaw == 0) {
     snprintf(s, ITEM_LABEL_LENGTH, "straight (%d)", v);
   } else if (yaw == 32767) {
@@ -604,9 +625,9 @@ its_yaw_rate_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_swa_value_fmt(gchar *s, guint32 v)
+its_swa_value_fmt(char *s, uint32_t v)
 {
-  gint32 swa = (gint32)v;
+  int32_t swa = (int32_t)v;
   if (swa == 0) {
     snprintf(s, ITEM_LABEL_LENGTH, "straight (%d)", v);
   } else if (swa == 512) {
@@ -620,7 +641,7 @@ its_swa_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_swa_confidence_fmt(gchar *s, guint32 v)
+its_swa_confidence_fmt(char *s, uint32_t v)
 {
   if (v == 127) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -632,7 +653,7 @@ its_swa_confidence_fmt(gchar *s, guint32 v)
 }
 
 static void
-dsrc_moi_fmt(gchar *s, guint32 v)
+dsrc_moi_fmt(char *s, uint32_t v)
 {
   if (v == 527040) {
     snprintf(s, ITEM_LABEL_LENGTH, "invalid (%d)", v);
@@ -643,7 +664,7 @@ dsrc_moi_fmt(gchar *s, guint32 v)
 }
 
 static void
-dsrc_dsecond_fmt(gchar *s, guint32 v)
+dsrc_dsecond_fmt(char *s, uint32_t v)
 {
   if (v == 65535) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -656,7 +677,7 @@ dsrc_dsecond_fmt(gchar *s, guint32 v)
 }
 
 static void
-dsrc_time_mark_fmt(gchar *s, guint32 v)
+dsrc_time_mark_fmt(char *s, uint32_t v)
 {
   if (v == 36001) {
     snprintf(s, ITEM_LABEL_LENGTH, "unknown (%d)", v);
@@ -669,17 +690,17 @@ dsrc_time_mark_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_timestamp_fmt(gchar *s, guint64 v)
+its_timestamp_fmt(char *s, uint64_t v)
 {
   time_t secs = v / 1000 + 1072915200 - 5;
   struct tm *tm = gmtime(&secs);
   snprintf(s, ITEM_LABEL_LENGTH, "%u-%02u-%02u %02u:%02u:%02u.%03u (%" PRIu64 ")",
-    tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (guint32)(v % 1000), v
+    tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (uint32_t)(v % 1000), v
   );
 }
 
 static void
-its_validity_duration_fmt(gchar *s, guint32 v)
+its_validity_duration_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%02u:%02u:%02u (%d)",
           v / 3600, v % 3600 / 60, v % 60, v);
@@ -706,7 +727,7 @@ static const value_string dsrc_TimeIntervalConfidence_vals[] = {
 };
 
 static void
-dsrc_velocity_fmt(gchar *s, guint32 v)
+dsrc_velocity_fmt(char *s, uint32_t v)
 {
   if (v == 8191) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -718,15 +739,15 @@ dsrc_velocity_fmt(gchar *s, guint32 v)
 }
 
 static void
-dsrc_angle_fmt(gchar *s, guint32 v)
+dsrc_angle_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.2f° (%d)", v * 0.0125, v);
 }
 
 static void
-dsrc_delta_time_fmt(gchar *s, guint32 v)
+dsrc_delta_time_fmt(char *s, uint32_t v)
 {
-  gint32 dt = (gint32)v;
+  int32_t dt = (int32_t)v;
   if (dt == -122) {
     snprintf(s, ITEM_LABEL_LENGTH, "unknown (%d)", dt);
   } else if (dt == -121) {
@@ -741,13 +762,13 @@ dsrc_delta_time_fmt(gchar *s, guint32 v)
 
 
 static void
-cpm_object_dimension_value_fmt(gchar *s, guint32 v)
+cpm_object_dimension_value_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fm (%d)", v * 0.1, v);
 }
 
 //static void
-//cpm_object_dimension_confidence_fmt(gchar *s, guint32 v)
+//cpm_object_dimension_confidence_fmt(char *s, uint32_t v)
 //{
 //  if (v == 102) {
 //    snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -775,14 +796,14 @@ dissect_its_PDU(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
 // Decode As...
 static void
-its_msgid_prompt(packet_info *pinfo, gchar *result)
+its_msgid_prompt(packet_info *pinfo, char *result)
 {
-    guint32 msgid = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, hf_its_messageId, pinfo->curr_layer_num));
+    uint32_t msgid = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, hf_its_messageId, pinfo->curr_layer_num));
 
     snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "MsgId (%s%u)", UTF8_RIGHTWARDS_ARROW, msgid);
 }
 
-static gpointer
+static void *
 its_msgid_value(packet_info *pinfo)
 {
     return p_get_proto_data(pinfo->pool, pinfo, hf_its_messageId, pinfo->curr_layer_num);
@@ -895,7 +916,7 @@ void proto_register_its(void)
     { &hf_camssp_reserved, { "reserved", "its.ssp.cam.reserved", FT_UINT16, BASE_DEC, NULL, 0x0003, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_its,
         &ett_denmssp_flags,
         &ett_camssp_flags,
@@ -957,10 +978,12 @@ void proto_register_its(void)
                                     decode_as_default_populate_list, decode_as_default_reset, decode_as_default_change, NULL};
 
     register_decode_as(&its_da);
+
+    its_tap = register_tap("its");
 }
 
 #define BTP_SUBDISS_SZ 2
-#define BTP_PORTS_SZ   12
+#define BTP_PORTS_SZ   13
 
 #define ITS_CAM_PROT_VER 2
 #define ITS_CAM_PROT_VERv1 1
@@ -983,8 +1006,8 @@ void proto_register_its(void)
 
 void proto_reg_handoff_its(void)
 {
-    const char *subdissector[BTP_SUBDISS_SZ] = { "btpa.port", "btpb.port" };
-    const guint16 ports[BTP_PORTS_SZ] = { ITS_WKP_DEN, ITS_WKP_CA, ITS_WKP_EVCSN, ITS_WKP_CHARGING, ITS_WKP_IVI, ITS_WKP_TPG, ITS_WKP_TLC_SSEM, ITS_WKP_GPC, ITS_WKP_TLC_SREM, ITS_WKP_RLT, ITS_WKP_TLM, ITS_WKP_CPS };
+    static const char *subdissector[BTP_SUBDISS_SZ] = { "btpa.port", "btpb.port" };
+    static const uint16_t ports[BTP_PORTS_SZ] = { ITS_WKP_DEN, ITS_WKP_CA, ITS_WKP_EVCSN, ITS_WKP_CHARGING, ITS_WKP_IVI, ITS_WKP_TPG, ITS_WKP_TLC_SSEM, ITS_WKP_GPC, ITS_WKP_TLC_SREM, ITS_WKP_RLT, ITS_WKP_TLM, ITS_WKP_CPS, ITS_WKP_VA };
     int sdIdx, pIdx;
 
     // Register well known ports to btp subdissector table (BTP A and B)
@@ -1007,14 +1030,14 @@ void proto_reg_handoff_its(void)
     dissector_add_uint("its.msg_id", (ITS_MAPEM_PROT_VER << 16) + ITS_MAPEM,        create_dissector_handle( dissect_dsrc_MapData_PDU, proto_its_mapem ));
     dissector_add_uint("its.msg_id", (ITS_IVIM_PROT_VERv1 << 16) + ITS_IVIM,        create_dissector_handle( dissect_ivi_IviStructure_PDU, proto_its_ivimv1 ));
     dissector_add_uint("its.msg_id", (ITS_IVIM_PROT_VER << 16) + ITS_IVIM,          create_dissector_handle( dissect_ivi_IviStructure_PDU, proto_its_ivim ));
-    dissector_add_uint("its.msg_id", ITS_EV_RSR,                                    create_dissector_handle( dissect_evrsr_EV_RSR_MessageBody_PDU, proto_its_evrsr ));
+    dissector_add_uint("its.msg_id", ITS_RFU1  ,                                    create_dissector_handle( dissect_evrsr_EV_RSR_MessageBody_PDU, proto_its_evrsr ));
     dissector_add_uint("its.msg_id", (ITS_SREM_PROT_VER << 16) + ITS_SREM,          create_dissector_handle( dissect_dsrc_SignalRequestMessage_PDU, proto_its_srem ));
     dissector_add_uint("its.msg_id", (ITS_SSEM_PROT_VER << 16) + ITS_SSEM,          create_dissector_handle( dissect_dsrc_SignalStatusMessage_PDU, proto_its_ssem ));
     dissector_add_uint("its.msg_id", (ITS_RTCMEM_PROT_VERv1 << 16) + ITS_RTCMEM,    create_dissector_handle( dissect_dsrc_RTCMcorrections_PDU, proto_its_rtcmemv1));
     dissector_add_uint("its.msg_id", (ITS_RTCMEM_PROT_VER << 16) + ITS_RTCMEM,      create_dissector_handle(dissect_dsrc_RTCMcorrections_PDU, proto_its_rtcmem));
     dissector_add_uint("its.msg_id", ITS_EVCSN,                                     create_dissector_handle( dissect_evcsn_EVChargingSpotNotificationPOIMessage_PDU, proto_its_evcsn ));
-    dissector_add_uint("its.msg_id", (ITS_TIS_TPG_PROT_VER << 16) + ITS_TISTPGTRANSACTION, create_dissector_handle( dissect_tistpg_TisTpgTransaction_PDU, proto_its_tistpg ));
-    dissector_add_uint("its.msg_id", (ITS_CPM_PROT_VER << 16) + ITS_CPM,            create_dissector_handle(dissect_cpm_CollectivePerceptionMessage_PDU, proto_its_cpm));
+    dissector_add_uint("its.msg_id", (ITS_TIS_TPG_PROT_VER << 16) + ITS_RFU2,       create_dissector_handle( dissect_tistpg_TisTpgTransaction_PDU, proto_its_tistpg ));
+    dissector_add_uint("its.msg_id", (ITS_CPM_PROT_VER << 16) + ITS_CPM,            create_dissector_handle(dissect_cpm_CpmPayload_PDU, proto_its_cpm));
     dissector_add_uint("its.msg_id", (ITS_IMZM_PROT_VER << 16) + ITS_IMZM,          create_dissector_handle(dissect_imzm_InterferenceManagementZoneMessage_PDU, proto_its_imzm));
     dissector_add_uint("its.msg_id", (ITS_VAM_PROT_VER << 16) + ITS_VAM,            create_dissector_handle(dissect_vam_VruAwareness_PDU, proto_its_vam));
 
@@ -1042,8 +1065,6 @@ void proto_reg_handoff_its(void)
     dissector_add_uint("cpm.container", 3, create_dissector_handle(dissect_cpm_SensorInformationContainer_PDU, proto_its_cpm));
     dissector_add_uint("cpm.container", 4, create_dissector_handle(dissect_cpm_PerceptionRegionContainer_PDU, proto_its_cpm));
     dissector_add_uint("cpm.container", 5, create_dissector_handle(dissect_cpm_PerceivedObjectContainer_PDU, proto_its_cpm));
-
-    its_tap = register_tap("its");
 }
 
 /*

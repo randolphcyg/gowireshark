@@ -25,6 +25,9 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
+#include <wsutil/array.h>
 
 void proto_register_ansi_801(void);
 void proto_reg_handoff_ansi_801(void);
@@ -37,152 +40,152 @@ static const char *ansi_proto_name_short = "IS-801";
 
 
 /* Initialize the subtree pointers */
-static gint ett_ansi_801 = -1;
-static gint ett_gps = -1;
-static gint ett_loc = -1;
+static int ett_ansi_801;
+static int ett_gps;
+static int ett_loc;
 
 /* Initialize the protocol and registered fields */
-static int proto_ansi_801 = -1;
-static int hf_ansi_801_for_req_type = -1;
-static int hf_ansi_801_for_rsp_type = -1;
-static int hf_ansi_801_rev_req_type = -1;
-static int hf_ansi_801_rev_rsp_type = -1;
-static int hf_ansi_801_for_sess_tag = -1;
-static int hf_ansi_801_rev_sess_tag = -1;
-static int hf_ansi_801_sess_tag = -1;
+static int proto_ansi_801;
+static int hf_ansi_801_for_req_type;
+static int hf_ansi_801_for_rsp_type;
+static int hf_ansi_801_rev_req_type;
+static int hf_ansi_801_rev_rsp_type;
+static int hf_ansi_801_for_sess_tag;
+static int hf_ansi_801_rev_sess_tag;
+static int hf_ansi_801_sess_tag;
 
-static int hf_ansi_801_time_ref_cdma = -1;
-static int hf_ansi_801_lat = -1;
-static int hf_ansi_801_long = -1;
-static int hf_ansi_801_loc_uncrtnty_ang = -1;
-static int hf_ansi_801_loc_uncrtnty_a = -1;
-static int hf_ansi_801_loc_uncrtnty_p = -1;
-static int hf_ansi_801_fix_type = -1;
-static int hf_ansi_801_velocity_incl = -1;
-static int hf_ansi_801_velocity_hor = -1;
-static int hf_ansi_801_heading = -1;
-static int hf_ansi_801_velocity_ver = -1;
-static int hf_ansi_801_clock_incl = -1;
-static int hf_ansi_801_clock_bias = -1;
-static int hf_ansi_801_clock_drift = -1;
-static int hf_ansi_801_height_incl = -1;
-static int hf_ansi_801_height = -1;
-static int hf_ansi_801_loc_uncrtnty_v = -1;
-static int hf_ansi_801_reserved_bits = -1;
+static int hf_ansi_801_time_ref_cdma;
+static int hf_ansi_801_lat;
+static int hf_ansi_801_long;
+static int hf_ansi_801_loc_uncrtnty_ang;
+static int hf_ansi_801_loc_uncrtnty_a;
+static int hf_ansi_801_loc_uncrtnty_p;
+static int hf_ansi_801_fix_type;
+static int hf_ansi_801_velocity_incl;
+static int hf_ansi_801_velocity_hor;
+static int hf_ansi_801_heading;
+static int hf_ansi_801_velocity_ver;
+static int hf_ansi_801_clock_incl;
+static int hf_ansi_801_clock_bias;
+static int hf_ansi_801_clock_drift;
+static int hf_ansi_801_height_incl;
+static int hf_ansi_801_height;
+static int hf_ansi_801_loc_uncrtnty_v;
+static int hf_ansi_801_reserved_bits;
 
-static int hf_ansi_801_bad_sv_present = -1;
-static int hf_ansi_801_num_bad_sv = -1;
-static int hf_ansi_801_bad_sv_prn_num = -1;
-static int hf_ansi_801_dopp_req = -1;
-static int hf_ansi_801_add_dopp_req = -1;
-static int hf_ansi_801_code_ph_par_req = -1;
-static int hf_ansi_801_az_el_req = -1;
+static int hf_ansi_801_bad_sv_present;
+static int hf_ansi_801_num_bad_sv;
+static int hf_ansi_801_bad_sv_prn_num;
+static int hf_ansi_801_dopp_req;
+static int hf_ansi_801_add_dopp_req;
+static int hf_ansi_801_code_ph_par_req;
+static int hf_ansi_801_az_el_req;
 
-static int hf_ansi_801_pref_resp_qual = -1;
-static int hf_ansi_801_num_fixes = -1;
-static int hf_ansi_801_t_betw_fixes = -1;
-static int hf_ansi_801_offset_req = -1;
+static int hf_ansi_801_pref_resp_qual;
+static int hf_ansi_801_num_fixes;
+static int hf_ansi_801_t_betw_fixes;
+static int hf_ansi_801_offset_req;
 
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_ansi_801_for_message_number_responsesF0 = -1;
-static int hf_ansi_801_apdc_id = -1;
-static int hf_ansi_801_num_sv_p32 = -1;
-static int hf_ansi_801_regulatory_services_indicator = -1;
-static int hf_ansi_801_session_source = -1;
-static int hf_ansi_801_reserved8_E0 = -1;
-static int hf_ansi_801_action_time = -1;
-static int hf_ansi_801_rev_message_number_responsesF0 = -1;
-static int hf_ansi_801_reserved24_3 = -1;
-static int hf_ansi_801_cancellation_type = -1;
-static int hf_ansi_801_gps_navigation_message_bits = -1;
-static int hf_ansi_801_num_dr_p = -1;
-static int hf_ansi_801_rev_message_number_requests8 = -1;
-static int hf_ansi_801_reserved8_F0 = -1;
-static int hf_ansi_801_for_req_loc_clock_correction_for_gps_time = -1;
-static int hf_ansi_801_for_response_length = -1;
-static int hf_ansi_801_session_end = -1;
-static int hf_ansi_801_reserved8_1F = -1;
-static int hf_ansi_801_part_num = -1;
-static int hf_ansi_801_dr_size = -1;
-static int hf_ansi_801_reserved_24_700 = -1;
-static int hf_ansi_801_for_message_number_responses0F = -1;
-static int hf_ansi_801_rev_message_number_requests16 = -1;
-static int hf_ansi_801_lcc_capable_using_location_assistance_spherical = -1;
-static int hf_ansi_801_part_num32 = -1;
-static int hf_ansi_801_part_num16 = -1;
-static int hf_ansi_801_reserved8_07 = -1;
-static int hf_ansi_801_reserved24_1 = -1;
-static int hf_ansi_801_reserved_24_F80000 = -1;
-static int hf_ansi_801_extended_base_station_almanac = -1;
-static int hf_ansi_801_no_outstanding_request_element = -1;
-static int hf_ansi_801_for_request_length = -1;
-static int hf_ansi_801_week_num = -1;
-static int hf_ansi_801_total_parts16 = -1;
-static int hf_ansi_801_pd_message_type = -1;
-static int hf_ansi_801_total_parts32 = -1;
-static int hf_ansi_801_alpha_and_beta_parameters = -1;
-static int hf_ansi_801_lcc_using_gps_ephemeris_assistance = -1;
-static int hf_ansi_801_rev_request_length = -1;
-static int hf_ansi_801_reserved8_7F = -1;
-static int hf_ansi_801_unsolicited_response_indicator = -1;
-static int hf_ansi_801_autonomous_location_calculation_capable = -1;
-static int hf_ansi_801_gps_almanac_correction = -1;
-static int hf_ansi_801_total_parts = -1;
-static int hf_ansi_801_session_start = -1;
-static int hf_ansi_801_ref_bit_num = -1;
-static int hf_ansi_801_aflt_lcc = -1;
-static int hf_ansi_801_reject_reason = -1;
-static int hf_ansi_801_gps_ephemeris = -1;
-static int hf_ansi_801_pre_programmed_location = -1;
-static int hf_ansi_801_rev_response_length = -1;
-static int hf_ansi_801_afltc_id = -1;
-static int hf_ansi_801_rev_req_loc_height_information = -1;
-static int hf_ansi_801_reserved8_01 = -1;
-static int hf_ansi_801_pilot_ph_cap = -1;
-static int hf_ansi_801_gps_acquisition_assistance = -1;
-static int hf_ansi_801_coordinate_type_requested = -1;
-static int hf_ansi_801_gps_almanac = -1;
-static int hf_ansi_801_rev_req_loc_velocity_information = -1;
-static int hf_ansi_801_gps_autonomous_acquisition_capable = -1;
-static int hf_ansi_801_num_sv_p16 = -1;
-static int hf_ansi_801_mob_sys_t_offset = -1;
-static int hf_ansi_801_desired_pilot_phase_resolution = -1;
-static int hf_ansi_801_for_req_loc_velocity_information = -1;
-static int hf_ansi_801_reserved8_0F = -1;
-static int hf_ansi_801_hybrid_gps_and_aflt_lcc = -1;
-static int hf_ansi_801_gps_acq_cap = -1;
-static int hf_ansi_801_gps_sensitivity_assistance = -1;
-static int hf_ansi_801_ms_ls_rev = -1;
-static int hf_ansi_801_reject_request_type = -1;
-static int hf_ansi_801_ms_mode = -1;
-static int hf_ansi_801_bs_ls_rev = -1;
-static int hf_ansi_801_ref_pn = -1;
-static int hf_ansi_801_rev_message_number_responses0F = -1;
-static int hf_ansi_801_for_req_loc_height_information = -1;
-static int hf_ansi_801_gps_capability_indicator = -1;
-static int hf_ansi_801_rev_req_loc_clock_correction_for_gps_time = -1;
-static int hf_ansi_801_data_records = -1;
-static int hf_ansi_801_for_message_number_requests8 = -1;
-static int hf_ansi_801_subframes_4_and_5 = -1;
-static int hf_ansi_801_use_action_time_indicator = -1;
-static int hf_ansi_801_lcc_using_gps_almanac_assistance = -1;
-static int hf_ansi_801_lcc_using_gps_almanac_correction = -1;
-static int hf_ansi_801_pd_message_len = -1;
-static int hf_ansi_801_lcc_using_location_assistance_cartesian = -1;
-static int hf_ansi_801_for_message_number_requests16 = -1;
-static int hf_ansi_801_reserved_24_7 = -1;
-static int hf_ansi_801_loc_calc_cap = -1;
-static int hf_ansi_801_toa = -1;
-static int hf_ansi_801_data = -1;
-static int hf_ansi_801_proprietary_data = -1;
-static int hf_ansi_801_time_ref_ms = -1;
-static int hf_ansi_801_time_of_almanac = -1;
-static int hf_ansi_801_gps_week_number = -1;
+static int hf_ansi_801_for_message_number_responsesF0;
+static int hf_ansi_801_apdc_id;
+static int hf_ansi_801_num_sv_p32;
+static int hf_ansi_801_regulatory_services_indicator;
+static int hf_ansi_801_session_source;
+static int hf_ansi_801_reserved8_E0;
+static int hf_ansi_801_action_time;
+static int hf_ansi_801_rev_message_number_responsesF0;
+static int hf_ansi_801_reserved24_3;
+static int hf_ansi_801_cancellation_type;
+static int hf_ansi_801_gps_navigation_message_bits;
+static int hf_ansi_801_num_dr_p;
+static int hf_ansi_801_rev_message_number_requests8;
+static int hf_ansi_801_reserved8_F0;
+static int hf_ansi_801_for_req_loc_clock_correction_for_gps_time;
+static int hf_ansi_801_for_response_length;
+static int hf_ansi_801_session_end;
+static int hf_ansi_801_reserved8_1F;
+static int hf_ansi_801_part_num;
+static int hf_ansi_801_dr_size;
+static int hf_ansi_801_reserved_24_700;
+static int hf_ansi_801_for_message_number_responses0F;
+static int hf_ansi_801_rev_message_number_requests16;
+static int hf_ansi_801_lcc_capable_using_location_assistance_spherical;
+static int hf_ansi_801_part_num32;
+static int hf_ansi_801_part_num16;
+static int hf_ansi_801_reserved8_07;
+static int hf_ansi_801_reserved24_1;
+static int hf_ansi_801_reserved_24_F80000;
+static int hf_ansi_801_extended_base_station_almanac;
+static int hf_ansi_801_no_outstanding_request_element;
+static int hf_ansi_801_for_request_length;
+static int hf_ansi_801_week_num;
+static int hf_ansi_801_total_parts16;
+static int hf_ansi_801_pd_message_type;
+static int hf_ansi_801_total_parts32;
+static int hf_ansi_801_alpha_and_beta_parameters;
+static int hf_ansi_801_lcc_using_gps_ephemeris_assistance;
+static int hf_ansi_801_rev_request_length;
+static int hf_ansi_801_reserved8_7F;
+static int hf_ansi_801_unsolicited_response_indicator;
+static int hf_ansi_801_autonomous_location_calculation_capable;
+static int hf_ansi_801_gps_almanac_correction;
+static int hf_ansi_801_total_parts;
+static int hf_ansi_801_session_start;
+static int hf_ansi_801_ref_bit_num;
+static int hf_ansi_801_aflt_lcc;
+static int hf_ansi_801_reject_reason;
+static int hf_ansi_801_gps_ephemeris;
+static int hf_ansi_801_pre_programmed_location;
+static int hf_ansi_801_rev_response_length;
+static int hf_ansi_801_afltc_id;
+static int hf_ansi_801_rev_req_loc_height_information;
+static int hf_ansi_801_reserved8_01;
+static int hf_ansi_801_pilot_ph_cap;
+static int hf_ansi_801_gps_acquisition_assistance;
+static int hf_ansi_801_coordinate_type_requested;
+static int hf_ansi_801_gps_almanac;
+static int hf_ansi_801_rev_req_loc_velocity_information;
+static int hf_ansi_801_gps_autonomous_acquisition_capable;
+static int hf_ansi_801_num_sv_p16;
+static int hf_ansi_801_mob_sys_t_offset;
+static int hf_ansi_801_desired_pilot_phase_resolution;
+static int hf_ansi_801_for_req_loc_velocity_information;
+static int hf_ansi_801_reserved8_0F;
+static int hf_ansi_801_hybrid_gps_and_aflt_lcc;
+static int hf_ansi_801_gps_acq_cap;
+static int hf_ansi_801_gps_sensitivity_assistance;
+static int hf_ansi_801_ms_ls_rev;
+static int hf_ansi_801_reject_request_type;
+static int hf_ansi_801_ms_mode;
+static int hf_ansi_801_bs_ls_rev;
+static int hf_ansi_801_ref_pn;
+static int hf_ansi_801_rev_message_number_responses0F;
+static int hf_ansi_801_for_req_loc_height_information;
+static int hf_ansi_801_gps_capability_indicator;
+static int hf_ansi_801_rev_req_loc_clock_correction_for_gps_time;
+static int hf_ansi_801_data_records;
+static int hf_ansi_801_for_message_number_requests8;
+static int hf_ansi_801_subframes_4_and_5;
+static int hf_ansi_801_use_action_time_indicator;
+static int hf_ansi_801_lcc_using_gps_almanac_assistance;
+static int hf_ansi_801_lcc_using_gps_almanac_correction;
+static int hf_ansi_801_pd_message_len;
+static int hf_ansi_801_lcc_using_location_assistance_cartesian;
+static int hf_ansi_801_for_message_number_requests16;
+static int hf_ansi_801_reserved_24_7;
+static int hf_ansi_801_loc_calc_cap;
+static int hf_ansi_801_toa;
+static int hf_ansi_801_data;
+static int hf_ansi_801_proprietary_data;
+static int hf_ansi_801_time_ref_ms;
+static int hf_ansi_801_time_of_almanac;
+static int hf_ansi_801_gps_week_number;
 
 
-static expert_field ei_ansi_801_extraneous_data = EI_INIT;
-static expert_field ei_ansi_801_short_data = EI_INIT;
-static expert_field ei_ansi_801_unexpected_length = EI_INIT;
+static expert_field ei_ansi_801_extraneous_data;
+static expert_field ei_ansi_801_short_data;
+static expert_field ei_ansi_801_unexpected_length;
 
 
 static dissector_handle_t ansi_801_handle;
@@ -227,8 +230,8 @@ static const value_string for_req_type_strings[] = {
 	{ 7,	"Request Cancellation" },
 	{ 0, NULL },
 };
-#define	NUM_FOR_REQ_TYPE (sizeof(for_req_type_strings)/sizeof(value_string))
-static gint ett_for_req_type[NUM_FOR_REQ_TYPE];
+#define	NUM_FOR_REQ_TYPE array_length(for_req_type_strings)
+static int ett_for_req_type[NUM_FOR_REQ_TYPE];
 
 static const value_string for_rsp_type_strings[] = {
 	{ 0,	"Reject" },
@@ -246,8 +249,8 @@ static const value_string for_rsp_type_strings[] = {
 	{ 12,	"Provide GPS Satellite Health Information" },
 	{ 0, NULL },
 };
-#define	NUM_FOR_RSP_TYPE (sizeof(for_rsp_type_strings)/sizeof(value_string))
-static gint ett_for_rsp_type[NUM_FOR_RSP_TYPE];
+#define	NUM_FOR_RSP_TYPE array_length(for_rsp_type_strings)
+static int ett_for_rsp_type[NUM_FOR_RSP_TYPE];
 
 
 static const value_string rev_rsp_type_strings[] = {
@@ -261,8 +264,8 @@ static const value_string rev_rsp_type_strings[] = {
 	{ 7,	"Provide Cancellation Acknowledgement" },
 	{ 0, NULL },
 };
-#define	NUM_REV_RSP_TYPE (sizeof(rev_rsp_type_strings)/sizeof(value_string))
-static gint ett_rev_rsp_type[NUM_REV_RSP_TYPE];
+#define	NUM_REV_RSP_TYPE array_length(rev_rsp_type_strings)
+static int ett_rev_rsp_type[NUM_REV_RSP_TYPE];
 
 /*
  * Table 2.2-5 for PD_MSG_TYPE = '0000000'
@@ -283,8 +286,8 @@ static const value_string rev_req_type_strings[] = {
 	{ 12,	"Request GPS Satellite Health Information" },
 	{ 0, NULL },
 };
-#define	NUM_REV_REQ_TYPE (sizeof(rev_req_type_strings)/sizeof(value_string))
-static gint ett_rev_req_type[NUM_REV_REQ_TYPE];
+#define	NUM_REV_REQ_TYPE array_length(rev_req_type_strings)
+static int ett_rev_req_type[NUM_REV_REQ_TYPE];
 
 static const value_string regulatory_services_indicator_vals[] = {
 	{ 0,	"No Regulatory service" },
@@ -301,9 +304,9 @@ static const unit_name_string units_time_of_almanac = { " (in units of 4096 seco
 static const unit_name_string units_gps_week_number = { " (8 least significant bits)", NULL };
 
 static void
-for_req_pseudo_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_req_pseudo_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32	saved_offset = offset;
+	uint32_t	saved_offset = offset;
 
 	SHORT_DATA_CHECK(len, 3);
 
@@ -320,9 +323,9 @@ for_req_pseudo_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint l
 }
 
 static void
-for_req_pilot_ph_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_req_pilot_ph_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32	saved_offset;
+	uint32_t	saved_offset;
 
 	SHORT_DATA_CHECK(len, 3);
 
@@ -340,9 +343,9 @@ for_req_pilot_ph_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint
 }
 
 static void
-for_req_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_req_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32	saved_offset;
+	uint32_t	saved_offset;
 
 	SHORT_DATA_CHECK(len, 3);
 
@@ -361,16 +364,16 @@ for_req_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint 
 }
 
 static void
-for_req_time_off_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_req_time_off_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint8	oct;
-	guint32	saved_offset;
+	uint8_t	oct;
+	uint32_t	saved_offset;
 
 	SHORT_DATA_CHECK(len, 1);
 
 	saved_offset = offset;
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	proto_tree_add_item(tree, hf_ansi_801_use_action_time_indicator, tvb, offset, 1, ENC_NA);
 
@@ -389,17 +392,17 @@ for_req_time_off_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint
 }
 
 static void
-for_req_cancel(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_req_cancel(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint8       oct;
-	guint32      saved_offset;
-	const gchar *str = NULL;
+	uint8_t      oct;
+	uint32_t     saved_offset;
+	const char *str = NULL;
 
 	SHORT_DATA_CHECK(len, 1);
 
 	saved_offset = offset;
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	str = val_to_str_const((oct & 0xf0) >> 4, for_req_type_strings, "Reserved");
 	proto_tree_add_uint_format_value(tree, hf_ansi_801_cancellation_type, tvb, offset, 1,
@@ -412,17 +415,17 @@ for_req_cancel(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, g
 }
 
 static void
-for_reject(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_reject(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint8       oct;
-	guint32      saved_offset;
-	const gchar *str = NULL;
+	uint8_t      oct;
+	uint32_t     saved_offset;
+	const char *str = NULL;
 
 	saved_offset = offset;
 
 	SHORT_DATA_CHECK(len, 1);
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 	str = val_to_str_const((oct & 0xf0) >> 4, rev_req_type_strings, "Reserved");
 
 	proto_tree_add_uint_format_value(tree, hf_ansi_801_reject_request_type, tvb, offset, 1, oct,
@@ -443,10 +446,10 @@ for_reject(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint
 }
 
 static void
-for_pr_bs_cap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_pr_bs_cap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint8	oct;
-	guint32	saved_offset;
+	uint8_t	oct;
+	uint32_t	saved_offset;
 
 	saved_offset = offset;
 
@@ -457,7 +460,7 @@ for_pr_bs_cap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, gu
 	proto_tree_add_item(tree, hf_ansi_801_afltc_id, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 	if (oct == 0x00)
 	{
 		proto_tree_add_uint_format(tree, hf_ansi_801_apdc_id, tvb, offset, 1, 0,
@@ -474,9 +477,9 @@ for_pr_bs_cap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, gu
 }
 
 static void
-for_pr_gps_sense_ass(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_pr_gps_sense_ass(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32	saved_offset;
+	uint32_t	saved_offset;
 
 	saved_offset = offset;
 
@@ -498,9 +501,9 @@ for_pr_gps_sense_ass(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint 
 }
 
 static void
-for_pr_gps_almanac(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_pr_gps_almanac(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32	saved_offset = offset;
+	uint32_t	saved_offset = offset;
 	int * const fields[] = {
 		&hf_ansi_801_num_sv_p32,
 		&hf_ansi_801_week_num,
@@ -519,9 +522,9 @@ for_pr_gps_almanac(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint le
 }
 
 static void
-for_pr_gps_nav_msg_bits(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_pr_gps_nav_msg_bits(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32	saved_offset = offset;
+	uint32_t	saved_offset = offset;
 	int * const fields[] = {
 		&hf_ansi_801_num_sv_p16,
 		&hf_ansi_801_part_num16,
@@ -546,14 +549,14 @@ static const true_false_string ansi_801_fix_type_vals = {
 };
 
 static void
-pr_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+pr_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32      bit_offset, spare_bits;
-	guint32      value;
+	uint32_t     bit_offset, spare_bits;
+	uint32_t     value;
 	float        fl_value;
-	guint32      saved_offset;
-	guint64      fix_type, velocity_incl, clock_incl, height_incl;
-	const gchar *str = NULL;
+	uint32_t     saved_offset;
+	uint64_t     fix_type, velocity_incl, clock_incl, height_incl;
+	const char *str = NULL;
 
 	SHORT_DATA_CHECK(len, 11);
 	saved_offset = offset;
@@ -659,14 +662,14 @@ pr_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, 
 	{
 		/* CLOCK_BIAS */
 		value = tvb_get_bits32(tvb, bit_offset, 18, ENC_BIG_ENDIAN);
-		proto_tree_add_int_bits_format_value(tree, hf_ansi_801_clock_bias, tvb, bit_offset, 18, (gint32)value - 13000,
-						     ENC_BIG_ENDIAN, "%d ns (0x%06x)", (gint32)value - 13000, value);
+		proto_tree_add_int_bits_format_value(tree, hf_ansi_801_clock_bias, tvb, bit_offset, 18, (int32_t)value - 13000,
+						     ENC_BIG_ENDIAN, "%d ns (0x%06x)", (int32_t)value - 13000, value);
 		bit_offset += 18;
 
 		/* CLOCK_DRIFT */
 		value = tvb_get_bits16(tvb, bit_offset, 16, ENC_BIG_ENDIAN);
-		proto_tree_add_int_bits_format_value(tree, hf_ansi_801_clock_drift, tvb, bit_offset, 16, (gint16)value,
-						     ENC_BIG_ENDIAN, "%d ppb (ns/s) (0x%04x)", (gint16)value, value);
+		proto_tree_add_int_bits_format_value(tree, hf_ansi_801_clock_drift, tvb, bit_offset, 16, (int16_t)value,
+						     ENC_BIG_ENDIAN, "%d ppb (ns/s) (0x%04x)", (int16_t)value, value);
 		bit_offset += 16;
 	}
 
@@ -677,8 +680,8 @@ pr_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, 
 	{
 		/* HEIGHT */
 		value = tvb_get_bits16(tvb, bit_offset, 14, ENC_BIG_ENDIAN);
-		proto_tree_add_int_bits_format_value(tree, hf_ansi_801_height, tvb, bit_offset, 14, (gint32)value - 500,
-						     ENC_BIG_ENDIAN, "%d m (0x%04x)", (gint32)value - 500, value);
+		proto_tree_add_int_bits_format_value(tree, hf_ansi_801_height, tvb, bit_offset, 14, (int32_t)value - 500,
+						     ENC_BIG_ENDIAN, "%d m (0x%04x)", (int32_t)value - 500, value);
 		bit_offset += 14;
 
 		/* LOC_UNCRTNTY_V */
@@ -711,18 +714,18 @@ pr_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, 
 }
 
 static void
-for_pr_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_pr_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
 	pr_loc_response(tvb, pinfo, tree, len, offset);
 }
 
 static void
-for_pr_gps_sat_health(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+for_pr_gps_sat_health(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32	bit_offset, spare_bits;
-	guint32	i;
-	guint32	saved_offset, num_bad_sv, bad_sv_prn_num;
-	guint64	bad_sv_present;
+	uint32_t	bit_offset, spare_bits;
+	uint32_t	i;
+	uint32_t	saved_offset, num_bad_sv, bad_sv_prn_num;
+	uint64_t	bad_sv_present;
 
 	SHORT_DATA_CHECK(len, 1);
 	saved_offset = offset;
@@ -762,10 +765,10 @@ for_pr_gps_sat_health(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint
 }
 
 static void
-rev_req_gps_acq_ass(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_req_gps_acq_ass(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32	saved_offset;
-	guint32	bit_offset;
+	uint32_t	saved_offset;
+	uint32_t	bit_offset;
 
 	SHORT_DATA_CHECK(len, 1);
 	saved_offset = offset;
@@ -782,9 +785,9 @@ rev_req_gps_acq_ass(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint l
 }
 
 static void
-rev_req_gps_loc_ass(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_req_gps_loc_ass(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32 saved_offset;
+	uint32_t saved_offset;
 
 	SHORT_DATA_CHECK(len, 1);
 
@@ -798,9 +801,9 @@ rev_req_gps_loc_ass(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint l
 }
 
 static void
-rev_req_bs_alm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_req_bs_alm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32 saved_offset;
+	uint32_t saved_offset;
 
 	SHORT_DATA_CHECK(len, 1);
 
@@ -814,9 +817,9 @@ rev_req_bs_alm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, g
 }
 
 static void
-rev_req_gps_ephemeris(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_req_gps_ephemeris(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32 saved_offset;
+	uint32_t saved_offset;
 
 	SHORT_DATA_CHECK(len, 1);
 
@@ -830,9 +833,9 @@ rev_req_gps_ephemeris(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint
 }
 
 static void
-rev_req_gps_nav_msg_bits(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_req_gps_nav_msg_bits(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32 saved_offset;
+	uint32_t saved_offset;
 
 	SHORT_DATA_CHECK(len, 1);
 
@@ -847,9 +850,9 @@ rev_req_gps_nav_msg_bits(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
 }
 
 static void
-rev_req_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_req_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32 saved_offset;
+	uint32_t saved_offset;
 
 	SHORT_DATA_CHECK(len, 1);
 
@@ -865,9 +868,9 @@ rev_req_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint 
 }
 
 static void
-rev_req_gps_alm_correction(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_req_gps_alm_correction(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32	saved_offset;
+	uint32_t	saved_offset;
 
 	SHORT_DATA_CHECK(len, 2);
 
@@ -884,17 +887,17 @@ rev_req_gps_alm_correction(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 }
 
 static void
-rev_reject(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_reject(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint8       oct;
-	guint32      saved_offset;
-	const gchar *str = NULL;
+	uint8_t      oct;
+	uint32_t     saved_offset;
+	const char *str = NULL;
 
 	saved_offset = offset;
 
 	SHORT_DATA_CHECK(len, 1);
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	str = val_to_str_const((oct & 0xf0) >> 4, for_req_type_strings, "Reserved");
 
@@ -918,11 +921,11 @@ rev_reject(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint
 }
 
 static void
-rev_pr_ms_information(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_pr_ms_information(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32      value;
-	guint32      saved_offset;
-	const gchar *str = NULL;
+	uint32_t     value;
+	uint32_t     saved_offset;
+	const char *str = NULL;
 	proto_item* ti;
 	proto_tree *gps_tree, *loc_tree;
 
@@ -981,15 +984,15 @@ rev_pr_ms_information(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint
 }
 
 static void
-rev_pr_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_pr_loc_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
 	pr_loc_response(tvb, pinfo, tree, len, offset);
 }
 
 static void
-rev_pr_time_off_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_pr_time_off_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint32	saved_offset;
+	uint32_t	saved_offset;
 
 	saved_offset = offset;
 
@@ -1008,17 +1011,17 @@ rev_pr_time_off_meas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint 
 }
 
 static void
-rev_pr_can_ack(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset)
+rev_pr_can_ack(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset)
 {
-	guint8       oct;
-	guint32      saved_offset;
-	const gchar *str;
+	uint8_t      oct;
+	uint32_t     saved_offset;
+	const char *str;
 
 	saved_offset = offset;
 
 	SHORT_DATA_CHECK(len, 1);
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	str = val_to_str_const((oct & 0xf0) >> 4, for_req_type_strings, "Reserved");
 	proto_tree_add_uint_format_value(tree, hf_ansi_801_cancellation_type, tvb, offset, 1, oct,
@@ -1031,7 +1034,7 @@ rev_pr_can_ack(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, g
 	EXTRANEOUS_DATA_CHECK(len, offset - saved_offset);
 }
 
-static void (*for_req_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset) = {
+static void (*for_req_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset) = {
 	NULL, /* Reserved */
 	NULL, /* no data */	/* Request MS Information */
 	NULL, /* no data */	/* Request Autonomous Measurement Weighting Factors */
@@ -1043,7 +1046,7 @@ static void (*for_req_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 	NULL, /* NONE */
 };
 
-static void (*for_rsp_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset) = {
+static void (*for_rsp_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset) = {
 	for_reject,              /* Reject */
 	for_pr_bs_cap,           /* Provide BS Capabilities */
 	NULL,                    /* Provide GPS Acquisition Assistance */
@@ -1060,7 +1063,7 @@ static void (*for_rsp_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 	NULL,                    /* NONE */
 };
 
-static void (*rev_req_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset) = {
+static void (*rev_req_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset) = {
 	NULL,	/* Reserved */
 	NULL,   /* no data */		/* Request BS Capabilities */
 	rev_req_gps_acq_ass,		/* Request GPS Acquisition Assistance */
@@ -1077,7 +1080,7 @@ static void (*rev_req_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 	NULL,	/* NONE */
 };
 
-static void (*rev_rsp_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint len, guint32 offset) = {
+static void (*rev_rsp_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned len, uint32_t offset) = {
 	rev_reject,            /* Reject */
 	rev_pr_ms_information, /* Provide MS Information */
 	NULL,                  /* Provide Autonomous Measurement Weighting Factors */
@@ -1090,17 +1093,17 @@ static void (*rev_rsp_type_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 };
 
 static void
-for_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offset_p, guint8 pd_msg_type)
+for_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t *offset_p, uint8_t pd_msg_type)
 {
-	guint32      offset;
-	guint8       oct;
-	const gchar *str = NULL;
-	gint         idx;
+	uint32_t     offset;
+	uint8_t      oct;
+	const char *str = NULL;
+	int          idx;
 	proto_tree  *subtree;
 	proto_item  *item;
 
 	offset = *offset_p;
-	oct    = tvb_get_guint8(tvb, offset);
+	oct    = tvb_get_uint8(tvb, offset);
 
 	if (pd_msg_type == 0x00)
 	{
@@ -1128,7 +1131,7 @@ for_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offset
 	subtree = proto_item_add_subtree(item, ett_for_req_type[idx]);
 
 	offset++;
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	proto_tree_add_item(subtree, hf_ansi_801_for_request_length, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -1149,17 +1152,17 @@ for_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offset
 }
 
 static void
-for_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offset_p)
+for_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t *offset_p)
 {
-	guint32      offset;
-	guint8       oct;
-	const gchar *str = NULL;
-	gint         idx;
+	uint32_t     offset;
+	uint8_t      oct;
+	const char *str = NULL;
+	int          idx;
 	proto_tree  *subtree;
 	proto_item  *item;
 
 	offset = *offset_p;
-	oct    = tvb_get_guint8(tvb, offset);
+	oct    = tvb_get_uint8(tvb, offset);
 
 	proto_tree_add_item(tree, hf_ansi_801_reserved8_E0, tvb, offset, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_ansi_801_unsolicited_response_indicator, tvb, offset, 1, ENC_NA);
@@ -1176,7 +1179,7 @@ for_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offse
 	subtree = proto_item_add_subtree(item, ett_for_rsp_type[idx]);
 
 	offset++;
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	proto_tree_add_item(subtree, hf_ansi_801_for_response_length, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -1195,17 +1198,17 @@ for_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offse
 }
 
 static void
-rev_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offset_p, guint8 pd_msg_type)
+rev_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t *offset_p, uint8_t pd_msg_type)
 {
-	guint32      offset;
-	guint8       oct;
-	const gchar *str = NULL;
-	gint         idx;
+	uint32_t     offset;
+	uint8_t      oct;
+	const char *str = NULL;
+	int          idx;
 	proto_tree  *subtree;
 	proto_item  *item;
 
 	offset = *offset_p;
-	oct    = tvb_get_guint8(tvb, offset);
+	oct    = tvb_get_uint8(tvb, offset);
 
 	if (pd_msg_type == 0x00)
 	{
@@ -1233,7 +1236,7 @@ rev_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offset
 	subtree = proto_item_add_subtree(item, ett_rev_req_type[idx]);
 
 	offset++;
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	proto_tree_add_item(subtree, hf_ansi_801_rev_request_length, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -1252,17 +1255,17 @@ rev_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offset
 }
 
 static void
-rev_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offset_p)
+rev_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t *offset_p)
 {
-	guint32      offset;
-	guint8       oct;
-	const gchar *str = NULL;
-	gint         idx;
+	uint32_t     offset;
+	uint8_t      oct;
+	const char *str = NULL;
+	int          idx;
 	proto_tree  *subtree;
 	proto_item  *item;
 
 	offset = *offset_p;
-	oct    = tvb_get_guint8(tvb, offset);
+	oct    = tvb_get_uint8(tvb, offset);
 
 	proto_tree_add_item(tree, hf_ansi_801_reserved8_E0, tvb, offset, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_ansi_801_unsolicited_response_indicator, tvb, offset, 1, ENC_NA);
@@ -1279,7 +1282,7 @@ rev_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offse
 	subtree = proto_item_add_subtree(item, ett_rev_rsp_type[idx]);
 	offset++;
 
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 
 	proto_tree_add_item(subtree, hf_ansi_801_rev_response_length, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -1300,11 +1303,11 @@ rev_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 *offse
 static void
 dissect_ansi_801_for_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32      value;
-	guint32      offset;
-	guint8       oct, num_req, num_rsp, pd_msg_type;
-	guint        rem_len;
-	const gchar *str = NULL;
+	uint32_t     value;
+	uint32_t     offset;
+	uint8_t      oct, num_req, num_rsp, pd_msg_type;
+	unsigned     rem_len;
+	const char *str = NULL;
 	proto_item  *hidden_item;
 
 	offset = 0;
@@ -1318,7 +1321,7 @@ dissect_ansi_801_for_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 	proto_item_set_hidden(hidden_item);
 
 	offset++;
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 	pd_msg_type = oct;
 
 	switch (pd_msg_type)
@@ -1363,7 +1366,7 @@ dissect_ansi_801_for_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 		proto_tree_add_item(tree, hf_ansi_801_for_message_number_requests16, tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
 
-		oct = tvb_get_guint8(tvb, offset);
+		oct = tvb_get_uint8(tvb, offset);
 		num_rsp = oct & 0xf0;
 
 		proto_tree_add_item(tree, hf_ansi_801_for_message_number_responsesF0, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -1371,7 +1374,7 @@ dissect_ansi_801_for_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 	}
 	else
 	{
-		oct = tvb_get_guint8(tvb, offset);
+		oct = tvb_get_uint8(tvb, offset);
 
 		num_req = (oct & 0xf0) >> 4;
 		num_rsp = oct & 0x0f;
@@ -1422,11 +1425,11 @@ dissect_ansi_801_for_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 static void
 dissect_ansi_801_rev_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32      value;
-	guint32      offset;
-	guint8       oct, num_req, num_rsp, pd_msg_type;
-	guint        rem_len;
-	const gchar *str = NULL;
+	uint32_t     value;
+	uint32_t     offset;
+	uint8_t      oct, num_req, num_rsp, pd_msg_type;
+	unsigned     rem_len;
+	const char *str = NULL;
 	proto_item  *hidden_item;
 
 	offset = 0;
@@ -1440,7 +1443,7 @@ dissect_ansi_801_rev_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 	proto_item_set_hidden(hidden_item);
 
 	offset++;
-	oct = tvb_get_guint8(tvb, offset);
+	oct = tvb_get_uint8(tvb, offset);
 	pd_msg_type = oct;
 
 	switch (pd_msg_type)
@@ -1484,7 +1487,7 @@ dissect_ansi_801_rev_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 		proto_tree_add_item(tree, hf_ansi_801_rev_message_number_requests16, tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
 
-		oct = tvb_get_guint8(tvb, offset);
+		oct = tvb_get_uint8(tvb, offset);
 		num_rsp = oct & 0xf0;
 
 		proto_tree_add_item(tree, hf_ansi_801_rev_message_number_responsesF0, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -1492,7 +1495,7 @@ dissect_ansi_801_rev_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 	}
 	else
 	{
-		oct = tvb_get_guint8(tvb, offset);
+		oct = tvb_get_uint8(tvb, offset);
 
 		num_req = (oct & 0xf0) >> 4;
 		num_rsp = oct & 0x0f;
@@ -1582,8 +1585,8 @@ dissect_ansi_801(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
 void
 proto_register_ansi_801(void)
 {
-	guint i;
-	gint  last_offset;
+	unsigned i;
+	int   last_offset;
 
 	/* Setup list of header fields */
 	static hf_register_info hf[] = {
@@ -2231,19 +2234,19 @@ proto_register_ansi_801(void)
 		},
 		{ &hf_ansi_801_time_of_almanac,
 		  { "Time of almanac", "ansi_801.time_of_almanac",
-		    FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_time_of_almanac, 0x0,
+		    FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_time_of_almanac), 0x0,
 		    NULL, HFILL }
 		},
 		{ &hf_ansi_801_gps_week_number,
 		  { "GPS week number", "ansi_801.gps_week_number",
-		    FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_gps_week_number, 0x0,
+		    FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_gps_week_number), 0x0,
 		    NULL, HFILL }
 		},
 	};
 
 	/* Setup protocol subtree array */
 #define	NUM_INDIVIDUAL_PARAMS	3
-	gint *ett[NUM_INDIVIDUAL_PARAMS+NUM_FOR_REQ_TYPE+NUM_FOR_RSP_TYPE+NUM_REV_REQ_TYPE+NUM_REV_RSP_TYPE];
+	int *ett[NUM_INDIVIDUAL_PARAMS+NUM_FOR_REQ_TYPE+NUM_FOR_RSP_TYPE+NUM_REV_REQ_TYPE+NUM_REV_RSP_TYPE];
 
 
 	static ei_register_info ei[] = {
@@ -2262,25 +2265,21 @@ proto_register_ansi_801(void)
 
 	for (i=0; i < NUM_FOR_REQ_TYPE; i++, last_offset++)
 	{
-		ett_for_req_type[i] = -1;
 		ett[last_offset] = &ett_for_req_type[i];
 	}
 
 	for (i=0; i < NUM_FOR_RSP_TYPE; i++, last_offset++)
 	{
-		ett_for_rsp_type[i] = -1;
 		ett[last_offset] = &ett_for_rsp_type[i];
 	}
 
 	for (i=0; i < NUM_REV_REQ_TYPE; i++, last_offset++)
 	{
-		ett_rev_req_type[i] = -1;
 		ett[last_offset] = &ett_rev_req_type[i];
 	}
 
 	for (i=0; i < NUM_REV_RSP_TYPE; i++, last_offset++)
 	{
-		ett_rev_rsp_type[i] = -1;
 		ett[last_offset] = &ett_rev_rsp_type[i];
 	}
 

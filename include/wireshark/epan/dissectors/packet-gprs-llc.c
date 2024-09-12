@@ -14,6 +14,7 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 #include <wiretap/wtap.h>
 
 void proto_register_llcgprs(void);
@@ -36,54 +37,54 @@ void proto_reg_handoff_llcgprs(void);
 #define UI_HDR_LENGTH  3U
 
 /* Initialize the protocol and registered fields */
-static int proto_llcgprs       	  = -1;
-static int hf_llcgprs_pd       	  = -1;
-static int hf_llcgprs_fcs         = -1;
-static int hf_llcgprs_cr       	  = -1;
-static int hf_llcgprs_sapi     	  = -1;
-static int hf_llcgprs_sapib    	  = -1;
-static int hf_llcgprs_U_fmt    	  = -1; /* 3 upper bits in controlfield (UI format) */
-static int hf_llcgprs_sp_bits  	  = -1; /* Spare bits in control field */
-static int hf_llcgprs_NU       	  = -1; /* Transmited unconfirmed sequence number */
-static int hf_llcgprs_E_bit    	  = -1; /* Encryption mode bit */
-static int hf_llcgprs_PM_bit   	  = -1;
-static int hf_llcgprs_Un       	  = -1;
-static int hf_llcgprs_As      	  = -1;
-static int hf_llcgprs_ucom     	  = -1;
-static int hf_llcgprs_PF          = -1;
-static int hf_llcgprs_S_fmt       = -1;
-static int hf_llcgprs_NR          = -1;
-static int hf_llcgprs_sjsd        = -1;
-static int hf_llcgprs_k 	  = -1;
-static int hf_llcgprs_isack_ns 	  = -1;
-static int hf_llcgprs_isack_nr 	  = -1;
-static int hf_llcgprs_isack_sfb   = -1;
-static int hf_llcgprs_rbyte 	  = -1;
-static int hf_llcgprs_kmask 	  = -1;
-static int hf_llcgprs_ifmt 	  = -1;
-static int hf_llcgprs_Ai 	  = -1;
-static int hf_llcgprs_izerobit 	  = -1;
-static int hf_llcgprs_sspare 	  = -1;
-static int hf_llcgprs_xid_xl 	  = -1;
-static int hf_llcgprs_xid_type 	  = -1;
-static int hf_llcgprs_xid_len1 	  = -1;
-static int hf_llcgprs_xid_len2 	  = -1;
-static int hf_llcgprs_xid_spare   = -1;
-static int hf_llcgprs_xid_byte 	  = -1;
-static int hf_llcgprs_frmr_cf 	  = -1;
-static int hf_llcgprs_frmr_spare  = -1;
-static int hf_llcgprs_frmr_vs 	  = -1;
-static int hf_llcgprs_frmr_vr 	  = -1;
-static int hf_llcgprs_frmr_cr 	  = -1;
-static int hf_llcgprs_frmr_w4 	  = -1;
-static int hf_llcgprs_frmr_w3 	  = -1;
-static int hf_llcgprs_frmr_w2 	  = -1;
-static int hf_llcgprs_frmr_w1 	  = -1;
-static int hf_llcgprs_tom_rl 	  = -1;
-static int hf_llcgprs_tom_pd 	  = -1;
-static int hf_llcgprs_tom_header  = -1;
-static int hf_llcgprs_tom_data 	  = -1;
-static int hf_llcgprs_dummy_ui 	  = -1;
+static int proto_llcgprs;
+static int hf_llcgprs_pd;
+static int hf_llcgprs_fcs;
+static int hf_llcgprs_cr;
+static int hf_llcgprs_sapi;
+static int hf_llcgprs_sapib;
+static int hf_llcgprs_U_fmt; /* 3 upper bits in controlfield (UI format) */
+static int hf_llcgprs_sp_bits; /* Spare bits in control field */
+static int hf_llcgprs_NU; /* Transmited unconfirmed sequence number */
+static int hf_llcgprs_E_bit; /* Encryption mode bit */
+static int hf_llcgprs_PM_bit;
+static int hf_llcgprs_Un;
+static int hf_llcgprs_As;
+static int hf_llcgprs_ucom;
+static int hf_llcgprs_PF;
+static int hf_llcgprs_S_fmt;
+static int hf_llcgprs_NR;
+static int hf_llcgprs_sjsd;
+static int hf_llcgprs_k;
+static int hf_llcgprs_isack_ns;
+static int hf_llcgprs_isack_nr;
+static int hf_llcgprs_isack_sfb;
+static int hf_llcgprs_rbyte;
+static int hf_llcgprs_kmask;
+static int hf_llcgprs_ifmt;
+static int hf_llcgprs_Ai;
+static int hf_llcgprs_izerobit;
+static int hf_llcgprs_sspare;
+static int hf_llcgprs_xid_xl;
+static int hf_llcgprs_xid_type;
+static int hf_llcgprs_xid_len1;
+static int hf_llcgprs_xid_len2;
+static int hf_llcgprs_xid_spare;
+static int hf_llcgprs_xid_byte;
+static int hf_llcgprs_frmr_cf;
+static int hf_llcgprs_frmr_spare;
+static int hf_llcgprs_frmr_vs;
+static int hf_llcgprs_frmr_vr;
+static int hf_llcgprs_frmr_cr;
+static int hf_llcgprs_frmr_w4;
+static int hf_llcgprs_frmr_w3;
+static int hf_llcgprs_frmr_w2;
+static int hf_llcgprs_frmr_w1;
+static int hf_llcgprs_tom_rl;
+static int hf_llcgprs_tom_pd;
+static int hf_llcgprs_tom_header;
+static int hf_llcgprs_tom_data;
+static int hf_llcgprs_dummy_ui;
 
 /* Unnumbered Commands and Responses (U Frames) */
 #define U_DM	0x01
@@ -105,18 +106,18 @@ static int hf_llcgprs_dummy_ui 	  = -1;
 #define SAPI_LL11	0x0B
 
 /* Initialize the subtree pointers */
-static gint ett_llcgprs = -1;
-static gint ett_llcgprs_adf = -1;
-static gint ett_llcgprs_ctrlf = -1;
-static gint ett_llcgprs_ui = -1;
-static gint ett_llcgprs_sframe = -1;
+static int ett_llcgprs;
+static int ett_llcgprs_adf;
+static int ett_llcgprs_ctrlf;
+static int ett_llcgprs_ui;
+static int ett_llcgprs_sframe;
 
-static expert_field ei_llcgprs_no_info_field = EI_INIT;
+static expert_field ei_llcgprs_no_info_field;
 
 static dissector_handle_t sndcp_xid_handle;
 static dissector_handle_t gprs_llc_handle;
 
-static gboolean ignore_cipher_bit = FALSE;
+static bool ignore_cipher_bit;
 
 static dissector_table_t llcgprs_subdissector_table;
 
@@ -248,7 +249,7 @@ static const value_string cr_formats_ipluss[] = {
 };
 
 /* CRC24 table - FCS */
-static guint32 tbl_crc24[256] = {
+static uint32_t tbl_crc24[256] = {
 	0x00000000, 0x00d6a776, 0x00f64557, 0x0020e221, 0x00b78115, 0x00612663, 0x0041c442, 0x00976334,
 	0x00340991, 0x00e2aee7, 0x00c24cc6, 0x0014ebb0, 0x00838884, 0x00552ff2, 0x0075cdd3, 0x00a36aa5,
 	0x00681322, 0x00beb454, 0x009e5675, 0x0048f103, 0x00df9237, 0x00093541, 0x0029d760, 0x00ff7016,
@@ -285,9 +286,9 @@ static guint32 tbl_crc24[256] = {
 
 #define INIT_CRC24	0xffffff
 
-static guint32 crc_calc(guint32 fcs, tvbuff_t *tvb, guint len)
+static uint32_t crc_calc(uint32_t fcs, tvbuff_t *tvb, unsigned len)
 {
-	const guchar *cp;
+	const unsigned char *cp;
 
 	cp = tvb_get_ptr(tvb, 0, len);
 	while (len--)
@@ -307,13 +308,13 @@ typedef enum {
 static void
 llc_gprs_dissect_xid(tvbuff_t *tvb, packet_info *pinfo, proto_item *llcgprs_tree)
 {
-	guint8 xid_param_len = 0, byte1 = 0, byte2 = 0, tmp = 0;
-	guint item_len = 0;
-	guint location = 0;
-	guint loop_counter = 0;
+	uint8_t xid_param_len = 0, byte1 = 0, byte2 = 0, tmp = 0;
+	unsigned item_len = 0;
+	unsigned location = 0;
+	unsigned loop_counter = 0;
 	proto_tree *uinfo_tree = NULL;
 	proto_tree *xid_tree = NULL;
-	guint info_len;
+	unsigned info_len;
 
 	info_len = tvb_reported_length(tvb);
 
@@ -323,13 +324,13 @@ llc_gprs_dissect_xid(tvbuff_t *tvb, packet_info *pinfo, proto_item *llcgprs_tree
 	while (location < info_len)
 	{
 		/* parse the XID parameters */
-		byte1 = tvb_get_guint8(tvb, location);
+		byte1 = tvb_get_uint8(tvb, location);
 
 		if (byte1 & 0x80)
 		{
-			guint8 xid_param_len_high = 0;
-			guint8 xid_param_len_low = 0;
-			byte2 = tvb_get_guint8(tvb, location + 1);
+			uint8_t xid_param_len_high = 0;
+			uint8_t xid_param_len_low = 0;
+			byte2 = tvb_get_uint8(tvb, location + 1);
 
 			/* XL bit is set - length is continued in second byte */
 			xid_param_len_high = byte1 & 0x03;
@@ -359,7 +360,7 @@ llc_gprs_dissect_xid(tvbuff_t *tvb, packet_info *pinfo, proto_item *llcgprs_tree
 		if (tmp == 0xB) /* L3 XID parameters, call the SNDCP-XID dissector */
 		{
 			tvbuff_t	*sndcp_xid_tvb;
-			guint8 sndcp_xid_offset;
+			uint8_t sndcp_xid_offset;
 
 			uinfo_tree = proto_tree_add_subtree(xid_tree, tvb, location, item_len,
 				ett_llcgprs_ui, NULL, "XID parameter Type: L3 parameters");
@@ -392,12 +393,12 @@ llc_gprs_dissect_xid(tvbuff_t *tvb, packet_info *pinfo, proto_item *llcgprs_tree
 		{
 			if (( xid_param_len > 0 ) && ( xid_param_len <=4 ))
 			{
-				guint32 value = 0;
-				guint8 i;
+				uint32_t value = 0;
+				uint8_t i;
 				for (i=1;i<=xid_param_len;i++)
 				{
 					value <<= 8;
-					value |= (guint32)tvb_get_guint8(tvb, location+i );
+					value |= (uint32_t)tvb_get_uint8(tvb, location+i );
 				}
 				uinfo_tree = proto_tree_add_subtree_format(xid_tree, tvb, location, item_len,
 					ett_llcgprs_ui, NULL, "XID Parameter Type: %s - Value: %u",
@@ -431,7 +432,7 @@ llc_gprs_dissect_xid(tvbuff_t *tvb, packet_info *pinfo, proto_item *llcgprs_tree
 			for (loop_counter = 0; loop_counter < xid_param_len; loop_counter++)
 			{
 				/* grab the information in the XID param */
-				byte2 = tvb_get_guint8(tvb, location);
+				byte2 = tvb_get_uint8(tvb, location);
 				proto_tree_add_uint(uinfo_tree, hf_llcgprs_xid_byte, tvb, location,
 					1, byte2);
 				location++;
@@ -441,33 +442,33 @@ llc_gprs_dissect_xid(tvbuff_t *tvb, packet_info *pinfo, proto_item *llcgprs_tree
 }
 
 /* shortest dummy UI command as per TS 44.064 Section 6.4.2.2 */
-static const guint8 dummy_ui_cmd[] = { 0x43, 0xc0, 0x01, 0x2b, 0x2b, 0x2b };
+static const uint8_t dummy_ui_cmd[] = { 0x43, 0xc0, 0x01, 0x2b, 0x2b, 0x2b };
 
 static int
 dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	guint offset = 0;
-	guint8 addr_fld=0, sapi=0, ctrl_fld_fb=0, frame_format, tmp=0;
-	guint16 epm = 0, nu=0, ctrl_fld_ui_s=0;
+	unsigned offset = 0;
+	uint8_t addr_fld=0, sapi=0, ctrl_fld_fb=0, frame_format, tmp=0;
+	uint16_t epm = 0, nu=0, ctrl_fld_ui_s=0;
 	proto_item *ti, *addres_field_item;
 	proto_tree *llcgprs_tree=NULL , *ad_f_tree =NULL, *ctrl_f_tree=NULL, *ui_tree=NULL;
 	tvbuff_t *next_tvb;
-	guint length, captured_length;
-	guint crc_length = 0, llc_data_length;
-	guint32 fcs=0;
-	guint32 fcs_calc=0;
+	unsigned length, captured_length;
+	unsigned crc_length = 0, llc_data_length;
+	uint32_t fcs=0;
+	uint32_t fcs_calc=0;
 	fcs_status_t fcs_status;
-	guint16 ns = 0;
-	guint16 nr = 0;
-	guint8 k = 0;
-	guint8 m_bits = 0;
-	guint info_len;
+	uint16_t ns = 0;
+	uint16_t nr = 0;
+	uint8_t k = 0;
+	uint8_t m_bits = 0;
+	unsigned info_len;
 	proto_tree *uinfo_tree = NULL;
-	gboolean ciphered_ui_frame = FALSE;
+	bool ciphered_ui_frame = false;
 
 	if (!tvb_memeql(tvb, 0, dummy_ui_cmd, sizeof(dummy_ui_cmd))) {
 		proto_tree_add_boolean(tree, hf_llcgprs_dummy_ui, tvb, offset,
-					tvb_captured_length(tvb), TRUE);
+					tvb_captured_length(tvb), true);
 		return tvb_captured_length(tvb);
 	}
 
@@ -494,7 +495,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 	/*
 	 * Address field.
 	 */
-	addr_fld = tvb_get_guint8(tvb, offset);
+	addr_fld = tvb_get_uint8(tvb, offset);
 	offset++;
 
 	if (addr_fld > 128 )
@@ -530,7 +531,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 	/*
 	 * Control field.
 	 */
-	ctrl_fld_fb = tvb_get_guint8(tvb, offset);
+	ctrl_fld_fb = tvb_get_uint8(tvb, offset);
 	if (ctrl_fld_fb < 0xC0)
 	{
 		frame_format = (ctrl_fld_fb < 0x80)? I_FORMAT : S_FORMAT;
@@ -558,7 +559,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 
 		if (tree)
 		{
-			guint32 tmpx;
+			uint32_t tmpx;
 
 			ctrl_f_tree = proto_tree_add_subtree_format(llcgprs_tree, tvb, offset,
 							      3, ett_llcgprs_sframe, NULL, "Information format: %s: N(S) = %u,  N(R) = %u",
@@ -584,9 +585,9 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 		/* check to see if epm is SACK - meaning this is an ISACK frame */
 		if (epm == 0x03)
 		{
-			guint8 kmask;
+			uint8_t kmask;
 			/* SACK Frame */
-			k = kmask = tvb_get_guint8(tvb, offset);
+			k = kmask = tvb_get_uint8(tvb, offset);
 			k = k & 0x1F;
 
 			/* advance past the k field */
@@ -600,9 +601,9 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 
 			if (tree)
 			{
-				guint8 loop_count = 0;
-				guint8 r_byte = 0;
-				guint location = offset;
+				uint8_t loop_count = 0;
+				uint8_t r_byte = 0;
+				unsigned location = offset;
 
 				ctrl_f_tree = proto_tree_add_subtree_format(llcgprs_tree, tvb, (offset-1),
 								      (k+1), ett_llcgprs_sframe, NULL, "SACK FRAME: k = %u", k);
@@ -613,7 +614,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 				/* display the R Bitmap */
 				for (loop_count = 0; loop_count < k; loop_count++)
 				{
-					r_byte = tvb_get_guint8(tvb, location);
+					r_byte = tvb_get_uint8(tvb, location);
 					proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_rbyte, tvb, location, 1, r_byte);
 					location++;
 				}
@@ -656,19 +657,19 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 			/* It is a SACK frame */
 		{
 			/* TODO: length is fudged - it is not correct */
-			guint32 sack_length = llc_data_length - offset;
+			uint32_t sack_length = llc_data_length - offset;
 
 			if (tree)
 			{
-				guint loop_count;
-				guint8 r_byte;
-				guint16 location = offset;
+				unsigned loop_count;
+				uint8_t r_byte;
+				uint16_t location = offset;
 				ctrl_f_tree = proto_tree_add_subtree_format(llcgprs_tree, tvb, offset, sack_length,
 								      ett_llcgprs_sframe, NULL, "SACK FRAME: length = %u", sack_length);
 				/* display the R Bitmap */
 				for (loop_count = 0; loop_count < sack_length; loop_count++)
 				{
-					r_byte = tvb_get_guint8(tvb, location);
+					r_byte = tvb_get_uint8(tvb, location);
 					proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_rbyte, tvb,
 							    location, 1, r_byte);
 					location++;
@@ -692,7 +693,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 		/* If the frame is ciphered, the calculated FCS will not be valid (unless it has been unciphered) */
 		if (epm & UI_MASK_E)
 		{
-			ciphered_ui_frame = TRUE;
+			ciphered_ui_frame = true;
 		}
 		if ((epm & UI_MASK_PM)== 0)
 		{
@@ -799,12 +800,12 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 			/* if SAPI is TOM do other parsing */
 			if (tree)
 			{
-				guint8 tom_byte = 0;
-				guint8 remaining_length = 0;
-				guint8 tom_pd = 0;
+				uint8_t tom_byte = 0;
+				uint8_t remaining_length = 0;
+				uint8_t tom_pd = 0;
 				int loop_counter = 0;
 
-				tom_byte = tvb_get_guint8(tvb, offset);
+				tom_byte = tvb_get_uint8(tvb, offset);
 				remaining_length = (tom_byte >> 4) & 0x0F;
 				tom_pd = tom_byte & 0x0F;
 
@@ -825,7 +826,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 					/* parse the rest of the TOM header */
 					for (loop_counter = 0; loop_counter < remaining_length; loop_counter++)
 					{
-						tom_byte = tvb_get_guint8(tvb, offset);
+						tom_byte = tvb_get_uint8(tvb, offset);
 
 						proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_header, tvb,
 								    offset, 1, tom_byte);
@@ -839,7 +840,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 					/* parse the TOM message capsule */
 					for (loop_counter = 0; loop_counter < remaining_length; loop_counter++)
 					{
-						tom_byte = tvb_get_guint8(tvb, offset);
+						tom_byte = tvb_get_uint8(tvb, offset);
 
 						proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_data, tvb,
 								    offset, 1, tom_byte);
@@ -869,12 +870,12 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 		{
 			if (tree)
 			{
-				guint8 tom_byte = 0;
-				guint8 remaining_length = 0;
-				guint8 tom_pd = 0;
+				uint8_t tom_byte = 0;
+				uint8_t remaining_length = 0;
+				uint8_t tom_pd = 0;
 				int loop_counter = 0;
 
-				tom_byte = tvb_get_guint8(tvb, offset);
+				tom_byte = tvb_get_uint8(tvb, offset);
 				remaining_length = (tom_byte >> 4) & 0x0F;
 				tom_pd = tom_byte & 0x0F;
 
@@ -895,7 +896,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 					/* parse the rest of the TOM header */
 					for (loop_counter = 0; loop_counter < remaining_length; loop_counter++)
 					{
-						tom_byte = tvb_get_guint8(tvb, offset);
+						tom_byte = tvb_get_uint8(tvb, offset);
 						proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_header, tvb,
 								    offset, 1, tom_byte);
 
@@ -909,7 +910,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 					/* parse the TOM message capsule */
 					for (loop_counter = 0; loop_counter < remaining_length; loop_counter++)
 					{
-						tom_byte = tvb_get_guint8(tvb, offset);
+						tom_byte = tvb_get_uint8(tvb, offset);
 						proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_data, tvb,
 								    offset, 1, tom_byte);
 
@@ -948,12 +949,12 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 			{
 				if (tree)
 				{
-					guint8 tom_byte = 0;
-					guint8 remaining_length = 0;
-					guint8 tom_pd = 0;
+					uint8_t tom_byte = 0;
+					uint8_t remaining_length = 0;
+					uint8_t tom_pd = 0;
 					int loop_counter = 0;
 
-					tom_byte = tvb_get_guint8(tvb, offset);
+					tom_byte = tvb_get_uint8(tvb, offset);
 					remaining_length = (tom_byte >> 4) & 0x0F;
 					tom_pd = tom_byte & 0x0F;
 
@@ -974,7 +975,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 						/* parse the rest of the TOM header */
 						for (loop_counter = 0; loop_counter < remaining_length; loop_counter++)
 						{
-							tom_byte = tvb_get_guint8(tvb, offset);
+							tom_byte = tvb_get_uint8(tvb, offset);
 
 							proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_header, tvb,
 									    offset, 1, tom_byte);
@@ -989,7 +990,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 						/* parse the TOM message capsule */
 						for (loop_counter = 0; loop_counter < remaining_length; loop_counter++)
 						{
-							tom_byte = tvb_get_guint8(tvb, offset);
+							tom_byte = tvb_get_uint8(tvb, offset);
 
 							proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_data, tvb,
 									    offset, 1, tom_byte);
@@ -1056,8 +1057,8 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 			/* This frame has a special format info field */
 			if (tree)
 			{
-				guint32 fld_vars = 0;
-				guint16 cf_byte = 0;
+				uint32_t fld_vars = 0;
+				uint16_t cf_byte = 0;
 				int loop_counter = 0;
 				int location = 0;
 
@@ -1223,12 +1224,12 @@ proto_register_llcgprs(void)
 
 		{ &hf_llcgprs_rbyte,
 		  { "R Bitmap Bits", "llcgprs.sackrbits", FT_UINT8, BASE_HEX,
-		    NULL, 0xFF, "R Bitmap", HFILL }},
+		    NULL, 0xFF, NULL, HFILL }},
 
 		/* XID Parameter Parsing Info */
 		{ &hf_llcgprs_xid_xl,
 		  { "XL Bit", "llcgprs.xidxl", FT_UINT8, BASE_HEX,
-		    NULL, 0x80, "XL", HFILL }},
+		    NULL, 0x80, NULL, HFILL }},
 
 		{ &hf_llcgprs_xid_type,
 		  { "Type", "llcgprs.xidtype", FT_UINT8, BASE_DEC,
@@ -1309,7 +1310,7 @@ proto_register_llcgprs(void)
 	};
 
 /* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_llcgprs,
 		&ett_llcgprs_adf,
 		&ett_llcgprs_ctrlf,

@@ -55,33 +55,33 @@ void proto_reg_handoff_aasp(void);
 static dissector_handle_t aasp_handle;
 
 /* Initialize the protocol and registered fields */
-static gint proto_aasp = -1;
+static int proto_aasp;
 
-static gint hf_a_data = -1;
-static gint hf_a_cmd = -1;
-static gint hf_a_id = -1;
-static gint hf_a_length = -1;
-static gint hf_a_text = -1;
-static gint hf_a_line = -1;
-static gint hf_a_cdpn = -1;
-static gint hf_a_button_id = -1;
+static int hf_a_data;
+static int hf_a_cmd;
+static int hf_a_id;
+static int hf_a_length;
+static int hf_a_text;
+static int hf_a_line;
+static int hf_a_cdpn;
+static int hf_a_button_id;
 
-static gint hf_a_attr = -1;
+static int hf_a_attr;
 
-static gint hf_a_item = -1;
-static gint hf_a_hour = -1;
-static gint hf_a_minute = -1;
-static gint hf_a_day = -1;
-static gint hf_a_month = -1;
-static gint hf_a_weekofyear = -1;
-static gint hf_a_weekday = -1;
-static gint hf_a_month_name = -1;
-static gint hf_a_weekofyear_prefix = -1;
+static int hf_a_item;
+static int hf_a_hour;
+static int hf_a_minute;
+static int hf_a_day;
+static int hf_a_month;
+static int hf_a_weekofyear;
+static int hf_a_weekday;
+static int hf_a_month_name;
+static int hf_a_weekofyear_prefix;
 
 /* Initialize the subtree pointers */
-static gint ett_aasp = -1;
-static gint ett_a_cmd = -1;
-static gint ett_a_item = -1;
+static int ett_aasp;
+static int ett_a_cmd;
+static int ett_a_item;
 
 /* Preferences */
 
@@ -128,19 +128,19 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 {
     proto_item *ti;
     proto_tree *subtree;
-    const guint8* pstr;
-    guint i, len;
+    const uint8_t* pstr;
+    unsigned i, len;
 
     /* create command subtree */
     ti = proto_tree_add_item(tree, hf_a_cmd, tvb, 0, -1, ENC_NA);
     subtree = proto_item_add_subtree(ti, ett_a_cmd);
-    proto_item_append_text(ti, ", %s", val_to_str(tvb_get_guint8(tvb, 0), szCmdID, "Unk %d"));
+    proto_item_append_text(ti, ", %s", val_to_str(tvb_get_uint8(tvb, 0), szCmdID, "Unk %d"));
 
     /* command id */
     proto_tree_add_item(subtree, hf_a_id, tvb, 0, 1, ENC_BIG_ENDIAN);
 
     /* attributes */
-    switch(tvb_get_guint8(tvb, 0))
+    switch(tvb_get_uint8(tvb, 0))
     {
     default:
         {
@@ -152,7 +152,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
         {
             for(i = 1; i<tvb_reported_length(tvb); )
             {
-                switch(tvb_get_guint8(tvb, i))
+                switch(tvb_get_uint8(tvb, i))
                 {
                 default: i = tvb_reported_length(tvb); continue;
 
@@ -161,7 +161,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                 case 7:
                     {
                         ti = proto_tree_add_item(subtree, hf_a_attr, tvb, i, 2, ENC_NA);
-                        proto_item_append_text(ti, " %d", tvb_get_guint8(tvb, i));
+                        proto_item_append_text(ti, " %d", tvb_get_uint8(tvb, i));
                         i+=2; break;
                     }
 
@@ -169,14 +169,14 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                 case 4:
                     {
                         ti = proto_tree_add_item(subtree, hf_a_attr, tvb, i, 3, ENC_NA);
-                        proto_item_append_text(ti, " %d", tvb_get_guint8(tvb, i));
+                        proto_item_append_text(ti, " %d", tvb_get_uint8(tvb, i));
                         i+=3; break;
                     }
 
                 case 2:
                     {
                         ti = proto_tree_add_item(subtree, hf_a_attr, tvb, i, 5, ENC_NA);
-                        proto_item_append_text(ti, " %d", tvb_get_guint8(tvb, i));
+                        proto_item_append_text(ti, " %d", tvb_get_uint8(tvb, i));
                         i+=5; break;
                     }
                 }
@@ -185,7 +185,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
         }
     case BUTTON_PRESSED:
         {
-            guint8 c = tvb_get_guint8(tvb, 5);
+            uint8_t c = tvb_get_uint8(tvb, 5);
             proto_item_append_text(ti, ": %d '%c'", c, c);
 
             proto_tree_add_item(subtree, hf_a_data, tvb, 1, 4, ENC_NA);
@@ -202,7 +202,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                 proto_tree_add_item(subtree, hf_a_length, tvb, 4, 1, ENC_BIG_ENDIAN);
                 proto_tree_add_item(subtree, hf_a_text, tvb, 5, -1, ENC_ASCII);
 
-                pstr = tvb_get_string_enc(pinfo->pool, tvb, 5, tvb_get_guint8(tvb, 4), ENC_ASCII|ENC_NA);
+                pstr = tvb_get_string_enc(pinfo->pool, tvb, 5, tvb_get_uint8(tvb, 4), ENC_ASCII|ENC_NA);
                 if(pstr)
                 {
                     proto_item_append_text(ti, ": '%s'", pstr);
@@ -220,7 +220,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 
             for(i=1; i<tvb_reported_length(tvb); )
             {
-                switch(tvb_get_guint8(tvb, i))
+                switch(tvb_get_uint8(tvb, i))
                 {
                 default: i++; break;
                 case 1:
@@ -229,7 +229,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                         ti = proto_tree_add_item(subtree, hf_a_item, tvb, i, len, ENC_NA);
                         infotree = proto_item_add_subtree(ti, ett_a_item);
                         proto_tree_add_item(infotree, hf_a_day, tvb, i+1, 1, ENC_BIG_ENDIAN);
-                        proto_item_append_text(ti, ", Day: '%d'", tvb_get_guint8(tvb, i+1));
+                        proto_item_append_text(ti, ", Day: '%d'", tvb_get_uint8(tvb, i+1));
                         i += len;
                         break;
                     }
@@ -239,7 +239,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                         ti = proto_tree_add_item(subtree, hf_a_item, tvb, i, len, ENC_NA);
                         infotree = proto_item_add_subtree(ti, ett_a_item);
                         proto_tree_add_item(infotree, hf_a_month, tvb, i+1, 1, ENC_BIG_ENDIAN);
-                        proto_item_append_text(ti, ", Month: '%d'", tvb_get_guint8(tvb, i+1));
+                        proto_item_append_text(ti, ", Month: '%d'", tvb_get_uint8(tvb, i+1));
                         i += len;
                         break;
                     }
@@ -249,13 +249,13 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                         ti = proto_tree_add_item(subtree, hf_a_item, tvb, i, len, ENC_NA);
                         infotree = proto_item_add_subtree(ti, ett_a_item);
                         proto_tree_add_item(infotree, hf_a_weekofyear, tvb, i+1, 1, ENC_BIG_ENDIAN);
-                        proto_item_append_text(ti, ", Week of the year: '%d'", tvb_get_guint8(tvb, i+1));
+                        proto_item_append_text(ti, ", Week of the year: '%d'", tvb_get_uint8(tvb, i+1));
                         i += len;
                         break;
                     }
                 case 4:
                     {
-                        len = tvb_get_guint8(tvb, i+1);
+                        len = tvb_get_uint8(tvb, i+1);
                         ti = proto_tree_add_item(subtree, hf_a_item, tvb, i, len+2, ENC_NA);
                         infotree = proto_item_add_subtree(ti, ett_a_item);
                         proto_tree_add_item(infotree, hf_a_data, tvb, i+2, len, ENC_NA);
@@ -264,7 +264,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                     }
                 case 5:
                     {
-                        len = tvb_get_guint8(tvb, i+1);
+                        len = tvb_get_uint8(tvb, i+1);
                         ti = proto_tree_add_item(subtree, hf_a_item, tvb, i, len+2, ENC_NA);
                         infotree = proto_item_add_subtree(ti, ett_a_item);
                         proto_tree_add_item_ret_string(infotree, hf_a_weekday, tvb, i+2, len, ENC_ASCII|ENC_NA, pinfo->pool, &pstr);
@@ -276,7 +276,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                     }
                 case 6:
                     {
-                        len = tvb_get_guint8(tvb, i+1);
+                        len = tvb_get_uint8(tvb, i+1);
                         ti = proto_tree_add_item(subtree, hf_a_item, tvb, i, len+2, ENC_NA);
                         infotree = proto_item_add_subtree(ti, ett_a_item);
                         proto_tree_add_item_ret_string(infotree, hf_a_month_name, tvb, i+2, len, ENC_ASCII|ENC_NA, pinfo->pool, &pstr);
@@ -287,7 +287,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                     }
                 case 7:
                     {
-                        len = tvb_get_guint8(tvb, i+1);
+                        len = tvb_get_uint8(tvb, i+1);
                         ti = proto_tree_add_item(subtree, hf_a_item, tvb, i, len+2, ENC_NA);
                         infotree = proto_item_add_subtree(ti, ett_a_item);
                         proto_tree_add_item_ret_string(infotree, hf_a_weekofyear_prefix, tvb, i+2, len, ENC_ASCII|ENC_NA, pinfo->pool, &pstr);
@@ -302,7 +302,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                         ti = proto_tree_add_item(subtree, hf_a_item, tvb, i, len, ENC_NA);
                         infotree = proto_item_add_subtree(ti, ett_a_item);
                         proto_tree_add_item(infotree, hf_a_hour, tvb, i+1, 1, ENC_BIG_ENDIAN);
-                        proto_item_append_text(ti, ", Hour: '%d'", tvb_get_guint8(tvb, i+1));
+                        proto_item_append_text(ti, ", Hour: '%d'", tvb_get_uint8(tvb, i+1));
                         i += len;
                         break;
                     }
@@ -312,7 +312,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                         ti = proto_tree_add_item(subtree, hf_a_item, tvb, i, len, ENC_NA);
                         infotree = proto_item_add_subtree(ti, ett_a_item);
                         proto_tree_add_item(infotree, hf_a_minute, tvb, i+1, 1, ENC_BIG_ENDIAN);
-                        proto_item_append_text(ti, ", Minute: '%d'", tvb_get_guint8(tvb, i+1));
+                        proto_item_append_text(ti, ", Minute: '%d'", tvb_get_uint8(tvb, i+1));
                         i += len;
                         break;
                     }
@@ -337,7 +337,7 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
                 proto_tree_add_item(subtree, hf_a_length, tvb, 2, 1, ENC_BIG_ENDIAN);
                 proto_tree_add_item(subtree, hf_a_cdpn, tvb, 3, -1, ENC_ASCII);
 
-                pstr = tvb_get_string_enc(pinfo->pool, tvb, 3, tvb_get_guint8(tvb, 2), ENC_ASCII|ENC_NA);
+                pstr = tvb_get_string_enc(pinfo->pool, tvb, 3, tvb_get_uint8(tvb, 2), ENC_ASCII|ENC_NA);
                 if(pstr)
                     proto_item_append_text(ti, ": '%s'", pstr);
             }
@@ -351,11 +351,11 @@ dissect_a_binary_command(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 /**
  *      Searching for the next command when the variable or unknown length.
  */
-static guint searchNext(tvbuff_t *tvb, guint begin, guint end)
+static unsigned searchNext(tvbuff_t *tvb, unsigned begin, unsigned end)
 {
     for(; begin < end; begin++)
     {
-        if(tvb_get_guint8(tvb, begin) & 0x80)
+        if(tvb_get_uint8(tvb, begin) & 0x80)
             return begin;
     }
     return end;
@@ -368,7 +368,7 @@ static int
 dissect_aasp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
-    proto_item *ti; proto_tree *aasp_tree; guint n;
+    proto_item *ti; proto_tree *aasp_tree; unsigned n;
 
     /* Check that there's enough data */
     n = tvb_reported_length(tvb);
@@ -379,19 +379,19 @@ dissect_aasp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
     if(tree)
     {
-        guint i, prev;
+        unsigned i, prev;
 
         /* create display subtree for the protocol */
         ti = proto_tree_add_item(tree, proto_aasp, tvb, 0, -1, ENC_NA);
         aasp_tree = proto_item_add_subtree(ti, ett_aasp);
 
         /* separation of command; jump "a=" */
-        if(tvb_memeql(tvb, 0, (const guint8*)"a=", 2) == 0)
+        if(tvb_memeql(tvb, 0, (const uint8_t*)"a=", 2) == 0)
         {
             prev = 2;
             for(i=2; i<n;)
             {
-                switch(tvb_get_guint8(tvb, i))
+                switch(tvb_get_uint8(tvb, i))
                 {
 #if 0
                 case CONTEXT_INFO:
@@ -407,7 +407,7 @@ dissect_aasp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
                         /* 86:02:00:07:12:77 */
                         /* 86:02:00:00:00:01:03:02 */
                         /* 86:02:00:00:01:03:02 */
-                        switch(tvb_get_guint8(tvb, i+2))
+                        switch(tvb_get_uint8(tvb, i+2))
                         {
                         case 0x00:  i += 11; break;
                         case 0x02:  i +=  8; break;
@@ -486,7 +486,7 @@ proto_register_aasp(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_aasp,
         &ett_a_cmd,
         &ett_a_item,

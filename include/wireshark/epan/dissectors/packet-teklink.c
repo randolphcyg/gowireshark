@@ -18,28 +18,28 @@
 void proto_reg_handoff_teklink(void);
 void proto_register_teklink(void);
 
-static int proto_teklink = -1;
-static int hf_teklink_procedure = -1;
-static int hf_teklink_unknown_long = -1;
-static int hf_teklink_unknown_string = -1;
-static int hf_teklink_cmd = -1;
-static int hf_teklink_user = -1;
-static int hf_teklink_host = -1;
-static int hf_teklink_location = -1;
-static int hf_teklink_tla_type = -1;
-static int hf_teklink_locked = -1;
-static int hf_teklink_vtc_srcnames = -1;
-static int hf_teklink_vtc_dstnames = -1;
-static int hf_teklink_vtc_sigpol = -1;
-static int hf_teklink_vtc_sigen = -1;
-static int hf_teklink_vtc_clksource = -1;
-static int hf_teklink_vtc_clkmode = -1;
-static int hf_teklink_vtc_clkedge = -1;
-static int hf_teklink_vtc_mode = -1;
-static int hf_teklink_vtc_edge = -1;
-static int hf_teklink_vtc_sigfeedback = -1;
+static int proto_teklink;
+static int hf_teklink_procedure;
+static int hf_teklink_unknown_long;
+static int hf_teklink_unknown_string;
+static int hf_teklink_cmd;
+static int hf_teklink_user;
+static int hf_teklink_host;
+static int hf_teklink_location;
+static int hf_teklink_tla_type;
+static int hf_teklink_locked;
+static int hf_teklink_vtc_srcnames;
+static int hf_teklink_vtc_dstnames;
+static int hf_teklink_vtc_sigpol;
+static int hf_teklink_vtc_sigen;
+static int hf_teklink_vtc_clksource;
+static int hf_teklink_vtc_clkmode;
+static int hf_teklink_vtc_clkedge;
+static int hf_teklink_vtc_mode;
+static int hf_teklink_vtc_edge;
+static int hf_teklink_vtc_sigfeedback;
 
-static gint ett_teklink = -1;
+static int ett_teklink;
 
 static const value_string teklink_vtc_srcnames[] = {
 	{ 0, "VTC_SRC_APPSIG0" },
@@ -269,8 +269,8 @@ static int dissect_teklink_vtc_outen(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, void* data _U_)
 {
 	int offset = 0;
-	guint32 sig = tvb_get_ntohl(tvb, offset);
-	guint32 sigon = tvb_get_ntohl(tvb, offset + 4);
+	uint32_t sig = tvb_get_ntohl(tvb, offset);
+	uint32_t sigon = tvb_get_ntohl(tvb, offset + 4);
 
 	offset = dissect_rpc_uint32(tvb, tree, hf_teklink_vtc_dstnames, offset);
 	offset = dissect_rpc_uint32(tvb, tree, hf_teklink_vtc_sigen, offset);
@@ -284,7 +284,7 @@ static int dissect_teklink_vtc_outen(tvbuff_t *tvb, packet_info *pinfo _U_,
 static int dissect_teklink_vtc_map(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, void* data _U_)
 {
-	guint32 src, dst;
+	uint32_t src, dst;
 	int offset = 0;
 
 	src = tvb_get_ntohl(tvb, offset);
@@ -302,7 +302,7 @@ static int dissect_teklink_vtc_map(tvbuff_t *tvb, packet_info *pinfo _U_,
 static int dissect_teklink_vtc_clk(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, void* data _U_)
 {
-	guint32 sig, clksource, clkedge, clkmode;
+	uint32_t sig, clksource, clkedge, clkmode;
 	int offset = 0;
 
 	sig = tvb_get_ntohl(tvb, offset);
@@ -326,7 +326,7 @@ static int dissect_teklink_vtc_clk(tvbuff_t *tvb, packet_info *pinfo _U_,
 static int dissect_teklink_vtc_mode(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, void* data _U_)
 {
-	guint32 sig, edge, mode;
+	uint32_t sig, edge, mode;
 	int offset = 0;
 
 	sig = tvb_get_ntohl(tvb, offset);
@@ -348,7 +348,7 @@ static int dissect_teklink_vtc_mode(tvbuff_t *tvb, packet_info *pinfo _U_,
 static int dissect_teklink_vtc_outsetup(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, void* data _U_)
 {
-	guint32 sig, en, pol, feedback;
+	uint32_t sig, en, pol, feedback;
 	int offset = 0;
 
 	sig = tvb_get_ntohl(tvb, offset);
@@ -373,7 +373,7 @@ static int dissect_teklink_vtc_res(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, void* data _U_)
 {
 	int offset = 0;
-	guint32 sig = tvb_get_ntohl(tvb, offset);
+	uint32_t sig = tvb_get_ntohl(tvb, offset);
 
 	offset = dissect_rpc_uint32(tvb, tree, hf_teklink_vtc_dstnames, offset);
 
@@ -552,7 +552,7 @@ proto_register_teklink(void)
 				VALS(teklink_vtc_sigfeedback), 0, NULL, HFILL }}
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_teklink
 	};
 

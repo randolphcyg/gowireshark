@@ -23,69 +23,69 @@
 void proto_register_dsdl(void);
 void proto_reg_handoff_dsdl(void);
 
-static int proto_dsdl = -1;
+static int proto_dsdl;
 
-static int hf_heartbeat_uptime = -1;
-static int hf_heartbeat_health = -1;
-static int hf_heartbeat_mode = -1;
-static int hf_heartbeat_status_code = -1;
+static int hf_heartbeat_uptime;
+static int hf_heartbeat_health;
+static int hf_heartbeat_mode;
+static int hf_heartbeat_status_code;
 
-static int hf_list_index = -1;
-static int hf_register_name = -1;
-static int hf_register_access_mutable = -1;
-static int hf_register_access_persistent = -1;
-static int hf_register_value_tag = -1;
-static int hf_register_value_size = -1;
-
-
-static int hf_node_id = -1;
-static int hf_pnp_unique_id = -1;
-static int hf_pnp_unique_id_hash = -1;
-static int hf_pnp_alloc = -1;
-
-static int hf_uavcan_primitive_Empty = -1;
-static int hf_uavcan_primitive_String = -1;
-static int hf_uavcan_primitive_Unstructured = -1;
-static int hf_uavcan_primitive_array_Integer64 = -1;
-static int hf_uavcan_primitive_array_Integer32 = -1;
-static int hf_uavcan_primitive_array_Integer16 = -1;
-static int hf_uavcan_primitive_array_Integer8 = -1;
-static int hf_uavcan_primitive_array_Natural64 = -1;
-static int hf_uavcan_primitive_array_Natural32 = -1;
-static int hf_uavcan_primitive_array_Natural16 = -1;
-static int hf_uavcan_primitive_array_Natural8 = -1;
-static int hf_uavcan_primitive_array_Real64 = -1;
-static int hf_uavcan_primitive_array_Real32 = -1;
-static int hf_uavcan_primitive_array_Real16 = -1;
+static int hf_list_index;
+static int hf_register_name;
+static int hf_register_access_mutable;
+static int hf_register_access_persistent;
+static int hf_register_value_tag;
+static int hf_register_value_size;
 
 
-static int hf_uavcan_getinfo_path = -1;
-static int hf_uavcan_getinfo_error = -1;
-static int hf_uavcan_getinfo_size = -1;
-static int hf_uavcan_getinfo_timestamp = -1;
-static int hf_uavcan_getinfo_is_file_not_directory = -1;
-static int hf_uavcan_getinfo_is_link = -1;
-static int hf_uavcan_getinfo_is_readable = -1;
-static int hf_uavcan_getinfo_is_writeable = -1;
-static int hf_uavcan_directory_path = -1;
-static int hf_uavcan_entry_base_name = -1;
-static int hf_uavcan_modify_error = -1;
-static int hf_uavcan_modify_source_path = -1;
-static int hf_uavcan_modify_destination_path = -1;
-static int hf_uavcan_modify_preserve_source = -1;
-static int hf_uavcan_modify_overwrite_destination = -1;
-static int hf_uavcan_read_offset = -1;
-static int hf_uavcan_read_path = -1;
-static int hf_uavcan_read_error = -1;
-static int hf_uavcan_write_offset = -1;
-static int hf_uavcan_write_path = -1;
-static int hf_uavcan_write_error = -1;
-static int hf_uavcan_entry_index = -1;
+static int hf_node_id;
+static int hf_pnp_unique_id;
+static int hf_pnp_unique_id_hash;
+static int hf_pnp_alloc;
 
-static int hf_uavcan_time_syncronizedtimestamp = -1;
-static int hf_uavcan_diagnostic_severity = -1;
+static int hf_uavcan_primitive_Empty;
+static int hf_uavcan_primitive_String;
+static int hf_uavcan_primitive_Unstructured;
+static int hf_uavcan_primitive_array_Integer64;
+static int hf_uavcan_primitive_array_Integer32;
+static int hf_uavcan_primitive_array_Integer16;
+static int hf_uavcan_primitive_array_Integer8;
+static int hf_uavcan_primitive_array_Natural64;
+static int hf_uavcan_primitive_array_Natural32;
+static int hf_uavcan_primitive_array_Natural16;
+static int hf_uavcan_primitive_array_Natural8;
+static int hf_uavcan_primitive_array_Real64;
+static int hf_uavcan_primitive_array_Real32;
+static int hf_uavcan_primitive_array_Real16;
 
-static gint ett_dsdl = -1;
+
+static int hf_uavcan_getinfo_path;
+static int hf_uavcan_getinfo_error;
+static int hf_uavcan_getinfo_size;
+static int hf_uavcan_getinfo_timestamp;
+static int hf_uavcan_getinfo_is_file_not_directory;
+static int hf_uavcan_getinfo_is_link;
+static int hf_uavcan_getinfo_is_readable;
+static int hf_uavcan_getinfo_is_writeable;
+static int hf_uavcan_directory_path;
+static int hf_uavcan_entry_base_name;
+static int hf_uavcan_modify_error;
+static int hf_uavcan_modify_source_path;
+static int hf_uavcan_modify_destination_path;
+static int hf_uavcan_modify_preserve_source;
+static int hf_uavcan_modify_overwrite_destination;
+static int hf_uavcan_read_offset;
+static int hf_uavcan_read_path;
+static int hf_uavcan_read_error;
+static int hf_uavcan_write_offset;
+static int hf_uavcan_write_path;
+static int hf_uavcan_write_error;
+static int hf_uavcan_entry_index;
+
+static int hf_uavcan_time_syncronizedtimestamp;
+static int hf_uavcan_diagnostic_severity;
+
+static int ett_dsdl;
 
 const range_string uavcan_subject_id_vals[] = {
     {      0,   6143, "Unregulated identifier"                 },
@@ -115,12 +115,7 @@ const range_string uavcan_service_id_vals[] = {
     {      0,      0, NULL                                     }
 };
 
-static const address anonymous_address = {
-    AT_NONE,
-    9,
-    "Anonymous",
-    NULL
-};
+static const address anonymous_address = ADDRESS_INIT(AT_NONE, 9, "Anonymous");
 
 static const value_string uavcan_file_error_vals[] = {
     {      0, "Ok"             },
@@ -190,9 +185,9 @@ static const value_string uavcan_nodeid_alloc_vals[] = {
 };
 
 static void
-dissect_list_service_data(tvbuff_t *tvb, int tvb_offset, proto_tree *tree, gboolean is_request)
+dissect_list_service_data(tvbuff_t *tvb, int tvb_offset, proto_tree *tree, bool is_request)
 {
-    if (is_request == TRUE) {
+    if (is_request == true) {
         proto_tree_add_item(tree, hf_list_index, tvb, tvb_offset, 2, ENC_LITTLE_ENDIAN);
     } else {
         /* FT_UINT_STRING counted string, with count being the first byte */
@@ -202,15 +197,15 @@ dissect_list_service_data(tvbuff_t *tvb, int tvb_offset, proto_tree *tree, gbool
 }
 
 static void
-dissect_access_service_data(tvbuff_t *tvb, int tvb_offset, proto_tree *tree, gboolean is_request)
+dissect_access_service_data(tvbuff_t *tvb, int tvb_offset, proto_tree *tree, bool is_request)
 {
-    guint32 tag;
-    gint offset;
+    uint32_t tag;
+    int offset;
 
     offset = tvb_offset;
 
-    if (is_request == TRUE) {
-        gint len;
+    if (is_request == true) {
+        int len;
         /* FT_UINT_STRING counted string, with count being the first byte */
         proto_tree_add_item_ret_length(tree, hf_register_name,
                                  tvb, offset, 1, ENC_ASCII|ENC_BIG_ENDIAN, &len);
@@ -240,7 +235,7 @@ dissect_access_service_data(tvbuff_t *tvb, int tvb_offset, proto_tree *tree, gbo
     } else if (tag == 2 || tag == 3) {
         return; // Raw data do nothing
     } else {
-        guint8 array_len = tvb_get_guint8(tvb, offset);
+        uint8_t array_len = tvb_get_uint8(tvb, offset);
 
         if (array_len == 0 || tag == 0) {
             proto_tree_add_item(tree, hf_uavcan_primitive_Empty,
@@ -250,7 +245,7 @@ dissect_access_service_data(tvbuff_t *tvb, int tvb_offset, proto_tree *tree, gbo
                                      tvb, offset, 1, ENC_NA);
             offset += 1;
 
-            for (guint8 i = 0; i < array_len; i++) {
+            for (uint8_t i = 0; i < array_len; i++) {
                 switch (tag) {
                 case 4:     /*Integer64*/
                     proto_tree_add_item(tree, hf_uavcan_primitive_array_Integer64,
@@ -330,7 +325,7 @@ dissect_access_service_data(tvbuff_t *tvb, int tvb_offset, proto_tree *tree, gbo
 static int
 dissect_dsdl_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    guint32 id = GPOINTER_TO_INT(data);
+    uint32_t id = GPOINTER_TO_INT(data);
 
     proto_item_append_text(tree, " DSDL (%s)",
                            rval_to_str_const(id, uavcan_subject_id_vals, "Reserved"));
@@ -373,7 +368,7 @@ dissect_dsdl_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 static int
 dissect_dsdl_service_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    guint32 id = GPOINTER_TO_INT(data);
+    uint32_t id = GPOINTER_TO_INT(data);
 
     (void) pinfo;
 
@@ -381,10 +376,10 @@ dissect_dsdl_service_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
                            rval_to_str_const(id, uavcan_service_id_vals, "Reserved"));
 
     if (id == 384) { /* Dissect Access.1.0 frame */
-        dissect_access_service_data(tvb, 0, tree, TRUE);
+        dissect_access_service_data(tvb, 0, tree, true);
         return tvb_captured_length(tvb);
     } else if (id == 385) { /* Dissect List.1.0 frame */
-        dissect_list_service_data(tvb, 0, tree, TRUE);
+        dissect_list_service_data(tvb, 0, tree, true);
         return tvb_captured_length(tvb);
     } else if (id == 405) { /* Dissect GetInfo.0.X frame */
         proto_tree_add_item(tree, hf_uavcan_getinfo_path,
@@ -401,7 +396,7 @@ dissect_dsdl_service_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
                             tvb, 0, 1, ENC_NA);
         proto_tree_add_item(tree, hf_uavcan_modify_overwrite_destination,
                             tvb, 0, 1, ENC_NA);
-        gint len;
+        int len;
         proto_tree_add_item_ret_length(tree, hf_uavcan_modify_source_path,
                             tvb, 4, 1, ENC_ASCII|ENC_BIG_ENDIAN, &len);
         proto_tree_add_item(tree, hf_uavcan_modify_destination_path,
@@ -416,10 +411,10 @@ dissect_dsdl_service_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     } else if (id == 409) { /* Dissect Write.1.X frame */
         proto_tree_add_item(tree, hf_uavcan_write_offset,
                             tvb, 0, 5, ENC_LITTLE_ENDIAN);
-        gint len;
+        int len;
         proto_tree_add_item_ret_length(tree, hf_uavcan_write_path,
                             tvb, 5, 1, ENC_ASCII|ENC_BIG_ENDIAN, &len);
-        guint16 data_len = tvb_get_guint16(tvb, 5 + len, ENC_LITTLE_ENDIAN);
+        uint16_t data_len = tvb_get_uint16(tvb, 5 + len, ENC_LITTLE_ENDIAN);
         proto_tree_add_item(tree, hf_uavcan_primitive_Unstructured,
                             tvb, 7 + len, data_len, ENC_NA);
         return tvb_captured_length(tvb);
@@ -431,7 +426,7 @@ dissect_dsdl_service_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 static int
 dissect_dsdl_service_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    guint32 id = GPOINTER_TO_INT(data);
+    uint32_t id = GPOINTER_TO_INT(data);
 
     (void) pinfo;
 
@@ -439,10 +434,10 @@ dissect_dsdl_service_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
                            rval_to_str_const(id, uavcan_service_id_vals, "Reserved"));
 
     if (id == 384) { /* Dissect Access.1.0 frame */
-        dissect_access_service_data(tvb, 0, tree, FALSE);
+        dissect_access_service_data(tvb, 0, tree, false);
         return tvb_captured_length(tvb);
     } else if (id == 385) { /* Dissect List.1.0 frame */
-        dissect_list_service_data(tvb, 0, tree, FALSE);
+        dissect_list_service_data(tvb, 0, tree, false);
         return tvb_captured_length(tvb);
     } else if (id == 405) { /* Dissect GetInfo.0.X frame */
         proto_tree_add_item(tree, hf_uavcan_getinfo_error,
@@ -472,7 +467,7 @@ dissect_dsdl_service_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     } else if (id == 408) { /* Dissect Read.1.X frame */
         proto_tree_add_item(tree, hf_uavcan_read_error,
                             tvb, 0, 2, ENC_LITTLE_ENDIAN);
-        guint16 data_len = tvb_get_guint16(tvb, 2, ENC_LITTLE_ENDIAN);
+        uint16_t data_len = tvb_get_uint16(tvb, 2, ENC_LITTLE_ENDIAN);
         proto_tree_add_item(tree, hf_uavcan_primitive_Unstructured,
                             tvb, 4, data_len, ENC_NA);
         return tvb_captured_length(tvb);
@@ -656,7 +651,7 @@ proto_register_dsdl(void)
           FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL}},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_dsdl,
     };
 

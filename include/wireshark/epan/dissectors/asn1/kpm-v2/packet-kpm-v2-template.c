@@ -15,6 +15,7 @@
 #include <epan/packet.h>
 #include <epan/strutil.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-e2ap.h"
 #include "packet-per.h"
@@ -32,10 +33,10 @@ void proto_reg_handoff_kpm_v2(void);
 #include "packet-kpm-v2-val.h"
 
 /* Initialize the protocol and registered fields */
-static int proto_kpm_v2 = -1;
+static int proto_kpm_v2;
 #include "packet-kpm-v2-hf.c"
 
-static int hf_kpm_v2_timestamp_string = -1;
+static int hf_kpm_v2_timestamp_string;
 
 
 #include "packet-kpm-v2-ett.c"
@@ -96,7 +97,7 @@ void proto_register_kpm_v2(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 #include "packet-kpm-v2-ettarr.c"
   };
 

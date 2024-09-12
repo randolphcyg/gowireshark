@@ -1,6 +1,6 @@
 /* packet-lpp.h
  * Routines for 3GPP LTE Positioning Protocol (LPP) packet dissection
- * Copyright 2011-2022 Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2011-2024 Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -25,6 +25,8 @@ typedef enum {
     LPP_POS_SIB_TYPE_1_8,
     LPP_POS_SIB_TYPE_1_9,
     LPP_POS_SIB_TYPE_1_10,
+    LPP_POS_SIB_TYPE_1_11,
+    LPP_POS_SIB_TYPE_1_12,
     LPP_POS_SIB_TYPE_2_1,
     LPP_POS_SIB_TYPE_2_2,
     LPP_POS_SIB_TYPE_2_3,
@@ -42,14 +44,19 @@ typedef enum {
     LPP_POS_SIB_TYPE_2_15,
     LPP_POS_SIB_TYPE_2_16,
     LPP_POS_SIB_TYPE_2_17,
+    LPP_POS_SIB_TYPE_2_17a,
     LPP_POS_SIB_TYPE_2_18,
+    LPP_POS_SIB_TYPE_2_18a,
     LPP_POS_SIB_TYPE_2_19,
     LPP_POS_SIB_TYPE_2_20,
+    LPP_POS_SIB_TYPE_2_20a,
     LPP_POS_SIB_TYPE_2_21,
     LPP_POS_SIB_TYPE_2_22,
     LPP_POS_SIB_TYPE_2_23,
     LPP_POS_SIB_TYPE_2_24,
     LPP_POS_SIB_TYPE_2_25,
+    LPP_POS_SIB_TYPE_2_26,
+    LPP_POS_SIB_TYPE_2_27,
     LPP_POS_SIB_TYPE_3_1,
     LPP_POS_SIB_TYPE_4_1,
     LPP_POS_SIB_TYPE_5_1,
@@ -59,6 +66,11 @@ typedef enum {
     LPP_POS_SIB_TYPE_6_4,
     LPP_POS_SIB_TYPE_6_5,
     LPP_POS_SIB_TYPE_6_6,
+    LPP_POS_SIB_TYPE_6_7,
+    LPP_POS_SIB_TYPE_7_1,
+    LPP_POS_SIB_TYPE_7_2,
+    LPP_POS_SIB_TYPE_7_3,
+    LPP_POS_SIB_TYPE_7_4,
 } lpp_pos_sib_type_t;
 
 int dissect_lpp_AssistanceDataSIBelement_r15_PDU(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, lpp_pos_sib_type_t pos_sib_type);

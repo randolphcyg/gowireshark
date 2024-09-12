@@ -47,12 +47,13 @@
 #include "packet-x11-keysymdef.h"
 #include "packet-x11.h"
 
+#include <wsutil/array.h>
 #include <wsutil/bits_count_ones.h>
 
 void proto_register_x11(void);
 void proto_reg_handoff_x11(void);
 
-static dissector_handle_t x11_handle = NULL;
+static dissector_handle_t x11_handle;
 
 #define cVALS(x) (const value_string*)(x)
 
@@ -122,10 +123,10 @@ typedef struct _x11_conv_data {
       wmem_map_t *reply_funcs;          /* hashtable of opcode <-> dissect_reply() */
 
       int       sequencenumber;   /* sequencenumber of current packet.       */
-      guint32   iconn_frame;      /* frame # of initial connection request   */
-      guint32   iconn_reply;      /* frame # of initial connection reply     */
-      guint        byte_order;       /* byte order of connection */
-      gboolean  resync;           /* resynchronization of sequence number performed */
+      uint32_t  iconn_frame;      /* frame # of initial connection request   */
+      uint32_t  iconn_reply;      /* frame # of initial connection reply     */
+      unsigned     byte_order;       /* byte order of connection */
+      bool      resync;           /* resynchronization of sequence number performed */
 
       int       *keycodemap[256]; /* keycode to keysymvalue map. */
       int       keysyms_per_keycode;
@@ -147,58 +148,58 @@ static wmem_map_t *error_table;     /* hashtable of extension name <-> error lis
 static wmem_map_t *reply_table;     /* hashtable of extension name <-> reply list */
 
 /* Initialize the protocol and registered fields */
-static int proto_x11 = -1;
+static int proto_x11;
 
 #include "x11-declarations.h"
 
 /* Initialize the subtree pointers */
-static gint ett_x11 = -1;
-static gint ett_x11_color_flags = -1;
-static gint ett_x11_list_of_arc = -1;
-static gint ett_x11_arc = -1;
-static gint ett_x11_list_of_atom = -1;
-static gint ett_x11_list_of_card32 = -1;
-static gint ett_x11_list_of_float = -1;
-static gint ett_x11_list_of_double = -1;
-static gint ett_x11_list_of_color_item = -1;
-static gint ett_x11_color_item = -1;
-static gint ett_x11_list_of_keycode = -1;
-static gint ett_x11_list_of_keysyms = -1;
-static gint ett_x11_keysym = -1;
-static gint ett_x11_list_of_point = -1;
-static gint ett_x11_point = -1;
-static gint ett_x11_list_of_rectangle = -1;
-static gint ett_x11_rectangle = -1;
-static gint ett_x11_list_of_segment = -1;
-static gint ett_x11_segment = -1;
-static gint ett_x11_list_of_string8 = -1;
-static gint ett_x11_list_of_text_item = -1;
-static gint ett_x11_text_item = -1;
-static gint ett_x11_gc_value_mask = -1;         /* XXX - unused */
-static gint ett_x11_event_mask = -1;            /* XXX - unused */
-static gint ett_x11_do_not_propagate_mask = -1; /* XXX - unused */
-static gint ett_x11_set_of_key_mask = -1;
-static gint ett_x11_pointer_event_mask = -1;    /* XXX - unused */
-static gint ett_x11_window_value_mask = -1;     /* XXX - unused */
-static gint ett_x11_configure_window_mask = -1; /* XXX - unused */
-static gint ett_x11_keyboard_value_mask = -1;   /* XXX - unused */
-static gint ett_x11_same_screen_focus = -1;
-static gint ett_x11_event = -1;
-static gint ett_x11_list_of_pixmap_format = -1;
-static gint ett_x11_pixmap_format = -1;
-static gint ett_x11_list_of_screen = -1;
-static gint ett_x11_screen = -1;
-static gint ett_x11_list_of_depth_detail = -1;
-static gint ett_x11_depth_detail = -1;
-static gint ett_x11_list_of_visualtype= -1;
-static gint ett_x11_visualtype= -1;
+static int ett_x11;
+static int ett_x11_color_flags;
+static int ett_x11_list_of_arc;
+static int ett_x11_arc;
+static int ett_x11_list_of_atom;
+static int ett_x11_list_of_card32;
+static int ett_x11_list_of_float;
+static int ett_x11_list_of_double;
+static int ett_x11_list_of_color_item;
+static int ett_x11_color_item;
+static int ett_x11_list_of_keycode;
+static int ett_x11_list_of_keysyms;
+static int ett_x11_keysym;
+static int ett_x11_list_of_point;
+static int ett_x11_point;
+static int ett_x11_list_of_rectangle;
+static int ett_x11_rectangle;
+static int ett_x11_list_of_segment;
+static int ett_x11_segment;
+static int ett_x11_list_of_string8;
+static int ett_x11_list_of_text_item;
+static int ett_x11_text_item;
+static int ett_x11_gc_value_mask;         /* XXX - unused */
+static int ett_x11_event_mask;            /* XXX - unused */
+static int ett_x11_do_not_propagate_mask; /* XXX - unused */
+static int ett_x11_set_of_key_mask;
+static int ett_x11_pointer_event_mask;    /* XXX - unused */
+static int ett_x11_window_value_mask;     /* XXX - unused */
+static int ett_x11_configure_window_mask; /* XXX - unused */
+static int ett_x11_keyboard_value_mask;   /* XXX - unused */
+static int ett_x11_same_screen_focus;
+static int ett_x11_event;
+static int ett_x11_list_of_pixmap_format;
+static int ett_x11_pixmap_format;
+static int ett_x11_list_of_screen;
+static int ett_x11_screen;
+static int ett_x11_list_of_depth_detail;
+static int ett_x11_depth_detail;
+static int ett_x11_list_of_visualtype;
+static int ett_x11_visualtype;
 
-static expert_field ei_x11_invalid_format = EI_INIT;
-static expert_field ei_x11_request_length = EI_INIT;
-static expert_field ei_x11_keycode_value_out_of_range = EI_INIT;
+static expert_field ei_x11_invalid_format;
+static expert_field ei_x11_request_length;
+static expert_field ei_x11_keycode_value_out_of_range;
 
 /* desegmentation of X11 messages */
-static gboolean x11_desegment = TRUE;
+static bool x11_desegment = true;
 
 #define DEFAULT_X11_PORT_RANGE "6000-6063"
 
@@ -1115,7 +1116,7 @@ static const value_string zero_is_none_vals[] = {
       proto_tree *event_proto_tree;                                   \
       next_tvb = tvb_new_subset_length_caplen(tvb, offset, next_offset - offset,    \
                                 next_offset - offset);                \
-      eventcode = tvb_get_guint8(next_tvb, 0);                        \
+      eventcode = tvb_get_uint8(next_tvb, 0);                        \
       sent = (eventcode & 0x80) ? "Sent-" : "";                       \
       event_proto_tree = proto_tree_add_subtree_format(t, next_tvb,   \
                                0, -1, ett_x11_event, NULL,            \
@@ -1133,7 +1134,7 @@ static const value_string zero_is_none_vals[] = {
 #define LISTofATOM(name, length) { listOfAtom(tvb, offsetp, t, hf_x11_##name, (length) / 4, byte_order); }
 #define LISTofBYTE(name, length) { listOfByte(tvb, offsetp, t, hf_x11_##name, (length), byte_order); }
 #define LISTofCARD8(name, length) { listOfByte(tvb, offsetp, t, hf_x11_##name, (length), byte_order); }
-#define LISTofIPADDRESS(name, length) { listOfByte(tvb, offsetp, t, hf_x11_##name, (length), FALSE); }
+#define LISTofIPADDRESS(name, length) { listOfByte(tvb, offsetp, t, hf_x11_##name, (length), false); }
 #define LISTofCARD16(name, length) { listOfCard16(tvb, offsetp, t, hf_x11_##name, hf_x11_##name##_item, (length) / 2, byte_order); }
 #define LISTofCARD32(name, length) { listOfCard32(tvb, offsetp, t, hf_x11_##name, hf_x11_##name##_item, (length) / 4, byte_order); }
 #define LISTofCOLORITEM(name, length) { listOfColorItem(tvb, offsetp, t, hf_x11_##name, (length) / 12, byte_order); }
@@ -1147,10 +1148,10 @@ static const value_string zero_is_none_vals[] = {
 #define LISTofSCREEN(name, length) { listOfScreen(tvb, offsetp, t, hf_x11_##name, (length), byte_order); }
 #define LISTofSEGMENT(name) { listOfSegment(tvb, offsetp, t, hf_x11_##name, (next_offset - *offsetp) / 8, byte_order); }
 #define LISTofSTRING8(name, length) { listOfString8(tvb, offsetp, t, hf_x11_##name, hf_x11_##name##_string, (length), byte_order); }
-#define LISTofTEXTITEM8(name) { listOfTextItem(tvb, offsetp, t, hf_x11_##name, FALSE, next_offset, byte_order); }
-#define LISTofTEXTITEM16(name) { listOfTextItem(tvb, offsetp, t, hf_x11_##name, TRUE, next_offset, byte_order); }
+#define LISTofTEXTITEM8(name) { listOfTextItem(tvb, offsetp, t, hf_x11_##name, false, next_offset, byte_order); }
+#define LISTofTEXTITEM16(name) { listOfTextItem(tvb, offsetp, t, hf_x11_##name, true, next_offset, byte_order); }
 #define OPCODE() {                                                \
-      opcode = tvb_get_guint8(tvb, *offsetp);                             \
+      opcode = tvb_get_uint8(tvb, *offsetp);                             \
       proto_tree_add_uint(t, hf_x11_opcode, tvb, *offsetp,        \
             1, opcode);                                           \
       *offsetp += 1;                                              \
@@ -1170,7 +1171,7 @@ static const value_string zero_is_none_vals[] = {
 #define PAD()          { if (next_offset - *offsetp > 0) proto_tree_add_item(t, hf_x11_unused, tvb, *offsetp, next_offset - *offsetp, ENC_NA); *offsetp = next_offset; }
 #define WINDOW(name)   { FIELD32(name); }
 
-#define VISUALID(name) { gint32 v = tvb_get_guint32(tvb, *offsetp, byte_order); \
+#define VISUALID(name) { int32_t v = tvb_get_uint32(tvb, *offsetp, byte_order); \
     proto_tree_add_uint_format(t, hf_x11_##name, tvb, *offsetp, 4, v, "Visualid: 0x%08x%s", v, \
                                v ? "" : " (CopyFromParent)"); *offsetp += 4; }
 #define REPLY(name)       FIELD8(name);
@@ -1189,9 +1190,9 @@ static const value_string zero_is_none_vals[] = {
 } while (0)
 
 #define SEQUENCENUMBER_REPLY(name) do {                                       \
-      guint16 seqno;                                                          \
+      uint16_t seqno;                                                          \
                                                                               \
-      seqno = tvb_get_guint16(tvb, *offsetp, byte_order);                     \
+      seqno = tvb_get_uint16(tvb, *offsetp, byte_order);                     \
       proto_tree_add_uint_format(t, hf_x11_reply_##name, tvb,                 \
       *offsetp, 2, seqno,                                                     \
       "sequencenumber: %d (%s)",                                              \
@@ -1247,33 +1248,33 @@ static const value_string zero_is_none_vals[] = {
 static void
 dissect_x11_initial_reply(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                   const char *sep, x11_conv_data_t *state,
-                  guint byte_order);
+                  unsigned byte_order);
 
 static void
 dissect_x11_reply(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                   const char *sep, x11_conv_data_t *state,
-                  guint byte_order);
+                  unsigned byte_order);
 
 static void
 dissect_x11_error(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                   const char *sep, x11_conv_data_t *state,
-                  guint byte_order);
+                  unsigned byte_order);
 
 static void
 dissect_x11_event(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                   const char *sep, x11_conv_data_t *state,
-                  guint byte_order);
+                  unsigned byte_order);
 
 static void
 decode_x11_event(tvbuff_t *tvb, unsigned char eventcode, const char *sent,
                  proto_tree *t, x11_conv_data_t *state,
-                 guint byte_order);
+                 unsigned byte_order);
 
 static x11_conv_data_t *
 x11_stateinit(conversation_t *conversation);
 
 static const char *
-keysymString(guint32 v);
+keysymString(uint32_t v);
 
 
 /************************************************************************
@@ -1283,11 +1284,11 @@ keysymString(guint32 v);
  ************************************************************************/
 
 static void atom(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                 guint byte_order)
+                 unsigned byte_order)
 {
       const char *interpretation = NULL;
 
-      guint32 v = tvb_get_guint32(tvb, *offsetp, byte_order);
+      uint32_t v = tvb_get_uint32(tvb, *offsetp, byte_order);
       if (v >= 1 && v < array_length(atom_predefined_interpretation))
             interpretation = atom_predefined_interpretation[v];
       else if (v)
@@ -1303,9 +1304,9 @@ static void atom(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
       *offsetp += 4;
 }
 
-static guint32 add_boolean(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf)
+static uint32_t add_boolean(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf)
 {
-      guint32 v = tvb_get_guint8(tvb, *offsetp);
+      uint32_t v = tvb_get_uint8(tvb, *offsetp);
       proto_tree_add_boolean(t, hf, tvb, *offsetp, 1, v);
       *offsetp += 1;
       return v;
@@ -1313,30 +1314,30 @@ static guint32 add_boolean(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf)
 
 static void colorFlags(tvbuff_t *tvb, int *offsetp, proto_tree *t)
 {
-      guint do_red_green_blue = tvb_get_guint8(tvb, *offsetp);
+      unsigned do_red_green_blue = tvb_get_uint8(tvb, *offsetp);
       proto_item *ti;
       proto_tree *tt;
 
       if (do_red_green_blue) {
-            int sep = FALSE;
+            bool sep = false;
             wmem_strbuf_t *buffer = wmem_strbuf_create(wmem_packet_scope());
             wmem_strbuf_append(buffer, "flags: ");
 
             if (do_red_green_blue & 0x1) {
                   wmem_strbuf_append(buffer, "DoRed");
-                  sep = TRUE;
+                  sep = true;
             }
 
             if (do_red_green_blue & 0x2) {
                   if (sep) wmem_strbuf_append(buffer, " | ");
                   wmem_strbuf_append(buffer, "DoGreen");
-                  sep = TRUE;
+                  sep = true;
             }
 
             if (do_red_green_blue & 0x4) {
                   if (sep) wmem_strbuf_append(buffer, " | ");
                   wmem_strbuf_append(buffer, "DoBlue");
-                  sep = TRUE;
+                  sep = true;
             }
 
             if (do_red_green_blue & 0xf8) {
@@ -1365,17 +1366,17 @@ static void colorFlags(tvbuff_t *tvb, int *offsetp, proto_tree *t)
 }
 
 static void listOfArc(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                      int length, guint byte_order)
+                      int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 8, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_arc);
       while(length--) {
-            gint16 x = tvb_get_guint16(tvb, *offsetp, byte_order);
-            gint16 y = tvb_get_guint16(tvb, *offsetp + 2, byte_order);
-            guint16 width = tvb_get_guint16(tvb, *offsetp + 4, byte_order);
-            guint16 height = tvb_get_guint16(tvb, *offsetp + 6, byte_order);
-            gint16 angle1 = tvb_get_guint16(tvb, *offsetp + 8, byte_order);
-            gint16 angle2 = tvb_get_guint16(tvb, *offsetp + 10, byte_order);
+            int16_t x = tvb_get_uint16(tvb, *offsetp, byte_order);
+            int16_t y = tvb_get_uint16(tvb, *offsetp + 2, byte_order);
+            uint16_t width = tvb_get_uint16(tvb, *offsetp + 4, byte_order);
+            uint16_t height = tvb_get_uint16(tvb, *offsetp + 6, byte_order);
+            int16_t angle1 = tvb_get_uint16(tvb, *offsetp + 8, byte_order);
+            int16_t angle2 = tvb_get_uint16(tvb, *offsetp + 10, byte_order);
 
             proto_item *tti = proto_tree_add_none_format(tt, hf_x11_arc, tvb, *offsetp, 12,
                                                              "arc: %dx%d+%d+%d, angle %d -> %d (%f degrees -> %f degrees)",
@@ -1398,7 +1399,7 @@ static void listOfArc(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfAtom(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                       int length, guint byte_order)
+                       int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 4, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_atom);
@@ -1407,7 +1408,7 @@ static void listOfAtom(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfByte(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                       int length, guint byte_order)
+                       int length, unsigned byte_order)
 {
       if (length <= 0) length = 1;
       proto_tree_add_item(t, hf, tvb, *offsetp, length, byte_order);
@@ -1415,7 +1416,7 @@ static void listOfByte(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfCard16(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                         int hf_item, int length, guint byte_order)
+                         int hf_item, int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 2, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_card32);
@@ -1426,7 +1427,7 @@ static void listOfCard16(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfInt16(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                         int hf_item, int length, guint byte_order)
+                         int hf_item, int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 2, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_card32);
@@ -1437,7 +1438,7 @@ static void listOfInt16(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfCard32(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                         int hf_item, int length, guint byte_order)
+                         int hf_item, int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 4, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_card32);
@@ -1448,7 +1449,7 @@ static void listOfCard32(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfInt32(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                         int hf_item, int length, guint byte_order)
+                         int hf_item, int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 4, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_card32);
@@ -1459,7 +1460,7 @@ static void listOfInt32(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfCard64(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                         int hf_item, int length, guint byte_order)
+                         int hf_item, int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 8, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_card32);
@@ -1471,7 +1472,7 @@ static void listOfCard64(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 
 #if 0 /* Not yet used by any extension */
 static void listOfInt64(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                         int hf_item, int length, guint byte_order)
+                         int hf_item, int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 8, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_card32);
@@ -1483,7 +1484,7 @@ static void listOfInt64(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 #endif
 
 static void listOfFloat(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                         int hf_item, int length, guint byte_order)
+                         int hf_item, int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 4, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_float);
@@ -1494,7 +1495,7 @@ static void listOfFloat(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfDouble(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                         int hf_item, int length, guint byte_order)
+                         int hf_item, int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 8, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_double);
@@ -1505,24 +1506,24 @@ static void listOfDouble(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfColorItem(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                            int length, guint byte_order)
+                            int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 8, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_color_item);
       while(length--) {
             proto_item *tti;
             proto_tree *ttt;
-            guint do_red_green_blue;
-            guint16 red, green, blue;
+            unsigned do_red_green_blue;
+            uint16_t red, green, blue;
             wmem_strbuf_t *buffer;
             const char *sep;
 
             buffer=wmem_strbuf_create(wmem_packet_scope());
             wmem_strbuf_append(buffer, "colorItem ");
-            red = tvb_get_guint16(tvb, *offsetp + 4, byte_order);
-            green = tvb_get_guint16(tvb, *offsetp + 6, byte_order);
-            blue = tvb_get_guint16(tvb, *offsetp + 8, byte_order);
-            do_red_green_blue = tvb_get_guint8(tvb, *offsetp + 10);
+            red = tvb_get_uint16(tvb, *offsetp + 4, byte_order);
+            green = tvb_get_uint16(tvb, *offsetp + 6, byte_order);
+            blue = tvb_get_uint16(tvb, *offsetp + 8, byte_order);
+            do_red_green_blue = tvb_get_uint8(tvb, *offsetp + 10);
 
             sep = "";
             if (do_red_green_blue & 0x1) {
@@ -1553,7 +1554,7 @@ static void listOfColorItem(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 #if 0  /* XXX: Use of GTree no longer needed; use value_string_ext */
-static gint compareGuint32(gconstpointer a, gconstpointer b)
+static int compareGuint32(const void *a, const void *b)
 {
       return GPOINTER_TO_INT(b) - GPOINTER_TO_INT(a);
 }
@@ -1665,7 +1666,7 @@ keycode2keysymString(int *keycodemap[256], int first_keycode,
                      int keysyms_per_keycode,
                      int *modifiermap[array_length(modifiers)],
                      int keycodes_per_modifier,
-                     guint32 keycode, guint32 bitmask)
+                     uint32_t keycode, uint32_t bitmask)
 {
       int *syms;
       int groupmodkc, numlockkc, numlockmod, groupmod;
@@ -1840,19 +1841,19 @@ keycode2keysymString(int *keycodemap[256], int first_keycode,
 #endif
 }
 
-static const char *keysymString(guint32 v)
+static const char *keysymString(uint32_t v)
 {
 #if 0  /* XXX: Use of GTree no longer needed; use value_string_ext */
       static GTree *keysymTable = NULL;
 
-      gpointer res;
+      void *res;
       if (!keysymTable) {
 
             /* This table is so big that we built it only if necessary */
             const value_string *p = x11_keysym_vals_source;
             keysymTable = g_tree_new(compareGuint32);
             for(; p -> strptr; p++)
-                  g_tree_insert(keysymTable, GINT_TO_POINTER(p -> value), (gpointer) (p -> strptr) );
+                  g_tree_insert(keysymTable, GINT_TO_POINTER(p -> value), (void *) (p -> strptr) );
       }
       res = g_tree_lookup(keysymTable, GINT_TO_POINTER(v));
       return res ? res : "<Unknown>";
@@ -1864,7 +1865,7 @@ static const char *keysymString(guint32 v)
 
 static void listOfKeycode(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
                           int *modifiermap[], int keycodes_per_modifier,
-                          guint byte_order _U_)
+                          unsigned byte_order _U_)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp,
         (int)array_length(modifiers) * keycodes_per_modifier, ENC_NA);
@@ -1881,7 +1882,7 @@ static void listOfKeycode(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
             modifiermap[m] = (int *)
                 wmem_alloc(wmem_file_scope(), sizeof(*modifiermap[m]) * keycodes_per_modifier);
             for(i = 0; i < keycodes_per_modifier; ++i) {
-                guchar c = tvb_get_guint8(tvb, (*offsetp) + i);
+                unsigned char c = tvb_get_uint8(tvb, (*offsetp) + i);
 
                 if (c)
                     proto_item_append_text(tikc, " %s=%d", modifiers[m], c);
@@ -1894,7 +1895,7 @@ static void listOfKeycode(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 static void listOfKeysyms(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t, int hf,
                           int hf_item, int *keycodemap[256],
                           int keycode_first, int keycode_count,
-                          int keysyms_per_keycode, guint byte_order)
+                          int keysyms_per_keycode, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, keycode_count * keysyms_per_keycode * 4, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_keysyms);
@@ -1924,7 +1925,7 @@ static void listOfKeysyms(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto
 
             for(i = 0; i < keysyms_per_keycode; ++i) {
                   /* keysymvalue = byte3 * 256 + byte4. */
-                  guint32 v = tvb_get_guint32(tvb, *offsetp, byte_order);
+                  uint32_t v = tvb_get_uint32(tvb, *offsetp, byte_order);
 
                   proto_item_append_text(tti, " %s", keysymString(v));
                   proto_tree_add_uint_format(ttt, hf_x11_keysyms_item_keysym,
@@ -1967,17 +1968,17 @@ static void listOfKeysyms(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto
 }
 
 static void listOfPoint(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                        int length, guint byte_order)
+                        int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 4, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_point);
       while(length--) {
-            gint16 x, y;
+            int16_t x, y;
             proto_item *tti;
             proto_tree *ttt;
 
-            x = tvb_get_guint16(tvb, *offsetp, byte_order);
-            y = tvb_get_guint16(tvb, *offsetp + 2, byte_order);
+            x = tvb_get_uint16(tvb, *offsetp, byte_order);
+            y = tvb_get_uint16(tvb, *offsetp + 2, byte_order);
 
             tti = proto_tree_add_none_format(tt, hf_x11_point, tvb, *offsetp, 4, "point: (%d,%d)", x, y);
             ttt = proto_item_add_subtree(tti, ett_x11_point);
@@ -1989,20 +1990,20 @@ static void listOfPoint(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfRectangle(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                            int length, guint byte_order)
+                            int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 8, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_rectangle);
       while(length--) {
-            gint16 x, y;
-            guint width, height;
+            int16_t x, y;
+            unsigned width, height;
             proto_item *tti;
             proto_tree *ttt;
 
-            x = tvb_get_guint16(tvb, *offsetp, byte_order);
-            y = tvb_get_guint16(tvb, *offsetp + 2, byte_order);
-            width = tvb_get_guint16(tvb, *offsetp + 4, byte_order);
-            height = tvb_get_guint16(tvb, *offsetp + 6, byte_order);
+            x = tvb_get_uint16(tvb, *offsetp, byte_order);
+            y = tvb_get_uint16(tvb, *offsetp + 2, byte_order);
+            width = tvb_get_uint16(tvb, *offsetp + 4, byte_order);
+            height = tvb_get_uint16(tvb, *offsetp + 6, byte_order);
 
             tti = proto_tree_add_none_format(tt, hf_x11_rectangle, tvb, *offsetp, 8,
                                                  "rectangle: %dx%d+%d+%d", width, height, x, y);
@@ -2019,19 +2020,19 @@ static void listOfRectangle(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfSegment(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                          int length, guint byte_order)
+                          int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 8, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_segment);
       while(length--) {
-            gint16 x1, y1, x2, y2;
+            int16_t x1, y1, x2, y2;
             proto_item *tti;
             proto_tree *ttt;
 
-            x1 = tvb_get_guint16(tvb, *offsetp, byte_order);
-            y1 = tvb_get_guint16(tvb, *offsetp + 2, byte_order);
-            x2 = tvb_get_guint16(tvb, *offsetp + 4, byte_order);
-            y2 = tvb_get_guint16(tvb, *offsetp + 6, byte_order);
+            x1 = tvb_get_uint16(tvb, *offsetp, byte_order);
+            y1 = tvb_get_uint16(tvb, *offsetp + 2, byte_order);
+            x2 = tvb_get_uint16(tvb, *offsetp + 4, byte_order);
+            y2 = tvb_get_uint16(tvb, *offsetp + 6, byte_order);
 
             tti = proto_tree_add_none_format(tt, hf_x11_segment, tvb, *offsetp, 8,
                                                  "segment: (%d,%d)-(%d,%d)", x1, y1, x2, y2);
@@ -2048,7 +2049,7 @@ static void listOfSegment(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfVisualTypes(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                              int length, guint byte_order)
+                              int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 24, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_visualtype);
@@ -2078,9 +2079,9 @@ static void listOfVisualTypes(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf
       }
 }
 static void listOfDepth(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                        int length, guint byte_order)
+                        int length, unsigned byte_order)
 {
-      guint16 number_of_visualtypes;
+      uint16_t number_of_visualtypes;
       proto_item *ti;
       proto_tree *tt;
 
@@ -2089,7 +2090,7 @@ static void listOfDepth(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
       while(length--) {
             proto_item *tti;
             proto_tree *ttt;
-            number_of_visualtypes = tvb_get_guint16(tvb, *offsetp + 2, byte_order);
+            number_of_visualtypes = tvb_get_uint16(tvb, *offsetp + 2, byte_order);
 
             tti = proto_tree_add_none_format(tt, hf_x11_depth_detail, tvb, *offsetp, 8 + 24 * number_of_visualtypes,
                                              "depth-detail");
@@ -2108,21 +2109,21 @@ static void listOfDepth(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void listOfScreen(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                         int length, guint byte_order)
+                         int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, -1, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_screen);
       while(length--) {
-            guint8 number_of_depths, root_depth;
-            guint16 width_in_pixels, height_in_pixels;
-            guint32 screen_root;
+            uint8_t number_of_depths, root_depth;
+            uint16_t width_in_pixels, height_in_pixels;
+            uint32_t screen_root;
             proto_item *tti;
             proto_tree *ttt;
 
-            screen_root = tvb_get_guint32(tvb, *offsetp, byte_order);
-            width_in_pixels = tvb_get_guint16(tvb, *offsetp + 20, byte_order);
-            height_in_pixels = tvb_get_guint16(tvb, *offsetp + 22, byte_order);
-            root_depth = tvb_get_guint8(tvb, *offsetp + 38);
+            screen_root = tvb_get_uint32(tvb, *offsetp, byte_order);
+            width_in_pixels = tvb_get_uint16(tvb, *offsetp + 20, byte_order);
+            height_in_pixels = tvb_get_uint16(tvb, *offsetp + 22, byte_order);
+            root_depth = tvb_get_uint8(tvb, *offsetp + 38);
             tti = proto_tree_add_none_format(tt, hf_x11_screen, tvb, *offsetp, 0,
                                                  "screen (%08x: %d x %d x %d)", screen_root,
                                                  width_in_pixels, height_in_pixels, root_depth);
@@ -2157,14 +2158,14 @@ static void listOfScreen(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
             *offsetp += 1;
             proto_tree_add_item(ttt, hf_x11_screen_root_depth, tvb, *offsetp, 1, byte_order);
             *offsetp += 1;
-            number_of_depths = tvb_get_guint8(tvb, *offsetp);
+            number_of_depths = tvb_get_uint8(tvb, *offsetp);
             proto_tree_add_item(ttt, hf_x11_screen_allowed_depths_len, tvb, *offsetp, 1, byte_order);
             *offsetp += 1;
             listOfDepth(tvb, offsetp, ttt, hf_x11_depth_detail, number_of_depths, byte_order);
       }
 }
 static void listOfPixmapFormat(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                               int length, guint byte_order)
+                               int length, unsigned byte_order)
 {
       proto_item *ti = proto_tree_add_item(t, hf, tvb, *offsetp, length * 8, byte_order);
       proto_tree *tt = proto_item_add_subtree(ti, ett_x11_list_of_pixmap_format);
@@ -2187,7 +2188,7 @@ static void listOfPixmapFormat(tvbuff_t *tvb, int *offsetp, proto_tree *t, int h
 }
 
 static void listOfString8(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                          int hf_item, int length, guint byte_order)
+                          int hf_item, int length, unsigned byte_order)
 {
       char *s = NULL;
       proto_item *ti;
@@ -2199,7 +2200,7 @@ static void listOfString8(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
       int scanning_offset = *offsetp; /* Scanning pointer */
       for(i = length; i; i--) {
             int l;
-            l = tvb_get_guint8(tvb, scanning_offset);
+            l = tvb_get_uint8(tvb, scanning_offset);
             scanning_offset += 1 + l;
       }
 
@@ -2207,35 +2208,35 @@ static void listOfString8(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
       tt = proto_item_add_subtree(ti, ett_x11_list_of_string8);
 
       while(length--) {
-            guint l = tvb_get_guint8(tvb, *offsetp);
+            unsigned l = tvb_get_uint8(tvb, *offsetp);
             s = tvb_get_string_enc(wmem_packet_scope(), tvb, *offsetp + 1, l, ENC_ASCII);
             proto_tree_add_string_format(tt, hf_item, tvb, *offsetp, l + 1, s, "\"%s\"", s);
             *offsetp += l + 1;
       }
 }
 
-static int stringIsActuallyAn8BitString(tvbuff_t *tvb, int offset, guint length)
+static int stringIsActuallyAn8BitString(tvbuff_t *tvb, int offset, unsigned length)
 {
       for(; length > 0; offset += 2, length--) {
-            if (tvb_get_guint8(tvb, offset))
-                  return FALSE;
+            if (tvb_get_uint8(tvb, offset))
+                  return false;
       }
-      return TRUE;
+      return true;
 }
 
 /* XXX - assumes that the string encoding is ASCII; even if 0x00 through
    0x7F are ASCII, 0x80 through 0xFF might not be, and even 0x00 through
    0x7F aren't necessarily ASCII. */
-static char *tvb_get_ascii_string16(tvbuff_t *tvb, int offset, guint length)
+static char *tvb_get_ascii_string16(tvbuff_t *tvb, int offset, unsigned length)
 {
       wmem_strbuf_t *str;
-      guint8 ch;
+      uint8_t ch;
 
       str = wmem_strbuf_new_sized(wmem_packet_scope(), length + 1);
 
       while(length--) {
             offset++;
-            ch = tvb_get_guint8(tvb, offset);
+            ch = tvb_get_uint8(tvb, offset);
             if (ch < 0x80)
                   wmem_strbuf_append_c(str, ch);
             else
@@ -2246,12 +2247,12 @@ static char *tvb_get_ascii_string16(tvbuff_t *tvb, int offset, guint length)
 }
 
 static void listOfTextItem(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-    int sizeIs16, int next_offset, guint byte_order)
+    int sizeIs16, int next_offset, unsigned byte_order)
 {
       char *s = NULL;
       proto_item *ti;
       proto_tree *tt;
-      guint32 fid;
+      uint32_t fid;
 
       /* Compute total length */
 
@@ -2260,7 +2261,7 @@ static void listOfTextItem(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 
       while(scanning_offset < next_offset) {
             int l;                            /* Length of an individual item */
-            l = tvb_get_guint8(tvb, scanning_offset);
+            l = tvb_get_uint8(tvb, scanning_offset);
             scanning_offset++;
             if (!l) break;
             n++;
@@ -2271,7 +2272,7 @@ static void listOfTextItem(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
       tt = proto_item_add_subtree(ti, ett_x11_list_of_text_item);
 
       while(n--) {
-            guint l = tvb_get_guint8(tvb, *offsetp);
+            unsigned l = tvb_get_uint8(tvb, *offsetp);
             if (l == 255) { /* Item is a font */
                   fid = tvb_get_ntohl(tvb, *offsetp + 1);
                   proto_tree_add_uint(tt, hf_x11_textitem_font, tvb, *offsetp, 5, fid);
@@ -2279,7 +2280,7 @@ static void listOfTextItem(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
             } else { /* Item is a string */
                   proto_item *tti;
                   proto_tree *ttt;
-                  gint8 delta = tvb_get_guint8(tvb, *offsetp + 1);
+                  int8_t delta = tvb_get_uint8(tvb, *offsetp + 1);
                   if (sizeIs16) {
                         if (stringIsActuallyAn8BitString(tvb, *offsetp + 2, l)) {
                               s = tvb_get_ascii_string16(tvb, *offsetp + 2, l);
@@ -2315,12 +2316,12 @@ static void listOfTextItem(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
       }
 }
 
-static guint32 field8(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                      guint byte_order)
+static uint32_t field8(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
+                      unsigned byte_order)
 {
-      guint32 v = tvb_get_guint8(tvb, *offsetp);
+      uint32_t v = tvb_get_uint8(tvb, *offsetp);
       header_field_info *hfi = proto_registrar_get_nth(hf);
-      const gchar *enumValue = NULL;
+      const char *enumValue = NULL;
 
       if (hfi -> strings)
             enumValue = try_val_to_str(v, cVALS(hfi -> strings));
@@ -2334,12 +2335,12 @@ static guint32 field8(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
       return v;
 }
 
-static guint32 field16(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                       guint byte_order)
+static uint32_t field16(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
+                       unsigned byte_order)
 {
-      guint32 v = tvb_get_guint16(tvb, *offsetp, byte_order);
+      uint32_t v = tvb_get_uint16(tvb, *offsetp, byte_order);
       header_field_info *hfi = proto_registrar_get_nth(hf);
-      const gchar *enumValue = NULL;
+      const char *enumValue = NULL;
 
       if (hfi -> strings)
             enumValue = try_val_to_str(v, cVALS(hfi -> strings));
@@ -2353,13 +2354,13 @@ static guint32 field16(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
       return v;
 }
 
-static guint32 field32(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                       guint byte_order)
+static uint32_t field32(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
+                       unsigned byte_order)
 {
-      guint32 v = tvb_get_guint32(tvb, *offsetp, byte_order);
+      uint32_t v = tvb_get_uint32(tvb, *offsetp, byte_order);
       header_field_info *hfi = proto_registrar_get_nth(hf);
-      const gchar *enumValue = NULL;
-      const gchar *nameAsChar = hfi -> name;
+      const char *enumValue = NULL;
+      const char *nameAsChar = hfi -> name;
 
       if (hfi -> strings)
             enumValue = try_val_to_str(v, cVALS(hfi -> strings));
@@ -2403,10 +2404,10 @@ static int * const gc_mask_attributes[] = {
 };
 
 static void gcAttributes(tvbuff_t *tvb, int *offsetp, proto_tree *t,
-                         guint byte_order)
+                         unsigned byte_order)
 {
-      guint32 bitmask;
-      bitmask = tvb_get_guint32(tvb, *offsetp, byte_order);
+      uint32_t bitmask;
+      bitmask = tvb_get_uint32(tvb, *offsetp, byte_order);
       proto_tree_add_bitmask(t, tvb, *offsetp, hf_x11_gc_value_mask, ett_x11_gc_value_mask, gc_mask_attributes, byte_order);
       *offsetp += 4;
 
@@ -2537,16 +2538,16 @@ static void gcAttributes(tvbuff_t *tvb, int *offsetp, proto_tree *t,
 }
 
 static void gcMask(tvbuff_t *tvb, int *offsetp, proto_tree *t,
-                   guint byte_order)
+                   unsigned byte_order)
 {
       proto_tree_add_bitmask(t, tvb, *offsetp, hf_x11_gc_value_mask, ett_x11_gc_value_mask, gc_mask_attributes, byte_order);
       *offsetp += 4;
 }
 
-static guint32 requestLength(tvbuff_t *tvb, int *offsetp, proto_tree *t,
-                             guint byte_order)
+static uint32_t requestLength(tvbuff_t *tvb, int *offsetp, proto_tree *t,
+                             unsigned byte_order)
 {
-      guint32 res;
+      uint32_t res;
       proto_item *ti = proto_tree_add_item_ret_uint(t, hf_x11_request_length, tvb, *offsetp, 2, byte_order, &res);
       *offsetp += 2;
       if (res == 0) {
@@ -2558,7 +2559,7 @@ static guint32 requestLength(tvbuff_t *tvb, int *offsetp, proto_tree *t,
 }
 
 static void setOfEvent(tvbuff_t *tvb, int *offsetp, proto_tree *t,
-                       guint byte_order)
+                       unsigned byte_order)
 {
       static int * const events[] = {
             &hf_x11_event_mask_KeyPress,
@@ -2594,7 +2595,7 @@ static void setOfEvent(tvbuff_t *tvb, int *offsetp, proto_tree *t,
 }
 
 static void setOfDeviceEvent(tvbuff_t *tvb, int *offsetp, proto_tree *t,
-                             guint byte_order)
+                             unsigned byte_order)
 {
       static int * const do_not_propagate_events[] = {
             &hf_x11_do_not_propagate_mask_KeyPress,
@@ -2617,15 +2618,15 @@ static void setOfDeviceEvent(tvbuff_t *tvb, int *offsetp, proto_tree *t,
 
 
 static void setOfKeyButMask(tvbuff_t *tvb, int *offsetp, proto_tree *t,
-                            guint byte_order, gboolean butmask)
+                            unsigned byte_order, bool butmask)
 {
       proto_item *ti;
-      guint32 bitmask_value;
+      uint32_t bitmask_value;
       int bitmask_offset;
       int bitmask_size;
       proto_tree *bitmask_tree;
 
-      bitmask_value = tvb_get_guint16(tvb, *offsetp, byte_order);
+      bitmask_value = tvb_get_uint16(tvb, *offsetp, byte_order);
       bitmask_offset = *offsetp;
       bitmask_size = 2;
 
@@ -2662,7 +2663,7 @@ static void setOfKeyButMask(tvbuff_t *tvb, int *offsetp, proto_tree *t,
 }
 
 static void setOfPointerEvent(tvbuff_t *tvb, int *offsetp, proto_tree *t,
-                              guint byte_order)
+                              unsigned byte_order)
 {
       static int * const pointer_events[] = {
             &hf_x11_pointer_event_mask_ButtonRelease,
@@ -2685,7 +2686,7 @@ static void setOfPointerEvent(tvbuff_t *tvb, int *offsetp, proto_tree *t,
 }
 
 static void string8(tvbuff_t *tvb, int *offsetp, proto_tree *t,
-    int hf, guint length)
+    int hf, unsigned length)
 {
       proto_tree_add_item(t, hf, tvb, *offsetp, length, ENC_NA|ENC_ASCII);
       *offsetp += length;
@@ -2694,9 +2695,9 @@ static void string8(tvbuff_t *tvb, int *offsetp, proto_tree *t,
 /* The length supplied is the length of the string in CHAR2Bs (half the number of bytes) */
 
 static void string16(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-    int hf_bytes, guint length, guint byte_order)
+    int hf_bytes, unsigned length, unsigned byte_order)
 {
-      guint l = length*2; /* byte count */
+      unsigned l = length*2; /* byte count */
       char *s;
 
       if (stringIsActuallyAn8BitString(tvb, *offsetp, length)) {
@@ -2709,9 +2710,9 @@ static void string16(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void timestamp(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
-                      guint byte_order)
+                      unsigned byte_order)
 {
-      guint32 v = tvb_get_guint32(tvb, *offsetp, byte_order);
+      uint32_t v = tvb_get_uint32(tvb, *offsetp, byte_order);
 
       if (!v)
             proto_tree_add_uint_format(t, hf, tvb, *offsetp, 4, 0, "%s: 0 (CurrentTime)",
@@ -2722,9 +2723,9 @@ static void timestamp(tvbuff_t *tvb, int *offsetp, proto_tree *t, int hf,
 }
 
 static void windowAttributes(tvbuff_t *tvb, int *offsetp, proto_tree *t,
-                             guint byte_order)
+                             unsigned byte_order)
 {
-      guint32 bitmask;
+      uint32_t bitmask;
       static int * const window_attributes_flags[] = {
             &hf_x11_window_value_mask_background_pixmap,
             &hf_x11_window_value_mask_background_pixel,
@@ -2744,7 +2745,7 @@ static void windowAttributes(tvbuff_t *tvb, int *offsetp, proto_tree *t,
             NULL
       };
 
-      bitmask = tvb_get_guint32(tvb, *offsetp, byte_order);
+      bitmask = tvb_get_uint32(tvb, *offsetp, byte_order);
       proto_tree_add_bitmask(t, tvb, *offsetp, hf_x11_window_value_mask, ett_x11_window_value_mask, window_attributes_flags, byte_order);
       *offsetp += 4;
 
@@ -2838,7 +2839,7 @@ static int numberOfBitSet(tvbuff_t *tvb, int offset, int maskLength)
 {
       int res = 0;
       while(maskLength--) {
-            int c = tvb_get_guint8(tvb, offset);
+            int c = tvb_get_uint8(tvb, offset);
             offset++;
             res += numberOfBitSetTable[c & 0xf] + numberOfBitSetTable[c >> 4];
       }
@@ -2847,20 +2848,20 @@ static int numberOfBitSet(tvbuff_t *tvb, int offset, int maskLength)
 
 static int listOfStringLengthConsistent(tvbuff_t *tvb, int offset, int length, int listLength)
 {
-      if (listLength > length) return FALSE;
+      if (listLength > length) return false;
       while(listLength--) {
             int l;
-            if (!tvb_bytes_exist(tvb, offset, 1)) return TRUE;
-            l = tvb_get_guint8(tvb, offset);
+            if (!tvb_bytes_exist(tvb, offset, 1)) return true;
+            l = tvb_get_uint8(tvb, offset);
             if (!l) break;
             l++;
-            if (l > length) return FALSE;
-            if (!tvb_bytes_exist(tvb, offset, l)) return TRUE;
+            if (l > length) return false;
+            if (!tvb_bytes_exist(tvb, offset, l)) return true;
             offset += l;
             length -= l;
       }
-      if (length > 3) return FALSE;
-      return TRUE;
+      if (length > 3) return false;
+      return true;
 }
 
 static int rounded4(int n)
@@ -2873,9 +2874,9 @@ static int rounded4(int n)
 
 /* We assume the order to be consistent, until proven wrong. */
 
-static gboolean consistentWithOrder(int length, tvbuff_t *tvb, int offset, int encoding)
+static bool consistentWithOrder(int length, tvbuff_t *tvb, int offset, int encoding)
 {
-      switch(tvb_get_guint8(tvb, offset)) {
+      switch(tvb_get_uint8(tvb, offset)) {
             case X_CreateWindow:
                   return !tvb_bytes_exist(tvb, offset, 32) || length == 8 + numberOfBitSet(tvb, offset + 7 * 4, 4);
 
@@ -2934,17 +2935,17 @@ static gboolean consistentWithOrder(int length, tvbuff_t *tvb, int offset, int e
 
             case X_InternAtom:
             case X_QueryExtension:
-                  return !tvb_bytes_exist(tvb, offset, 6) || length == 2 + rounded4(tvb_get_guint16(tvb, offset + 4, encoding));
+                  return !tvb_bytes_exist(tvb, offset, 6) || length == 2 + rounded4(tvb_get_uint16(tvb, offset + 4, encoding));
 
             case X_ChangeProperty:
             {
                   int multiplier, type;
-                  if (!tvb_bytes_exist(tvb, offset, 17)) return TRUE;
-                  type = tvb_get_guint8(tvb, 16);
-                  if (type != 8 && type != 16 && type != 32) return FALSE;
+                  if (!tvb_bytes_exist(tvb, offset, 17)) return true;
+                  type = tvb_get_uint8(tvb, 16);
+                  if (type != 8 && type != 16 && type != 32) return false;
                   multiplier = type == 8 ? 1 : type == 16 ? 2 : 4;
-                  if (!tvb_bytes_exist(tvb, offset, 24)) return TRUE;
-                  return length == 6 + rounded4(tvb_get_guint32(tvb, offset + 20, encoding) * multiplier);
+                  if (!tvb_bytes_exist(tvb, offset, 24)) return true;
+                  return length == 6 + rounded4(tvb_get_uint32(tvb, offset + 20, encoding) * multiplier);
             }
 
             case X_DeleteProperty:
@@ -2989,7 +2990,7 @@ static gboolean consistentWithOrder(int length, tvbuff_t *tvb, int offset, int e
             case X_OpenFont:
             case X_AllocNamedColor:
             case X_LookupColor:
-                  return !tvb_bytes_exist(tvb, offset, 10) || length == 3 + rounded4(tvb_get_guint16(tvb, offset + 8, encoding));
+                  return !tvb_bytes_exist(tvb, offset, 10) || length == 3 + rounded4(tvb_get_uint16(tvb, offset + 8, encoding));
 
             case X_QueryTextExtents:
                   return length >= 2;
@@ -2997,18 +2998,18 @@ static gboolean consistentWithOrder(int length, tvbuff_t *tvb, int offset, int e
             case X_ListFonts:
             case X_ListFontsWithInfo:
             case X_ChangeHosts:
-                  return !tvb_bytes_exist(tvb, offset, 8) || length == 2 + rounded4(tvb_get_guint16(tvb, offset + 6, encoding));
+                  return !tvb_bytes_exist(tvb, offset, 8) || length == 2 + rounded4(tvb_get_uint16(tvb, offset + 6, encoding));
 
             case X_SetFontPath:
-                  if (length < 2) return FALSE;
-                  if (!tvb_bytes_exist(tvb, offset, 8)) return TRUE;
-                  return listOfStringLengthConsistent(tvb, offset + 8, (length - 2) * 4, tvb_get_guint16(tvb, offset + 4, encoding));
+                  if (length < 2) return false;
+                  if (!tvb_bytes_exist(tvb, offset, 8)) return true;
+                  return listOfStringLengthConsistent(tvb, offset + 8, (length - 2) * 4, tvb_get_uint16(tvb, offset + 4, encoding));
 
             case X_CreateGC:
                   return !tvb_bytes_exist(tvb, offset, 16) || length == 4 + numberOfBitSet(tvb, offset + 12, 4);
 
             case X_SetDashes:
-                  return !tvb_bytes_exist(tvb, offset, 12) || length == 3 + rounded4(tvb_get_guint16(tvb, offset + 10, encoding));
+                  return !tvb_bytes_exist(tvb, offset, 12) || length == 3 + rounded4(tvb_get_uint16(tvb, offset + 10, encoding));
 
             case X_SetClipRectangles:
             case X_PolySegment:
@@ -3045,12 +3046,12 @@ static gboolean consistentWithOrder(int length, tvbuff_t *tvb, int offset, int e
                   return length == 5;
 
             case X_PolyText8:
-                  if (length < 4) return FALSE;
-                  return TRUE; /* We don't perform many controls on this one */
+                  if (length < 4) return false;
+                  return true; /* We don't perform many controls on this one */
 
             case X_PolyText16:
-                  if (length < 4) return FALSE;
-                  return TRUE; /* We don't perform many controls on this one */
+                  if (length < 4) return false;
+                  return true; /* We don't perform many controls on this one */
 
             case X_ImageText16:
                   return length >= 4;
@@ -3059,31 +3060,31 @@ static gboolean consistentWithOrder(int length, tvbuff_t *tvb, int offset, int e
                   return length > 2 && (length - 2) % 3 == 0;
 
             case X_StoreNamedColor:
-                  return !tvb_bytes_exist(tvb, offset, 14) || length == 4 + rounded4(tvb_get_guint16(tvb, offset + 12, encoding));
+                  return !tvb_bytes_exist(tvb, offset, 14) || length == 4 + rounded4(tvb_get_uint16(tvb, offset + 12, encoding));
 
             case X_QueryColors:
                   return length >= 2;
 
             case X_ChangeKeyboardMapping:
-                  return !tvb_bytes_exist(tvb, offset, 6) || length == 2 + tvb_get_guint8(tvb, 1) * tvb_get_guint8(tvb, 5);
+                  return !tvb_bytes_exist(tvb, offset, 6) || length == 2 + tvb_get_uint8(tvb, 1) * tvb_get_uint8(tvb, 5);
 
             case X_ChangeKeyboardControl:
                   return !tvb_bytes_exist(tvb, offset, 6) || length == 2 + numberOfBitSet(tvb, offset + 4, 2);
 
             case X_RotateProperties:
-                  return !tvb_bytes_exist(tvb, offset, 10) || length == 3 + tvb_get_guint16(tvb, offset + 8, encoding);
+                  return !tvb_bytes_exist(tvb, offset, 10) || length == 3 + tvb_get_uint16(tvb, offset + 8, encoding);
 
             case X_SetPointerMapping:
-                  return length == 1 + rounded4(tvb_get_guint8(tvb, 1));
+                  return length == 1 + rounded4(tvb_get_uint8(tvb, 1));
 
             case X_SetModifierMapping:
-                  return length == 1 + tvb_get_guint8(tvb, 1) * 2;
+                  return length == 1 + tvb_get_uint8(tvb, 1) * 2;
 
             case X_NoOperation:
                   return length >= 1;
 
             default:
-                  return TRUE;
+                  return true;
       }
 }
 
@@ -3096,7 +3097,7 @@ static int x_endian_match(tvbuff_t *tvb, int encoding)
 
       for(offset = 0; tvb_bytes_exist(tvb, offset, 4); offset = nextoffset) {
             int length;
-            length = tvb_get_guint16(tvb, offset + 2, encoding);
+            length = tvb_get_uint16(tvb, offset + 2, encoding);
             if (!length)
                 return -1;
             nextoffset = offset + length * 4;
@@ -3107,7 +3108,7 @@ static int x_endian_match(tvbuff_t *tvb, int encoding)
       return atLeastOne;
 }
 
-static guint
+static unsigned
 guess_byte_ordering(tvbuff_t *tvb, packet_info *pinfo,
                     x11_conv_data_t *state)
 {
@@ -3115,7 +3116,7 @@ guess_byte_ordering(tvbuff_t *tvb, packet_info *pinfo,
          and the port on the server tells us we're speaking X. */
 
       int le, be;
-      guint decision;
+      unsigned decision;
 
       if (state->byte_order == ENC_BIG_ENDIAN)
             return ENC_BIG_ENDIAN;    /* known to be big-endian */
@@ -3178,14 +3179,14 @@ guess_byte_ordering(tvbuff_t *tvb, packet_info *pinfo,
  * Decode an initial connection request.
  */
 static void dissect_x11_initial_conn(tvbuff_t *tvb, packet_info *pinfo,
-    proto_tree *tree, x11_conv_data_t *state, guint byte_order)
+    proto_tree *tree, x11_conv_data_t *state, unsigned byte_order)
 {
       int offset = 0;
       int *offsetp = &offset;
       proto_item *ti;
       proto_tree *t;
-      guint16 auth_proto_name_length, auth_proto_data_length;
-      gint left;
+      uint16_t auth_proto_name_length, auth_proto_data_length;
+      int left;
 
       ti = proto_tree_add_item(tree, proto_x11, tvb, 0, -1, ENC_NA);
       proto_item_append_text(ti, ", Request, Initial connection request");
@@ -3230,7 +3231,7 @@ static void dissect_x11_initial_conn(tvbuff_t *tvb, packet_info *pinfo,
 
 static void dissect_x11_initial_reply(tvbuff_t *tvb, packet_info *pinfo,
     proto_tree *tree, const char _U_ *sep, x11_conv_data_t *state,
-    guint byte_order)
+    unsigned byte_order)
 {
       int offset = 0, *offsetp = &offset, left;
       unsigned char success;
@@ -3295,58 +3296,58 @@ static void dissect_x11_initial_reply(tvbuff_t *tvb, packet_info *pinfo,
 }
 
 typedef struct x11_reply_info {
-      const guint8 minor;
-      void (*dissect)(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t, guint byte_order);
+      const uint8_t minor;
+      void (*dissect)(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t, unsigned byte_order);
 } x11_reply_info;
 
 typedef struct event_info {
-      const gchar *name;
-      void (*dissect)(tvbuff_t *tvb, int *offsetp, proto_tree *t, guint byte_order);
+      const char *name;
+      void (*dissect)(tvbuff_t *tvb, int *offsetp, proto_tree *t, unsigned byte_order);
 } x11_event_info;
 
 typedef struct x11_generic_event_info {
-      const guint16 minor;
-      void (*dissect)(tvbuff_t *tvb, int length, int *offsetp, proto_tree *t, guint byte_order);
+      const uint16_t minor;
+      void (*dissect)(tvbuff_t *tvb, int length, int *offsetp, proto_tree *t, unsigned byte_order);
 } x11_generic_event_info;
 
-static void set_handler(const char *name, void (*func)(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t, guint byte_order),
-                        const char **errors,
+static void set_handler(const char *name, void (*func)(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t, unsigned byte_order),
+                        const char * const *errors,
                         const x11_event_info *event_info,
                         const x11_generic_event_info *genevent_info,
                         const x11_reply_info *reply_info)
 {
-      wmem_map_insert(extension_table, (gpointer)name, (gpointer)func);
-      wmem_map_insert(error_table, (gpointer)name, (gpointer)errors);
-      wmem_map_insert(event_table, (gpointer)name, (gpointer)event_info);
+      wmem_map_insert(extension_table, (void *)name, (void *)func);
+      wmem_map_insert(error_table, (void *)name, (void *)errors);
+      wmem_map_insert(event_table, (void *)name, (void *)event_info);
       if (genevent_info)
-          wmem_map_insert(genevent_table, (gpointer)name, (gpointer)genevent_info);
-      wmem_map_insert(reply_table, (gpointer)name, (gpointer)reply_info);
+          wmem_map_insert(genevent_table, (void *)name, (void *)genevent_info);
+      wmem_map_insert(reply_table, (void *)name, (void *)reply_info);
 }
 
 #include "x11-extension-errors.h"
 #include "x11-extension-implementation.h"
 
 static void tryExtension(int opcode, tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t,
-                         x11_conv_data_t *state, guint byte_order)
+                         x11_conv_data_t *state, unsigned byte_order)
 {
-      const gchar *extension;
-      void (*func)(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t, guint byte_order);
+      const char *extension;
+      void (*func)(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t, unsigned byte_order);
 
       extension = try_val_to_str(opcode, state->opcode_vals);
       if (!extension)
             return;
 
-      func = (void (*)(tvbuff_t *, packet_info *, int *, proto_tree *, guint))wmem_map_lookup(extension_table, extension);
+      func = (void (*)(tvbuff_t *, packet_info *, int *, proto_tree *, unsigned))wmem_map_lookup(extension_table, extension);
       if (func)
             func(tvb, pinfo, offsetp, t, byte_order);
 }
 
 static void tryExtensionReply(int opcode, tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t,
-                              x11_conv_data_t *state, guint byte_order)
+                              x11_conv_data_t *state, unsigned byte_order)
 {
-      void (*func)(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t, guint byte_order);
+      void (*func)(tvbuff_t *tvb, packet_info *pinfo, int *offsetp, proto_tree *t, unsigned byte_order);
 
-      func = (void (*)(tvbuff_t *, packet_info *, int *, proto_tree *, guint))wmem_map_lookup(state->reply_funcs, GINT_TO_POINTER(opcode));
+      func = (void (*)(tvbuff_t *, packet_info *, int *, proto_tree *, unsigned))wmem_map_lookup(state->reply_funcs, GINT_TO_POINTER(opcode));
       if (func)
             func(tvb, pinfo, offsetp, t, byte_order);
       else
@@ -3354,22 +3355,22 @@ static void tryExtensionReply(int opcode, tvbuff_t *tvb, packet_info *pinfo, int
 }
 
 static void tryExtensionEvent(int event, tvbuff_t *tvb, int *offsetp, proto_tree *t,
-                              x11_conv_data_t *state, guint byte_order)
+                              x11_conv_data_t *state, unsigned byte_order)
 {
-      void (*func)(tvbuff_t *tvb, int *offsetp, proto_tree *t, guint byte_order);
+      void (*func)(tvbuff_t *tvb, int *offsetp, proto_tree *t, unsigned byte_order);
 
-      func = (void (*)(tvbuff_t *, int *, proto_tree *, guint))wmem_map_lookup(state->eventcode_funcs, GINT_TO_POINTER(event));
+      func = (void (*)(tvbuff_t *, int *, proto_tree *, unsigned))wmem_map_lookup(state->eventcode_funcs, GINT_TO_POINTER(event));
       if (func)
             func(tvb, offsetp, t, byte_order);
 }
 
 static void tryGenericExtensionEvent(tvbuff_t *tvb, int *offsetp, proto_tree *t,
-                                     x11_conv_data_t *state, guint byte_order)
+                                     x11_conv_data_t *state, unsigned byte_order)
 {
-      const gchar *extname;
+      const char *extname;
       int extension, length;
 
-      extension = tvb_get_guint8(tvb, *offsetp);
+      extension = tvb_get_uint8(tvb, *offsetp);
       (*offsetp)++;
       extname = try_val_to_str(extension, state->opcode_vals);
 
@@ -3392,7 +3393,7 @@ static void tryGenericExtensionEvent(tvbuff_t *tvb, int *offsetp, proto_tree *t,
           if (info) {
               int i;
 
-              int opcode = tvb_get_guint16(tvb, *offsetp, byte_order);
+              int opcode = tvb_get_uint16(tvb, *offsetp, byte_order);
 
               for (i = 0; info[i].dissect != NULL; i++) {
                   if (info[i].minor == opcode) {
@@ -3409,14 +3410,14 @@ static void tryGenericExtensionEvent(tvbuff_t *tvb, int *offsetp, proto_tree *t,
 static void register_extension(x11_conv_data_t *state, value_string *vals_p,
     int major_opcode, unsigned int first_event, unsigned int first_error)
 {
-      const char **error_string;
+      const char * const *error_string;
       x11_event_info *event_info;
       x11_reply_info *reply_info;
       int i;
 
       vals_p->value = major_opcode;
 
-      error_string = (const char **)wmem_map_lookup(error_table, vals_p->strptr);
+      error_string = (const char * const *)wmem_map_lookup(error_table, vals_p->strptr);
       while (error_string && *error_string && first_error <= LastExtensionError) {
             /* store string of extension error */
             for (i = 0; i <= LastExtensionError; i++) {
@@ -3450,7 +3451,7 @@ static void register_extension(x11_conv_data_t *state, value_string *vals_p,
             }
 
             /* store event decode function */
-            wmem_map_insert(state->eventcode_funcs, GINT_TO_POINTER(first_event), (gpointer)event_info->dissect);
+            wmem_map_insert(state->eventcode_funcs, GINT_TO_POINTER(first_event), (void *)event_info->dissect);
 
             first_event++;
             event_info++;
@@ -3461,13 +3462,13 @@ static void register_extension(x11_conv_data_t *state, value_string *vals_p,
             for (i = 0; reply_info[i].dissect; i++)
                   wmem_map_insert(state->reply_funcs,
                                       GINT_TO_POINTER(major_opcode | (reply_info[i].minor << 8)),
-                                      (gpointer)reply_info[i].dissect);
+                                      (void *)reply_info[i].dissect);
 }
 
 
 static void dissect_x11_request(tvbuff_t *tvb, packet_info *pinfo,
     proto_tree *tree, const char *sep, x11_conv_data_t *state,
-    guint byte_order)
+    unsigned byte_order)
 {
       int offset = 0;
       int *offsetp = &offset;
@@ -3476,21 +3477,21 @@ static void dissect_x11_request(tvbuff_t *tvb, packet_info *pinfo,
       proto_item *ti;
       proto_tree *t;
       int length, opcode, i;
-      guint8 v8, v8_2, v8_3;
-      guint16 v16;
-      guint32 v32;
-      gint left;
-      gchar *name;
+      uint8_t v8, v8_2, v8_3;
+      uint16_t v16;
+      uint32_t v32;
+      int left;
+      char *name;
 
       query_ext_offset = 2; /* "opcode" and "unused" */
 
-      length = tvb_get_guint16(tvb, query_ext_offset, byte_order) * 4;
+      length = tvb_get_uint16(tvb, query_ext_offset, byte_order) * 4;
       query_ext_offset += 2;
 
       if (length == 0) {
             /* BIG-REQUESTS extension */
-            length = tvb_get_guint32(tvb, query_ext_offset, byte_order);
-            if ((gint64)length * 4 > G_MAXINT32)
+            length = tvb_get_uint32(tvb, query_ext_offset, byte_order);
+            if ((int64_t)length * 4 > INT32_MAX)
                 return;
             length *= 4;
             query_ext_offset += 4;
@@ -3528,7 +3529,7 @@ static void dissect_x11_request(tvbuff_t *tvb, packet_info *pinfo,
 
                   /* necessary processing even if tree == NULL */
 
-                  v16 = tvb_get_guint16(tvb, query_ext_offset, byte_order);
+                  v16 = tvb_get_uint16(tvb, query_ext_offset, byte_order);
                   query_ext_offset += 2;
                   /* Some unused bytes */
                   query_ext_offset += 2;
@@ -3609,8 +3610,8 @@ static void dissect_x11_request(tvbuff_t *tvb, packet_info *pinfo,
              * With Extension, we don't know, so assume there could be one
              */
             if (opcode >= X_FirstExtension && opcode <= X_LastExtension) {
-                  guint32 minor;
-                  minor = tvb_get_guint8(tvb, 1);
+                  uint32_t minor;
+                  minor = tvb_get_uint8(tvb, 1);
 
                   wmem_map_insert(state->seqtable,
                                       GINT_TO_POINTER(state->sequencenumber),
@@ -3688,7 +3689,7 @@ static void dissect_x11_request(tvbuff_t *tvb, packet_info *pinfo,
 
       case X_ConfigureWindow:
             {
-            guint16 bitmask16;
+            uint16_t bitmask16;
             static int * const configure_window_mask_flags[] = {
                   &hf_x11_configure_window_mask_x,
                   &hf_x11_configure_window_mask_y,
@@ -3705,7 +3706,7 @@ static void dissect_x11_request(tvbuff_t *tvb, packet_info *pinfo,
             requestLength(tvb, offsetp, t, byte_order);
             proto_tree_add_item(t, hf_x11_window, tvb, *offsetp, 4, byte_order);
             *offsetp += 4;
-            bitmask16 = tvb_get_guint16(tvb, *offsetp, byte_order);
+            bitmask16 = tvb_get_uint16(tvb, *offsetp, byte_order);
             proto_tree_add_bitmask(t, tvb, *offsetp, hf_x11_configure_window_mask, ett_x11_configure_window_mask, configure_window_mask_flags, byte_order);
             *offsetp += 2;
             proto_tree_add_item(t, hf_x11_unused, tvb, *offsetp, 2, ENC_NA);
@@ -4614,7 +4615,7 @@ static void dissect_x11_request(tvbuff_t *tvb, packet_info *pinfo,
 
       case X_ChangeKeyboardControl:
             {
-            guint32 bitmask32;
+            uint32_t bitmask32;
             static int * const keyboard_value_flags[] = {
                   &hf_x11_keyboard_value_mask_key_click_percent,
                   &hf_x11_keyboard_value_mask_bell_percent,
@@ -4630,7 +4631,7 @@ static void dissect_x11_request(tvbuff_t *tvb, packet_info *pinfo,
             proto_tree_add_item(t, hf_x11_unused, tvb, *offsetp, 1, ENC_NA);
             *offsetp += 1;
             requestLength(tvb, offsetp, t, byte_order);
-            bitmask32 = tvb_get_guint32(tvb, *offsetp, byte_order);
+            bitmask32 = tvb_get_uint32(tvb, *offsetp, byte_order);
             proto_tree_add_bitmask(t, tvb, *offsetp, hf_x11_keyboard_value_mask, ett_x11_keyboard_value_mask, keyboard_value_flags, byte_order);
             *offsetp += 4;
             if (bitmask32 & 0x00000001) {
@@ -4830,12 +4831,12 @@ static void dissect_x11_requests(tvbuff_t *tvb, packet_info *pinfo,
 {
       volatile int offset = 0;
       int length_remaining;
-      volatile guint byte_order;
-      guint8 opcode;
-      volatile gint plen;
+      volatile unsigned byte_order;
+      uint8_t opcode;
+      volatile int plen;
       proto_item *ti;
-      volatile gboolean is_initial_creq;
-      guint16 auth_proto_len, auth_data_len;
+      volatile bool is_initial_creq;
+      uint16_t auth_proto_len, auth_data_len;
       const char *volatile sep = NULL;
       conversation_t *conversation;
       x11_conv_data_t *volatile state;
@@ -4889,15 +4890,15 @@ static void dissect_x11_requests(tvbuff_t *tvb, packet_info *pinfo,
             /*
              * Get the opcode and length of the putative X11 request.
              */
-            opcode = tvb_get_guint8(tvb, 0);
-            plen = tvb_get_guint16(tvb, offset + 2, byte_order);
+            opcode = tvb_get_uint8(tvb, 0);
+            plen = tvb_get_uint16(tvb, offset + 2, byte_order);
 
             if (plen == 0) {
                   /*
                    * A length field of 0 indicates that the BIG-REQUESTS
                    * extension is used: The next four bytes are the real length.
                    */
-                  plen = tvb_get_guint32(tvb, offset + 4, byte_order);
+                  plen = tvb_get_uint32(tvb, offset + 4, byte_order);
             }
 
             if (plen <= 0) {
@@ -4942,7 +4943,7 @@ static void dissect_x11_requests(tvbuff_t *tvb, packet_info *pinfo,
                    * GetScreenSaver request; the only valid length
                    * for that request is 1.
                    */
-                  is_initial_creq = TRUE;
+                  is_initial_creq = true;
 
                   /*
                    * We now know the byte order.  Override the guess.
@@ -4989,26 +4990,26 @@ static void dissect_x11_requests(tvbuff_t *tvb, packet_info *pinfo,
                    * Get the lengths of the authorization protocol and
                    * the authorization data.
                    */
-                  auth_proto_len = tvb_get_guint16(tvb, offset + 6, byte_order);
-                  auth_data_len = tvb_get_guint16(tvb, offset + 8, byte_order);
+                  auth_proto_len = tvb_get_uint16(tvb, offset + 6, byte_order);
+                  auth_data_len = tvb_get_uint16(tvb, offset + 8, byte_order);
                   plen = 12 + ROUND_LENGTH(auth_proto_len) +
                         ROUND_LENGTH(auth_data_len);
             } else {
-                  volatile gint64 tmp = (gint64)plen * 4;
+                  volatile int64_t tmp = (int64_t)plen * 4;
                   /*
                    * This is probably an ordinary request.
                    */
-                  is_initial_creq = FALSE;
+                  is_initial_creq = false;
 
                   /*
                    * The length of a request is in 4-byte words.
                    */
-                  if (tmp > G_MAXINT32) {
+                  if (tmp > INT32_MAX) {
                         ti = proto_tree_add_item(tree, proto_x11, tvb, offset, -1, ENC_NA);
                         expert_add_info_format(pinfo, ti, &ei_x11_request_length, "Bogus request length (%"PRId64")", tmp);
                         return;
                   }
-                  plen = (gint)tmp;
+                  plen = (int)tmp;
             }
 
             /*
@@ -5164,7 +5165,7 @@ dissect_x11_replies(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
       tvbuff_t *volatile next_tvb;
       conversation_t *conversation;
       x11_conv_data_t *volatile state;
-      volatile guint byte_order;
+      volatile unsigned byte_order;
       int length_remaining;
       const char *volatile sep = NULL;
 
@@ -5235,7 +5236,7 @@ dissect_x11_replies(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
                    * That means this is the initial connection
                    * reply.
                    */
-                  plen = 8 + tvb_get_guint16(tvb, offset + 6, byte_order) * 4;
+                  plen = 8 + tvb_get_uint16(tvb, offset + 6, byte_order) * 4;
 
                   HANDLE_REPLY(plen, length_remaining,
                                "Initial connection reply",
@@ -5250,7 +5251,7 @@ dissect_x11_replies(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
                    * with a byte of 1, events start with
                    * a byte with of 2 or greater.
                    */
-                  switch (tvb_get_guint8(tvb, offset)) {
+                  switch (tvb_get_uint8(tvb, offset)) {
 
                         case 0:
                               plen = 32;
@@ -5265,7 +5266,7 @@ dissect_x11_replies(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
                               int tmp_plen;
 
                               /* replylength is in units of four. */
-                              tmp_plen = plen = 32 + tvb_get_guint32(tvb, offset + 4, byte_order) * 4;
+                              tmp_plen = plen = 32 + tvb_get_uint32(tvb, offset + 4, byte_order) * 4;
                               /* If tmp_plen < 32, we got an overflow;
                                * the reply length is too long. */
                               THROW_ON(tmp_plen < 32, ReportedBoundsError);
@@ -5283,7 +5284,7 @@ dissect_x11_replies(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
                               int tmp_plen;
 
                               /* GenericEvent's length is also in units of four. */
-                              tmp_plen = plen = 32 + tvb_get_guint32(tvb, offset + 4, byte_order) * 4;
+                              tmp_plen = plen = 32 + tvb_get_uint32(tvb, offset + 4, byte_order) * 4;
                               /* If tmp_plen < 32, we got an overflow;
                                * the event length is too long. */
                               THROW_ON(tmp_plen < 32, ReportedBoundsError);
@@ -5310,7 +5311,7 @@ dissect_x11_replies(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 static void
 dissect_x11_reply(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                   const char *sep, x11_conv_data_t *state,
-                  guint byte_order)
+                  unsigned byte_order)
 {
       int offset = 0, *offsetp = &offset, length, left, opcode;
       int major_opcode, sequence_number, first_error, first_event;
@@ -5341,11 +5342,11 @@ dissect_x11_reply(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
        * packets are lost, but there's nothing you can do to fix that.
        */
 
-      sequence_number = tvb_get_guint16(tvb, offset + 2, byte_order);
+      sequence_number = tvb_get_uint16(tvb, offset + 2, byte_order);
       opcode = GPOINTER_TO_INT(wmem_map_lookup(state->seqtable,
                                                    GINT_TO_POINTER(sequence_number)));
 
-      if (state->iconn_frame == 0 &&  state->resync == FALSE) {
+      if (state->iconn_frame == 0 &&  state->resync == false) {
 
             /*
              * We don't see the initial connection request and no
@@ -5354,7 +5355,7 @@ dissect_x11_reply(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
              * current reply (this is only performed once).
              */
             state->sequencenumber = sequence_number;
-            state->resync = TRUE;
+            state->resync = true;
       }
 
       if (opcode == UNKNOWN_OPCODE) {
@@ -5392,7 +5393,7 @@ dissect_x11_reply(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                    * store opcode of extension in value_string of
                    * opcodes
                    */
-                  if (!tvb_get_guint8(tvb, offset + 8)) {
+                  if (!tvb_get_uint8(tvb, offset + 8)) {
                         /* not present */
                         break;
                   }
@@ -5400,9 +5401,9 @@ dissect_x11_reply(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                   vals_p = (value_string *)wmem_map_lookup(state->valtable,
                                                GINT_TO_POINTER(sequence_number));
                   if (vals_p != NULL) {
-                        major_opcode = tvb_get_guint8(tvb, offset + 9);
-                        first_event = tvb_get_guint8(tvb, offset + 10);
-                        first_error = tvb_get_guint8(tvb, offset + 11);
+                        major_opcode = tvb_get_uint8(tvb, offset + 9);
+                        first_event = tvb_get_uint8(tvb, offset + 10);
+                        first_error = tvb_get_uint8(tvb, offset + 11);
 
                         register_extension(state, vals_p, major_opcode, first_event, first_error);
                         wmem_map_remove(state->valtable,
@@ -5714,12 +5715,12 @@ static void
 same_screen_focus(tvbuff_t *tvb, int *offsetp, proto_tree *t)
 {
       proto_item *ti;
-      guint32 bitmask_value;
+      uint32_t bitmask_value;
       int bitmask_offset;
       int bitmask_size;
       proto_tree *bitmask_tree;
 
-      bitmask_value = tvb_get_guint8(tvb, *offsetp);
+      bitmask_value = tvb_get_uint8(tvb, *offsetp);
       bitmask_offset = *offsetp;
       bitmask_size = 1;
 
@@ -5735,7 +5736,7 @@ same_screen_focus(tvbuff_t *tvb, int *offsetp, proto_tree *t)
 static void
 dissect_x11_event(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                   const char *sep, x11_conv_data_t *state,
-                  guint byte_order)
+                  unsigned byte_order)
 {
       unsigned char eventcode;
       const char *sent;
@@ -5745,7 +5746,7 @@ dissect_x11_event(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
       ti = proto_tree_add_item(tree, proto_x11, tvb, 0, -1, ENC_NA);
       t = proto_item_add_subtree(ti, ett_x11);
 
-      eventcode = tvb_get_guint8(tvb, 0);
+      eventcode = tvb_get_uint8(tvb, 0);
       sent = (eventcode & 0x80) ? "Sent-" : "";
 
       col_append_fstr(pinfo->cinfo, COL_INFO, "%s %s%s",
@@ -5769,7 +5770,7 @@ dissect_x11_event(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 static void
 decode_x11_event(tvbuff_t *tvb, unsigned char eventcode, const char *sent,
                  proto_tree *t, x11_conv_data_t *state,
-                 guint byte_order)
+                 unsigned byte_order)
 {
       int offset = 0, *offsetp = &offset, left;
 
@@ -5787,8 +5788,8 @@ decode_x11_event(tvbuff_t *tvb, unsigned char eventcode, const char *sent,
                   int code, mask;
 
                   /* need to do some prefetching here ... */
-                  code = tvb_get_guint8(tvb, offset);
-                  mask = tvb_get_guint16(tvb, 28, byte_order);
+                  code = tvb_get_uint8(tvb, offset);
+                  mask = tvb_get_uint16(tvb, 28, byte_order);
 
                   KEYCODE_DECODED(keycode, code, mask);
                   CARD16(event_sequencenumber);
@@ -6129,7 +6130,7 @@ decode_x11_event(tvbuff_t *tvb, unsigned char eventcode, const char *sent,
 static void
 dissect_x11_error(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                   const char *sep, x11_conv_data_t *state _U_,
-                  guint byte_order)
+                  unsigned byte_order)
 {
       int offset = 0, *offsetp = &offset, left;
       unsigned char errorcode;
@@ -6141,7 +6142,7 @@ dissect_x11_error(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
       CARD8(error);
 
-      errorcode = tvb_get_guint8(tvb, offset);
+      errorcode = tvb_get_uint8(tvb, offset);
       col_append_fstr(pinfo->cinfo, COL_INFO, "%s %s",
                     sep, val_to_str(errorcode, state->errorcode_vals, "<Unknown errorcode %u>"));
 
@@ -6219,7 +6220,7 @@ void proto_register_x11(void)
       };
 
 /* Setup protocol subtree array */
-      static gint *ett[] = {
+      static int *ett[] = {
             &ett_x11,
             &ett_x11_color_flags,
             &ett_x11_list_of_arc,

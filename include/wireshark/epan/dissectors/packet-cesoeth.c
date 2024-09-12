@@ -25,25 +25,25 @@ void proto_reg_handoff_cesoeth(void);
 
 static dissector_handle_t cesoeth_handle;
 
-static int proto_cesoeth = -1;
-static int hf_cesoeth_pw_ecid = -1;
-static int hf_cesoeth_pw_res = -1;
-static int hf_cesoeth_cw = -1;
-static int hf_cesoeth_cw_reserved1 = -1;
-static int hf_cesoeth_cw_l = -1;
-static int hf_cesoeth_cw_r = -1;
-static int hf_cesoeth_cw_l0_m = -1;
-static int hf_cesoeth_cw_l1_m = -1;
-static int hf_cesoeth_cw_frg = -1;
-static int hf_cesoeth_cw_len = -1;
-static int hf_cesoeth_cw_seq = -1;
-static int hf_cesoeth_padding = -1;
+static int proto_cesoeth;
+static int hf_cesoeth_pw_ecid;
+static int hf_cesoeth_pw_res;
+static int hf_cesoeth_cw;
+static int hf_cesoeth_cw_reserved1;
+static int hf_cesoeth_cw_l;
+static int hf_cesoeth_cw_r;
+static int hf_cesoeth_cw_l0_m;
+static int hf_cesoeth_cw_l1_m;
+static int hf_cesoeth_cw_frg;
+static int hf_cesoeth_cw_len;
+static int hf_cesoeth_cw_seq;
+static int hf_cesoeth_padding;
 
-static gint ett_cesoeth = -1;
-static gint ett_cesoeth_cw = -1;
+static int ett_cesoeth;
+static int ett_cesoeth_cw;
 
-static expert_field ei_cesoeth_reserved = EI_INIT;
-static expert_field ei_cesoeth_length = EI_INIT;
+static expert_field ei_cesoeth_reserved;
+static expert_field ei_cesoeth_length;
 
 static int* const cesoeth_l0_cw[] =
 {
@@ -97,8 +97,8 @@ static const value_string l1_m_names[] =
 };
 
 /* Preferences */
-static gboolean has_rtp_header = FALSE;
-static gboolean heuristic_rtp_header = TRUE;
+static bool has_rtp_header;
+static bool heuristic_rtp_header = true;
 
 
 static int
@@ -108,11 +108,11 @@ dissect_cesoeth(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
     proto_item  *cesoeth_ti;
     proto_item  *bitmask_ti;
     int         offset = 0;
-    guint32     ecid, reserved;
-    gboolean    l_bit, r_bit;
-    guint8      m_bits, frg;
-    gint        cw_len, padding_len, tail_len, payload_len;
-    guint16     sn;
+    uint32_t    ecid, reserved;
+    bool        l_bit, r_bit;
+    uint8_t     m_bits, frg;
+    int         cw_len, padding_len, tail_len, payload_len;
+    uint16_t    sn;
     tvbuff_t    *next_tvb;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "CESoETH");
@@ -141,9 +141,9 @@ dissect_cesoeth(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
      * 15-0  sequence   sequence number
      */
 
-    l_bit  = (tvb_get_guint8(tvb, offset) & 0x08) ? TRUE : FALSE;
-    r_bit  = (tvb_get_guint8(tvb, offset) & 0x04) ? TRUE : FALSE;
-    m_bits = (tvb_get_guint8(tvb, offset) & 0x03);
+    l_bit  = (tvb_get_uint8(tvb, offset) & 0x08) ? true : false;
+    r_bit  = (tvb_get_uint8(tvb, offset) & 0x04) ? true : false;
+    m_bits = (tvb_get_uint8(tvb, offset) & 0x03);
     frg    = tvb_get_bits8(tvb, 40, 2);
     cw_len = tvb_get_bits8(tvb, 42, 6);
     sn     = tvb_get_ntohs(tvb, offset + 2);
@@ -212,15 +212,15 @@ dissect_cesoeth(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
         if ((has_rtp_header) ||
             ((heuristic_rtp_header) &&
                 /* Check for RTP version 2, the other fields must be zero */
-                (tvb_get_guint8(tvb, offset) == 0x80) &&
-                /* Check the marker is zero. Unfortnately PT is not always from the dynamic range */
-                ((tvb_get_guint8(tvb, offset + 1) & 0x80) == 0) &&
+                (tvb_get_uint8(tvb, offset) == 0x80) &&
+                /* Check the marker is zero. Unfortunately PT is not always from the dynamic range */
+                ((tvb_get_uint8(tvb, offset + 1) & 0x80) == 0) &&
                 /* The sequence numbers from cw and RTP header must match */
                 (tvb_get_ntohs(tvb, offset + 2) == sn)))
         {
             struct _rtp_info rtp_info;
 
-            gint rtp_header_len = dissect_rtp_shim_header(tvb, offset, pinfo, cesoeth_tree, &rtp_info);
+            int rtp_header_len = dissect_rtp_shim_header(tvb, offset, pinfo, cesoeth_tree, &rtp_info);
 
             col_set_str(pinfo->cinfo, COL_PROTOCOL, "CESoETH (w RTP)");
             col_append_sep_fstr(pinfo->cinfo, COL_INFO, NULL, "RTP PT: %u, SSRC: 0x%X, Seq: %u, Time=%u",
@@ -293,7 +293,7 @@ proto_register_cesoeth(void)
             NULL, 0x0, NULL, HFILL }}
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_cesoeth,
         &ett_cesoeth_cw
     };

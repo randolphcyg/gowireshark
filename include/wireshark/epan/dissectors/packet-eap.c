@@ -29,162 +29,162 @@
 void proto_register_eap(void);
 void proto_reg_handoff_eap(void);
 
-static int proto_eap = -1;
-static int hf_eap_code = -1;
-static int hf_eap_identifier = -1;
-static int hf_eap_len = -1;
-static int hf_eap_type = -1;
-static int hf_eap_type_nak = -1;
+static int proto_eap;
+static int hf_eap_code;
+static int hf_eap_identifier;
+static int hf_eap_len;
+static int hf_eap_type;
+static int hf_eap_type_nak;
 
-static int hf_eap_identity = -1;
-static int hf_eap_identity_full = -1;
-static int hf_eap_identity_actual_len = -1;
-static int hf_eap_identity_prefix = -1;
-static int hf_eap_identity_type = -1;
-static int hf_eap_identity_certificate_sn = -1;
-static int hf_eap_identity_mcc = -1;
-static int hf_eap_identity_mcc_mnc_2digits = -1;
-static int hf_eap_identity_mcc_mnc_3digits = -1;
-static int hf_eap_identity_padding = -1;
+static int hf_eap_identity;
+static int hf_eap_identity_full;
+static int hf_eap_identity_actual_len;
+static int hf_eap_identity_prefix;
+static int hf_eap_identity_type;
+static int hf_eap_identity_certificate_sn;
+static int hf_eap_identity_mcc;
+static int hf_eap_identity_mcc_mnc_2digits;
+static int hf_eap_identity_mcc_mnc_3digits;
+static int hf_eap_identity_padding;
 
-static int hf_eap_notification = -1;
+static int hf_eap_notification;
 
-static int hf_eap_md5_value_size = -1;
-static int hf_eap_md5_value = -1;
-static int hf_eap_md5_extra_data = -1;
+static int hf_eap_md5_value_size;
+static int hf_eap_md5_value;
+static int hf_eap_md5_extra_data;
 
-static int hf_eap_sim_subtype = -1;
-static int hf_eap_sim_reserved = -1;
-static int hf_eap_sim_subtype_attribute = -1;
-static int hf_eap_sim_subtype_type = -1;
-static int hf_eap_sim_subtype_length = -1;
-static int hf_eap_sim_notification_type = -1;
-static int hf_eap_sim_error_code_type = -1;
-static int hf_eap_sim_subtype_value = -1;
+static int hf_eap_sim_subtype;
+static int hf_eap_sim_reserved;
+static int hf_eap_sim_subtype_attribute;
+static int hf_eap_sim_subtype_type;
+static int hf_eap_sim_subtype_length;
+static int hf_eap_sim_notification_type;
+static int hf_eap_sim_error_code_type;
+static int hf_eap_sim_subtype_value;
 
-static int hf_eap_aka_subtype = -1;
-static int hf_eap_aka_reserved = -1;
-static int hf_eap_aka_subtype_attribute = -1;
-static int hf_eap_aka_subtype_type = -1;
-static int hf_eap_aka_subtype_length = -1;
-static int hf_eap_aka_notification_type = -1;
-static int hf_eap_aka_error_code_type = -1;
-static int hf_eap_aka_subtype_value = -1;
+static int hf_eap_aka_subtype;
+static int hf_eap_aka_reserved;
+static int hf_eap_aka_subtype_attribute;
+static int hf_eap_aka_subtype_type;
+static int hf_eap_aka_subtype_length;
+static int hf_eap_aka_notification_type;
+static int hf_eap_aka_error_code_type;
+static int hf_eap_aka_subtype_value;
 
-static int hf_eap_leap_version = -1;
-static int hf_eap_leap_reserved = -1;
-static int hf_eap_leap_count = -1;
-static int hf_eap_leap_peer_challenge = -1;
-static int hf_eap_leap_peer_response = -1;
-static int hf_eap_leap_ap_challenge = -1;
-static int hf_eap_leap_ap_response = -1;
-static int hf_eap_leap_data = -1;
-static int hf_eap_leap_name = -1;
+static int hf_eap_leap_version;
+static int hf_eap_leap_reserved;
+static int hf_eap_leap_count;
+static int hf_eap_leap_peer_challenge;
+static int hf_eap_leap_peer_response;
+static int hf_eap_leap_ap_challenge;
+static int hf_eap_leap_ap_response;
+static int hf_eap_leap_data;
+static int hf_eap_leap_name;
 
-static int hf_eap_ms_chap_v2_opcode = -1;
-static int hf_eap_ms_chap_v2_id = -1;
-static int hf_eap_ms_chap_v2_length = -1;
-static int hf_eap_ms_chap_v2_value_size = -1;
-static int hf_eap_ms_chap_v2_challenge = -1;
-static int hf_eap_ms_chap_v2_name = -1;
-static int hf_eap_ms_chap_v2_peer_challenge = -1;
-static int hf_eap_ms_chap_v2_reserved = -1;
-static int hf_eap_ms_chap_v2_nt_response = -1;
-static int hf_eap_ms_chap_v2_flags = -1;
-static int hf_eap_ms_chap_v2_response = -1;
-static int hf_eap_ms_chap_v2_message = -1;
-static int hf_eap_ms_chap_v2_failure_request = -1;
-static int hf_eap_ms_chap_v2_data = -1;
+static int hf_eap_ms_chap_v2_opcode;
+static int hf_eap_ms_chap_v2_id;
+static int hf_eap_ms_chap_v2_length;
+static int hf_eap_ms_chap_v2_value_size;
+static int hf_eap_ms_chap_v2_challenge;
+static int hf_eap_ms_chap_v2_name;
+static int hf_eap_ms_chap_v2_peer_challenge;
+static int hf_eap_ms_chap_v2_reserved;
+static int hf_eap_ms_chap_v2_nt_response;
+static int hf_eap_ms_chap_v2_flags;
+static int hf_eap_ms_chap_v2_response;
+static int hf_eap_ms_chap_v2_message;
+static int hf_eap_ms_chap_v2_failure_request;
+static int hf_eap_ms_chap_v2_data;
 
-static int hf_eap_pax_opcode = -1;
-static int hf_eap_pax_flags = -1;
-static int hf_eap_pax_flags_mf = -1;
-static int hf_eap_pax_flags_ce = -1;
-static int hf_eap_pax_flags_ai = -1;
-static int hf_eap_pax_flags_reserved = -1;
-static int hf_eap_pax_mac_id = -1;
-static int hf_eap_pax_dh_group_id = -1;
-static int hf_eap_pax_public_key_id = -1;
-static int hf_eap_pax_a_len = -1;
-static int hf_eap_pax_a = -1;
-static int hf_eap_pax_b_len = -1;
-static int hf_eap_pax_b = -1;
-static int hf_eap_pax_cid_len = -1;
-static int hf_eap_pax_cid = -1;
-static int hf_eap_pax_mac_ck_len = -1;
-static int hf_eap_pax_mac_ck = -1;
-static int hf_eap_pax_ade_len = -1;
-static int hf_eap_pax_ade = -1;
-static int hf_eap_pax_mac_icv = -1;
+static int hf_eap_pax_opcode;
+static int hf_eap_pax_flags;
+static int hf_eap_pax_flags_mf;
+static int hf_eap_pax_flags_ce;
+static int hf_eap_pax_flags_ai;
+static int hf_eap_pax_flags_reserved;
+static int hf_eap_pax_mac_id;
+static int hf_eap_pax_dh_group_id;
+static int hf_eap_pax_public_key_id;
+static int hf_eap_pax_a_len;
+static int hf_eap_pax_a;
+static int hf_eap_pax_b_len;
+static int hf_eap_pax_b;
+static int hf_eap_pax_cid_len;
+static int hf_eap_pax_cid;
+static int hf_eap_pax_mac_ck_len;
+static int hf_eap_pax_mac_ck;
+static int hf_eap_pax_ade_len;
+static int hf_eap_pax_ade;
+static int hf_eap_pax_mac_icv;
 
-static int hf_eap_psk_flags = -1;
-static int hf_eap_psk_flags_t = -1;
-static int hf_eap_psk_flags_reserved = -1;
-static int hf_eap_psk_rand_p = -1;
-static int hf_eap_psk_rand_s = -1;
-static int hf_eap_psk_mac_p = -1;
-static int hf_eap_psk_mac_s = -1;
-static int hf_eap_psk_id_p = -1;
-static int hf_eap_psk_id_s = -1;
-static int hf_eap_psk_pchannel = -1;
+static int hf_eap_psk_flags;
+static int hf_eap_psk_flags_t;
+static int hf_eap_psk_flags_reserved;
+static int hf_eap_psk_rand_p;
+static int hf_eap_psk_rand_s;
+static int hf_eap_psk_mac_p;
+static int hf_eap_psk_mac_s;
+static int hf_eap_psk_id_p;
+static int hf_eap_psk_id_s;
+static int hf_eap_psk_pchannel;
 
-static int hf_eap_sake_version = -1;
-static int hf_eap_sake_session_id = -1;
-static int hf_eap_sake_subtype = -1;
-static int hf_eap_sake_attr_type = -1;
-static int hf_eap_sake_attr_len = -1;
-static int hf_eap_sake_attr_value = -1;
-static int hf_eap_sake_attr_value_str = -1;
-static int hf_eap_sake_attr_value_uint48 = -1;
+static int hf_eap_sake_version;
+static int hf_eap_sake_session_id;
+static int hf_eap_sake_subtype;
+static int hf_eap_sake_attr_type;
+static int hf_eap_sake_attr_len;
+static int hf_eap_sake_attr_value;
+static int hf_eap_sake_attr_value_str;
+static int hf_eap_sake_attr_value_uint48;
 
-static int hf_eap_gpsk_opcode = -1;
-static int hf_eap_gpsk_id_server_len = -1;
-static int hf_eap_gpsk_id_server = -1;
-static int hf_eap_gpsk_id_peer_len = -1;
-static int hf_eap_gpsk_id_peer = -1;
-static int hf_eap_gpsk_rand_server = -1;
-static int hf_eap_gpsk_rand_peer = -1;
-static int hf_eap_gpsk_csuite_list_len = -1;
-static int hf_eap_gpsk_csuite_vendor = -1;
-static int hf_eap_gpsk_csuite_specifier = -1;
-static int hf_eap_gpsk_pd_payload_len = -1;
-static int hf_eap_gpsk_pd_payload = -1;
-static int hf_eap_gpsk_payload_mac = -1;
-static int hf_eap_gpsk_failure_code = -1;
+static int hf_eap_gpsk_opcode;
+static int hf_eap_gpsk_id_server_len;
+static int hf_eap_gpsk_id_server;
+static int hf_eap_gpsk_id_peer_len;
+static int hf_eap_gpsk_id_peer;
+static int hf_eap_gpsk_rand_server;
+static int hf_eap_gpsk_rand_peer;
+static int hf_eap_gpsk_csuite_list_len;
+static int hf_eap_gpsk_csuite_vendor;
+static int hf_eap_gpsk_csuite_specifier;
+static int hf_eap_gpsk_pd_payload_len;
+static int hf_eap_gpsk_pd_payload;
+static int hf_eap_gpsk_payload_mac;
+static int hf_eap_gpsk_failure_code;
 
-static int hf_eap_msauth_tlv_mandatory = -1;
-static int hf_eap_msauth_tlv_reserved = -1;
-static int hf_eap_msauth_tlv_type = -1;
-static int hf_eap_msauth_tlv_len = -1;
-static int hf_eap_msauth_tlv_val = -1;
-static int hf_eap_msauth_tlv_status = -1;
-static int hf_eap_msauth_tlv_crypto_reserved = -1;
-static int hf_eap_msauth_tlv_crypto_version = -1;
-static int hf_eap_msauth_tlv_crypto_rcv_version = -1;
-static int hf_eap_msauth_tlv_crypto_subtype = -1;
-static int hf_eap_msauth_tlv_crypto_nonce = -1;
-static int hf_eap_msauth_tlv_crypto_cmac = -1;
+static int hf_eap_msauth_tlv_mandatory;
+static int hf_eap_msauth_tlv_reserved;
+static int hf_eap_msauth_tlv_type;
+static int hf_eap_msauth_tlv_len;
+static int hf_eap_msauth_tlv_val;
+static int hf_eap_msauth_tlv_status;
+static int hf_eap_msauth_tlv_crypto_reserved;
+static int hf_eap_msauth_tlv_crypto_version;
+static int hf_eap_msauth_tlv_crypto_rcv_version;
+static int hf_eap_msauth_tlv_crypto_subtype;
+static int hf_eap_msauth_tlv_crypto_nonce;
+static int hf_eap_msauth_tlv_crypto_cmac;
 
-static int hf_eap_data = -1;
+static int hf_eap_data;
 
-static gint ett_eap = -1;
-static gint ett_eap_pax_flags = -1;
-static gint ett_eap_psk_flags = -1;
-static gint ett_eap_sake_attr = -1;
-static gint ett_eap_gpsk_csuite_list = -1;
-static gint ett_eap_gpsk_csuite = -1;
-static gint ett_eap_gpsk_csuite_sel = -1;
-static gint ett_eap_msauth_tlv = -1;
-static gint ett_eap_msauth_tlv_tree = -1;
+static int ett_eap;
+static int ett_eap_pax_flags;
+static int ett_eap_psk_flags;
+static int ett_eap_sake_attr;
+static int ett_eap_gpsk_csuite_list;
+static int ett_eap_gpsk_csuite;
+static int ett_eap_gpsk_csuite_sel;
+static int ett_eap_msauth_tlv;
+static int ett_eap_msauth_tlv_tree;
 
-static expert_field ei_eap_ms_chap_v2_length = EI_INIT;
-static expert_field ei_eap_mitm_attacks = EI_INIT;
-static expert_field ei_eap_md5_value_size_overflow = EI_INIT;
-static expert_field ei_eap_dictionary_attacks = EI_INIT;
-static expert_field ei_eap_identity_nonascii = EI_INIT;
-static expert_field ei_eap_identity_invalid = EI_INIT;
-static expert_field ei_eap_retransmission = EI_INIT;
-static expert_field ei_eap_bad_length = EI_INIT;
+static expert_field ei_eap_ms_chap_v2_length;
+static expert_field ei_eap_mitm_attacks;
+static expert_field ei_eap_md5_value_size_overflow;
+static expert_field ei_eap_dictionary_attacks;
+static expert_field ei_eap_identity_nonascii;
+static expert_field ei_eap_identity_invalid;
+static expert_field ei_eap_retransmission;
+static expert_field ei_eap_bad_length;
 
 static dissector_table_t eap_expanded_type_dissector_table;
 
@@ -606,10 +606,10 @@ static const value_string eap_msauth_tlv_crypto_subtype_vals[] = {
 
 typedef struct {
   int     eap_tls_seq;
-  guint32 eap_reass_cookie;
+  uint32_t eap_reass_cookie;
   int     leap_state;
-  gint16  last_eap_id_req;  /* Last ID of the request from the authenticator. */
-  gint16  last_eap_id_resp; /* Last ID of the response from the peer. */
+  int16_t last_eap_id_req;  /* Last ID of the request from the authenticator. */
+  int16_t last_eap_id_resp; /* Last ID of the response from the peer. */
 } conv_state_t;
 
 typedef struct {
@@ -654,35 +654,35 @@ from RFC5216, pg 21
  */
 static reassembly_table eap_tls_reassembly_table;
 
-static int hf_eap_tls_flags = -1;
-static int hf_eap_tls_flag_l = -1;
-static int hf_eap_tls_flag_m = -1;
-static int hf_eap_tls_flag_s = -1;
-static int hf_eap_tls_flag_o = -1;
-static int hf_eap_tls_flags_version = -1;
-static int hf_eap_tls_len = -1;
-static int hf_eap_tls_outer_tlvs_len = -1;
-static int hf_eap_tls_fragment  = -1;
-static int hf_eap_tls_fragments = -1;
-static int hf_eap_tls_fragment_overlap = -1;
-static int hf_eap_tls_fragment_overlap_conflict = -1;
-static int hf_eap_tls_fragment_multiple_tails = -1;
-static int hf_eap_tls_fragment_too_long_fragment = -1;
-static int hf_eap_tls_fragment_error = -1;
-static int hf_eap_tls_fragment_count = -1;
-static int hf_eap_tls_reassembled_in = -1;
-static int hf_eap_tls_reassembled_length = -1;
-static int hf_eap_fast_type = -1;
-static int hf_eap_fast_length = -1;
-static int hf_eap_fast_aidd = -1;
-static gint ett_eap_tls_fragment  = -1;
-static gint ett_eap_tls_fragments = -1;
-static gint ett_eap_sim_attr = -1;
-static gint ett_eap_aka_attr = -1;
-static gint ett_eap_exp_attr = -1;
-static gint ett_eap_tls_flags = -1;
-static gint ett_identity = -1;
-static gint ett_eap_ikev2_flags = -1;
+static int hf_eap_tls_flags;
+static int hf_eap_tls_flag_l;
+static int hf_eap_tls_flag_m;
+static int hf_eap_tls_flag_s;
+static int hf_eap_tls_flag_o;
+static int hf_eap_tls_flags_version;
+static int hf_eap_tls_len;
+static int hf_eap_tls_outer_tlvs_len;
+static int hf_eap_tls_fragment;
+static int hf_eap_tls_fragments;
+static int hf_eap_tls_fragment_overlap;
+static int hf_eap_tls_fragment_overlap_conflict;
+static int hf_eap_tls_fragment_multiple_tails;
+static int hf_eap_tls_fragment_too_long_fragment;
+static int hf_eap_tls_fragment_error;
+static int hf_eap_tls_fragment_count;
+static int hf_eap_tls_reassembled_in;
+static int hf_eap_tls_reassembled_length;
+static int hf_eap_fast_type;
+static int hf_eap_fast_length;
+static int hf_eap_fast_aidd;
+static int ett_eap_tls_fragment;
+static int ett_eap_tls_fragments;
+static int ett_eap_sim_attr;
+static int ett_eap_aka_attr;
+static int ett_eap_exp_attr;
+static int ett_eap_tls_flags;
+static int ett_identity;
+static int ett_eap_ikev2_flags;
 
 static const fragment_items eap_tls_frag_items = {
   &ett_eap_tls_fragment,
@@ -723,12 +723,12 @@ static const fragment_items eap_tls_frag_items = {
 #define EAP_IKEV2_FLAG_M 0x40 /* More fragments */
 #define EAP_IKEV2_FLAG_I 0x20 /* Integrity checksum data included */
 
-static int hf_eap_ikev2_flags = -1;
-static int hf_eap_ikev2_flag_l = -1;
-static int hf_eap_ikev2_flag_m = -1;
-static int hf_eap_ikev2_flag_i = -1;
-static int hf_eap_ikev2_len = -1;
-static int hf_eap_ikev2_int_chk_data = -1;
+static int hf_eap_ikev2_flags;
+static int hf_eap_ikev2_flag_l;
+static int hf_eap_ikev2_flag_m;
+static int hf_eap_ikev2_flag_i;
+static int hf_eap_ikev2_len;
+static int hf_eap_ikev2_int_chk_data;
 
 /**********************************************************************
  Support for EAP Expanded Type.
@@ -736,8 +736,8 @@ static int hf_eap_ikev2_int_chk_data = -1;
  Currently this is limited to WifiProtectedSetup. Maybe we need
  a generic method to support EAP extended types ?
 *********************************************************************/
-static int   hf_eap_ext_vendor_id   = -1;
-static int   hf_eap_ext_vendor_type = -1;
+static int   hf_eap_ext_vendor_id;
+static int   hf_eap_ext_vendor_type;
 
 static const value_string eap_ext_vendor_id_vals[] = {
   { WFA_VENDOR_ID, "WFA" },
@@ -751,11 +751,11 @@ static const value_string eap_ext_vendor_type_vals[] = {
 
 static void
 dissect_exteap(proto_tree *eap_tree, tvbuff_t *tvb, int offset,
-               gint size _U_, packet_info* pinfo, guint8 eap_code, guint8 eap_identifier)
+               int size _U_, packet_info* pinfo, uint8_t eap_code, uint8_t eap_identifier)
 {
   tvbuff_t   *next_tvb;
-  guint32    vendor_id;
-  guint32    vendor_type;
+  uint32_t   vendor_id;
+  uint32_t   vendor_type;
   eap_vendor_context *vendor_context;
 
   vendor_context = wmem_new(pinfo->pool, eap_vendor_context);
@@ -774,7 +774,7 @@ dissect_exteap(proto_tree *eap_tree, tvbuff_t *tvb, int offset,
   next_tvb = tvb_new_subset_remaining(tvb, offset);
   if (!dissector_try_uint_new(eap_expanded_type_dissector_table,
     vendor_id, next_tvb, pinfo, eap_tree,
-    FALSE, vendor_context)) {
+    false, vendor_context)) {
     call_data_dissector(next_tvb, pinfo, eap_tree);
   }
 }
@@ -783,16 +783,16 @@ dissect_exteap(proto_tree *eap_tree, tvbuff_t *tvb, int offset,
 
 static void
 dissect_eap_mschapv2(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset,
-                     gint size)
+                     int size)
 {
   proto_item *item;
-  gint        left = size;
-  gint        ms_len;
-  guint8      value_size;
-  guint8      opcode;
+  int         left = size;
+  int         ms_len;
+  uint8_t     value_size;
+  uint8_t     opcode;
 
   /* OpCode (1 byte), MS-CHAPv2-ID (1 byte), MS-Length (2 bytes), Data */
-  opcode = tvb_get_guint8(tvb, offset);
+  opcode = tvb_get_uint8(tvb, offset);
   proto_tree_add_item(eap_tree, hf_eap_ms_chap_v2_opcode, tvb, offset, 1, ENC_BIG_ENDIAN);
   offset += 1;
   left   -= 1;
@@ -816,7 +816,7 @@ dissect_eap_mschapv2(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, in
   case MS_CHAP_V2_CHALLENGE:
     if (left <= 0)
       break;
-    value_size = tvb_get_guint8(tvb, offset);
+    value_size = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(eap_tree, hf_eap_ms_chap_v2_value_size,
                         tvb, offset, 1, ENC_BIG_ENDIAN);
     offset += 1;
@@ -833,7 +833,7 @@ dissect_eap_mschapv2(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, in
   case MS_CHAP_V2_RESPONSE:
     if (left <= 0)
       break;
-    value_size = tvb_get_guint8(tvb, offset);
+    value_size = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(eap_tree, hf_eap_ms_chap_v2_value_size,
                         tvb, offset, 1, ENC_BIG_ENDIAN);
     offset += 1;
@@ -880,33 +880,33 @@ dissect_eap_mschapv2(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, in
 }
 
 /* Dissect the WLAN identity */
-static gboolean
-dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, int offset, gint size)
+static bool
+dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, int offset, int size)
 {
-  guint       mnc = 0;
-  guint       mcc = 0;
-  guint       mcc_mnc = 0;
+  unsigned    mnc = 0;
+  unsigned    mcc = 0;
+  unsigned    mcc_mnc = 0;
   proto_tree* eap_identity_tree = NULL;
-  guint8      eap_identity_prefix = 0;
-  const gchar* eap_identity_value;
-  guint8*     identity = NULL;
-  gchar**     tokens = NULL;
-  gchar**     realm_tokens = NULL;
-  gchar**     cert_tokens = NULL;
-  guint       ntokens = 0;
-  guint       nrealm_tokens = 0;
-  guint       ncert_tokens = 0;
-  gboolean    ret = TRUE;
-  gboolean    enc_imsi = FALSE;
+  uint8_t     eap_identity_prefix = 0;
+  const char* eap_identity_value;
+  uint8_t*     identity = NULL;
+  char**     tokens = NULL;
+  char**     realm_tokens = NULL;
+  char**     cert_tokens = NULL;
+  unsigned    ntokens = 0;
+  unsigned    nrealm_tokens = 0;
+  unsigned    ncert_tokens = 0;
+  bool        ret = true;
+  bool        enc_imsi = false;
   int         hf_eap_identity_mcc_mnc;
   proto_item* item;
 
   /* Check for Encrypted IMSI - NULL prefix byte */
-  if (tvb_get_guint8(tvb, offset) == 0x00) {
+  if (tvb_get_uint8(tvb, offset) == 0x00) {
     /* Check if identity string complies with ASCII character set.  Encrypted IMSI
      * identities use Base64 encoding and should therefore be ASCII-compliant.
     */
-    if (tvb_ascii_isprint(tvb, offset + 1, size - 1) == FALSE) {
+    if (tvb_ascii_isprint(tvb, offset + 1, size - 1) == false) {
       item = proto_tree_add_item(tree, hf_eap_identity, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
       expert_add_info(pinfo, item, &ei_eap_identity_nonascii);
       goto end;
@@ -918,10 +918,10 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
      * (2) Once to tokenize the 3GPP realm using the '@' character
     */
     tokens = g_strsplit_set(identity, ",", -1);
-    enc_imsi = TRUE;
+    enc_imsi = true;
   } else {
     /* Check if identity string complies with ASCII character set */
-    if (tvb_ascii_isprint(tvb, offset, size) == FALSE) {
+    if (tvb_ascii_isprint(tvb, offset, size) == false) {
       item = proto_tree_add_item(tree, hf_eap_identity, tvb, offset, size, ENC_ASCII || ENC_NA);
       expert_add_info(pinfo, item, &ei_eap_identity_nonascii);
       goto end;
@@ -937,14 +937,14 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
   /* Check for valid EAP Identity strings based on tokens and 3GPP-format */
   if (enc_imsi) {
     if (ntokens < 2 || g_ascii_strncasecmp(tokens[1], "CertificateSerialNumber", 23)) {
-      ret = FALSE;
+      ret = false;
       proto_tree_add_item(tree, hf_eap_identity, tvb, offset + 1, size - 1, ENC_ASCII);
       goto end;
     }
   } else {
     /* tokens[0] is the identity, tokens[1] is the NAI Realm */
     if (ntokens != 2) {
-      ret = FALSE;
+      ret = false;
       proto_tree_add_item(tree, hf_eap_identity, tvb, offset, size, ENC_ASCII);
       goto end;
     }
@@ -961,7 +961,7 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
     if (ntokens != 2 || nrealm_tokens != 5 || g_ascii_strncasecmp(realm_tokens[0], "wlan", 4) ||
         g_ascii_strncasecmp(realm_tokens[3], "3gppnetwork", 11) ||
         g_ascii_strncasecmp(realm_tokens[4], "org", 3)) {
-      ret = FALSE;
+      ret = false;
       proto_tree_add_item(tree, hf_eap_identity, tvb, offset, size, ENC_ASCII);
       goto end;
     }
@@ -971,7 +971,7 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
   /* Go on with the dissection */
   eap_identity_tree = proto_item_add_subtree(tree, ett_identity);
   proto_tree_add_item(eap_identity_tree, hf_eap_identity_prefix, tvb, offset, 1, ENC_NA);
-  eap_identity_prefix = tvb_get_guint8(tvb, offset);
+  eap_identity_prefix = tvb_get_uint8(tvb, offset);
   eap_identity_value = try_val_to_str(eap_identity_prefix, eap_identity_prefix_vals);
   item = proto_tree_add_string(eap_identity_tree, hf_eap_identity_type,
     tvb, offset, 1, eap_identity_value ? eap_identity_value : "Unknown");
@@ -982,39 +982,39 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
       /* Account for wide characters that increase the byte count
        * despite the character count (i.e., strlen() fails to return
        * the proper character count, leading to offset errors. */
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]), ENC_ASCII);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (unsigned)strlen(tokens[0]), ENC_ASCII);
       break;
     case '0': /* EAP-AKA Permanent */
     case '1': /* EAP-SIM Permanent */
     case '6': /* EAP-AKA' Permanent */
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
-      dissect_e212_utf8_imsi(tvb, pinfo, eap_identity_tree, offset + 1, (guint)strlen(tokens[0]) - 1);
+      dissect_e212_utf8_imsi(tvb, pinfo, eap_identity_tree, offset + 1, (unsigned)strlen(tokens[0]) - 1);
       break;
     case '2': /* EAP-AKA Pseudonym */
     case '3': /* EAP-SIM Pseudonym */
     case '7': /* EAP-AKA' Pseudonym */
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (unsigned)strlen(tokens[0]) - 1, ENC_ASCII);
       break;
     case '4': /* EAP-AKA Reauth ID */
     case '5': /* EAP-SIM Reauth ID */
     case '8': /* EAP-AKA' Reauth ID */
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (unsigned)strlen(tokens[0]) - 1, ENC_ASCII);
       break;
     case 'C': /* Conservative Peer */
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (unsigned)strlen(tokens[0]) - 1, ENC_ASCII);
       break;
     case 'a': /* Anonymous User */
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset, size, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset, (guint)strlen(tokens[0]), ENC_ASCII);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset, (unsigned)strlen(tokens[0]), ENC_ASCII);
       break;
     case 'G': /* TODO: 'G' Unknown */
     case 'I': /* TODO: 'I' Unknown */
     default:
       proto_tree_add_item(eap_identity_tree, hf_eap_identity_full, tvb, offset + 1, size - 1, ENC_ASCII || ENC_NA);
-      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (guint)strlen(tokens[0]) - 1, ENC_ASCII);
+      proto_tree_add_item(eap_identity_tree, hf_eap_identity, tvb, offset + 1, (unsigned)strlen(tokens[0]) - 1, ENC_ASCII);
       expert_add_info(pinfo, item, &ei_eap_identity_invalid);
   }
 
@@ -1028,8 +1028,8 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
 
     /* Add Certificate Serial Number to the tree */
     proto_tree_add_item(eap_identity_tree, hf_eap_identity_certificate_sn, tvb,
-      offset + 1 + (guint)strlen(tokens[0]) + 1 + (guint)strlen("CertificateSerialNumber="),
-      (guint)strlen(tokens[1]) - (guint)strlen("CertificateSerialNumber="), ENC_ASCII);
+      offset + 1 + (unsigned)strlen(tokens[0]) + 1 + (unsigned)strlen("CertificateSerialNumber="),
+      (unsigned)strlen(tokens[1]) - (unsigned)strlen("CertificateSerialNumber="), ENC_ASCII);
 
     /* Check for the optional NAI Realm string */
     if (ntokens != 3 || g_ascii_strncasecmp(tokens[2], "Realm", 5)) {
@@ -1050,7 +1050,7 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
         g_ascii_strncasecmp(realm_tokens[2], "mcc", 3) ||
         g_ascii_strncasecmp(realm_tokens[3], "3gppnetwork", 11) ||
         g_ascii_strncasecmp(realm_tokens[4], "org", 3)) {
-      ret = FALSE;
+      ret = false;
       goto end;
     }
 
@@ -1058,14 +1058,14 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
      * still add the MCC and MNC values for non-permanent EAP
      * identities. */
     if (!sscanf(realm_tokens[2] + 3, "%u", &mnc) || !sscanf(realm_tokens[3] + 3, "%u", &mcc)) {
-      ret = FALSE;
+      ret = false;
       goto end;
     }
   } else {
     /* Not an encrypted IMSI, but still need to make sure the realm tokens are
      * consistent with the 3GPP format. */
     if (!sscanf(realm_tokens[1] + 3, "%u", &mnc) || !sscanf(realm_tokens[2] + 3, "%u", &mcc)) {
-      ret = FALSE;
+      ret = false;
       goto end;
     }
   }
@@ -1089,26 +1089,26 @@ dissect_eap_identity_wlan(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, i
     if (enc_imsi) {
       /* Add MNC to tree */
       proto_tree_add_uint(eap_identity_tree, hf_eap_identity_mcc_mnc, tvb,
-        offset + 1 + (guint)strlen(tokens[0]) + 1 + (guint)strlen(tokens[1]) + 1 +
-        (guint)strlen("Realm=@wlan.mnc"), (guint)strlen(realm_tokens[2]) -
-        (guint)strlen("mnc"), mcc_mnc);
+        offset + 1 + (unsigned)strlen(tokens[0]) + 1 + (unsigned)strlen(tokens[1]) + 1 +
+        (unsigned)strlen("Realm=@wlan.mnc"), (unsigned)strlen(realm_tokens[2]) -
+        (unsigned)strlen("mnc"), mcc_mnc);
       /* Add MCC to tree */
       proto_tree_add_uint(eap_identity_tree, hf_eap_identity_mcc, tvb,
-        offset + 1 + (guint)strlen(tokens[0]) + 1 + (guint)strlen(tokens[1]) + 1 +
-        (guint)strlen(realm_tokens[0]) + (guint)strlen("@wlan.") +
-        (guint)strlen(realm_tokens[2]) + (guint)strlen(".mcc"),
-        (guint)strlen(realm_tokens[3]) - (guint)strlen("mcc"), mcc);
+        offset + 1 + (unsigned)strlen(tokens[0]) + 1 + (unsigned)strlen(tokens[1]) + 1 +
+        (unsigned)strlen(realm_tokens[0]) + (unsigned)strlen("@wlan.") +
+        (unsigned)strlen(realm_tokens[2]) + (unsigned)strlen(".mcc"),
+        (unsigned)strlen(realm_tokens[3]) - (unsigned)strlen("mcc"), mcc);
     } else {
       /* Add MNC to tree */
       proto_tree_add_uint(eap_identity_tree, hf_eap_identity_mcc_mnc,
-        tvb, offset + (guint)strlen(tokens[0]) + (guint)strlen("@wlan.") +
-        (guint)strlen("mnc"), (guint)strlen(realm_tokens[1]) - (guint)strlen("mnc"),
+        tvb, offset + (unsigned)strlen(tokens[0]) + (unsigned)strlen("@wlan.") +
+        (unsigned)strlen("mnc"), (unsigned)strlen(realm_tokens[1]) - (unsigned)strlen("mnc"),
         mcc_mnc);
       /* Add MCC to tree */
       proto_tree_add_uint(eap_identity_tree, hf_eap_identity_mcc,
-        tvb, offset + (guint)(strlen(tokens[0]) + (guint)strlen("@wlan.") +
-        (guint)strlen(realm_tokens[1]) + 1 + strlen("mcc")),
-        (guint)strlen(realm_tokens[2]) - (guint)strlen("mcc"), mcc);
+        tvb, offset + (unsigned)(strlen(tokens[0]) + (unsigned)strlen("@wlan.") +
+        (unsigned)strlen(realm_tokens[1]) + 1 + strlen("mcc")),
+        (unsigned)strlen(realm_tokens[2]) - (unsigned)strlen("mcc"), mcc);
     }
   }
 
@@ -1121,7 +1121,7 @@ end:
 }
 
 static void
-dissect_eap_identity(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, int offset, gint size)
+dissect_eap_identity(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, int offset, int size)
 {
   /*
    * Try to dissect as WLAN identity.
@@ -1147,9 +1147,9 @@ dissect_eap_identity(tvbuff_t *tvb, packet_info* pinfo, proto_tree* tree, int of
 }
 
 static void
-dissect_eap_sim(proto_tree *eap_tree, tvbuff_t *tvb, packet_info* pinfo, int offset, gint size)
+dissect_eap_sim(proto_tree *eap_tree, tvbuff_t *tvb, packet_info* pinfo, int offset, int size)
 {
-  gint left = size;
+  int left = size;
 
   proto_tree_add_item(eap_tree, hf_eap_sim_subtype, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -1164,16 +1164,16 @@ dissect_eap_sim(proto_tree *eap_tree, tvbuff_t *tvb, packet_info* pinfo, int off
 
   /* Rest of EAP-SIM data is in Type-Len-Value format. */
   while (left >= 2) {
-    guint8      type, length;
-    gint        padding;
+    uint8_t     type, length;
+    int         padding;
     proto_item *pi;
     proto_tree *attr_tree;
     int         aoffset;
-    gint        aleft;
+    int         aleft;
 
     aoffset = offset;
-    type    = tvb_get_guint8(tvb, aoffset);
-    length  = tvb_get_guint8(tvb, aoffset + 1);
+    type    = tvb_get_uint8(tvb, aoffset);
+    length  = tvb_get_uint8(tvb, aoffset + 1);
     aleft   = 4 * length;
 
     pi = proto_tree_add_none_format(eap_tree, hf_eap_sim_subtype_attribute, tvb,
@@ -1223,9 +1223,9 @@ dissect_eap_sim(proto_tree *eap_tree, tvbuff_t *tvb, packet_info* pinfo, int off
 }
 
 static void
-dissect_eap_aka(proto_tree *eap_tree, tvbuff_t *tvb, packet_info* pinfo, int offset, gint size)
+dissect_eap_aka(proto_tree *eap_tree, tvbuff_t *tvb, packet_info* pinfo, int offset, int size)
 {
-  gint left = size;
+  int left = size;
 
   proto_tree_add_item(eap_tree, hf_eap_aka_subtype, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -1240,16 +1240,16 @@ dissect_eap_aka(proto_tree *eap_tree, tvbuff_t *tvb, packet_info* pinfo, int off
 
   /* Rest of EAP-AKA data is in Type-Len-Value format. */
   while (left >= 2) {
-    guint8       type, length;
-    gint         padding;
+    uint8_t      type, length;
+    int          padding;
     proto_item  *pi;
     proto_tree  *attr_tree;
     int          aoffset;
-    gint         aleft;
+    int          aleft;
 
     aoffset = offset;
-    type    = tvb_get_guint8(tvb, aoffset);
-    length  = tvb_get_guint8(tvb, aoffset + 1);
+    type    = tvb_get_uint8(tvb, aoffset);
+    length  = tvb_get_uint8(tvb, aoffset + 1);
     aleft   = 4 *  length;
 
     pi = proto_tree_add_none_format(eap_tree, hf_eap_aka_subtype_attribute, tvb,
@@ -1299,7 +1299,7 @@ dissect_eap_aka(proto_tree *eap_tree, tvbuff_t *tvb, packet_info* pinfo, int off
 }
 
 static int
-dissect_eap_pax(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset, gint size)
+dissect_eap_pax(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset, int size)
 {
   static int * const pax_flags[] = {
     &hf_eap_pax_flags_mf,
@@ -1308,9 +1308,9 @@ dissect_eap_pax(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int off
     &hf_eap_pax_flags_reserved,
     NULL
   };
-  guint32 opcode;
-  guint64 flags;
-  guint32 len;
+  uint32_t opcode;
+  uint64_t flags;
+  uint32_t len;
 
   proto_tree_add_item_ret_uint(eap_tree, hf_eap_pax_opcode, tvb, offset, 1, ENC_NA, &opcode);
   offset++;
@@ -1404,7 +1404,7 @@ dissect_eap_pax(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int off
 }
 
 static int
-dissect_eap_psk_pchannel(proto_tree *eap_tree, tvbuff_t *tvb, int offset, gint size)
+dissect_eap_psk_pchannel(proto_tree *eap_tree, tvbuff_t *tvb, int offset, int size)
 {
   /* The protected channel (PCHANNEL) content is encrypted so for now just present
    * it as a binary blob */
@@ -1414,14 +1414,14 @@ dissect_eap_psk_pchannel(proto_tree *eap_tree, tvbuff_t *tvb, int offset, gint s
 }
 
 static int
-dissect_eap_psk(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset, gint size)
+dissect_eap_psk(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset, int size)
 {
   static int * const psk_flags[] = {
     &hf_eap_psk_flags_t,
     &hf_eap_psk_flags_reserved,
     NULL
   };
-  guint64 flags;
+  uint64_t flags;
 
   proto_tree_add_bitmask_ret_uint64(eap_tree, tvb, offset, hf_eap_psk_flags, ett_eap_psk_flags,
                                     psk_flags, ENC_NA, &flags);
@@ -1467,7 +1467,7 @@ dissect_eap_psk(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int off
   return offset;
 }
 
-static gint
+static int
 dissect_eap_gpsk_csuite_sel(proto_tree *eap_tree, tvbuff_t *tvb, int offset)
 {
   proto_tree *csuite_tree;
@@ -1480,11 +1480,11 @@ dissect_eap_gpsk_csuite_sel(proto_tree *eap_tree, tvbuff_t *tvb, int offset)
   return offset;
 }
 
-static gint
+static int
 dissect_eap_gpsk_csuite_list(proto_tree *eap_tree, tvbuff_t *tvb, int offset)
 {
-  gint start_offset = offset;
-  guint16 len;
+  int start_offset = offset;
+  uint16_t len;
   proto_tree *list_tree, *csuite_tree;
 
   len = tvb_get_ntohs(tvb, offset) + 2;
@@ -1504,16 +1504,16 @@ dissect_eap_gpsk_csuite_list(proto_tree *eap_tree, tvbuff_t *tvb, int offset)
   return offset;
 }
 
-static gint
-dissect_eap_sake_attribute(proto_tree *eap_tree, tvbuff_t *tvb, int offset, gint size)
+static int
+dissect_eap_sake_attribute(proto_tree *eap_tree, tvbuff_t *tvb, int offset, int size)
 {
-  gint start_offset = offset;
-  guint8 type;
-  guint8 len;
+  int start_offset = offset;
+  uint8_t type;
+  uint8_t len;
   proto_tree *attr_tree;
 
-  type = tvb_get_guint8(tvb, offset);
-  len = tvb_get_guint8(tvb, offset + 1);
+  type = tvb_get_uint8(tvb, offset);
+  len = tvb_get_uint8(tvb, offset + 1);
 
   if (len < 2 || len > size) {
     return -1;
@@ -1561,9 +1561,9 @@ dissect_eap_sake_attribute(proto_tree *eap_tree, tvbuff_t *tvb, int offset, gint
 }
 
 static void
-dissect_eap_sake_attributes(proto_tree *eap_tree, tvbuff_t *tvb, int offset, gint size)
+dissect_eap_sake_attributes(proto_tree *eap_tree, tvbuff_t *tvb, int offset, int size)
 {
-  gint attr_size;
+  int attr_size;
   while (offset < size) {
     attr_size = dissect_eap_sake_attribute(eap_tree, tvb, offset, size);
     if (attr_size == -1) {
@@ -1574,10 +1574,10 @@ dissect_eap_sake_attributes(proto_tree *eap_tree, tvbuff_t *tvb, int offset, gin
 }
 
 static void
-dissect_eap_sake(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset, gint size)
+dissect_eap_sake(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo _U_, int offset, int size)
 {
-  guint32 version;
-  guint32 subtype;
+  uint32_t version;
+  uint32_t subtype;
 
   proto_tree_add_item_ret_uint(eap_tree, hf_eap_sake_version, tvb, offset, 1, ENC_NA, &version);
   offset++;
@@ -1603,10 +1603,10 @@ dissect_eap_sake(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo _U_, in
 }
 
 static int
-dissect_eap_gpsk(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset, gint size)
+dissect_eap_gpsk(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset, int size)
 {
-  guint32 opcode;
-  guint32 len;
+  uint32_t opcode;
+  uint32_t len;
 
   proto_tree_add_item_ret_uint(eap_tree, hf_eap_gpsk_opcode, tvb, offset, 1, ENC_NA, &opcode);
   offset++;
@@ -1698,17 +1698,17 @@ dissect_eap_gpsk(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int of
 }
 
 static int
-dissect_eap_msauth_tlv(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset, gint size)
+dissect_eap_msauth_tlv(proto_tree *eap_tree, tvbuff_t *tvb, packet_info *pinfo, int offset, int size)
 {
-  guint tlv_type, tlv_len;
+  unsigned tlv_type, tlv_len;
   proto_tree *tlv_tree, *tree, *ti_len;
 
   tlv_tree = proto_tree_add_subtree(eap_tree, tvb, offset, size, ett_eap_msauth_tlv,
                                     NULL, "Tag Length Values");
 
 next_tlv:
-  tlv_type = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN) & MSAUTH_TLV_TYPE;
-  tlv_len = tvb_get_guint16(tvb, offset + 2, ENC_BIG_ENDIAN);
+  tlv_type = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN) & MSAUTH_TLV_TYPE;
+  tlv_len = tvb_get_uint16(tvb, offset + 2, ENC_BIG_ENDIAN);
 
   tree = proto_tree_add_subtree_format(tlv_tree, tvb, offset, 4 + tlv_len,
                                        ett_eap_msauth_tlv_tree, NULL, "TLV: t=%s(%d) l=%d",
@@ -1746,7 +1746,7 @@ next_tlv:
 
   default:
     ti_len = proto_tree_add_item(tree, hf_eap_msauth_tlv_val, tvb, offset, tlv_len, ENC_NA);
-    if (4 + tlv_len > (guint)size - offset) {
+    if (4 + tlv_len > (unsigned)size - offset) {
       expert_add_info(pinfo, ti_len, &ei_eap_bad_length);
     }
     offset += tlv_len;
@@ -1763,11 +1763,11 @@ next_tlv:
 static int
 dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  guint8          eap_code;
-  guint8          eap_identifier;
-  guint16         eap_len;
-  guint8          eap_type;
-  gint            len;
+  uint8_t         eap_code;
+  uint8_t         eap_identifier;
+  uint16_t        eap_len;
+  uint8_t         eap_type;
+  int             len;
   conversation_t *conversation       = NULL;
   conv_state_t   *conversation_state = NULL;
   frame_state_t  *packet_state;
@@ -1777,14 +1777,14 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
   proto_tree     *eap_tls_flags_tree;
   proto_item     *eap_type_item;
   static address null_address = ADDRESS_INIT_NONE;
-  static guint8 pae_group_address_mac_addr[6] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x03 };
+  static uint8_t pae_group_address_mac_addr[6] = { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x03 };
   static address pae_group_address = ADDRESS_INIT(AT_ETHER, sizeof(pae_group_address_mac_addr), pae_group_address_mac_addr);
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "EAP");
   col_clear(pinfo->cinfo, COL_INFO);
 
-  eap_code = tvb_get_guint8(tvb, 0);
-  eap_identifier = tvb_get_guint8(tvb, 1);
+  eap_code = tvb_get_uint8(tvb, 0);
+  eap_identifier = tvb_get_uint8(tvb, 1);
 
   col_add_str(pinfo->cinfo, COL_INFO,
                 val_to_str(eap_code, eap_code_vals, "Unknown code (0x%02X)"));
@@ -1814,7 +1814,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
    * We set the port so the TLS decoder can figure out which side is the server
    */
   address conv_src, conv_dst;
-  guint32 tls_group = pinfo->curr_proto_layer_num << 16;
+  uint32_t tls_group = pinfo->curr_proto_layer_num << 16;
   uint32_t conv_srcport = pinfo->srcport;
   uint32_t conv_destport = pinfo->destport;
   if (pinfo->src.type == AT_ETHER) {
@@ -1850,7 +1850,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
   conversation_set_conv_addr_port_endpoints(pinfo, &conv_src, &conv_dst,
     conversation_pt_to_conversation_type(pinfo->ptype), conv_srcport, conv_destport);
 
-  if (PINFO_FD_VISITED(pinfo) || !(eap_code == EAP_REQUEST && tvb_get_guint8(tvb, 4) == EAP_TYPE_ID)) {
+  if (PINFO_FD_VISITED(pinfo) || !(eap_code == EAP_REQUEST && tvb_get_uint8(tvb, 4) == EAP_TYPE_ID)) {
     conversation = find_or_create_conversation(pinfo);
   }
   if (conversation == NULL) {
@@ -1893,19 +1893,19 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
   proto_tree_add_item(eap_tree, hf_eap_code, tvb, 0, 1, ENC_BIG_ENDIAN);
   ti_id = proto_tree_add_item(eap_tree, hf_eap_identifier, tvb, 1, 1, ENC_BIG_ENDIAN);
   ti_len = proto_tree_add_item(eap_tree, hf_eap_len, tvb, 2, 2, ENC_BIG_ENDIAN);
-  if (len < 4 || (guint)len > tvb_reported_length(tvb)) {
+  if (len < 4 || (unsigned)len > tvb_reported_length(tvb)) {
     expert_add_info(pinfo, ti_len, &ei_eap_bad_length);
   }
 
   /* Detect message retransmissions. Since the protocol proceeds in lock-step,
    * reordering is not expected. If retransmissions somehow occur, we would have
    * to detect retransmissions via a bitmap. */
-  gboolean is_duplicate_id = FALSE;
+  bool is_duplicate_id = false;
   if (conversation_state) {
     if (eap_code == EAP_REQUEST || eap_code == EAP_RESPONSE ||
         eap_code == EAP_INITIATE || eap_code == EAP_FINISH) {
       if (!PINFO_FD_VISITED(pinfo)) {
-        gint16 *last_eap_id = eap_code == EAP_REQUEST || eap_code == EAP_INITIATE ?
+        int16_t *last_eap_id = eap_code == EAP_REQUEST || eap_code == EAP_INITIATE ?
           &conversation_state->last_eap_id_req :
           &conversation_state->last_eap_id_resp;
         is_duplicate_id = *last_eap_id == eap_identifier;
@@ -1931,7 +1931,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
   case EAP_REQUEST:
   case EAP_RESPONSE:
-    eap_type = tvb_get_guint8(tvb, 4);
+    eap_type = tvb_get_uint8(tvb, 4);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, ", %s",
                       val_to_str_ext(eap_type, &eap_type_vals_ext,
@@ -1940,7 +1940,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
     if ((len > 5) || ((len == 5) && (eap_type == EAP_TYPE_ID))) {
       int     offset = 5;
-      gint    size   = len - offset;
+      int     size   = len - offset;
 
       switch (eap_type) {
         /*********************************************************************
@@ -1972,8 +1972,8 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
         **********************************************************************/
       case EAP_TYPE_MD5:
       {
-        guint8      value_size = tvb_get_guint8(tvb, offset);
-        gint        extra_len  = size - 1 - value_size;
+        uint8_t     value_size = tvb_get_uint8(tvb, offset);
+        int         extra_len  = size - 1 - value_size;
         proto_item *item;
 
         /* Warn that this is an insecure EAP type. */
@@ -2004,14 +2004,14 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
       case EAP_TYPE_TLS:
       case EAP_TYPE_TEAP:
       {
-        gboolean more_fragments;
-        gboolean has_length;
-        gboolean is_start;
-        gboolean outer_tlvs = false;
-        gint outer_tlvs_length = 0;
+        bool more_fragments;
+        bool has_length;
+        bool is_start;
+        bool outer_tlvs = false;
+        int outer_tlvs_length = 0;
         int      eap_tls_seq      = -1;
-        guint32  eap_reass_cookie =  0;
-        gboolean needs_reassembly =  FALSE;
+        uint32_t eap_reass_cookie =  0;
+        bool needs_reassembly =  false;
 
         if (!conversation_state) {
           // XXX expert info? There cannot be another EAP-TTLS message within
@@ -2058,7 +2058,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
         /* 4.1.1 Authority ID Data https://datatracker.ietf.org/doc/html/rfc4851#section-4.1.1 */
         if (eap_type == EAP_TYPE_FAST && is_start) {
-          guint32 length, type;
+          uint32_t length, type;
 
           proto_tree_add_item_ret_uint(eap_tree, hf_eap_fast_type, tvb, offset, 2, ENC_BIG_ENDIAN, &type);
           size   -= 2;
@@ -2083,8 +2083,8 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
         if (size > 0) {
 
           tvbuff_t *next_tvb = NULL;
-          gint      tvb_len;
-          gboolean  save_fragmented;
+          int       tvb_len;
+          bool      save_fragmented;
 
           tvb_len = tvb_captured_length_remaining(tvb, offset);
           if (size < tvb_len)
@@ -2154,7 +2154,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
                  * We advance the sequence number, giving us the
                  * sequence number for this fragment.
                  */
-                needs_reassembly = TRUE;
+                needs_reassembly = true;
                 conversation_state->eap_tls_seq++;
 
                 eap_reass_cookie = conversation_state->eap_reass_cookie;
@@ -2173,7 +2173,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
                  * happens to be the first fragment we saw), so we
                  * also check that we have a length;
                  */
-                needs_reassembly = TRUE;
+                needs_reassembly = true;
                 conversation_state->eap_reass_cookie = pinfo->num;
 
                 /*
@@ -2216,7 +2216,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
              * or do something else equally horrible, we may not
              * have to worry about this at all.
              */
-            needs_reassembly = TRUE;
+            needs_reassembly = true;
             eap_reass_cookie = packet_state->info;
             eap_tls_seq = 0;
           }
@@ -2236,7 +2236,7 @@ dissect_eap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
              * reassembly.
              */
             save_fragmented   = pinfo->fragmented;
-            pinfo->fragmented = TRUE;
+            pinfo->fragmented = true;
             fd_head = fragment_add_seq(&eap_tls_reassembly_table,
                                        tvb, offset,
                                        pinfo, eap_reass_cookie, NULL,
@@ -2306,7 +2306,7 @@ skip_tls_dissector:
       **********************************************************************/
       case EAP_TYPE_LEAP:
       {
-        guint8 count, namesize;
+        uint8_t count, namesize;
 
         /* Warn that this is an insecure EAP type. */
         expert_add_info(pinfo, eap_type_item, &ei_eap_dictionary_attacks);
@@ -2320,7 +2320,7 @@ skip_tls_dissector:
         offset += 1;
 
         /* Count   (byte) */
-        count = tvb_get_guint8(tvb, offset);
+        count = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(eap_tree, hf_eap_leap_count, tvb, offset, 1, ENC_BIG_ENDIAN);
         offset += 1;
 
@@ -2465,9 +2465,9 @@ skip_tls_dissector:
       **********************************************************************/
       case EAP_TYPE_IKEV2:
       {
-        gboolean more_fragments;
-        gboolean has_length;
-        gboolean icv_present;
+        bool more_fragments;
+        bool has_length;
+        bool icv_present;
 
         /* Flags field, 1 byte */
         ti = proto_tree_add_item(eap_tree, hf_eap_ikev2_flags, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -2488,7 +2488,7 @@ skip_tls_dissector:
 
         if (size > 0) {
           tvbuff_t* next_tvb = NULL;
-          gint      tvb_len;
+          int       tvb_len;
 
           tvb_len = tvb_captured_length_remaining(tvb, offset);
           if (size < tvb_len) {
@@ -2501,7 +2501,7 @@ skip_tls_dissector:
              */
           } else {
             next_tvb = tvb_new_subset_length_caplen(tvb, offset, tvb_len, size);
-            guint tmp = call_dissector(isakmp_handle, next_tvb, pinfo, eap_tree);
+            unsigned tmp = call_dissector(isakmp_handle, next_tvb, pinfo, eap_tree);
             size -= tmp;
             offset += tmp;
 
@@ -3300,7 +3300,7 @@ proto_register_eap(void)
       FT_BYTES, BASE_NONE, NULL, 0x0,
       NULL, HFILL } },
   };
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_eap,
     &ett_eap_pax_flags,
     &ett_eap_psk_flags,

@@ -17,6 +17,8 @@ file(TO_NATIVE_PATH "${PLUGIN_INSTALL_LIBDIR}" PATH_PLUGIN_DIR)
 string(REPLACE "\\" "\\\\" PATH_PLUGIN_DIR "${PATH_PLUGIN_DIR}")
 file(TO_NATIVE_PATH "${EXTCAP_INSTALL_LIBDIR}" PATH_EXTCAP_DIR)
 string(REPLACE "\\" "\\\\" PATH_EXTCAP_DIR "${PATH_EXTCAP_DIR}")
+file(TO_NATIVE_PATH "${LOG_EXTCAP_INSTALL_LIBDIR}" PATH_LOG_EXTCAP_DIR)
+string(REPLACE "\\" "\\\\" PATH_LOG_EXTCAP_DIR "${PATH_LOG_EXTCAP_DIR}")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/path_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/path_config.h)
 
@@ -74,6 +76,7 @@ set(WMEM_FILES
 set(WSUTIL_PUBLIC_HEADERS
 	802_11-utils.h
 	adler32.h
+	array.h
 	base32.h
 	bits_count_ones.h
 	bits_ctz.h
@@ -102,8 +105,7 @@ set(WSUTIL_PUBLIC_HEADERS
 	filesystem.h
 	g711.h
 	inet_addr.h
-	inet_ipv4.h
-	inet_ipv6.h
+	inet_cidr.h
 	interface.h
 	introspection.h
 	jsmn.h
@@ -113,6 +115,7 @@ set(WSUTIL_PUBLIC_HEADERS
 	os_version_info.h
 	pint.h
 	please_report_bug.h
+	plugins.h
 	pow2.h
 	privileges.h
 	processes.h
@@ -173,6 +176,7 @@ set(WSUTIL_COMMON_FILES
 	filter_files.c
 	g711.c
 	inet_addr.c
+	inet_cidr.c
 	interface.c
 	introspection.c
 	jsmn.c
@@ -354,7 +358,7 @@ target_compile_definitions(wsutil PRIVATE
 set_target_properties(wsutil PROPERTIES
 	PREFIX "lib"
 	LINK_FLAGS "${WS_LINK_FLAGS}"
-	VERSION "15.0.0" SOVERSION 15
+	VERSION "16.0.0" SOVERSION 16
 	FOLDER "DLLs"
 	INSTALL_RPATH "${LIBRARY_INSTALL_RPATH}"
 )
@@ -371,7 +375,9 @@ target_link_libraries(wsutil
 		${CMAKE_DL_LIBS}
 		${GCRYPT_LIBRARIES}
 		${GNUTLS_LIBRARIES}
+		${M_LIBRARIES}
 		${ZLIB_LIBRARIES}
+		${ZLIBNG_LIBRARIES}
 		$<IF:$<CONFIG:Debug>,${PCRE2_DEBUG_LIBRARIES},${PCRE2_LIBRARIES}>
 		${WIN_IPHLPAPI_LIBRARY}
 		${WIN_WS2_32_LIBRARY}
@@ -385,6 +391,7 @@ target_include_directories(wsutil SYSTEM
 	PRIVATE
 		${GMODULE2_INCLUDE_DIRS}
 		${ZLIB_INCLUDE_DIRS}
+		${ZLIBNG_INCLUDE_DIRS}
 		${PCRE2_INCLUDE_DIRS}
 )
 
@@ -426,6 +433,7 @@ target_link_libraries(wsutil_static
 		${GCRYPT_LIBRARIES}
 		${GNUTLS_LIBRARIES}
 		${ZLIB_LIBRARIES}
+		${ZLIBNG_LIBRARIES}
 		$<IF:$<CONFIG:Debug>,${PCRE2_DEBUG_LIBRARIES},${PCRE2_LIBRARIES}>
 		${WIN_IPHLPAPI_LIBRARY}
 		${WIN_WS2_32_LIBRARY}
@@ -439,6 +447,7 @@ target_include_directories(wsutil_static SYSTEM
 	PRIVATE
 		${GMODULE2_INCLUDE_DIRS}
 		${ZLIB_INCLUDE_DIRS}
+		${ZLIBNG_INCLUDE_DIRS}
 		${PCRE2_INCLUDE_DIRS}
 )
 

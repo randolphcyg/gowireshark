@@ -15,6 +15,7 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/unit_strings.h>
 
 void proto_register_forces(void);
 void proto_reg_handoff_forces(void);
@@ -24,62 +25,62 @@ static dissector_handle_t  forces_handle_tcp, forces_handle;
 static dissector_handle_t ip_handle;
 
 /* Initialize the ForCES protocol and registered fields */
-static int proto_forces = -1;
+static int proto_forces;
 
 /*Main header*/
-static int hf_forces_version = -1;
-static int hf_forces_rsvd = -1;
-static int hf_forces_messagetype = -1;
-static int hf_forces_sid = -1;
-static int hf_forces_did = -1;
-static int hf_forces_correlator = -1;
-static int hf_forces_length = -1;
+static int hf_forces_version;
+static int hf_forces_rsvd;
+static int hf_forces_messagetype;
+static int hf_forces_sid;
+static int hf_forces_did;
+static int hf_forces_correlator;
+static int hf_forces_length;
 /*Flags*/
-static int hf_forces_flags= -1;
-static int hf_forces_flags_ack= -1;
-static int hf_forces_flags_pri= -1;
-static int hf_forces_flags_rsrvd= -1;
-static int hf_forces_flags_em= -1;
-static int hf_forces_flags_at= -1;
-static int hf_forces_flags_tp= -1;
-static int hf_forces_flags_reserved = -1;
+static int hf_forces_flags;
+static int hf_forces_flags_ack;
+static int hf_forces_flags_pri;
+static int hf_forces_flags_rsrvd;
+static int hf_forces_flags_em;
+static int hf_forces_flags_at;
+static int hf_forces_flags_tp;
+static int hf_forces_flags_reserved;
 
-static int hf_forces_tlv_type = -1;
-static int hf_forces_tlv_length = -1;
+static int hf_forces_tlv_type;
+static int hf_forces_tlv_length;
 
 /*Initiation of LFBSelect TLV*/
-static int hf_forces_lfbselect_tlv_type_lfb_classid = -1;
-static int hf_forces_lfbselect_tlv_type_lfb_instanceid = -1;
+static int hf_forces_lfbselect_tlv_type_lfb_classid;
+static int hf_forces_lfbselect_tlv_type_lfb_instanceid;
 
 /*Initiation of Operation TLV*/
-static int hf_forces_lfbselect_tlv_type_operation_type = -1;
-static int hf_forces_lfbselect_tlv_type_operation_length = -1;
-static int hf_forces_lfbselect_tlv_type_operation_path_type = -1;
-static int hf_forces_lfbselect_tlv_type_operation_path_length = -1;
-static int hf_forces_lfbselect_tlv_type_operation_path_flags = -1;
-static int hf_forces_lfbselect_tlv_type_operation_path_flags_selector = -1;
-static int hf_forces_lfbselect_tlv_type_operation_path_flags_reserved = -1;
-static int hf_forces_lfbselect_tlv_type_operation_path_IDcount = -1;
-static int hf_forces_lfbselect_tlv_type_operation_path_IDs = -1;
-static int hf_forces_lfbselect_tlv_type_operation_path_data = -1;
+static int hf_forces_lfbselect_tlv_type_operation_type;
+static int hf_forces_lfbselect_tlv_type_operation_length;
+static int hf_forces_lfbselect_tlv_type_operation_path_type;
+static int hf_forces_lfbselect_tlv_type_operation_path_length;
+static int hf_forces_lfbselect_tlv_type_operation_path_flags;
+static int hf_forces_lfbselect_tlv_type_operation_path_flags_selector;
+static int hf_forces_lfbselect_tlv_type_operation_path_flags_reserved;
+static int hf_forces_lfbselect_tlv_type_operation_path_IDcount;
+static int hf_forces_lfbselect_tlv_type_operation_path_IDs;
+static int hf_forces_lfbselect_tlv_type_operation_path_data;
 
 /*Initiation of Redirect TLV*/
-static int hf_forces_redirect_tlv_meta_data_tlv_type = -1;
-static int hf_forces_redirect_tlv_meta_data_tlv_length = -1;
-static int hf_forces_redirect_tlv_meta_data_tlv_meta_data_ilv = -1;
-static int hf_forces_redirect_tlv_meta_data_tlv_meta_data_ilv_id = -1;
-static int hf_forces_redirect_tlv_meta_data_tlv_meta_data_ilv_length = -1;
-static int hf_forces_redirect_tlv_redirect_data_tlv_type = -1;
-static int hf_forces_redirect_tlv_redirect_data_tlv_length = -1;
+static int hf_forces_redirect_tlv_meta_data_tlv_type;
+static int hf_forces_redirect_tlv_meta_data_tlv_length;
+static int hf_forces_redirect_tlv_meta_data_tlv_meta_data_ilv;
+static int hf_forces_redirect_tlv_meta_data_tlv_meta_data_ilv_id;
+static int hf_forces_redirect_tlv_meta_data_tlv_meta_data_ilv_length;
+static int hf_forces_redirect_tlv_redirect_data_tlv_type;
+static int hf_forces_redirect_tlv_redirect_data_tlv_length;
 
 /*Initiation of ASResult TLV*/
-static int hf_forces_asresult_association_setup_result = -1;
+static int hf_forces_asresult_association_setup_result;
 
 /*Initiation of ASTreason TLV*/
-static int hf_forces_astreason_tlv_teardown_reason = -1;
+static int hf_forces_astreason_tlv_teardown_reason;
 
 /*Main TLV may be unknown*/
-static int hf_forces_unknown_tlv = -1;
+static int hf_forces_unknown_tlv;
 
 /*Message Types */
 #define AssociationSetup            0x01
@@ -135,50 +136,50 @@ static int hf_forces_unknown_tlv = -1;
 #define TCP_UDP_TML_FOCES_MESSAGE_OFFSET_TCP    2
 
 /*SCTP TML*/
-static guint forces_alternate_sctp_high_prio_channel_port = 0;
-static guint forces_alternate_sctp_med_prio_channel_port  = 0;
-static guint forces_alternate_sctp_low_prio_channel_port  = 0;
+static unsigned forces_alternate_sctp_high_prio_channel_port;
+static unsigned forces_alternate_sctp_med_prio_channel_port;
+static unsigned forces_alternate_sctp_low_prio_channel_port;
 
 /*Initialize the subtree pointers*/
-static gint  ett_forces = -1;
-static gint  ett_forces_main_header = -1;
-static gint  ett_forces_flags = -1;
-static gint  ett_forces_tlv = -1;
-static gint  ett_forces_lfbselect_tlv_type = -1;
+static int   ett_forces;
+static int   ett_forces_main_header;
+static int   ett_forces_flags;
+static int   ett_forces_tlv;
+static int   ett_forces_lfbselect_tlv_type;
 
 /*Operation TLV subtree*/
-static gint  ett_forces_lfbselect_tlv_type_operation = -1;
-static gint  ett_forces_lfbselect_tlv_type_operation_path = -1;
-static gint  ett_forces_lfbselect_tlv_type_operation_path_data = -1;
-static gint  ett_forces_lfbselect_tlv_type_operation_path_data_path = -1;
-static gint  ett_forces_path_data_tlv = -1;
-static gint  ett_forces_path_data_tlv_flags = -1;
+static int   ett_forces_lfbselect_tlv_type_operation;
+static int   ett_forces_lfbselect_tlv_type_operation_path;
+static int   ett_forces_lfbselect_tlv_type_operation_path_data;
+static int   ett_forces_lfbselect_tlv_type_operation_path_data_path;
+static int   ett_forces_path_data_tlv;
+static int   ett_forces_path_data_tlv_flags;
 
 /*Selector subtree*/
-static gint  ett_forces_lfbselect_tlv_type_operation_path_selector = -1;
+static int   ett_forces_lfbselect_tlv_type_operation_path_selector;
 
 /*Redirect TLV subtree*/
-static gint  ett_forces_redirect_tlv_type = -1;
-static gint  ett_forces_redirect_tlv_meta_data_tlv = -1;
-static gint  ett_forces_redirect_tlv_meta_data_tlv_meta_data_ilv = -1;
-static gint  ett_forces_redirect_tlv_redirect_data_tlv = -1;
+static int   ett_forces_redirect_tlv_type;
+static int   ett_forces_redirect_tlv_meta_data_tlv;
+static int   ett_forces_redirect_tlv_meta_data_tlv_meta_data_ilv;
+static int   ett_forces_redirect_tlv_redirect_data_tlv;
 
 /*ASResult TLV subtree*/
-static gint  ett_forces_asresult_tlv = -1;
+static int   ett_forces_asresult_tlv;
 
 /*ASReason subtree*/
-static gint  ett_forces_astreason_tlv = -1;
+static int   ett_forces_astreason_tlv;
 
 /*Main_TLV unknown subtree*/
-static gint  ett_forces_unknown_tlv = -1;
+static int   ett_forces_unknown_tlv;
 
 
-static expert_field ei_forces_length = EI_INIT;
-static expert_field ei_forces_tlv_type = EI_INIT;
-static expert_field ei_forces_tlv_length = EI_INIT;
-static expert_field ei_forces_lfbselect_tlv_type_operation_path_length = EI_INIT;
-static expert_field ei_forces_lfbselect_tlv_type_operation_type = EI_INIT;
-static expert_field ei_forces_redirect_tlv_redirect_data_tlv_length = EI_INIT;
+static expert_field ei_forces_length;
+static expert_field ei_forces_tlv_type;
+static expert_field ei_forces_tlv_length;
+static expert_field ei_forces_lfbselect_tlv_type_operation_path_length;
+static expert_field ei_forces_lfbselect_tlv_type_operation_type;
+static expert_field ei_forces_redirect_tlv_redirect_data_tlv_length;
 
 /*ACK values and the strings to be displayed*/
 static const value_string main_header_flags_ack_vals[] = {
@@ -282,11 +283,11 @@ static const value_string operation_type_vals[] = {
 };
 
 static void
-dissect_path_data_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
+dissect_path_data_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
     proto_item *ti, *flag_item;
-    guint       length_TLV, IDcount, i;
-    guint16     type, flag;
+    unsigned    length_TLV, IDcount, i;
+    uint16_t    type, flag;
     proto_tree *tlv_tree, *path_data_tree, *flag_tree;
 
     while (tvb_reported_length_remaining(tvb, offset) >= TLV_TL_LENGTH)
@@ -343,11 +344,11 @@ dissect_path_data_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint 
 }
 
 static void
-dissect_operation_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, gint length_count)
+dissect_operation_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, int length_count)
 {
     proto_item *ti;
     proto_tree *oper_tree;
-    guint       type, length;
+    unsigned    type, length;
 
     while (tvb_reported_length_remaining(tvb, offset) >= TLV_TL_LENGTH)
     {
@@ -372,9 +373,9 @@ dissect_operation_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint 
 }
 
 static void
-dissect_lfbselecttlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset, gint length_count)
+dissect_lfbselecttlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, int length_count)
 {
-    guint tlv_length;
+    unsigned tlv_length;
 
     proto_tree_add_item(tree, hf_forces_lfbselect_tlv_type_lfb_classid,    tvb, offset,   4, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_forces_lfbselect_tlv_type_lfb_instanceid, tvb, offset+4, 4, ENC_BIG_ENDIAN);
@@ -391,11 +392,11 @@ dissect_lfbselecttlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint o
 }
 
 static void
-dissect_redirecttlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint offset)
+dissect_redirecttlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
     proto_tree *meta_data_tree, *meta_data_ilv_tree, *redirect_data_tree;
-    gint        start_offset;
-    gint        length_meta, length_ilv, length_redirect;
+    int         start_offset;
+    int         length_meta, length_ilv, length_redirect;
     proto_item *ti;
     address     src_addr, src_net_addr;
     address     dst_addr, dst_net_addr;
@@ -473,16 +474,16 @@ dissect_redirecttlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gint of
 }
 
 static void
-dissect_forces(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset)
+dissect_forces(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset)
 {
     /* Set up structures needed to add the protocol subtree and manage it */
     proto_item *ti, *tlv_item;
     proto_tree *forces_tree, *forces_flags_tree;
     proto_tree *forces_main_header_tree, *forces_tlv_tree, *tlv_tree;
-    gint        length_count;
+    int         length_count;
 
-    guint8      message_type;
-    guint16     tlv_type;
+    uint8_t     message_type;
+    uint16_t    tlv_type;
 
     /* Make entries in Protocol column and Info column on summary display */
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "ForCES");
@@ -497,7 +498,7 @@ dissect_forces(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offs
     proto_tree_add_item(forces_main_header_tree, hf_forces_version, tvb, 0, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(forces_main_header_tree, hf_forces_rsvd,    tvb, 0, 1, ENC_BIG_ENDIAN);
 
-    message_type = tvb_get_guint8(tvb, offset+1);
+    message_type = tvb_get_uint8(tvb, offset+1);
     proto_tree_add_item( forces_main_header_tree, hf_forces_messagetype, tvb, offset+1, 1, ENC_BIG_ENDIAN);
 
     length_count = tvb_get_ntohs(tvb, offset+2) * 4;  /*multiply 4 DWORD*/
@@ -647,7 +648,7 @@ proto_register_forces(void)
         },
         { &hf_forces_tlv_length,
             { "Length", "forces.tlv.length",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0, NULL, HFILL }
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0, NULL, HFILL }
         },
         /*flags*/
         { &hf_forces_flags,
@@ -663,7 +664,7 @@ proto_register_forces(void)
             FT_UINT32, BASE_DEC, NULL, 0x38000000, NULL, HFILL }
         },
         { &hf_forces_flags_rsrvd,
-            { "Rsrvd", "forces.Flags",
+            { "Rsrvd", "forces.flags.rsrvd",
             FT_UINT32, BASE_DEC,NULL, 0x07000000, NULL, HFILL }
         },
         { &hf_forces_flags_em,
@@ -698,7 +699,7 @@ proto_register_forces(void)
         },
         { &hf_forces_lfbselect_tlv_type_operation_length,
             { "Length", "forces.lfbselect.tlv.type.operation.length",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0, NULL, HFILL }
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0, NULL, HFILL }
         },
         { &hf_forces_lfbselect_tlv_type_operation_path_type,
             { "Type", "forces.lfbselect.tlv.type.operation.path.type",
@@ -739,7 +740,7 @@ proto_register_forces(void)
         },
         { &hf_forces_redirect_tlv_meta_data_tlv_length,
             { "Length", "forces.redirect.tlv.meta.data.tlv.length",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0, NULL, HFILL }
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0, NULL, HFILL }
         },
         { &hf_forces_redirect_tlv_meta_data_tlv_meta_data_ilv,
             { "Meta Data ILV", "forces.redirect.tlv.meta.data.tlv.meta.data.ilv",
@@ -751,7 +752,7 @@ proto_register_forces(void)
         },
         { &hf_forces_redirect_tlv_meta_data_tlv_meta_data_ilv_length,
             { "Length", "forces.redirect.tlv.meta.data.tlv.meta.data.ilv.length",
-            FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0, NULL, HFILL }
+            FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0, NULL, HFILL }
         },
         { &hf_forces_redirect_tlv_redirect_data_tlv_type,
             { "Type", "forces.redirect.tlv.redirect.data.tlv.type",
@@ -759,7 +760,7 @@ proto_register_forces(void)
         },
         { &hf_forces_redirect_tlv_redirect_data_tlv_length,
             { "Length", "forces.redirect.tlv.redirect.data.tlv.length",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0, NULL, HFILL }
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0, NULL, HFILL }
         },
         { &hf_forces_asresult_association_setup_result,
             { "Association Setup Result", "forces.teardown.reason",
@@ -776,7 +777,7 @@ proto_register_forces(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_forces,
         &ett_forces_main_header,
         &ett_forces_flags,
@@ -840,11 +841,11 @@ proto_register_forces(void)
 void
 proto_reg_handoff_forces(void)
 {
-    static gboolean inited = FALSE;
+    static bool inited = false;
 
-    static guint alternate_sctp_high_prio_channel_port = 0; /* 6700 */
-    static guint alternate_sctp_med_prio_channel_port  = 0;
-    static guint alternate_sctp_low_prio_channel_port  = 0;
+    static unsigned alternate_sctp_high_prio_channel_port = 0; /* 6700 */
+    static unsigned alternate_sctp_med_prio_channel_port  = 0;
+    static unsigned alternate_sctp_low_prio_channel_port  = 0;
 
     if (!inited) {
         ip_handle = find_dissector_add_dependency("ip", proto_forces);
@@ -853,7 +854,7 @@ proto_reg_handoff_forces(void)
         /* Register UDP port for dissection */
         dissector_add_for_decode_as_with_preference("udp.port", forces_handle);
 
-        inited = TRUE;
+        inited = true;
     }
 
     /* Register SCTP port for high priority dissection */

@@ -35,18 +35,18 @@ static dissector_handle_t bluetooth_bthci_handle;
 static dissector_handle_t bluetooth_btmon_handle;
 static dissector_handle_t bluetooth_usb_handle;
 
-int proto_bluetooth = -1;
+int proto_bluetooth;
 
-static int hf_bluetooth_src = -1;
-static int hf_bluetooth_dst = -1;
-static int hf_bluetooth_addr = -1;
-static int hf_bluetooth_src_str = -1;
-static int hf_bluetooth_dst_str = -1;
-static int hf_bluetooth_addr_str = -1;
+static int hf_bluetooth_src;
+static int hf_bluetooth_dst;
+static int hf_bluetooth_addr;
+static int hf_bluetooth_src_str;
+static int hf_bluetooth_dst_str;
+static int hf_bluetooth_addr_str;
 
-static int hf_llc_bluetooth_pid = -1;
+static int hf_llc_bluetooth_pid;
 
-static gint ett_bluetooth = -1;
+static int ett_bluetooth;
 
 static dissector_handle_t btle_handle;
 static dissector_handle_t hci_usb_handle;
@@ -55,31 +55,31 @@ static dissector_table_t bluetooth_table;
 static dissector_table_t hci_vendor_table;
 dissector_table_t        bluetooth_uuid_table;
 
-static wmem_tree_t *chandle_sessions        = NULL;
-static wmem_tree_t *chandle_to_bdaddr       = NULL;
-static wmem_tree_t *chandle_to_mode         = NULL;
-static wmem_tree_t *shandle_to_chandle      = NULL;
-static wmem_tree_t *bdaddr_to_name          = NULL;
-static wmem_tree_t *bdaddr_to_role          = NULL;
-static wmem_tree_t *localhost_name          = NULL;
-static wmem_tree_t *localhost_bdaddr        = NULL;
-static wmem_tree_t *hci_vendors             = NULL;
+static wmem_tree_t *chandle_sessions;
+static wmem_tree_t *chandle_to_bdaddr;
+static wmem_tree_t *chandle_to_mode;
+static wmem_tree_t *shandle_to_chandle;
+static wmem_tree_t *bdaddr_to_name;
+static wmem_tree_t *bdaddr_to_role;
+static wmem_tree_t *localhost_name;
+static wmem_tree_t *localhost_bdaddr;
+static wmem_tree_t *hci_vendors;
 
-wmem_tree_t *bluetooth_uuids = NULL;
+wmem_tree_t *bluetooth_uuids;
 
-static int bluetooth_tap = -1;
-int bluetooth_device_tap = -1;
-int bluetooth_hci_summary_tap = -1;
+static int bluetooth_tap;
+int bluetooth_device_tap;
+int bluetooth_hci_summary_tap;
 
 // UAT structure
 typedef struct _bt_uuid_t {
-    gchar *uuid;
-    gchar *label;
+    char *uuid;
+    char *label;
 } bt_uuid_t;
 static bt_uuid_t *bt_uuids;
-static guint num_bt_uuids;
+static unsigned num_bt_uuids;
 
-// Registery updated to published status of 28 December 2023
+// Registery updated to published status of 17 July 2024
 
 const value_string bluetooth_uuid_vals[] = {
     /* Protocol Identifiers - https://bitbucket.org/bluetooth-SIG/public/raw/HEAD/assigned_numbers/uuids/protocol_identifiers.yaml */
@@ -97,10 +97,10 @@ const value_string bluetooth_uuid_vals[] = {
     { 0x000E,   "WSP" },
     { 0x000F,   "BNEP" },
     { 0x0010,   "UPNP" },
-    { 0x0011,   "HIDP" },
+    { 0x0011,   "HID Protocol" },
     { 0x0012,   "Hardcopy Control Channel" },
     { 0x0014,   "Hardcopy Data Channel" },
-    { 0x0016,   "Hardcopy Notification" },
+    { 0x0016,   "Hardcopy Notification Channel" },
     { 0x0017,   "AVCTP" },
     { 0x0019,   "AVDTP" },
     { 0x001B,   "CMTP" },
@@ -114,7 +114,7 @@ const value_string bluetooth_uuid_vals[] = {
     { 0x1002,   "Public Browse Group" },
     { 0x1101,   "Serial Port" },
     { 0x1102,   "LAN Access Using PPP" },
-    { 0x1103,   "Dialup Networking" },
+    { 0x1103,   "Dial-Up Networking" },
     { 0x1104,   "IrMC Sync" },
     { 0x1105,   "OBEX Object Push" },
     { 0x1106,   "OBEX File Transfer" },
@@ -129,7 +129,7 @@ const value_string bluetooth_uuid_vals[] = {
     { 0x110F,   "A/V Remote Control Controller" },
     { 0x1110,   "Intercom" },
     { 0x1111,   "Fax" },
-    { 0x1112,   "Headset - Audio Gateway" },
+    { 0x1112,   "Headset Audio Gateway" },
     { 0x1113,   "WAP" },
     { 0x1114,   "WAP CLIENT" },
     { 0x1115,   "PANU" },
@@ -137,17 +137,17 @@ const value_string bluetooth_uuid_vals[] = {
     { 0x1117,   "GN" },
     { 0x1118,   "Direct Printing" },
     { 0x1119,   "Reference Printing" },
-    { 0x111A,   "Basic Imaging Profile" },
+    { 0x111A,   "Imaging" },
     { 0x111B,   "Imaging Responder" },
     { 0x111C,   "Imaging Automatic Archive" },
     { 0x111D,   "Imaging Referenced Objects" },
-    { 0x111E,   "Handsfree" },
-    { 0x111F,   "Handsfree Audio Gateway" },
-    { 0x1120,   "Direct Printing Reference Objects Service" },
+    { 0x111E,   "Hands-Free" },
+    { 0x111F,   "AG Hands-Free" },
+    { 0x1120,   "Direct Printing Referenced Objects Service" },
     { 0x1121,   "Reflected UI" },
     { 0x1122,   "Basic Printing" },
     { 0x1123,   "Printing Status" },
-    { 0x1124,   "Human Interface Device Service" },
+    { 0x1124,   "HID" },
     { 0x1125,   "Hardcopy Cable Replacement" },
     { 0x1126,   "HCR Print" },
     { 0x1127,   "HCR Scan" },
@@ -157,9 +157,9 @@ const value_string bluetooth_uuid_vals[] = {
     { 0x112B,   "UDI TA" },
     { 0x112C,   "Audio/Video" },
     { 0x112D,   "SIM Access" },
-    { 0x112E,   "Phonebook Access - PCE" },
-    { 0x112F,   "Phonebook Access - PSE" },
-    { 0x1130,   "Phonebook Access" },
+    { 0x112E,   "Phonebook Access Client" },
+    { 0x112F,   "Phonebook Access Server" },
+    { 0x1130,   "Phonebook Access Profile" },
     { 0x1131,   "Headset - HS" },
     { 0x1132,   "Message Access Server" },
     { 0x1133,   "Message Notification Server" },
@@ -168,12 +168,12 @@ const value_string bluetooth_uuid_vals[] = {
     { 0x1136,   "GNSS Server" },
     { 0x1137,   "3D Display" },
     { 0x1138,   "3D Glasses" },
-    { 0x1139,   "3D Synchronization" },
-    { 0x113A,   "MPS Profile" },
-    { 0x113B,   "MPS SC" },
+    { 0x1139,   "3D Synch Profile" },
+    { 0x113A,   "Multi Profile Specification" },
+    { 0x113B,   "MPS" },
     { 0x113C,   "CTN Access Service" },
     { 0x113D,   "CTN Notification Service" },
-    { 0x113E,   "CTN Profile" },
+    { 0x113E,   "Calendar Tasks and Notes Profile" },
     { 0x1200,   "PnP Information" },
     { 0x1201,   "Generic Networking" },
     { 0x1202,   "Generic File Transfer" },
@@ -198,8 +198,8 @@ const value_string bluetooth_uuid_vals[] = {
     { 0x1604,   "Energy Monitor NLC Profile 1.0" },
     { 0x1605,   "Occupancy Sensor NLC Profile 1.0" },
     /* Service - https://bitbucket.org/bluetooth-SIG/public/raw/HEAD/assigned_numbers/uuids/service_uuids.yaml */
-    { 0x1800,   "Generic Access" },
-    { 0x1801,   "Generic Attribute" },
+    { 0x1800,   "GAP" },
+    { 0x1801,   "GATT" },
     { 0x1802,   "Immediate Alert" },
     { 0x1803,   "Link Loss" },
     { 0x1804,   "Tx Power" },
@@ -894,7 +894,38 @@ const value_string bluetooth_uuid_vals[] = {
     { 0x2C02,   "UGT Features" },
     { 0x2C03,   "BGS Features" },
     { 0x2C04,   "BGR Features" },
+    { 0x2C05,   "Percentage 8 Steps" },
     /* Members - https://bitbucket.org/bluetooth-SIG/public/raw/HEAD/assigned_numbers/uuids/member_uuids.yaml */
+    { 0xFC79,   "LG Electronics Inc." },
+    { 0xFC7A,   "Outshiny India Private Limited" },
+    { 0xFC7B,   "Testo SE & Co. KGaA" },
+    { 0xFC7C,   "Motorola Mobility, LLC" },
+    { 0xFC7D,   "MML US, Inc" },
+    { 0xFC7E,   "Harman International" },
+    { 0xFC7F,   "Southco" },
+    { 0xFC80,   "TELE System Communications Pte. Ltd." },
+    { 0xFC81,   "Axon Enterprise, Inc." },
+    { 0xFC82,   "Zwift, Inc." },
+    { 0xFC83,   "iHealth Labs, Inc." },
+    { 0xFC84,   "NINGBO FOTILE KITCHENWARE CO., LTD." },
+    { 0xFC85,   "Zhejiang Huanfu Technology Co., LTD" },
+    { 0xFC86,   "Samsara Networks, Inc" },
+    { 0xFC87,   "Samsara Networks, Inc" },
+    { 0xFC88,   "CCC del Uruguay" },
+    { 0xFC89,   "Intel Corporation" },
+    { 0xFC8A,   "Intel Corporation" },
+    { 0xFC8B,   "Kaspersky Lab Middle East FZ-LLC" },
+    { 0xFC8C,   "SES-Imagotag" },
+    { 0xFC8D,   "Caire Inc." },
+    { 0xFC8E,   "Blue Iris Labs, Inc." },
+    { 0xFC8F,   "Bose Corporation" },
+    { 0xFC90,   "Wiliot LTD." },
+    { 0xFC91,   "Samsung Electronics Co., Ltd." },
+    { 0xFC92,   "Furuno Electric Co., Ltd." },
+    { 0xFC93,   "Komatsu Ltd." },
+    { 0xFC94,   "Apple Inc." },
+    { 0xFC95,   "Hippo Camp Software Ltd." },
+    { 0xFC96,   "LEGO System A/S" },
     { 0xFC97,   "Japan Display Inc." },
     { 0xFC98,   "Ruuvi Innovations Ltd." },
     { 0xFC99,   "Badger Meter" },
@@ -948,7 +979,7 @@ const value_string bluetooth_uuid_vals[] = {
     { 0xFCC9,   "SkyHawke Technologies" },
     { 0xFCCA,   "Cosmed s.r.l." },
     { 0xFCCB,   "TOTO LTD." },
-    { 0xFCCC,   "WiFi Alliance" },
+    { 0xFCCC,   "Wi-Fi Easy Connect Specification" },
     { 0xFCCD,   "Zound Industries International AB" },
     { 0xFCCE,   "Luna Health, Inc." },
     { 0xFCCF,   "Google LLC" },
@@ -998,7 +1029,7 @@ const value_string bluetooth_uuid_vals[] = {
     { 0xFCFB,   "Shenzhen Benwei Media Co., Ltd." },
     { 0xFCFC,   "Barrot Technology Co.,Ltd." },
     { 0xFCFD,   "Barrot Technology Co.,Ltd." },
-    { 0xFCFE,   "Sennheiser Consumer Audio GmbH" },
+    { 0xFCFE,   "Sonova Consumer Hearing GmbH" },
     { 0xFCFF,   "701x" },
     { 0xFD00,   "FUTEK Advanced Sensor Technology, Inc." },
     { 0xFD01,   "Sanvita Medical Corporation" },
@@ -1098,8 +1129,8 @@ const value_string bluetooth_uuid_vals[] = {
     { 0xFD5F,   "Meta Platforms Technologies, LLC" },
     { 0xFD60,   "Sercomm Corporation" },
     { 0xFD61,   "Arendi AG" },
-    { 0xFD62,   "Fitbit, Inc." },
-    { 0xFD63,   "Fitbit, Inc." },
+    { 0xFD62,   "Google LLC" },
+    { 0xFD63,   "Google LLC" },
     { 0xFD64,   "INRIA" },
     { 0xFD65,   "Razer Inc." },
     { 0xFD66,   "Zebra Technologies Corporation" },
@@ -1176,8 +1207,8 @@ const value_string bluetooth_uuid_vals[] = {
     { 0xFDAD,   "Houwa System Design, k.k." },
     { 0xFDAE,   "Houwa System Design, k.k." },
     { 0xFDAF,   "Wiliot LTD" },
-    { 0xFDB0,   "Proxy Technologies, Inc." },
-    { 0xFDB1,   "Proxy Technologies, Inc." },
+    { 0xFDB0,   "Oura Health Ltd" },
+    { 0xFDB1,   "Oura Health Ltd" },
     { 0xFDB2,   "Portable Multimedia Ltd" },
     { 0xFDB3,   "Audiodo AB" },
     { 0xFDB4,   "HP Inc" },
@@ -1260,7 +1291,7 @@ const value_string bluetooth_uuid_vals[] = {
     { 0xFE01,   "Duracell U.S. Operations Inc." },
     { 0xFE02,   "Robert Bosch GmbH" },
     { 0xFE03,   "Amazon.com Services, Inc." },
-    { 0xFE04,   "OpenPath Security Inc" },
+    { 0xFE04,   "Motorola Solutions, Inc." },
     { 0xFE05,   "CORE Transport Technologies NZ Limited" },
     { 0xFE06,   "Qualcomm Technologies, Inc." },
     { 0xFE07,   "Sonos, Inc." },
@@ -1513,6 +1544,9 @@ const value_string bluetooth_uuid_vals[] = {
     { 0xFEFE,   "GN Hearing A/S" },
     { 0xFEFF,   "GN Netcom" },
     /* SDO - https://bitbucket.org/bluetooth-SIG/public/raw/HEAD/assigned_numbers/uuids/sdo_uuids.yaml */
+    { 0xFFEF,   "Wi-Fi Direct Specification" },
+    { 0xFFF0,   "Public Key Open Credential (PKOC)" },
+    { 0xFFF1,   "ICCE Digital Key" },
     { 0xFFF2,   "Aliro" },
     { 0xFFF3,   "FiRa Consortium" },
     { 0xFFF4,   "FiRa Consortium" },
@@ -1638,7 +1672,7 @@ static const value_string bluetooth_company_id_vals[] = {
     { 0x0067,   "GN Audio A/S" },
     { 0x0068,   "General Motors" },
     { 0x0069,   "A&D Engineering, Inc." },
-    { 0x006A,   "MindTree Ltd." },
+    { 0x006A,   "LTIMINDTREE LIMITED" },
     { 0x006B,   "Polar Electro OY" },
     { 0x006C,   "Beautiful Enterprise Co., Ltd." },
     { 0x006D,   "BriarTek, Inc" },
@@ -1894,7 +1928,7 @@ static const value_string bluetooth_company_id_vals[] = {
     { 0x0167,   "Ascensia Diabetes Care US Inc." },
     { 0x0168,   "Spicebox LLC" },
     { 0x0169,   "emberlight" },
-    { 0x016A,   "Emerson Digital Cold Chain, Inc." },
+    { 0x016A,   "Copeland Cold Chain LP" },
     { 0x016B,   "Qblinks" },
     { 0x016C,   "MYSPHERA" },
     { 0x016D,   "LifeScan Inc" },
@@ -1916,7 +1950,7 @@ static const value_string bluetooth_company_id_vals[] = {
     { 0x017D,   "BatAndCat" },
     { 0x017E,   "BluDotz Ltd" },
     { 0x017F,   "XTel Wireless ApS" },
-    { 0x0180,   "Gigaset Communications GmbH" },
+    { 0x0180,   "Gigaset Technologies GmbH" },
     { 0x0181,   "Gecko Health Innovations, Inc." },
     { 0x0182,   "HOP Ubiquitous" },
     { 0x0183,   "Walt Disney" },
@@ -1930,7 +1964,7 @@ static const value_string bluetooth_company_id_vals[] = {
     { 0x018B,   "Konica Minolta, Inc." },
     { 0x018C,   "Wilo SE" },
     { 0x018D,   "Extron Design Services" },
-    { 0x018E,   "Fitbit, Inc." },
+    { 0x018E,   "Google LLC" },
     { 0x018F,   "Fireflies Systems" },
     { 0x0190,   "Intelletto Technologies Inc." },
     { 0x0191,   "FDK CORPORATION" },
@@ -2304,7 +2338,7 @@ static const value_string bluetooth_company_id_vals[] = {
     { 0x0301,   "Giatec Scientific Inc." },
     { 0x0302,   "Loop Devices, Inc" },
     { 0x0303,   "IACA electronique" },
-    { 0x0304,   "Proxy Technologies, Inc." },
+    { 0x0304,   "Oura Health Ltd" },
     { 0x0305,   "Swipp ApS" },
     { 0x0306,   "Life Laboratory Inc." },
     { 0x0307,   "FUJI INDUSTRIAL CO.,LTD." },
@@ -2656,7 +2690,7 @@ static const value_string bluetooth_company_id_vals[] = {
     { 0x0461,   "vhf elektronik GmbH" },
     { 0x0462,   "Bonsai Systems GmbH" },
     { 0x0463,   "Fathom Systems Inc." },
-    { 0x0464,   "Bellman & Symfon" },
+    { 0x0464,   "Bellman & Symfon Group AB" },
     { 0x0465,   "International Forte Group LLC" },
     { 0x0466,   "CycleLabs Solutions inc." },
     { 0x0467,   "Codenex Oy" },
@@ -4699,7 +4733,7 @@ static const value_string bluetooth_company_id_vals[] = {
     { 0x0C5C,   "MGM WIRELESSS HOLDINGS PTY LTD" },
     { 0x0C5D,   "StepUp Solutions ApS" },
     { 0x0C5E,   "BlueID GmbH" },
-    { 0x0C5F,   "Nanjing Linkpower Microelectronics Co.,Ltd" },
+    { 0x0C5F,   "Wuxi Linkpower Microelectronics Co.,Ltd" },
     { 0x0C60,   "KEBA Energy Automation GmbH" },
     { 0x0C61,   "NNOXX, Inc" },
     { 0x0C62,   "Phiaton Corporation" },
@@ -4936,6 +4970,162 @@ static const value_string bluetooth_company_id_vals[] = {
     { 0x0D4A,   "Rockpile Solutions, LLC" },
     { 0x0D4B,   "Soundwave Hearing, LLC" },
     { 0x0D4C,   "IotGizmo Corporation" },
+    { 0x0D4D,   "Optec, LLC" },
+    { 0x0D4E,   "NIKAT SOLUTIONS PRIVATE LIMITED" },
+    { 0x0D4F,   "Movano Inc." },
+    { 0x0D50,   "NINGBO FOTILE KITCHENWARE CO., LTD." },
+    { 0x0D51,   "Genetus inc." },
+    { 0x0D52,   "DIVAN TRADING CO., LTD." },
+    { 0x0D53,   "Luxottica Group S.p.A" },
+    { 0x0D54,   "ISEKI FRANCE S.A.S" },
+    { 0x0D55,   "NO CLIMB PRODUCTS LTD" },
+    { 0x0D56,   "Wellang.Co,.Ltd" },
+    { 0x0D57,   "Nanjing Xinxiangyuan Microelectronics Co., Ltd." },
+    { 0x0D58,   "ifm electronic gmbh" },
+    { 0x0D59,   "HYUPSUNG MACHINERY ELECTRIC CO., LTD." },
+    { 0x0D5A,   "Gunnebo Aktiebolag" },
+    { 0x0D5B,   "Axis Communications AB" },
+    { 0x0D5C,   "Pison Technology, Inc." },
+    { 0x0D5D,   "Stogger B.V." },
+    { 0x0D5E,   "Pella Corp" },
+    { 0x0D5F,   "SiChuan Homme Intelligent Technology co.,Ltd." },
+    { 0x0D60,   "Smart Products Connection, S.A." },
+    { 0x0D61,   "F.I.P. FORMATURA INIEZIONE POLIMERI - S.P.A." },
+    { 0x0D62,   "MEBSTER s.r.o." },
+    { 0x0D63,   "SKF France" },
+    { 0x0D64,   "Southco" },
+    { 0x0D65,   "Molnlycke Health Care AB" },
+    { 0x0D66,   "Hendrickson USA , L.L.C" },
+    { 0x0D67,   "BLACK BOX NETWORK SERVICES INDIA PRIVATE LIMITED" },
+    { 0x0D68,   "Status Audio LLC" },
+    { 0x0D69,   "AIR AROMA INTERNATIONAL PTY LTD" },
+    { 0x0D6A,   "Helge Kaiser GmbH" },
+    { 0x0D6B,   "Crane Payment Innovations, Inc." },
+    { 0x0D6C,   "Ambient IoT Pty Ltd" },
+    { 0x0D6D,   "DYNAMOX S/A" },
+    { 0x0D6E,   "Look Cycle International" },
+    { 0x0D6F,   "Closed Joint Stock Company NVP BOLID" },
+    { 0x0D70,   "Kindhome" },
+    { 0x0D71,   "Kiteras Inc." },
+    { 0x0D72,   "Earfun Technology (HK) Limited" },
+    { 0x0D73,   "iota Biosciences, Inc." },
+    { 0x0D74,   "ANUME s.r.o." },
+    { 0x0D75,   "Indistinguishable From Magic, Inc." },
+    { 0x0D76,   "i-focus Co.,Ltd" },
+    { 0x0D77,   "DualNetworks SA" },
+    { 0x0D78,   "MITACHI CO.,LTD." },
+    { 0x0D79,   "VIVIWARE JAPAN, Inc." },
+    { 0x0D7A,   "Xiamen Intretech Inc." },
+    { 0x0D7B,   "MindMaze SA" },
+    { 0x0D7C,   "BeiJing SmartChip Microelectronics Technology Co.,Ltd" },
+    { 0x0D7D,   "Taiko Audio B.V." },
+    { 0x0D7E,   "Daihatsu Motor Co., Ltd." },
+    { 0x0D7F,   "Konova" },
+    { 0x0D80,   "Gravaa B.V." },
+    { 0x0D81,   "Beyerdynamic GmbH & Co. KG" },
+    { 0x0D82,   "VELCO" },
+    { 0x0D83,   "ATLANTIC SOCIETE FRANCAISE DE DEVELOPPEMENT THERMIQUE" },
+    { 0x0D84,   "Testo SE & Co. KGaA" },
+    { 0x0D85,   "SEW-EURODRIVE GmbH & Co KG" },
+    { 0x0D86,   "ROCKWELL AUTOMATION, INC." },
+    { 0x0D87,   "Quectel Wireless Solutions Co., Ltd." },
+    { 0x0D88,   "Geocene Inc." },
+    { 0x0D89,   "Nanohex Corp" },
+    { 0x0D8A,   "Simply Embedded Inc." },
+    { 0x0D8B,   "Software Development, LLC" },
+    { 0x0D8C,   "Ultimea Technology (Shenzhen) Limited" },
+    { 0x0D8D,   "RF Electronics Limited" },
+    { 0x0D8E,   "Optivolt Labs, Inc." },
+    { 0x0D8F,   "Canon Electronics Inc." },
+    { 0x0D90,   "LAAS ApS" },
+    { 0x0D91,   "Beamex Oy Ab" },
+    { 0x0D92,   "TACHIKAWA CORPORATION" },
+    { 0x0D93,   "HagerEnergy GmbH" },
+    { 0x0D94,   "Shrooly Inc" },
+    { 0x0D95,   "Hunter Industries Incorporated" },
+    { 0x0D96,   "NEOKOHM SISTEMAS ELETRONICOS LTDA" },
+    { 0x0D97,   "Zhejiang Huanfu Technology Co., LTD" },
+    { 0x0D98,   "E.F. Johnson Company" },
+    { 0x0D99,   "Caire Inc." },
+    { 0x0D9A,   "Yeasound (Xiamen) Hearing Technology Co., Ltd" },
+    { 0x0D9B,   "Boxyz, Inc." },
+    { 0x0D9C,   "Skytech Creations Limited" },
+    { 0x0D9D,   "Cear, Inc." },
+    { 0x0D9E,   "Impulse Wellness LLC" },
+    { 0x0D9F,   "MML US, Inc" },
+    { 0x0DA0,   "SICK AG" },
+    { 0x0DA1,   "Fen Systems Ltd." },
+    { 0x0DA2,   "KIWI.KI GmbH" },
+    { 0x0DA3,   "Airgraft Inc." },
+    { 0x0DA4,   "HP Tuners" },
+    { 0x0DA5,   "PIXELA CORPORATION" },
+    { 0x0DA6,   "Generac Corporation" },
+    { 0x0DA7,   "Novoferm tormatic GmbH" },
+    { 0x0DA8,   "Airwallet ApS" },
+    { 0x0DA9,   "Inventronics GmbH" },
+    { 0x0DAA,   "Shenzhen EBELONG Technology Co., Ltd." },
+    { 0x0DAB,   "Efento" },
+    { 0x0DAC,   "ITALTRACTOR ITM S.P.A." },
+    { 0x0DAD,   "linktop" },
+    { 0x0DAE,   "TITUM AUDIO, INC." },
+    { 0x0DAF,   "Hexagon Aura Reality AG" },
+    { 0x0DB0,   "Invisalert Solutions, Inc." },
+    { 0x0DB1,   "TELE System Communications Pte. Ltd." },
+    { 0x0DB2,   "Whirlpool" },
+    { 0x0DB3,   "SHENZHEN REFLYING ELECTRONIC CO., LTD" },
+    { 0x0DB4,   "Franklin Control Systems" },
+    { 0x0DB5,   "Djup AB" },
+    { 0x0DB6,   "SAFEGUARD EQUIPMENT, INC." },
+    { 0x0DB7,   "Morningstar Corporation" },
+    { 0x0DB8,   "Shenzhen Chuangyuan Digital Technology Co., Ltd" },
+    { 0x0DB9,   "CompanyDeep Ltd" },
+    { 0x0DBA,   "Veo Technologies ApS" },
+    { 0x0DBB,   "Nexis Link Technology Co., Ltd." },
+    { 0x0DBC,   "Felion Technologies Company Limited" },
+    { 0x0DBD,   "MAATEL" },
+    { 0x0DBE,   "HELLA GmbH & Co. KGaA" },
+    { 0x0DBF,   "HWM-Water Limited" },
+    { 0x0DC0,   "Shenzhen Jahport Electronic Technology Co., Ltd." },
+    { 0x0DC1,   "NACHI-FUJIKOSHI CORP." },
+    { 0x0DC2,   "Cirrus Research plc" },
+    { 0x0DC3,   "GEARBAC TECHNOLOGIES INC." },
+    { 0x0DC4,   "Hangzhou NationalChip Science & Technology Co.,Ltd" },
+    { 0x0DC5,   "DHL" },
+    { 0x0DC6,   "Levita" },
+    { 0x0DC7,   "MORNINGSTAR FX PTE. LTD." },
+    { 0x0DC8,   "ETO GRUPPE TECHNOLOGIES GmbH" },
+    { 0x0DC9,   "farmunited GmbH" },
+    { 0x0DCA,   "Aptener Mechatronics Private Limited" },
+    { 0x0DCB,   "GEOPH, LLC" },
+    { 0x0DCC,   "Trotec GmbH" },
+    { 0x0DCD,   "Astra LED AG" },
+    { 0x0DCE,   "NOVAFON - Electromedical devices limited liability company" },
+    { 0x0DCF,   "KUBU SMART LIMITED" },
+    { 0x0DD0,   "ESNAH" },
+    { 0x0DD1,   "OrangeMicro Limited" },
+    { 0x0DD2,   "Sitecom Europe B.V." },
+    { 0x0DD3,   "Global Satellite Engineering" },
+    { 0x0DD4,   "KOQOON GmbH & Co.KG" },
+    { 0x0DD5,   "BEEPINGS" },
+    { 0x0DD6,   "MODULAR MEDICAL, INC." },
+    { 0x0DD7,   "Xiant Technologies, Inc." },
+    { 0x0DD8,   "Granchip IoT Technology (Guangzhou) Co.,Ltd" },
+    { 0x0DD9,   "SCHELL GmbH & Co. KG" },
+    { 0x0DDA,   "Minebea Intec GmbH" },
+    { 0x0DDB,   "KAGA FEI Co., Ltd." },
+    { 0x0DDC,   "AUTHOR-ALARM, razvoj in prodaja avtomobilskih sistemov proti kraji, d.o.o." },
+    { 0x0DDD,   "Tozoa LLC" },
+    { 0x0DDE,   "SHENZHEN DNS INDUSTRIES CO., LTD." },
+    { 0x0DDF,   "Shenzhen Lunci Technology Co., Ltd" },
+    { 0x0DE0,   "KNOG PTY. LTD." },
+    { 0x0DE1,   "Outshiny India Private Limited" },
+    { 0x0DE2,   "TAMADIC Co., Ltd." },
+    { 0x0DE3,   "Shenzhen MODSEMI Co., Ltd" },
+    { 0x0DE4,   "EMBEINT INC" },
+    { 0x0DE5,   "Ehong Technology Co.,Ltd" },
+    { 0x0DE6,   "DEXATEK Technology LTD" },
+    { 0x0DE7,   "Dendro Technologies, Inc." },
+    { 0x0DE8,   "Vivint, Inc." },
     { 0xFFFF,   "For use in internal and interoperability tests" },
     {      0,   NULL }
 };
@@ -4969,7 +5159,7 @@ static const value_string bluetooth_pid_vals[] = {
     { 0,    NULL }
 };
 
-guint32 bluetooth_max_disconnect_in_frame = G_MAXUINT32;
+uint32_t bluetooth_max_disconnect_in_frame = UINT32_MAX;
 
 
 void proto_register_bluetooth(void);
@@ -4983,26 +5173,26 @@ bt_uuids_update_cb(void *r, char **err)
 
     if (rec->uuid == NULL) {
         *err = g_strdup("UUID can't be empty");
-        return FALSE;
+        return false;
     }
     g_strstrip(rec->uuid);
     if (rec->uuid[0] == 0) {
         *err = g_strdup("UUID can't be empty");
-        return FALSE;
+        return false;
     }
 
     if (rec->label == NULL) {
         *err = g_strdup("UUID Name can't be empty");
-        return FALSE;
+        return false;
     }
     g_strstrip(rec->label);
     if (rec->label[0] == 0) {
         *err = g_strdup("UUID Name can't be empty");
-        return FALSE;
+        return false;
     }
 
     *err = NULL;
-    return TRUE;
+    return true;
 }
 
 static void *
@@ -5022,7 +5212,7 @@ bt_uuids_free_cb(void*r)
 {
     bt_uuid_t* rec = (bt_uuid_t*)r;
 
-    const gchar *found_label;
+    const char *found_label;
 
     found_label = wmem_tree_lookup_string(bluetooth_uuids, rec->uuid, 0);
 
@@ -5038,7 +5228,7 @@ static void
 bt_uuids_post_update_cb(void)
 {
     if (num_bt_uuids) {
-        for (guint i = 0; i < num_bt_uuids; i++) {
+        for (unsigned i = 0; i < num_bt_uuids; i++) {
             wmem_tree_insert_string(bluetooth_uuids, bt_uuids[i].uuid,
                                     bt_uuids[i].label,
                                     0);
@@ -5055,42 +5245,42 @@ UAT_CSTRING_CB_DEF(bt_uuids, uuid, bt_uuid_t)
 UAT_CSTRING_CB_DEF(bt_uuids, label, bt_uuid_t)
 
 /* Decode As routines */
-static void bluetooth_uuid_prompt(packet_info *pinfo, gchar* result)
+static void bluetooth_uuid_prompt(packet_info *pinfo, char* result)
 {
-    gchar *value_data;
+    char *value_data;
 
-    value_data = (gchar *) p_get_proto_data(pinfo->pool, pinfo, proto_bluetooth, PROTO_DATA_BLUETOOTH_SERVICE_UUID);
+    value_data = (char *) p_get_proto_data(pinfo->pool, pinfo, proto_bluetooth, PROTO_DATA_BLUETOOTH_SERVICE_UUID);
     if (value_data)
-        snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "BT Service UUID %s as", (gchar *) value_data);
+        snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "BT Service UUID %s as", (char *) value_data);
     else
         snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Unknown BT Service UUID");
 }
 
-static gpointer bluetooth_uuid_value(packet_info *pinfo)
+static void *bluetooth_uuid_value(packet_info *pinfo)
 {
-    gchar *value_data;
+    char *value_data;
 
-    value_data = (gchar *) p_get_proto_data(pinfo->pool, pinfo, proto_bluetooth, PROTO_DATA_BLUETOOTH_SERVICE_UUID);
+    value_data = (char *) p_get_proto_data(pinfo->pool, pinfo, proto_bluetooth, PROTO_DATA_BLUETOOTH_SERVICE_UUID);
 
     if (value_data)
-        return (gpointer) value_data;
+        return (void *) value_data;
 
     return NULL;
 }
 
-gint
-dissect_bd_addr(gint hf_bd_addr, packet_info *pinfo, proto_tree *tree,
-        tvbuff_t *tvb, gint offset, gboolean is_local_bd_addr,
-        guint32 interface_id, guint32 adapter_id, guint8 *bdaddr)
+int
+dissect_bd_addr(int hf_bd_addr, packet_info *pinfo, proto_tree *tree,
+        tvbuff_t *tvb, int offset, bool is_local_bd_addr,
+        uint32_t interface_id, uint32_t adapter_id, uint8_t *bdaddr)
 {
-    guint8 bd_addr[6];
+    uint8_t bd_addr[6];
 
-    bd_addr[5] = tvb_get_guint8(tvb, offset);
-    bd_addr[4] = tvb_get_guint8(tvb, offset + 1);
-    bd_addr[3] = tvb_get_guint8(tvb, offset + 2);
-    bd_addr[2] = tvb_get_guint8(tvb, offset + 3);
-    bd_addr[1] = tvb_get_guint8(tvb, offset + 4);
-    bd_addr[0] = tvb_get_guint8(tvb, offset + 5);
+    bd_addr[5] = tvb_get_uint8(tvb, offset);
+    bd_addr[4] = tvb_get_uint8(tvb, offset + 1);
+    bd_addr[3] = tvb_get_uint8(tvb, offset + 2);
+    bd_addr[2] = tvb_get_uint8(tvb, offset + 3);
+    bd_addr[1] = tvb_get_uint8(tvb, offset + 4);
+    bd_addr[0] = tvb_get_uint8(tvb, offset + 5);
 
     proto_tree_add_ether(tree, hf_bd_addr, tvb, offset, 6, bd_addr);
     offset += 6;
@@ -5102,7 +5292,7 @@ dissect_bd_addr(gint hf_bd_addr, packet_info *pinfo, proto_tree *tree,
         tap_device->interface_id = interface_id;
         tap_device->adapter_id   = adapter_id;
         memcpy(tap_device->bd_addr, bd_addr, 6);
-        tap_device->has_bd_addr = TRUE;
+        tap_device->has_bd_addr = true;
         tap_device->is_local = is_local_bd_addr;
         tap_device->type = BLUETOOTH_DEVICE_BD_ADDR;
         tap_queue_packet(bluetooth_device_tap, pinfo, tap_device);
@@ -5114,34 +5304,34 @@ dissect_bd_addr(gint hf_bd_addr, packet_info *pinfo, proto_tree *tree,
     return offset;
 }
 
-void bluetooth_unit_1p25_ms(gchar *buf, guint32 value) {
+void bluetooth_unit_1p25_ms(char *buf, uint32_t value) {
     snprintf(buf, ITEM_LABEL_LENGTH, "%g ms (%u)", 1.25 * value, value);
 }
 
-void bluetooth_unit_0p125_ms(gchar *buf, guint32 value) {
+void bluetooth_unit_0p125_ms(char *buf, uint32_t value) {
     snprintf(buf, ITEM_LABEL_LENGTH, "%g ms (%u)", 0.125 * value, value);
 }
 
 void
-save_local_device_name_from_eir_ad(tvbuff_t *tvb, gint offset, packet_info *pinfo,
-        guint8 size, bluetooth_data_t *bluetooth_data)
+save_local_device_name_from_eir_ad(tvbuff_t *tvb, int offset, packet_info *pinfo,
+        uint8_t size, bluetooth_data_t *bluetooth_data)
 {
-    gint                    i = 0;
-    guint8                  length;
+    int                     i = 0;
+    uint8_t                 length;
     wmem_tree_key_t         key[4];
-    guint32                 k_interface_id;
-    guint32                 k_adapter_id;
-    guint32                 k_frame_number;
-    gchar                   *name;
+    uint32_t                k_interface_id;
+    uint32_t                k_adapter_id;
+    uint32_t                k_frame_number;
+    char                    *name;
     localhost_name_entry_t  *localhost_name_entry;
 
     if (!(!pinfo->fd->visited && bluetooth_data)) return;
 
     while (i < size) {
-        length = tvb_get_guint8(tvb, offset + i);
+        length = tvb_get_uint8(tvb, offset + i);
         if (length == 0) break;
 
-        switch(tvb_get_guint8(tvb, offset + i + 1)) {
+        switch(tvb_get_uint8(tvb, offset + i + 1)) {
         case 0x08: /* Device Name, shortened */
         case 0x09: /* Device Name, full */
             name = tvb_get_string_enc(pinfo->pool, tvb, offset + i + 2, length - 1, ENC_ASCII);
@@ -5239,8 +5429,8 @@ bluetooth_endpoint_packet(void *pit, packet_info *pinfo,
     conv_hash_t *hash = (conv_hash_t*) pit;
     hash->flags = flags;
 
-    add_endpoint_table_data(hash, &pinfo->dl_src, 0, TRUE,  1, pinfo->fd->pkt_len, &bluetooth_et_dissector_info, ENDPOINT_NONE);
-    add_endpoint_table_data(hash, &pinfo->dl_dst, 0, FALSE, 1, pinfo->fd->pkt_len, &bluetooth_et_dissector_info, ENDPOINT_NONE);
+    add_endpoint_table_data(hash, &pinfo->dl_src, 0, true,  1, pinfo->fd->pkt_len, &bluetooth_et_dissector_info, ENDPOINT_NONE);
+    add_endpoint_table_data(hash, &pinfo->dl_dst, 0, false, 1, pinfo->fd->pkt_len, &bluetooth_et_dissector_info, ENDPOINT_NONE);
 
     return TAP_PACKET_REDRAW;
 }
@@ -5248,7 +5438,7 @@ bluetooth_endpoint_packet(void *pit, packet_info *pinfo,
 static conversation_t *
 get_conversation(packet_info *pinfo,
                      address *src_addr, address *dst_addr,
-                     guint32 src_endpoint, guint32 dst_endpoint)
+                     uint32_t src_endpoint, uint32_t dst_endpoint)
 {
     conversation_t *conversation;
 
@@ -5268,7 +5458,7 @@ get_conversation(packet_info *pinfo,
 }
 
 bluetooth_uuid_t
-get_bluetooth_uuid(tvbuff_t *tvb, gint offset, gint size)
+get_bluetooth_uuid(tvbuff_t *tvb, int offset, int size)
 {
     bluetooth_uuid_t  uuid;
 
@@ -5278,50 +5468,54 @@ get_bluetooth_uuid(tvbuff_t *tvb, gint offset, gint size)
         return uuid;
     }
 
-    uuid.size = size;
     if (size == 2) {
-        uuid.data[0] = tvb_get_guint8(tvb, offset + 1);
-        uuid.data[1] = tvb_get_guint8(tvb, offset);
+        uuid.data[0] = tvb_get_uint8(tvb, offset + 1);
+        uuid.data[1] = tvb_get_uint8(tvb, offset);
 
         uuid.bt_uuid = uuid.data[1] | uuid.data[0] << 8;
     } else if (size == 4) {
-        uuid.data[0] = tvb_get_guint8(tvb, offset + 3);
-        uuid.data[1] = tvb_get_guint8(tvb, offset + 2);
-        uuid.data[2] = tvb_get_guint8(tvb, offset + 1);
-        uuid.data[3] = tvb_get_guint8(tvb, offset);
+        uuid.data[0] = tvb_get_uint8(tvb, offset + 3);
+        uuid.data[1] = tvb_get_uint8(tvb, offset + 2);
+        uuid.data[2] = tvb_get_uint8(tvb, offset + 1);
+        uuid.data[3] = tvb_get_uint8(tvb, offset);
 
-        if (uuid.data[0] == 0x00 && uuid.data[1] == 0x00)
-            uuid.bt_uuid = uuid.data[2] | uuid.data[3] << 8;
+        if (uuid.data[0] == 0x00 && uuid.data[1] == 0x00) {
+            uuid.bt_uuid = uuid.data[3] | uuid.data[2] << 8;
+            size = 2;
+        }
     } else {
-        uuid.data[0] = tvb_get_guint8(tvb, offset + 15);
-        uuid.data[1] = tvb_get_guint8(tvb, offset + 14);
-        uuid.data[2] = tvb_get_guint8(tvb, offset + 13);
-        uuid.data[3] = tvb_get_guint8(tvb, offset + 12);
-        uuid.data[4] = tvb_get_guint8(tvb, offset + 11);
-        uuid.data[5] = tvb_get_guint8(tvb, offset + 10);
-        uuid.data[6] = tvb_get_guint8(tvb, offset + 9);
-        uuid.data[7] = tvb_get_guint8(tvb, offset + 8);
-        uuid.data[8] = tvb_get_guint8(tvb, offset + 7);
-        uuid.data[9] = tvb_get_guint8(tvb, offset + 6);
-        uuid.data[10] = tvb_get_guint8(tvb, offset + 5);
-        uuid.data[11] = tvb_get_guint8(tvb, offset + 4);
-        uuid.data[12] = tvb_get_guint8(tvb, offset + 3);
-        uuid.data[13] = tvb_get_guint8(tvb, offset + 2);
-        uuid.data[14] = tvb_get_guint8(tvb, offset + 1);
-        uuid.data[15] = tvb_get_guint8(tvb, offset);
+        uuid.data[0] = tvb_get_uint8(tvb, offset + 15);
+        uuid.data[1] = tvb_get_uint8(tvb, offset + 14);
+        uuid.data[2] = tvb_get_uint8(tvb, offset + 13);
+        uuid.data[3] = tvb_get_uint8(tvb, offset + 12);
+        uuid.data[4] = tvb_get_uint8(tvb, offset + 11);
+        uuid.data[5] = tvb_get_uint8(tvb, offset + 10);
+        uuid.data[6] = tvb_get_uint8(tvb, offset + 9);
+        uuid.data[7] = tvb_get_uint8(tvb, offset + 8);
+        uuid.data[8] = tvb_get_uint8(tvb, offset + 7);
+        uuid.data[9] = tvb_get_uint8(tvb, offset + 6);
+        uuid.data[10] = tvb_get_uint8(tvb, offset + 5);
+        uuid.data[11] = tvb_get_uint8(tvb, offset + 4);
+        uuid.data[12] = tvb_get_uint8(tvb, offset + 3);
+        uuid.data[13] = tvb_get_uint8(tvb, offset + 2);
+        uuid.data[14] = tvb_get_uint8(tvb, offset + 1);
+        uuid.data[15] = tvb_get_uint8(tvb, offset);
 
         if (uuid.data[0] == 0x00 && uuid.data[1] == 0x00 &&
             uuid.data[4]  == 0x00 && uuid.data[5]  == 0x00 && uuid.data[6]  == 0x10 &&
             uuid.data[7]  == 0x00 && uuid.data[8]  == 0x80 && uuid.data[9]  == 0x00 &&
             uuid.data[10] == 0x00 && uuid.data[11] == 0x80 && uuid.data[12] == 0x5F &&
-            uuid.data[13] == 0x9B && uuid.data[14] == 0x34 && uuid.data[15] == 0xFB)
-            uuid.bt_uuid = uuid.data[2] | uuid.data[3] << 8;
+            uuid.data[13] == 0x9B && uuid.data[14] == 0x34 && uuid.data[15] == 0xFB) {
+            uuid.bt_uuid = uuid.data[3] | uuid.data[2] << 8;
+            size = 2;
+        }
     }
 
+    uuid.size = size;
     return uuid;
 }
 
-const gchar *
+const char *
 print_numeric_bluetooth_uuid(wmem_allocator_t *pool, bluetooth_uuid_t *uuid)
 {
     if (!(uuid && uuid->size > 0))
@@ -5330,9 +5524,9 @@ print_numeric_bluetooth_uuid(wmem_allocator_t *pool, bluetooth_uuid_t *uuid)
     if (uuid->size != 16) {
         return bytes_to_str(pool, uuid->data, uuid->size);
     } else {
-        gchar *text;
+        char *text;
 
-        text = (gchar *) wmem_alloc(pool, 38);
+        text = (char *) wmem_alloc(pool, 38);
         bytes_to_hexstr(&text[0], uuid->data, 4);
         text[8] = '-';
         bytes_to_hexstr(&text[9], uuid->data + 4, 2);
@@ -5350,13 +5544,13 @@ print_numeric_bluetooth_uuid(wmem_allocator_t *pool, bluetooth_uuid_t *uuid)
     return NULL;
 }
 
-const gchar *
+const char *
 print_bluetooth_uuid(wmem_allocator_t *pool, bluetooth_uuid_t *uuid)
 {
-    const gchar *description;
+    const char *description;
 
     if (uuid->bt_uuid) {
-        const gchar *name;
+        const char *name;
 
         /*
          * Known UUID?
@@ -5378,7 +5572,7 @@ print_bluetooth_uuid(wmem_allocator_t *pool, bluetooth_uuid_t *uuid)
     description = print_numeric_bluetooth_uuid(pool, uuid);
 
     if (description) {
-        description = (const gchar *) wmem_tree_lookup_string(bluetooth_uuids, description, 0);
+        description = (const char *) wmem_tree_lookup_string(bluetooth_uuids, description, 0);
         if (description)
             return description;
     }
@@ -5400,11 +5594,11 @@ dissect_bluetooth_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     switch (pinfo->p2p_dir) {
 
     case P2P_DIR_SENT:
-        col_add_fstr(pinfo->cinfo, COL_INFO, "Sent ");
+        col_set_str(pinfo->cinfo, COL_INFO, "Sent ");
         break;
 
     case P2P_DIR_RECV:
-        col_add_fstr(pinfo->cinfo, COL_INFO, "Rcvd ");
+        col_set_str(pinfo->cinfo, COL_INFO, "Rcvd ");
         break;
 
     default:
@@ -5455,10 +5649,10 @@ dissect_bluetooth_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
         sub_item = proto_tree_add_string(main_tree, hf_bluetooth_src_str, tvb, 0, 0, (const char *) src->data);
         proto_item_set_generated(sub_item);
     } else if (src && src->type == AT_ETHER) {
-        sub_item = proto_tree_add_ether(main_tree, hf_bluetooth_addr, tvb, 0, 0, (const guint8 *) src->data);
+        sub_item = proto_tree_add_ether(main_tree, hf_bluetooth_addr, tvb, 0, 0, (const uint8_t *) src->data);
         proto_item_set_hidden(sub_item);
 
-        sub_item = proto_tree_add_ether(main_tree, hf_bluetooth_src, tvb, 0, 0, (const guint8 *) src->data);
+        sub_item = proto_tree_add_ether(main_tree, hf_bluetooth_src, tvb, 0, 0, (const uint8_t *) src->data);
         proto_item_set_generated(sub_item);
     }
 
@@ -5469,10 +5663,10 @@ dissect_bluetooth_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
         sub_item = proto_tree_add_string(main_tree, hf_bluetooth_dst_str, tvb, 0, 0, (const char *) dst->data);
         proto_item_set_generated(sub_item);
     } else if (dst && dst->type == AT_ETHER) {
-        sub_item = proto_tree_add_ether(main_tree, hf_bluetooth_addr, tvb, 0, 0, (const guint8 *) dst->data);
+        sub_item = proto_tree_add_ether(main_tree, hf_bluetooth_addr, tvb, 0, 0, (const uint8_t *) dst->data);
         proto_item_set_hidden(sub_item);
 
-        sub_item = proto_tree_add_ether(main_tree, hf_bluetooth_dst, tvb, 0, 0, (const guint8 *) dst->data);
+        sub_item = proto_tree_add_ether(main_tree, hf_bluetooth_dst, tvb, 0, 0, (const uint8_t *) dst->data);
         proto_item_set_generated(sub_item);
     }
 
@@ -5489,7 +5683,7 @@ dissect_bluetooth_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
  * the dissector registered in the bluetooth.encap table to handle the
  * metadata header in the packet.
  */
-static gint
+static int
 dissect_bluetooth(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     bluetooth_data_t  *bluetooth_data;
@@ -5502,7 +5696,7 @@ dissect_bluetooth(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
     bluetooth_data->previous_protocol_data_type = BT_PD_NONE;
     bluetooth_data->previous_protocol_data.none = NULL;
 
-    if (!dissector_try_uint_new(bluetooth_table, pinfo->rec->rec_header.packet_header.pkt_encap, tvb, pinfo, tree, TRUE, bluetooth_data)) {
+    if (!dissector_try_uint_new(bluetooth_table, pinfo->rec->rec_header.packet_header.pkt_encap, tvb, pinfo, tree, true, bluetooth_data)) {
         call_data_dissector(tvb, pinfo, tree);
     }
 
@@ -5518,7 +5712,7 @@ dissect_bluetooth(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
  * the dissector registered in the bluetooth.encap table to handle the
  * metadata header in the packet.
  */
-static gint
+static int
 dissect_bluetooth_bthci(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     bluetooth_data_t  *bluetooth_data;
@@ -5531,7 +5725,7 @@ dissect_bluetooth_bthci(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     bluetooth_data->previous_protocol_data_type = BT_PD_BTHCI;
     bluetooth_data->previous_protocol_data.bthci = (struct bthci_phdr *)data;
 
-    if (!dissector_try_uint_new(bluetooth_table, pinfo->rec->rec_header.packet_header.pkt_encap, tvb, pinfo, tree, TRUE, bluetooth_data)) {
+    if (!dissector_try_uint_new(bluetooth_table, pinfo->rec->rec_header.packet_header.pkt_encap, tvb, pinfo, tree, true, bluetooth_data)) {
         call_data_dissector(tvb, pinfo, tree);
     }
 
@@ -5546,7 +5740,7 @@ dissect_bluetooth_bthci(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
  * the dissector registered in the bluetooth.encap table to handle the
  * metadata header in the packet.
  */
-static gint
+static int
 dissect_bluetooth_btmon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     bluetooth_data_t  *bluetooth_data;
@@ -5559,7 +5753,7 @@ dissect_bluetooth_btmon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     bluetooth_data->previous_protocol_data_type = BT_PD_BTMON;
     bluetooth_data->previous_protocol_data.btmon = (struct btmon_phdr *)data;
 
-    if (!dissector_try_uint_new(bluetooth_table, pinfo->rec->rec_header.packet_header.pkt_encap, tvb, pinfo, tree, TRUE, bluetooth_data)) {
+    if (!dissector_try_uint_new(bluetooth_table, pinfo->rec->rec_header.packet_header.pkt_encap, tvb, pinfo, tree, true, bluetooth_data)) {
         call_data_dissector(tvb, pinfo, tree);
     }
 
@@ -5569,7 +5763,7 @@ dissect_bluetooth_btmon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 /*
  * Register this in various USB dissector tables.
  */
-static gint
+static int
 dissect_bluetooth_usb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     bluetooth_data_t  *bluetooth_data;
@@ -5577,10 +5771,10 @@ dissect_bluetooth_usb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
     bluetooth_data = dissect_bluetooth_common(tvb, pinfo, tree);
 
     /*
-     * data points to a usb_conv_info_t.
+     * data points to a urb_info_t.
      */
-    bluetooth_data->previous_protocol_data_type = BT_PD_USB_CONV_INFO;
-    bluetooth_data->previous_protocol_data.usb_conv_info = (usb_conv_info_t *)data;
+    bluetooth_data->previous_protocol_data_type = BT_PD_URB_INFO;
+    bluetooth_data->previous_protocol_data.urb = (urb_info_t *)data;
 
     return call_dissector_with_data(hci_usb_handle, tvb, pinfo, tree, bluetooth_data);
 }
@@ -5588,7 +5782,7 @@ dissect_bluetooth_usb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
 /*
  * Register this by name; it's called from the Ubertooth dissector.
  */
-static gint
+static int
 dissect_bluetooth_ubertooth(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     bluetooth_data_t  *bluetooth_data;
@@ -5650,7 +5844,7 @@ proto_register_bluetooth(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_bluetooth,
     };
 
@@ -5701,7 +5895,7 @@ proto_register_bluetooth(void)
     bluetooth_uuid_table = register_dissector_table("bluetooth.uuid", "BT Service UUID", proto_bluetooth, FT_STRING, STRING_CASE_SENSITIVE);
     llc_add_oui(OUI_BLUETOOTH, "llc.bluetooth_pid", "LLC Bluetooth OUI PID", oui_hf, proto_bluetooth);
 
-    register_conversation_table(proto_bluetooth, TRUE, bluetooth_conversation_packet, bluetooth_endpoint_packet);
+    register_conversation_table(proto_bluetooth, true, bluetooth_conversation_packet, bluetooth_endpoint_packet);
 
     register_decode_as(&bluetooth_uuid_da);
 
@@ -5709,7 +5903,7 @@ proto_register_bluetooth(void)
     bluetooth_uuids_uat = uat_new("Custom Bluetooth UUID names",
                                   sizeof(bt_uuid_t),
                                   "bluetooth_uuids",
-                                  TRUE,
+                                  true,
                                   &bt_uuids,
                                   &num_bt_uuids,
                                   UAT_AFFECTS_DISSECTION,
@@ -5774,16 +5968,16 @@ proto_reg_handoff_bluetooth(void)
     dissector_add_uint("llc.bluetooth_pid", AMP_C_SECURITY_FRAME, eapol_handle);
     dissector_add_uint("llc.bluetooth_pid", AMP_U_L2CAP, btl2cap_handle);
 
-/* TODO: Add UUID128 verion of UUID16; UUID32? UUID16? */
+/* TODO: Add UUID128 version of UUID16; UUID32? UUID16? */
 }
 
-static int proto_btad_apple_ibeacon = -1;
+static int proto_btad_apple_ibeacon;
 
-static int hf_btad_apple_ibeacon_uuid128 = -1;
-static int hf_btad_apple_ibeacon_major = -1;
-static int hf_btad_apple_ibeacon_minor = -1;
+static int hf_btad_apple_ibeacon_uuid128;
+static int hf_btad_apple_ibeacon_major;
+static int hf_btad_apple_ibeacon_minor;
 
-static gint ett_btad_apple_ibeacon = -1;
+static int ett_btad_apple_ibeacon;
 
 static dissector_handle_t btad_apple_ibeacon;
 
@@ -5791,12 +5985,12 @@ void proto_register_btad_apple_ibeacon(void);
 void proto_reg_handoff_btad_apple_ibeacon(void);
 
 
-static gint
+static int
 dissect_btad_apple_ibeacon(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
 {
     proto_tree       *main_tree;
     proto_item       *main_item;
-    gint              offset = 0;
+    int               offset = 0;
 
     main_item = proto_tree_add_item(tree, proto_btad_apple_ibeacon, tvb, offset, tvb_captured_length(tvb), ENC_NA);
     main_tree = proto_item_add_subtree(main_item, ett_btad_apple_ibeacon);
@@ -5834,7 +6028,7 @@ proto_register_btad_apple_ibeacon(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btad_apple_ibeacon,
     };
 
@@ -5852,14 +6046,14 @@ proto_reg_handoff_btad_apple_ibeacon(void)
 }
 
 
-static int proto_btad_alt_beacon = -1;
+static int proto_btad_alt_beacon;
 
-static int hf_btad_alt_beacon_code = -1;
-static int hf_btad_alt_beacon_id = -1;
-static int hf_btad_alt_beacon_reference_rssi = -1;
-static int hf_btad_alt_beacon_manufacturer_data = -1;
+static int hf_btad_alt_beacon_code;
+static int hf_btad_alt_beacon_id;
+static int hf_btad_alt_beacon_reference_rssi;
+static int hf_btad_alt_beacon_manufacturer_data;
 
-static gint ett_btad_alt_beacon = -1;
+static int ett_btad_alt_beacon;
 
 static dissector_handle_t btad_alt_beacon;
 
@@ -5867,12 +6061,12 @@ void proto_register_btad_alt_beacon(void);
 void proto_reg_handoff_btad_alt_beacon(void);
 
 
-static gint
+static int
 dissect_btad_alt_beacon(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
 {
     proto_tree       *main_tree;
     proto_item       *main_item;
-    gint              offset = 0;
+    int               offset = 0;
 
     main_item = proto_tree_add_item(tree, proto_btad_alt_beacon, tvb, offset, tvb_captured_length(tvb), ENC_NA);
     main_tree = proto_item_add_subtree(main_item, ett_btad_alt_beacon);
@@ -5918,7 +6112,7 @@ proto_register_btad_alt_beacon(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btad_alt_beacon,
     };
 
@@ -5934,24 +6128,24 @@ proto_reg_handoff_btad_alt_beacon(void)
     dissector_add_for_decode_as("btcommon.eir_ad.manufacturer_company_id", btad_alt_beacon);
 }
 
-static int proto_btad_gaen = -1;
+static int proto_btad_gaen;
 
-static int hf_btad_gaen_rpi128 = -1;
-static int hf_btad_gaen_aemd32 = -1;
+static int hf_btad_gaen_rpi128;
+static int hf_btad_gaen_aemd32;
 
-static gint ett_btad_gaen = -1;
+static int ett_btad_gaen;
 
 static dissector_handle_t btad_gaen;
 
 void proto_register_btad_gaen(void);
 void proto_reg_handoff_btad_gaen(void);
 
-static gint
+static int
 dissect_btad_gaen(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
 {
     proto_tree       *main_tree;
     proto_item       *main_item;
-    gint             offset = 0;
+    int              offset = 0;
 
     /* The "Service Data" blob of data has the following format for GAEN:
     1 byte: length (0x17)
@@ -5994,7 +6188,7 @@ proto_register_btad_gaen(void)
     }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btad_gaen,
     };
 
@@ -6008,6 +6202,127 @@ void
 proto_reg_handoff_btad_gaen(void)
 {
     dissector_add_string("btcommon.eir_ad.entry.uuid", "fd6f", btad_gaen);
+}
+
+static int proto_btad_matter;
+
+static int hf_btad_matter_opcode;
+static int hf_btad_matter_version;
+static int hf_btad_matter_discriminator;
+static int hf_btad_matter_vendor_id;
+static int hf_btad_matter_product_id;
+static int hf_btad_matter_flags;
+static int hf_btad_matter_flags_additional_data;
+static int hf_btad_matter_flags_ext_announcement;
+
+static int ett_btad_matter;
+static int ett_btad_matter_flags;
+
+static dissector_handle_t btad_matter;
+
+void proto_register_btad_matter(void);
+void proto_reg_handoff_btad_matter(void);
+
+static int
+dissect_btad_matter(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
+{
+    /* We are interested only in the last 8 bytes (Service Data Payload) */
+    int offset = tvb_captured_length(tvb) - 8;
+
+    proto_tree *main_item = proto_tree_add_item(tree, proto_btad_matter, tvb, offset, -1, ENC_NA);
+    proto_tree *main_tree = proto_item_add_subtree(main_item, ett_btad_matter);
+
+    proto_tree_add_item(main_tree, hf_btad_matter_opcode, tvb, offset, 1, ENC_NA);
+    offset += 1;
+
+    proto_tree_add_item(main_tree, hf_btad_matter_version, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(main_tree, hf_btad_matter_discriminator, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    offset += 2;
+
+    proto_tree_add_item(main_tree, hf_btad_matter_vendor_id, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    offset += 2;
+
+    proto_tree_add_item(main_tree, hf_btad_matter_product_id, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    offset += 2;
+
+    static int * const flags[] = {
+        &hf_btad_matter_flags_additional_data,
+        &hf_btad_matter_flags_ext_announcement,
+        NULL
+    };
+
+    proto_tree_add_bitmask(main_tree, tvb, offset, hf_btad_matter_flags, ett_btad_matter_flags, flags, ENC_NA);
+    offset += 1;
+
+    return offset;
+}
+
+void
+proto_register_btad_matter(void)
+{
+    static const value_string opcode_vals[] = {
+        { 0x00, "Commissionable" },
+        { 0, NULL }
+    };
+
+    static hf_register_info hf[] = {
+        { &hf_btad_matter_opcode,
+          { "Opcode", "bluetooth.matter.opcode",
+            FT_UINT8, BASE_HEX, VALS(opcode_vals), 0x0,
+            NULL, HFILL }
+        },
+        {&hf_btad_matter_version,
+          {"Advertisement Version", "bluetooth.matter.version",
+            FT_UINT16, BASE_DEC, NULL, 0xF000,
+            NULL, HFILL}
+        },
+        { &hf_btad_matter_discriminator,
+          { "Discriminator", "bluetooth.matter.discriminator",
+            FT_UINT16, BASE_HEX, NULL, 0x0FFF,
+            "A 12-bit value used in the Setup Code", HFILL }
+        },
+        { &hf_btad_matter_vendor_id,
+          { "Vendor ID", "bluetooth.matter.vendor_id",
+            FT_UINT16, BASE_HEX, NULL, 0x0,
+            "A 16-bit value identifying the device manufacturer", HFILL }
+        },
+        { &hf_btad_matter_product_id,
+          { "Product ID", "bluetooth.matter.product_id",
+            FT_UINT16, BASE_HEX, NULL, 0x0,
+            "A 16-bit value identifying the product", HFILL }
+        },
+        { &hf_btad_matter_flags,
+          { "Flags", "bluetooth.matter.flags",
+            FT_UINT8, BASE_HEX, NULL, 0x0,
+            NULL, HFILL }
+        },
+        { &hf_btad_matter_flags_additional_data,
+          { "Additional Data", "bluetooth.matter.flags.additional_data",
+            FT_BOOLEAN, 8, NULL, 0x01,
+            "Set if the device provides the optional C3 GATT characteristic", HFILL }
+        },
+        { &hf_btad_matter_flags_ext_announcement,
+          { "Extended Announcement", "bluetooth.matter.flags.ext_announcement",
+            FT_BOOLEAN, 8, NULL, 0x02,
+            "Set while the device is in the Extended Announcement period", HFILL }
+        },
+    };
+
+    static int *ett[] = {
+        &ett_btad_matter,
+        &ett_btad_matter_flags,
+    };
+
+    proto_btad_matter = proto_register_protocol("Matter Advertising Data", "Matter Advertising Data", "bluetooth.matter");
+    proto_register_field_array(proto_btad_matter, hf, array_length(hf));
+    proto_register_subtree_array(ett, array_length(ett));
+    btad_matter = register_dissector("bluetooth.matter", dissect_btad_matter, proto_btad_matter);
+}
+
+void
+proto_reg_handoff_btad_matter(void)
+{
+    dissector_add_string("btcommon.eir_ad.entry.uuid", "fff6", btad_matter);
 }
 
 /*

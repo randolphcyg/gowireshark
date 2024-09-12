@@ -21,23 +21,23 @@
 void proto_register_fortinet_sso(void);
 void proto_reg_handoff_fortinet_sso(void);
 
-static int proto_fortinet_sso = -1;
-static gint ett_fortinet_sso  = -1;
+static int proto_fortinet_sso;
+static int ett_fortinet_sso;
 
-static int hf_fsso_length = -1;
-static int hf_fsso_timestamp = -1;
-static int hf_fsso_client_ip = -1;
-static int hf_fsso_payload_length = -1;
-static int hf_fsso_string = -1;
-static int hf_fsso_domain = -1;
-static int hf_fsso_user = -1;
-static int hf_fsso_host = -1;
-static int hf_fsso_version = -1;
-static int hf_fsso_tsagent_number_port_range = -1;
-static int hf_fsso_tsagent_port_range_min = -1;
-static int hf_fsso_tsagent_port_range_max = -1;
-static int hf_fsso_unknown = -1;
-static int hf_fsso_unknown_ipv4 = -1;
+static int hf_fsso_length;
+static int hf_fsso_timestamp;
+static int hf_fsso_client_ip;
+static int hf_fsso_payload_length;
+static int hf_fsso_string;
+static int hf_fsso_domain;
+static int hf_fsso_user;
+static int hf_fsso_host;
+static int hf_fsso_version;
+static int hf_fsso_tsagent_number_port_range;
+static int hf_fsso_tsagent_port_range_min;
+static int hf_fsso_tsagent_port_range_max;
+static int hf_fsso_unknown;
+static int hf_fsso_unknown_ipv4;
 
 static dissector_handle_t fortinet_sso_handle;
 
@@ -46,15 +46,14 @@ dissect_fortinet_sso(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
 {
     proto_tree *ti;
     proto_tree *fsso_tree;
-    guint32 payload_length, client_ip;
-    gint string_length = -1;
-    const gchar *string;
-    gint32 len;
+    uint32_t payload_length, client_ip;
+    int string_length = -1;
+    const char *string;
+    int32_t len;
     int offset = 0;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "FSSO");
-    col_clear(pinfo->cinfo, COL_INFO);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "Fortinet Single Sign-On");
+    col_set_str(pinfo->cinfo, COL_INFO, "Fortinet Single Sign-On");
 
     ti = proto_tree_add_item(tree, proto_fortinet_sso, tvb, 0, -1, ENC_NA);
     fsso_tree = proto_item_add_subtree(ti, ett_fortinet_sso);
@@ -78,12 +77,12 @@ dissect_fortinet_sso(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
 
     if(client_ip == 0xFFFFFFFF) { //if client_ip equal 255.255.255.255 (0xFFFFFFFF) is KeepAlive packet
         /* Domain / KeepAlive (User) / Version */
-        len = tvb_find_guint8(tvb, offset, string_length, '/') - offset;
+        len = tvb_find_uint8(tvb, offset, string_length, '/') - offset;
         proto_tree_add_item(fsso_tree, hf_fsso_domain, tvb, offset, len, ENC_ASCII);
         offset += (len + 1);
         string_length -= (len + 1);
 
-        len = tvb_find_guint8(tvb, offset, string_length, '/') - offset;
+        len = tvb_find_uint8(tvb, offset, string_length, '/') - offset;
         proto_tree_add_item(fsso_tree, hf_fsso_user, tvb, offset, len, ENC_ASCII);
         offset += (len + 1);
         string_length -= (len + 1);
@@ -93,12 +92,12 @@ dissect_fortinet_sso(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
 
     } else {
         /* Host / Domain / User */
-        len = tvb_find_guint8(tvb, offset, string_length, '/') - offset;
+        len = tvb_find_uint8(tvb, offset, string_length, '/') - offset;
         proto_tree_add_item(fsso_tree, hf_fsso_host, tvb, offset, len, ENC_ASCII);
         offset += (len + 1);
         string_length -= (len + 1);
 
-        len = tvb_find_guint8(tvb, offset, string_length, '/') - offset;
+        len = tvb_find_uint8(tvb, offset, string_length, '/') - offset;
         proto_tree_add_item(fsso_tree, hf_fsso_domain, tvb, offset, len, ENC_ASCII);
         offset += (len + 1);
         string_length -= (len + 1);
@@ -116,11 +115,11 @@ dissect_fortinet_sso(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     } else {
 
         if(tvb_reported_length_remaining(tvb, offset)) {
-            guint16 value;
-            guint32 number_port_range;
+            uint16_t value;
+            uint32_t number_port_range;
             value = tvb_get_ntohs(tvb, offset);
 
-            if(value == 0x2002) { /* Not a TS Agent additionnal Data */
+            if(value == 0x2002) { /* Not a TS Agent additional Data */
                 proto_tree_add_item(fsso_tree, hf_fsso_unknown, tvb, offset, 2, ENC_NA);
                 offset += 2;
 
@@ -167,13 +166,13 @@ dissect_fortinet_sso(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     return offset;
 }
 
-static gboolean
+static bool
 dissect_fortinet_fsso_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    guint32 length_remaining, length;
+    uint32_t length_remaining, length;
 
     if (tvb_captured_length(tvb) < 2) {
-        return FALSE;
+        return false;
     }
 
     length_remaining = tvb_reported_length_remaining(tvb, 0);
@@ -181,17 +180,17 @@ dissect_fortinet_fsso_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
     length = tvb_get_ntohs(tvb, 0);
     if(length_remaining != length)
     {
-        return FALSE;
+        return false;
     }
 
     //always send with UDP Destination Port 80002
     if(pinfo->destport != UDP_FSSO)
     {
-        return FALSE;
+        return false;
     }
 
     dissect_fortinet_sso(tvb, pinfo, tree, data);
-    return TRUE;
+    return true;
 }
 
 void
@@ -256,7 +255,7 @@ proto_register_fortinet_sso(void)
 
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_fortinet_sso,
     };
 

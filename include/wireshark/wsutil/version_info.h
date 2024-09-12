@@ -60,6 +60,10 @@ WS_DLL_PUBLIC
 void
 gather_zlib_compile_info(feature_list l);
 
+WS_DLL_PUBLIC
+void
+gather_zlib_ng_compile_info(feature_list l);
+
 /*
  * Get various library compile-time versions, put them in a GString,
  * and return the GString.
@@ -97,6 +101,14 @@ GString *get_runtime_version_info(gather_feature_func gather_runtime);
  */
 WS_DLL_PUBLIC
 const char *get_ws_vcs_version_info(void);
+
+/*
+ * Return a version number string for Logray, including, for builds
+ * from a tree checked out from Logray's version control system,
+ * something identifying what version was checked out.
+ */
+WS_DLL_PUBLIC
+const char *get_lr_vcs_version_info(void);
 
 /*
  * Shorter version of get_ws_vcs_version_info().

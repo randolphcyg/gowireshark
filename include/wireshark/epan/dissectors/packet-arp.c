@@ -25,73 +25,74 @@
 #include <epan/prefs.h>
 #include <epan/expert.h>
 #include <epan/proto_data.h>
+#include <epan/tfs.h>
 
 void proto_register_arp(void);
 void proto_reg_handoff_arp(void);
 
-static int proto_arp = -1;
-static int hf_arp_hard_type = -1;
-static int hf_arp_proto_type = -1;
-static int hf_arp_hard_size = -1;
-static int hf_atmarp_sht = -1;
-static int hf_atmarp_shl = -1;
-static int hf_atmarp_sst = -1;
-static int hf_atmarp_ssl = -1;
-static int hf_arp_proto_size = -1;
-static int hf_arp_opcode = -1;
-static int hf_arp_isgratuitous = -1;
-static int hf_arp_isprobe = -1;
-static int hf_arp_isannouncement = -1;
+static int proto_arp;
+static int hf_arp_hard_type;
+static int hf_arp_proto_type;
+static int hf_arp_hard_size;
+static int hf_atmarp_sht;
+static int hf_atmarp_shl;
+static int hf_atmarp_sst;
+static int hf_atmarp_ssl;
+static int hf_arp_proto_size;
+static int hf_arp_opcode;
+static int hf_arp_isgratuitous;
+static int hf_arp_isprobe;
+static int hf_arp_isannouncement;
 
-static int proto_atmarp = -1;
-static int hf_atmarp_spln = -1;
-static int hf_atmarp_tht = -1;
-static int hf_atmarp_thl = -1;
-static int hf_atmarp_tst = -1;
-static int hf_atmarp_tsl = -1;
-static int hf_atmarp_tpln = -1;
-static int hf_arp_src_hw = -1;
-static int hf_arp_src_hw_mac = -1;
-static int hf_arp_src_proto = -1;
-static int hf_arp_src_proto_ipv4 = -1;
-static int hf_arp_dst_hw = -1;
-static int hf_arp_dst_hw_mac = -1;
-static int hf_arp_dst_proto = -1;
-static int hf_arp_dst_proto_ipv4 = -1;
-static int hf_drarp_error_status = -1;
-static int hf_arp_duplicate_ip_address_earlier_frame = -1;
-static int hf_arp_duplicate_ip_address_seconds_since_earlier_frame = -1;
+static int proto_atmarp;
+static int hf_atmarp_spln;
+static int hf_atmarp_tht;
+static int hf_atmarp_thl;
+static int hf_atmarp_tst;
+static int hf_atmarp_tsl;
+static int hf_atmarp_tpln;
+static int hf_arp_src_hw;
+static int hf_arp_src_hw_mac;
+static int hf_arp_src_proto;
+static int hf_arp_src_proto_ipv4;
+static int hf_arp_dst_hw;
+static int hf_arp_dst_hw_mac;
+static int hf_arp_dst_proto;
+static int hf_arp_dst_proto_ipv4;
+static int hf_drarp_error_status;
+static int hf_arp_duplicate_ip_address_earlier_frame;
+static int hf_arp_duplicate_ip_address_seconds_since_earlier_frame;
 
-static int hf_atmarp_src_atm_num_e164 = -1;
-static int hf_atmarp_src_atm_num_nsap = -1;
-static int hf_atmarp_src_atm_subaddr = -1;
-static int hf_atmarp_dst_atm_num_e164 = -1;
-static int hf_atmarp_dst_atm_num_nsap = -1;
-static int hf_atmarp_dst_atm_subaddr = -1;
+static int hf_atmarp_src_atm_num_e164;
+static int hf_atmarp_src_atm_num_nsap;
+static int hf_atmarp_src_atm_subaddr;
+static int hf_atmarp_dst_atm_num_e164;
+static int hf_atmarp_dst_atm_num_nsap;
+static int hf_atmarp_dst_atm_subaddr;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_atmarp_src_atm_data_country_code = -1;
-static int hf_atmarp_src_atm_data_country_code_group = -1;
-static int hf_atmarp_src_atm_e_164_isdn = -1;
-static int hf_atmarp_src_atm_e_164_isdn_group = -1;
-static int hf_atmarp_src_atm_rest_of_address = -1;
-static int hf_atmarp_src_atm_end_system_identifier = -1;
-static int hf_atmarp_src_atm_high_order_dsp = -1;
-static int hf_atmarp_src_atm_selector = -1;
-static int hf_atmarp_src_atm_international_code_designator = -1;
-static int hf_atmarp_src_atm_international_code_designator_group = -1;
-static int hf_atmarp_src_atm_afi = -1;
+static int hf_atmarp_src_atm_data_country_code;
+static int hf_atmarp_src_atm_data_country_code_group;
+static int hf_atmarp_src_atm_e_164_isdn;
+static int hf_atmarp_src_atm_e_164_isdn_group;
+static int hf_atmarp_src_atm_rest_of_address;
+static int hf_atmarp_src_atm_end_system_identifier;
+static int hf_atmarp_src_atm_high_order_dsp;
+static int hf_atmarp_src_atm_selector;
+static int hf_atmarp_src_atm_international_code_designator;
+static int hf_atmarp_src_atm_international_code_designator_group;
+static int hf_atmarp_src_atm_afi;
 
-static int hf_arp_dst_hw_ax25 = -1;
-static int hf_arp_src_hw_ax25 = -1;
+static int hf_arp_dst_hw_ax25;
+static int hf_arp_src_hw_ax25;
 
-static gint ett_arp = -1;
-static gint ett_atmarp_nsap = -1;
-static gint ett_atmarp_tl = -1;
-static gint ett_arp_duplicate_address = -1;
+static int ett_arp;
+static int ett_atmarp_nsap;
+static int ett_atmarp_tl;
+static int ett_arp_duplicate_address;
 
-static expert_field ei_seq_arp_dup_ip = EI_INIT;
-static expert_field ei_seq_arp_storm = EI_INIT;
-static expert_field ei_atmarp_src_atm_unknown_afi = EI_INIT;
+static expert_field ei_seq_arp_dup_ip;
+static expert_field ei_seq_arp_storm;
+static expert_field ei_atmarp_src_atm_unknown_afi;
 
 static dissector_handle_t arp_handle;
 
@@ -104,33 +105,33 @@ static capture_dissector_handle_t arp_cap_handle;
 #define NO_STORM 2
 
 /* Preference settings */
-static gboolean global_arp_detect_request_storm = FALSE;
-static guint32  global_arp_detect_request_storm_packets = 30;
-static guint32  global_arp_detect_request_storm_period = 100;
+static bool global_arp_detect_request_storm;
+static uint32_t global_arp_detect_request_storm_packets = 30;
+static uint32_t global_arp_detect_request_storm_period = 100;
 
-static gboolean global_arp_detect_duplicate_ip_addresses = TRUE;
-static gboolean global_arp_register_network_address_binding = TRUE;
+static bool global_arp_detect_duplicate_ip_addresses = true;
+static bool global_arp_register_network_address_binding = true;
 
-static guint32  arp_request_count = 0;
+static uint32_t arp_request_count;
 static nstime_t time_at_start_of_count;
 
 
 /* Map of (IP address -> MAC address) to detect duplicate IP addresses
    Key is unsigned32 */
-static wmem_map_t *address_hash_table = NULL;
+static wmem_map_t *address_hash_table;
 
 typedef struct address_hash_value {
-  guint8    mac[6];
-  guint     frame_num;
+  uint8_t   mac[6];
+  unsigned  frame_num;
   time_t    time_of_entry;
 } address_hash_value;
 
 /* Map of ((frame Num, IP address) -> MAC address) */
-static wmem_map_t *duplicate_result_hash_table = NULL;
+static wmem_map_t *duplicate_result_hash_table;
 
 typedef struct duplicate_result_key {
-  guint32 frame_number;
-  guint32 ip_address;
+  uint32_t frame_number;
+  uint32_t ip_address;
 } duplicate_result_key;
 
 
@@ -360,8 +361,8 @@ static const value_string atmop_vals[] = {
 #define ARP_PRO_IS_IPv4(ar_pro, ar_pln)         \
   (((ar_pro) == ETHERTYPE_IP || (ar_pro) == AX25_P_IP) && (ar_pln) == 4)
 
-const gchar *
-tvb_arphrdaddr_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, gint offset, int ad_len, guint16 type)
+const char *
+tvb_arphrdaddr_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, int offset, int ad_len, uint16_t type)
 {
   if (ad_len == 0)
     return "<No address>";
@@ -373,8 +374,8 @@ tvb_arphrdaddr_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, gint offset, int a
   return tvb_bytes_to_str(scope, tvb, offset, ad_len);
 }
 
-static const gchar *
-arpproaddr_to_str(wmem_allocator_t *scope, const guint8 *ad, int ad_len, guint16 type)
+static const char *
+arpproaddr_to_str(wmem_allocator_t *scope, const uint8_t *ad, int ad_len, uint16_t type)
 {
   address addr;
 
@@ -397,14 +398,14 @@ arpproaddr_to_str(wmem_allocator_t *scope, const guint8 *ad, int ad_len, guint16
   return bytes_to_str(scope, ad, ad_len);
 }
 
-static const gchar *
-tvb_arpproaddr_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, gint offset, int ad_len, guint16 type)
+static const char *
+tvb_arpproaddr_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, int offset, int ad_len, uint16_t type)
 {
-    const guint8 *ad = tvb_memdup(scope, tvb, offset, ad_len);
+    const uint8_t *ad = tvb_memdup(scope, tvb, offset, ad_len);
     return arpproaddr_to_str(scope, ad, ad_len, type);
 }
 
-static const gchar *
+static const char *
 atmarpnum_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, int offset, int ad_tl)
 {
   int    ad_len = ad_tl & ATMARP_LEN_MASK;
@@ -416,7 +417,7 @@ atmarpnum_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, int offset, int ad_tl)
     /*
      * I'm assuming this means it's an ASCII (IA5) string.
      */
-    return (gchar *) tvb_get_string_enc(scope, tvb, offset, ad_len, ENC_ASCII|ENC_NA);
+    return (char *) tvb_get_string_enc(scope, tvb, offset, ad_len, ENC_ASCII|ENC_NA);
   } else {
     /*
      * NSAP.
@@ -427,7 +428,7 @@ atmarpnum_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, int offset, int ad_tl)
   }
 }
 
-static const gchar *
+static const char *
 atmarpsubaddr_to_str(wmem_allocator_t *scope, tvbuff_t *tvb, int offset, int ad_tl)
 {
   int ad_len = ad_tl & ATMARP_LEN_MASK;
@@ -486,6 +487,7 @@ const value_string arp_hrd_vals[] = {
   {ARPHRD_PURE_IP,            "Pure IP"                    },
   {ARPHRD_HW_EXP1,            "Experimental 1"             },
   {ARPHRD_HFI,                "HFI"                        },
+  {ARPHRD_UB,                 "Unified Bus"                },
   {ARPHRD_HW_EXP2,            "Experimental 2"             },
   {ARPHRD_AETHERNET,          "AEthernet"                  },
   /* Virtual ARP types for non ARP hardware used in Linux cooked mode. */
@@ -600,10 +602,10 @@ static const value_string atm_nsap_afi_vals[] = {
 void
 dissect_atm_nsap(tvbuff_t *tvb, packet_info* pinfo, int offset, int len, proto_tree *tree)
 {
-  guint8 afi;
+  uint8_t afi;
   proto_item* ti;
 
-  afi = tvb_get_guint8(tvb, offset);
+  afi = tvb_get_uint8(tvb, offset);
   ti = proto_tree_add_item(tree, hf_atmarp_src_atm_afi, tvb, offset, 1, ENC_BIG_ENDIAN);
   switch (afi) {
 
@@ -642,28 +644,28 @@ dissect_atm_nsap(tvbuff_t *tvb, packet_info* pinfo, int offset, int len, proto_t
 }
 
 /* l.s. 32 bits are ipv4 address */
-static guint
-address_hash_func(gconstpointer v)
+static unsigned
+address_hash_func(const void *v)
 {
   return GPOINTER_TO_UINT(v);
 }
 
 /* Compare 2 ipv4 addresses */
-static gint
-address_equal_func(gconstpointer v, gconstpointer v2)
+static int
+address_equal_func(const void *v, const void *v2)
 {
   return v == v2;
 }
 
-static guint
-duplicate_result_hash_func(gconstpointer v)
+static unsigned
+duplicate_result_hash_func(const void *v)
 {
   const duplicate_result_key *key = (const duplicate_result_key*)v;
   return (key->frame_number + key->ip_address);
 }
 
-static gint
-duplicate_result_equal_func(gconstpointer v, gconstpointer v2)
+static int
+duplicate_result_equal_func(const void *v, const void *v2)
 {
   const duplicate_result_key *key1 = (const duplicate_result_key*)v;
   const duplicate_result_key *key2 = (const duplicate_result_key*)v2;
@@ -675,12 +677,12 @@ duplicate_result_equal_func(gconstpointer v, gconstpointer v2)
 
 
 /* Check to see if this mac & ip pair represent 2 devices trying to share
-   the same IP address - report if found (+ return TRUE and set out param) */
-static gboolean
+   the same IP address - report if found (+ return true and set out param) */
+static bool
 check_for_duplicate_addresses(packet_info *pinfo, proto_tree *tree,
                                               tvbuff_t *tvb,
-                                              const guint8 *mac, guint32 ip,
-                                              guint32 *duplicate_ip)
+                                              const uint8_t *mac, uint32_t ip,
+                                              uint32_t *duplicate_ip)
 {
   address_hash_value   *value;
   address_hash_value   *result     = NULL;
@@ -747,7 +749,7 @@ check_for_duplicate_addresses(packet_info *pinfo, proto_tree *tree,
     /* Create subtree */
     duplicate_tree = proto_tree_add_subtree_format(tree, tvb, 0, 0, ett_arp_duplicate_address, &ti,
                                                 "Duplicate IP address detected for %s (%s) - also in use by %s (frame %u)",
-                                                arpproaddr_to_str(pinfo->pool, (guint8*)&ip, 4, ETHERTYPE_IP),
+                                                arpproaddr_to_str(pinfo->pool, (uint8_t*)&ip, 4, ETHERTYPE_IP),
                                                 address_to_str(pinfo->pool, &mac_addr),
                                                 address_to_str(pinfo->pool, &result_mac_addr),
                                                 result->frame_num);
@@ -760,13 +762,13 @@ check_for_duplicate_addresses(packet_info *pinfo, proto_tree *tree,
     expert_add_info_format(pinfo, ti,
                            &ei_seq_arp_dup_ip,
                            "Duplicate IP address configured (%s)",
-                           arpproaddr_to_str(pinfo->pool, (guint8*)&ip, 4, ETHERTYPE_IP));
+                           arpproaddr_to_str(pinfo->pool, (uint8_t*)&ip, 4, ETHERTYPE_IP));
 
     /* Time since that frame was seen */
     ti = proto_tree_add_uint(duplicate_tree,
                              hf_arp_duplicate_ip_address_seconds_since_earlier_frame,
                              tvb, 0, 0,
-                             (guint32)(pinfo->abs_ts.secs - result->time_of_entry));
+                             (uint32_t)(pinfo->abs_ts.secs - result->time_of_entry));
     proto_item_set_generated(ti);
 
     /* Set out parameter */
@@ -794,7 +796,7 @@ request_seen(packet_info *pinfo)
 static void
 check_for_storm_count(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-  gboolean report_storm = FALSE;
+  bool report_storm = false;
 
   if (p_get_proto_data(wmem_file_scope(), pinfo, proto_arp, 0) != 0)
   {
@@ -804,12 +806,12 @@ check_for_storm_count(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
   else
   {
     /* Seeing packet for first time - check against preference settings */
-    gint seconds_delta  = (gint) (pinfo->abs_ts.secs - time_at_start_of_count.secs);
-    gint nseconds_delta = pinfo->abs_ts.nsecs - time_at_start_of_count.nsecs;
-    gint gap = (seconds_delta*1000) + (nseconds_delta / 1000000);
+    int seconds_delta  = (int) (pinfo->abs_ts.secs - time_at_start_of_count.secs);
+    int nseconds_delta = pinfo->abs_ts.nsecs - time_at_start_of_count.nsecs;
+    int gap = (seconds_delta*1000) + (nseconds_delta / 1000000);
 
     /* Reset if gap exceeds period or -ve gap (indicates we're rescanning from start) */
-    if ((gap > (gint)global_arp_detect_request_storm_period) ||
+    if ((gap > (int)global_arp_detect_request_storm_period) ||
         (gap < 0))
     {
       /* Time period elapsed without threshold being exceeded */
@@ -822,7 +824,7 @@ check_for_storm_count(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
       if (arp_request_count > global_arp_detect_request_storm_packets)
       {
         /* Storm detected, record and reset start time. */
-        report_storm = TRUE;
+        report_storm = true;
         p_add_proto_data(wmem_file_scope(), pinfo, proto_arp, 0, (void*)STORM);
         time_at_start_of_count = pinfo->abs_ts;
       }
@@ -851,42 +853,42 @@ check_for_storm_count(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 static int
 dissect_atmarp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  guint16       ar_hrd;
-  guint16       ar_pro;
-  guint8        ar_shtl;
-  guint8        ar_shl;
-  guint8        ar_sstl;
-  guint8        ar_ssl;
-  guint16       ar_op;
-  guint8        ar_spln;
-  guint8        ar_thtl;
-  guint8        ar_thl;
-  guint8        ar_tstl;
-  guint8        ar_tsl;
-  guint8        ar_tpln;
+  uint16_t      ar_hrd;
+  uint16_t      ar_pro;
+  uint8_t       ar_shtl;
+  uint8_t       ar_shl;
+  uint8_t       ar_sstl;
+  uint8_t       ar_ssl;
+  uint16_t      ar_op;
+  uint8_t       ar_spln;
+  uint8_t       ar_thtl;
+  uint8_t       ar_thl;
+  uint8_t       ar_tstl;
+  uint8_t       ar_tsl;
+  uint8_t       ar_tpln;
   int           tot_len;
   proto_tree   *arp_tree;
   proto_item   *ti;
-  const gchar  *op_str;
+  const char   *op_str;
   int           sha_offset, ssa_offset, spa_offset;
   int           tha_offset, tsa_offset, tpa_offset;
-  const gchar  *sha_str, *ssa_str, *spa_str;
-  const gchar  *tha_str, *tsa_str, *tpa_str;
+  const char   *sha_str, *ssa_str, *spa_str;
+  const char   *tha_str, *tsa_str, *tpa_str;
   proto_tree   *tl_tree;
 
   ar_hrd = tvb_get_ntohs(tvb, ATM_AR_HRD);
   ar_pro = tvb_get_ntohs(tvb, ATM_AR_PRO);
-  ar_shtl = tvb_get_guint8(tvb, ATM_AR_SHTL);
+  ar_shtl = tvb_get_uint8(tvb, ATM_AR_SHTL);
   ar_shl = ar_shtl & ATMARP_LEN_MASK;
-  ar_sstl = tvb_get_guint8(tvb, ATM_AR_SSTL);
+  ar_sstl = tvb_get_uint8(tvb, ATM_AR_SSTL);
   ar_ssl = ar_sstl & ATMARP_LEN_MASK;
   ar_op  = tvb_get_ntohs(tvb, AR_OP);
-  ar_spln = tvb_get_guint8(tvb, ATM_AR_SPLN);
-  ar_thtl = tvb_get_guint8(tvb, ATM_AR_THTL);
+  ar_spln = tvb_get_uint8(tvb, ATM_AR_SPLN);
+  ar_thtl = tvb_get_uint8(tvb, ATM_AR_THTL);
   ar_thl = ar_thtl & ATMARP_LEN_MASK;
-  ar_tstl = tvb_get_guint8(tvb, ATM_AR_TSTL);
+  ar_tstl = tvb_get_uint8(tvb, ATM_AR_TSTL);
   ar_tsl = ar_tstl & ATMARP_LEN_MASK;
-  ar_tpln = tvb_get_guint8(tvb, ATM_AR_TPLN);
+  ar_tpln = tvb_get_uint8(tvb, ATM_AR_TPLN);
 
   tot_len = MIN_ATMARP_HEADER_SIZE + ar_shl + ar_ssl + ar_spln +
     ar_thl + ar_tsl + ar_tpln;
@@ -1216,27 +1218,27 @@ dissect_ax25arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 {
 #define ARP_AX25 204
 
-  guint16      ar_hrd;
-  guint16      ar_pro;
-  guint8       ar_hln;
-  guint8       ar_pln;
-  guint16      ar_op;
+  uint16_t     ar_hrd;
+  uint16_t     ar_pro;
+  uint8_t      ar_hln;
+  uint8_t      ar_pln;
+  uint16_t     ar_op;
   int          tot_len;
   proto_tree  *arp_tree = NULL;
   proto_item  *ti;
-  const gchar *op_str;
+  const char *op_str;
   int          sha_offset, spa_offset, tha_offset, tpa_offset;
-  const gchar *spa_str, *tpa_str;
-  gboolean     is_gratuitous;
+  const char *spa_str, *tpa_str;
+  bool         is_gratuitous;
 
   /* Hardware Address Type */
   ar_hrd = tvb_get_ntohs(tvb, AR_HRD);
   /* Protocol Address Type */
   ar_pro = tvb_get_ntohs(tvb, AR_PRO);
   /* Hardware Address Size */
-  ar_hln = tvb_get_guint8(tvb, AR_HLN);
+  ar_hln = tvb_get_uint8(tvb, AR_HLN);
   /* Protocol Address Size */
-  ar_pln = tvb_get_guint8(tvb, AR_PLN);
+  ar_pln = tvb_get_uint8(tvb, AR_PLN);
   /* Operation */
   ar_op  = tvb_get_ntohs(tvb, AR_OP);
 
@@ -1290,9 +1292,9 @@ dissect_ax25arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
      replies are used to announce relocation of network address, like
      in failover solutions. */
   if (((ar_op == ARPOP_REQUEST) || (ar_op == ARPOP_REPLY)) && (strcmp(spa_str, tpa_str) == 0))
-    is_gratuitous = TRUE;
+    is_gratuitous = true;
   else
-    is_gratuitous = FALSE;
+    is_gratuitous = false;
 
   switch (ar_op) {
     case ARPOP_REQUEST:
@@ -1350,24 +1352,24 @@ dissect_ax25arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
     if (ar_hln != 0) {
       proto_tree_add_item(arp_tree,
         ARP_HW_IS_AX25(ar_hrd, ar_hln) ? hf_arp_src_hw_ax25 : hf_arp_src_hw,
-        tvb, sha_offset, ar_hln, FALSE);
+        tvb, sha_offset, ar_hln, false);
     }
     if (ar_pln != 0) {
       proto_tree_add_item(arp_tree,
         ARP_PRO_IS_IPv4(ar_pro, ar_pln) ? hf_arp_src_proto_ipv4
                                         : hf_arp_src_proto,
-        tvb, spa_offset, ar_pln, FALSE);
+        tvb, spa_offset, ar_pln, false);
     }
     if (ar_hln != 0) {
       proto_tree_add_item(arp_tree,
         ARP_HW_IS_AX25(ar_hrd, ar_hln) ? hf_arp_dst_hw_ax25 : hf_arp_dst_hw,
-        tvb, tha_offset, ar_hln, FALSE);
+        tvb, tha_offset, ar_hln, false);
     }
     if (ar_pln != 0) {
       proto_tree_add_item(arp_tree,
         ARP_PRO_IS_IPv4(ar_pro, ar_pln) ? hf_arp_dst_proto_ipv4
                                         : hf_arp_dst_proto,
-        tvb, tpa_offset, ar_pln, FALSE);
+        tvb, tpa_offset, ar_pln, false);
     }
   }
 
@@ -1378,28 +1380,28 @@ dissect_ax25arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
   return tvb_captured_length(tvb);
 }
 
-static gboolean
-capture_arp(const guchar *pd _U_, int offset _U_, int len _U_, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header _U_)
+static bool
+capture_arp(const unsigned char *pd _U_, int offset _U_, int len _U_, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header _U_)
 {
   capture_dissector_increment_count(cpinfo, proto_arp);
-  return TRUE;
+  return true;
 }
 
-static const guint8 mac_allzero[6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static const uint8_t mac_allzero[6] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 static int
 dissect_arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  guint16       ar_hrd;
-  guint32       ar_pro, ar_hln, ar_pln, ar_op;
+  uint16_t      ar_hrd;
+  uint32_t      ar_pro, ar_hln, ar_pln, ar_op;
   int           tot_len;
   proto_tree   *arp_tree;
   proto_item   *arp_item, *item;
-  const gchar  *op_str;
+  const char   *op_str;
   int           sha_offset, spa_offset, tha_offset, tpa_offset;
-  gboolean      is_gratuitous, is_probe = FALSE, is_announcement = FALSE;
-  gboolean      duplicate_detected = FALSE;
-  guint32       duplicate_ip       = 0;
+  bool          is_gratuitous, is_probe = false, is_announcement = false;
+  bool          duplicate_detected = false;
+  uint32_t      duplicate_ip       = 0;
   dissector_handle_t hw_handle;
 
   /* Call it ARP, for now, so that if we throw an exception before
@@ -1509,14 +1511,14 @@ dissect_arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 
     /* inform resolv.c module of the new discovered addresses */
 
-    guint32 ip;
-    const guint8 *mac;
+    uint32_t ip;
+    const uint8_t *mac;
 
     /* Add sender address if sender MAC address is neither a broadcast/
        multicast address nor an all-zero address and if sender IP address
        isn't all zeroes. */
     ip = tvb_get_ipv4(tvb, spa_offset);
-    mac = (const guint8*)tvb_memdup(pinfo->pool, tvb, sha_offset, 6);
+    mac = (const uint8_t*)tvb_memdup(pinfo->pool, tvb, sha_offset, 6);
     if ((mac[0] & 0x01) == 0 && memcmp(mac, mac_allzero, 6) != 0 && ip != 0)
     {
       if (global_arp_register_network_address_binding)
@@ -1540,7 +1542,7 @@ dissect_arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 
 
     ip = tvb_get_ipv4(tvb, tpa_offset);
-    mac = (const guint8*)tvb_memdup(pinfo->pool, tvb, tha_offset, 6);
+    mac = (const uint8_t*)tvb_memdup(pinfo->pool, tvb, tha_offset, 6);
     if ((mac[0] & 0x01) == 0 && memcmp(mac, mac_allzero, 6) != 0 && ip != 0
         && ar_op != ARPOP_REQUEST)
     {
@@ -1569,14 +1571,14 @@ dissect_arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
      in failover solutions. */
   if (((ar_op == ARPOP_REQUEST) || (ar_op == ARPOP_REPLY)) &&
       (tvb_memeql(tvb, spa_offset, tvb_get_ptr(tvb, tpa_offset, ar_pln), ar_pln) == 0)) {
-    is_gratuitous = TRUE;
+    is_gratuitous = true;
     if ((ar_op == ARPOP_REQUEST) && (tvb_memeql(tvb, tha_offset, mac_allzero, 6) == 0))
-      is_announcement = TRUE;
+      is_announcement = true;
   }
   else {
-    is_gratuitous = FALSE;
+    is_gratuitous = false;
     if ((ar_op == ARPOP_REQUEST) && (tvb_memeql(tvb, tha_offset, mac_allzero, 6) == 0) && (tvb_get_ipv4(tvb, spa_offset) == 0))
-      is_probe = TRUE;
+      is_probe = true;
   }
   switch (ar_op) {
     case ARPOP_REQUEST:
@@ -1622,7 +1624,7 @@ dissect_arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
       break;
 
     case ARPOP_DRARPERROR:
-      col_add_fstr(pinfo->cinfo, COL_INFO, "DRARP Error");
+      col_set_str(pinfo->cinfo, COL_INFO, "DRARP Error");
       break;
 
     case ARPOP_IREPLY:
@@ -1632,7 +1634,7 @@ dissect_arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
       break;
 
     case ATMARPOP_NAK:
-      col_add_fstr(pinfo->cinfo, COL_INFO, "ARP NAK");
+      col_set_str(pinfo->cinfo, COL_INFO, "ARP NAK");
       break;
 
     case ARPOP_MARS_REQUEST:
@@ -1801,7 +1803,7 @@ dissect_arp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
   {
     /* Also indicate in info column */
     col_append_fstr(pinfo->cinfo, COL_INFO, " (duplicate use of %s detected!)",
-                    arpproaddr_to_str(pinfo->pool, (guint8*)&duplicate_ip, 4, ETHERTYPE_IP));
+                    arpproaddr_to_str(pinfo->pool, (uint8_t*)&duplicate_ip, 4, ETHERTYPE_IP));
   }
   return tvb_captured_length(tvb);
 }
@@ -2011,7 +2013,7 @@ proto_register_arp(void)
       { &hf_atmarp_src_atm_afi, { "AFI", "arp.src.atm_afi", FT_UINT8, BASE_HEX, VALS(atm_nsap_afi_vals), 0x0, NULL, HFILL }},
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_arp,
     &ett_atmarp_nsap,
     &ett_atmarp_tl,

@@ -17,49 +17,49 @@ void proto_reg_handoff_ipvs_syncd(void);
 
 static dissector_handle_t ipvs_syncd_handle;
 
-static int proto_ipvs_syncd = -1;
-static int hf_conn_count = -1;
-static int hf_syncid = -1;
-static int hf_size = -1;
-static int hf_resv = -1;
-static int hf_version = -1;
-static int hf_proto = -1;
-static int hf_cport = -1;
-static int hf_vport = -1;
-static int hf_dport = -1;
-static int hf_caddr = -1;
-static int hf_vaddr = -1;
-static int hf_daddr = -1;
-static int hf_flags = -1;
-static int hf_flags_conn_type = -1;
-static int hf_flags_hashed_entry = -1;
-static int hf_flags_no_output_packets = -1;
-static int hf_flags_conn_not_established = -1;
-static int hf_flags_adjust_output_seq = -1;
-static int hf_flags_adjust_input_seq = -1;
-static int hf_flags_no_client_port_set = -1;
-static int hf_state = -1;
-static int hf_in_seq_init = -1;
-static int hf_in_seq_delta = -1;
-static int hf_in_seq_pdelta = -1;
-static int hf_out_seq_init = -1;
-static int hf_out_seq_delta = -1;
-static int hf_out_seq_pdelta = -1;
+static int proto_ipvs_syncd;
+static int hf_conn_count;
+static int hf_syncid;
+static int hf_size;
+static int hf_resv;
+static int hf_version;
+static int hf_proto;
+static int hf_cport;
+static int hf_vport;
+static int hf_dport;
+static int hf_caddr;
+static int hf_vaddr;
+static int hf_daddr;
+static int hf_flags;
+static int hf_flags_conn_type;
+static int hf_flags_hashed_entry;
+static int hf_flags_no_output_packets;
+static int hf_flags_conn_not_established;
+static int hf_flags_adjust_output_seq;
+static int hf_flags_adjust_input_seq;
+static int hf_flags_no_client_port_set;
+static int hf_state;
+static int hf_in_seq_init;
+static int hf_in_seq_delta;
+static int hf_in_seq_pdelta;
+static int hf_out_seq_init;
+static int hf_out_seq_delta;
+static int hf_out_seq_pdelta;
 
 /* Payload v1 */
-static int hf_type = -1;
-static int hf_ver = -1;
-static int hf_size_v1 = -1;
-static int hf_flags_v1 = -1;
-static int hf_fwmark  = -1;
-static int hf_timeout = -1;
-static int hf_caddr6 = -1;
-static int hf_vaddr6 = -1;
-static int hf_daddr6 = -1;
+static int hf_type;
+static int hf_ver;
+static int hf_size_v1;
+static int hf_flags_v1;
+static int hf_fwmark;
+static int hf_timeout;
+static int hf_caddr6;
+static int hf_vaddr6;
+static int hf_daddr6;
 
-static int ett_ipvs_syncd = -1;
-static int ett_conn = -1;
-static int ett_flags = -1;
+static int ett_ipvs_syncd;
+static int ett_conn;
+static int ett_flags;
 
 #define IPVS_SYNCD_MC_GROUP "224.0.0.18"
 #define IPVS_SYNCD_PORT 8848 /* Not IANA registered */
@@ -116,8 +116,8 @@ dissect_ipvs_syncd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, v
 	proto_tree *tree;
 	proto_item *item;
 	int         offset = 0;
-	guint8      cnt    = 0;
-	guint8      version = 0;
+	uint8_t     cnt    = 0;
+	uint8_t     version = 0;
 	int         conn   = 0;
 
 	item = proto_tree_add_item(parent_tree, proto_ipvs_syncd, tvb, offset, -1, ENC_NA);
@@ -127,7 +127,7 @@ dissect_ipvs_syncd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, v
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "IPVS");
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	cnt = tvb_get_guint8(tvb, offset);
+	cnt = tvb_get_uint8(tvb, offset);
 	if(cnt == 0) { //Version 1 (or after...) first byte is reserved
 		proto_tree_add_item(tree, hf_resv, tvb, offset, 1, ENC_NA);
 		col_set_str(pinfo->cinfo, COL_INFO, "v1");
@@ -144,11 +144,11 @@ dissect_ipvs_syncd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, v
 	offset += 2;
 
 	if(cnt == 0) { //Version 1 (or after...)
-		cnt = tvb_get_guint8(tvb, offset);
+		cnt = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(tree, hf_conn_count, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset += 1;
 
-		version = tvb_get_guint8(tvb, offset);
+		version = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(tree, hf_version, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset += 1;
 
@@ -162,13 +162,13 @@ dissect_ipvs_syncd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, v
 		if(version) {
 
 			proto_tree *ctree;
-			guint8 type;
-			guint16 size;
+			uint8_t type;
+			uint16_t size;
 
 			ctree = proto_tree_add_subtree_format(tree, tvb, offset, 36, ett_conn, NULL,
 							      "Connection #%d", conn+1);
 
-			type = tvb_get_guint8(tvb, offset);
+			type = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(ctree, hf_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 			offset += 1;
 
@@ -228,7 +228,7 @@ dissect_ipvs_syncd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, v
 
 			proto_tree *ctree;
 			proto_tree *ftree, *fi;
-			guint16 flags;
+			uint16_t flags;
 
 			ctree = proto_tree_add_subtree_format(tree, tvb, offset, 24, ett_conn, NULL,
 							      "Connection #%d", conn+1);
@@ -453,7 +453,7 @@ proto_register_ipvs_syncd(void)
 			  NULL, 0, NULL, HFILL }},
 
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_ipvs_syncd,
 		&ett_conn,
 		&ett_flags,

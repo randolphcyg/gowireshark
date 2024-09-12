@@ -1,7 +1,7 @@
 /* packet-lix2-template.c
  * Routines for Lawful Interception X2 xIRI event dissection
  *
- * See 3GPP TS33.128.
+ * See 3GPP TS33.128 V18.5.0
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -15,6 +15,7 @@
 #include <epan/packet.h>
 #include <epan/conversation.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 
@@ -26,8 +27,8 @@ void proto_reg_handoff_lix2(void);
 void proto_register_lix2(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_lix2 = -1;
-static dissector_handle_t lix2_handle = NULL;
+static int proto_lix2;
+static dissector_handle_t lix2_handle;
 
 
 #include "packet-lix2-hf.c"
@@ -45,7 +46,7 @@ void proto_register_lix2(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 #include "packet-lix2-ettarr.c"
   };
 

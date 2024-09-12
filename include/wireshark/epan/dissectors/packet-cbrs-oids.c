@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-cbrs-oids.c                                                         */
-/* asn2wrs.py -b -L -p cbrs-oids -c ./cbrs-oids.cnf -s ./packet-cbrs-oids-template -D . -O ../.. cbrs-oids.asn */
+/* asn2wrs.py -b -q -L -p cbrs-oids -c ./cbrs-oids.cnf -s ./packet-cbrs-oids-template -D . -O ../.. cbrs-oids.asn */
 
 /* packet-cbrs-oids.c
  *
@@ -25,6 +25,7 @@
 #include <epan/packet.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 
@@ -36,15 +37,15 @@ void proto_register_cbrs_oids(void);
 void proto_reg_handoff_cbrs_oids(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_cbrs_oids = -1;
-static int hf_cbrs_oids_ZONE_PDU = -1;            /* ZONE */
-static int hf_cbrs_oids_FREQUENCY_PDU = -1;       /* FREQUENCY */
-static int hf_cbrs_oids_FCCID_PDU = -1;           /* FCCID */
-static int hf_cbrs_oids_SERIAL_PDU = -1;          /* SERIAL */
-static int hf_cbrs_oids_FRN_PDU = -1;             /* FRN */
-static int hf_cbrs_oids_CPIRID_PDU = -1;          /* CPIRID */
-static int hf_cbrs_oids_TEST_PDU = -1;            /* TEST */
-static int hf_cbrs_oids_UTF8String_PDU = -1;
+static int proto_cbrs_oids;
+static int hf_cbrs_oids_ZONE_PDU;                 /* ZONE */
+static int hf_cbrs_oids_FREQUENCY_PDU;            /* FREQUENCY */
+static int hf_cbrs_oids_FCCID_PDU;                /* FCCID */
+static int hf_cbrs_oids_SERIAL_PDU;               /* SERIAL */
+static int hf_cbrs_oids_FRN_PDU;                  /* FRN */
+static int hf_cbrs_oids_CPIRID_PDU;               /* CPIRID */
+static int hf_cbrs_oids_TEST_PDU;                 /* TEST */
+static int hf_cbrs_oids_UTF8String_PDU;
 
 /* Initialize the subtree pointers */
 
@@ -129,50 +130,50 @@ dissect_cbrs_oids_TEST(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_,
 static int dissect_ZONE_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_cbrs_oids_ZONE(FALSE, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_ZONE_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_cbrs_oids_ZONE(false, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_ZONE_PDU);
   return offset;
 }
 static int dissect_FREQUENCY_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_cbrs_oids_FREQUENCY(FALSE, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_FREQUENCY_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_cbrs_oids_FREQUENCY(false, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_FREQUENCY_PDU);
   return offset;
 }
 static int dissect_FCCID_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_cbrs_oids_FCCID(FALSE, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_FCCID_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_cbrs_oids_FCCID(false, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_FCCID_PDU);
   return offset;
 }
 static int dissect_SERIAL_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_cbrs_oids_SERIAL(FALSE, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_SERIAL_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_cbrs_oids_SERIAL(false, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_SERIAL_PDU);
   return offset;
 }
 static int dissect_FRN_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_cbrs_oids_FRN(FALSE, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_FRN_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_cbrs_oids_FRN(false, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_FRN_PDU);
   return offset;
 }
 static int dissect_CPIRID_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_cbrs_oids_CPIRID(FALSE, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_CPIRID_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_cbrs_oids_CPIRID(false, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_CPIRID_PDU);
   return offset;
 }
 static int dissect_TEST_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_cbrs_oids_TEST(FALSE, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_TEST_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_cbrs_oids_TEST(false, tvb, offset, &asn1_ctx, tree, hf_cbrs_oids_TEST_PDU);
   return offset;
 }
 

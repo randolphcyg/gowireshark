@@ -16,33 +16,32 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/unit_strings.h>
 
-#include "packet-btsdp.h"
+static int proto_btmcap;
 
-static int proto_btmcap = -1;
+static int hf_btmcap_op_code;
+static int hf_btmcap_response_code;
+static int hf_btmcap_mdl_id;
+static int hf_btmcap_mdep_id;
+static int hf_btmcap_response_parameters;
+static int hf_btmcap_configuration;
+static int hf_btmcap_timestamp_required_accuracy;
+static int hf_btmcap_timestamp_update_information;
+static int hf_btmcap_bluetooth_clock_sync_time;
+static int hf_btmcap_timestamp_sync_time;
+static int hf_btmcap_timestamp_sample_accuracy;
+static int hf_btmcap_bluetooth_clock_access_resolution;
+static int hf_btmcap_sync_lead_time;
+static int hf_btmcap_timestamp_native_resolution;
+static int hf_btmcap_timestamp_native_accuracy;
+static int hf_btmcap_data;
 
-static int hf_btmcap_op_code                                               = -1;
-static int hf_btmcap_response_code                                         = -1;
-static int hf_btmcap_mdl_id                                                = -1;
-static int hf_btmcap_mdep_id                                               = -1;
-static int hf_btmcap_response_parameters                                   = -1;
-static int hf_btmcap_configuration                                         = -1;
-static int hf_btmcap_timestamp_required_accuracy                           = -1;
-static int hf_btmcap_timestamp_update_information                          = -1;
-static int hf_btmcap_bluetooth_clock_sync_time                             = -1;
-static int hf_btmcap_timestamp_sync_time                                   = -1;
-static int hf_btmcap_timestamp_sample_accuracy                             = -1;
-static int hf_btmcap_bluetooth_clock_access_resolution                     = -1;
-static int hf_btmcap_sync_lead_time                                        = -1;
-static int hf_btmcap_timestamp_native_resolution                           = -1;
-static int hf_btmcap_timestamp_native_accuracy                             = -1;
-static int hf_btmcap_data                                                  = -1;
+static int ett_btmcap;
 
-static gint ett_btmcap = -1;
-
-static expert_field ei_btmcap_mdl_id_ffff = EI_INIT;
-static expert_field ei_btmcap_response_parameters_bad = EI_INIT;
-static expert_field ei_btmcap_unexpected_data = EI_INIT;
+static expert_field ei_btmcap_mdl_id_ffff;
+static expert_field ei_btmcap_response_parameters_bad;
+static expert_field ei_btmcap_unexpected_data;
 
 static dissector_handle_t btmcap_handle;
 
@@ -86,19 +85,19 @@ static const unit_name_string units_ppm = { " ppm", NULL };
 void proto_register_btmcap(void);
 void proto_reg_handoff_btmcap(void);
 
-static gint
+static int
 dissect_btmcap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     proto_item *main_item;
     proto_tree *main_tree;
     proto_item *pitem;
-    gint        offset = 0;
-    guint32     op_code;
-    guint32     response_code;
-    guint32     mdl_id;
-    guint32     mdep_id;
-    guint32     bluetooth_clock_sync_time;
-    guint64     timestamp_sync_time;
+    int         offset = 0;
+    uint32_t    op_code;
+    uint32_t    response_code;
+    uint32_t    mdl_id;
+    uint32_t    mdep_id;
+    uint32_t    bluetooth_clock_sync_time;
+    uint64_t    timestamp_sync_time;
 
     main_item = proto_tree_add_item(tree, proto_btmcap, tvb, offset, tvb_captured_length(tvb), ENC_NA);
     main_tree = proto_item_add_subtree(main_item, ett_btmcap);
@@ -118,7 +117,7 @@ dissect_btmcap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
     }
 
     pitem = proto_tree_add_item(main_tree, hf_btmcap_op_code, tvb, offset, 1, ENC_BIG_ENDIAN);
-    op_code = tvb_get_guint8(tvb, offset);
+    op_code = tvb_get_uint8(tvb, offset);
     offset += 1;
 
     col_append_str(pinfo->cinfo, COL_INFO, val_to_str_const(op_code, op_code_vals, "Unknown Op Code"));
@@ -160,7 +159,7 @@ dissect_btmcap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
                 if (op_code == 0x01) {
                     /* only MD_CREATE_MDL_REQ */
                     pitem = proto_tree_add_item(main_tree, hf_btmcap_mdep_id, tvb, offset, 1, ENC_BIG_ENDIAN);
-                    mdep_id = tvb_get_guint8(tvb, offset);
+                    mdep_id = tvb_get_uint8(tvb, offset);
                     offset += 1;
 
                     if (mdep_id <= 0x7F) {
@@ -191,7 +190,7 @@ dissect_btmcap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
                 pitem = proto_tree_add_item(main_tree, hf_btmcap_timestamp_sync_time, tvb, offset, 8, ENC_BIG_ENDIAN);
                 timestamp_sync_time = tvb_get_ntoh64(tvb, offset);
-                if (timestamp_sync_time == G_GUINT64_CONSTANT(0xFFFFFFFFFFFFFFFF))
+                if (timestamp_sync_time == UINT64_C(0xFFFFFFFFFFFFFFFF))
                     proto_item_append_text(pitem, " (No Time Synchronization)");
                 else
                     proto_item_append_text(pitem, " (Time-Stamp Clock Instant)");
@@ -214,7 +213,7 @@ dissect_btmcap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
         /* isResponse */
 
         proto_tree_add_item(main_tree, hf_btmcap_response_code, tvb, offset, 1, ENC_BIG_ENDIAN);
-        response_code = tvb_get_guint8(tvb, offset);
+        response_code = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         col_append_fstr(pinfo->cinfo, COL_INFO, " - %s", val_to_str_const(response_code, response_code_vals, "Unknown ResponseCode"));
@@ -247,7 +246,7 @@ dissect_btmcap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
                     pitem = proto_tree_add_item(main_tree, hf_btmcap_timestamp_sync_time, tvb, offset, 8, ENC_BIG_ENDIAN);
                     timestamp_sync_time = tvb_get_ntoh64(tvb, offset);
-                    if (timestamp_sync_time == G_GUINT64_CONSTANT(0xFFFFFFFFFFFFFFFF))
+                    if (timestamp_sync_time == UINT64_C(0xFFFFFFFFFFFFFFFF))
                         proto_item_append_text(pitem, " (No Time Synchronization)");
                     else
                         proto_item_append_text(pitem, " (Time-Stamp Clock Instant)");
@@ -333,7 +332,7 @@ proto_register_btmcap(void)
         },
         { &hf_btmcap_timestamp_required_accuracy,
             { "Timestamp Required Accuracy",     "btmcap.timestamp_required_accuracy",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_ppm, 0x00,
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_ppm), 0x00,
             NULL, HFILL }
         },
         { &hf_btmcap_timestamp_update_information,
@@ -353,7 +352,7 @@ proto_register_btmcap(void)
         },
         { &hf_btmcap_timestamp_sample_accuracy,
             { "Timestamp Sample Accuracy",       "btmcap.timestamp_sample_accuracy",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_microseconds, 0x00,
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_microseconds), 0x00,
             NULL, HFILL }
         },
         { &hf_btmcap_bluetooth_clock_access_resolution,
@@ -363,17 +362,17 @@ proto_register_btmcap(void)
         },
         { &hf_btmcap_sync_lead_time,
             { "Sync Lead Time",                  "btmcap.sync_lead_time",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_milliseconds, 0x00,
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x00,
             NULL, HFILL }
         },
         { &hf_btmcap_timestamp_native_resolution,
             { "Timestamp Native Resolution",     "btmcap.timestamp_native_resolution",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_microseconds, 0x00,
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_microseconds), 0x00,
             NULL, HFILL }
         },
         { &hf_btmcap_timestamp_native_accuracy,
             { "Timestamp Native Accuracy",       "btmcap.timestamp_native_accuracy",
-            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_ppm, 0x00,
+            FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_ppm), 0x00,
             NULL, HFILL }
         },
         { &hf_btmcap_response_parameters,
@@ -390,7 +389,7 @@ proto_register_btmcap(void)
 
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btmcap
     };
 

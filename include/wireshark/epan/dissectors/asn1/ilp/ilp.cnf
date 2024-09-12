@@ -29,7 +29,7 @@ CellGlobalIdEUTRA/cellIdentity eutra_cellIdentity
 #.FIELD_ATTR
 SETId/min  ABBREV=minsi
 LocationDataLCI/latitude ABBREV=locationdatalci.latitude
-LocationDataLCI/latitude ABBREV=locationdatalci.longitude
+LocationDataLCI/longitude ABBREV=locationdatalci.longitude
 LocationDataLCI/altitude ABBREV=locationdatalci.altitude
 CellGlobalIdEUTRA/cellIdentity ABBREV=cellglobalideutra.cellIdentity
 
@@ -53,7 +53,7 @@ CellGlobalIdEUTRA/cellIdentity ABBREV=cellglobalideutra.cellIdentity
 
 #.FN_BODY IlpMessage  VAL_PTR = &IlpMessage
 
-guint32 IlpMessage;
+uint32_t IlpMessage;
 
   %(DEFAULT_BODY)s
 
@@ -96,7 +96,7 @@ guint32 IlpMessage;
     proto_tree *subtree;
 
     subtree = proto_item_add_subtree(actx->created_item, ett_ilp_setid);
-    proto_tree_add_item(subtree, hf_ilp_mobile_directory_number, mdn_tvb, 0, 8, ENC_BCD_DIGITS_0_9);
+    proto_tree_add_item(subtree, hf_ilp_mobile_directory_number, mdn_tvb, 0, 8, ENC_BCD_DIGITS_0_9|ENC_LITTLE_ENDIAN);
   }
 
 #.FN_BODY SETId/imsi VAL_PTR=&imsi_tvb
@@ -106,7 +106,7 @@ guint32 IlpMessage;
     proto_tree *subtree;
 
     subtree = proto_item_add_subtree(actx->created_item, ett_ilp_setid);
-    dissect_e212_imsi(imsi_tvb, actx->pinfo, subtree, 0, 8, FALSE);
+    dissect_e212_imsi(imsi_tvb, actx->pinfo, subtree, 0, 8, false);
   }
 
 #.TYPE_ATTR

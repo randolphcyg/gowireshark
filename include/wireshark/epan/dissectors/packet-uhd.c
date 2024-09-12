@@ -83,28 +83,28 @@ typedef struct{
 } usrp2_ctrl_data_t;
  */
 
-static int proto_uhd = -1;
+static int proto_uhd;
 
-static int hf_uhd_version = -1;
-static int hf_uhd_id = -1;
-static int hf_uhd_seq = -1;
-static int hf_uhd_ip_addr = -1;
-static int hf_uhd_i2c_addr = -1;
-static int hf_uhd_i2c_bytes = -1;
-static int hf_uhd_i2c_data = -1;
-static int hf_uhd_spi_dev = -1;
-static int hf_uhd_spi_data = -1;
-static int hf_uhd_spi_miso_edge = -1;
-static int hf_uhd_spi_mosi_edge = -1;
-static int hf_uhd_spi_num_bits = -1;
-static int hf_uhd_spi_readback = -1;
-static int hf_uhd_reg_addr = -1;
-static int hf_uhd_reg_data = -1;
-static int hf_uhd_reg_action = -1;
-static int hf_uhd_echo_len = -1;
+static int hf_uhd_version;
+static int hf_uhd_id;
+static int hf_uhd_seq;
+static int hf_uhd_ip_addr;
+static int hf_uhd_i2c_addr;
+static int hf_uhd_i2c_bytes;
+static int hf_uhd_i2c_data;
+static int hf_uhd_spi_dev;
+static int hf_uhd_spi_data;
+static int hf_uhd_spi_miso_edge;
+static int hf_uhd_spi_mosi_edge;
+static int hf_uhd_spi_num_bits;
+static int hf_uhd_spi_readback;
+static int hf_uhd_reg_addr;
+static int hf_uhd_reg_data;
+static int hf_uhd_reg_action;
+static int hf_uhd_echo_len;
 
 
-static gint ett_uhd = -1;
+static int ett_uhd;
 
 
 static const value_string uhd_ids[] = {
@@ -148,8 +148,8 @@ dissect_uhd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 	int	    ind;
 	proto_item *ti;
 	proto_tree *uhd_tree;
-	guint32	    id;
-	guint8	    i2c_bytes;
+	uint32_t	    id;
+	uint8_t	    i2c_bytes;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "UHD");
 	col_clear(pinfo->cinfo, COL_INFO);
@@ -189,7 +189,7 @@ dissect_uhd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 		case USRP2_CTRL_ID_WRITE_THESE_I2C_VALUES_BRO:
 		case USRP2_CTRL_ID_COOL_IM_DONE_I2C_WRITE_DUDE:
 			proto_tree_add_item(uhd_tree, hf_uhd_i2c_addr, tvb, 12, 1, ENC_BIG_ENDIAN);
-			i2c_bytes = tvb_get_guint8(tvb, 13);
+			i2c_bytes = tvb_get_uint8(tvb, 13);
 			proto_tree_add_item(uhd_tree, hf_uhd_i2c_bytes, tvb, 13, 1, ENC_BIG_ENDIAN);
 			for (ind = 0; ind < i2c_bytes; ind++) {
 				proto_tree_add_item(uhd_tree, hf_uhd_i2c_data, tvb, 14 + ind, 1, ENC_BIG_ENDIAN);
@@ -251,7 +251,7 @@ proto_register_uhd(void)
 		  FT_UINT32, BASE_DEC, NULL, 0, NULL, HFILL } },
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_uhd
 	};
 

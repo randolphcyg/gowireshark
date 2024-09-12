@@ -13,10 +13,13 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/strutil.h>
 #include <epan/asn1.h>
 #include <epan/sctpppids.h>
 #include <epan/proto_data.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-per.h"
@@ -36,30 +39,30 @@ void proto_reg_handoff_sbc_ap(void);
  * The registered payload protocol identifier for SBc-AP is 24.
  */
 #define SBC_AP_PORT 29168
-static dissector_handle_t sbc_ap_handle=NULL;
+static dissector_handle_t sbc_ap_handle;
 
 
 #include "packet-sbc-ap-val.h"
 
 /* Initialize the protocol and registered fields */
-static int proto_sbc_ap = -1;
+static int proto_sbc_ap;
 
-static int hf_sbc_ap_Serial_Number_gs = -1;
-static int hf_sbc_ap_Serial_Number_msg_code = -1;
-static int hf_sbc_ap_Serial_Number_upd_nb = -1;
-static int hf_sbc_ap_Warning_Type_value = -1;
-static int hf_sbc_ap_Warning_Type_emergency_user_alert = -1;
-static int hf_sbc_ap_Warning_Type_popup = -1;
-static int hf_sbc_ap_Warning_Message_Contents_nb_pages = -1;
-static int hf_sbc_ap_Warning_Message_Contents_decoded_page = -1;
+static int hf_sbc_ap_Serial_Number_gs;
+static int hf_sbc_ap_Serial_Number_msg_code;
+static int hf_sbc_ap_Serial_Number_upd_nb;
+static int hf_sbc_ap_Warning_Type_value;
+static int hf_sbc_ap_Warning_Type_emergency_user_alert;
+static int hf_sbc_ap_Warning_Type_popup;
+static int hf_sbc_ap_Warning_Message_Contents_nb_pages;
+static int hf_sbc_ap_Warning_Message_Contents_decoded_page;
 #include "packet-sbc-ap-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_sbc_ap = -1;
-static int ett_sbc_ap_Serial_Number = -1;
-static int ett_sbc_ap_Warning_Type = -1;
-static int ett_sbc_ap_Data_Coding_Scheme = -1;
-static int ett_sbc_ap_Warning_Message_Contents = -1;
+static int ett_sbc_ap;
+static int ett_sbc_ap_Serial_Number;
+static int ett_sbc_ap_Warning_Type;
+static int ett_sbc_ap_Data_Coding_Scheme;
+static int ett_sbc_ap_Warning_Message_Contents;
 
 #include "packet-sbc-ap-ett.c"
 
@@ -70,14 +73,14 @@ enum{
 };
 
 struct sbc_ap_private_data {
-  guint8 data_coding_scheme;
+  uint8_t data_coding_scheme;
   e212_number_type_t number_type;
 };
 
 /* Global variables */
-static guint32 ProcedureCode;
-static guint32 ProtocolIE_ID;
-static guint32 ProtocolExtensionID;
+static uint32_t ProcedureCode;
+static uint32_t ProtocolIE_ID;
+static uint32_t ProtocolExtensionID;
 static int global_sbc_ap_port = SBC_AP_PORT;
 
 /* Dissector tables */
@@ -203,7 +206,7 @@ void proto_register_sbc_ap(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
                   &ett_sbc_ap,
                   &ett_sbc_ap_Serial_Number,
                   &ett_sbc_ap_Warning_Type,
@@ -237,12 +240,12 @@ void proto_register_sbc_ap(void) {
 void
 proto_reg_handoff_sbc_ap(void)
 {
-    static gboolean inited = FALSE;
-	static guint SctpPort;
+    static bool inited = false;
+	static unsigned SctpPort;
 
     if( !inited ) {
         dissector_add_uint("sctp.ppi", SBC_AP_PAYLOAD_PROTOCOL_ID,   sbc_ap_handle);
-        inited = TRUE;
+        inited = true;
 #include "packet-sbc-ap-dis-tab.c"
 	} else {
 		if (SctpPort != 0) {

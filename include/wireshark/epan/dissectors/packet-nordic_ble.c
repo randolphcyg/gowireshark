@@ -155,7 +155,7 @@
  *
  *  Flags EVENT_PACKET_DATA (0x06)
  *   0000000x = CRC       (0 = Incorrect, 1 = OK)
- *   000000x0 = Direction (0 = Slave -> Master, 1 = Master -> Slave)
+ *   000000x0 = Direction (0 = Peripheral -> Central, 1 = Central -> Peripheral)
  *   00000x00 = Encrypted (0 = No, 1 = Yes)
  *   0000x000 = MIC       (0 = Incorrect, 1 = OK)
  *   0xxx0000 = PHY       (0 = 1M, 1 = 2M, 2 = Coded, rest unused)
@@ -185,7 +185,10 @@
 #include <epan/expert.h>
 #include <epan/proto_data.h>
 
-#include <wsutil/utf8_entities.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
 #include <wiretap/wtap.h>
 
 #include "packet-btle.h"
@@ -214,51 +217,51 @@ void proto_register_nordic_ble(void);
 static dissector_handle_t nordic_ble_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_nordic_ble = -1;
+static int proto_nordic_ble;
 
 /* Initialize the subtree pointers */
-static gint ett_nordic_ble = -1;
-static gint ett_packet_header = -1;
-static gint ett_flags = -1;
+static int ett_nordic_ble;
+static int ett_packet_header;
+static int ett_flags;
 
-static int hf_nordic_ble_board_id = -1;
-static int hf_nordic_ble_legacy_marker = -1;
-static int hf_nordic_ble_header = -1;
-static int hf_nordic_ble_header_length = -1;
-static int hf_nordic_ble_payload_length = -1;
-static int hf_nordic_ble_protover = -1;
-static int hf_nordic_ble_packet_counter = -1;
-static int hf_nordic_ble_packet_id = -1;
-static int hf_nordic_ble_packet_length = -1;
-static int hf_nordic_ble_flags = -1;
-static int hf_nordic_ble_crcok = -1;
-static int hf_nordic_ble_encrypted = -1;
-static int hf_nordic_ble_micok = -1;
-static int hf_nordic_ble_mic_not_relevant = -1;
-static int hf_nordic_ble_aux_type = -1;
-static int hf_nordic_ble_flag_reserved1 = -1;
-static int hf_nordic_ble_flag_reserved2 = -1;
-static int hf_nordic_ble_address_resolved = -1;
-static int hf_nordic_ble_flag_reserved7 = -1;
-static int hf_nordic_ble_le_phy = -1;
-static int hf_nordic_ble_direction = -1;
-static int hf_nordic_ble_channel = -1;
-static int hf_nordic_ble_rssi = -1;
-static int hf_nordic_ble_event_counter = -1;
-static int hf_nordic_ble_time = -1;
-static int hf_nordic_ble_delta_time = -1;
-static int hf_nordic_ble_delta_time_ss = -1;
-static int hf_nordic_ble_packet_time = -1;
+static int hf_nordic_ble_board_id;
+static int hf_nordic_ble_legacy_marker;
+static int hf_nordic_ble_header;
+static int hf_nordic_ble_header_length;
+static int hf_nordic_ble_payload_length;
+static int hf_nordic_ble_protover;
+static int hf_nordic_ble_packet_counter;
+static int hf_nordic_ble_packet_id;
+static int hf_nordic_ble_packet_length;
+static int hf_nordic_ble_flags;
+static int hf_nordic_ble_crcok;
+static int hf_nordic_ble_encrypted;
+static int hf_nordic_ble_micok;
+static int hf_nordic_ble_mic_not_relevant;
+static int hf_nordic_ble_aux_type;
+static int hf_nordic_ble_flag_reserved1;
+static int hf_nordic_ble_flag_reserved2;
+static int hf_nordic_ble_address_resolved;
+static int hf_nordic_ble_flag_reserved7;
+static int hf_nordic_ble_le_phy;
+static int hf_nordic_ble_direction;
+static int hf_nordic_ble_channel;
+static int hf_nordic_ble_rssi;
+static int hf_nordic_ble_event_counter;
+static int hf_nordic_ble_time;
+static int hf_nordic_ble_delta_time;
+static int hf_nordic_ble_delta_time_ss;
+static int hf_nordic_ble_packet_time;
 
-static expert_field ei_nordic_ble_bad_crc = EI_INIT;
-static expert_field ei_nordic_ble_bad_mic = EI_INIT;
-static expert_field ei_nordic_ble_bad_length = EI_INIT;
-static expert_field ei_nordic_ble_unknown_version = EI_INIT;
+static expert_field ei_nordic_ble_bad_crc;
+static expert_field ei_nordic_ble_bad_mic;
+static expert_field ei_nordic_ble_bad_length;
+static expert_field ei_nordic_ble_unknown_version;
 
 static const true_false_string direction_tfs =
 {
-    "Master -> Slave",
-    "Slave -> Master"
+    "Central -> Peripheral",
+    "Peripheral -> Central"
 };
 
 static const value_string le_phys[] =
@@ -286,21 +289,21 @@ static const value_string le_aux_ext_adv[] = {
 };
 
 typedef struct {
-    guint8 protover;
-    guint8 phy;
-    gboolean bad_length;
-    guint16 payload_length;
-    guint16 event_packet_length;
+    uint8_t protover;
+    uint8_t phy;
+    bool bad_length;
+    uint16_t payload_length;
+    uint16_t event_packet_length;
 } nordic_ble_context_t;
 
 /* next dissector */
-static dissector_handle_t btle_dissector_handle = NULL;
-static dissector_handle_t debug_handle = NULL;
+static dissector_handle_t btle_dissector_handle;
+static dissector_handle_t debug_handle;
 
-static gint
-dissect_lengths(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context)
+static int
+dissect_lengths(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context)
 {
-    guint32 hlen, plen;
+    uint32_t hlen, plen;
     proto_item* item;
 
     switch (nordic_ble_context->protover) {
@@ -328,7 +331,7 @@ dissect_lengths(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree
 
     if ((hlen + plen) != tvb_captured_length(tvb)) {
         expert_add_info(pinfo, item, &ei_nordic_ble_bad_length);
-        nordic_ble_context->bad_length = TRUE;
+        nordic_ble_context->bad_length = true;
     }
 
     nordic_ble_context->payload_length = plen;
@@ -336,19 +339,19 @@ dissect_lengths(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree
     return offset;
 }
 
-static gint
-dissect_flags(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context, btle_context_t *context)
+static int
+dissect_flags(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context, btle_context_t *context)
 {
-    guint8 flags, channel;
-    gboolean dir;
+    uint8_t flags, channel;
+    bool dir;
     proto_item *flags_item, *item;
     proto_tree *flags_tree;
 
-    flags = tvb_get_guint8(tvb, offset);
-    channel = tvb_get_guint8(tvb, offset + 1);
+    flags = tvb_get_uint8(tvb, offset);
+    channel = tvb_get_uint8(tvb, offset + 1);
 
     if (nordic_ble_context->protover < 3) {
-        guint32 access_address;
+        uint32_t access_address;
 
         access_address = tvb_get_letohl(tvb, offset + nordic_ble_context->event_packet_length - 1);
         context->pdu_type = access_address == ACCESS_ADDRESS_ADVERTISING ? BTLE_PDU_TYPE_ADVERTISING : BTLE_PDU_TYPE_DATA;
@@ -370,14 +373,14 @@ dissect_flags(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, 
 
     if (context->pdu_type == BTLE_PDU_TYPE_DATA) {
         if (dir) {
-            set_address(&pinfo->src, AT_STRINGZ, 7, "Master");
-            set_address(&pinfo->dst, AT_STRINGZ, 6, "Slave");
-            context->direction = BTLE_DIR_MASTER_SLAVE;
+            set_address(&pinfo->src, AT_STRINGZ, 7, "Central");
+            set_address(&pinfo->dst, AT_STRINGZ, 6, "Peripheral");
+            context->direction = BTLE_DIR_CENTRAL_PERIPHERAL;
             pinfo->p2p_dir = P2P_DIR_SENT;
         } else {
-            set_address(&pinfo->src, AT_STRINGZ, 6, "Slave");
-            set_address(&pinfo->dst, AT_STRINGZ, 7, "Master");
-            context->direction = BTLE_DIR_SLAVE_MASTER;
+            set_address(&pinfo->src, AT_STRINGZ, 6, "Peripheral");
+            set_address(&pinfo->dst, AT_STRINGZ, 7, "Central");
+            context->direction = BTLE_DIR_PERIPHERAL_CENTRAL;
             pinfo->p2p_dir = P2P_DIR_RECV;
         }
     }
@@ -404,11 +407,11 @@ dissect_flags(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, 
         }
     } else {
         if (channel < 37) {
-            guint32 aux_pdu_type;
+            uint32_t aux_pdu_type;
 
             proto_tree_add_item_ret_uint(flags_tree, hf_nordic_ble_aux_type, tvb, offset, 1, ENC_NA, &aux_pdu_type);
             context->aux_pdu_type = aux_pdu_type;
-            context->aux_pdu_type_valid = TRUE;
+            context->aux_pdu_type_valid = true;
         } else {
             proto_tree_add_item(flags_tree, hf_nordic_ble_flag_reserved1, tvb, offset, 1, ENC_NA);
             proto_tree_add_item(flags_tree, hf_nordic_ble_flag_reserved2, tvb, offset, 1, ENC_NA);
@@ -424,10 +427,10 @@ dissect_flags(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, 
     return offset;
 }
 
-static guint16 packet_time_get(nordic_ble_context_t *nordic_ble_context, guint8 ci)
+static uint16_t packet_time_get(nordic_ble_context_t *nordic_ble_context, uint8_t ci)
 {
     /* Calculate packet time according to this packets PHY */
-    guint16 ble_payload_length = nordic_ble_context->payload_length - nordic_ble_context->event_packet_length;
+    uint16_t ble_payload_length = nordic_ble_context->payload_length - nordic_ble_context->event_packet_length;
 
     switch (nordic_ble_context->phy) {
         case LE_1M_PHY:
@@ -437,7 +440,7 @@ static guint16 packet_time_get(nordic_ble_context_t *nordic_ble_context, guint8 
         case LE_CODED_PHY:
         {
             /* Subtract Access address and CI */
-            guint16 fec2_block_len = ble_payload_length - 4 - 1;
+            uint16_t fec2_block_len = ble_payload_length - 4 - 1;
 
             switch (ci) {
                 case CI_S8:
@@ -454,23 +457,23 @@ static guint16 packet_time_get(nordic_ble_context_t *nordic_ble_context, guint8 
 
 typedef struct
 {
-    guint32 packet_start_time;
-    guint32 packet_end_time;
+    uint32_t packet_start_time;
+    uint32_t packet_end_time;
 } packet_times_t;
 
 typedef struct {
-    gboolean first_frame_seen;
+    bool first_frame_seen;
     /* Time information about previous packet times to calculate delta times */
-    guint32 packet_time;
-    guint32 packet_start_time;
-    guint32 packet_end_time;
+    uint32_t packet_time;
+    uint32_t packet_start_time;
+    uint32_t packet_end_time;
 } packet_time_context_t;
 
 static wmem_tree_t *packet_time_context_tree;
 
 static packet_time_context_t *packet_times_get(packet_info *pinfo)
 {
-    guint32 interface_id = (pinfo->rec->presence_flags & WTAP_HAS_INTERFACE_ID) ? pinfo->rec->rec_header.packet_header.interface_id: HCI_INTERFACE_DEFAULT;
+    uint32_t interface_id = (pinfo->rec->presence_flags & WTAP_HAS_INTERFACE_ID) ? pinfo->rec->rec_header.packet_header.interface_id: HCI_INTERFACE_DEFAULT;
     wmem_tree_t *wmem_tree;
     wmem_tree_key_t keys[2];
 
@@ -489,8 +492,8 @@ static packet_time_context_t *packet_times_get(packet_info *pinfo)
 
 static packet_time_context_t *packet_times_insert(packet_info *pinfo)
 {
-    guint32 interface_id = (pinfo->rec->presence_flags & WTAP_HAS_INTERFACE_ID) ? pinfo->rec->rec_header.packet_header.interface_id: HCI_INTERFACE_DEFAULT;
-    guint32 key = 0;
+    uint32_t interface_id = (pinfo->rec->presence_flags & WTAP_HAS_INTERFACE_ID) ? pinfo->rec->rec_header.packet_header.interface_id: HCI_INTERFACE_DEFAULT;
+    uint32_t key = 0;
     wmem_tree_key_t keys[3];
     packet_time_context_t *packet_times;
 
@@ -506,10 +509,10 @@ static packet_time_context_t *packet_times_insert(packet_info *pinfo)
     return packet_times;
 }
 
-static gint
-dissect_ble_delta_time(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context)
+static int
+dissect_ble_delta_time(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context)
 {
-    guint32 delta_time, delta_time_ss, prev_packet_time, packet_time;
+    uint32_t delta_time, delta_time_ss, prev_packet_time, packet_time;
     proto_item *pi;
     packet_time_context_t *packet_times_context;
 
@@ -543,17 +546,17 @@ dissect_ble_delta_time(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tre
 
     if (!pinfo->fd->visited) {
         packet_times_context->packet_time = packet_time;
-        packet_times_context->first_frame_seen = TRUE;
+        packet_times_context->first_frame_seen = true;
     }
 
     return offset;
 }
 
-static gint
-dissect_ble_timestamp(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context)
+static int
+dissect_ble_timestamp(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context)
 {
-    guint32 delta_time, delta_time_ss, packet_time;
-    guint32 timestamp, last_packet_end_time, last_packet_start_time;
+    uint32_t delta_time, delta_time_ss, packet_time;
+    uint32_t timestamp, last_packet_end_time, last_packet_start_time;
     proto_item *item;
     packet_time_context_t *packet_times_context;
 
@@ -581,7 +584,7 @@ dissect_ble_timestamp(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree
         last_packet_start_time = saved_packet_times->packet_start_time;
     }
 
-    guint8 ci = tvb_get_guint8(tvb, offset + 4 + 4);
+    uint8_t ci = tvb_get_uint8(tvb, offset + 4 + 4);
     packet_time = packet_time_get(nordic_ble_context, ci);
     item = proto_tree_add_uint(tree, hf_nordic_ble_packet_time, tvb, offset, 4, packet_time);
     proto_item_set_generated(item);
@@ -601,7 +604,7 @@ dissect_ble_timestamp(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree
 
         packet_times_context->packet_start_time = timestamp;
         packet_times_context->packet_end_time = timestamp + packet_time;
-        packet_times_context->first_frame_seen = TRUE;
+        packet_times_context->first_frame_seen = true;
     }
 
     offset += 4;
@@ -609,22 +612,22 @@ dissect_ble_timestamp(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree
     return offset;
 }
 
-static gint
-dissect_packet_counter(tvbuff_t *tvb, gint offset, proto_item *item, proto_tree *tree)
+static int
+dissect_packet_counter(tvbuff_t *tvb, int offset, proto_item *item, proto_tree *tree)
 {
-    proto_item_append_text(item, ", Packet counter: %u", tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN));
+    proto_item_append_text(item, ", Packet counter: %u", tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN));
     proto_tree_add_item(tree, hf_nordic_ble_packet_counter, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
 
     return offset;
 }
 
-static gint
-dissect_packet_header(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context, btle_context_t *context)
+static int
+dissect_packet_header(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context, btle_context_t *context)
 {
     proto_item *ti;
     proto_tree *header_tree;
-    gint start_offset = offset;
+    int start_offset = offset;
 
     ti = proto_tree_add_item(tree, hf_nordic_ble_header, tvb, offset, -1, ENC_NA);
     header_tree = proto_item_add_subtree(ti, ett_packet_header);
@@ -656,7 +659,7 @@ dissect_packet_header(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree
         proto_tree_add_item(header_tree, hf_nordic_ble_packet_id, tvb, offset, 1, ENC_NA);
 
         if (nordic_ble_context->protover > 2) {
-            guint8 id = tvb_get_guint8(tvb, offset);
+            uint8_t id = tvb_get_uint8(tvb, offset);
 
             context->pdu_type = id == 0x06 ? BTLE_PDU_TYPE_DATA :
                                 id == 0x02 ? BTLE_PDU_TYPE_ADVERTISING :
@@ -671,17 +674,17 @@ dissect_packet_header(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree
     return offset;
 }
 
-static gint
-dissect_packet(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context, btle_context_t *context)
+static int
+dissect_packet(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, nordic_ble_context_t *nordic_ble_context, btle_context_t *context)
 {
-    gint32 rssi;
-    guint32 channel, event_counter;
+    int32_t rssi;
+    uint32_t channel, event_counter;
 
     if (nordic_ble_context->protover == 0) {
         // Event packet length is fixed for the legacy version
         nordic_ble_context->event_packet_length = EVENT_PACKET_LEN;
     } else {
-        guint32 plen;
+        uint32_t plen;
         proto_tree_add_item_ret_uint(tree, hf_nordic_ble_packet_length, tvb, offset, 1, ENC_NA, &plen);
         nordic_ble_context->event_packet_length = plen;
         offset += 1;
@@ -694,7 +697,7 @@ dissect_packet(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree,
 
     context->channel = channel;
 
-    rssi = (-1)*((gint32)tvb_get_guint8(tvb, offset));
+    rssi = (-1)*((int32_t)tvb_get_uint8(tvb, offset));
     proto_tree_add_int(tree, hf_nordic_ble_rssi, tvb, offset, 1, rssi);
     offset += 1;
 
@@ -713,12 +716,12 @@ dissect_packet(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree,
     return offset;
 }
 
-static gint
-dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, btle_context_t *context, gboolean *bad_length)
+static int
+dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, btle_context_t *context, bool *bad_length)
 {
     proto_item *ti;
     proto_tree *nordic_ble_tree;
-    gint offset = 0;
+    int offset = 0;
     nordic_ble_context_t nordic_ble_context;
 
     memset(&nordic_ble_context, 0, sizeof(nordic_ble_context));
@@ -726,7 +729,7 @@ dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, btle_context
     ti = proto_tree_add_item(tree, proto_nordic_ble, tvb, 0, -1, ENC_NA);
     nordic_ble_tree = proto_item_add_subtree(ti, ett_nordic_ble);
 
-    if (tvb_get_guint16(tvb, 0, ENC_BIG_ENDIAN) == 0xBEEF) {
+    if (tvb_get_uint16(tvb, 0, ENC_BIG_ENDIAN) == 0xBEEF) {
         proto_tree_add_item(nordic_ble_tree, hf_nordic_ble_legacy_marker, tvb, 0, 2, ENC_BIG_ENDIAN);
         offset += 2;
 
@@ -735,7 +738,7 @@ dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, btle_context
         proto_tree_add_item(nordic_ble_tree, hf_nordic_ble_board_id, tvb, 0, 1, ENC_NA);
         offset += 1;
 
-        nordic_ble_context.protover = tvb_get_guint8(tvb, offset + 2);
+        nordic_ble_context.protover = tvb_get_uint8(tvb, offset + 2);
     }
 
     offset = dissect_packet_header(tvb, offset, pinfo, nordic_ble_tree, &nordic_ble_context, context);
@@ -753,8 +756,8 @@ dissect_nordic_ble(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 {
     tvbuff_t          *payload_tvb;
     btle_context_t    *context;
-    gint               offset;
-    gboolean           bad_length = FALSE;
+    int                offset;
+    bool               bad_length = false;
 
     context = wmem_new0(pinfo->pool, btle_context_t);
 
@@ -809,7 +812,7 @@ proto_register_nordic_ble(void)
         { &hf_nordic_ble_payload_length,
             { "Length of payload", "nordic_ble.plen",
                 FT_UINT16, BASE_DEC, NULL, 0x0,
-                "Payload length", HFILL }
+                NULL, HFILL }
         },
         { &hf_nordic_ble_protover,
             { "Protocol version", "nordic_ble.protover",
@@ -898,7 +901,7 @@ proto_register_nordic_ble(void)
         },
         { &hf_nordic_ble_rssi,
             { "RSSI", "nordic_ble.rssi",
-                FT_INT8, BASE_DEC | BASE_UNIT_STRING, &units_dbm, 0x0,
+                FT_INT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_dbm), 0x0,
                 "Received Signal Strength Indicator", HFILL }
         },
         { &hf_nordic_ble_event_counter,
@@ -908,27 +911,27 @@ proto_register_nordic_ble(void)
         },
         { &hf_nordic_ble_time,
             { "Timestamp", "nordic_ble.time",
-                FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_microseconds, 0x0,
+                FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_microseconds), 0x0,
                 "Firmware timestamp", HFILL }
         },
         { &hf_nordic_ble_delta_time,
             { "Delta time (end to start)", "nordic_ble.delta_time",
-                FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_microseconds, 0x0,
+                FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_microseconds), 0x0,
                 "Time since end of last reported packet", HFILL }
         },
         { &hf_nordic_ble_delta_time_ss,
             { "Delta time (start to start)", "nordic_ble.delta_time_ss",
-                FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_microseconds, 0x0,
+                FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_microseconds), 0x0,
                 "Time since start of last reported packet", HFILL }
         },
         { &hf_nordic_ble_packet_time,
             { "Packet time (start to end)", "nordic_ble.packet_time",
-                FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_microseconds, 0x0,
+                FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_microseconds), 0x0,
                 "Time of packet", HFILL }
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_nordic_ble,
         &ett_packet_header,
         &ett_flags

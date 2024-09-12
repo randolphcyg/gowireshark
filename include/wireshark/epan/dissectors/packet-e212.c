@@ -3326,39 +3326,39 @@ static const value_string mcc_mnc_3digits_codes[] = {
 
 value_string_ext mcc_mnc_3digits_codes_ext = VALUE_STRING_EXT_INIT(mcc_mnc_3digits_codes);
 
-static int proto_e212   = -1;
-static int hf_E212_imsi = -1;
-static int hf_e212_assoc_imsi = -1;
-static int hf_E212_mcc  = -1;
-static int hf_E212_mcc_lai = -1;
-static int hf_E212_mcc_sai = -1;
-static int hf_E212_mcc_rai = -1;
-static int hf_E212_mcc_cgi = -1;
-static int hf_E212_mcc_ecgi = -1;
-static int hf_E212_mcc_tai = -1;
-static int hf_E212_mcc_nrcgi = -1;
-static int hf_E212_mcc_5gstai = -1;
-static int hf_E212_mcc_gummei = -1;
-static int hf_E212_mcc_guami = -1;
-static int hf_E212_mnc  = -1;
-static int hf_E212_mnc_lai = -1;
-static int hf_E212_mnc_sai = -1;
-static int hf_E212_mnc_rai = -1;
-static int hf_E212_mnc_cgi = -1;
-static int hf_E212_mnc_ecgi = -1;
-static int hf_E212_mnc_tai = -1;
-static int hf_E212_mnc_nrcgi = -1;
-static int hf_E212_mnc_5gstai = -1;
-static int hf_E212_mnc_gummei = -1;
-static int hf_E212_mnc_guami = -1;
+static int proto_e212;
+static int hf_E212_imsi;
+static int hf_e212_assoc_imsi;
+static int hf_E212_mcc;
+static int hf_E212_mcc_lai;
+static int hf_E212_mcc_sai;
+static int hf_E212_mcc_rai;
+static int hf_E212_mcc_cgi;
+static int hf_E212_mcc_ecgi;
+static int hf_E212_mcc_tai;
+static int hf_E212_mcc_nrcgi;
+static int hf_E212_mcc_5gstai;
+static int hf_E212_mcc_gummei;
+static int hf_E212_mcc_guami;
+static int hf_E212_mnc;
+static int hf_E212_mnc_lai;
+static int hf_E212_mnc_sai;
+static int hf_E212_mnc_rai;
+static int hf_E212_mnc_cgi;
+static int hf_E212_mnc_ecgi;
+static int hf_E212_mnc_tai;
+static int hf_E212_mnc_nrcgi;
+static int hf_E212_mnc_5gstai;
+static int hf_E212_mnc_gummei;
+static int hf_E212_mnc_guami;
 
-static int ett_e212_imsi = -1;
+static int ett_e212_imsi;
 
-static expert_field ei_E212_mcc_non_decimal = EI_INIT;
-static expert_field ei_E212_mnc_non_decimal = EI_INIT;
-static expert_field ei_E212_imsi_malformed = EI_INIT;
+static expert_field ei_E212_mcc_non_decimal;
+static expert_field ei_E212_mnc_non_decimal;
+static expert_field ei_E212_imsi_malformed;
 
-/* static int hf_E212_msin = -1; */
+/* static int hf_E212_msin; */
 
 /*
  * MCC/MNC dissection - little endian MNC encoding
@@ -3414,17 +3414,17 @@ static expert_field ei_E212_imsi_malformed = EI_INIT;
 /*
  * Return MCC MNC in a packet scope allocated string that can be used in labels.
  */
-gchar *
-dissect_e212_mcc_mnc_wmem_packet_str(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, e212_number_type_t number_type, gboolean little_endian)
+char *
+dissect_e212_mcc_mnc_wmem_packet_str(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, e212_number_type_t number_type, bool little_endian)
 {
 
     int         start_offset, mcc_mnc;
-    guint8      octet;
-    guint16     mcc, mnc;
-    guint8      mcc1, mcc2, mcc3, mnc1, mnc2, mnc3;
+    uint8_t     octet;
+    uint16_t    mcc, mnc;
+    uint8_t     mcc1, mcc2, mcc3, mnc1, mnc2, mnc3;
     proto_item *item;
-    gchar      *mcc_str, *mnc_str, *mcc_mnc_str;
-    gboolean    long_mnc = FALSE;
+    char       *mcc_str, *mnc_str, *mcc_mnc_str;
+    bool        long_mnc = false;
     int         hf_E212_mcc_id, hf_E212_mnc_id;
 
     switch(number_type){
@@ -3476,23 +3476,23 @@ dissect_e212_mcc_mnc_wmem_packet_str(tvbuff_t *tvb, packet_info *pinfo, proto_tr
     /* MCC + MNC */
     mcc_mnc = tvb_get_ntoh24(tvb,offset);
     /* Mobile country code MCC */
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     mcc1 = octet & 0x0f;
     mcc2 = octet >> 4;
     offset++;
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     mcc3 = octet & 0x0f;
     /* MNC, Mobile network code (octet 3 bits 5 to 8, octet 4)  */
     mnc3 = octet >> 4;
     offset++;
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     mnc1 = octet & 0x0f;
     mnc2 = octet >> 4;
 
     mcc = 100 * mcc1 + 10 * mcc2 + mcc3;
     mnc = 10 * mnc1 + mnc2;
     if ((mnc3 != 0xf) || (mcc_mnc == 0xffffff)) {
-        long_mnc = TRUE;
+        long_mnc = true;
         if(little_endian)
             mnc = 10 * mnc + mnc3;
         else
@@ -3543,7 +3543,7 @@ dissect_e212_mcc_mnc_wmem_packet_str(tvbuff_t *tvb, packet_info *pinfo, proto_tr
 }
 
 int
-dissect_e212_mcc_mnc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, e212_number_type_t number_type, gboolean little_endian)
+dissect_e212_mcc_mnc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, e212_number_type_t number_type, bool little_endian)
 {
     dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, number_type, little_endian);
     return offset +3;
@@ -3588,34 +3588,34 @@ dissect_e212_mcc_mnc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int of
 int
 dissect_e212_mcc_mnc_in_address(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
-    guint32     start_offset, mcc_mnc;
-    guint8      octet;
-    guint16     mcc, mnc;
-    gchar      *mcc_str, *mnc_str;
-    guint8      mcc1, mcc2, mcc3, mnc1, mnc2, mnc3;
+    uint32_t    start_offset, mcc_mnc;
+    uint8_t     octet;
+    uint16_t    mcc, mnc;
+    char       *mcc_str, *mnc_str;
+    uint8_t     mcc1, mcc2, mcc3, mnc1, mnc2, mnc3;
     proto_item *item;
-    gboolean    long_mnc;
+    bool        long_mnc;
 
-    long_mnc = FALSE;
+    long_mnc = false;
     start_offset = offset;
 
     /* MCC + MNC */
     mcc_mnc = tvb_get_ntoh24(tvb,offset);
 
     /* MCC digits 1 and 2 */
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     mcc1  = octet & 0x0f;
     mcc2  = octet >> 4;
     offset++;
 
     /* MCC digit 3 and MNC digit 1 */
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     mcc3  = octet & 0x0f;
     mnc1  = octet >> 4;
     offset++;
 
     /* MNC digits 2 and 3 */
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     mnc2  = octet & 0x0f;
     mnc3  = octet >> 4;
 
@@ -3625,7 +3625,7 @@ dissect_e212_mcc_mnc_in_address(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
     /* Try to match the MCC and 2 digits MNC with an entry in our list of operators */
     if (!try_val_to_str_ext(mcc * 100 + mnc, &mcc_mnc_2digits_codes_ext) && mnc3 != 0xf) {
         mnc = 10 * mnc + mnc3;
-        long_mnc = TRUE;
+        long_mnc = true;
     }
 
     mcc_str = wmem_strdup_printf(pinfo->pool, "%03u", mcc);
@@ -3688,35 +3688,35 @@ static int
 dissect_e212_mcc_mnc_high_nibble(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset)
 {
 
-    guint32     start_offset;
-    guint8      octet;
-    guint16     mcc, mnc;
-    gchar      *mcc_str, *mnc_str;
-    guint8      mcc1, mcc2, mcc3, mnc1, mnc2, mnc3;
-    gboolean    long_mnc;
+    uint32_t    start_offset;
+    uint8_t     octet;
+    uint16_t    mcc, mnc;
+    char       *mcc_str, *mnc_str;
+    uint8_t     mcc1, mcc2, mcc3, mnc1, mnc2, mnc3;
+    bool        long_mnc;
 
-    long_mnc = FALSE;
+    long_mnc = false;
     start_offset = offset;
 
     /* MCC digits 1 */
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     mcc1  = octet >> 4;
     offset++;
 
     /* MCC digits 1 and 2 */
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     mcc2  = octet & 0x0f;
     mcc3  = octet >> 4;
     offset++;
 
     /* MNC digit 1 and MNC digit 2 */
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     mnc1  = octet & 0x0f;
     mnc2  = octet >> 4;
     offset++;
 
     /* MNC digits 3 */
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     mnc3  = octet & 0x0f;
 
     mcc   = 100 * mcc1 + 10 * mcc2 + mcc3;
@@ -3725,7 +3725,7 @@ dissect_e212_mcc_mnc_high_nibble(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
     /* Try to match the MCC and 2 digits MNC with an entry in our list of operators */
     if (!try_val_to_str_ext(mcc * 100 + mnc, &mcc_mnc_2digits_codes_ext) && mnc3 != 0xf) {
         mnc = 10 * mnc + mnc3;
-        long_mnc = TRUE;
+        long_mnc = true;
     }
 
     mcc_str = wmem_strdup_printf(pinfo->pool, "%03u", mcc);
@@ -3757,9 +3757,9 @@ dissect_e212_mcc_mnc_high_nibble(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 int
 dissect_e212_mcc_mnc_in_utf8_address(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset)
 {
-    guint16 mcc = 0, mnc = 0;
-    gchar  *mcc_str, *mnc_str;
-    gboolean    long_mnc = FALSE;
+    uint16_t mcc = 0, mnc = 0;
+    char   *mcc_str, *mnc_str;
+    bool        long_mnc = false;
 
     ws_strtou16(tvb_get_string_enc(pinfo->pool, tvb, offset, 3, ENC_UTF_8),
         NULL, &mcc);
@@ -3771,7 +3771,7 @@ dissect_e212_mcc_mnc_in_utf8_address(tvbuff_t *tvb, packet_info *pinfo _U_, prot
         if (tvb_reported_length_remaining(tvb, offset + 3) > 2) {
             ws_strtou16(tvb_get_string_enc(pinfo->pool, tvb, offset + 3, 3, ENC_UTF_8),
                 NULL, &mnc);
-            long_mnc = TRUE;
+            long_mnc = true;
         }
     }
 
@@ -3801,13 +3801,13 @@ dissect_e212_mcc_mnc_in_utf8_address(tvbuff_t *tvb, packet_info *pinfo _U_, prot
         return 5;
 }
 
-static gboolean
-is_imsi_string_valid(const gchar *imsi_str)
+static bool
+is_imsi_string_valid(const char *imsi_str)
 {
     size_t len;
 
     if (imsi_str == NULL)
-        return FALSE;
+        return false;
     len = strlen(imsi_str);
     /* According to TS 23.003 2.2 and 2.3, the number of digits in IMSI shall not exceed 15.
      * Even if in the reality imsis are always 14 or 15 digits long, the standard doesn't say
@@ -3816,26 +3816,26 @@ is_imsi_string_valid(const gchar *imsi_str)
      * As the dissector actually only decodes the MCC and MNC, allow to decode a
        short IMSI (without MSIN) as used by MAP messages */
     if (len < 5 || len > 15 || strchr(imsi_str, '?')) {
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }
 
-const gchar *
-dissect_e212_imsi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, int length, gboolean skip_first)
+const char *
+dissect_e212_imsi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, int length, bool skip_first)
 {
     proto_item *item;
     proto_tree *subtree;
-    const guint8 *imsi_str;
+    const uint8_t *imsi_str;
 
     /* Fetch the BCD encoded digits from tvb indicated half byte, formating the digits according to
      * a default digit set of 0-9 returning "?" for overdecadic digits a pointer to the wmem
      * allocated string will be returned.
      */
     if (skip_first) {
-        item = proto_tree_add_item_ret_string(tree, hf_E212_imsi, tvb, offset, length, ENC_BCD_DIGITS_0_9 | ENC_BCD_SKIP_FIRST, pinfo->pool, &imsi_str);
+        item = proto_tree_add_item_ret_string(tree, hf_E212_imsi, tvb, offset, length, ENC_BCD_DIGITS_0_9 | ENC_LITTLE_ENDIAN | ENC_BCD_SKIP_FIRST, pinfo->pool, &imsi_str);
     } else {
-        item = proto_tree_add_item_ret_string(tree, hf_E212_imsi, tvb, offset, length, ENC_BCD_DIGITS_0_9, pinfo->pool, &imsi_str);
+        item = proto_tree_add_item_ret_string(tree, hf_E212_imsi, tvb, offset, length, ENC_BCD_DIGITS_0_9 | ENC_LITTLE_ENDIAN, pinfo->pool, &imsi_str);
     }
     if (!is_imsi_string_valid(imsi_str)) {
         expert_add_info(pinfo, item, &ei_E212_imsi_malformed);
@@ -3853,12 +3853,12 @@ dissect_e212_imsi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offse
     return imsi_str;
 }
 
-const gchar *
+const char *
 dissect_e212_utf8_imsi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, int length)
 {
     proto_item *item;
     proto_tree *subtree;
-    const gchar *imsi_str;
+    const char *imsi_str;
 
     /* Fetch the UTF8-encoded IMSI */
     imsi_str = tvb_get_string_enc(pinfo->pool, tvb, offset, length, ENC_UTF_8);
@@ -3959,57 +3959,57 @@ proto_register_e212(void)
     { &hf_E212_mnc,
         { "Mobile Network Code (MNC)","e212.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
     { &hf_E212_mnc_lai,
         { "Mobile Network Code (MNC)","e212.lai.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
     { &hf_E212_mnc_rai,
         { "Mobile Network Code (MNC)","e212.rai.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
     { &hf_E212_mnc_sai,
         { "Mobile Network Code (MNC)","e212.sai.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
     { &hf_E212_mnc_cgi,
         { "Mobile Network Code (MNC)","e212.cgi.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
     { &hf_E212_mnc_ecgi,
         { "Mobile Network Code (MNC)","e212.ecgi.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
     { &hf_E212_mnc_tai,
         { "Mobile Network Code (MNC)","e212.tai.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
     { &hf_E212_mnc_nrcgi,
         { "Mobile Network Code (MNC)","e212.nrcgi.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
     { &hf_E212_mnc_5gstai,
         { "Mobile Network Code (MNC)","e212.5gstai.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
     { &hf_E212_mnc_gummei,
         { "Mobile Network Code (MNC)","e212.gummei.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
     { &hf_E212_mnc_guami,
         { "Mobile Network Code (MNC)","e212.guami.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
-        "Mobile network code", HFILL }
+        NULL, HFILL }
     },
 #if 0
     { &hf_E212_msin,
@@ -4020,7 +4020,7 @@ proto_register_e212(void)
     };
 
 
-    static gint *ett_e212_array[] = {
+    static int *ett_e212_array[] = {
         &ett_e212_imsi,
     };
 

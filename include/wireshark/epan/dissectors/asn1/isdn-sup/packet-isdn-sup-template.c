@@ -15,6 +15,7 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 
@@ -32,9 +33,9 @@ static dissector_handle_t isdn_sup_err_handle;
 #include "packet-isdn-sup-val.h"
 
 /* Initialize the protocol and registered fields */
-static int proto_isdn_sup = -1;
-static int hf_isdn_sup_operation = -1;
-static int hf_isdn_sup_error = -1;
+static int proto_isdn_sup;
+static int hf_isdn_sup_operation;
+static int hf_isdn_sup_error;
 
 /* Global variables */
 
@@ -44,7 +45,7 @@ static rose_ctx_t isdn_sup_rose_ctx;
 #endif
 
 typedef struct _isdn_sup_op_t {
-  gint32 opcode;
+  int32_t opcode;
   dissector_t arg_pdu;
   dissector_t res_pdu;
 } isdn_sup_op_t;
@@ -57,7 +58,7 @@ typedef struct _isdn_global_sup_op_t {
 
 
 typedef struct isdn_sup_err_t {
-  gint32 errcode;
+  int32_t errcode;
   dissector_t err_pdu;
 } isdn_sup_err_t;
 
@@ -72,19 +73,19 @@ static const value_string isdn_sup_str_error[] = {
   {   0, NULL}
 };
 
-static int hf_isdn_sup = -1;
+static int hf_isdn_sup;
 
 #include "packet-isdn-sup-hf.c"
 
 
 /* Initialize the subtree pointers */
-static gint ett_isdn_sup = -1;
+static int ett_isdn_sup;
 
 #include "packet-isdn-sup-ett.c"
 
-/* static expert_field ei_isdn_sup_unsupported_arg_type = EI_INIT; */
-static expert_field ei_isdn_sup_unsupported_result_type = EI_INIT;
-static expert_field ei_isdn_sup_unsupported_error_type = EI_INIT;
+/* static expert_field ei_isdn_sup_unsupported_arg_type; */
+static expert_field ei_isdn_sup_unsupported_result_type;
+static expert_field ei_isdn_sup_unsupported_error_type;
 
 /* Preference settings default */
 
@@ -107,7 +108,7 @@ static const isdn_sup_err_t isdn_sup_err_tab[] = {
 };
 
 
-static const isdn_sup_op_t *get_op(gint32 opcode) {
+static const isdn_sup_op_t *get_op(int32_t opcode) {
   int i;
 
   /* search from the end to get the last occurrence if the operation is redefined in some newer specification */
@@ -117,7 +118,7 @@ static const isdn_sup_op_t *get_op(gint32 opcode) {
   return NULL;
 }
 
-static const isdn_sup_err_t *get_err(gint32 errcode) {
+static const isdn_sup_err_t *get_err(int32_t errcode) {
   int i;
 
   /* search from the end to get the last occurrence if the operation is redefined in some newer specification */
@@ -132,8 +133,8 @@ static int
 dissect_isdn_sup_arg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
   int offset = 0;
   rose_ctx_t *rctx;
-  gint32 opcode = 0;
-  const gchar *p;
+  int32_t opcode = 0;
+  const char *p;
   const isdn_sup_op_t *op_ptr;
   proto_item *ti;
   proto_tree *isdn_sup_tree;
@@ -181,10 +182,10 @@ dissect_isdn_sup_arg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 /*--- dissect_isdn_sup_res -------------------------------------------------------*/
 static int
 dissect_isdn_sup_res(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
-  gint offset = 0;
+  int offset = 0;
   rose_ctx_t *rctx;
-  gint32 opcode = 0;
-  const gchar *p;
+  int32_t opcode = 0;
+  const char *p;
   const isdn_sup_op_t *op_ptr;
   proto_item *ti;
   proto_tree *isdn_sup_tree;
@@ -233,9 +234,9 @@ static int
 dissect_isdn_sup_err(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
   int offset = 0;
   rose_ctx_t *rctx;
-  gint32 errcode;
+  int32_t errcode;
   const isdn_sup_err_t *err_ptr;
-  const gchar *p;
+  const char *p;
   proto_item *ti;
   proto_tree *isdn_sup_tree;
 
@@ -330,7 +331,7 @@ void proto_register_isdn_sup(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_isdn_sup,
 
 #include "packet-isdn-sup-ettarr.c"

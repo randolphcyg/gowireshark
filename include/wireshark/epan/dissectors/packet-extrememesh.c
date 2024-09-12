@@ -66,337 +66,337 @@ void proto_reg_handoff_extrememesh(void);
 static dissector_handle_t extrememesh_handle;
 
 /* Mesh pkt types */
-static int proto_extrememesh = -1;
-static int proto_extrememesh_mch = -1;
-static int proto_extrememesh_ps_areq = -1;
-static int proto_extrememesh_ps_arep = -1;
-static int proto_extrememesh_ps_breq = -1;
-static int proto_extrememesh_ps_brep = -1;
-static int proto_extrememesh_ps_bann = -1;
-static int proto_extrememesh_ps_bred = -1;
-static int proto_extrememesh_ps_sreq = -1;
-static int proto_extrememesh_ps_srep = -1;
-static int proto_extrememesh_ps_preq = -1;
-static int proto_extrememesh_ps_prep = -1;
-static int proto_extrememesh_ps_perr = -1;
-static int proto_extrememesh_ps_prst = -1;
-static int proto_extrememesh_ps_prem = -1;
-static int proto_extrememesh_ps_trace = -1;
-static int proto_extrememesh_ps_prer = -1;
-//static int proto_extrememesh_hello = -1;
-//static int proto_extrememesh_security = -1;
-//static int proto_extrememesh_cfpu = -1;
-//static int proto_extrememesh_eapom = -1;
-static int proto_extrememesh_l2upd = -1;
-static int proto_extrememesh_probe = -1;
+static int proto_extrememesh;
+static int proto_extrememesh_mch;
+static int proto_extrememesh_ps_areq;
+static int proto_extrememesh_ps_arep;
+static int proto_extrememesh_ps_breq;
+static int proto_extrememesh_ps_brep;
+static int proto_extrememesh_ps_bann;
+static int proto_extrememesh_ps_bred;
+static int proto_extrememesh_ps_sreq;
+static int proto_extrememesh_ps_srep;
+static int proto_extrememesh_ps_preq;
+static int proto_extrememesh_ps_prep;
+static int proto_extrememesh_ps_perr;
+static int proto_extrememesh_ps_prst;
+static int proto_extrememesh_ps_prem;
+static int proto_extrememesh_ps_trace;
+static int proto_extrememesh_ps_prer;
+//static int proto_extrememesh_hello;
+//static int proto_extrememesh_security;
+//static int proto_extrememesh_cfpu;
+//static int proto_extrememesh_eapom;
+static int proto_extrememesh_l2upd;
+static int proto_extrememesh_probe;
 
 
 /*MESH fields*/
-static int hf_extrememesh_version = -1;
-static int hf_extrememesh_nextproto = -1;
+static int hf_extrememesh_version;
+static int hf_extrememesh_nextproto;
 
 /*MCH fields*/
-static int hf_extrememesh_mch_version = -1;
-static int hf_extrememesh_mch_next_proto = -1;
-static int hf_extrememesh_mch_lq = -1;
-static int hf_extrememesh_mch_htl = -1;
-static int hf_extrememesh_mch_priority = -1;
-static int hf_extrememesh_mch_usr_pri_flags = -1;
-static int hf_extrememesh_mch_usr_pri_flags_user_priority = -1;
-static int hf_extrememesh_mch_usr_pri_flags_reserved = -1;
-static int hf_extrememesh_mch_usr_pri_flags_from_wan = -1;
-static int hf_extrememesh_mch_usr_pri_flags_to_wan = -1;
-static int hf_extrememesh_mch_usr_pri_flags_forward = -1;
-static int hf_extrememesh_mch_sequence = -1;
-static int hf_extrememesh_mch_dest = -1;
-static int hf_extrememesh_mch_src = -1;
+static int hf_extrememesh_mch_version;
+static int hf_extrememesh_mch_next_proto;
+static int hf_extrememesh_mch_lq;
+static int hf_extrememesh_mch_htl;
+static int hf_extrememesh_mch_priority;
+static int hf_extrememesh_mch_usr_pri_flags;
+static int hf_extrememesh_mch_usr_pri_flags_user_priority;
+static int hf_extrememesh_mch_usr_pri_flags_reserved;
+static int hf_extrememesh_mch_usr_pri_flags_from_wan;
+static int hf_extrememesh_mch_usr_pri_flags_to_wan;
+static int hf_extrememesh_mch_usr_pri_flags_forward;
+static int hf_extrememesh_mch_sequence;
+static int hf_extrememesh_mch_dest;
+static int hf_extrememesh_mch_src;
 
 #if 0
 /*ENCAP_ETH fields*/
 /*Hello fields*/
-static int hf_extrememesh_hello_services = -1;
-static int hf_extrememesh_hello_HTR = -1;
-static int hf_extrememesh_hello_MTR = -1;
-static int hf_extrememesh_hello_root_id = -1;
-static int hf_extrememesh_hello_next_hop_id = -1;
+static int hf_extrememesh_hello_services;
+static int hf_extrememesh_hello_HTR;
+static int hf_extrememesh_hello_MTR;
+static int hf_extrememesh_hello_root_id;
+static int hf_extrememesh_hello_next_hop_id;
 
 /*Security fields*/
-static int hf_extrememesh_security_version = -1;
-static int hf_extrememesh_security_nextproto = -1;
-static int hf_extrememesh_security_flags = -1;
-static int hf_extrememesh_security_packet_num = -1;
-static int hf_extrememesh_security_mic = -1;
+static int hf_extrememesh_security_version;
+static int hf_extrememesh_security_nextproto;
+static int hf_extrememesh_security_flags;
+static int hf_extrememesh_security_packet_num;
+static int hf_extrememesh_security_mic;
 
 /*Cfpu fields*/
-static int hf_extrememesh_cfpu_version = -1;
-static int hf_extrememesh_cfpu_window = -1;
-static int hf_extrememesh_cfpu_cycle = -1;
+static int hf_extrememesh_cfpu_version;
+static int hf_extrememesh_cfpu_window;
+static int hf_extrememesh_cfpu_cycle;
 
 /*EAPOM fields*/
-static int hf_extrememesh_eapom_version = -1;
-static int hf_extrememesh_eapom_header_type = -1;
-static int hf_extrememesh_eapom_supplicant_addr = -1;
-static int hf_extrememesh_eapom_meshid_len = -1;
-static int hf_extrememesh_eapom_meshid = -1;
-static int hf_extrememesh_eapom_body_len = -1;
+static int hf_extrememesh_eapom_version;
+static int hf_extrememesh_eapom_header_type;
+static int hf_extrememesh_eapom_supplicant_addr;
+static int hf_extrememesh_eapom_meshid_len;
+static int hf_extrememesh_eapom_meshid;
+static int hf_extrememesh_eapom_body_len;
 #endif
 
 /*Mesh L2 Update fields*/
-static int hf_extrememesh_l2upd_proxy_owner = -1;
-static int hf_extrememesh_l2upd_ballast = -1;
+static int hf_extrememesh_l2upd_proxy_owner;
+static int hf_extrememesh_l2upd_ballast;
 
 /*Probe fields*/
-static int hf_extrememesh_probe_version = -1;
-static int hf_extrememesh_probe_op_code = -1;
-static int hf_extrememesh_probe_flags = -1;
-static int hf_extrememesh_probe_flags_reserved = -1;
-static int hf_extrememesh_probe_flags_reply = -1;
-static int hf_extrememesh_probe_priority = -1;
-static int hf_extrememesh_probe_job_id = -1;
-static int hf_extrememesh_probe_sequence = -1;
-static int hf_extrememesh_probe_ballast_len = -1;
-static int hf_extrememesh_probe_ballast = -1;
+static int hf_extrememesh_probe_version;
+static int hf_extrememesh_probe_op_code;
+static int hf_extrememesh_probe_flags;
+static int hf_extrememesh_probe_flags_reserved;
+static int hf_extrememesh_probe_flags_reply;
+static int hf_extrememesh_probe_priority;
+static int hf_extrememesh_probe_job_id;
+static int hf_extrememesh_probe_sequence;
+static int hf_extrememesh_probe_ballast_len;
+static int hf_extrememesh_probe_ballast;
 
 /*Path Selection fields*/
 /*PS AREQ fields*/
-static int hf_extrememesh_ps_areq_version = -1;
-static int hf_extrememesh_ps_areq_frame_type = -1;
-static int hf_extrememesh_ps_areq_mpr_addr = -1;
-static int hf_extrememesh_ps_areq_orig_addr = -1;
-static int hf_extrememesh_ps_areq_opt_tot_len = -1;
-static int hf_extrememesh_ps_areq_option = -1;
-static int hf_extrememesh_ps_areq_option_len = -1;
-static int hf_extrememesh_ps_areq_old_mpr = -1;
-static int hf_extrememesh_ps_areq_proxies = -1;
+static int hf_extrememesh_ps_areq_version;
+static int hf_extrememesh_ps_areq_frame_type;
+static int hf_extrememesh_ps_areq_mpr_addr;
+static int hf_extrememesh_ps_areq_orig_addr;
+static int hf_extrememesh_ps_areq_opt_tot_len;
+static int hf_extrememesh_ps_areq_option;
+static int hf_extrememesh_ps_areq_option_len;
+static int hf_extrememesh_ps_areq_old_mpr;
+static int hf_extrememesh_ps_areq_proxies;
 
 /*PS AREP fields*/
-static int hf_extrememesh_ps_arep_version = -1;
-static int hf_extrememesh_ps_arep_frame_type = -1;
-static int hf_extrememesh_ps_arep_mpr_addr = -1;
-static int hf_extrememesh_ps_arep_orig_addr = -1;
-static int hf_extrememesh_ps_arep_opt_tot_len = -1;
-static int hf_extrememesh_ps_arep_option = -1;
-static int hf_extrememesh_ps_arep_option_len = -1;
-static int hf_extrememesh_ps_arep_result = -1;
-static int hf_extrememesh_ps_arep_timeout = -1;
+static int hf_extrememesh_ps_arep_version;
+static int hf_extrememesh_ps_arep_frame_type;
+static int hf_extrememesh_ps_arep_mpr_addr;
+static int hf_extrememesh_ps_arep_orig_addr;
+static int hf_extrememesh_ps_arep_opt_tot_len;
+static int hf_extrememesh_ps_arep_option;
+static int hf_extrememesh_ps_arep_option_len;
+static int hf_extrememesh_ps_arep_result;
+static int hf_extrememesh_ps_arep_timeout;
 
 /*PS BREQ fields*/
-static int hf_extrememesh_ps_breq_version = -1;
-static int hf_extrememesh_ps_breq_frame_type = -1;
-static int hf_extrememesh_ps_breq_mpr_addr = -1;
-static int hf_extrememesh_ps_breq_orig_addr = -1;
-static int hf_extrememesh_ps_breq_opt_tot_len = -1;
-static int hf_extrememesh_ps_breq_option = -1;
-static int hf_extrememesh_ps_breq_option_len = -1;
-static int hf_extrememesh_ps_breq_proxy_addr = -1;
-static int hf_extrememesh_ps_breq_old_mpr = -1;
-static int hf_extrememesh_ps_breq_orig_pri = -1;
-static int hf_extrememesh_ps_breq_proxy_pri = -1;
-static int hf_extrememesh_ps_breq_vlan_id = -1;
-static int hf_extrememesh_ps_breq_proxy_vlan_id = -1;
-static int hf_extrememesh_ps_breq_seq = -1;
+static int hf_extrememesh_ps_breq_version;
+static int hf_extrememesh_ps_breq_frame_type;
+static int hf_extrememesh_ps_breq_mpr_addr;
+static int hf_extrememesh_ps_breq_orig_addr;
+static int hf_extrememesh_ps_breq_opt_tot_len;
+static int hf_extrememesh_ps_breq_option;
+static int hf_extrememesh_ps_breq_option_len;
+static int hf_extrememesh_ps_breq_proxy_addr;
+static int hf_extrememesh_ps_breq_old_mpr;
+static int hf_extrememesh_ps_breq_orig_pri;
+static int hf_extrememesh_ps_breq_proxy_pri;
+static int hf_extrememesh_ps_breq_vlan_id;
+static int hf_extrememesh_ps_breq_proxy_vlan_id;
+static int hf_extrememesh_ps_breq_seq;
 
 /*PS BREP fields*/
-static int hf_extrememesh_ps_brep_version = -1;
-static int hf_extrememesh_ps_brep_frame_type = -1;
-static int hf_extrememesh_ps_brep_mpr_addr = -1;
-static int hf_extrememesh_ps_brep_orig_addr = -1;
-static int hf_extrememesh_ps_brep_opt_tot_len = -1;
-static int hf_extrememesh_ps_brep_option = -1;
-static int hf_extrememesh_ps_brep_option_len = -1;
-static int hf_extrememesh_ps_brep_seq = -1;
+static int hf_extrememesh_ps_brep_version;
+static int hf_extrememesh_ps_brep_frame_type;
+static int hf_extrememesh_ps_brep_mpr_addr;
+static int hf_extrememesh_ps_brep_orig_addr;
+static int hf_extrememesh_ps_brep_opt_tot_len;
+static int hf_extrememesh_ps_brep_option;
+static int hf_extrememesh_ps_brep_option_len;
+static int hf_extrememesh_ps_brep_seq;
 
 /*PS BANN fields*/
-static int hf_extrememesh_ps_bann_version = -1;
-static int hf_extrememesh_ps_bann_frame_type = -1;
-static int hf_extrememesh_ps_bann_mpr_addr = -1;
-static int hf_extrememesh_ps_bann_orig_addr = -1;
-static int hf_extrememesh_ps_bann_opt_tot_len = -1;
-static int hf_extrememesh_ps_bann_option = -1;
-static int hf_extrememesh_ps_bann_option_len = -1;
-static int hf_extrememesh_ps_bann_proxy_addr = -1;
-static int hf_extrememesh_ps_bann_old_root = -1;
-static int hf_extrememesh_ps_bann_vlan_id = -1;
-static int hf_extrememesh_ps_bann_seq = -1;
+static int hf_extrememesh_ps_bann_version;
+static int hf_extrememesh_ps_bann_frame_type;
+static int hf_extrememesh_ps_bann_mpr_addr;
+static int hf_extrememesh_ps_bann_orig_addr;
+static int hf_extrememesh_ps_bann_opt_tot_len;
+static int hf_extrememesh_ps_bann_option;
+static int hf_extrememesh_ps_bann_option_len;
+static int hf_extrememesh_ps_bann_proxy_addr;
+static int hf_extrememesh_ps_bann_old_root;
+static int hf_extrememesh_ps_bann_vlan_id;
+static int hf_extrememesh_ps_bann_seq;
 
 /*PS BRED fields*/
-static int hf_extrememesh_ps_bred_version = -1;
-static int hf_extrememesh_ps_bred_frame_type = -1;
-static int hf_extrememesh_ps_bred_mpr_addr = -1;
-static int hf_extrememesh_ps_bred_orig_addr = -1;
-static int hf_extrememesh_ps_bred_opt_tot_len = -1;
-static int hf_extrememesh_ps_bred_option = -1;
-static int hf_extrememesh_ps_bred_option_len = -1;
-static int hf_extrememesh_ps_bred_seq = -1;
+static int hf_extrememesh_ps_bred_version;
+static int hf_extrememesh_ps_bred_frame_type;
+static int hf_extrememesh_ps_bred_mpr_addr;
+static int hf_extrememesh_ps_bred_orig_addr;
+static int hf_extrememesh_ps_bred_opt_tot_len;
+static int hf_extrememesh_ps_bred_option;
+static int hf_extrememesh_ps_bred_option_len;
+static int hf_extrememesh_ps_bred_seq;
 
 /*PS SREQ fields*/
-static int hf_extrememesh_ps_sreq_version = -1;
-static int hf_extrememesh_ps_sreq_frame_type = -1;
-static int hf_extrememesh_ps_sreq_reserved = -1;
-static int hf_extrememesh_ps_sreq_orig_addr = -1;
-static int hf_extrememesh_ps_sreq_term_addr = -1;
-static int hf_extrememesh_ps_sreq_opt_tot_len = -1;
-static int hf_extrememesh_ps_sreq_option = -1;
-static int hf_extrememesh_ps_sreq_option_len = -1;
-static int hf_extrememesh_ps_sreq_vlan_id = -1;
+static int hf_extrememesh_ps_sreq_version;
+static int hf_extrememesh_ps_sreq_frame_type;
+static int hf_extrememesh_ps_sreq_reserved;
+static int hf_extrememesh_ps_sreq_orig_addr;
+static int hf_extrememesh_ps_sreq_term_addr;
+static int hf_extrememesh_ps_sreq_opt_tot_len;
+static int hf_extrememesh_ps_sreq_option;
+static int hf_extrememesh_ps_sreq_option_len;
+static int hf_extrememesh_ps_sreq_vlan_id;
 
 /*PS SREP fields*/
-static int hf_extrememesh_ps_srep_version = -1;
-static int hf_extrememesh_ps_srep_frame_type = -1;
-static int hf_extrememesh_ps_srep_flags = -1;
-static int hf_extrememesh_ps_srep_flags_reserved = -1;
-static int hf_extrememesh_ps_srep_flags_status = -1;
-static int hf_extrememesh_ps_srep_hop_count = -1;
-static int hf_extrememesh_ps_srep_orig_addr = -1;
-static int hf_extrememesh_ps_srep_dest_addr = -1;
-static int hf_extrememesh_ps_srep_term_addr = -1;
-static int hf_extrememesh_ps_srep_opt_tot_len = -1;
-static int hf_extrememesh_ps_srep_option = -1;
-static int hf_extrememesh_ps_srep_option_len = -1;
-static int hf_extrememesh_ps_srep_vlan_id = -1;
+static int hf_extrememesh_ps_srep_version;
+static int hf_extrememesh_ps_srep_frame_type;
+static int hf_extrememesh_ps_srep_flags;
+static int hf_extrememesh_ps_srep_flags_reserved;
+static int hf_extrememesh_ps_srep_flags_status;
+static int hf_extrememesh_ps_srep_hop_count;
+static int hf_extrememesh_ps_srep_orig_addr;
+static int hf_extrememesh_ps_srep_dest_addr;
+static int hf_extrememesh_ps_srep_term_addr;
+static int hf_extrememesh_ps_srep_opt_tot_len;
+static int hf_extrememesh_ps_srep_option;
+static int hf_extrememesh_ps_srep_option_len;
+static int hf_extrememesh_ps_srep_vlan_id;
 
 /*PS PREQ fields*/
-static int hf_extrememesh_ps_preq_version = -1;
-static int hf_extrememesh_ps_preq_frame_type = -1;
-static int hf_extrememesh_ps_preq_flags = -1;
-static int hf_extrememesh_ps_preq_flags_broadcast = -1;
-static int hf_extrememesh_ps_preq_flags_periodic = -1;
-static int hf_extrememesh_ps_preq_flags_state = -1;
-static int hf_extrememesh_ps_preq_flags_reserved = -1;
-static int hf_extrememesh_ps_preq_flags_gratuitous = -1;
-static int hf_extrememesh_ps_preq_flags_destination = -1;
-static int hf_extrememesh_ps_preq_flags_unknown = -1;
-static int hf_extrememesh_ps_preq_hop_count = -1;
-static int hf_extrememesh_ps_preq_ttl = -1;
-static int hf_extrememesh_ps_preq_path_metrics = -1;
-static int hf_extrememesh_ps_preq_services = -1;
-static int hf_extrememesh_ps_preq_services_reserved = -1;
-static int hf_extrememesh_ps_preq_services_mobile = -1;
-static int hf_extrememesh_ps_preq_services_path_pref = -1;
-static int hf_extrememesh_ps_preq_services_geo = -1;
-static int hf_extrememesh_ps_preq_services_proxy = -1;
-static int hf_extrememesh_ps_preq_services_root = -1;
-static int hf_extrememesh_ps_preq_reserved = -1;
-static int hf_extrememesh_ps_preq_id = -1;
-static int hf_extrememesh_ps_preq_term_addr = -1;
-static int hf_extrememesh_ps_preq_dest_addr = -1;
-static int hf_extrememesh_ps_preq_dest_seq = -1;
-static int hf_extrememesh_ps_preq_orig_addr = -1;
-static int hf_extrememesh_ps_preq_orig_seq = -1;
-static int hf_extrememesh_ps_preq_opt_tot_len = -1;
-static int hf_extrememesh_ps_preq_option = -1;
-static int hf_extrememesh_ps_preq_option_len = -1;
-static int hf_extrememesh_ps_preq_mcast_sub = -1;
-static int hf_extrememesh_ps_preq_vlan_id = -1;
-static int hf_extrememesh_ps_preq_mint_id = -1;
+static int hf_extrememesh_ps_preq_version;
+static int hf_extrememesh_ps_preq_frame_type;
+static int hf_extrememesh_ps_preq_flags;
+static int hf_extrememesh_ps_preq_flags_broadcast;
+static int hf_extrememesh_ps_preq_flags_periodic;
+static int hf_extrememesh_ps_preq_flags_state;
+static int hf_extrememesh_ps_preq_flags_reserved;
+static int hf_extrememesh_ps_preq_flags_gratuitous;
+static int hf_extrememesh_ps_preq_flags_destination;
+static int hf_extrememesh_ps_preq_flags_unknown;
+static int hf_extrememesh_ps_preq_hop_count;
+static int hf_extrememesh_ps_preq_ttl;
+static int hf_extrememesh_ps_preq_path_metrics;
+static int hf_extrememesh_ps_preq_services;
+static int hf_extrememesh_ps_preq_services_reserved;
+static int hf_extrememesh_ps_preq_services_mobile;
+static int hf_extrememesh_ps_preq_services_path_pref;
+static int hf_extrememesh_ps_preq_services_geo;
+static int hf_extrememesh_ps_preq_services_proxy;
+static int hf_extrememesh_ps_preq_services_root;
+static int hf_extrememesh_ps_preq_reserved;
+static int hf_extrememesh_ps_preq_id;
+static int hf_extrememesh_ps_preq_term_addr;
+static int hf_extrememesh_ps_preq_dest_addr;
+static int hf_extrememesh_ps_preq_dest_seq;
+static int hf_extrememesh_ps_preq_orig_addr;
+static int hf_extrememesh_ps_preq_orig_seq;
+static int hf_extrememesh_ps_preq_opt_tot_len;
+static int hf_extrememesh_ps_preq_option;
+static int hf_extrememesh_ps_preq_option_len;
+static int hf_extrememesh_ps_preq_mcast_sub;
+static int hf_extrememesh_ps_preq_vlan_id;
+static int hf_extrememesh_ps_preq_mint_id;
 
 /*PS PREP fields*/
-static int hf_extrememesh_ps_prep_version = -1;
-static int hf_extrememesh_ps_prep_frame_type = -1;
-static int hf_extrememesh_ps_prep_flags = -1;
-static int hf_extrememesh_ps_prep_flags_reserved = -1;
-static int hf_extrememesh_ps_prep_flags_new_route = -1;
-static int hf_extrememesh_ps_prep_flags_repair = -1;
-static int hf_extrememesh_ps_prep_flags_ack = -1;
-static int hf_extrememesh_ps_prep_hop_count = -1;
-static int hf_extrememesh_ps_prep_path_metrics = -1;
-static int hf_extrememesh_ps_prep_services = -1;
-static int hf_extrememesh_ps_prep_services_reserved = -1;
-static int hf_extrememesh_ps_prep_services_mobile = -1;
-static int hf_extrememesh_ps_prep_services_path_pref = -1;
-static int hf_extrememesh_ps_prep_services_geo = -1;
-static int hf_extrememesh_ps_prep_services_proxy = -1;
-static int hf_extrememesh_ps_prep_services_root = -1;
-static int hf_extrememesh_ps_prep_reserved = -1;
-static int hf_extrememesh_ps_prep_term_addr = -1;
-static int hf_extrememesh_ps_prep_dest_addr = -1;
-static int hf_extrememesh_ps_prep_dest_seq = -1;
-static int hf_extrememesh_ps_prep_orig_addr = -1;
-static int hf_extrememesh_ps_prep_orig_seq = -1;
-static int hf_extrememesh_ps_prep_lifetime = -1;
-static int hf_extrememesh_ps_prep_opt_tot_len = -1;
-static int hf_extrememesh_ps_prep_option = -1;
-static int hf_extrememesh_ps_prep_option_len = -1;
-static int hf_extrememesh_ps_prep_mcast_sub = -1;
-static int hf_extrememesh_ps_prep_vlan_id = -1;
-static int hf_extrememesh_ps_prep_mint_id = -1;
+static int hf_extrememesh_ps_prep_version;
+static int hf_extrememesh_ps_prep_frame_type;
+static int hf_extrememesh_ps_prep_flags;
+static int hf_extrememesh_ps_prep_flags_reserved;
+static int hf_extrememesh_ps_prep_flags_new_route;
+static int hf_extrememesh_ps_prep_flags_repair;
+static int hf_extrememesh_ps_prep_flags_ack;
+static int hf_extrememesh_ps_prep_hop_count;
+static int hf_extrememesh_ps_prep_path_metrics;
+static int hf_extrememesh_ps_prep_services;
+static int hf_extrememesh_ps_prep_services_reserved;
+static int hf_extrememesh_ps_prep_services_mobile;
+static int hf_extrememesh_ps_prep_services_path_pref;
+static int hf_extrememesh_ps_prep_services_geo;
+static int hf_extrememesh_ps_prep_services_proxy;
+static int hf_extrememesh_ps_prep_services_root;
+static int hf_extrememesh_ps_prep_reserved;
+static int hf_extrememesh_ps_prep_term_addr;
+static int hf_extrememesh_ps_prep_dest_addr;
+static int hf_extrememesh_ps_prep_dest_seq;
+static int hf_extrememesh_ps_prep_orig_addr;
+static int hf_extrememesh_ps_prep_orig_seq;
+static int hf_extrememesh_ps_prep_lifetime;
+static int hf_extrememesh_ps_prep_opt_tot_len;
+static int hf_extrememesh_ps_prep_option;
+static int hf_extrememesh_ps_prep_option_len;
+static int hf_extrememesh_ps_prep_mcast_sub;
+static int hf_extrememesh_ps_prep_vlan_id;
+static int hf_extrememesh_ps_prep_mint_id;
 
 /*PS PERR fields*/
-static int hf_extrememesh_ps_perr_version = -1;
-static int hf_extrememesh_ps_perr_frame_type = -1;
-static int hf_extrememesh_ps_perr_flags = -1;
-static int hf_extrememesh_ps_perr_flags_reserved = -1;
-static int hf_extrememesh_ps_perr_flags_warning = -1;
-static int hf_extrememesh_ps_perr_flags_no_delete = -1;
-static int hf_extrememesh_ps_perr_dest_count = -1;
-static int hf_extrememesh_ps_perr_unrch_dest = -1;
-static int hf_extrememesh_ps_perr_unrch_dest_seq = -1;
+static int hf_extrememesh_ps_perr_version;
+static int hf_extrememesh_ps_perr_frame_type;
+static int hf_extrememesh_ps_perr_flags;
+static int hf_extrememesh_ps_perr_flags_reserved;
+static int hf_extrememesh_ps_perr_flags_warning;
+static int hf_extrememesh_ps_perr_flags_no_delete;
+static int hf_extrememesh_ps_perr_dest_count;
+static int hf_extrememesh_ps_perr_unrch_dest;
+static int hf_extrememesh_ps_perr_unrch_dest_seq;
 
 /*PS PRST fields*/
-static int hf_extrememesh_ps_prst_version = -1;
-static int hf_extrememesh_ps_prst_frame_type = -1;
-static int hf_extrememesh_ps_prst_hops_to_live = -1;
-static int hf_extrememesh_ps_prst_reserved = -1;
-static int hf_extrememesh_ps_prst_id = -1;
-static int hf_extrememesh_ps_prst_orig_addr = -1;
-static int hf_extrememesh_ps_prst_dest_addr = -1;
+static int hf_extrememesh_ps_prst_version;
+static int hf_extrememesh_ps_prst_frame_type;
+static int hf_extrememesh_ps_prst_hops_to_live;
+static int hf_extrememesh_ps_prst_reserved;
+static int hf_extrememesh_ps_prst_id;
+static int hf_extrememesh_ps_prst_orig_addr;
+static int hf_extrememesh_ps_prst_dest_addr;
 
 /*PS PREM fields*/
-static int hf_extrememesh_ps_prem_version = -1;
-static int hf_extrememesh_ps_prem_frame_type = -1;
-static int hf_extrememesh_ps_prem_mpr_addr = -1;
-static int hf_extrememesh_ps_prem_orig_addr = -1;
-static int hf_extrememesh_ps_prem_opt_tot_len = -1;
-static int hf_extrememesh_ps_prem_option = -1;
-static int hf_extrememesh_ps_prem_option_len = -1;
-static int hf_extrememesh_ps_prem_proxy_addr = -1;
-static int hf_extrememesh_ps_prem_proxy_vlan_id = -1;
+static int hf_extrememesh_ps_prem_version;
+static int hf_extrememesh_ps_prem_frame_type;
+static int hf_extrememesh_ps_prem_mpr_addr;
+static int hf_extrememesh_ps_prem_orig_addr;
+static int hf_extrememesh_ps_prem_opt_tot_len;
+static int hf_extrememesh_ps_prem_option;
+static int hf_extrememesh_ps_prem_option_len;
+static int hf_extrememesh_ps_prem_proxy_addr;
+static int hf_extrememesh_ps_prem_proxy_vlan_id;
 
 /*PS TRACE fields*/
-static int hf_extrememesh_ps_trace_version = -1;
-static int hf_extrememesh_ps_trace_frame_type = -1;
-static int hf_extrememesh_ps_trace_flags = -1;
-static int hf_extrememesh_ps_trace_flags_reserved = -1;
-static int hf_extrememesh_ps_trace_flags_reply = -1;
-static int hf_extrememesh_ps_trace_flags_no_path = -1;
-static int hf_extrememesh_ps_trace_dest_addr = -1;
-static int hf_extrememesh_ps_trace_orig_addr = -1;
-static int hf_extrememesh_ps_trace_hop_count = -1;
-static int hf_extrememesh_ps_trace_addl_path = -1;
+static int hf_extrememesh_ps_trace_version;
+static int hf_extrememesh_ps_trace_frame_type;
+static int hf_extrememesh_ps_trace_flags;
+static int hf_extrememesh_ps_trace_flags_reserved;
+static int hf_extrememesh_ps_trace_flags_reply;
+static int hf_extrememesh_ps_trace_flags_no_path;
+static int hf_extrememesh_ps_trace_dest_addr;
+static int hf_extrememesh_ps_trace_orig_addr;
+static int hf_extrememesh_ps_trace_hop_count;
+static int hf_extrememesh_ps_trace_addl_path;
 
 /*PS PRER fields*/
-static int hf_extrememesh_ps_prer_version = -1;
-static int hf_extrememesh_ps_prer_frame_type = -1;
-static int hf_extrememesh_ps_prer_dest_count = -1;
-static int hf_extrememesh_ps_prer_reserved = -1;
-static int hf_extrememesh_ps_prer_orig_addr = -1;
-static int hf_extrememesh_ps_prer_dest_addr = -1;
-static int hf_extrememesh_ps_prer_unrch_addr = -1;
-static int hf_extrememesh_ps_prer_opt_tot_len = -1;
-static int hf_extrememesh_ps_prer_option = -1;
-static int hf_extrememesh_ps_prer_option_len = -1;
-static int hf_extrememesh_ps_prer_vlan_id = -1;
+static int hf_extrememesh_ps_prer_version;
+static int hf_extrememesh_ps_prer_frame_type;
+static int hf_extrememesh_ps_prer_dest_count;
+static int hf_extrememesh_ps_prer_reserved;
+static int hf_extrememesh_ps_prer_orig_addr;
+static int hf_extrememesh_ps_prer_dest_addr;
+static int hf_extrememesh_ps_prer_unrch_addr;
+static int hf_extrememesh_ps_prer_opt_tot_len;
+static int hf_extrememesh_ps_prer_option;
+static int hf_extrememesh_ps_prer_option_len;
+static int hf_extrememesh_ps_prer_vlan_id;
 
 /*ETT for above fields...*/
-static int ett_extrememesh = -1;
+static int ett_extrememesh;
 
 /*MCH fields*/
-static int ett_extrememesh_mch = -1;
+static int ett_extrememesh_mch;
 
 /*Hello fields*/
-static int ett_extrememesh_hello = -1;
+static int ett_extrememesh_hello;
 
 /*Security fields*/
-static int ett_extrememesh_security = -1;
+static int ett_extrememesh_security;
 
 /*Cfpu fields*/
-static int ett_extrememesh_cfpu = -1;
+static int ett_extrememesh_cfpu;
 
 /*EAPOM fields*/
-static int ett_extrememesh_eapom = -1;
+static int ett_extrememesh_eapom;
 
 /*PS fields*/
-static int ett_extrememesh_ps = -1;
+static int ett_extrememesh_ps;
 
 /*Ethernet without FCS Dissector handle*/
 static dissector_handle_t eth_withoutfcs_handle;
@@ -450,8 +450,8 @@ static const value_string mot_ps_auth_replies[] = {
 
 static void dissect_extrememesh_ps_arep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Authorization Reply");
 	proto_tree_add_item(tree, proto_extrememesh_ps_arep, tvb, offset, -1, ENC_NA);
@@ -504,9 +504,9 @@ Dissects the path selection bind request.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_breq(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
-	guint8 option_len = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
+	uint8_t option_len = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Bind Request");
 	proto_tree_add_item(tree, proto_extrememesh_ps_breq, tvb, offset, -1, ENC_NA);
@@ -526,7 +526,7 @@ static void dissect_extrememesh_ps_breq(tvbuff_t *tvb, packet_info *pinfo, proto
 		offset++;
 		if (option == 0) continue;
 		proto_tree_add_item(tree, hf_extrememesh_ps_breq_option_len, tvb, offset, 1, ENC_BIG_ENDIAN);
-		option_len = tvb_get_guint8(tvb, offset);
+		option_len = tvb_get_uint8(tvb, offset);
 		offset++;
 		switch(option)
 		{
@@ -595,8 +595,8 @@ Dissects the path selection bind reply.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_brep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Bind Reply");
 	proto_tree_add_item(tree, proto_extrememesh_ps_brep, tvb, offset, -1, ENC_NA);
@@ -645,9 +645,9 @@ Dissects the path selection bind announcement (BANN) packet.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_bann(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
-	guint8 option_len = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
+	uint8_t option_len = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Bind Announcement");
 	proto_tree_add_item(tree, proto_extrememesh_ps_bann, tvb, offset, -1, ENC_NA);
@@ -666,7 +666,7 @@ static void dissect_extrememesh_ps_bann(tvbuff_t *tvb, packet_info *pinfo, proto
 		proto_tree_add_item_ret_uint(tree, hf_extrememesh_ps_bann_option, tvb, offset, 1, ENC_BIG_ENDIAN, &option);
 		offset++;
 		if(option == 0) continue; // Option 0 is a single padding byte, no length byte
-		option_len = tvb_get_guint8(tvb, offset);
+		option_len = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(tree, hf_extrememesh_ps_bann_option_len, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset++;
 		switch(option)
@@ -713,8 +713,8 @@ Dissects the path selection bind removed packet.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_bred(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Bind Removed");
 	proto_tree_add_item(tree, proto_extrememesh_ps_bred, tvb, offset, -1, ENC_NA);
@@ -763,8 +763,8 @@ Dissects the path selection status request.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_sreq(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Status Request");
 	proto_tree_add_item(tree, proto_extrememesh_ps_sreq, tvb, offset, -1, ENC_NA);
@@ -815,8 +815,8 @@ Dissects the path selection status reply.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_srep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Status Reply");
 	proto_tree_add_item(tree, proto_extrememesh_ps_srep, tvb, offset, -1, ENC_NA);
@@ -873,9 +873,9 @@ Dissects the path selection path request.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_preq(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
-	guint16 option_len = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
+	uint16_t option_len = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Path Request");
 	proto_tree_add_item(tree, proto_extrememesh_ps_preq, tvb, offset, -1, ENC_NA);
@@ -971,9 +971,9 @@ Dissects the path selection path reply.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_prep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
-	guint16 option_len = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
+	uint16_t option_len = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Path Reply");
 	proto_tree_add_item(tree, proto_extrememesh_ps_prep, tvb, offset, -1, ENC_NA);
@@ -1063,11 +1063,11 @@ Dissects the path selection path error (PERR) packet.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_perr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint8 dst_cnt = 0;
+	uint32_t offset = 0;
+	uint8_t dst_cnt = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Path Error");
-	dst_cnt = tvb_get_guint8(tvb, 3);
+	dst_cnt = tvb_get_uint8(tvb, 3);
 	proto_tree_add_item(tree, proto_extrememesh_ps_perr, tvb, offset, -1, ENC_NA);
 	proto_tree_add_item(tree, hf_extrememesh_ps_perr_version, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -1102,7 +1102,7 @@ Dissects the path selection path reset (PRST).
 /*****************************************************************************/
 static void dissect_extrememesh_ps_prst(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	gint offset = 0;
+	int offset = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Path Reset");
 	proto_tree_add_item(tree, proto_extrememesh_ps_prst, tvb, offset, -1, ENC_NA);
@@ -1134,9 +1134,9 @@ Dissects the path selection proxy remove (PREM) packet.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_prem(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
-	guint8 option_len = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
+	uint8_t option_len = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Proxy Remove");
 	proto_tree_add_item(tree, proto_extrememesh_ps_prem, tvb, offset, -1, ENC_NA);
@@ -1155,7 +1155,7 @@ static void dissect_extrememesh_ps_prem(tvbuff_t *tvb, packet_info *pinfo, proto
 		proto_tree_add_item_ret_uint(tree, hf_extrememesh_ps_prem_option, tvb, offset, 1, ENC_BIG_ENDIAN, &option);
 		offset++;
 		if(option == 0) continue; // Option 0 is a single padding byte, no length byte
-		option_len = tvb_get_gint8(tvb, offset);
+		option_len = tvb_get_int8(tvb, offset);
 		proto_tree_add_item(tree, hf_extrememesh_ps_prem_option_len, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset++;
 		switch(option)
@@ -1199,11 +1199,11 @@ Dissects the path selection trace path (TRACE) packet.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_trace(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint8 hop_cnt = 0;
+	uint32_t offset = 0;
+	uint8_t hop_cnt = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Trace Path");
-	hop_cnt = tvb_get_guint8(tvb, 15);
+	hop_cnt = tvb_get_uint8(tvb, 15);
 	proto_tree_add_item(tree, proto_extrememesh_ps_trace, tvb, offset, -1, ENC_NA);
 	proto_tree_add_item(tree, hf_extrememesh_ps_trace_version, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -1240,8 +1240,8 @@ Dissects the path selection proxy error.
 /*****************************************************************************/
 static void dissect_extrememesh_ps_prer(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Proxy Error");
 	proto_tree_add_item(tree, proto_extrememesh_ps_prer, tvb, offset, -1, ENC_NA);
@@ -1284,8 +1284,8 @@ static void dissect_extrememesh_ps_prer(tvbuff_t *tvb, packet_info *pinfo, proto
 
 static void dissect_extrememesh_ps_areq(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	guint32 offset = 0;
-	guint32 option = 0;
+	uint32_t offset = 0;
+	uint32_t option = 0;
 
 	/*if((pinfo != NULL) && check_col(pinfo->cinfo,COL_INFO))*/
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Path Selection Authorization Request");
@@ -1323,12 +1323,12 @@ static void dissect_extrememesh_ps_areq(tvbuff_t *tvb, packet_info *pinfo, proto
 	}
 }
 
-static gint dissect_extrememesh_ps(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
+static int dissect_extrememesh_ps(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	gint frame_type_offset = 1;
-	gint frame_type = MESH_PS_FRAME_INVALID;
+	int frame_type_offset = 1;
+	int frame_type = MESH_PS_FRAME_INVALID;
 
-	frame_type = tvb_get_guint8(tvb, frame_type_offset);
+	frame_type = tvb_get_uint8(tvb, frame_type_offset);
 	switch(frame_type)
 	{
 	case MESH_PS_FRAME_AREQ:
@@ -1384,22 +1384,22 @@ static gint dissect_extrememesh_ps(tvbuff_t *tvb, packet_info *pinfo, proto_tree
 	return MESH_NEXT_PROTOCOL_INVALID;
 }
 
-static gint dissect_extrememesh_eth_noaddr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
+static int dissect_extrememesh_eth_noaddr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
 	tvbuff_t *nextTvb;
-	guchar *ethBuffer;
-	gint bufferLen;
+	unsigned char *ethBuffer;
+	int bufferLen;
 	//These are encapsulated ethernet frames that have had their
 	//src and dest stripped off
 
 	//Copy in the src/dst
 	if (pinfo->src.data && pinfo->dst.data) {
 		//Get the length of the current buffer
-		guint tvbLen = tvb_captured_length(tvb);
+		unsigned tvbLen = tvb_captured_length(tvb);
 		//Add space for the src/dst
 		bufferLen = tvbLen + pinfo->src.len + pinfo->dst.len;
 		//Allocate a new ethernet buffer
-		ethBuffer = (guchar*)wmem_alloc(pinfo->pool, bufferLen);
+		ethBuffer = (unsigned char*)wmem_alloc(pinfo->pool, bufferLen);
 
 		memcpy(ethBuffer, pinfo->dst.data, pinfo->dst.len);
 		memcpy(ethBuffer + pinfo->dst.len, pinfo->src.data, pinfo->src.len);
@@ -1420,9 +1420,9 @@ static gint dissect_extrememesh_eth_noaddr(tvbuff_t *tvb, packet_info *pinfo, pr
 	return MESH_NEXT_PROTOCOL_INVALID;
 }
 
-static gint dissect_extrememesh_l2upd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
+static int dissect_extrememesh_l2upd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	gint offset = 0;
+	int offset = 0;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh L2 Update");
 	proto_tree_add_item(tree, proto_extrememesh_l2upd, tvb, offset, -1, ENC_NA);
@@ -1433,10 +1433,10 @@ static gint dissect_extrememesh_l2upd(tvbuff_t *tvb, packet_info *pinfo, proto_t
 	return MESH_NEXT_PROTOCOL_INVALID;
 }
 
-static gint dissect_extrememesh_probe(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
+static int dissect_extrememesh_probe(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-	gint offset = 0;
-	guint16 ballast_len;
+	int offset = 0;
+	uint16_t ballast_len;
 
 	col_set_str(pinfo->cinfo, COL_INFO, "Extreme Mesh Probe Message");
 	ballast_len = tvb_get_ntohs(tvb, 10);
@@ -1463,17 +1463,17 @@ static gint dissect_extrememesh_probe(tvbuff_t *tvb, packet_info *pinfo, proto_t
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-static gint dissect_extrememesh_mch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
+static int dissect_extrememesh_mch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
 	proto_tree *meshTree = tree;
-	gint offset = 0;
-	gint next_proto;
+	int offset = 0;
+	int next_proto;
 	tvbuff_t *nextTvb;
 
 	proto_tree_add_item(meshTree, proto_extrememesh_mch, tvb, offset, -1, ENC_NA);
 	proto_tree_add_item(meshTree, hf_extrememesh_mch_version, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
-	next_proto = tvb_get_guint8(tvb, offset);
+	next_proto = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(meshTree, hf_extrememesh_mch_next_proto, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
 	proto_tree_add_item(meshTree, hf_extrememesh_mch_lq, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -1498,7 +1498,7 @@ static gint dissect_extrememesh_mch(tvbuff_t *tvb, packet_info *pinfo, proto_tre
 
 	nextTvb = tvb_new_subset_length(tvb, offset, -1);
 
-	while(next_proto != (gint)MESH_NEXT_PROTOCOL_INVALID)
+	while(next_proto != (int)MESH_NEXT_PROTOCOL_INVALID)
 	{
 		switch(next_proto)
 		{
@@ -1554,26 +1554,26 @@ static gint dissect_extrememesh_mch(tvbuff_t *tvb, packet_info *pinfo, proto_tre
 
 static int dissect_extrememesh(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	gint offset = 0;
-	/*guint8 packet_type = 0;*/
+	int offset = 0;
+	/*uint8_t packet_type = 0;*/
 	tvbuff_t *next_tvb = NULL;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "MCX");
 	proto_item *ti = NULL;
 	proto_tree *meshTree = NULL;
-	gint next_proto = MESH_NEXT_PROTOCOL_INVALID;
+	int next_proto = MESH_NEXT_PROTOCOL_INVALID;
 
 	ti = proto_tree_add_item(tree, proto_extrememesh, tvb, offset, -1, ENC_NA);
 	meshTree = proto_item_add_subtree(ti, ett_extrememesh);
 	proto_tree_add_item(meshTree, hf_extrememesh_version, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
-	next_proto = tvb_get_guint8(tvb, offset);
+	next_proto = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(meshTree, hf_extrememesh_nextproto, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
 
 	next_tvb = tvb_new_subset_length(tvb, offset, -1);
 
-	while(next_proto != (gint)MESH_NEXT_PROTOCOL_INVALID)
+	while(next_proto != (int)MESH_NEXT_PROTOCOL_INVALID)
 	{
 		switch(next_proto)
 		{
@@ -2429,7 +2429,7 @@ void proto_register_extrememesh(void)
 		NULL, 0x0, NULL, HFILL }}
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_extrememesh,
 		&ett_extrememesh_mch,
 		&ett_extrememesh_hello,

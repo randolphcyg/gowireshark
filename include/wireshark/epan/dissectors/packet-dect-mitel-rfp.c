@@ -14,7 +14,7 @@
 
 /*
  * This is a proprietary protocol deveolped by Mitel for communication
- * inbetween the DECT system management Software (OMM) and the DECT
+ * between the DECT system management Software (OMM) and the DECT
  * base station (RFPs)
  */
 
@@ -35,198 +35,198 @@ void proto_reg_handoff_dect_mitel_rfp(void);
 void proto_register_dect_mitel_rfp(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_dect_mitel_rfp = -1;
+static int proto_dect_mitel_rfp;
 
-static int hf_dect_mitel_rfp_message_type = -1;
-static int hf_dect_mitel_rfp_message_length = -1;
+static int hf_dect_mitel_rfp_message_type;
+static int hf_dect_mitel_rfp_message_length;
 
 /* CONTROL-ACK */
-static int hf_dect_mitel_rfp_control_ack_message = -1;
-static int hf_dect_mitel_rfp_control_ack_call_id = -1;
+static int hf_dect_mitel_rfp_control_ack_message;
+static int hf_dect_mitel_rfp_control_ack_call_id;
 
 /* CONTROL-NACK */
-static int hf_dect_mitel_rfp_control_nack_message = -1;
-static int hf_dect_mitel_rfp_control_nack_call_id = -1;
-static int hf_dect_mitel_rfp_control_nack_reason = -1;
+static int hf_dect_mitel_rfp_control_nack_message;
+static int hf_dect_mitel_rfp_control_nack_call_id;
+static int hf_dect_mitel_rfp_control_nack_reason;
 
 /* CONTROL-HEARTBEAT */
-static int hf_dect_mitel_rfp_control_heartbeat_milliseconds = -1;
-static int hf_dect_mitel_rfp_control_heartbeat_nanoseconds = -1;
+static int hf_dect_mitel_rfp_control_heartbeat_milliseconds;
+static int hf_dect_mitel_rfp_control_heartbeat_nanoseconds;
 
 /* SYS-IP-OPTIONS */
-static int hf_dect_mitel_rfp_sys_ip_options_voice_tos = -1;
-static int hf_dect_mitel_rfp_sys_ip_options_signalling_tos = -1;
-static int hf_dect_mitel_rfp_sys_ip_options_ttl = -1;
-static int hf_dect_mitel_rfp_sys_ip_options_signal_vlan_priority = -1;
-static int hf_dect_mitel_rfp_sys_ip_options_voice_vlan_priority = -1;
+static int hf_dect_mitel_rfp_sys_ip_options_voice_tos;
+static int hf_dect_mitel_rfp_sys_ip_options_signalling_tos;
+static int hf_dect_mitel_rfp_sys_ip_options_ttl;
+static int hf_dect_mitel_rfp_sys_ip_options_signal_vlan_priority;
+static int hf_dect_mitel_rfp_sys_ip_options_voice_vlan_priority;
 
 /* SYS-LED */
-static int hf_dect_mitel_rfp_sys_led_id    = -1;
-static int hf_dect_mitel_rfp_sys_led_color = -1;
+static int hf_dect_mitel_rfp_sys_led_id;
+static int hf_dect_mitel_rfp_sys_led_color;
 
 /* SYS-HEARTBEAT-INTERVAL */
-static int hf_dect_mitel_rfp_sys_heartbeat_interval_value = -1;
+static int hf_dect_mitel_rfp_sys_heartbeat_interval_value;
 
 /* SYS-SYSLOG */
-static int hf_dect_mitel_rfp_sys_syslog_ip_address = -1;
-static int hf_dect_mitel_rfp_sys_syslog_port = -1;
+static int hf_dect_mitel_rfp_sys_syslog_ip_address;
+static int hf_dect_mitel_rfp_sys_syslog_port;
 
 /* SYS-MAX-CHANNELS */
-static int hf_dect_mitel_rfp_sys_max_channels_dsp = -1;
-static int hf_dect_mitel_rfp_sys_max_channels_sessions = -1;
+static int hf_dect_mitel_rfp_sys_max_channels_dsp;
+static int hf_dect_mitel_rfp_sys_max_channels_sessions;
 
 /* SYS-HTTP-SET */
-static int hf_dect_mitel_rfp_sys_http_set_ip_address = -1;
-static int hf_dect_mitel_rfp_sys_http_set_port = -1;
+static int hf_dect_mitel_rfp_sys_http_set_ip_address;
+static int hf_dect_mitel_rfp_sys_http_set_port;
 
 /* SYS-PASSWD */
-static int hf_dect_mitel_rfp_sys_passwd_remote_access_enabled = -1;
-static int hf_dect_mitel_rfp_sys_passwd_root_username = -1;
-static int hf_dect_mitel_rfp_sys_passwd_root_password = -1;
-static int hf_dect_mitel_rfp_sys_passwd_admin_username = -1;
-static int hf_dect_mitel_rfp_sys_passwd_admin_password = -1;
+static int hf_dect_mitel_rfp_sys_passwd_remote_access_enabled;
+static int hf_dect_mitel_rfp_sys_passwd_root_username;
+static int hf_dect_mitel_rfp_sys_passwd_root_password;
+static int hf_dect_mitel_rfp_sys_passwd_admin_username;
+static int hf_dect_mitel_rfp_sys_passwd_admin_password;
 
 /* SYS-RPING */
-static int hf_dect_mitel_rfp_sys_rping_ip_address = -1;
-static int hf_dect_mitel_rfp_sys_rping_rtt = -1;
+static int hf_dect_mitel_rfp_sys_rping_ip_address;
+static int hf_dect_mitel_rfp_sys_rping_rtt;
 
 /* SYS-CORE-DUMP */
-static int hf_dect_mitel_rfp_sys_core_dump_url = -1;
+static int hf_dect_mitel_rfp_sys_core_dump_url;
 
 /* SYS-VSNTP-TIME */
-static int hf_dect_mitel_rfp_sys_vsntp_time_t1_seconds = -1;
-static int hf_dect_mitel_rfp_sys_vsntp_time_t1_nanoseconds = -1;
-static int hf_dect_mitel_rfp_sys_vsntp_time_t2_seconds = -1;
-static int hf_dect_mitel_rfp_sys_vsntp_time_t2_nanoseconds = -1;
+static int hf_dect_mitel_rfp_sys_vsntp_time_t1_seconds;
+static int hf_dect_mitel_rfp_sys_vsntp_time_t1_nanoseconds;
+static int hf_dect_mitel_rfp_sys_vsntp_time_t2_seconds;
+static int hf_dect_mitel_rfp_sys_vsntp_time_t2_nanoseconds;
 
 /* SYS-INIT */
-static int hf_dect_mitel_rfp_sys_init_rfp_model = -1;
-static int hf_dect_mitel_rfp_sys_init_rfp_mac = -1;
-static int hf_dect_mitel_rfp_sys_init_crypted = -1;
-static int hf_dect_mitel_rfp_sys_init_protocol = -1;
-static int hf_dect_mitel_rfp_sys_init_rfp_capabilities = -1;
-static int hf_dect_mitel_rfp_sys_init_rfp_capability_normal_tx = -1;
-static int hf_dect_mitel_rfp_sys_init_rfp_capability_indoor = -1;
-static int hf_dect_mitel_rfp_sys_init_rfp_capability_wlan = -1;
-static int hf_dect_mitel_rfp_sys_init_rfp_capability_encryption = -1;
-static int hf_dect_mitel_rfp_sys_init_rfp_capability_frequency_shift = -1;
-static int hf_dect_mitel_rfp_sys_init_rfp_capability_low_tx = -1;
-static int hf_dect_mitel_rfp_sys_init_rfp_capability_advanced_feature = -1;
-static int hf_dect_mitel_rfp_sys_init_rfp_software_version = -1;
-static int hf_dect_mitel_rfp_sys_init_signature = -1;
+static int hf_dect_mitel_rfp_sys_init_rfp_model;
+static int hf_dect_mitel_rfp_sys_init_rfp_mac;
+static int hf_dect_mitel_rfp_sys_init_crypted;
+static int hf_dect_mitel_rfp_sys_init_protocol;
+static int hf_dect_mitel_rfp_sys_init_rfp_capabilities;
+static int hf_dect_mitel_rfp_sys_init_rfp_capability_normal_tx;
+static int hf_dect_mitel_rfp_sys_init_rfp_capability_indoor;
+static int hf_dect_mitel_rfp_sys_init_rfp_capability_wlan;
+static int hf_dect_mitel_rfp_sys_init_rfp_capability_encryption;
+static int hf_dect_mitel_rfp_sys_init_rfp_capability_frequency_shift;
+static int hf_dect_mitel_rfp_sys_init_rfp_capability_low_tx;
+static int hf_dect_mitel_rfp_sys_init_rfp_capability_advanced_feature;
+static int hf_dect_mitel_rfp_sys_init_rfp_software_version;
+static int hf_dect_mitel_rfp_sys_init_signature;
 
 /* SYS-AUTHENTICATE */
-static int hf_dect_mitel_rfp_sys_authenticate_omm_iv = -1;
-static int hf_dect_mitel_rfp_sys_authenticate_rfp_iv = -1;
+static int hf_dect_mitel_rfp_sys_authenticate_omm_iv;
+static int hf_dect_mitel_rfp_sys_authenticate_rfp_iv;
 
 /* SYS-LICENSE-TIMER */
-static int hf_dect_mitel_rfp_sys_license_timer_query = -1;
-static int hf_dect_mitel_rfp_sys_license_timer_grace_period = -1;
-static int hf_dect_mitel_rfp_sys_license_timer_checksum = -1;
+static int hf_dect_mitel_rfp_sys_license_timer_query;
+static int hf_dect_mitel_rfp_sys_license_timer_grace_period;
+static int hf_dect_mitel_rfp_sys_license_timer_checksum;
 
 /* MEDIA */
-static int hf_dect_mitel_rfp_media_handle = -1;
-static int hf_dect_mitel_rfp_media_mcei = -1;
-static int hf_dect_mitel_rfp_media_direction = -1;
+static int hf_dect_mitel_rfp_media_handle;
+static int hf_dect_mitel_rfp_media_mcei;
+static int hf_dect_mitel_rfp_media_direction;
 
 /* MEDIA-OPEN */
-static int hf_dect_mitel_rfp_media_open_codec = -1;
-static int hf_dect_mitel_rfp_media_open_slot_count = -1;
-static int hf_dect_mitel_rfp_media_open_flags = -1;
+static int hf_dect_mitel_rfp_media_open_codec;
+static int hf_dect_mitel_rfp_media_open_slot_count;
+static int hf_dect_mitel_rfp_media_open_flags;
 
 /* MEDIA-CONF */
-static int hf_dect_mitel_rfp_media_conf_vif = -1;
-static int hf_dect_mitel_rfp_media_conf_vad = -1;
-static int hf_dect_mitel_rfp_media_conf_codec_count = -1;
-static int hf_dect_mitel_rfp_media_conf_codec_type = -1;
-static int hf_dect_mitel_rfp_media_conf_codec_pt = -1;
-static int hf_dect_mitel_rfp_media_conf_codec_rate = -1;
-static int hf_dect_mitel_rfp_media_conf_ppn = -1;
-static int hf_dect_mitel_rfp_media_conf_local_port_1 = -1;
-static int hf_dect_mitel_rfp_media_conf_local_port_2 = -1;
-static int hf_dect_mitel_rfp_media_conf_rx_ip_address = -1;
-static int hf_dect_mitel_rfp_media_conf_rx_port_1 = -1;
-static int hf_dect_mitel_rfp_media_conf_rx_port_2 = -1;
-static int hf_dect_mitel_rfp_media_conf_tx_ip_address = -1;
-static int hf_dect_mitel_rfp_media_conf_tx_port_1 = -1;
-static int hf_dect_mitel_rfp_media_conf_tx_port_2 = -1;
+static int hf_dect_mitel_rfp_media_conf_vif;
+static int hf_dect_mitel_rfp_media_conf_vad;
+static int hf_dect_mitel_rfp_media_conf_codec_count;
+static int hf_dect_mitel_rfp_media_conf_codec_type;
+static int hf_dect_mitel_rfp_media_conf_codec_pt;
+static int hf_dect_mitel_rfp_media_conf_codec_rate;
+static int hf_dect_mitel_rfp_media_conf_ppn;
+static int hf_dect_mitel_rfp_media_conf_local_port_1;
+static int hf_dect_mitel_rfp_media_conf_local_port_2;
+static int hf_dect_mitel_rfp_media_conf_rx_ip_address;
+static int hf_dect_mitel_rfp_media_conf_rx_port_1;
+static int hf_dect_mitel_rfp_media_conf_rx_port_2;
+static int hf_dect_mitel_rfp_media_conf_tx_ip_address;
+static int hf_dect_mitel_rfp_media_conf_tx_port_1;
+static int hf_dect_mitel_rfp_media_conf_tx_port_2;
 
 /* MEDIA-START */
-static int hf_dect_mitel_rfp_media_start_time = -1;
-static int hf_dect_mitel_rfp_media_start_met_keep_alive = -1;
+static int hf_dect_mitel_rfp_media_start_time;
+static int hf_dect_mitel_rfp_media_start_met_keep_alive;
 
 /* MEDIA-STATISTICS */
-static int hf_dect_mitel_rfp_media_statistics_duration = -1;
-static int hf_dect_mitel_rfp_media_statistics_tx_packets = -1;
-static int hf_dect_mitel_rfp_media_statistics_tx_bytes = -1;
-static int hf_dect_mitel_rfp_media_statistics_rx_packets = -1;
-static int hf_dect_mitel_rfp_media_statistics_rx_bytes = -1;
-static int hf_dect_mitel_rfp_media_statistics_lost_packets = -1;
-static int hf_dect_mitel_rfp_media_statistics_max_jitter = -1;
-static int hf_dect_mitel_rfp_media_statistics_rtp_ip_address = -1;
+static int hf_dect_mitel_rfp_media_statistics_duration;
+static int hf_dect_mitel_rfp_media_statistics_tx_packets;
+static int hf_dect_mitel_rfp_media_statistics_tx_bytes;
+static int hf_dect_mitel_rfp_media_statistics_rx_packets;
+static int hf_dect_mitel_rfp_media_statistics_rx_bytes;
+static int hf_dect_mitel_rfp_media_statistics_lost_packets;
+static int hf_dect_mitel_rfp_media_statistics_max_jitter;
+static int hf_dect_mitel_rfp_media_statistics_rtp_ip_address;
 
 /* MEDIA-REDIRECT-START */
-static int hf_dect_mitel_rfp_media_redirect_start_local_port_1 = -1;
-static int hf_dect_mitel_rfp_media_redirect_start_local_port_2 = -1;
-static int hf_dect_mitel_rfp_media_redirect_start_remote_ip_address = -1;
-static int hf_dect_mitel_rfp_media_redirect_start_remote_port_1 = -1;
-static int hf_dect_mitel_rfp_media_redirect_start_remote_port_2 = -1;
-static int hf_dect_mitel_rfp_media_redirect_start_time = -1;
+static int hf_dect_mitel_rfp_media_redirect_start_local_port_1;
+static int hf_dect_mitel_rfp_media_redirect_start_local_port_2;
+static int hf_dect_mitel_rfp_media_redirect_start_remote_ip_address;
+static int hf_dect_mitel_rfp_media_redirect_start_remote_port_1;
+static int hf_dect_mitel_rfp_media_redirect_start_remote_port_2;
+static int hf_dect_mitel_rfp_media_redirect_start_time;
 
 /* MEDIA-REDIRECT-STOP */
-static int hf_dect_mitel_rfp_media_redirect_stop_fallback = -1;
+static int hf_dect_mitel_rfp_media_redirect_stop_fallback;
 
 /* MEDIA-DTMF */
-static int hf_dect_mitel_rfp_media_dtmf_duration = -1;
-static int hf_dect_mitel_rfp_media_dtmf_key = -1;
+static int hf_dect_mitel_rfp_media_dtmf_duration;
+static int hf_dect_mitel_rfp_media_dtmf_key;
 
 /* MEDIA-TONE */
-static int hf_dect_mitel_rfp_media_tone_count = -1;
-static int hf_dect_mitel_rfp_media_tone_frequency_1 = -1;
-static int hf_dect_mitel_rfp_media_tone_frequency_2 = -1;
-static int hf_dect_mitel_rfp_media_tone_frequency_3 = -1;
-static int hf_dect_mitel_rfp_media_tone_frequency_4 = -1;
-static int hf_dect_mitel_rfp_media_tone_cb_1 = -1;
-static int hf_dect_mitel_rfp_media_tone_cb_2 = -1;
-static int hf_dect_mitel_rfp_media_tone_cb_3 = -1;
-static int hf_dect_mitel_rfp_media_tone_cb_4 = -1;
-static int hf_dect_mitel_rfp_media_tone_duration= -1;
-static int hf_dect_mitel_rfp_media_tone_cycle_count = -1;
-static int hf_dect_mitel_rfp_media_tone_cycle_to = -1;
-static int hf_dect_mitel_rfp_media_tone_next = -1;
+static int hf_dect_mitel_rfp_media_tone_count;
+static int hf_dect_mitel_rfp_media_tone_frequency_1;
+static int hf_dect_mitel_rfp_media_tone_frequency_2;
+static int hf_dect_mitel_rfp_media_tone_frequency_3;
+static int hf_dect_mitel_rfp_media_tone_frequency_4;
+static int hf_dect_mitel_rfp_media_tone_cb_1;
+static int hf_dect_mitel_rfp_media_tone_cb_2;
+static int hf_dect_mitel_rfp_media_tone_cb_3;
+static int hf_dect_mitel_rfp_media_tone_cb_4;
+static int hf_dect_mitel_rfp_media_tone_duration;
+static int hf_dect_mitel_rfp_media_tone_cycle_count;
+static int hf_dect_mitel_rfp_media_tone_cycle_to;
+static int hf_dect_mitel_rfp_media_tone_next;
 
 /* SYNC */
-static int hf_dect_mitel_rfp_sync_payload_type = -1;
-static int hf_dect_mitel_rfp_sync_payload_length = -1;
+static int hf_dect_mitel_rfp_sync_payload_type;
+static int hf_dect_mitel_rfp_sync_payload_length;
 
 /* SYNC FREQ_CTRL_MODE_IND */
-static int hf_dect_mitel_rfp_sync_freq_ctrl_mode_ind_mode = -1;
+static int hf_dect_mitel_rfp_sync_freq_ctrl_mode_ind_mode;
 
 /* SYNC FREQ_CTRL_MODE_CFM */
-static int hf_dect_mitel_rfp_sync_freq_ctrl_mode_cfm_mode = -1;
-static int hf_dect_mitel_rfp_sync_freq_ctrl_mode_cfm_ppm = -1;
-static int hf_dect_mitel_rfp_sync_freq_ctrl_mode_cfm_avg = -1;
+static int hf_dect_mitel_rfp_sync_freq_ctrl_mode_cfm_mode;
+static int hf_dect_mitel_rfp_sync_freq_ctrl_mode_cfm_ppm;
+static int hf_dect_mitel_rfp_sync_freq_ctrl_mode_cfm_avg;
 
 /* SYNC SET_FREQUENCY */
-static int hf_dect_mitel_rfp_sync_set_frequency_value = -1;
+static int hf_dect_mitel_rfp_sync_set_frequency_value;
 
 /* SYNC START_MAC_SLAVE_MODE_IND */
-static int hf_dect_mitel_rfp_sync_start_mac_slave_mode_ind_rfp = -1;
+static int hf_dect_mitel_rfp_sync_start_mac_slave_mode_ind_rfp;
 
 /* SYNC SYSTEM_SEARCH_IND */
-static int hf_dect_mitel_rfp_sync_system_search_ind_mode = -1;
+static int hf_dect_mitel_rfp_sync_system_search_ind_mode;
 
 /* SYNC SYSTEM_SEARCH_CFM */
-static int hf_dect_mitel_rfp_sync_system_search_cfm_count = -1;
-static int hf_dect_mitel_rfp_sync_system_search_cfm_item_rpn = -1;
-static int hf_dect_mitel_rfp_sync_system_search_cfm_item_rssi = -1;
+static int hf_dect_mitel_rfp_sync_system_search_cfm_count;
+static int hf_dect_mitel_rfp_sync_system_search_cfm_item_rpn;
+static int hf_dect_mitel_rfp_sync_system_search_cfm_item_rssi;
 
 /* SYNC PHASE_OFS_WITH_RSSI_IND */
-static int hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_count = -1;
-static int hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_rpn = -1;
-static int hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_offset = -1;
-static int hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_rssi = -1;
-static int hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_qt_sync_check = -1;
+static int hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_count;
+static int hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_rpn;
+static int hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_offset;
+static int hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_rssi;
+static int hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_qt_sync_check;
 
 /* Message Type */
 enum dect_mitel_rfp_message_type_coding {
@@ -632,14 +632,14 @@ static dissector_handle_t dect_mitel_eth_handle;
 
 /* Preferences */
 #define DECT_MITEL_RFP_TCP_PORT 16321
-static guint tcp_port_pref = DECT_MITEL_RFP_TCP_PORT;
+static unsigned tcp_port_pref = DECT_MITEL_RFP_TCP_PORT;
 
 /* Initialize the subtree pointers */
-static gint ett_dect_mitel_rfp = -1;
-static gint ett_dect_mitel_rfp_sys_init_rfp_capabilities = -1;
-static gint ett_dect_mitel_rfp_media_tone_entry = -1;
-static gint ett_dect_mitel_rfp_sync_system_search_cfm_item = -1;
-static gint ett_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item = -1;
+static int ett_dect_mitel_rfp;
+static int ett_dect_mitel_rfp_sys_init_rfp_capabilities;
+static int ett_dect_mitel_rfp_media_tone_entry;
+static int ett_dect_mitel_rfp_sync_system_search_cfm_item;
+static int ett_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item;
 
 /*
 CONTROL-ACK Message
@@ -648,7 +648,7 @@ CONTROL-ACK Message
 |      0 |   2 | Message |
 |      2 |   2 | Call ID |
  */
-static guint dissect_dect_mitel_rfp_control_ack(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_control_ack(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_control_ack_message, tvb, offset, 2, ENC_NA);
 	offset += 2;
@@ -665,7 +665,7 @@ CONTROL-NACK Message
 |      2 |   2 | Call ID       |
 |      4 |   4 | Reject resaon |
  */
-static guint dissect_dect_mitel_rfp_control_nack(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_control_nack(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_control_nack_message, tvb, offset, 2, ENC_NA);
 	offset += 2;
@@ -683,7 +683,7 @@ CONTROL-HEARTBEAT Message
 |      0 |   4 | Uptime milliseconds |
 |      4 |   4 | Uptime nanoseconds  |
  */
-static guint dissect_dect_mitel_rfp_control_heartbeat(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_control_heartbeat(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_control_heartbeat_milliseconds, tvb, offset, 4, ENC_NA);
 	offset += 4;
@@ -702,7 +702,7 @@ SYS-IP-OPTIONS Message
 |      3 |   1 | Signal VLAN priority        |
 |      4 |   1 | Voice VLAN priority         |
  */
-static guint dissect_dect_mitel_rfp_sys_ip_options(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_ip_options(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_ip_options_voice_tos, tvb, offset, 1, ENC_NA);
 	offset++;
@@ -724,14 +724,14 @@ SYS-LED Message
 |      0 |   1 | LED ID      |
 |      1 |   1 | LED Colour  |
 */
-static guint dissect_dect_mitel_rfp_sys_led(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_led(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
-	guint8 led_id, led_color;
+	uint8_t led_id, led_color;
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_led_id, tvb, offset, 1, ENC_NA);
-	led_id = tvb_get_guint8(tvb, offset);
+	led_id = tvb_get_uint8(tvb, offset);
 	offset++;
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_led_color, tvb, offset, 1, ENC_NA);
-	led_color = tvb_get_guint8(tvb, offset);
+	led_color = tvb_get_uint8(tvb, offset);
 	offset++;
 	col_append_fstr(pinfo->cinfo, COL_INFO, "LED %d:%s", led_id,
 		val_to_str(led_color, dect_mitel_rfp_sys_led_color_val, "Unknown: %02x"));
@@ -744,11 +744,11 @@ SYS-HEARTBEAT-INTERVAL Message
 | ------ | --- | ------------------ |
 |      0 |   1 | Interval value (s) |
 */
-static guint dissect_dect_mitel_rfp_sys_heartbeat_interval(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_heartbeat_interval(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
-	guint8 interval;
+	uint8_t interval;
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_heartbeat_interval_value, tvb, offset, 1, ENC_BIG_ENDIAN);
-	interval = tvb_get_guint8(tvb, offset);
+	interval = tvb_get_uint8(tvb, offset);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "Interval: %ds", interval);
 	offset++;
 
@@ -762,7 +762,7 @@ SYS-SYSLOG Message
 |      0 |  16 | IP Address         |
 |     16 |   2 | Port               |
 */
-static guint dissect_dect_mitel_rfp_sys_syslog(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_syslog(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_syslog_ip_address, tvb, offset, 16, ENC_NA);
 	offset += 16;
@@ -780,7 +780,7 @@ SYS-MAX-CHANNELS Message
 |      0 |   1 | DSP       |
 |      1 |   1 | Sesseions |
 */
-static guint dissect_dect_mitel_rfp_sys_max_channels(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_max_channels(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_max_channels_dsp, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -798,7 +798,7 @@ SYS-HTTP-SET Message
 |      0 |  16 | IP Address         |
 |     16 |   2 | Port               |
 */
-static guint dissect_dect_mitel_rfp_sys_http_set(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_http_set(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_http_set_ip_address, tvb, offset, 16, ENC_NA);
 	offset += 16;
@@ -819,7 +819,7 @@ SYS-PASSWD Message
 |    132 |  65 | Admin username              |
 |    197 |  65 | Admin password              |
 */
-static guint dissect_dect_mitel_rfp_sys_passwd(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_passwd(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_passwd_remote_access_enabled, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset += 2;
@@ -846,7 +846,7 @@ SYS-RPING Message
 |      0 |  16 | IP Address |
 |     16 |   4 | RTT (ms)   |
 */
-static guint dissect_dect_mitel_rfp_sys_rping(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_rping(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_rping_ip_address, tvb, offset, 16, ENC_NA);
 	offset += 16;
@@ -863,7 +863,7 @@ SYS-CORE-DUMP Message
 | ------ | --- | ------- |
 |      0 | len | URL     |
 */
-static guint dissect_dect_mitel_rfp_sys_core_dump(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset, guint16 message_length)
+static unsigned dissect_dect_mitel_rfp_sys_core_dump(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset, uint16_t message_length)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_core_dump_url, tvb, offset, message_length, ENC_ASCII);
 	offset += message_length;
@@ -880,7 +880,7 @@ SYS-VSNTP-TIME Message
 |      8 |   4 | T2 seconds     |
 |     12 |   4 | T2 nanoseconds |
 */
-static guint dissect_dect_mitel_rfp_sys_vsntp_time(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_vsntp_time(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_vsntp_time_t1_seconds, tvb, offset, 4, ENC_BIG_ENDIAN);
 	offset += 4;
@@ -909,7 +909,7 @@ SYS-INIT Message
 |    112 |  32 | Software Version  |
 |    256 |  16 | Signature         |
  */
-static guint dissect_dect_mitel_rfp_sys_init(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_init(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	static int *const capabilities_flags [] = {
 		&hf_dect_mitel_rfp_sys_init_rfp_capability_normal_tx,
@@ -946,7 +946,7 @@ SYS-AUTHENTICATE Message
 |      7 |   8 | RFP Blowfish IV |
 |     21 |   8 | OMM Blowfish IV |
 */
-static guint dissect_dect_mitel_rfp_sys_authenticate(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_authenticate(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	offset += 7;
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_authenticate_rfp_iv, tvb, offset, 8, ENC_NA);
@@ -963,7 +963,7 @@ SYS-LICENSE-TIMER Message
 |      0 |   4 | Grace period (m) | Most significant bit indicates QUERY |
 |      4 |  16 | Checksum         |                                      |
 */
-static guint dissect_dect_mitel_rfp_sys_license_timer(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sys_license_timer(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_license_timer_query, tvb, offset, 4, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sys_license_timer_grace_period, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -983,7 +983,7 @@ MEDIA-OPEN Message
 |      1 |   1 | Slot count |
 |      2 |   4 | Flags      |
 */
-static guint dissect_dect_mitel_rfp_media_open(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_media_open(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_media_open_codec, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -1019,10 +1019,10 @@ MEDIA-CONF Message
 |     82 |   2 | TX port 1     |
 |     84 |   2 | TX port 2     |
 */
-static guint dissect_dect_mitel_rfp_media_conf(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_media_conf(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
-	guint32 codec_count;
-	guint mcei_offset;
+	uint32_t codec_count;
+	unsigned mcei_offset;
 	mcei_offset = offset + 56;
 	offset += 2;
 
@@ -1035,7 +1035,7 @@ static guint dissect_dect_mitel_rfp_media_conf(tvbuff_t *tvb, packet_info *pinfo
 	proto_tree_add_item_ret_uint(tree, hf_dect_mitel_rfp_media_conf_codec_count, tvb, offset, 1, ENC_BIG_ENDIAN, &codec_count);
 	offset++;
 
-	for (guint32 i = 0; i < codec_count && offset < mcei_offset; i++) {
+	for (uint32_t i = 0; i < codec_count && offset < mcei_offset; i++) {
 		proto_tree_add_item(tree, hf_dect_mitel_rfp_media_conf_codec_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset++;
 		proto_tree_add_item(tree, hf_dect_mitel_rfp_media_conf_codec_pt, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -1086,7 +1086,7 @@ MEDIA-START Message
 |      2 |   4 | Time          |
 |      6 |   1 | Met keepalive |
 */
-static guint dissect_dect_mitel_rfp_media_start(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_media_start(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_media_direction, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset += 2;
@@ -1106,7 +1106,7 @@ MEDIA-STOP Message
 | ------ | --- | ------------- |
 |      0 |   1 | Direction     |
 */
-static guint dissect_dect_mitel_rfp_media_stop(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_media_stop(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_media_direction, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -1127,7 +1127,7 @@ MEDIA-STATISTICS Message
 |     26 |   4 | Max jitter     |
 |     30 |   4 | RTP IP address |
 */
-static guint dissect_dect_mitel_rfp_media_statistics(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_media_statistics(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_media_statistics_duration, tvb, offset, 4, ENC_LITTLE_ENDIAN);
 	offset += 4;
@@ -1167,7 +1167,7 @@ MEDIA-REDIRECT-START Message
 |     12 |   2 | Remote port 2      |
 |     14 |   4 | Time               |
 */
-static guint dissect_dect_mitel_rfp_media_redirect_start(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_media_redirect_start(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	offset += 2;
 
@@ -1197,7 +1197,7 @@ MEDIA-REDIRECT-STOP Message
 | ------ | --- | ------------- |
 |      0 |   1 | Fallback      |
 */
-static guint dissect_dect_mitel_rfp_media_redirect_stop(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_media_redirect_stop(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_media_redirect_stop_fallback, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -1211,7 +1211,7 @@ MEDIA-RESTART Message
 | ------ | --- | ------- |
 |      0 |   1 | MCEI    |
 */
-static guint dissect_dect_mitel_rfp_media_restart(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_media_restart(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_media_mcei, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -1227,7 +1227,7 @@ MEDIA-DTMF Message
 |      2 |   1 | Key       |
 |      3 |   1 | Direction |
 */
-static guint dissect_dect_mitel_rfp_media_dtmf(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_media_dtmf(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_media_dtmf_duration, tvb, offset, 2, ENC_LITTLE_ENDIAN);
 	offset += 2;
@@ -1267,19 +1267,19 @@ Tone:
 |     20 |   2 | Cycle to    |
 |     22 |   2 | Next        |
 */
-static guint dissect_dect_mitel_rfp_media_tone(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_media_tone(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
-	guint8 tone_count;
+	uint8_t tone_count;
 	proto_tree *tone_tree;
 
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_media_direction, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
 
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_media_tone_count, tvb, offset, 1, ENC_BIG_ENDIAN);
-	tone_count = tvb_get_guint8(tvb, offset);
+	tone_count = tvb_get_uint8(tvb, offset);
 	offset += 5;
 
-	for (guint8 i = 0; i < tone_count; i++) {
+	for (uint8_t i = 0; i < tone_count; i++) {
 		tone_tree = proto_tree_add_subtree(tree, tvb, offset, 24, ett_dect_mitel_rfp_media_tone_entry, NULL, "Tone entry");
 
 		proto_tree_add_item(tone_tree, hf_dect_mitel_rfp_media_tone_frequency_1, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -1329,7 +1329,7 @@ MEDIA Message
 |      0 |   2 | Handle          |
 |      2 |     | Message content |
 */
-static guint dissect_dect_mitel_rfp_media(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data, guint offset, guint16 message_type)
+static unsigned dissect_dect_mitel_rfp_media(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data, unsigned offset, uint16_t message_type)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_media_handle, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset += 2;
@@ -1378,7 +1378,7 @@ SYNC FREQ_CTRL_MODE_IND Message
 | ------ | --- | ------- |
 |      0 |   1 | Mode    |
 */
-static guint dissect_dect_mitel_rfp_sync_freq_ctrl_mode_ind(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sync_freq_ctrl_mode_ind(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sync_freq_ctrl_mode_ind_mode, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -1394,7 +1394,7 @@ SYNC FREQ_CTRL_MODE_CFM Message
 |      1 |   2 | Ppm     |
 |      3 |   2 | Avg     |
 */
-static guint dissect_dect_mitel_rfp_sync_freq_ctrl_mode_cfm(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sync_freq_ctrl_mode_cfm(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sync_freq_ctrl_mode_cfm_mode, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -1414,7 +1414,7 @@ SYNC SET_FREQUENCY Message
 | ------ | --- | --------- |
 |      0 |   2 | Frequency |
 */
-static guint dissect_dect_mitel_rfp_sync_set_frequency(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sync_set_frequency(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sync_set_frequency_value, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset += 2;
@@ -1428,7 +1428,7 @@ SYNC START_MAC_SLAVE_MODE Message
 | ------ | --- | --------- |
 |      0 |   2 | RFP       |
 */
-static guint dissect_dect_mitel_rfp_start_mac_slave_mode(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_start_mac_slave_mode(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sync_start_mac_slave_mode_ind_rfp, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset += 2;
@@ -1442,7 +1442,7 @@ SYNC SYSTEM_SEARCH_IND Message
 | ------ | --- | ------- |
 |      0 |   1 | Mode    |
 */
-static guint dissect_dect_mitel_rfp_sync_system_search_ind(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sync_system_search_ind(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sync_system_search_ind_mode, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
@@ -1466,16 +1466,16 @@ Item:
 |      0 |   2 | RPN           |
 |      4 |   2 | RSSI          |
 */
-static guint dissect_dect_mitel_rfp_sync_system_search_cfm(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sync_system_search_cfm(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
-	guint8 item_count;
+	uint8_t item_count;
 	proto_tree *item_tree;
 
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sync_system_search_cfm_count, tvb, offset, 1, ENC_BIG_ENDIAN);
-	item_count = tvb_get_guint8(tvb, offset);
+	item_count = tvb_get_uint8(tvb, offset);
 	offset++;
 
-	for (guint8 i = 0; i < item_count; i++) {
+	for (uint8_t i = 0; i < item_count; i++) {
 		item_tree = proto_tree_add_subtree(tree, tvb, offset, 4, ett_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item, NULL, "Item");
 
 		proto_tree_add_item(item_tree, hf_dect_mitel_rfp_sync_system_search_cfm_item_rpn, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -1507,16 +1507,16 @@ Item:
 |      4 |   1 | RSSI          |
 |      5 |   1 | Qt Sync Check |
 */
-static guint dissect_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, guint offset)
+static unsigned dissect_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_, unsigned offset)
 {
-	guint8 item_count;
+	uint8_t item_count;
 	proto_tree *item_tree;
 
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_count, tvb, offset, 1, ENC_BIG_ENDIAN);
-	item_count = tvb_get_guint8(tvb, offset);
+	item_count = tvb_get_uint8(tvb, offset);
 	offset++;
 
-	for (guint8 i = 0; i < item_count; i++) {
+	for (uint8_t i = 0; i < item_count; i++) {
 		item_tree = proto_tree_add_subtree(tree, tvb, offset, 6, ett_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item, NULL, "Item");
 
 		proto_tree_add_item(item_tree, hf_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_rpn, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -1543,18 +1543,18 @@ SYNC Message
 |      2 |   1 | Length  |
 |      3 | len | Content |
 */
-static guint dissect_dect_mitel_rfp_sync(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data, guint offset)
+static unsigned dissect_dect_mitel_rfp_sync(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data, unsigned offset)
 {
-	guint16 message_type;
-	guint8 payload_length;
+	uint16_t message_type;
+	uint8_t payload_length;
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sync_payload_type, tvb, offset, 2, ENC_BIG_ENDIAN);
-	message_type = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+	message_type = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
 			val_to_str(message_type, dect_mitel_rfp_sync_payload_type_val, " Unknown 0x%04x"));
 	offset += 2;
 
 	proto_tree_add_item(tree, hf_dect_mitel_rfp_sync_payload_length, tvb, offset, 1, ENC_BIG_ENDIAN);
-	payload_length = tvb_get_guint8(tvb, offset);
+	payload_length = tvb_get_uint8(tvb, offset);
 	offset++;
 
 	if (payload_length > 0) {
@@ -1591,10 +1591,10 @@ static int dissect_dect_mitel_rfp(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 	proto_item *ti;
 	proto_tree *dect_mitel_rfp_tree;
 
-	guint offset = 0;
-	guint16 message_type, message_length;
+	unsigned offset = 0;
+	uint16_t message_type, message_length;
 	tvbuff_t *next_tvb;
-	gboolean ip_encapsulated = true;
+	bool ip_encapsulated = true;
 
 	/*** COLUMN DATA ***/
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "MITEL-RFP");
@@ -1607,14 +1607,14 @@ static int dissect_dect_mitel_rfp(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 
 	proto_tree_add_item(dect_mitel_rfp_tree, hf_dect_mitel_rfp_message_type, tvb,
 			offset, 2, ENC_NA);
-	message_type = tvb_get_guint16(tvb, offset, ENC_NA);
+	message_type = tvb_get_uint16(tvb, offset, ENC_NA);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
 			val_to_str(message_type, dect_mitel_rfp_message_type_val, "Unknown 0x%04x"));
 	offset += 2;
 
 	proto_tree_add_item(dect_mitel_rfp_tree, hf_dect_mitel_rfp_message_length, tvb,
 		offset, 2, ENC_NA);
-	message_length = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+	message_length = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 	offset += 2;
 
 	switch ( message_type ) {
@@ -1704,17 +1704,17 @@ static int dissect_dect_mitel_rfp(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
 	return tvb_captured_length(tvb);
 }
 
-static void fmt_dect_mitel_rfp_media_conf_codec_rate(gchar *rate_string, guint32 rate)
+static void fmt_dect_mitel_rfp_media_conf_codec_rate(char *rate_string, uint32_t rate)
 {
 	snprintf(rate_string, 9, "%d000Hz", rate);
 }
 
-static void fmt_dect_mitel_rfp_media_statistics_max_jitter(gchar *max_jitter_string, guint32 max_jitter)
+static void fmt_dect_mitel_rfp_media_statistics_max_jitter(char *max_jitter_string, uint32_t max_jitter)
 {
 	snprintf(max_jitter_string, 14, "%.3fms", max_jitter / 1000.0);
 }
 
-static void fmt_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_offset(gchar *item_offset_string, guint32 item_offset)
+static void fmt_dect_mitel_rfp_sync_phase_ofs_with_rssi_ind_item_offset(char *item_offset_string, uint32_t item_offset)
 {
 	snprintf(item_offset_string, 10, "%dns", item_offset * 48);
 }
@@ -1755,19 +1755,19 @@ void proto_register_dect_mitel_rfp(void)
 			}
 		},
 		{ &hf_dect_mitel_rfp_control_nack_reason,
-			{ "Reject reason", "dect_mitel_rfp.control.nack.message", FT_UINT32, BASE_HEX,
+			{ "Reject reason", "dect_mitel_rfp.control.nack.reason", FT_UINT32, BASE_HEX,
 				VALS(dect_mitel_rfp_control_nack_reason_val), 0x0, NULL, HFILL
 			}
 		},
 		/* CONTROL-HEARTBEAT */
 		{ &hf_dect_mitel_rfp_control_heartbeat_milliseconds,
 			{ "Milliseconds", "dect_mitel_rfp.control.heartbeat.milliseconds", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-				&units_milliseconds, 0x0, NULL, HFILL
+				UNS(&units_milliseconds), 0x0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_control_heartbeat_nanoseconds,
 			{ "Nanoseconds", "dect_mitel_rfp.control.heartbeat.nanoseconds", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-				&units_nanoseconds, 0x0, NULL, HFILL
+				UNS(&units_nanoseconds), 0x0, NULL, HFILL
 			}
 		},
 		/* SYS-IP-OPTIONS */
@@ -1810,7 +1810,7 @@ void proto_register_dect_mitel_rfp(void)
 		/* SYS-HEARTBEAT-INTERVAL */
 		{ &hf_dect_mitel_rfp_sys_heartbeat_interval_value,
 			{ "Interval", "dect_mitel_rfp.sys.heartbeat_interval.value", FT_UINT8, BASE_DEC|BASE_UNIT_STRING,
-				&units_seconds, 0, NULL, HFILL
+				UNS(&units_seconds), 0, NULL, HFILL
 			}
 		},
 		/* SYS-SYSLOG */
@@ -1880,7 +1880,7 @@ void proto_register_dect_mitel_rfp(void)
 		},
 		{ &hf_dect_mitel_rfp_sys_rping_rtt,
 			{ "RTT", "dect_mitel_rfp.sys.rping.rtt", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-				&units_milliseconds, 0, NULL, HFILL
+				UNS(&units_milliseconds), 0, NULL, HFILL
 			}
 		},
 		/* SYS-CORE-DUMP */
@@ -1892,22 +1892,22 @@ void proto_register_dect_mitel_rfp(void)
 		/* SYS-VSNTP-TIME */
 		{ &hf_dect_mitel_rfp_sys_vsntp_time_t1_seconds,
 			{ "T1 seconds", "dect_mitel_rfp.sys.vsntp_time.t1_seconds", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-				&units_seconds, 0, NULL, HFILL
+				UNS(&units_seconds), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_sys_vsntp_time_t1_nanoseconds,
 			{ "T1 nanoseconds", "dect_mitel_rfp.sys.vsntp_time.t1_nanoseconds", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-				&units_nanoseconds, 0, NULL, HFILL
+				UNS(&units_nanoseconds), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_sys_vsntp_time_t2_seconds,
 			{ "T2 seconds", "dect_mitel_rfp.sys.vsntp_time.t2_seconds", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-				&units_seconds, 0, NULL, HFILL
+				UNS(&units_seconds), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_sys_vsntp_time_t2_nanoseconds,
 			{ "T2 nanoseconds", "dect_mitel_rfp.sys.vsntp_time.t2_nanoseconds", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-				&units_nanoseconds, 0, NULL, HFILL
+				UNS(&units_nanoseconds), 0, NULL, HFILL
 			}
 		},
 		/* SYS-INIT */
@@ -2000,7 +2000,7 @@ void proto_register_dect_mitel_rfp(void)
 		},
 		{ &hf_dect_mitel_rfp_sys_license_timer_grace_period,
 			{ "Grace period", "dect_mitel_rfp.sys.license_timer.grace_period", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-				&units_minutes, 0x7FFFFFFF, NULL, HFILL
+				UNS(&units_minutes), 0x7FFFFFFF, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_sys_license_timer_checksum,
@@ -2130,7 +2130,7 @@ void proto_register_dect_mitel_rfp(void)
 		/* MEDIA-STATISTICS */
 		{ &hf_dect_mitel_rfp_media_statistics_duration,
 			{ "Duration", "dect_mitel_rfp.media.statistics.duration", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-				&units_seconds, 0, NULL, HFILL
+				UNS(&units_seconds), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_media_statistics_tx_packets,
@@ -2208,7 +2208,7 @@ void proto_register_dect_mitel_rfp(void)
 		/* MEDIA-DTMF */
 		{ &hf_dect_mitel_rfp_media_dtmf_duration,
 			{ "Duration", "dect_mitel_rfp.media.dtmf.duration", FT_UINT16, BASE_DEC|BASE_UNIT_STRING,
-				&units_milliseconds, 0, NULL, HFILL
+				UNS(&units_milliseconds), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_media_dtmf_key,
@@ -2224,42 +2224,42 @@ void proto_register_dect_mitel_rfp(void)
 		},
 		{ &hf_dect_mitel_rfp_media_tone_frequency_1,
 			{ "Frequency 1", "dect_mitel_rfp.media.tone.frequency_1", FT_UINT16, BASE_DEC|BASE_UNIT_STRING,
-				&units_hz, 0, NULL, HFILL
+				UNS(&units_hz), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_media_tone_frequency_2,
 			{ "Frequency 2", "dect_mitel_rfp.media.tone.frequency_2", FT_UINT16, BASE_DEC|BASE_UNIT_STRING,
-				&units_hz, 0, NULL, HFILL
+				UNS(&units_hz), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_media_tone_frequency_3,
 			{ "Frequency 3", "dect_mitel_rfp.media.tone.frequency_3", FT_UINT16, BASE_DEC|BASE_UNIT_STRING,
-				&units_hz, 0, NULL, HFILL
+				UNS(&units_hz), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_media_tone_frequency_4,
 			{ "Frequency 4", "dect_mitel_rfp.media.tone.frequency_4", FT_UINT16, BASE_DEC|BASE_UNIT_STRING,
-				&units_hz, 0, NULL, HFILL
+				UNS(&units_hz), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_media_tone_cb_1,
 			{ "cB 1", "dect_mitel_rfp.media.tone.cb_1", FT_INT16, BASE_DEC|BASE_UNIT_STRING,
-				&units_centibels, 0, NULL, HFILL
+				UNS(&units_centibels), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_media_tone_cb_2,
 			{ "cB 2", "dect_mitel_rfp.media.tone.cb_2", FT_INT16, BASE_DEC|BASE_UNIT_STRING,
-				&units_centibels, 0, NULL, HFILL
+				UNS(&units_centibels), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_media_tone_cb_3,
 			{ "cB 3", "dect_mitel_rfp.media.tone.cb_3", FT_INT16, BASE_DEC|BASE_UNIT_STRING,
-				&units_centibels, 0, NULL, HFILL
+				UNS(&units_centibels), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_media_tone_cb_4,
 			{ "cB 4", "dect_mitel_rfp.media.tone.cb_4", FT_INT16, BASE_DEC|BASE_UNIT_STRING,
-				&units_centibels, 0, NULL, HFILL
+				UNS(&units_centibels), 0, NULL, HFILL
 			}
 		},
 		{ &hf_dect_mitel_rfp_media_tone_duration,
@@ -2318,7 +2318,7 @@ void proto_register_dect_mitel_rfp(void)
 		/* SYNC SET_FREQUENCY */
 		{ &hf_dect_mitel_rfp_sync_set_frequency_value,
 			{ "Frequency", "dect_mitel_rfp.sync.set_frequency.value", FT_UINT16, BASE_DEC|BASE_UNIT_STRING,
-				&units_hz, 0, NULL, HFILL
+				UNS(&units_hz), 0, NULL, HFILL
 			}
 		},
 		/* SYNC START_MAC_SLAVE_MODE_IND */
@@ -2377,7 +2377,7 @@ void proto_register_dect_mitel_rfp(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_dect_mitel_rfp,
 		&ett_dect_mitel_rfp_sys_init_rfp_capabilities,
 		&ett_dect_mitel_rfp_media_tone_entry,

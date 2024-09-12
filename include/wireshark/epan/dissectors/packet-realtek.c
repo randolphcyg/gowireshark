@@ -77,38 +77,38 @@ static const value_string rrcp_opcode_names[] = {
 
 static dissector_handle_t realtek_handle;
 
-static int proto_realtek = -1;
+static int proto_realtek;
 
-static int hf_realtek_packet = -1;
+static int hf_realtek_packet;
 
-static int proto_rrcp = -1;
+static int proto_rrcp;
 
-static int hf_rrcp_protocol = -1;
-static int hf_rrcp_reply = -1;
-static int hf_rrcp_opcode = -1;
-static int hf_rrcp_authkey = -1;
-static int hf_rrcp_regaddr = -1;
-static int hf_rrcp_regdata = -1;
-static int hf_rrcp_hello_reply_dl_port = -1;
-static int hf_rrcp_hello_reply_ul_port = -1;
-static int hf_rrcp_hello_reply_ul_mac = -1;
-static int hf_rrcp_hello_reply_chip_id = -1;
-static int hf_rrcp_hello_reply_vendor_id = -1;
+static int hf_rrcp_protocol;
+static int hf_rrcp_reply;
+static int hf_rrcp_opcode;
+static int hf_rrcp_authkey;
+static int hf_rrcp_regaddr;
+static int hf_rrcp_regdata;
+static int hf_rrcp_hello_reply_dl_port;
+static int hf_rrcp_hello_reply_ul_port;
+static int hf_rrcp_hello_reply_ul_mac;
+static int hf_rrcp_hello_reply_chip_id;
+static int hf_rrcp_hello_reply_vendor_id;
 
-static int proto_rep = -1;
-static int hf_rep_protocol = -1;
+static int proto_rep;
+static int hf_rep_protocol;
 
-static int proto_rldp = -1;
-static int hf_rldp_protocol = -1;
+static int proto_rldp;
+static int hf_rldp_protocol;
 
-static int ett_realtek = -1;
-static int ett_rrcp = -1;
-static int ett_rep = -1;
-static int ett_rldp = -1;
+static int ett_realtek;
+static int ett_rrcp;
+static int ett_rep;
+static int ett_rldp;
 
 static heur_dissector_list_t realtek_heur_subdissector_list;
 
-static const guint8 ether_mac_bcast[] = {
+static const uint8_t ether_mac_bcast[] = {
    0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
 
@@ -148,20 +148,21 @@ dissect_realtek(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
  *
  * for information on RRCP.
  */
-static gboolean
+static bool
 dissect_rrcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   proto_item *ti;
   proto_tree *rrcp_tree;
-  guint8 proto;
+  uint8_t proto;
   int offset = 0;
-  guint32 reply, opcode;
+  bool reply;
+  uint32_t opcode;
 
   if (!tvb_bytes_exist(tvb, 0, 1))
-    return FALSE;
-  proto = tvb_get_guint8(tvb, 0);
+    return false;
+  proto = tvb_get_uint8(tvb, 0);
   if (proto != RTL_PROTOCOL_RRCP)
-    return FALSE;
+    return false;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "RRCP");
   col_clear(pinfo->cinfo, COL_INFO);
@@ -217,7 +218,7 @@ dissect_rrcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
   proto_item_set_end(ti, tvb, offset);
   /* Let 'packet-eth' provide trailer/pad-bytes info */
   tvb_set_reported_length(tvb, offset);
-  return TRUE;
+  return true;
 }
 
 /*
@@ -231,20 +232,20 @@ dissect_rrcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
  *
  * for information on REP.
  */
-static gboolean
+static bool
 dissect_rep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   proto_item *ti;
   proto_tree *rep_tree;
-  guint8 proto;
+  uint8_t proto;
   int offset = 0;
-  gboolean bcast;
+  bool bcast;
 
   if (!tvb_bytes_exist(tvb, 0, 1))
-    return FALSE;
-  proto = tvb_get_guint8(tvb, 0);
+    return false;
+  proto = tvb_get_uint8(tvb, 0);
   if (proto != RTL_PROTOCOL_REP)
-    return FALSE;
+    return false;
 
   ti = proto_tree_add_item(tree, proto_rep, tvb, 0, -1, ENC_NA);
   rep_tree = proto_item_add_subtree(ti, ett_rep);
@@ -263,7 +264,7 @@ dissect_rep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
   proto_item_set_end(ti, tvb, offset);
   /* Let 'packet-eth' provide trailer/pad-bytes info */
   tvb_set_reported_length(tvb, offset);
-  return TRUE;
+  return true;
 }
 
 /*
@@ -319,19 +320,19 @@ dissect_rep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
  * just crap in the buffer in which the chip constructed the packet, left
  * over from something else?
  */
-static int
+static bool
 dissect_rldp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   proto_item *ti;
   proto_tree *rldp_tree;
-  guint8 proto;
+  uint8_t proto;
   int offset = 0;
 
   if (!tvb_bytes_exist(tvb, 0, 1))
-    return FALSE;
-  proto = tvb_get_guint8(tvb, 0);
+    return false;
+  proto = tvb_get_uint8(tvb, 0);
   if (proto != RTL_PROTOCOL_RLDP && proto != RTL_PROTOCOL_RLDP2)
-    return FALSE;
+    return false;
 
   ti = proto_tree_add_item(tree, proto_rldp, tvb, 0, -1, ENC_NA);
   rldp_tree = proto_item_add_subtree(ti, ett_rep);
@@ -346,7 +347,7 @@ dissect_rldp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
   proto_item_set_end(ti, tvb, offset);
   /* Let 'packet-eth' provide trailer/pad-bytes info */
   tvb_set_reported_length(tvb, offset);
-  return TRUE;
+  return true;
 }
 
 /* Register the protocol with Ethereal */
@@ -408,7 +409,7 @@ proto_register_realtek(void)
        NULL, 0x0, NULL, HFILL }},
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_realtek,
     &ett_rrcp,
     &ett_rep,
@@ -419,7 +420,8 @@ proto_register_realtek(void)
                                           "Realtek", "realtek");
   realtek_handle = register_dissector("realtek", dissect_realtek, proto_realtek);
   proto_register_field_array(proto_realtek, hf_realtek, array_length(hf_realtek));
-  realtek_heur_subdissector_list = register_heur_dissector_list("realtek",
+  realtek_heur_subdissector_list = register_heur_dissector_list_with_description("realtek",
+                                                                "Realtek Layer 2 payload",
                                                                 proto_realtek);
 
   proto_rrcp = proto_register_protocol("Realtek Remote Control Protocol",

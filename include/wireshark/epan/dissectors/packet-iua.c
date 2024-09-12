@@ -34,54 +34,54 @@ static module_t *iua_module;
 static dissector_table_t lapd_gsm_sapi_dissector_table;
 
 /* Whether to use GSM SAPI vals or not */
-static gboolean global_iua_gsm_sapis = TRUE;
+static bool global_iua_gsm_sapis = true;
 
 /* Initialize the protocol and registered fields */
-static int proto_iua                = -1;
-static int hf_int_interface_id      = -1;
-static int hf_text_interface_id     = -1;
-static int hf_info_string           = -1;
-static int hf_dlci_zero_bit         = -1;
-static int hf_dlci_spare_bit        = -1;
-static int hf_dlci_sapi             = -1;
-static int hf_dlci_gsm_sapi         = -1;
-static int hf_dlci_one_bit          = -1;
-static int hf_dlci_tei              = -1;
-static int hf_dlci_spare            = -1;
-static int hf_diag_info             = -1;
-static int hf_interface_range_start = -1;
-static int hf_interface_range_end   = -1;
-static int hf_heartbeat_data        = -1;
-static int hf_asp_reason            = -1;
-static int hf_traffic_mode_type     = -1;
-static int hf_error_code            = -1;
-static int hf_error_code_ig         = -1;
-static int hf_status_type           = -1;
-static int hf_status_id             = -1;
-static int hf_release_reason        = -1;
-static int hf_tei_status            = -1;
-static int hf_asp_id                = -1;
-static int hf_parameter_tag         = -1;
-static int hf_parameter_tag_ig      = -1;
-static int hf_parameter_length      = -1;
-static int hf_parameter_value       = -1;
-static int hf_parameter_padding     = -1;
-static int hf_version               = -1;
-static int hf_reserved              = -1;
-static int hf_message_class         = -1;
-static int hf_message_type          = -1;
-static int hf_message_length        = -1;
+static int proto_iua;
+static int hf_int_interface_id;
+static int hf_text_interface_id;
+static int hf_info_string;
+static int hf_dlci_zero_bit;
+static int hf_dlci_spare_bit;
+static int hf_dlci_sapi;
+static int hf_dlci_gsm_sapi;
+static int hf_dlci_one_bit;
+static int hf_dlci_tei;
+static int hf_dlci_spare;
+static int hf_diag_info;
+static int hf_interface_range_start;
+static int hf_interface_range_end;
+static int hf_heartbeat_data;
+static int hf_asp_reason;
+static int hf_traffic_mode_type;
+static int hf_error_code;
+static int hf_error_code_ig;
+static int hf_status_type;
+static int hf_status_id;
+static int hf_release_reason;
+static int hf_tei_status;
+static int hf_asp_id;
+static int hf_parameter_tag;
+static int hf_parameter_tag_ig;
+static int hf_parameter_length;
+static int hf_parameter_value;
+static int hf_parameter_padding;
+static int hf_version;
+static int hf_reserved;
+static int hf_message_class;
+static int hf_message_type;
+static int hf_message_length;
 
 /* Initialize the subtree pointers */
-static gint ett_iua                 = -1;
-static gint ett_iua_parameter       = -1;
+static int ett_iua;
+static int ett_iua_parameter;
 
 /* stores the current SAPI value */
-static guint8 sapi_val;
-static gboolean sapi_val_assigned   = FALSE;
+static uint8_t sapi_val;
+static bool sapi_val_assigned;
 
 /* option setable via preferences, default is plain RFC 3057 */
-static gboolean support_IG          = FALSE;
+static bool support_IG;
 
 static dissector_handle_t q931_handle;
 static dissector_handle_t x25_handle;
@@ -101,8 +101,8 @@ static dissector_handle_t iua_handle;
 static void
 dissect_int_interface_identifier_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 number_of_ids, id_number;
-  gint offset;
+  uint16_t number_of_ids, id_number;
+  int offset;
 
   number_of_ids= (tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH) / INT_INTERFACE_ID_LENGTH;
   offset = PARAMETER_VALUE_OFFSET;
@@ -119,28 +119,28 @@ dissect_int_interface_identifier_parameter(tvbuff_t *parameter_tvb, proto_tree *
 #define TEXT_INTERFACE_ID_OFFSET PARAMETER_VALUE_OFFSET
 
 static void
-dissect_text_interface_identifier_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_text_interface_identifier_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 interface_id_length;
+  uint16_t interface_id_length;
 
   interface_id_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
 
   proto_tree_add_item(parameter_tree, hf_text_interface_id, parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length, ENC_ASCII);
   proto_item_append_text(parameter_item, " (%s)",
-                         tvb_format_text(wmem_packet_scope(), parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length));
+                         tvb_format_text(pinfo->pool, parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length));
 }
 
 #define INFO_STRING_OFFSET PARAMETER_VALUE_OFFSET
 
 static void
-dissect_info_string_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_info_string_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 info_string_length;
+  uint16_t info_string_length;
 
   info_string_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   proto_tree_add_item(parameter_tree, hf_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII);
   proto_item_append_text(parameter_item, " (%s)",
-                         tvb_format_text(wmem_packet_scope(), parameter_tvb, INFO_STRING_OFFSET, info_string_length));
+                         tvb_format_text(pinfo->pool, parameter_tvb, INFO_STRING_OFFSET, info_string_length));
 }
 
 #define DLCI_SAPI_LENGTH  1
@@ -194,8 +194,8 @@ dissect_dlci_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree)
   } else {
     proto_tree_add_item(parameter_tree, hf_dlci_sapi, parameter_tvb, DLCI_SAPI_OFFSET,  DLCI_SAPI_LENGTH,  ENC_BIG_ENDIAN);
   }
-  sapi_val = (tvb_get_guint8(parameter_tvb, DLCI_SAPI_OFFSET) & SAPI_MASK) >> SAPI_SHIFT;
-  sapi_val_assigned = TRUE;
+  sapi_val = (tvb_get_uint8(parameter_tvb, DLCI_SAPI_OFFSET) & SAPI_MASK) >> SAPI_SHIFT;
+  sapi_val_assigned = true;
 
   proto_tree_add_item(parameter_tree, hf_dlci_one_bit,   parameter_tvb, DLCI_TEI_OFFSET,   DLCI_TEI_LENGTH,   ENC_BIG_ENDIAN);
   proto_tree_add_item(parameter_tree, hf_dlci_tei,       parameter_tvb, DLCI_TEI_OFFSET,   DLCI_TEI_LENGTH,   ENC_BIG_ENDIAN);
@@ -205,7 +205,7 @@ dissect_dlci_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree)
 static void
 dissect_diagnostic_information_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 diag_info_length;
+  uint16_t diag_info_length;
 
   diag_info_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   proto_tree_add_item(parameter_tree, hf_diag_info, parameter_tvb, PARAMETER_VALUE_OFFSET, diag_info_length, ENC_NA);
@@ -222,8 +222,8 @@ dissect_diagnostic_information_parameter(tvbuff_t *parameter_tvb, proto_tree *pa
 static void
 dissect_integer_range_interface_identifier_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 number_of_ranges, range_number;
-  gint offset;
+  uint16_t number_of_ranges, range_number;
+  int offset;
 
   number_of_ranges = (tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH) / INTERVAL_LENGTH;
   offset = PARAMETER_VALUE_OFFSET;
@@ -243,7 +243,7 @@ dissect_integer_range_interface_identifier_parameter(tvbuff_t *parameter_tvb, pr
 static void
 dissect_heartbeat_data_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 heartbeat_data_length;
+  uint16_t heartbeat_data_length;
 
   heartbeat_data_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   proto_tree_add_item(parameter_tree, hf_heartbeat_data, parameter_tvb, HEARTBEAT_DATA_OFFSET, heartbeat_data_length, ENC_NA);
@@ -386,7 +386,7 @@ static const value_string status_type_id_ig_values[] = {
 static void
 dissect_status_type_identification_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 status_type, status_id;
+  uint16_t status_type, status_id;
 
   status_type = tvb_get_ntohs(parameter_tvb, STATUS_TYPE_OFFSET);
   status_id   = tvb_get_ntohs(parameter_tvb, STATUS_IDENT_OFFSET);
@@ -405,14 +405,14 @@ dissect_status_type_identification_parameter(tvbuff_t *parameter_tvb, proto_tree
 static void
 dissect_protocol_data_parameter(tvbuff_t *parameter_tvb, proto_item *parameter_item, packet_info *pinfo, proto_tree *tree)
 {
-  guint16 protocol_data_length;
+  uint16_t protocol_data_length;
   tvbuff_t *protocol_data_tvb;
 
   protocol_data_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   protocol_data_tvb    = tvb_new_subset_length(parameter_tvb, PROTOCOL_DATA_OFFSET, protocol_data_length);
   proto_item_append_text(parameter_item, " (%u byte%s)", protocol_data_length, plurality(protocol_data_length, "", "s"));
 
-  if(sapi_val_assigned == FALSE)
+  if(sapi_val_assigned == false)
   {
     return;
   }
@@ -493,7 +493,7 @@ dissect_asp_identifier_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_
 static void
 dissect_unknown_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 parameter_value_length;
+  uint16_t parameter_value_length;
 
   parameter_value_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   if (parameter_value_length > 0)
@@ -555,7 +555,7 @@ static const value_string parameter_tag_ig_values[] = {
 static void
 dissect_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *tree, proto_tree *iua_tree)
 {
-  guint16 tag, length, padding_length;
+  uint16_t tag, length, padding_length;
   proto_item *parameter_item;
   proto_tree *parameter_tree;
 
@@ -577,10 +577,10 @@ dissect_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *tree,
     dissect_int_interface_identifier_parameter(parameter_tvb, parameter_tree, parameter_item);
     break;
   case TEXT_INTERFACE_IDENTIFIER_PARAMETER_TAG:
-    dissect_text_interface_identifier_parameter(parameter_tvb, parameter_tree, parameter_item);
+    dissect_text_interface_identifier_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
     break;
   case INFO_PARAMETER_TAG:
-    dissect_info_string_parameter(parameter_tvb, parameter_tree, parameter_item);
+    dissect_info_string_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
     break;
   case DLCI_PARAMETER_TAG:
     dissect_dlci_parameter(parameter_tvb, parameter_tree);
@@ -636,7 +636,7 @@ dissect_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *tree,
 static void
 dissect_parameters(tvbuff_t *parameters_tvb, packet_info *pinfo, proto_tree *tree, proto_tree *iua_tree)
 {
-  gint offset, length, total_length, remaining_length;
+  int offset, length, total_length, remaining_length;
   tvbuff_t *parameter_tvb;
 
   offset = 0;
@@ -849,10 +849,10 @@ static const value_string message_class_type_acro_ig_values[] = {
 static void
 dissect_common_header(tvbuff_t *common_header_tvb, packet_info *pinfo, proto_tree *iua_tree)
 {
-  guint8 message_class, message_type;
+  uint8_t message_class, message_type;
 
-  message_class  = tvb_get_guint8(common_header_tvb, MESSAGE_CLASS_OFFSET);
-  message_type   = tvb_get_guint8(common_header_tvb, MESSAGE_TYPE_OFFSET);
+  message_class  = tvb_get_uint8(common_header_tvb, MESSAGE_CLASS_OFFSET);
+  message_type   = tvb_get_uint8(common_header_tvb, MESSAGE_TYPE_OFFSET);
 
   col_add_fstr(pinfo->cinfo, COL_INFO, "%s ", val_to_str_const(message_class * 256 + message_type, support_IG?message_class_type_acro_ig_values:message_class_type_acro_values, "UNKNOWN"));
 
@@ -874,7 +874,7 @@ dissect_iua_message(tvbuff_t *message_tvb, packet_info *pinfo, proto_tree *tree,
 {
   tvbuff_t *common_header_tvb, *parameters_tvb;
 
-  sapi_val_assigned = FALSE;
+  sapi_val_assigned = false;
 
   common_header_tvb = tvb_new_subset_length(message_tvb, COMMON_HEADER_OFFSET, COMMON_HEADER_LENGTH);
   parameters_tvb    = tvb_new_subset_remaining(message_tvb, PARAMETERS_OFFSET);
@@ -943,7 +943,7 @@ proto_register_iua(void)
     { &hf_message_length,        { "Message length",               "iua.message_length",            FT_UINT32,  BASE_DEC,  NULL,                           0x0,            NULL, HFILL } },
    };
   /* Setup protocol subtree array */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_iua,
     &ett_iua_parameter,
   };

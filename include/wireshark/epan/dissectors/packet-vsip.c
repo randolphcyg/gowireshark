@@ -677,163 +677,163 @@ static value_string_ext EVsipErrorCode_vals_ext = VALUE_STRING_EXT_INIT(EVsipErr
 
 
 /* Global module variables. */
-static int proto_vsip = -1;
+static int proto_vsip;
 
-static int hf_vsip_ValueTypeString_Size = -1;
-static int hf_vsip_ValueTypeBinary_Size = -1;
-static int hf_vsip_PingReq_ReplyAddress = -1;
-static int hf_vsip_PingReq_ReplyPort = -1;
-static int hf_vsip_PingReq_ConnType = -1;
-static int hf_vsip_PingResp_SuppConnTypes_VOLATILE = -1;
-static int hf_vsip_PingResp_SuppConnTypes_RTP = -1;
-static int hf_vsip_PingResp_SuppConnTypes_SSL = -1;
-static int hf_vsip_PingResp_SuppConnTypes_UDP_BROADCAST = -1;
-static int hf_vsip_PingResp_SuppConnTypes_TCP_CLIENT = -1;
-static int hf_vsip_PingResp_SuppConnTypes_TCP_SERVER = -1;
-static int hf_vsip_PingResp_SuppConnTypes_UDP_MULTICAST = -1;
-static int hf_vsip_PingResp_SuppConnTypes_UDP_UNICAST = -1;
-static int hf_vsip_PingResp_DeviceIP = -1;
-static int hf_vsip_PingResp_DevicePort = -1;
-static int hf_vsip_PingResp_SuppConnTypes = -1;
-static int hf_vsip_ContentTypeSwitchReq_DeviceGUID = -1;
-static int hf_vsip_PingResp_DeviceGUID = -1;
-static int hf_vsip_PingResp_VendorID = -1;
-static int hf_vsip_PingResp_ProductType = -1;
-static int hf_vsip_PingResp_Status = -1;
-static int hf_vsip_PingResp_SubtypeLen = -1;
-static int hf_vsip_PingResp_Subtype = -1;
-static int hf_vsip_ContentTypeSwitchReq_ApplicationGUID = -1;
-static int hf_vsip_ContentTypeSwitchReq_ContentType = -1;
-static int hf_vsip_ContentTypeSwitchResp_DeviceGUID = -1;
-static int hf_vsip_ContentTypeSwitchResp_SwitchResult = -1;
-static int hf_vsip_GetCapabilitiesReq_DisabledCapabilities = -1;
-static int hf_vsip_GetCapabilitiesResp_CapabilityArray_EntityType = -1;
-static int hf_vsip_GetCapabilitiesResp_CapabilityArray_CapabilityGUID = -1;
-static int hf_vsip_GetCapabilitiesResp_CapabilityArray_VendorID = -1;
-static int hf_vsip_GetCapabilitiesResp_CapabilityArray_VersionNumber = -1;
-static int hf_vsip_GetCapabilitiesResp_CapabilityCount = -1;
-static int hf_vsip_StartDevice_CapabilityGUID = -1;
-static int hf_vsip_StartDevice_TargetAddress = -1;
-static int hf_vsip_StartDevice_TargetPort = -1;
-static int hf_vsip_StartDevice_LocalPort = -1;
-static int hf_vsip_StartDevice_ConnectionType = -1;
-static int hf_vsip_StartDeviceEx_CapabilityGUID = -1;
-static int hf_vsip_StartDeviceEx_TargetAddress = -1;
-static int hf_vsip_StartDeviceEx_TargetPort = -1;
-static int hf_vsip_StartDeviceEx_LocalPort = -1;
-static int hf_vsip_StartDeviceEx_ConnectionType = -1;
-static int hf_vsip_StartDeviceEx_TargetGUID = -1;
-static int hf_vsip_StopDevice_CapabilityGUID = -1;
-static int hf_vsip_StopDeviceEx_CapabilityGUID = -1;
-static int hf_vsip_StopDeviceEx_TargetGUID = -1;
-static int hf_vsip_SetConfigReq_ConfigItemArray_Value_ShortValue = -1;
-static int hf_vsip_SetConfigReq_ConfigItemArray_ValueType = -1;
-static int hf_vsip_SetConfigReq_ConfigItemArray_ConfigItemID = -1;
-static int hf_vsip_SetConfigReq_ConfigItemArray_Value_IntValue = -1;
-static int hf_vsip_SetConfigReq_ConfigItemArray_Value_StringValue = -1;
-static int hf_vsip_SetConfigReq_ConfigItemArray_Value_UintValue = -1;
-static int hf_vsip_SetConfigReq_ConfigItemArray_Value_GuidValue = -1;
-static int hf_vsip_SetConfigReq_ConfigItemArray_Value_FloatValue = -1;
-static int hf_vsip_SetConfigReq_ConfigItemArray_Value_BinaryValue = -1;
-static int hf_vsip_SetConfigReq_CapabilityGUID = -1;
-static int hf_vsip_SetConfigReq_ConfigItemCount = -1;
-static int hf_vsip_GetConfigReq_ConfigItemArray_ConfigItemID = -1;
-static int hf_vsip_GetConfigReq_CapabilityGUID = -1;
-static int hf_vsip_GetConfigReq_ConfigItemCount = -1;
-static int hf_vsip_GetConfigResp_ConfigItemArray_ConfigItemID = -1;
-static int hf_vsip_GetConfigResp_ConfigItemArray_ValueType = -1;
-static int hf_vsip_GetConfigResp_ConfigItemArray_Value_CharValue = -1;
-static int hf_vsip_GetConfigResp_ConfigItemArray_Value_ShortValue = -1;
-static int hf_vsip_GetConfigResp_ConfigItemArray_Value_IntValue = -1;
-static int hf_vsip_GetConfigResp_ConfigItemArray_Value_StringValue = -1;
-static int hf_vsip_GetConfigResp_ConfigItemArray_Value_UintValue = -1;
-static int hf_vsip_GetConfigResp_ConfigItemArray_Value_GuidValue = -1;
-static int hf_vsip_GetConfigResp_ConfigItemArray_Value_FloatValue = -1;
-static int hf_vsip_GetConfigResp_ConfigItemArray_Value_BinaryValue = -1;
-static int hf_vsip_SetConfigReq_ConfigItemArray_Value_CharValue = -1;
-static int hf_vsip_GetConfigResp_CapabilityGUID = -1;
-static int hf_vsip_GetConfigResp_ConfigItemCount = -1;
-static int hf_vsip_SendCommand_CapabilityGUID = -1;
-static int hf_vsip_SendCommand_CommandCode = -1;
-static int hf_vsip_SendCommand_Arg1 = -1;
-static int hf_vsip_SendCommand_Arg2 = -1;
-static int hf_vsip_SendCommandEx_AddArgsArray_ValueType = -1;
-static int hf_vsip_SendCommandEx_AddArgsArray_Value_CharValue = -1;
-static int hf_vsip_SendCommandEx_AddArgsArray_Value_ShortValue = -1;
-static int hf_vsip_SendCommandEx_AddArgsArray_Value_IntValue = -1;
-static int hf_vsip_SendCommandEx_AddArgsArray_Value_StringValue = -1;
-static int hf_vsip_SendCommandEx_AddArgsArray_Value_UintValue = -1;
-static int hf_vsip_SendCommandEx_AddArgsArray_Value_GuidValue = -1;
-static int hf_vsip_SendCommandEx_AddArgsArray_Value_FloatValue = -1;
-static int hf_vsip_SendCommandEx_AddArgsArray_Value_BinaryValue = -1;
-static int hf_vsip_SendCommandEx_CapabilityGUID = -1;
-static int hf_vsip_SendCommandEx_CommandCode = -1;
-static int hf_vsip_SendCommandEx_Arg1 = -1;
-static int hf_vsip_SendCommandEx_Arg2 = -1;
-static int hf_vsip_SendCommandEx_NumAddArgs = -1;
-static int hf_vsip_EventNotify_CapabilityGUID = -1;
-static int hf_vsip_EventNotify_EventType = -1;
-static int hf_vsip_EventNotify_EventArgument = -1;
-static int hf_vsip_EventSubscribeReq_ReceiverAddress = -1;
-static int hf_vsip_EventSubscribeReq_ReceiverPort = -1;
-static int hf_vsip_EventSubscribeReq_ConnectionType = -1;
-static int hf_vsip_EventSubscribeExReq_ReceiverAddress = -1;
-static int hf_vsip_EventSubscribeExReq_ReceiverPort = -1;
-static int hf_vsip_EventSubscribeExReq_ConnectionType = -1;
-static int hf_vsip_EventSubscribeExReq_DestinationGUID = -1;
-static int hf_vsip_ErrorResponse_RequestMessageType = -1;
-static int hf_vsip_ErrorResponse_StatusCode = -1;
-static int hf_vsip_ErrorVAResponse_AddArgsArray_ValueType = -1;
-static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_CharValue = -1;
-static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_ShortValue = -1;
-static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_IntValue = -1;
-static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_StringValue = -1;
-static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_UintValue = -1;
-static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_GuidValue = -1;
-static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_FloatValue = -1;
-static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_BinaryValue = -1;
-static int hf_vsip_ErrorVAResponse_NumAddArgs = -1;
-static int hf_vsip_Version = -1;
-static int hf_vsip_Type = -1;
-static int hf_vsip_TransacId = -1;
-static int hf_vsip_PacketSize = -1;
+static int hf_vsip_ValueTypeString_Size;
+static int hf_vsip_ValueTypeBinary_Size;
+static int hf_vsip_PingReq_ReplyAddress;
+static int hf_vsip_PingReq_ReplyPort;
+static int hf_vsip_PingReq_ConnType;
+static int hf_vsip_PingResp_SuppConnTypes_VOLATILE;
+static int hf_vsip_PingResp_SuppConnTypes_RTP;
+static int hf_vsip_PingResp_SuppConnTypes_SSL;
+static int hf_vsip_PingResp_SuppConnTypes_UDP_BROADCAST;
+static int hf_vsip_PingResp_SuppConnTypes_TCP_CLIENT;
+static int hf_vsip_PingResp_SuppConnTypes_TCP_SERVER;
+static int hf_vsip_PingResp_SuppConnTypes_UDP_MULTICAST;
+static int hf_vsip_PingResp_SuppConnTypes_UDP_UNICAST;
+static int hf_vsip_PingResp_DeviceIP;
+static int hf_vsip_PingResp_DevicePort;
+static int hf_vsip_PingResp_SuppConnTypes;
+static int hf_vsip_ContentTypeSwitchReq_DeviceGUID;
+static int hf_vsip_PingResp_DeviceGUID;
+static int hf_vsip_PingResp_VendorID;
+static int hf_vsip_PingResp_ProductType;
+static int hf_vsip_PingResp_Status;
+static int hf_vsip_PingResp_SubtypeLen;
+static int hf_vsip_PingResp_Subtype;
+static int hf_vsip_ContentTypeSwitchReq_ApplicationGUID;
+static int hf_vsip_ContentTypeSwitchReq_ContentType;
+static int hf_vsip_ContentTypeSwitchResp_DeviceGUID;
+static int hf_vsip_ContentTypeSwitchResp_SwitchResult;
+static int hf_vsip_GetCapabilitiesReq_DisabledCapabilities;
+static int hf_vsip_GetCapabilitiesResp_CapabilityArray_EntityType;
+static int hf_vsip_GetCapabilitiesResp_CapabilityArray_CapabilityGUID;
+static int hf_vsip_GetCapabilitiesResp_CapabilityArray_VendorID;
+static int hf_vsip_GetCapabilitiesResp_CapabilityArray_VersionNumber;
+static int hf_vsip_GetCapabilitiesResp_CapabilityCount;
+static int hf_vsip_StartDevice_CapabilityGUID;
+static int hf_vsip_StartDevice_TargetAddress;
+static int hf_vsip_StartDevice_TargetPort;
+static int hf_vsip_StartDevice_LocalPort;
+static int hf_vsip_StartDevice_ConnectionType;
+static int hf_vsip_StartDeviceEx_CapabilityGUID;
+static int hf_vsip_StartDeviceEx_TargetAddress;
+static int hf_vsip_StartDeviceEx_TargetPort;
+static int hf_vsip_StartDeviceEx_LocalPort;
+static int hf_vsip_StartDeviceEx_ConnectionType;
+static int hf_vsip_StartDeviceEx_TargetGUID;
+static int hf_vsip_StopDevice_CapabilityGUID;
+static int hf_vsip_StopDeviceEx_CapabilityGUID;
+static int hf_vsip_StopDeviceEx_TargetGUID;
+static int hf_vsip_SetConfigReq_ConfigItemArray_Value_ShortValue;
+static int hf_vsip_SetConfigReq_ConfigItemArray_ValueType;
+static int hf_vsip_SetConfigReq_ConfigItemArray_ConfigItemID;
+static int hf_vsip_SetConfigReq_ConfigItemArray_Value_IntValue;
+static int hf_vsip_SetConfigReq_ConfigItemArray_Value_StringValue;
+static int hf_vsip_SetConfigReq_ConfigItemArray_Value_UintValue;
+static int hf_vsip_SetConfigReq_ConfigItemArray_Value_GuidValue;
+static int hf_vsip_SetConfigReq_ConfigItemArray_Value_FloatValue;
+static int hf_vsip_SetConfigReq_ConfigItemArray_Value_BinaryValue;
+static int hf_vsip_SetConfigReq_CapabilityGUID;
+static int hf_vsip_SetConfigReq_ConfigItemCount;
+static int hf_vsip_GetConfigReq_ConfigItemArray_ConfigItemID;
+static int hf_vsip_GetConfigReq_CapabilityGUID;
+static int hf_vsip_GetConfigReq_ConfigItemCount;
+static int hf_vsip_GetConfigResp_ConfigItemArray_ConfigItemID;
+static int hf_vsip_GetConfigResp_ConfigItemArray_ValueType;
+static int hf_vsip_GetConfigResp_ConfigItemArray_Value_CharValue;
+static int hf_vsip_GetConfigResp_ConfigItemArray_Value_ShortValue;
+static int hf_vsip_GetConfigResp_ConfigItemArray_Value_IntValue;
+static int hf_vsip_GetConfigResp_ConfigItemArray_Value_StringValue;
+static int hf_vsip_GetConfigResp_ConfigItemArray_Value_UintValue;
+static int hf_vsip_GetConfigResp_ConfigItemArray_Value_GuidValue;
+static int hf_vsip_GetConfigResp_ConfigItemArray_Value_FloatValue;
+static int hf_vsip_GetConfigResp_ConfigItemArray_Value_BinaryValue;
+static int hf_vsip_SetConfigReq_ConfigItemArray_Value_CharValue;
+static int hf_vsip_GetConfigResp_CapabilityGUID;
+static int hf_vsip_GetConfigResp_ConfigItemCount;
+static int hf_vsip_SendCommand_CapabilityGUID;
+static int hf_vsip_SendCommand_CommandCode;
+static int hf_vsip_SendCommand_Arg1;
+static int hf_vsip_SendCommand_Arg2;
+static int hf_vsip_SendCommandEx_AddArgsArray_ValueType;
+static int hf_vsip_SendCommandEx_AddArgsArray_Value_CharValue;
+static int hf_vsip_SendCommandEx_AddArgsArray_Value_ShortValue;
+static int hf_vsip_SendCommandEx_AddArgsArray_Value_IntValue;
+static int hf_vsip_SendCommandEx_AddArgsArray_Value_StringValue;
+static int hf_vsip_SendCommandEx_AddArgsArray_Value_UintValue;
+static int hf_vsip_SendCommandEx_AddArgsArray_Value_GuidValue;
+static int hf_vsip_SendCommandEx_AddArgsArray_Value_FloatValue;
+static int hf_vsip_SendCommandEx_AddArgsArray_Value_BinaryValue;
+static int hf_vsip_SendCommandEx_CapabilityGUID;
+static int hf_vsip_SendCommandEx_CommandCode;
+static int hf_vsip_SendCommandEx_Arg1;
+static int hf_vsip_SendCommandEx_Arg2;
+static int hf_vsip_SendCommandEx_NumAddArgs;
+static int hf_vsip_EventNotify_CapabilityGUID;
+static int hf_vsip_EventNotify_EventType;
+static int hf_vsip_EventNotify_EventArgument;
+static int hf_vsip_EventSubscribeReq_ReceiverAddress;
+static int hf_vsip_EventSubscribeReq_ReceiverPort;
+static int hf_vsip_EventSubscribeReq_ConnectionType;
+static int hf_vsip_EventSubscribeExReq_ReceiverAddress;
+static int hf_vsip_EventSubscribeExReq_ReceiverPort;
+static int hf_vsip_EventSubscribeExReq_ConnectionType;
+static int hf_vsip_EventSubscribeExReq_DestinationGUID;
+static int hf_vsip_ErrorResponse_RequestMessageType;
+static int hf_vsip_ErrorResponse_StatusCode;
+static int hf_vsip_ErrorVAResponse_AddArgsArray_ValueType;
+static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_CharValue;
+static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_ShortValue;
+static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_IntValue;
+static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_StringValue;
+static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_UintValue;
+static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_GuidValue;
+static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_FloatValue;
+static int hf_vsip_ErrorVAResponse_AddArgsArray_Value_BinaryValue;
+static int hf_vsip_ErrorVAResponse_NumAddArgs;
+static int hf_vsip_Version;
+static int hf_vsip_Type;
+static int hf_vsip_TransacId;
+static int hf_vsip_PacketSize;
 
-static int ett_vsipValueTypeString = -1;
-static int ett_vsipValueTypeBinary = -1;
-static int ett_vsipPingReq = -1;
-static int ett_vsipPingResp_SuppConnTypes = -1;
-static int ett_vsipPingResp = -1;
-static int ett_vsipContentTypeSwitchReq = -1;
-static int ett_vsipContentTypeSwitchResp = -1;
-static int ett_vsipGetCapabilitiesReq = -1;
-static int ett_vsipGetCapabilitiesResp_CapabilityArray = -1;
-static int ett_vsipGetCapabilitiesResp = -1;
-static int ett_vsipStartDevice = -1;
-static int ett_vsipStartDeviceEx = -1;
-static int ett_vsipStopDevice = -1;
-static int ett_vsipStopDeviceEx = -1;
-static int ett_vsipSetConfigReq_ConfigItemArray = -1;
-static int ett_vsipSetConfigReq = -1;
-static int ett_vsipGetConfigReq_ConfigItemArray = -1;
-static int ett_vsipGetConfigReq = -1;
-static int ett_vsipGetConfigResp_ConfigItemArray = -1;
-static int ett_vsipGetConfigResp = -1;
-static int ett_vsipSendCommand = -1;
-static int ett_vsipSendCommandEx_AddArgsArray = -1;
-static int ett_vsipSendCommandEx = -1;
-static int ett_vsipEventNotify = -1;
-static int ett_vsipEventSubscribeReq = -1;
-static int ett_vsipEventSubscribeExReq = -1;
-static int ett_vsipErrorResponse = -1;
-static int ett_vsipErrorVAResponse_AddArgsArray = -1;
-static int ett_vsipErrorVAResponse = -1;
-static int ett_vsip = -1;
+static int ett_vsipValueTypeString;
+static int ett_vsipValueTypeBinary;
+static int ett_vsipPingReq;
+static int ett_vsipPingResp_SuppConnTypes;
+static int ett_vsipPingResp;
+static int ett_vsipContentTypeSwitchReq;
+static int ett_vsipContentTypeSwitchResp;
+static int ett_vsipGetCapabilitiesReq;
+static int ett_vsipGetCapabilitiesResp_CapabilityArray;
+static int ett_vsipGetCapabilitiesResp;
+static int ett_vsipStartDevice;
+static int ett_vsipStartDeviceEx;
+static int ett_vsipStopDevice;
+static int ett_vsipStopDeviceEx;
+static int ett_vsipSetConfigReq_ConfigItemArray;
+static int ett_vsipSetConfigReq;
+static int ett_vsipGetConfigReq_ConfigItemArray;
+static int ett_vsipGetConfigReq;
+static int ett_vsipGetConfigResp_ConfigItemArray;
+static int ett_vsipGetConfigResp;
+static int ett_vsipSendCommand;
+static int ett_vsipSendCommandEx_AddArgsArray;
+static int ett_vsipSendCommandEx;
+static int ett_vsipEventNotify;
+static int ett_vsipEventSubscribeReq;
+static int ett_vsipEventSubscribeExReq;
+static int ett_vsipErrorResponse;
+static int ett_vsipErrorVAResponse_AddArgsArray;
+static int ett_vsipErrorVAResponse;
+static int ett_vsip;
 
 
-static guint32 vsip_ValueTypeString(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset, int hf_string)
+static uint32_t vsip_ValueTypeString(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset, int hf_string)
 {
    int soffset = offset;
-   guint16 length;
+   uint16_t length;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 2, ett_vsipValueTypeString, &ti, "ValueTypeString");
@@ -853,10 +853,10 @@ static guint32 vsip_ValueTypeString(proto_tree *tree, packet_info *pinfo _U_, tv
    return offset - soffset;
 }
 
-static guint32 vsip_ValueTypeBinary(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset, int hf_bin)
+static uint32_t vsip_ValueTypeBinary(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset, int hf_bin)
 {
    int soffset = offset;
-   guint32 length;
+   uint32_t length;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 4, ett_vsipValueTypeBinary, &ti, "Binary");
@@ -876,7 +876,7 @@ static guint32 vsip_ValueTypeBinary(proto_tree *tree, packet_info *pinfo _U_, tv
    return offset - soffset;
 }
 
-static guint32 vsip_PingReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_PingReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -894,10 +894,10 @@ static guint32 vsip_PingReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *
    return offset - soffset;
 }
 
-static guint32 vsip_PingResp(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_PingResp(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint16 len;
+   uint16_t len;
    proto_item *ti;
    static int * const supp_conn_types[] = {
         &hf_vsip_PingResp_SuppConnTypes_VOLATILE,
@@ -949,7 +949,7 @@ static guint32 vsip_PingResp(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t 
    return offset - soffset;
 }
 
-static guint32 vsip_ContentTypeSwitchReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_ContentTypeSwitchReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -966,7 +966,7 @@ static guint32 vsip_ContentTypeSwitchReq(proto_tree *tree, packet_info *pinfo _U
    return offset - soffset;
 }
 
-static guint32 vsip_ContentTypeSwitchResp(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_ContentTypeSwitchResp(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -979,7 +979,7 @@ static guint32 vsip_ContentTypeSwitchResp(proto_tree *tree, packet_info *pinfo _
    return offset - soffset;
 }
 
-static guint32 vsip_GetCapabilitiesReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_GetCapabilitiesReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -991,7 +991,7 @@ static guint32 vsip_GetCapabilitiesReq(proto_tree *tree, packet_info *pinfo _U_,
    return offset - soffset;
 }
 
-static guint32 vsip_GetCapabilitiesResp_CapabilityArray(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_GetCapabilitiesResp_CapabilityArray(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -1012,11 +1012,11 @@ static guint32 vsip_GetCapabilitiesResp_CapabilityArray(proto_tree *tree, packet
    return offset - soffset;
 }
 
-static guint32 vsip_GetCapabilitiesResp(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
+static uint32_t vsip_GetCapabilitiesResp(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint16 count;
-   guint32 i;
+   uint16_t count;
+   uint32_t i;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 2, ett_vsipGetCapabilitiesResp, &ti, "GetCapabilitiesResp");
@@ -1035,7 +1035,7 @@ static guint32 vsip_GetCapabilitiesResp(proto_tree *tree, packet_info *pinfo, tv
    return offset - soffset;
 }
 
-static guint32 vsip_StartDevice(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_StartDevice(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -1060,7 +1060,7 @@ static guint32 vsip_StartDevice(proto_tree *tree, packet_info *pinfo _U_, tvbuff
 }
 
 
-static guint32 vsip_StartDeviceEx(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_StartDeviceEx(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -1088,7 +1088,7 @@ static guint32 vsip_StartDeviceEx(proto_tree *tree, packet_info *pinfo _U_, tvbu
 }
 
 
-static guint32 vsip_StopDevice(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_StopDevice(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -1100,7 +1100,7 @@ static guint32 vsip_StopDevice(proto_tree *tree, packet_info *pinfo _U_, tvbuff_
    return offset - soffset;
 }
 
-static guint32 vsip_StopDeviceEx(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_StopDeviceEx(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -1115,10 +1115,10 @@ static guint32 vsip_StopDeviceEx(proto_tree *tree, packet_info *pinfo _U_, tvbuf
    return offset - soffset;
 }
 
-static guint32 vsip_SetConfigReq_ConfigItemArray(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
+static uint32_t vsip_SetConfigReq_ConfigItemArray(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint8 type;
+   uint8_t type;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 3, ett_vsipSetConfigReq_ConfigItemArray, &ti, "ConfigItemArray");
@@ -1126,7 +1126,7 @@ static guint32 vsip_SetConfigReq_ConfigItemArray(proto_tree *tree, packet_info *
    proto_tree_add_item(tree, hf_vsip_SetConfigReq_ConfigItemArray_ConfigItemID, tvb, offset, 2, ENC_BIG_ENDIAN);
    offset += 2;
 
-   type = tvb_get_guint8(tvb, offset);
+   type = tvb_get_uint8(tvb, offset);
    proto_tree_add_item(tree, hf_vsip_SetConfigReq_ConfigItemArray_ValueType, tvb, offset, 1, ENC_BIG_ENDIAN);
    offset++;
 
@@ -1180,11 +1180,11 @@ static guint32 vsip_SetConfigReq_ConfigItemArray(proto_tree *tree, packet_info *
 }
 
 
-static guint32 vsip_SetConfigReq(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
+static uint32_t vsip_SetConfigReq(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint16 count;
-   guint32 i;
+   uint16_t count;
+   uint32_t i;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 18, ett_vsipSetConfigReq, &ti, "SetConfigReq");
@@ -1206,7 +1206,7 @@ static guint32 vsip_SetConfigReq(proto_tree *tree, packet_info *pinfo, tvbuff_t 
    return offset - soffset;
 }
 
-static guint32 vsip_GetConfigReq_ConfigItemArray(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_GetConfigReq_ConfigItemArray(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -1218,11 +1218,11 @@ static guint32 vsip_GetConfigReq_ConfigItemArray(proto_tree *tree, packet_info *
    return offset - soffset;
 }
 
-static guint32 vsip_GetConfigReq(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
+static uint32_t vsip_GetConfigReq(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint16 count;
-   guint32 i;
+   uint16_t count;
+   uint32_t i;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 18, ett_vsipGetConfigReq, &ti, "GetConfigReq");
@@ -1244,10 +1244,10 @@ static guint32 vsip_GetConfigReq(proto_tree *tree, packet_info *pinfo, tvbuff_t 
    return offset - soffset;
 }
 
-static guint32 vsip_GetConfigResp_ConfigItemArray(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
+static uint32_t vsip_GetConfigResp_ConfigItemArray(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint8 type;
+   uint8_t type;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 1, ett_vsipGetConfigResp_ConfigItemArray, &ti, "ConfigItemArray");
@@ -1255,7 +1255,7 @@ static guint32 vsip_GetConfigResp_ConfigItemArray(proto_tree *tree, packet_info 
    proto_tree_add_item(tree, hf_vsip_GetConfigResp_ConfigItemArray_ConfigItemID, tvb, offset, 2, ENC_BIG_ENDIAN);
    offset += 2;
 
-   type = tvb_get_guint8(tvb, offset);
+   type = tvb_get_uint8(tvb, offset);
    proto_tree_add_item(tree, hf_vsip_GetConfigResp_ConfigItemArray_ValueType, tvb, offset, 1, ENC_NA);
    offset++;
 
@@ -1308,11 +1308,11 @@ static guint32 vsip_GetConfigResp_ConfigItemArray(proto_tree *tree, packet_info 
    return offset - soffset;
 }
 
-static guint32 vsip_GetConfigResp(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
+static uint32_t vsip_GetConfigResp(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint16 count;
-   guint32 i;
+   uint16_t count;
+   uint32_t i;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 18, ett_vsipGetConfigResp, &ti, "GetConfigResp");
@@ -1334,7 +1334,7 @@ static guint32 vsip_GetConfigResp(proto_tree *tree, packet_info *pinfo, tvbuff_t
    return offset - soffset;
 }
 
-static guint32 vsip_SendCommand(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_SendCommand(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
    proto_item *ti;
@@ -1356,15 +1356,15 @@ static guint32 vsip_SendCommand(proto_tree *tree, packet_info *pinfo _U_, tvbuff
    return offset - soffset;
 }
 
-static guint32 vsip_SendCommandEx_AddArgsArray(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
+static uint32_t vsip_SendCommandEx_AddArgsArray(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint8 type;
+   uint8_t type;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 3, ett_vsipSendCommandEx_AddArgsArray, &ti, "AddArgsArray");
 
-   type = tvb_get_guint8(tvb, offset);
+   type = tvb_get_uint8(tvb, offset);
    proto_tree_add_item(tree, hf_vsip_SendCommandEx_AddArgsArray_ValueType, tvb, offset, 1, ENC_NA);
    offset++;
 
@@ -1417,11 +1417,11 @@ static guint32 vsip_SendCommandEx_AddArgsArray(proto_tree *tree, packet_info *pi
    return offset - soffset;
 }
 
-static guint32 vsip_SendCommandEx(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
+static uint32_t vsip_SendCommandEx(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint16 count;
-   guint32 i;
+   uint16_t count;
+   uint32_t i;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 27, ett_vsipSendCommandEx, &ti, "SendCommandEx");
@@ -1452,7 +1452,7 @@ static guint32 vsip_SendCommandEx(proto_tree *tree, packet_info *pinfo, tvbuff_t
    return offset - soffset;
 }
 
-static guint32 vsip_EventNotify(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_EventNotify(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -1470,7 +1470,7 @@ static guint32 vsip_EventNotify(proto_tree *tree, packet_info *pinfo _U_, tvbuff
    return offset - soffset;
 }
 
-static guint32 vsip_EventSubscribeReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_EventSubscribeReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -1488,7 +1488,7 @@ static guint32 vsip_EventSubscribeReq(proto_tree *tree, packet_info *pinfo _U_, 
    return offset - soffset;
 }
 
-static guint32 vsip_EventSubscribeExReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_EventSubscribeExReq(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -1509,7 +1509,7 @@ static guint32 vsip_EventSubscribeExReq(proto_tree *tree, packet_info *pinfo _U_
    return offset - soffset;
 }
 
-static guint32 vsip_ErrorResponse(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
+static uint32_t vsip_ErrorResponse(proto_tree *tree, packet_info *pinfo _U_, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
 
@@ -1524,15 +1524,15 @@ static guint32 vsip_ErrorResponse(proto_tree *tree, packet_info *pinfo _U_, tvbu
    return offset - soffset;
 }
 
-static guint32 vsip_ErrorVAResponse_AddArgsArray(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
+static uint32_t vsip_ErrorVAResponse_AddArgsArray(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint8 type;
+   uint8_t type;
    proto_item* ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 1, ett_vsipErrorVAResponse_AddArgsArray, &ti, "AddArgsArray");
 
-   type = tvb_get_guint8(tvb, offset);
+   type = tvb_get_uint8(tvb, offset);
    proto_tree_add_item(tree, hf_vsip_ErrorVAResponse_AddArgsArray_ValueType, tvb, offset, 1, ENC_NA);
    offset++;
 
@@ -1585,11 +1585,11 @@ static guint32 vsip_ErrorVAResponse_AddArgsArray(proto_tree *tree, packet_info *
    return offset - soffset;
 }
 
-static guint32 vsip_ErrorVAResponse(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
+static uint32_t vsip_ErrorVAResponse(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
    int soffset = offset;
-   guint16 count;
-   guint32 i;
+   uint16_t count;
+   uint32_t i;
    proto_item *ti;
 
    tree = proto_tree_add_subtree(tree, tvb, offset, 0, ett_vsipErrorVAResponse, &ti, "ErrorVAResponse");
@@ -1610,19 +1610,19 @@ static guint32 vsip_ErrorVAResponse(proto_tree *tree, packet_info *pinfo, tvbuff
    return offset - soffset;
 }
 
-static guint32 vsip_dissect_pdu(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree  *tree)
+static uint32_t vsip_dissect_pdu(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree  *tree)
 {
     int soffset = offset;
-    guint32 version;
-    guint8 type;
+    uint32_t version;
+    uint8_t type;
     proto_item *ti;
 
     proto_tree_add_item_ret_uint(tree, hf_vsip_Version, tvb, offset, 2, ENC_BIG_ENDIAN, &version);
     offset += 2;
 
-    type = tvb_get_guint8(tvb, offset);
+    type = tvb_get_uint8(tvb, offset);
     proto_tree_add_uint(tree, hf_vsip_Type, tvb, offset, 1, type);
-    col_add_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(type, &EVsipMessageType_vals_ext, "Unknown") );
+    col_set_str(pinfo->cinfo, COL_INFO, val_to_str_ext_const(type, &EVsipMessageType_vals_ext, "Unknown") );
     offset++;
 
     proto_tree_add_item(tree, hf_vsip_TransacId, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -1735,7 +1735,7 @@ static guint32 vsip_dissect_pdu(tvbuff_t *tvb, int offset, packet_info *pinfo, p
 static int dissect_vsip(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     proto_item *ti;
-    guint16    version;
+    uint16_t   version;
 
     /* Make sure we have a supported version */
     version = tvb_get_ntohs(tvb, 0);
@@ -1753,9 +1753,9 @@ static int dissect_vsip(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 }
 
 static void
-vsip_fmt_revision( gchar *result, guint32 revision )
+vsip_fmt_revision( char *result, uint32_t revision )
 {
-   snprintf( result, ITEM_LABEL_LENGTH, "%d.%02d", (guint8)(( revision & 0xFF00 ) >> 8), (guint8)(revision & 0xFF) );
+   snprintf( result, ITEM_LABEL_LENGTH, "%d.%02d", (uint8_t)(( revision & 0xFF00 ) >> 8), (uint8_t)(revision & 0xFF) );
 }
 
 void proto_register_vsip(void)

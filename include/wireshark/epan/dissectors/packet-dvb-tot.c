@@ -21,12 +21,12 @@ void proto_reg_handoff_dvb_tot(void);
 
 static dissector_handle_t dvb_tot_handle;
 
-static int proto_dvb_tot = -1;
-static int hf_dvb_tot_utc_time = -1;
-static int hf_dvb_tot_reserved = -1;
-static int hf_dvb_tot_descriptors_loop_length = -1;
+static int proto_dvb_tot;
+static int hf_dvb_tot_utc_time;
+static int hf_dvb_tot_reserved;
+static int hf_dvb_tot_descriptors_loop_length;
 
-static gint ett_dvb_tot = -1;
+static int ett_dvb_tot;
 
 #define DVB_TOT_RESERVED_MASK                   0xF000
 #define DVB_TOT_DESCRIPTORS_LOOP_LENGTH_MASK    0x0FFF
@@ -34,8 +34,8 @@ static gint ett_dvb_tot = -1;
 static int
 dissect_dvb_tot(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint       offset = 0;
-    guint       descriptor_len;
+    unsigned    offset = 0;
+    unsigned    descriptor_len;
 
     proto_item *ti;
     proto_tree *dvb_tot_tree;
@@ -92,7 +92,7 @@ proto_register_dvb_tot(void)
         } }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_dvb_tot
     };
 

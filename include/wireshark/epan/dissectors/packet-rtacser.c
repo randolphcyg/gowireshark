@@ -32,7 +32,7 @@
  * and the TCP/IP header(s) maintained from the original conversation.  The application data from the
  * message will follow as per a standard Wireshark packet.
  *
- * Serial-based pcap capture files were orignally stored using "User 0" DLT type 147 to specify a
+ * Serial-based pcap capture files were originally stored using "User 0" DLT type 147 to specify a
  * user-defined dissector for pcap data but this format was later modified to specify a custom DLT type
  * known as LINKTYPE_RTAC_SERIAL (DLT 250). The pcap file data portion contains a standard 12-byte serial
  * header followed by the application payload data from actual rx/tx activity on the line.  Some useful
@@ -56,21 +56,21 @@
 void proto_register_rtacser(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_rtacser                    = -1;
-static int hf_rtacser_timestamp             = -1;
-static int hf_rtacser_event_type            = -1;
-static int hf_rtacser_ctrl_cts              = -1;
-static int hf_rtacser_ctrl_dcd              = -1;
-static int hf_rtacser_ctrl_dsr              = -1;
-static int hf_rtacser_ctrl_rts              = -1;
-static int hf_rtacser_ctrl_dtr              = -1;
-static int hf_rtacser_ctrl_ring             = -1;
-static int hf_rtacser_ctrl_mbok             = -1;
-static int hf_rtacser_footer                = -1;
+static int proto_rtacser;
+static int hf_rtacser_timestamp;
+static int hf_rtacser_event_type;
+static int hf_rtacser_ctrl_cts;
+static int hf_rtacser_ctrl_dcd;
+static int hf_rtacser_ctrl_dsr;
+static int hf_rtacser_ctrl_rts;
+static int hf_rtacser_ctrl_dtr;
+static int hf_rtacser_ctrl_ring;
+static int hf_rtacser_ctrl_mbok;
+static int hf_rtacser_footer;
 
 /* Initialize the subtree pointers */
-static gint ett_rtacser                   = -1;
-static gint ett_rtacser_cl                = -1;
+static int ett_rtacser;
+static int ett_rtacser_cl;
 
 static dissector_handle_t rtacser_handle;
 static dissector_table_t  subdissector_table;
@@ -103,7 +103,7 @@ static const value_string rtacser_eventtype_vals[] = {
 };
 
 static void
-rtacser_ppi_prompt(packet_info *pinfo _U_, gchar* result)
+rtacser_ppi_prompt(packet_info *pinfo _U_, char* result)
 {
     snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Payload as");
 }
@@ -118,8 +118,8 @@ dissect_rtacser_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     proto_item    *rtacser_item, *cl_item;
     proto_tree    *rtacser_tree, *cl_tree;
     int           offset = 0, len;
-    guint         event_type;
-    gboolean      cts, dcd, dsr, rts, dtr, ring, mbok;
+    unsigned      event_type;
+    bool          cts, dcd, dsr, rts, dtr, ring, mbok;
     tvbuff_t      *payload_tvb;
 
     len = RTACSER_HEADER_LEN;
@@ -137,7 +137,7 @@ dissect_rtacser_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     offset += 8;
 
     /* Set INFO column with RTAC Serial Event Type */
-    event_type = tvb_get_guint8(tvb, offset);
+    event_type = tvb_get_uint8(tvb, offset);
     col_add_fstr(pinfo->cinfo, COL_INFO, "%-21s", val_to_str_const(event_type, rtacser_eventtype_vals, "Unknown Type"));
 
     /* Add event type to tree */
@@ -145,13 +145,13 @@ dissect_rtacser_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     offset += 1;
 
     /* Retrieve EIA-232 serial control line states */
-    cts  = tvb_get_guint8(tvb, offset) & RTACSER_CTRL_CTS;
-    dcd  = tvb_get_guint8(tvb, offset) & RTACSER_CTRL_DCD;
-    dsr  = tvb_get_guint8(tvb, offset) & RTACSER_CTRL_DSR;
-    rts  = tvb_get_guint8(tvb, offset) & RTACSER_CTRL_RTS;
-    dtr  = tvb_get_guint8(tvb, offset) & RTACSER_CTRL_DTR;
-    ring = tvb_get_guint8(tvb, offset) & RTACSER_CTRL_RING;
-    mbok = tvb_get_guint8(tvb, offset) & RTACSER_CTRL_MBOK;
+    cts  = tvb_get_uint8(tvb, offset) & RTACSER_CTRL_CTS;
+    dcd  = tvb_get_uint8(tvb, offset) & RTACSER_CTRL_DCD;
+    dsr  = tvb_get_uint8(tvb, offset) & RTACSER_CTRL_DSR;
+    rts  = tvb_get_uint8(tvb, offset) & RTACSER_CTRL_RTS;
+    dtr  = tvb_get_uint8(tvb, offset) & RTACSER_CTRL_DTR;
+    ring = tvb_get_uint8(tvb, offset) & RTACSER_CTRL_RING;
+    mbok = tvb_get_uint8(tvb, offset) & RTACSER_CTRL_MBOK;
 
     cl_tree = proto_tree_add_subtree(rtacser_tree, tvb, offset, 1, ett_rtacser_cl, &cl_item, "Control Lines");
 
@@ -207,7 +207,7 @@ dissect_rtacser_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 static int
 dissect_rtacser(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    gint length = tvb_captured_length(tvb);
+    int length = tvb_captured_length(tvb);
 
     /* Check for a RTAC Serial packet.  It should be at least 12 bytes */
     if(length < 12) {
@@ -253,7 +253,7 @@ proto_register_rtacser(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_rtacser,
         &ett_rtacser_cl,
     };

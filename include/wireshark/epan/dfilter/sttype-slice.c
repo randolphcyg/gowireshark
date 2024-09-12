@@ -45,7 +45,7 @@ slice_new(void *junk _U_)
 }
 
 static void *
-slice_dup(gconstpointer data)
+slice_dup(const void *data)
 {
 	const slice_t *org = data;
 	slice_t       *slice;
@@ -169,7 +169,6 @@ sttype_register_slice(void)
 {
 	static sttype_t slice_type = {
 		STTYPE_SLICE,
-		"SLICE",
 		slice_new,
 		slice_free,
 		slice_dup,

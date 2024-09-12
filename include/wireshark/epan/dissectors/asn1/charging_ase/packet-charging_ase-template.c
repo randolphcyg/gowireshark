@@ -14,7 +14,7 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/asn1.h>
-
+#include <wsutil/array.h>
 #include "packet-ber.h"
 #include "packet-charging_ase.h"
 
@@ -26,14 +26,14 @@ void proto_register_charging_ase(void);
 void proto_reg_handoff_charging_ase(void);
 
 /* Define the Charging ASE proto */
-static int proto_charging_ase = -1;
+static int proto_charging_ase;
 
 #include "packet-charging_ase-hf.c"
 
-static int ett_charging_ase = -1;
+static int ett_charging_ase;
 #include "packet-charging_ase-ett.c"
 
-static expert_field ei_charging_ase_extensions_not_dissected = EI_INIT;
+static expert_field ei_charging_ase_extensions_not_dissected;
 
 static dissector_handle_t charging_ase_handle;
 
@@ -65,7 +65,7 @@ proto_register_charging_ase(void)
   };
 
   /* List of subtrees */
-    static gint *ett[] = {
+    static int *ett[] = {
     &ett_charging_ase,
 #include "packet-charging_ase-ettarr.c"
         };

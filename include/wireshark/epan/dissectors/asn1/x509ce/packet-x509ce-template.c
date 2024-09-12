@@ -14,6 +14,7 @@
 #include <epan/packet.h>
 #include <epan/asn1.h>
 #include <epan/oids.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-x509ce.h"
@@ -30,12 +31,15 @@ void proto_register_x509ce(void);
 void proto_reg_handoff_x509ce(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_x509ce = -1;
-static int hf_x509ce_id_ce_invalidityDate = -1;
-static int hf_x509ce_id_ce_baseUpdateTime = -1;
-static int hf_x509ce_object_identifier_id = -1;
-static int hf_x509ce_IPAddress_ipv4 = -1;
-static int hf_x509ce_IPAddress_ipv6 = -1;
+static int proto_x509ce;
+static int hf_x509ce_id_ce_invalidityDate;
+static int hf_x509ce_id_ce_baseUpdateTime;
+static int hf_x509ce_object_identifier_id;
+static int hf_x509ce_IPAddress_ipv4;
+static int hf_x509ce_IPAddress_ipv4_mask;
+static int hf_x509ce_IPAddress_ipv6;
+static int hf_x509ce_IPAddress_ipv6_mask;
+static int hf_x509ce_IPAddress_unknown;
 #include "packet-x509ce-hf.c"
 
 /* Initialize the subtree pointers */
@@ -87,17 +91,17 @@ static int
 dissect_x509ce_invalidityDate_callback(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
-  return dissect_x509ce_GeneralizedTime(FALSE, tvb, 0, &asn1_ctx, tree, hf_x509ce_id_ce_invalidityDate);
+  return dissect_x509ce_GeneralizedTime(false, tvb, 0, &asn1_ctx, tree, hf_x509ce_id_ce_invalidityDate);
 }
 
 static int
 dissect_x509ce_baseUpdateTime_callback(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  return dissect_x509ce_GeneralizedTime(FALSE, tvb, 0, &asn1_ctx, tree, hf_x509ce_id_ce_baseUpdateTime);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  return dissect_x509ce_GeneralizedTime(false, tvb, 0, &asn1_ctx, tree, hf_x509ce_id_ce_baseUpdateTime);
 }
 
 /*--- proto_register_x509ce ----------------------------------------------*/
@@ -119,15 +123,24 @@ void proto_register_x509ce(void) {
     { &hf_x509ce_IPAddress_ipv4,
       { "iPAddress", "x509ce.IPAddress.ipv4", FT_IPv4, BASE_NONE, NULL, 0,
         "IPv4 address", HFILL }},
+    { &hf_x509ce_IPAddress_ipv4_mask,
+      { "iPAddress Mask", "x509ce.IPAddress.ipv4_mask", FT_IPv4, BASE_NONE, NULL, 0,
+        "IPv4 address Mask", HFILL }},
     { &hf_x509ce_IPAddress_ipv6,
       { "iPAddress", "x509ce.IPAddress.ipv6", FT_IPv6, BASE_NONE, NULL, 0,
         "IPv6 address", HFILL }},
+    { &hf_x509ce_IPAddress_ipv6_mask,
+      { "iPAddress Mask", "x509ce.IPAddress.ipv6_mask", FT_IPv6, BASE_NONE, NULL, 0,
+        "IPv6 address Mask", HFILL }},
+    { &hf_x509ce_IPAddress_unknown,
+      { "iPAddress", "x509ce.IPAddress.unknown", FT_BYTES, BASE_NONE, NULL, 0,
+        "Unknown Address", HFILL }},
 
 #include "packet-x509ce-hfarr.c"
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 #include "packet-x509ce-ettarr.c"
   };
 

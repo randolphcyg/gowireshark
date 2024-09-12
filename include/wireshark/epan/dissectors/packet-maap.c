@@ -56,25 +56,25 @@ static const value_string maap_msg_type_vals [] = {
 /**********************************************************/
 /* Initialize the protocol and registered fields          */
 /**********************************************************/
-static int proto_maap = -1;
+static int proto_maap;
 
 /* MAAP PDU */
-static int hf_maap_message_type = -1;
-static int hf_maap_version = -1;
-static int hf_maap_data_length = -1;
-static int hf_maap_stream_id = -1;
-static int hf_maap_req_start_addr = -1;
-static int hf_maap_req_count = -1;
-static int hf_maap_conflict_start_addr = -1;
-static int hf_maap_conflict_count = -1;
+static int hf_maap_message_type;
+static int hf_maap_version;
+static int hf_maap_data_length;
+static int hf_maap_stream_id;
+static int hf_maap_req_start_addr;
+static int hf_maap_req_count;
+static int hf_maap_conflict_start_addr;
+static int hf_maap_conflict_count;
 
 /* Initialize the subtree pointers */
-static int ett_maap = -1;
+static int ett_maap;
 
 static int
 dissect_maap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint8      maap_msg_type;
+    uint8_t     maap_msg_type;
     proto_item *maap_item     = NULL;
     proto_tree *maap_tree     = NULL;
 
@@ -82,7 +82,7 @@ dissect_maap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     col_clear(pinfo->cinfo, COL_INFO);
 
     /* The maap msg type will be handy in a moment */
-    maap_msg_type = tvb_get_guint8(tvb, MAAP_MSG_TYPE_OFFSET);
+    maap_msg_type = tvb_get_uint8(tvb, MAAP_MSG_TYPE_OFFSET);
     maap_msg_type &= 0x0f;
 
     /* Display the name of the packet type in the info column. */
@@ -183,7 +183,7 @@ proto_register_maap(void)
     }; /* end of static hf_register_info hf[] = */
 
     /* Setup protocol subtree array */
-    static gint *ett[] = { &ett_maap };
+    static int *ett[] = { &ett_maap };
 
     /* Register the protocol name and description */
     proto_maap = proto_register_protocol (

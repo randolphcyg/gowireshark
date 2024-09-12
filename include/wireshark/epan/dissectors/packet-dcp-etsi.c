@@ -36,62 +36,62 @@ static dissector_table_t dcp_dissector_table;
 static dissector_table_t af_dissector_table;
 static dissector_table_t tpl_dissector_table;
 
-static int proto_dcp_etsi = -1;
-static int proto_af = -1;
-static int proto_pft = -1;
-static int proto_tpl = -1;
-static int hf_edcp_sync = -1;
-static int hf_edcp_len = -1;
-static int hf_edcp_seq = -1;
-static int hf_edcp_crcflag = -1;
-static int hf_edcp_maj = -1;
-static int hf_edcp_min = -1;
-static int hf_edcp_pt = -1;
-static int hf_edcp_crc = -1;
-static int hf_edcp_crc_ok = -1;
-/* static int hf_edcp_pft_pt = -1; */
-static int hf_edcp_pseq = -1;
-static int hf_edcp_findex = -1;
-static int hf_edcp_fcount = -1;
-static int hf_edcp_fecflag = -1;
-static int hf_edcp_addrflag = -1;
-static int hf_edcp_plen = -1;
-static int hf_edcp_rsk = -1;
-static int hf_edcp_rsz = -1;
-static int hf_edcp_source = -1;
-static int hf_edcp_dest = -1;
-static int hf_edcp_hcrc = -1;
-static int hf_edcp_hcrc_ok = -1;
-/* static int hf_edcp_c_max = -1; */
-/* static int hf_edcp_rx_min = -1; */
-/* static int hf_edcp_rs_corrected = -1; */
-static int hf_edcp_rs_ok = -1;
-static int hf_edcp_pft_payload = -1;
+static int proto_dcp_etsi;
+static int proto_af;
+static int proto_pft;
+static int proto_tpl;
+static int hf_edcp_sync;
+static int hf_edcp_len;
+static int hf_edcp_seq;
+static int hf_edcp_crcflag;
+static int hf_edcp_maj;
+static int hf_edcp_min;
+static int hf_edcp_pt;
+static int hf_edcp_crc;
+static int hf_edcp_crc_ok;
+/* static int hf_edcp_pft_pt; */
+static int hf_edcp_pseq;
+static int hf_edcp_findex;
+static int hf_edcp_fcount;
+static int hf_edcp_fecflag;
+static int hf_edcp_addrflag;
+static int hf_edcp_plen;
+static int hf_edcp_rsk;
+static int hf_edcp_rsz;
+static int hf_edcp_source;
+static int hf_edcp_dest;
+static int hf_edcp_hcrc;
+static int hf_edcp_hcrc_ok;
+/* static int hf_edcp_c_max; */
+/* static int hf_edcp_rx_min; */
+/* static int hf_edcp_rs_corrected; */
+static int hf_edcp_rs_ok;
+static int hf_edcp_pft_payload;
 
-static int hf_tpl_tlv = -1;
-/* static int hf_tpl_ptr = -1; */
+static int hf_tpl_tlv;
+/* static int hf_tpl_ptr; */
 
-static int hf_edcp_fragments = -1;
-static int hf_edcp_fragment = -1;
-static int hf_edcp_fragment_overlap = -1;
-static int hf_edcp_fragment_overlap_conflicts = -1;
-static int hf_edcp_fragment_multiple_tails = -1;
-static int hf_edcp_fragment_too_long_fragment = -1;
-static int hf_edcp_fragment_error = -1;
-static int hf_edcp_fragment_count = -1;
-static int hf_edcp_reassembled_in = -1;
-static int hf_edcp_reassembled_length = -1;
+static int hf_edcp_fragments;
+static int hf_edcp_fragment;
+static int hf_edcp_fragment_overlap;
+static int hf_edcp_fragment_overlap_conflicts;
+static int hf_edcp_fragment_multiple_tails;
+static int hf_edcp_fragment_too_long_fragment;
+static int hf_edcp_fragment_error;
+static int hf_edcp_fragment_count;
+static int hf_edcp_reassembled_in;
+static int hf_edcp_reassembled_length;
 
 /* Initialize the subtree pointers */
-static gint ett_edcp = -1;
-static gint ett_af = -1;
-static gint ett_pft = -1;
-static gint ett_tpl = -1;
-static gint ett_edcp_fragment = -1;
-static gint ett_edcp_fragments = -1;
+static int ett_edcp;
+static int ett_af;
+static int ett_pft;
+static int ett_tpl;
+static int ett_edcp_fragment;
+static int ett_edcp_fragments;
 
-static expert_field ei_edcp_reassembly = EI_INIT;
-static expert_field ei_edcp_reassembly_info = EI_INIT;
+static expert_field ei_edcp_reassembly;
+static expert_field ei_edcp_reassembly_info;
 
 static reassembly_table dcp_reassembly_table;
 
@@ -129,12 +129,12 @@ static void
 static int
 dissect_dcp_etsi(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void * data _U_)
 {
-  guint8 *sync;
+  uint8_t *sync;
   proto_tree *dcp_tree;
   proto_item *ti;
 
   if(tvb_captured_length(tvb) < 11)
-    return FALSE;
+    return false;
 
   /* Clear out stuff in the info column */
   col_clear(pinfo->cinfo, COL_INFO);
@@ -156,8 +156,8 @@ dissect_dcp_etsi(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void * 
  *  \param[in,out] tree The structure containing the details which will be displayed, filtered, etc.
 static void
  */
-static gboolean
-dissect_dcp_etsi_heur(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void * data _U_)
+static bool
+dissect_dcp_etsi_heur(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void * data)
 {
   /* 6.1 AF packet structure
    *
@@ -186,30 +186,30 @@ dissect_dcp_etsi_heur(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, vo
    * Don't accept this packet unless at least a full AF header present(10 bytes).
    * It should be possible to strengthen the heuristic further if need be.
    */
-  guint16 word;
+  uint16_t word;
 
   if(tvb_captured_length(tvb) < 11)
-    return FALSE;
+    return false;
 
   word = tvb_get_ntohs(tvb,0);
   /* Check for 'AF or 'PF' */
   if (word == 0x4146) {
     /* AF - check the version, which is only major 1, minor 0 */
-    if ((tvb_get_guint8(tvb, 8) & 0x7F) != 0x10) {
-      return FALSE;
+    if ((tvb_get_uint8(tvb, 8) & 0x7F) != 0x10) {
+      return false;
     }
     /* Tag packets are the only payload type */
-    if (tvb_get_guint8(tvb, 9) != 'T') {
-      return FALSE;
+    if (tvb_get_uint8(tvb, 9) != 'T') {
+      return false;
     }
   } else if (word == 0x5046) {
     /* PFT - header length 14, 16, 18, or 20 depending on options.
      * Always contains CRC. */
     if (tvb_captured_length(tvb) < 14) {
-      return FALSE;
+      return false;
     }
-    guint16 plen = tvb_get_ntohs(tvb, 10);
-    guint header_len = 14;
+    uint16_t plen = tvb_get_ntohs(tvb, 10);
+    unsigned header_len = 14;
     if (plen & 0x8000) {
       header_len += 2;
     }
@@ -217,18 +217,18 @@ dissect_dcp_etsi_heur(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, vo
       header_len += 4;
     }
     if (tvb_captured_length(tvb) < header_len) {
-      return FALSE;
+      return false;
     }
     if (crc16_x25_ccitt_tvb(tvb, header_len) != 0x1D0F) {
-      return FALSE;
+      return false;
     }
   } else {
-    return FALSE;
+    return false;
   }
 
   dissect_dcp_etsi(tvb, pinfo, tree, data);
 
-  return TRUE;
+  return true;
 }
 
 #define PFT_RS_N_MAX 207
@@ -237,9 +237,9 @@ dissect_dcp_etsi_heur(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, vo
 
 
 static
-void rs_deinterleave(const guint8 *input, guint8 *output, guint16 plen, guint32 fcount)
+void rs_deinterleave(const uint8_t *input, uint8_t *output, uint16_t plen, uint32_t fcount)
 {
-  guint fidx;
+  unsigned fidx;
   for(fidx=0; fidx<fcount; fidx++)
   {
     int r;
@@ -251,10 +251,10 @@ void rs_deinterleave(const guint8 *input, guint8 *output, guint16 plen, guint32 
 }
 
 static
-gboolean rs_correct_data(guint8 *deinterleaved, guint8 *output,
- guint32 c_max, guint16 rsk, guint16 rsz _U_)
+bool rs_correct_data(uint8_t *deinterleaved, uint8_t *output,
+ uint32_t c_max, uint16_t rsk, uint16_t rsz _U_)
 {
-  guint32 i, index_coded = 0, index_out = 0;
+  uint32_t i, index_coded = 0, index_out = 0;
   int err_corr;
   for (i=0; i<c_max; i++)
   {
@@ -264,35 +264,35 @@ gboolean rs_correct_data(guint8 *deinterleaved, guint8 *output,
     index_coded += PFT_RS_P;
     err_corr = eras_dec_rs(output+index_out, NULL, 0);
     if (err_corr<0) {
-      return FALSE;
+      return false;
     }
     index_out += rsk;
   }
-  return TRUE;
+  return true;
 }
 
 /* Don't attempt reassembly if we have a huge number of fragments. */
-#define MAX_FRAGMENTS ((1 * 1024 * 1024) / sizeof(guint32))
+#define MAX_FRAGMENTS ((1 * 1024 * 1024) / sizeof(uint32_t))
 /* If we missed more than this number of consecutive fragments,
    we don't attempt reassembly */
 #define MAX_FRAG_GAP  1000
 
 static tvbuff_t *
 dissect_pft_fec_detailed(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
-  guint32 findex _U_,
-  guint32 fcount,
-  guint16 seq,
-  gint offset,
-  guint16 plen,
-  gboolean fec _U_,
-  guint16 rsk,
-  guint16 rsz,
+  uint32_t findex _U_,
+  uint32_t fcount,
+  uint16_t seq,
+  int offset,
+  uint16_t plen,
+  bool fec _U_,
+  uint16_t rsk,
+  uint16_t rsz,
   fragment_head *fdx
 )
 {
-  guint32 decoded_size;
-  guint32 c_max;
-  guint32 rx_min;
+  uint32_t decoded_size;
+  uint32_t c_max;
+  uint32_t rx_min;
   tvbuff_t *new_tvb=NULL;
 
   if (fcount > MAX_FRAGMENTS) {
@@ -309,14 +309,14 @@ dissect_pft_fec_detailed(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
                                         fdx, &dcp_frag_items,
                                         NULL, tree);
   else {
-    guint fragments=0;
-    guint32 *got;
+    unsigned fragments=0;
+    uint32_t *got;
     fragment_item *fd;
     fragment_head *fd_head;
 
     proto_tree_add_expert_format(tree, pinfo, &ei_edcp_reassembly_info, tvb, 0, -1, "want %d, got %d need %d",
                            fcount, fragments, rx_min);
-    got = (guint32 *)wmem_alloc(pinfo->pool, fcount*sizeof(guint32));
+    got = (uint32_t *)wmem_alloc(pinfo->pool, fcount*sizeof(uint32_t));
 
     /* make a list of the findex (offset) numbers of the fragments we have */
     fd_head = fragment_get(&dcp_reassembly_table, pinfo, seq, NULL);
@@ -329,9 +329,9 @@ dissect_pft_fec_detailed(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
     }
     /* have we got enough for Reed Solomon to try to correct ? */
     if(fragments>=rx_min) { /* yes, in theory */
-      guint i,current_findex;
+      unsigned i,current_findex;
       fragment_head *frag=NULL;
-      guint8 *dummy_data = (guint8*) wmem_alloc0 (pinfo->pool, plen);
+      uint8_t *dummy_data = (uint8_t*) wmem_alloc0 (pinfo->pool, plen);
       tvbuff_t *dummytvb = tvb_new_real_data(dummy_data, plen, plen);
       /* try and decode with missing fragments */
       proto_tree_add_expert_format(tree, pinfo, &ei_edcp_reassembly_info, tvb, 0, -1, "want %d, got %d need %d",
@@ -339,7 +339,7 @@ dissect_pft_fec_detailed(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
       /* fill the fragment table with empty fragments */
       current_findex = 0;
       for(i=0; i<fragments; i++) {
-        guint next_fragment_we_have = got[i];
+        unsigned next_fragment_we_have = got[i];
         if (next_fragment_we_have > MAX_FRAGMENTS) {
           proto_tree_add_expert_format(tree, pinfo, &ei_edcp_reassembly, tvb , 0, -1, "[Reassembly of %d fragments not attempted]", next_fragment_we_have);
           return NULL;
@@ -367,12 +367,12 @@ dissect_pft_fec_detailed(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
     }
   }
   if(new_tvb && tvb_captured_length(new_tvb) > 0) {
-    gboolean decoded;
+    bool decoded;
     tvbuff_t *dtvb = NULL;
-    const guint8 *input = tvb_get_ptr(new_tvb, 0, -1);
-    guint32 reassembled_size = tvb_captured_length(new_tvb);
-    guint8 *deinterleaved = (guint8*) wmem_alloc(pinfo->pool, reassembled_size);
-    guint8 *output = (guint8*) wmem_alloc(pinfo->pool, decoded_size);
+    const uint8_t *input = tvb_get_ptr(new_tvb, 0, -1);
+    uint32_t reassembled_size = tvb_captured_length(new_tvb);
+    uint8_t *deinterleaved = (uint8_t*) wmem_alloc(pinfo->pool, reassembled_size);
+    uint8_t *output = (uint8_t*) wmem_alloc(pinfo->pool, decoded_size);
     rs_deinterleave(input, deinterleaved, plen, fcount);
 
     dtvb = tvb_new_child_real_data(tvb, deinterleaved, reassembled_size, reassembled_size);
@@ -406,20 +406,20 @@ dissect_pft_fec_detailed(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
  */
 static tvbuff_t *
 dissect_pft_fragmented(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
-  guint32 findex,
-  guint32 fcount,
-  guint16 seq,
-  gint offset,
-  guint16 plen,
-  gboolean fec,
-  guint16 rsk,
-  guint16 rsz
+  uint32_t findex,
+  uint32_t fcount,
+  uint16_t seq,
+  int offset,
+  uint16_t plen,
+  bool fec,
+  uint16_t rsk,
+  uint16_t rsz
 )
 {
-  gboolean first, last;
+  bool first, last;
   tvbuff_t *new_tvb=NULL;
   fragment_head *frag_edcp = NULL;
-  pinfo->fragmented = TRUE;
+  pinfo->fragmented = true;
   first = findex == 0;
   last = fcount == (findex+1);
   frag_edcp = fragment_add_seq_check (
@@ -464,15 +464,15 @@ dissect_pft_fragmented(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
 static int
 dissect_pft(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data)
 {
-  guint16 plen;
-  gint offset = 0;
-  guint16 seq, payload_len;
-  guint32 findex, fcount;
+  uint16_t plen;
+  int offset = 0;
+  uint16_t seq, payload_len;
+  uint32_t findex, fcount;
   proto_tree *pft_tree;
   proto_item *ti, *li;
   tvbuff_t *next_tvb = NULL;
-  gboolean fec = FALSE;
-  guint16 rsk=0, rsz=0;
+  bool fec = false;
+  uint16_t rsk=0, rsz=0;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "DCP-PFT");
 
@@ -501,11 +501,11 @@ dissect_pft(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data)
 
   offset += 2;
   if (plen & 0x8000) {
-    fec = TRUE;
-    rsk = tvb_get_guint8 (tvb, offset);
+    fec = true;
+    rsk = tvb_get_uint8 (tvb, offset);
     proto_tree_add_item (pft_tree, hf_edcp_rsk, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset += 1;
-    rsz = tvb_get_guint8 (tvb, offset);
+    rsz = tvb_get_uint8 (tvb, offset);
     proto_tree_add_item (pft_tree, hf_edcp_rsz, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset += 1;
   }
@@ -517,16 +517,16 @@ dissect_pft(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data)
   }
   if (tree) {
     proto_item *ci = NULL;
-    guint header_len = offset+2;
-    guint16 c = crc16_x25_ccitt_tvb(tvb, header_len);
+    unsigned header_len = offset+2;
+    uint16_t c = crc16_x25_ccitt_tvb(tvb, header_len);
     ci = proto_tree_add_item (pft_tree, hf_edcp_hcrc, tvb, offset, 2, ENC_BIG_ENDIAN);
     proto_item_append_text(ci, " (%s)", (c==0x1D0F)?"Ok":"bad");
     proto_tree_add_boolean(pft_tree, hf_edcp_hcrc_ok, tvb, offset, 2, c==0x1D0F);
   }
   offset += 2;
   if (fcount > 1) {             /* fragmented*/
-    gboolean save_fragmented = pinfo->fragmented;
-    guint16 real_len = tvb_captured_length(tvb)-offset;
+    bool save_fragmented = pinfo->fragmented;
+    uint16_t real_len = tvb_captured_length(tvb)-offset;
     proto_tree_add_item (pft_tree, hf_edcp_pft_payload, tvb, offset, real_len, ENC_NA);
     if(real_len != payload_len || real_len == 0) {
       proto_item_append_text(li, " (length error (%d))", real_len);
@@ -556,13 +556,13 @@ dissect_pft(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data)
 static int
 dissect_af (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _U_)
 {
-  gint offset = 0;
+  int offset = 0;
   proto_item *ti;
   proto_item *li = NULL;
   proto_item *ci;
   proto_tree *af_tree;
-  guint8 ver, pt;
-  guint32 payload_len;
+  uint8_t ver, pt;
+  uint32_t payload_len;
   tvbuff_t *next_tvb = NULL;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "DCP-AF");
@@ -574,7 +574,7 @@ dissect_af (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _
   offset += 2;
   payload_len = tvb_get_ntohl(tvb, offset);
   if (tree) {
-    guint32 real_payload_len = tvb_captured_length(tvb)-12;
+    uint32_t real_payload_len = tvb_captured_length(tvb)-12;
     li = proto_tree_add_item (af_tree, hf_edcp_len, tvb, offset, 4, ENC_BIG_ENDIAN);
     if(real_payload_len < payload_len) {
       proto_item_append_text (li, " (wrong len claims %d is %d)",
@@ -589,21 +589,21 @@ dissect_af (tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _
   offset += 4;
   proto_tree_add_item (af_tree, hf_edcp_seq, tvb, offset, 2, ENC_BIG_ENDIAN);
   offset += 2;
-  ver = tvb_get_guint8 (tvb, offset);
+  ver = tvb_get_uint8 (tvb, offset);
   proto_tree_add_item (af_tree, hf_edcp_crcflag, tvb, offset, 1, ENC_BIG_ENDIAN);
   proto_tree_add_item (af_tree, hf_edcp_maj, tvb, offset, 1, ENC_BIG_ENDIAN);
   proto_tree_add_item (af_tree, hf_edcp_min, tvb, offset, 1, ENC_BIG_ENDIAN);
 
   offset += 1;
-  pt = tvb_get_guint8 (tvb, offset);
+  pt = tvb_get_uint8 (tvb, offset);
   proto_tree_add_item (af_tree, hf_edcp_pt, tvb, offset, 1, ENC_ASCII);
   offset += 1;
   next_tvb = tvb_new_subset_length(tvb, offset, payload_len);
   offset += payload_len;
   ci = proto_tree_add_item (af_tree, hf_edcp_crc, tvb, offset, 2, ENC_BIG_ENDIAN);
   if (ver & 0x80) { /* crc valid */
-    guint len = offset+2;
-    guint16 c = crc16_x25_ccitt_tvb(tvb, len);
+    unsigned len = offset+2;
+    uint16_t c = crc16_x25_ccitt_tvb(tvb, len);
     proto_item_append_text(ci, " (%s)", (c==0x1D0F)?"Ok":"bad");
     proto_tree_add_boolean(af_tree, hf_edcp_crc_ok, tvb, offset, 2, c==0x1D0F);
   }
@@ -627,7 +627,7 @@ static int
 dissect_tpl(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _U_)
 {
   proto_tree *tpl_tree;
-  guint offset=0;
+  unsigned offset=0;
   proto_item *ti;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "DCP-TPL");
@@ -637,8 +637,8 @@ dissect_tpl(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* data _
 
   while(offset<tvb_reported_length(tvb)) {
     tvbuff_t *next_tvb;
-    guint32 bits;
-    guint32 bytes;
+    uint32_t bits;
+    uint32_t bytes;
     char *tag = (char*)tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ASCII);
     bits = tvb_get_ntohl(tvb, offset+4);
     bytes = bits / 8;
@@ -867,7 +867,7 @@ proto_register_dcp_etsi (void)
     };
 
 /* Setup protocol subtree array */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_edcp,
     &ett_af,
     &ett_pft,

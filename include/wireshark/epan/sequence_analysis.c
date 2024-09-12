@@ -11,6 +11,7 @@
  */
 
 #include "config.h"
+#define WS_LOG_DOMAIN LOG_DOMAIN_EPAN
 
 #include "sequence_analysis.h"
 
@@ -28,14 +29,14 @@ struct register_analysis {
     const char* ui_name;       /* Name used for UI */
     int proto_id;              /* protocol id (0-indexed) */
     const char* tap_listen_str;      /* string used in register_tap_listener (NULL to use protocol name) */
-    guint tap_flags;
+    unsigned tap_flags;
     tap_packet_cb analysis_func;    /* function to be called for new incoming packets for sequence analysis */
 };
 
-static wmem_tree_t *registered_seq_analysis = NULL;
+static wmem_tree_t *registered_seq_analysis;
 
 void
-register_seq_analysis(const char* name, const char* ui_name, const int proto_id, const char* tap_listener, guint tap_flags, tap_packet_cb tap_func)
+register_seq_analysis(const char* name, const char* ui_name, const int proto_id, const char* tap_listener, unsigned tap_flags, tap_packet_cb tap_func)
 {
     register_analysis_t* analysis;
 
@@ -79,7 +80,7 @@ tap_packet_cb sequence_analysis_get_packet_func(register_analysis_t* analysis)
     return analysis->analysis_func;
 }
 
-guint sequence_analysis_get_tap_flags(register_analysis_t* analysis)
+unsigned sequence_analysis_get_tap_flags(register_analysis_t* analysis)
 {
     return analysis->tap_flags;
 }
@@ -90,7 +91,7 @@ register_analysis_t* sequence_analysis_find_by_name(const char* name)
     return (register_analysis_t*)wmem_tree_lookup_string(registered_seq_analysis, name, 0);
 }
 
-void sequence_analysis_table_iterate_tables(wmem_foreach_func func, gpointer user_data)
+void sequence_analysis_table_iterate_tables(wmem_foreach_func func, void *user_data)
 {
     wmem_tree_foreach(registered_seq_analysis, func, user_data);
 }
@@ -100,13 +101,12 @@ seq_analysis_item_t* sequence_analysis_create_sai_with_addresses(packet_info *pi
     seq_analysis_item_t *sai = NULL;
     char time_str[COL_MAX_LEN];
 
-    if (sainfo->any_addr) {
+    if (!sainfo->any_addr) {
         if (pinfo->net_src.type!=AT_NONE && pinfo->net_dst.type!=AT_NONE) {
             sai = g_new0(seq_analysis_item_t, 1);
             copy_address(&(sai->src_addr),&(pinfo->net_src));
             copy_address(&(sai->dst_addr),&(pinfo->net_dst));
         }
-
     } else {
         if (pinfo->src.type!=AT_NONE && pinfo->dst.type!=AT_NONE) {
             sai = g_new0(seq_analysis_item_t, 1);
@@ -129,14 +129,14 @@ void sequence_analysis_use_color_filter(packet_info *pinfo, seq_analysis_item_t 
     if (pinfo->fd->color_filter) {
         sai->bg_color = color_t_to_rgb(&pinfo->fd->color_filter->bg_color);
         sai->fg_color = color_t_to_rgb(&pinfo->fd->color_filter->fg_color);
-        sai->has_color_filter = TRUE;
+        sai->has_color_filter = true;
     }
 }
 
 void sequence_analysis_use_col_info_as_label_comment(packet_info *pinfo, seq_analysis_item_t *sai)
 {
-    const gchar *protocol = NULL;
-    const gchar *colinfo = NULL;
+    const char *protocol = NULL;
+    const char *colinfo = NULL;
 
     if (pinfo->cinfo) {
         colinfo = col_get_text(pinfo->cinfo, COL_INFO);
@@ -164,7 +164,7 @@ sequence_analysis_info_new(void)
 {
     seq_analysis_info_t *sainfo = g_new0(seq_analysis_info_t, 1);
 
-    /* SEQ_ANALYSIS_DEBUG("adding new item"); */
+    ws_noisy("adding new item");
     sainfo->items = g_queue_new();
     sainfo->ht= g_hash_table_new(g_direct_hash, g_direct_equal);
     return sainfo;
@@ -174,7 +174,7 @@ void sequence_analysis_info_free(seq_analysis_info_t *sainfo)
 {
     if (!sainfo) return;
 
-    /* SEQ_ANALYSIS_DEBUG("%d items", g_queue_get_length(sainfo->items)); */
+    ws_noisy("%d items", g_queue_get_length(sainfo->items));
     sequence_analysis_list_free(sainfo);
 
     g_queue_free(sainfo->items);
@@ -184,7 +184,7 @@ void sequence_analysis_info_free(seq_analysis_info_t *sainfo)
     g_free(sainfo);
 }
 
-static void sequence_analysis_item_free(gpointer data)
+static void sequence_analysis_item_free(void *data)
 {
     seq_analysis_item_t *seq_item = (seq_analysis_item_t *)data;
     g_free(seq_item->frame_label);
@@ -208,8 +208,8 @@ static void sequence_analysis_item_free(gpointer data)
 
 
 /* compare two list entries by packet no */
-static gint
-sequence_analysis_sort_compare(gconstpointer a, gconstpointer b, gpointer user_data _U_)
+static int
+sequence_analysis_sort_compare(const void *a, const void *b, void *user_data _U_)
 {
     const seq_analysis_item_t *entry_a = (const seq_analysis_item_t *)a;
     const seq_analysis_item_t *entry_b = (const seq_analysis_item_t *)b;
@@ -235,7 +235,7 @@ void
 sequence_analysis_list_free(seq_analysis_info_t *sainfo)
 {
     if (!sainfo) return;
-    /* SEQ_ANALYSIS_DEBUG("%d items", g_queue_get_length(sainfo->items)); */
+    ws_noisy("%d items", g_queue_get_length(sainfo->items));
 
     /* free the graph data items */
 
@@ -255,8 +255,8 @@ sequence_analysis_list_free(seq_analysis_info_t *sainfo)
  * and Return -2 if the array is full
  */
 /****************************************************************************/
-static guint add_or_get_node(seq_analysis_info_t *sainfo, address *node) {
-    guint i;
+static unsigned add_or_get_node(seq_analysis_info_t *sainfo, address *node) {
+    unsigned i;
 
     if (node->type == AT_NONE) return NODE_OVERFLOW;
 
@@ -273,19 +273,65 @@ static guint add_or_get_node(seq_analysis_info_t *sainfo, address *node) {
     }
 }
 
+/* Same as add_or_get_node() but invoked for conversations where the same address is both used
+ * as src and dst.
+ * The occurrence number is tracking how many times this address was seen,
+ * value is 0 for the first occurrence, 1 for the second, and we never go higher to not have
+ * too many Y-Axis in the diagram.
+ */
+static unsigned add_or_get_node_local(seq_analysis_info_t *sainfo, address *node, uint8_t occurrence) {
+    unsigned i;
+
+    if (node->type == AT_NONE) return NODE_OVERFLOW;
+
+    for (i=0; i<MAX_NUM_NODES && i < sainfo->num_nodes ; i++) {
+        if ( cmp_address(&(sainfo->nodes[i]), node) == 0 ) {
+
+            /* address is matching, go further by checking the occurrence indication */
+            if(sainfo->occurrence[i]==occurrence) {
+                return i;
+            }
+        }
+    }
+
+    if (i >= MAX_NUM_NODES) {
+        return  NODE_OVERFLOW;
+    }
+    else { /* insert a new entry */
+        sainfo->num_nodes++;
+        copy_address(&(sainfo->nodes[i]), node);
+        sainfo->occurrence[i] = occurrence;
+        return i;
+    }
+}
+
 struct sainfo_counter {
     seq_analysis_info_t *sainfo;
     int num_items;
 };
 
-static void sequence_analysis_get_nodes_item_proc(gpointer data, gpointer user_data)
+static void sequence_analysis_get_nodes_item_proc(void *data, void *user_data)
 {
     seq_analysis_item_t *gai = (seq_analysis_item_t *)data;
     struct sainfo_counter *sc = (struct sainfo_counter *)user_data;
     if (gai->display) {
         (sc->num_items)++;
-        gai->src_node = add_or_get_node(sc->sainfo, &(gai->src_addr));
-        gai->dst_node = add_or_get_node(sc->sainfo, &(gai->dst_addr));
+
+        /* when both addresses are the same, look at the ports indications */
+        if( addresses_equal(&(gai->src_addr), &(gai->dst_addr)) ) {
+            if(gai->port_src < gai->port_dst) {
+                gai->src_node = add_or_get_node_local(sc->sainfo, &(gai->src_addr), 0 );
+                gai->dst_node = add_or_get_node_local(sc->sainfo, &(gai->dst_addr), 1 );
+            }
+            else {
+                gai->src_node = add_or_get_node_local(sc->sainfo, &(gai->src_addr), 1 );
+                gai->dst_node = add_or_get_node_local(sc->sainfo, &(gai->dst_addr), 0 );
+            }
+        }
+        else {
+            gai->src_node = add_or_get_node(sc->sainfo, &(gai->src_addr));
+            gai->dst_node = add_or_get_node(sc->sainfo, &(gai->dst_addr));
+        }
     }
 }
 
@@ -330,9 +376,9 @@ sequence_analysis_free_nodes(seq_analysis_info_t *sainfo)
 /* Adds trailing characters to complete the requested length.               */
 /****************************************************************************/
 
-static void enlarge_string(GString *gstr, guint32 length, char pad) {
+static void enlarge_string(GString *gstr, uint32_t length, char pad) {
 
-    gsize i;
+    size_t i;
 
     for (i = gstr->len; i < length; i++) {
         g_string_append_c(gstr, pad);
@@ -345,11 +391,11 @@ static void enlarge_string(GString *gstr, guint32 length, char pad) {
 /*   NB: it does not check that p1 and p2 fit into string                   */
 /****************************************************************************/
 
-static void overwrite (GString *gstr, char *text_to_insert, guint32 p1, guint32 p2) {
+static void overwrite (GString *gstr, char *text_to_insert, uint32_t p1, uint32_t p2) {
 
     glong len, ins_len;
-    gsize pos;
-    gchar *ins_str = NULL;
+    size_t pos;
+    char *ins_str = NULL;
 
     if (p1 == p2)
         return;
@@ -385,12 +431,12 @@ static void overwrite (GString *gstr, char *text_to_insert, guint32 p1, guint32 
 void
 sequence_analysis_dump_to_file(FILE  *of, seq_analysis_info_t *sainfo, unsigned int first_node)
 {
-    guint32  i, display_items, display_nodes;
-    guint32  start_position, end_position, item_width, header_length;
+    uint32_t i, display_items, display_nodes;
+    uint32_t start_position, end_position, item_width, header_length;
     seq_analysis_item_t *sai;
-    guint16  first_conv_num = 0;
-    gboolean several_convs  = FALSE;
-    gboolean first_packet   = TRUE;
+    uint16_t first_conv_num = 0;
+    bool several_convs  = false;
+    bool first_packet   = true;
 
     GString    *label_string, *empty_line, *separator_line, *tmp_str, *tmp_str2;
     const char *empty_header;
@@ -413,10 +459,10 @@ sequence_analysis_dump_to_file(FILE  *of, seq_analysis_info_t *sainfo, unsigned 
         display_items += 1;
         if (first_packet) {
             first_conv_num = sai->conv_num;
-            first_packet = FALSE;
+            first_packet = false;
         }
         else if (sai->conv_num != first_conv_num) {
-            several_convs = TRUE;
+            several_convs = true;
         }
     }
 
@@ -485,7 +531,7 @@ sequence_analysis_dump_to_file(FILE  *of, seq_analysis_info_t *sainfo, unsigned 
 
     g_string_append_c(empty_line, '|');
 
-    enlarge_string(separator_line, (guint32) empty_line->len + header_length, '-');
+    enlarge_string(separator_line, (uint32_t) empty_line->len + header_length, '-');
 
     /*
      * Draw the items

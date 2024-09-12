@@ -6,6 +6,7 @@
  * https://tools.ietf.org/wg/ancp/
  * https://tools.ietf.org/html/draft-ietf-ancp-protocol-09
  * https://tools.ietf.org/html/rfc6320
+ * https://tools.ietf.org/html/rfc7256
  * https://www.iana.org/assignments/ancp/ancp.xhtml
  *
  * Copyright 2010, Aniruddha.A (anira@cisco.com)
@@ -22,10 +23,12 @@
 
 #include <epan/packet.h>
 #include <epan/stats_tree.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
 #include <wsutil/ws_roundup.h>
 #include "packet-tcp.h"
 
-#define ANCP_PORT 6068 /* The ANCP TCP port:draft-ietf-ancp-protocol-09.txt */
+#define ANCP_PORT 6068 /* The ANCP TCP port */
 
 #define ANCP_MIN_HDR  4
 #define ANCP_GSMP_ETHER_TYPE  0x880C
@@ -61,110 +64,117 @@ void proto_reg_handoff_ancp(void);
 
 static dissector_handle_t ancp_handle;
 
-static int hf_ancp_len = -1;
-static int hf_ancp_len2 = -1;
-static int hf_ancp_ver = -1;
-static int hf_ancp_mtype = -1;
-static int hf_ancp_timer = -1;
-static int hf_ancp_adj_code = -1;
-static int hf_ancp_sender_name = -1;
-static int hf_ancp_receiver_name = -1;
-static int hf_ancp_sender_port = -1;
-static int hf_ancp_receiver_port = -1;
-static int hf_ancp_p_info = -1;
-static int hf_ancp_sender_instance = -1;
-static int hf_ancp_p_id = -1;
-static int hf_ancp_receiver_instance = -1;
-static int hf_ancp_tech_type = -1;
-static int hf_ancp_num_tlvs = -1;
-static int hf_ancp_tot_len = -1;
-static int hf_ancp_cap = -1;
-static int hf_ancp_result = -1;
-static int hf_ancp_code = -1;
-static int hf_ancp_trans_id = -1;
-static int hf_ancp_i_flag = -1;
-static int hf_ancp_submsg_num = -1;
-static int hf_ancp_pudm_unused = -1;
-static int hf_ancp_function = -1;
-static int hf_ancp_x_function = -1;
-static int hf_ancp_ext_flags_res = -1;
-static int hf_ancp_reserved = -1;
-static int hf_ancp_blk_len = -1;
-static int hf_ancp_num_ext_tlvs = -1;
-static int hf_ancp_ext_tlv_type = -1;
-static int hf_ancp_ext_tlv_len = -1;
-static int hf_ancp_dsl_line_stlv_type = -1;
-static int hf_ancp_dsl_line_stlv_len = -1;
-static int hf_ancp_dsl_line_stlv_value = -1;
-static int hf_ancp_ext_tlv_value_str = -1;
-static int hf_ancp_oam_opaque = -1;
-static int hf_ancp_oam_loopb_cnt = -1;
-static int hf_ancp_oam_timeout = -1;
+static int hf_ancp_len;
+static int hf_ancp_len2;
+static int hf_ancp_ver;
+static int hf_ancp_mtype;
+static int hf_ancp_timer;
+static int hf_ancp_adj_code;
+static int hf_ancp_sender_name;
+static int hf_ancp_receiver_name;
+static int hf_ancp_sender_port;
+static int hf_ancp_receiver_port;
+static int hf_ancp_p_info;
+static int hf_ancp_sender_instance;
+static int hf_ancp_p_id;
+static int hf_ancp_receiver_instance;
+static int hf_ancp_tech_type;
+static int hf_ancp_num_tlvs;
+static int hf_ancp_tot_len;
+static int hf_ancp_cap;
+static int hf_ancp_result;
+static int hf_ancp_code;
+static int hf_ancp_trans_id;
+static int hf_ancp_i_flag;
+static int hf_ancp_submsg_num;
+static int hf_ancp_pudm_unused;
+static int hf_ancp_function;
+static int hf_ancp_x_function;
+static int hf_ancp_ext_flags_res;
+static int hf_ancp_reserved;
+static int hf_ancp_blk_len;
+static int hf_ancp_num_ext_tlvs;
+static int hf_ancp_ext_tlv_type;
+static int hf_ancp_ext_tlv_len;
+static int hf_ancp_dsl_line_stlv_type;
+static int hf_ancp_dsl_line_stlv_len;
+static int hf_ancp_dsl_line_stlv_value;
+static int hf_ancp_ext_tlv_value_str;
+static int hf_ancp_oam_opaque;
+static int hf_ancp_oam_loopb_cnt;
+static int hf_ancp_oam_timeout;
 
-static gint ett_ancp_len = -1;
-static gint ett_ancp_ver = -1;
-static gint ett_ancp_mtype = -1;
-static gint ett_ancp_timer = -1;
-static gint ett_ancp_adj_code = -1;
-static gint ett_ancp_sender_name = -1;
-static gint ett_ancp_receiver_name = -1;
-static gint ett_ancp_sender_port = -1;
-static gint ett_ancp_receiver_port = -1;
-static gint ett_ancp_p_info = -1;
-static gint ett_ancp_sender_instance = -1;
-static gint ett_ancp_p_id = -1;
-static gint ett_ancp_receiver_instance = -1;
-static gint ett_ancp_tech_type = -1;
-static gint ett_ancp_num_tlvs = -1;
-static gint ett_ancp_tot_len = -1;
-static gint ett_ancp_cap = -1;
-static gint ett_ancp_result = -1;
-static gint ett_ancp_code = -1;
-static gint ett_ancp_trans_id = -1;
-static gint ett_ancp_i_flag = -1;
-static gint ett_ancp_submsg_num = -1;
-static gint ett_ancp_port = -1;
-static gint ett_ancp_port_sess_num= -1;
-static gint ett_ancp_evt_seq_num = -1;
-static gint ett_ancp_label = -1;
-static gint ett_ancp_reserved = -1;
-static gint ett_ancp_blk_len = -1;
-static gint ett_ancp_num_ext_tlvs = -1;
-static gint ett_ancp_ext_tlv_type = -1;
-static gint ett_ancp_dsl_line_stlv_type = -1;
-static gint ett_ancp_dsl_line_stlv_val = -1;
-static gint ett_ancp_ext_tlv_value_str = -1;
-static gint ett_ancp_oam_opaque = -1;
-static gint ett_ancp_oam_loopb_cnt = -1;
-static gint ett_ancp_oam_timeout = -1;
+static int ett_ancp_len;
+static int ett_ancp_ver;
+static int ett_ancp_mtype;
+static int ett_ancp_timer;
+static int ett_ancp_adj_code;
+static int ett_ancp_sender_name;
+static int ett_ancp_receiver_name;
+static int ett_ancp_sender_port;
+static int ett_ancp_receiver_port;
+static int ett_ancp_p_info;
+static int ett_ancp_sender_instance;
+static int ett_ancp_p_id;
+static int ett_ancp_receiver_instance;
+static int ett_ancp_tech_type;
+static int ett_ancp_num_tlvs;
+static int ett_ancp_tot_len;
+static int ett_ancp_cap;
+static int ett_ancp_result;
+static int ett_ancp_code;
+static int ett_ancp_trans_id;
+static int ett_ancp_i_flag;
+static int ett_ancp_submsg_num;
+static int ett_ancp_port;
+static int ett_ancp_port_sess_num;
+static int ett_ancp_evt_seq_num;
+static int ett_ancp_label;
+static int ett_ancp_reserved;
+static int ett_ancp_blk_len;
+static int ett_ancp_num_ext_tlvs;
+static int ett_ancp_ext_tlv_type;
+static int ett_ancp_dsl_line_stlv_type;
+static int ett_ancp_dsl_line_stlv_val;
+static int ett_ancp_ext_tlv_value_str;
+static int ett_ancp_oam_opaque;
+static int ett_ancp_oam_loopb_cnt;
+static int ett_ancp_oam_timeout;
 
-static int proto_ancp = -1;
+static int proto_ancp;
 
 /* ANCP stats - Tap interface */
-static const guint8 *st_str_packets        = "Total Packets";
-static const guint8 *st_str_packet_types   = "ANCP Packet Types";
-static const guint8 *st_str_adj_pack_types = "ANCP Adjacency Packet Types";
+static const uint8_t *st_str_packets        = "Total Packets";
+static const uint8_t *st_str_packet_types   = "ANCP Packet Types";
+static const uint8_t *st_str_adj_pack_types = "ANCP Adjacency Packet Types";
 
 static int st_node_packets = -1;
 static int st_node_packet_types = -1;
 static int st_node_adj_pack_types = -1;
-static int ancp_tap = -1;
+static int ancp_tap;
 
 struct ancp_tap_t {
-    gint ancp_mtype;
-    gint ancp_adjcode; /* valid for ancp adjacency message only */
+    int ancp_mtype;
+    int ancp_adjcode; /* valid for ancp adjacency message only */
 };
 
 /* Value Strings */
 static const value_string mtype_names[] = {
-    { 10, "Adjacency" },
-    { 32, "Port-Management" },
-    { 80, "Port-Up" },
-    { 81, "Port-Down" },
-    { 85, "Adjacency Update" },
-    { 91, "Generic Response" },
-    { 93, "Provisioning" },
-    {  0,  NULL }
+    {  10, "Adjacency" },
+    {  32, "Port-Management" },
+    {  80, "Port-Up" },
+    {  81, "Port-Down" },
+    {  85, "Adjacency Update" },
+    {  91, "Generic Response" },
+    {  93, "Provisioning" },
+    { 144, "Multicast Replication Control" },
+    { 145, "Multicast Admission Control" },
+    { 146, "Bandwidth Reallocation Request" },
+    { 147, "Bandwidth Transfer" },
+    { 148, "Delegated Bandwidth Query" },
+    { 149, "Mulicast Flow Query" },
+    { 150, "Committed Bandwidth Report" },
+    {   0,  NULL }
 };
 
 static const value_string adj_code_names[] = {
@@ -201,6 +211,12 @@ static const value_string codetype_names[] = {
     { 0x053, "Malformed message" },
     { 0x054, "Mandatory TLV missing" },
     { 0x055, "Invalid TLV contents" },
+    { 0x064, "Command error" },
+    { 0x065, "Invalid flow address" },
+    { 0x066, "Mulicast flow does not exist" },
+    { 0x067, "Invalid preferred bandwith amount" },
+    { 0x068, "Inconsistent views of delegated bandwidth amount" },
+    { 0x069, "Bandwidth request conflict" },
     { 0x500, "One or more of the specified ports do not exist" },
     { 0x501, "Loopback test timed out" },
     { 0x502, "Reserved" },
@@ -289,6 +305,7 @@ static const value_string function_names[] = {
 };
 
 static const value_string ext_tlv_types[] = {
+    { 0x0000, "Reserved" },
     { 0x0001, "Access-Loop-Circuit-ID" },
     { 0x0002, "Access-Loop-Remote-ID" },
     { 0x0003, "Access-Aggregation-Circuit-ID-ASCII" },
@@ -336,11 +353,11 @@ static const value_string ext_tlv_types[] = {
 };
 static value_string_ext ext_tlv_types_ext = VALUE_STRING_EXT_INIT(ext_tlv_types);
 
-static gint
-dissect_ancp_tlv(tvbuff_t *tvb, proto_tree *tlv_tree, gint offset)
+static int
+dissect_ancp_tlv(tvbuff_t *tvb, proto_tree *tlv_tree, int offset)
 {
-        guint16     tlen, ttype;
-        gint16      num_stlvs;
+        uint16_t    tlen, ttype;
+        int16_t     num_stlvs;
         proto_item *tti;
 
             proto_tree_add_item(tlv_tree, hf_ancp_ext_tlv_type, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -360,8 +377,8 @@ dissect_ancp_tlv(tvbuff_t *tvb, proto_tree *tlv_tree, gint offset)
                 case TLV_DSL_LINE_ATTRIBUTES:
                 {
                     proto_tree *dsl_tree;
-                    guint16     stlvtype, stlvlen;
-                    gint        val;
+                    uint16_t    stlvtype, stlvlen;
+                    int         val;
 
                     /* Create a DSL Attribute SubTree */
                     dsl_tree = proto_item_add_subtree(tti, ett_ancp_ext_tlv_type);
@@ -438,10 +455,10 @@ dissect_ancp_tlv(tvbuff_t *tvb, proto_tree *tlv_tree, gint offset)
 }
 
 static void
-dissect_ancp_port_up_dn_mgmt(tvbuff_t *tvb, proto_tree *ancp_tree, gint offset, guint8 mtype)
+dissect_ancp_port_up_dn_mgmt(tvbuff_t *tvb, proto_tree *ancp_tree, int offset, uint8_t mtype)
 {
-    guint8 tech_type;
-    gint16 num_tlvs;
+    uint8_t tech_type;
+    int16_t num_tlvs;
     proto_item *sti;
 
     if (mtype == ANCP_MTYPE_PORT_MGMT) {
@@ -473,7 +490,7 @@ dissect_ancp_port_up_dn_mgmt(tvbuff_t *tvb, proto_tree *ancp_tree, gint offset, 
         tech_type = 0;
     } else {
         proto_tree_add_item(ancp_tree, hf_ancp_tech_type,     tvb, offset, 1, ENC_BIG_ENDIAN);
-        tech_type = tvb_get_guint8(tvb, offset);
+        tech_type = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         proto_tree_add_item(ancp_tree, hf_ancp_reserved,      tvb, offset, 1, ENC_NA);
@@ -501,13 +518,13 @@ dissect_ancp_port_up_dn_mgmt(tvbuff_t *tvb, proto_tree *ancp_tree, gint offset, 
 
 static void
 dissect_ancp_adj_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ancp_tree,
-                     gint offset, struct ancp_tap_t *ancp_info
+                     int offset, struct ancp_tap_t *ancp_info
 )
 {
     proto_item *sti;
     proto_tree *ancp_cap_tree;
-    guint8      byte, numcaps, adjcode;
-    guint16     tlv_len;
+    uint8_t     byte, numcaps, adjcode;
+    uint16_t    tlv_len;
 
     sti = proto_tree_add_item(ancp_tree, hf_ancp_timer, tvb, offset, 1,
             ENC_BIG_ENDIAN);
@@ -516,7 +533,7 @@ dissect_ancp_adj_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ancp_tree,
 
     sti = proto_tree_add_item(ancp_tree, hf_ancp_adj_code, tvb, offset, 1,
             ENC_BIG_ENDIAN);
-    byte = tvb_get_guint8(tvb, offset);
+    byte = tvb_get_uint8(tvb, offset);
     offset += 1;
     adjcode = byte & ADJ_CODE_MASK;
     ancp_info->ancp_adjcode = adjcode; /* stats */
@@ -540,7 +557,7 @@ dissect_ancp_adj_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ancp_tree,
 
     sti = proto_tree_add_item(ancp_tree, hf_ancp_p_info, tvb,
             offset, 1, ENC_BIG_ENDIAN);
-    byte = tvb_get_guint8(tvb, offset);
+    byte = tvb_get_uint8(tvb, offset);
     offset += 1;
     proto_item_append_text(sti, " (Type = %d, Flag = %d)",
             byte >> 4, byte & 0x0F);
@@ -558,7 +575,7 @@ dissect_ancp_adj_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ancp_tree,
     offset += 1;
 
     sti = proto_tree_add_item(ancp_tree, hf_ancp_num_tlvs, tvb, offset, 1, ENC_BIG_ENDIAN);
-    numcaps = tvb_get_guint8(tvb, offset);
+    numcaps = tvb_get_uint8(tvb, offset);
     offset += 1;
 
     /* Start the capability subtree */
@@ -581,11 +598,11 @@ dissect_ancp_adj_msg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ancp_tree,
 static void
 ancp_stats_tree_init(stats_tree *st)
 {
-    st_node_packets = stats_tree_create_node(st, st_str_packets, 0, STAT_DT_INT, TRUE);
+    st_node_packets = stats_tree_create_node(st, st_str_packets, 0, STAT_DT_INT, true);
     st_node_packet_types = stats_tree_create_pivot(st, st_str_packet_types,
             st_node_packets);
     st_node_adj_pack_types = stats_tree_create_node(st, st_str_adj_pack_types,
-            st_node_packets, STAT_DT_INT, TRUE);
+            st_node_packets, STAT_DT_INT, true);
 }
 
 static tap_packet_status
@@ -594,7 +611,7 @@ ancp_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_,
 {
     const struct ancp_tap_t *pi = (const struct ancp_tap_t *) p;
 
-    tick_stat_node(st, st_str_packets, 0, FALSE);
+    tick_stat_node(st, st_str_packets, 0, false);
     stats_tree_tick_pivot(st, st_node_packet_types,
             val_to_str(pi->ancp_mtype, mtype_names,
                 "Unknown packet type (%d)"));
@@ -608,16 +625,16 @@ ancp_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_,
 static int
 dissect_ancp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    gint               offset;
-    guint8             mtype;
+    int                offset;
+    uint8_t            mtype;
     struct ancp_tap_t *ancp_info;
     proto_item        *ti;
     proto_item        *sti;
     proto_item        *tti = NULL;
     proto_tree        *ancp_tree;
     proto_tree        *tlv_tree;
-    guint8             byte;
-    guint16            len;
+    uint8_t            byte;
+    uint16_t           len;
 
     offset = 0;
     if (tvb_get_ntohs(tvb, offset) != ANCP_GSMP_ETHER_TYPE)
@@ -643,12 +660,12 @@ dissect_ancp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     offset += 2;
 
     sti  = proto_tree_add_item(ancp_tree, hf_ancp_ver, tvb, offset, 1, ENC_BIG_ENDIAN);
-    byte = tvb_get_guint8(tvb, offset);
+    byte = tvb_get_uint8(tvb, offset);
     offset += 1;
     proto_item_append_text(sti, " (%d.%d)", byte >> 4, byte & 0x0F);
 
     sti = proto_tree_add_item(ancp_tree, hf_ancp_mtype, tvb, offset, 1, ENC_BIG_ENDIAN);
-    mtype = tvb_get_guint8(tvb, offset); /* ANCP message type */
+    mtype = tvb_get_uint8(tvb, offset); /* ANCP message type */
     ancp_info->ancp_mtype = mtype; /* stats */
     offset += 1;
 
@@ -715,16 +732,16 @@ dissect_ancp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     return tvb_reported_length(tvb);
 }
 
-static guint
+static unsigned
 get_ancp_msg_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    return (guint)tvb_get_ntohs(tvb, offset + 2) + 4; /* 2B len + 4B hdr */
+    return (unsigned)tvb_get_ntohs(tvb, offset + 2) + 4; /* 2B len + 4B hdr */
 }
 
 static int
 dissect_ancp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, ANCP_MIN_HDR,
+    tcp_dissect_pdus(tvb, pinfo, tree, true, ANCP_MIN_HDR,
             get_ancp_msg_len, dissect_ancp_message, data);
 
     return tvb_reported_length(tvb);
@@ -761,7 +778,7 @@ proto_register_ancp(void)
         { &hf_ancp_timer,
             { "Timer", "ancp.timer",
                 FT_UINT8, BASE_DEC|BASE_UNIT_STRING,
-                &units_milliseconds, 0x0,
+                UNS(&units_milliseconds), 0x0,
                 NULL, HFILL }
         },
         { &hf_ancp_adj_code,
@@ -971,7 +988,7 @@ proto_register_ancp(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_ancp_len,
         &ett_ancp_ver,
         &ett_ancp_mtype,

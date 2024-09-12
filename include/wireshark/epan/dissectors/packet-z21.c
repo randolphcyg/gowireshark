@@ -26,163 +26,180 @@ void proto_register_z21(void);
 void proto_reg_handoff_z21(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_z21 = -1;
-static int hf_z21_datalen = -1;
-static int hf_z21_command = -1;
-static int hf_z21_x_bus = -1;
-static int hf_z21_serial_number = -1;
-static int hf_z21_checksum = -1;
-static int hf_z21_main_current = -1;
-static int hf_z21_prog_current = -1;
-static int hf_z21_filtered_main_current = -1;
-static int hf_z21_temperature = -1;
-static int hf_z21_supply_voltage = -1;
-static int hf_z21_track_voltage = -1;
-static int hf_z21_central_state = -1;
-static int hf_z21_central_state_ex = -1;
-static int hf_z21_systemstate_reserved = -1;
-static int hf_z21_capabilities = -1;
-static int hf_z21_status = -1;
-static int hf_z21_loco_address = -1;
-static int hf_z21_loco_direction_and_speed = -1;
-static int hf_z21_loco_direction = -1;
-static int hf_z21_loco_speed = -1;
-static int hf_z21_loco_info_mm = -1;
-static int hf_z21_loco_info_busy = -1;
-static int hf_z21_loco_info_speed_steps = -1;
-static int hf_z21_loco_info_direction = -1;
-static int hf_z21_loco_info_speed = -1;
-static int hf_z21_loco_info_double_traction = -1;
-static int hf_z21_loco_info_smartsearch = -1;
-static int hf_z21_loco_info_f0 = -1;
-static int hf_z21_loco_info_f1 = -1;
-static int hf_z21_loco_info_f2 = -1;
-static int hf_z21_loco_info_f3 = -1;
-static int hf_z21_loco_info_f4 = -1;
-static int hf_z21_loco_info_f5 = -1;
-static int hf_z21_loco_info_f6 = -1;
-static int hf_z21_loco_info_f7 = -1;
-static int hf_z21_loco_info_f8 = -1;
-static int hf_z21_loco_info_f9 = -1;
-static int hf_z21_loco_info_f10 = -1;
-static int hf_z21_loco_info_f11 = -1;
-static int hf_z21_loco_info_f12 = -1;
-static int hf_z21_loco_info_f13 = -1;
-static int hf_z21_loco_info_f14 = -1;
-static int hf_z21_loco_info_f15 = -1;
-static int hf_z21_loco_info_f16 = -1;
-static int hf_z21_loco_info_f17 = -1;
-static int hf_z21_loco_info_f18 = -1;
-static int hf_z21_loco_info_f19 = -1;
-static int hf_z21_loco_info_f20 = -1;
-static int hf_z21_loco_info_f21 = -1;
-static int hf_z21_loco_info_f22 = -1;
-static int hf_z21_loco_info_f23 = -1;
-static int hf_z21_loco_info_f24 = -1;
-static int hf_z21_loco_info_f25 = -1;
-static int hf_z21_loco_info_f26 = -1;
-static int hf_z21_loco_info_f27 = -1;
-static int hf_z21_loco_info_f28 = -1;
-static int hf_z21_loco_info_f29 = -1;
-static int hf_z21_loco_info_f30 = -1;
-static int hf_z21_loco_info_f31 = -1;
-static int hf_z21_loco_info_extensions = -1;
-static int hf_z21_loco_func_switch_type = -1;
-static int hf_z21_loco_func_index = -1;
-static int hf_z21_speed_steps = -1;
-static int hf_z21_firmware_version = -1;
-static int hf_z21_state_emergency_stop = -1;
-static int hf_z21_state_track_voltage_off = -1;
-static int hf_z21_state_short_circuit = -1;
-static int hf_z21_state_programming_mode = -1;
-static int hf_z21_state_high_temperature = -1;
-static int hf_z21_state_power_lost = -1;
-static int hf_z21_state_short_circuit_external = -1;
-static int hf_z21_state_short_circuit_internal = -1;
-static int hf_z21_state_rcn_213 = -1;
-static int hf_z21_capability_dcc = -1;
-static int hf_z21_capability_mm = -1;
-static int hf_z21_capability_reserved = -1;
-static int hf_z21_capability_railcom = -1;
-static int hf_z21_capability_loco_cmds = -1;
-static int hf_z21_capability_accessory_cmds = -1;
-static int hf_z21_capability_detector_cmds = -1;
-static int hf_z21_capability_needs_unlock_code = -1;
-static int hf_z21_function_address = -1;
-static int hf_z21_turnout_state = -1;
-static int hf_z21_turnout_activate_bit = -1;
-static int hf_z21_turnout_output_bit = -1;
-static int hf_z21_turnout_queue_bit = -1;
-static int hf_z21_accessory_address = -1;
-static int hf_z21_accessory_state = -1;
-static int hf_z21_accessory_status = -1;
-static int hf_z21_cv_address = -1;
-static int hf_z21_cv_value = -1;
-static int hf_z21_register = -1;
-static int hf_z21_register_value = -1;
-static int hf_z21_pom_operation = -1;
-static int hf_z21_cv_bit_position = -1;
-static int hf_z21_cv_bit_value = -1;
-static int hf_z21_rmbus_group = -1;
-static int hf_z21_rmbus_feedbacks = -1;
-static int hf_z21_rmbus_address = -1;
-static int hf_z21_railcom_receive_counter = -1;
-static int hf_z21_railcom_error_counter = -1;
-static int hf_z21_railcom_reserved1 = -1;
-static int hf_z21_railcom_options = -1;
-static int hf_z21_railcom_speed = -1;
-static int hf_z21_railcom_qos = -1;
-static int hf_z21_railcom_reserved2 = -1;
-static int hf_z21_railcom_type = -1;
-static int hf_z21_loconet_message = -1;
-static int hf_z21_loconet_result = -1;
-static int hf_z21_loconet_type = -1;
-static int hf_z21_loconet_report_address = -1;
-static int hf_z21_loconet_feedback_address = -1;
-static int hf_z21_loconet_info = -1;
-static int hf_z21_can_type = -1;
-static int hf_z21_can_network_id = -1;
-static int hf_z21_can_module_address = -1;
-static int hf_z21_can_port = -1;
-static int hf_z21_can_value1 = -1;
-static int hf_z21_can_value2 = -1;
-static int hf_z21_can_booster_name = -1;
-static int hf_z21_can_booster_output_port = -1;
-static int hf_z21_can_booster_state = -1;
-static int hf_z21_can_booster_state_bg_active = -1;
-static int hf_z21_can_booster_state_short_circuit = -1;
-static int hf_z21_can_booster_state_track_voltage_off = -1;
-static int hf_z21_can_booster_state_railcom_active = -1;
-static int hf_z21_can_booster_state_output_disabled = -1;
-static int hf_z21_can_booster_vcc = -1;
-static int hf_z21_can_booster_current = -1;
-static int hf_z21_can_booster_power = -1;
-static int hf_z21_zlink_message_type = -1;
-static int hf_z21_zlink_hwid = -1;
-static int hf_z21_zlink_fw_major = -1;
-static int hf_z21_zlink_fw_minor = -1;
-static int hf_z21_zlink_fw_build = -1;
-static int hf_z21_zlink_mac = -1;
-static int hf_z21_zlink_name = -1;
-static int hf_z21_zlink_reserved = -1;
-static int hf_z21_booster_name = -1;
-static int hf_z21_booster_port = -1;
-static int hf_z21_booster_port_state = -1;
-static int hf_z21_booster_state_data = -1;
-static int hf_z21_decoder_name = -1;
-static int hf_z21_decoder_state_data = -1;
-static int hf_z21_data = -1;
+static int proto_z21;
+static int hf_z21_datalen;
+static int hf_z21_command;
+static int hf_z21_x_bus;
+static int hf_z21_serial_number;
+static int hf_z21_checksum;
+static int hf_z21_main_current;
+static int hf_z21_prog_current;
+static int hf_z21_filtered_main_current;
+static int hf_z21_temperature;
+static int hf_z21_supply_voltage;
+static int hf_z21_track_voltage;
+static int hf_z21_broadcast_flags;
+static int hf_z21_central_state;
+static int hf_z21_central_state_ex;
+static int hf_z21_systemstate_reserved;
+static int hf_z21_capabilities;
+static int hf_z21_status;
+static int hf_z21_loco_mode;
+static int hf_z21_loco_address;
+static int hf_z21_loco_direction_and_speed;
+static int hf_z21_loco_direction;
+static int hf_z21_loco_speed;
+static int hf_z21_loco_info_mm;
+static int hf_z21_loco_info_busy;
+static int hf_z21_loco_info_speed_steps;
+static int hf_z21_loco_info_direction;
+static int hf_z21_loco_info_speed;
+static int hf_z21_loco_info_double_traction;
+static int hf_z21_loco_info_smartsearch;
+static int hf_z21_loco_info_f0;
+static int hf_z21_loco_info_f1;
+static int hf_z21_loco_info_f2;
+static int hf_z21_loco_info_f3;
+static int hf_z21_loco_info_f4;
+static int hf_z21_loco_info_f5;
+static int hf_z21_loco_info_f6;
+static int hf_z21_loco_info_f7;
+static int hf_z21_loco_info_f8;
+static int hf_z21_loco_info_f9;
+static int hf_z21_loco_info_f10;
+static int hf_z21_loco_info_f11;
+static int hf_z21_loco_info_f12;
+static int hf_z21_loco_info_f13;
+static int hf_z21_loco_info_f14;
+static int hf_z21_loco_info_f15;
+static int hf_z21_loco_info_f16;
+static int hf_z21_loco_info_f17;
+static int hf_z21_loco_info_f18;
+static int hf_z21_loco_info_f19;
+static int hf_z21_loco_info_f20;
+static int hf_z21_loco_info_f21;
+static int hf_z21_loco_info_f22;
+static int hf_z21_loco_info_f23;
+static int hf_z21_loco_info_f24;
+static int hf_z21_loco_info_f25;
+static int hf_z21_loco_info_f26;
+static int hf_z21_loco_info_f27;
+static int hf_z21_loco_info_f28;
+static int hf_z21_loco_info_f29;
+static int hf_z21_loco_info_f30;
+static int hf_z21_loco_info_f31;
+static int hf_z21_loco_info_extensions;
+static int hf_z21_loco_func_switch_type;
+static int hf_z21_loco_func_index;
+static int hf_z21_speed_steps;
+static int hf_z21_hw_type;
+static int hf_z21_firmware_version;
+static int hf_z21_broadcast_flags_driving_switching;
+static int hf_z21_broadcast_flags_rmbus;
+static int hf_z21_broadcast_flags_railcom_subscribed;
+static int hf_z21_broadcast_flags_system_status;
+static int hf_z21_broadcast_flags_driving_switching_ex;
+static int hf_z21_broadcast_flags_loconet;
+static int hf_z21_broadcast_flags_loconet_driving;
+static int hf_z21_broadcast_flags_loconet_switching;
+static int hf_z21_broadcast_flags_loconet_detector;
+static int hf_z21_broadcast_flags_railcom;
+static int hf_z21_broadcast_flags_can_detector;
+static int hf_z21_broadcast_flags_can_booster;
+static int hf_z21_broadcast_flags_fast_clock;
+static int hf_z21_state_emergency_stop;
+static int hf_z21_state_track_voltage_off;
+static int hf_z21_state_short_circuit;
+static int hf_z21_state_programming_mode;
+static int hf_z21_state_high_temperature;
+static int hf_z21_state_power_lost;
+static int hf_z21_state_short_circuit_external;
+static int hf_z21_state_short_circuit_internal;
+static int hf_z21_state_rcn_213;
+static int hf_z21_capability_dcc;
+static int hf_z21_capability_mm;
+static int hf_z21_capability_reserved;
+static int hf_z21_capability_railcom;
+static int hf_z21_capability_loco_cmds;
+static int hf_z21_capability_accessory_cmds;
+static int hf_z21_capability_detector_cmds;
+static int hf_z21_capability_needs_unlock_code;
+static int hf_z21_function_address;
+static int hf_z21_turnout_state;
+static int hf_z21_turnout_activate_bit;
+static int hf_z21_turnout_output_bit;
+static int hf_z21_turnout_queue_bit;
+static int hf_z21_accessory_address;
+static int hf_z21_accessory_state;
+static int hf_z21_accessory_status;
+static int hf_z21_cv_address;
+static int hf_z21_cv_value;
+static int hf_z21_register;
+static int hf_z21_register_value;
+static int hf_z21_pom_operation;
+static int hf_z21_cv_bit_position;
+static int hf_z21_cv_bit_value;
+static int hf_z21_rmbus_group;
+static int hf_z21_rmbus_feedbacks;
+static int hf_z21_rmbus_address;
+static int hf_z21_railcom_receive_counter;
+static int hf_z21_railcom_error_counter;
+static int hf_z21_railcom_reserved1;
+static int hf_z21_railcom_options;
+static int hf_z21_railcom_speed;
+static int hf_z21_railcom_qos;
+static int hf_z21_railcom_reserved2;
+static int hf_z21_railcom_type;
+static int hf_z21_loconet_message;
+static int hf_z21_loconet_result;
+static int hf_z21_loconet_type;
+static int hf_z21_loconet_report_address;
+static int hf_z21_loconet_feedback_address;
+static int hf_z21_loconet_info;
+static int hf_z21_can_type;
+static int hf_z21_can_network_id;
+static int hf_z21_can_module_address;
+static int hf_z21_can_port;
+static int hf_z21_can_value1;
+static int hf_z21_can_value2;
+static int hf_z21_can_booster_name;
+static int hf_z21_can_booster_output_port;
+static int hf_z21_can_booster_state;
+static int hf_z21_can_booster_state_bg_active;
+static int hf_z21_can_booster_state_short_circuit;
+static int hf_z21_can_booster_state_track_voltage_off;
+static int hf_z21_can_booster_state_railcom_active;
+static int hf_z21_can_booster_state_output_disabled;
+static int hf_z21_can_booster_vcc;
+static int hf_z21_can_booster_current;
+static int hf_z21_can_booster_power;
+static int hf_z21_zlink_message_type;
+static int hf_z21_zlink_hwid;
+static int hf_z21_zlink_fw_major;
+static int hf_z21_zlink_fw_minor;
+static int hf_z21_zlink_fw_build;
+static int hf_z21_zlink_mac;
+static int hf_z21_zlink_name;
+static int hf_z21_zlink_reserved;
+static int hf_z21_booster_name;
+static int hf_z21_booster_port;
+static int hf_z21_booster_port_state;
+static int hf_z21_booster_state_data;
+static int hf_z21_decoder_name;
+static int hf_z21_decoder_state_data;
+static int hf_z21_data;
 
 static dissector_handle_t z21_handle;
 
+/* Not IANA registered */
 #define Z21_UDP_PORTS "21105,21106"
 static range_t *udp_port_range;
 
 /* Initialize the subtree pointers */
-static int ett_z21 = -1;
+static int ett_z21;
 
 /* Initialize expert fields */
-static expert_field ei_z21_invalid_checksum = EI_INIT;
+static expert_field ei_z21_invalid_checksum;
 
 #define Z21_MIN_LENGTH 4
 
@@ -191,12 +208,21 @@ static expert_field ei_z21_invalid_checksum = EI_INIT;
  * not comparing the values numerically, just matching them
  * in the packets. */
 #define Z21_LAN_GET_SERIAL_NUMBER               0x1000
+#define Z21_LAN_GET_HWINFO                      0x1A00
 #define Z21_LAN_LOGOFF                          0x3000
-#define Z21_X_BUS                               0x4000
+/* Responses and requests based on the X-BUS protocol are transmitted
+ * with the Z21-LAN-Header 0x40 and the specific command is indicated
+ * with additional bytes inside the data field. */
+#define Z21_LAN_X_BC                            0x4000
+#define Z21_LAN_SET_BROADCASTFLAGS              0x5000
+#define Z21_LAN_GET_BROADCASTFLAGS              0x5100
+#define Z21_LAN_GET_LOCOMODE                    0x6000
+#define Z21_LAN_SET_LOCOMODE                    0x6100
 #define Z21_LAN_RMBUS_DATACHANGED               0x8000
 #define Z21_LAN_RMBUS_GETDATA                   0x8100
 #define Z21_LAN_RMBUS_PROGRAMMODULE             0x8200
 #define Z21_LAN_SYSTEMSTATE_DATACHANGED         0x8400
+#define Z21_LAN_SYSTEMSTATE_GETDATA             0x8500
 #define Z21_LAN_RAILCOM_DATACHANGED             0x8800
 #define Z21_LAN_RAILCOM_GETDATA                 0x8900
 #define Z21_LAN_LOCONET_Z21_RX                  0xA000
@@ -271,6 +297,9 @@ static expert_field ei_z21_invalid_checksum = EI_INIT;
 #define Z21_LAN_X_GET_FIRMWARE_VERSION_REQUEST  0x4000F10A
 #define Z21_LAN_X_GET_FIRMWARE_VERSION_REPLY    0x4000F30A
 
+/* This should be put in numerical order, not alphabetical order,
+ * if it is ever converted to a value_string_ext, to allow binary search.
+ */
 static const value_string z21_command_vals[] = {
     { Z21_LAN_CAN_BOOSTER_SET_TRACKPOWER,       "LAN_CAN_BOOSTER_SET_TRACKPOWER" },
     { Z21_LAN_CAN_BOOSTER_SYSTEMSTATE_CHGD,     "LAN_CAN_BOOSTER_SYSTEMSTATE_CHGD" },
@@ -290,6 +319,9 @@ static const value_string z21_command_vals[] = {
     { Z21_LAN_FAST_CLOCK_DATA,                  "LAN_FAST_CLOCK_DATA" },
     { Z21_LAN_FAST_CLOCK_SETTINGS_GET,          "LAN_FAST_CLOCK_SETTINGS_GET" },
     { Z21_LAN_FAST_CLOCK_SETTINGS_SET,          "LAN_FAST_CLOCK_SETTINGS_SET" },
+    { Z21_LAN_GET_BROADCASTFLAGS,               "LAN_GET_BROADCASTFLAGS" },
+    { Z21_LAN_GET_HWINFO,                       "LAN_GET_HWINFO" },
+    { Z21_LAN_GET_LOCOMODE,                     "LAN_GET_LOCOMODE" },
     { Z21_LAN_GET_SERIAL_NUMBER,                "LAN_GET_SERIAL_NUMBER" },
     { Z21_LAN_LOCONET_DETECTOR,                 "LAN_LOCONET_DETECTOR" },
     { Z21_LAN_LOCONET_DISPATCH_ADDR,            "LAN_LOCONET_DISPATCH_ADDR" },
@@ -302,7 +334,11 @@ static const value_string z21_command_vals[] = {
     { Z21_LAN_RMBUS_DATACHANGED,                "LAN_RMBUS_DATACHANGED" },
     { Z21_LAN_RMBUS_GETDATA,                    "LAN_RMBUS_GETDATA" },
     { Z21_LAN_RMBUS_PROGRAMMODULE,              "LAN_RMBUS_PROGRAMMODULE" },
+    { Z21_LAN_SET_BROADCASTFLAGS,               "LAN_SET_BROADCASTFLAGS" },
+    { Z21_LAN_SET_LOCOMODE,                     "LAN_SET_LOCOMODE" },
     { Z21_LAN_SYSTEMSTATE_DATACHANGED,          "LAN_SYSTEMSTATE_DATACHANGED" },
+    { Z21_LAN_SYSTEMSTATE_GETDATA,              "LAN_SYSTEMSTATE_GETDATA" },
+    { Z21_LAN_X_BC,                             "LAN_X_xxx" }, /* Unspecified X-Bus command */
     { Z21_LAN_X_BC_PROGRAMMING_MODE,            "LAN_X_BC_PROGRAMMING_MODE" },
     { Z21_LAN_X_BC_STOPPED,                     "LAN_X_BC_STOPPED" },
     { Z21_LAN_X_BC_TRACK_POWER_OFF,             "LAN_X_BC_TRACK_POWER_OFF" },
@@ -348,6 +384,27 @@ static const value_string z21_command_vals[] = {
     { Z21_LAN_X_TURNOUT_INFO,                   "LAN_X_TURNOUT_INFO" },
     { Z21_LAN_X_UNKNOWN_COMMAND,                "LAN_X_UNKNOWN_COMMAND" },
     { Z21_LAN_ZLINK_GET_HWINFO,                 "LAN_ZLINK_GET_HWINFO" },
+    { 0, NULL },
+};
+
+static const value_string z21_loco_mode_vals[] = {
+    { 0, "DCC Format" },
+    { 1, "MM Format" },
+    { 0, NULL },
+};
+
+static const value_string z21_hw_type_vals[] = {
+    { 0x00000200, "Z21a" },
+    { 0x00000201, "Z21b" },
+    { 0x00000202, "SmartRail" },
+    { 0x00000203, "z21small" },
+    { 0x00000204, "z21start" },
+    { 0x00000205, "Z21 Single Booster" },
+    { 0x00000206, "Z21 Dual Booster" },
+    { 0x00000211, "Z21 XL Series" },
+    { 0x00000212, "Z21 XL Booster" },
+    { 0x00000301, "Z21 Switch Decoder" },
+    { 0x00000302, "Z21 Signal Decoder" },
     { 0, NULL },
 };
 
@@ -417,10 +474,26 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
     unsigned offset = 0, datalen, command;
     unsigned checksum, calculated_checksum, one_byte, version, temp_uint;
     unsigned address_bytes, addr, speed_steps = 0, cv_addr;
-    guint64 status, direction_and_speed, temp_guint64;
-    gint32 main_current, temp_gint32;
+    uint64_t status, direction_and_speed, temp_uint64;
+    int32_t main_current, temp_int32;
     char *buffer;
     float temp_float;
+    static int * const broadcast_flags_bits[] = {
+        &hf_z21_broadcast_flags_loconet_detector,
+        &hf_z21_broadcast_flags_loconet_switching,
+        &hf_z21_broadcast_flags_loconet_driving,
+        &hf_z21_broadcast_flags_loconet,
+        &hf_z21_broadcast_flags_can_detector,
+        &hf_z21_broadcast_flags_railcom,
+        &hf_z21_broadcast_flags_can_booster,
+        &hf_z21_broadcast_flags_driving_switching_ex,
+        &hf_z21_broadcast_flags_system_status,
+        &hf_z21_broadcast_flags_fast_clock,
+        &hf_z21_broadcast_flags_railcom_subscribed,
+        &hf_z21_broadcast_flags_rmbus,
+        &hf_z21_broadcast_flags_driving_switching,
+        NULL
+    };
     static int * const state_bits_byte1[] = {
         &hf_z21_state_programming_mode,
         &hf_z21_state_short_circuit,
@@ -552,8 +625,8 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
     proto_tree_add_item_ret_uint(z21_tree, hf_z21_datalen,
         tvb, offset, 2, ENC_LITTLE_ENDIAN, &datalen);
     offset += 2;
-    command = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
-    if (command == Z21_X_BUS) {
+    command = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
+    if (command == Z21_LAN_X_BC) {
         proto_tree_add_boolean(z21_tree, hf_z21_x_bus, tvb, offset, 2, true);
         /* Note that we do not increment the offset yet */
 
@@ -567,7 +640,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
          *    determine the exact command (as their two "command bytes" are the
          *    same), so check for those and set x_bus_command manually for them.
          */
-        temp_uint = 0x40000000 + tvb_get_guint16(tvb, offset+2, ENC_BIG_ENDIAN);
+        temp_uint = 0x40000000 + tvb_get_uint16(tvb, offset+2, ENC_BIG_ENDIAN);
         unsigned x_bus_command = temp_uint >> 8;
         /* Check for all the "one-byte" commands */
         if (x_bus_command == Z21_LAN_X_SET_STOP ||
@@ -594,7 +667,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             if (x_bus_command == Z21_LAN_X_CV_POM_COMMANDS ||
                 x_bus_command == Z21_LAN_X_CV_POM_ACCESSORY_COMMANDS) {
                 /* Read DB3 from data, get the two interesting bits */
-                temp_uint = tvb_get_guint8(tvb, offset + 6) >> 2 & 0x3;
+                temp_uint = tvb_get_uint8(tvb, offset + 6) >> 2 & 0x3;
                 switch (x_bus_command) {
                 case Z21_LAN_X_CV_POM_COMMANDS:
                     if (temp_uint == 0x1)
@@ -635,7 +708,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
         case Z21_LAN_X_SET_LOCO_DRIVE_DCC14:
         case Z21_LAN_X_SET_LOCO_DRIVE_DCC28:
         case Z21_LAN_X_SET_LOCO_DRIVE_DCC128:
-            address_bytes = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            address_bytes = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             addr = address_bytes & 0x3FFF;
             proto_tree_add_uint(z21_tree, hf_z21_loco_address, tvb, offset, 2, addr);
             switch (x_bus_command) {
@@ -657,19 +730,19 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 proto_item_set_text(temp_ti,
                     "Locomotive direction and speed: Forward, 0x%02" PRIx64,
                     direction_and_speed & 0x7F);
-                col_append_fstr(pinfo->cinfo, COL_INFO, ", Forward");
+                col_append_str(pinfo->cinfo, COL_INFO, ", Forward");
             }
             else {
                 proto_item_set_text(temp_ti,
                     "Locomotive direction and speed: Reverse, 0x%02" PRIx64,
                     direction_and_speed & 0x7F);
-                col_append_fstr(pinfo->cinfo, COL_INFO, ", Reverse");
+                col_append_str(pinfo->cinfo, COL_INFO, ", Reverse");
             }
             col_append_fstr(pinfo->cinfo, COL_INFO, ", Speed=0x%02" PRIx64,
                 direction_and_speed & 0x7F);
             break;
         case Z21_LAN_X_GET_LOCO_INFO:
-            address_bytes = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            address_bytes = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             addr = address_bytes & 0x3FFF;
             proto_tree_add_uint(z21_tree, hf_z21_loco_address, tvb, offset, 2, addr);
             offset += 2;
@@ -678,7 +751,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             col_append_fstr(pinfo->cinfo, COL_INFO, ", Loco=%d", addr);
             break;
         case Z21_LAN_X_LOCO_INFO:
-            address_bytes = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            address_bytes = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             addr = address_bytes & 0x3FFF;
             proto_tree_add_uint(z21_tree, hf_z21_loco_address, tvb, offset, 2, addr);
             offset += 2;
@@ -688,52 +761,52 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             proto_item_append_text(z21_tree, ", Loco: %d", addr);
 
             proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                loco_info_bits1, ENC_NA, &temp_guint64);
+                loco_info_bits1, ENC_NA, &temp_uint64);
             offset += 1;
-            calculated_checksum ^= temp_guint64;
+            calculated_checksum ^= temp_uint64;
             col_append_fstr(pinfo->cinfo, COL_INFO, " (%s)",
-                val_to_str_const((guint32)temp_guint64 & 0x07,
+                val_to_str_const((uint32_t)temp_uint64 & 0x07,
                     z21_loco_info_speed_steps_vals, "unknown"));
 
             proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                loco_info_bits2, ENC_NA, &temp_guint64);
+                loco_info_bits2, ENC_NA, &temp_uint64);
             offset += 1;
-            calculated_checksum ^= temp_guint64;
+            calculated_checksum ^= temp_uint64;
             col_append_fstr(pinfo->cinfo, COL_INFO, ", %s",
-                tfs_get_string((gboolean)temp_guint64 >> 7, &tfs_forward_reverse));
+                tfs_get_string((bool)(temp_uint64 >> 7), &tfs_forward_reverse));
             col_append_fstr(pinfo->cinfo, COL_INFO, ", Speed=0x%02" PRIx64,
-                temp_guint64 & 0x7f);
+                temp_uint64 & 0x7f);
 
             proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                loco_info_bits3, ENC_NA, &temp_guint64);
+                loco_info_bits3, ENC_NA, &temp_uint64);
             offset += 1;
-            calculated_checksum ^= temp_guint64;
-            if (temp_guint64 & 0x40) {
+            calculated_checksum ^= temp_uint64;
+            if (temp_uint64 & 0x40) {
                 col_append_str(pinfo->cinfo, COL_INFO, ", in double traction");
             }
 
             proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                loco_info_bits4, ENC_NA, &temp_guint64);
+                loco_info_bits4, ENC_NA, &temp_uint64);
             offset += 1;
-            calculated_checksum ^= temp_guint64;
+            calculated_checksum ^= temp_uint64;
 
             proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                loco_info_bits5, ENC_NA, &temp_guint64);
+                loco_info_bits5, ENC_NA, &temp_uint64);
             offset += 1;
-            calculated_checksum ^= temp_guint64;
+            calculated_checksum ^= temp_uint64;
 
             /* The following bytes are not always there it seems */
             if (offset < datalen-1) {
                 proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                    loco_info_bits6, ENC_NA, &temp_guint64);
+                    loco_info_bits6, ENC_NA, &temp_uint64);
                 offset += 1;
-                calculated_checksum ^= temp_guint64;
+                calculated_checksum ^= temp_uint64;
             }
             if (offset < datalen-1) {
                 proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                    loco_info_bits7, ENC_NA, &temp_guint64);
+                    loco_info_bits7, ENC_NA, &temp_uint64);
                 offset += 1;
-                calculated_checksum ^= temp_guint64;
+                calculated_checksum ^= temp_uint64;
             }
             /* If still something, dissect as bytes */
             if (offset < datalen-1) {
@@ -744,7 +817,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             }
             break;
         case Z21_LAN_X_PURGE_LOCO:
-            address_bytes = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            address_bytes = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             addr = address_bytes & 0x3FFF;
             proto_tree_add_uint(z21_tree, hf_z21_loco_address, tvb, offset, 2, addr);
             offset += 2;
@@ -754,7 +827,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             proto_item_append_text(z21_tree, ", Loco: %d", addr);
             break;
         case Z21_LAN_X_SET_LOCO_E_STOP:
-            address_bytes = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            address_bytes = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             addr = address_bytes & 0x3FFF;
             proto_tree_add_uint(z21_tree, hf_z21_loco_address, tvb, offset, 2, addr);
             offset += 2;
@@ -767,7 +840,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             col_append_str(pinfo->cinfo, COL_INFO, ", TO BE COMPLETED");
             break;
         case Z21_LAN_X_SET_LOCO_FUNCTION:
-            address_bytes = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            address_bytes = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             addr = address_bytes & 0x3FFF;
             proto_tree_add_uint(z21_tree, hf_z21_loco_address, tvb, offset, 2, addr);
             offset += 2;
@@ -776,18 +849,18 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             col_append_fstr(pinfo->cinfo, COL_INFO, ", Loco=%d", addr);
             proto_item_append_text(z21_tree, ", Loco: %d", addr);
             proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                loco_func_bits, ENC_NA, &temp_guint64);
+                loco_func_bits, ENC_NA, &temp_uint64);
             offset += 1;
-            calculated_checksum ^= temp_guint64;
+            calculated_checksum ^= temp_uint64;
             col_append_fstr(pinfo->cinfo, COL_INFO, ", Function=%" PRIu64 ", State=%s",
-                temp_guint64 & 0x3f,
-                val_to_str_const((guint32)temp_guint64 >> 6, z21_loco_func_vals, "unknown"));
+                temp_uint64 & 0x3f,
+                val_to_str_const((uint32_t)temp_uint64 >> 6, z21_loco_func_vals, "unknown"));
             proto_item_append_text(z21_tree, ", Function: %" PRIu64 ", State: %s",
-                temp_guint64 & 0x3f,
-                val_to_str_const((guint32)temp_guint64 >> 6, z21_loco_func_vals, "unknown"));
+                temp_uint64 & 0x3f,
+                val_to_str_const((uint32_t)temp_uint64 >> 6, z21_loco_func_vals, "unknown"));
             break;
         case Z21_LAN_X_GET_TURNOUT_INFO:
-            addr = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            addr = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_uint(z21_tree, hf_z21_function_address,
                 tvb, offset, 2, addr);
             offset += 2;
@@ -797,25 +870,25 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             proto_item_append_text(z21_tree, ", Function: %d", addr);
             break;
         case Z21_LAN_X_TURNOUT_INFO:
-            addr = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            addr = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_uint(z21_tree, hf_z21_function_address,
                 tvb, offset, 2, addr);
             offset += 2;
             calculated_checksum ^= addr >> 8;
             calculated_checksum ^= addr & 0xFF;
             proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                turnout_state_bits, ENC_NA, &temp_guint64);
+                turnout_state_bits, ENC_NA, &temp_uint64);
             offset += 1;
-            calculated_checksum ^= temp_guint64;
+            calculated_checksum ^= temp_uint64;
             col_append_fstr(pinfo->cinfo, COL_INFO, ", Address=%d, State=%s",
                 addr,
-                val_to_str_const((guint32)temp_guint64 & 0x03, z21_turnout_state_vals, "unknown"));
+                val_to_str_const((uint32_t)temp_uint64 & 0x03, z21_turnout_state_vals, "unknown"));
             proto_item_append_text(z21_tree, ", Address: %d, State: %s",
                 addr,
-                val_to_str_const((guint32)temp_guint64 & 0x03, z21_turnout_state_vals, "unknown"));
+                val_to_str_const((uint32_t)temp_uint64 & 0x03, z21_turnout_state_vals, "unknown"));
             break;
         case Z21_LAN_X_SET_TURNOUT:
-            addr = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            addr = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_uint(z21_tree, hf_z21_function_address,
                 tvb, offset, 2, addr);
             offset += 2;
@@ -824,20 +897,20 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             col_append_fstr(pinfo->cinfo, COL_INFO, ", Address=%d", addr);
             proto_item_append_text(z21_tree, ", Address: %d", addr);
             proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                turnout_set_bits, ENC_NA, &temp_guint64);
+                turnout_set_bits, ENC_NA, &temp_uint64);
             offset += 1;
-            calculated_checksum ^= temp_guint64;
+            calculated_checksum ^= temp_uint64;
             col_append_fstr(pinfo->cinfo, COL_INFO, ", Address=%d, %s, Output=%s",
                 addr,
-                tfs_get_string((gboolean)temp_guint64 & 0x08, &tfs_turnout_command),
-                tfs_get_string((gboolean)temp_guint64 & 0x01, &tfs_turnout_output));
+                tfs_get_string((bool)(temp_uint64 & 0x08), &tfs_turnout_command),
+                tfs_get_string((bool)(temp_uint64 & 0x01), &tfs_turnout_output));
             proto_item_append_text(z21_tree, ", Address: %d, %s, Output: %s",
                 addr,
-                tfs_get_string((gboolean)temp_guint64 & 0x08, &tfs_turnout_command),
-                tfs_get_string((gboolean)temp_guint64 & 0x01, &tfs_turnout_output));
+                tfs_get_string((bool)(temp_uint64 & 0x08), &tfs_turnout_command),
+                tfs_get_string((bool)(temp_uint64 & 0x01), &tfs_turnout_output));
             break;
         case Z21_LAN_X_GET_EXT_ACCESSORY_INFO:
-            addr = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            addr = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_uint(z21_tree, hf_z21_accessory_address,
                 tvb, offset, 2, addr);
             offset += 2;
@@ -847,13 +920,13 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             proto_item_append_text(z21_tree, ", Address: %d", addr);
             break;
         case Z21_LAN_X_EXT_ACCESSORY_INFO:
-            addr = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            addr = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_uint(z21_tree, hf_z21_accessory_address,
                 tvb, offset, 2, addr);
             offset += 2;
             calculated_checksum ^= addr >> 8;
             calculated_checksum ^= addr & 0xFF;
-            temp_uint = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            temp_uint = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_uint(z21_tree, hf_z21_accessory_state,
                 tvb, offset, 1, temp_uint >> 8);
             offset += 1;
@@ -868,13 +941,13 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 addr, temp_uint >> 8, temp_uint & 0xff);
             break;
         case Z21_LAN_X_SET_EXT_ACCESSORY:
-            addr = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            addr = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_uint(z21_tree, hf_z21_accessory_address,
                 tvb, offset, 2, addr);
             offset += 2;
             calculated_checksum ^= addr >> 8;
             calculated_checksum ^= addr & 0xFF;
-            temp_uint = tvb_get_guint8(tvb, offset);
+            temp_uint = tvb_get_uint8(tvb, offset);
             proto_tree_add_uint(z21_tree, hf_z21_accessory_state,
                 tvb, offset, 1, temp_uint);
             offset += 1;
@@ -885,7 +958,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 addr, temp_uint);
             break;
         case Z21_LAN_X_CV_READ:
-            cv_addr = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            cv_addr = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             /* CV addresses are 1-based, update checksum first */
             calculated_checksum ^= cv_addr >> 8;
             calculated_checksum ^= cv_addr & 0xFF;
@@ -897,7 +970,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             proto_item_append_text(z21_tree, ", CV%d", cv_addr);
             break;
         case Z21_LAN_X_CV_WRITE:
-            cv_addr = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            cv_addr = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             /* CV addresses are 1-based, update checksum first */
             calculated_checksum ^= cv_addr >> 8;
             calculated_checksum ^= cv_addr & 0xFF;
@@ -905,7 +978,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             proto_tree_add_uint(z21_tree, hf_z21_cv_address,
                 tvb, offset, 2, cv_addr);
             offset += 2;
-            temp_uint = tvb_get_guint8(tvb, offset);
+            temp_uint = tvb_get_uint8(tvb, offset);
             proto_tree_add_uint(z21_tree, hf_z21_cv_value,
                 tvb, offset, 1, temp_uint);
             offset += 1;
@@ -916,7 +989,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 cv_addr, temp_uint);
             break;
         case Z21_LAN_X_CV_RESULT:
-            cv_addr = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            cv_addr = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             /* CV addresses are 1-based, update checksum first */
             calculated_checksum ^= cv_addr >> 8;
             calculated_checksum ^= cv_addr & 0xFF;
@@ -924,7 +997,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             proto_tree_add_uint(z21_tree, hf_z21_cv_address,
                 tvb, offset, 2, cv_addr);
             offset += 2;
-            temp_uint = tvb_get_guint8(tvb, offset);
+            temp_uint = tvb_get_uint8(tvb, offset);
             proto_tree_add_uint(z21_tree, hf_z21_cv_value,
                 tvb, offset, 1, temp_uint);
             offset += 1;
@@ -935,13 +1008,13 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 cv_addr, temp_uint);
             break;
         case Z21_LAN_X_CV_POM_WRITE_BYTE:
-            address_bytes = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            address_bytes = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             addr = address_bytes & 0x3FFF;
             proto_tree_add_uint(z21_tree, hf_z21_loco_address, tvb, offset, 2, addr);
             offset += 2;
             calculated_checksum ^= address_bytes >> 8;
             calculated_checksum ^= address_bytes & 0xFF;
-            temp_uint = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            temp_uint = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             calculated_checksum ^= temp_uint >> 8;
             calculated_checksum ^= temp_uint & 0xff;
             proto_tree_add_uint(z21_tree, hf_z21_pom_operation,
@@ -960,13 +1033,13 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 addr, cv_addr, temp_uint);
             break;
         case Z21_LAN_X_CV_POM_WRITE_BIT:
-            address_bytes = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            address_bytes = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             addr = address_bytes & 0x3FFF;
             proto_tree_add_uint(z21_tree, hf_z21_loco_address, tvb, offset, 2, addr);
             offset += 2;
             calculated_checksum ^= address_bytes >> 8;
             calculated_checksum ^= address_bytes & 0xFF;
-            temp_uint = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            temp_uint = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             calculated_checksum ^= temp_uint >> 8;
             calculated_checksum ^= temp_uint & 0xff;
             proto_tree_add_uint(z21_tree, hf_z21_pom_operation,
@@ -976,22 +1049,22 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 tvb, offset, 2, cv_addr);
             offset += 2;
             proto_tree_add_bitmask_list_ret_uint64(z21_tree, tvb, offset, 1,
-                cv_bits, ENC_NA, &temp_guint64);
+                cv_bits, ENC_NA, &temp_uint64);
             offset += 1;
-            calculated_checksum ^= (unsigned)temp_guint64;
+            calculated_checksum ^= (unsigned)temp_uint64;
             col_append_fstr(pinfo->cinfo, COL_INFO, ", Loco=%d, CV%d, Bit position=%" PRIu64 ", Value=%" PRIu64,
-                addr, cv_addr, temp_guint64 & 0x07, temp_guint64 >> 3 & 0x01);
+                addr, cv_addr, temp_uint64 & 0x07, temp_uint64 >> 3 & 0x01);
             proto_item_append_text(z21_tree, ", Loco: %d, CV%d, Bit position: %" PRIu64 ", Value: %" PRIu64,
-                addr, cv_addr, temp_guint64 & 0x07, temp_guint64 >> 3 & 0x01);
+                addr, cv_addr, temp_uint64 & 0x07, temp_uint64 >> 3 & 0x01);
             break;
         case Z21_LAN_X_CV_POM_READ_BYTE:
-            address_bytes = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            address_bytes = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             addr = address_bytes & 0x3FFF;
             proto_tree_add_uint(z21_tree, hf_z21_loco_address, tvb, offset, 2, addr);
             offset += 2;
             calculated_checksum ^= address_bytes >> 8;
             calculated_checksum ^= address_bytes & 0xFF;
-            temp_uint = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            temp_uint = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             calculated_checksum ^= temp_uint >> 8;
             calculated_checksum ^= temp_uint & 0xff;
             proto_tree_add_uint(z21_tree, hf_z21_pom_operation,
@@ -1008,10 +1081,10 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
         case Z21_LAN_X_CV_POM_ACCESSORY_WRITE_BYTE:
         case Z21_LAN_X_CV_POM_ACCESSORY_WRITE_BIT:
         case Z21_LAN_X_CV_POM_ACCESSORY_READ_BYTE:
-            col_append_fstr(pinfo->cinfo, COL_INFO, ", *** TO BE COMPLETED ***");
+            col_append_str(pinfo->cinfo, COL_INFO, ", *** TO BE COMPLETED ***");
             break;
         case Z21_LAN_X_DCC_READ_REGISTER:
-            temp_uint = tvb_get_guint8(tvb, offset);
+            temp_uint = tvb_get_uint8(tvb, offset);
             proto_tree_add_uint(z21_tree, hf_z21_register,
                 tvb, offset, 1, temp_uint);
             offset += 1;
@@ -1022,7 +1095,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 temp_uint);
             break;
         case Z21_LAN_X_DCC_WRITE_REGISTER:
-            temp_uint = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            temp_uint = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_uint(z21_tree, hf_z21_register,
                 tvb, offset, 1, temp_uint >> 8);
             offset += 1;
@@ -1039,7 +1112,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
         case Z21_LAN_X_MM_WRITE_BYTE:
             /* Skip one zero byte */
             offset += 1;
-            temp_uint = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            temp_uint = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             proto_tree_add_uint(z21_tree, hf_z21_register,
                 tvb, offset, 1, temp_uint >> 8);
             offset += 1;
@@ -1054,7 +1127,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 temp_uint >> 8, temp_uint & 0xff);
             break;
         case Z21_LAN_X_GET_FIRMWARE_VERSION_REPLY:
-            version = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+            version = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
             buffer = wmem_strdup_printf(pinfo->pool, "%x.%02x",
                 version >> 8, version & 0xff);
             proto_tree_add_string(z21_tree, hf_z21_firmware_version,
@@ -1068,7 +1141,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
 
         /* Calculate checksum for the rest of the bytes (if any) for now */
         while (offset < datalen-1) {
-            one_byte = tvb_get_guint8(tvb, offset);
+            one_byte = tvb_get_uint8(tvb, offset);
             offset += 1;
             calculated_checksum ^= one_byte;
         }
@@ -1102,29 +1175,29 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             }
             break;
         case Z21_LAN_SYSTEMSTATE_DATACHANGED:
-            main_current = tvb_get_gint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            main_current = tvb_get_int16(tvb, offset, ENC_LITTLE_ENDIAN);
             proto_tree_add_int_format_value(z21_tree, hf_z21_main_current,
                 tvb, offset, 2, main_current, "%d mA", main_current);
             offset += 2;
 
-            temp_gint32 = tvb_get_gint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            temp_int32 = tvb_get_int16(tvb, offset, ENC_LITTLE_ENDIAN);
             proto_tree_add_int_format_value(z21_tree, hf_z21_prog_current,
-                tvb, offset, 2, temp_gint32, "%d mA", temp_gint32);
+                tvb, offset, 2, temp_int32, "%d mA", temp_int32);
             offset += 2;
 
-            temp_gint32 = tvb_get_gint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            temp_int32 = tvb_get_int16(tvb, offset, ENC_LITTLE_ENDIAN);
             proto_tree_add_int_format_value(z21_tree, hf_z21_filtered_main_current,
-                tvb, offset, 2, temp_gint32, "%d mA", temp_gint32);
+                tvb, offset, 2, temp_int32, "%d mA", temp_int32);
             offset += 2;
 
-            temp_gint32 = tvb_get_gint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            temp_int32 = tvb_get_int16(tvb, offset, ENC_LITTLE_ENDIAN);
             proto_tree_add_int_format_value(z21_tree, hf_z21_temperature,
-                tvb, offset, 2, temp_gint32, "%d°C", temp_gint32);
+                tvb, offset, 2, temp_int32, "%d°C", temp_int32);
             offset += 2;
             col_append_fstr(pinfo->cinfo, COL_INFO,
-                ", Temperature=%d°C", temp_gint32);
+                ", Temperature=%d°C", temp_int32);
 
-            temp_uint = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            temp_uint = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
             temp_float = (float)temp_uint / 1000;
             proto_tree_add_float_format_value(z21_tree, hf_z21_supply_voltage,
                 tvb, offset, 2, temp_float, "%.3f V", temp_float);
@@ -1132,7 +1205,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             col_append_fstr(pinfo->cinfo, COL_INFO,
                 ", Track=%.3f V/%d mA", temp_float, main_current);
 
-            temp_uint = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            temp_uint = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
             temp_float = (float)temp_uint / 1000;
             proto_tree_add_float_format_value(z21_tree, hf_z21_track_voltage,
                 tvb, offset, 2, temp_float, "%.3f V", temp_float);
@@ -1147,7 +1220,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             proto_tree_add_item(z21_tree, hf_z21_systemstate_reserved,
                 tvb, offset, 1, ENC_NA);
             offset += 1;
-            temp_uint = tvb_get_guint8(tvb, offset);
+            temp_uint = tvb_get_uint8(tvb, offset);
             if (temp_uint == 0) {
                 /* Don't interpret the flags */
                 proto_tree_add_uint_format_value(z21_tree, hf_z21_capabilities,
@@ -1305,11 +1378,11 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             proto_tree_add_bitmask(z21_tree, tvb, offset,
                 hf_z21_can_booster_state, ett_z21, booster_state_bits, ENC_LITTLE_ENDIAN);
             offset += 2;
-            temp_uint = tvb_get_gint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            temp_uint = tvb_get_int16(tvb, offset, ENC_LITTLE_ENDIAN);
             proto_tree_add_uint_format_value(z21_tree, hf_z21_can_booster_vcc,
                 tvb, offset, 2, temp_uint, "%d mV", temp_uint);
             offset += 2;
-            temp_uint = tvb_get_gint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            temp_uint = tvb_get_int16(tvb, offset, ENC_LITTLE_ENDIAN);
             proto_tree_add_uint_format_value(z21_tree, hf_z21_can_booster_current,
                 tvb, offset, 2, temp_uint, "%d mA", temp_uint);
             offset += 2;
@@ -1348,7 +1421,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
         case Z21_LAN_BOOSTER_SET_DESCRIPTION:
             if (datalen > 4) {
                 /* SET_DESCRIPTION or reply to GET_DESCRIPTION */
-                guint8 *buf = tvb_get_stringz_enc(pinfo->pool, tvb, offset, NULL, ENC_ISO_8859_1);
+                uint8_t *buf = tvb_get_stringz_enc(pinfo->pool, tvb, offset, NULL, ENC_ISO_8859_1);
                 if (buf[0] == 0xff) {
                     /* Interpreted as an empty name */
                     proto_tree_add_string(z21_tree, hf_z21_booster_name, tvb, offset, 32, "");
@@ -1366,7 +1439,7 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
         case Z21_LAN_DECODER_SET_DESCRIPTION:
             if (datalen > 4) {
                 /* SET_DESCRIPTION or reply to GET_DESCRIPTION */
-                guint8 *buf = tvb_get_stringz_enc(pinfo->pool, tvb, offset, NULL, ENC_ISO_8859_1);
+                uint8_t *buf = tvb_get_stringz_enc(pinfo->pool, tvb, offset, NULL, ENC_ISO_8859_1);
                 if (buf[0] == 0xff) {
                     /* Interpreted as an empty name */
                     proto_tree_add_string(z21_tree, hf_z21_decoder_name, tvb, offset, 32, "");
@@ -1402,6 +1475,41 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 tvb, offset, datalen-4, ENC_NA);
             offset += datalen-4;
             break;
+        case Z21_LAN_GET_LOCOMODE:
+        case Z21_LAN_SET_LOCOMODE:
+            address_bytes = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
+            addr = address_bytes & 0x3FFF;
+            proto_tree_add_uint(z21_tree, hf_z21_loco_address, tvb, offset, 2, addr);
+            offset += 2;
+            col_append_fstr(pinfo->cinfo, COL_INFO, ", Loco=%d", addr);
+            if (datalen > 6) {
+                unsigned mode = tvb_get_uint8(tvb, offset);
+                proto_tree_add_uint(z21_tree, hf_z21_loco_mode, tvb, offset, 1, mode);
+                offset += 1;
+                col_append_fstr(pinfo->cinfo, COL_INFO, ", Mode: %d", mode);
+            }
+            break;
+        case Z21_LAN_GET_BROADCASTFLAGS:
+        case Z21_LAN_SET_BROADCASTFLAGS:
+            if (datalen == 8) {
+                proto_tree_add_bitmask_with_flags(z21_tree, tvb, offset, hf_z21_broadcast_flags,
+                    ett_z21, broadcast_flags_bits, ENC_LITTLE_ENDIAN, BMT_NO_APPEND);
+                offset += 4;
+            }
+            break;
+        case Z21_LAN_GET_HWINFO:
+            if (datalen == 12) {
+                unsigned hwtype = tvb_get_uint32(tvb, offset, ENC_LITTLE_ENDIAN);
+                proto_tree_add_uint(z21_tree, hf_z21_hw_type, tvb, offset, 1, hwtype);
+                offset += 4;
+                version = tvb_get_uint32(tvb, offset, ENC_LITTLE_ENDIAN);
+                buffer = wmem_strdup_printf(pinfo->pool, "%x.%02x",
+                    version >> 8, version & 0xff);
+                proto_tree_add_string(z21_tree, hf_z21_firmware_version,
+                    tvb, offset, 2, buffer);
+                offset += 4;
+            }
+            break;
         }
         if (offset < datalen) {
             /* Just dump all the rest, if any */
@@ -1415,13 +1523,25 @@ dissect_z21_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
 static unsigned
 get_z21_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    return tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+    return tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
 }
 
-static gboolean
-check_z21_header(packet_info *pinfo _U_, tvbuff_t *tvb _U_, int offset _U_, void *data _U_)
+static bool
+check_z21_header(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    return TRUE;
+    int remaining_length = tvb_reported_length_remaining(tvb, offset);
+    if (remaining_length < Z21_MIN_LENGTH) {
+        return false;
+    }
+    int pdu_len = get_z21_pdu_len(pinfo, tvb, offset, data);
+    if (pdu_len < Z21_MIN_LENGTH || pdu_len > remaining_length) {
+        return false;
+    }
+    uint16_t command = tvb_get_uint16(tvb, offset + 2, ENC_BIG_ENDIAN);
+    if (!try_val_to_str(command, z21_command_vals)) {
+        return false;
+    }
+    return true;
 }
 
 static int
@@ -1497,6 +1617,11 @@ proto_register_z21(void)
             FT_FLOAT, BASE_DEC, NULL, 0x0,
             NULL, HFILL }
         },
+        { &hf_z21_broadcast_flags,
+          { "Broadcast flags", "z21.broadcastflags",
+            FT_UINT32, BASE_HEX, NULL, 0x0,
+            NULL, HFILL }
+        },
         { &hf_z21_central_state,
           { "Central state, first byte", "z21.centralstate1",
             FT_UINT8, BASE_HEX, NULL, 0x0,
@@ -1520,6 +1645,71 @@ proto_register_z21(void)
         { &hf_z21_status,
           { "Status", "z21.status",
             FT_UINT8, BASE_HEX, NULL, 0x0,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_driving_switching,
+          { "Broadcasts messages concerning driving and switching", "z21.broadcastflags.driving_switching",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x00000001,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_rmbus,
+          { "Changes of the feedback devices on the R-Bus", "z21.broadcastflags.rmbus",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x00000002,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_railcom_subscribed,
+          { "Changes of RailCom data of subscribed locomotives", "z21.broadcastflags.railcom_subscribed",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x00000004,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_system_status,
+          { "Changes of the Z21 system status", "z21.broadcastflags.system_status",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x00000100,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_driving_switching_ex,
+          { "Extends flag 0x00000001, LAN_X_LOCO_INFO is sent for all modified locomotives", "z21.broadcastflags.driving_switching_ex",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x00010000,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_loconet,
+          { "Forward messages from LocoNet without locos and switches", "z21.broadcastflags.loconet",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x01000000,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_loconet_driving,
+          { "Forward locomotive-specific LocoNet", "z21.broadcastflags.loconet_driving",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x02000000,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_loconet_switching,
+          { "Forward switch-specific LocoNet", "z21.broadcastflags.loconet_switching",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x04000000,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_loconet_detector,
+          { "Changes of LocoNet track occupancy detectors", "z21.broadcastflags.emergencystop",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x08000000,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_railcom,
+          { "Changes of RailCom data", "z21.broadcastflags.railcom",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x00040000,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_can_detector,
+          { "Changes of CAN-Bus track occupancy detectors", "z21.broadcastflags.can_detector",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x00080000,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_can_booster,
+          { "Forward CAN-Bus booster status messages", "z21.broadcastflags.can_booster",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x00020000,
+            NULL, HFILL }
+        },
+        { &hf_z21_broadcast_flags_fast_clock,
+          { "Fast clock time messages", "z21.broadcastflags.fast_clock",
+            FT_BOOLEAN, 32, TFS(&tfs_enabled_disabled), 0x00000010,
             NULL, HFILL }
         },
         { &hf_z21_state_emergency_stop,
@@ -1605,6 +1795,11 @@ proto_register_z21(void)
         { &hf_z21_capability_needs_unlock_code,
           { "Needs unlock code", "z21.capability.needsunlockcode",
             FT_BOOLEAN, 8, TFS(&tfs_yes_no), 0x80,
+            NULL, HFILL }
+        },
+        { &hf_z21_loco_mode,
+          { "Locomotive mode", "z21.locomode",
+            FT_UINT8, BASE_DEC, VALS(z21_loco_mode_vals), 0x0,
             NULL, HFILL }
         },
         { &hf_z21_loco_address,
@@ -1830,6 +2025,11 @@ proto_register_z21(void)
         { &hf_z21_speed_steps,
           { "Speed steps", "z21.speedsteps",
             FT_UINT8, BASE_DEC, NULL, 0x0,
+            NULL, HFILL }
+        },
+        { &hf_z21_hw_type,
+          { "Hardware type", "z21.hwtype",
+            FT_UINT32, BASE_HEX, VALS(z21_hw_type_vals), 0x0,
             NULL, HFILL }
         },
         { &hf_z21_firmware_version,

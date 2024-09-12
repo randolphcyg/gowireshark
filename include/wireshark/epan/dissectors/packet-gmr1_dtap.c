@@ -25,14 +25,14 @@ void proto_register_gmr1_dtap(void);
 void proto_reg_handoff_gmr1_dtap(void);
 
 /* GMR-1 DTAP proto */
-static int proto_gmr1_dtap = -1;
+static int proto_gmr1_dtap;
 
-static int hf_gmr1_dtap_protocol_discriminator = -1;
-static int hf_gmr1_dtap_message_elements = -1;
+static int hf_gmr1_dtap_protocol_discriminator;
+static int hf_gmr1_dtap_message_elements;
 
 /* GMR-1 DTAP sub tree */
-static gint ett_gmr1_dtap = -1;
-static gint ett_gmr1_pd = -1;
+static int ett_gmr1_dtap;
+static int ett_gmr1_pd;
 
 /* Handoffs */
 static dissector_handle_t gsm_dtap_handle;
@@ -42,22 +42,22 @@ static dissector_handle_t dtap_handle;
 static int
 dissect_gmr1_dtap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	guint32 len, offset;
+	uint32_t len, offset;
 	gmr1_msg_func_t msg_func;
-	const gchar *msg_str;
-	gint ett_tree;
+	const char *msg_str;
+	int ett_tree;
 	int hf_idx;
 	proto_item *dtap_item = NULL/*, *pd_item = NULL*/;
 	proto_tree *dtap_tree = NULL/*, *pd_tree = NULL*/;
-	guint32 oct[2];
-	guint8 pd;
+	uint32_t oct[2];
+	uint8_t pd;
 
 	/* Scan init */
 	len = tvb_captured_length(tvb);
 	offset = 0;
 
 	/* Protocol descriptor */
-	oct[0] = tvb_get_guint8(tvb, offset++);
+	oct[0] = tvb_get_uint8(tvb, offset++);
 
 	if ((oct[0] & GMR1_PD_EXT_MSK) == GMR1_PD_EXT_VAL)
 		pd = oct[0] & 0xff;
@@ -77,7 +77,7 @@ dissect_gmr1_dtap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 		val_to_str(pd, gmr1_pd_short_vals, "Unknown (%u)"));
 
 	/* Get message parameters */
-	oct[1] = tvb_get_guint8(tvb, offset);
+	oct[1] = tvb_get_uint8(tvb, offset);
 
 	gmr1_get_msg_params((gmr1_pd_e)pd, oct[1], &msg_str, &ett_tree, &hf_idx, &msg_func);
 
@@ -149,7 +149,7 @@ proto_register_gmr1_dtap(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_gmr1_dtap,
 		&ett_gmr1_pd,
 	};

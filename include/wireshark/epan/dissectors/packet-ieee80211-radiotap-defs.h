@@ -12,8 +12,6 @@
 #ifndef IEEE80211RADIOTAP_H
 #define IEEE80211RADIOTAP_H
 
-#include <glib.h>
-
 /* Base version of the radiotap packet header data */
 #define PKTHDR_RADIOTAP_VERSION		0
 
@@ -36,18 +34,18 @@
  * All data in the header is little endian on all platforms.
  */
 struct ieee80211_radiotap_header {
-	guint8 it_version;	/* Version 0. Only increases
+	uint8_t it_version;	/* Version 0. Only increases
 				 * for drastic changes,
 				 * introduction of compatible
 				 * new fields does not count.
 				 */
-	guint8 it_pad;
-	guint16 it_len;		/* length of the whole
+	uint8_t it_pad;
+	uint16_t it_len;		/* length of the whole
 				 * header in bytes, including
 				 * it_version, it_pad,
 				 * it_len, and data fields.
 				 */
-	guint32 it_present;	/* A bitmap telling which
+	uint32_t it_present;	/* A bitmap telling which
 				 * fields are present. Set bit 31
 				 * (0x80000000) to extend the
 				 * bitmap by another 32 bits.
@@ -65,11 +63,11 @@ struct ieee80211_radiotap_header {
  *      Synchronization Function timer when the first bit of the
  *      MPDU arrived at the MAC. For received frames, only.
  *
- * IEEE80211_RADIOTAP_CHANNEL           2 x guint16   MHz, bitmap
+ * IEEE80211_RADIOTAP_CHANNEL           2 x uint16_t  MHz, bitmap
  *
  *      Tx/Rx frequency in MHz, followed by flags (see below).
  *
- * IEEE80211_RADIOTAP_FHSS              guint16       see below
+ * IEEE80211_RADIOTAP_FHSS              uint16_t      see below
  *
  *      For frequency-hopping radios, the hop set (first byte)
  *      and pattern (second byte).
@@ -100,20 +98,20 @@ struct ieee80211_radiotap_header {
  *      RF noise power at the antenna, decibel difference from an
  *      arbitrary, fixed reference point.
  *
- * IEEE80211_RADIOTAP_LOCK_QUALITY      guint16       unitless
+ * IEEE80211_RADIOTAP_LOCK_QUALITY      uint16_t      unitless
  *
  *      Quality of Barker code lock. Unitless. Monotonically
  *      nondecreasing with "better" lock strength. Called "Signal
  *      Quality" in datasheets.  (Is there a standard way to measure
  *      this?)
  *
- * IEEE80211_RADIOTAP_TX_ATTENUATION    guint16       unitless
+ * IEEE80211_RADIOTAP_TX_ATTENUATION    uint16_t      unitless
  *
  *      Transmit power expressed as unitless distance from max
  *      power set at factory calibration.  0 is max power.
  *      Monotonically nondecreasing with lower power levels.
  *
- * IEEE80211_RADIOTAP_DB_TX_ATTENUATION guint16       decibels (dB)
+ * IEEE80211_RADIOTAP_DB_TX_ATTENUATION uint16_t      decibels (dB)
  *
  *      Transmit power expressed as decibel distance from max power
  *      set at factory calibration.  0 is max power.  Monotonically
@@ -136,11 +134,11 @@ struct ieee80211_radiotap_header {
  *      Unitless indication of the Rx/Tx antenna for this packet.
  *      The first antenna is antenna 0.
  *
- * IEEE80211_RADIOTAP_RX_FLAGS          guint16       bitmap
+ * IEEE80211_RADIOTAP_RX_FLAGS          uint16_t      bitmap
  *
  *     Properties of received frames. See flags defined below.
  *
- * IEEE80211_RADIOTAP_TX_FLAGS          guint16       bitmap
+ * IEEE80211_RADIOTAP_TX_FLAGS          uint16_t      bitmap
  *
  *     Properties of transmitted frames. See flags defined below.
  *
@@ -157,7 +155,7 @@ struct ieee80211_radiotap_header {
  *     Contains a bitmap of known fields/flags, the flags, and
  *     the MCS index.
  *
- * IEEE80211_RADIOTAP_AMPDU_STATUS	u32, u16, u8, u8	unitlesss
+ * IEEE80211_RADIOTAP_AMPDU_STATUS	u32, u16, u8, u8	unitless
  *
  *	Contains the AMPDU information for the subframe.
  *
@@ -216,9 +214,9 @@ enum ieee80211_radiotap_type {
 };
 
 struct ieee80211_radiotap_tlv {
-	guint16 type;
-	guint16 datalen;
-	guint8 data[];
+	uint16_t type;
+	uint16_t datalen;
+	uint8_t data[];
 };
 
 /* TLVs we understand. */
@@ -439,7 +437,7 @@ struct ieee80211_radiotap_tlv {
 #define IEEE80211_RADIOTAP_HE_CODING				0x2000
 #define IEEE80211_RADIOTAP_HE_LDPC_EXTRA_SYMBOL_SEGMENT		0x4000
 #define IEEE80211_RADIOTAP_HE_STBC				0x8000
-/* HE_SU and HE_EXT_SU formap PPDU */
+/* HE_SU and HE_EXT_SU format PPDU */
 #define IEEE80211_RADIOTAP_HE_SPATIAL_REUSE_MASK		0x000F
 #define IEEE80211_RADIOTAP_HE_D4_FFF0				0xFFF0
 /* HE_TRIG format PPDU */
@@ -452,6 +450,10 @@ struct ieee80211_radiotap_tlv {
 #define IEEE80211_RADIOTAP_HE_RESERVED_D4_B15			0x8000
 
 #define IEEE80211_RADIOTAP_HE_DATA_BANDWIDTH_RU_ALLOC_MASK	0x000F
+#define IEEE80211_RADIOTAP_HE_DATA_BANDWIDTH_RU_20		0
+#define IEEE80211_RADIOTAP_HE_DATA_BANDWIDTH_RU_40		1
+#define IEEE80211_RADIOTAP_HE_DATA_BANDWIDTH_RU_80		2
+#define IEEE80211_RADIOTAP_HE_DATA_BANDWIDTH_RU_160		3
 #define IEEE80211_RADIOTAP_HE_GI_MASK				0x0030
 #define IEEE80211_RADIOTAP_HE_GI_0_POINT_8_MICRO		0
 #define IEEE80211_RADIOTAP_HE_GI_1_POINT_6_MICRO		1
@@ -498,9 +500,6 @@ struct ieee80211_radiotap_tlv {
 #define IEEE80211_RADIOTAP_L_SIG_RATE_MASK			0x000F
 #define IEEE80211_RADIOTAP_L_SIG_LENGTH_MASK			0xFFF0
 
-/* TLV Definitions, start at 32 */
-#define IEEE80211_RADIOTAP_TLV_S1G                              32
-
 /* For IEEE80211_RADIOTAP_TLV_S1G */
 #define IEEE80211_RADIOTAP_TLV_S1G_S1G_PPDU_FORMAT_KNOWN               0x0001
 #define IEEE80211_RADIOTAP_TLV_S1G_RESPONSE_INDICATION_KNOWN           0x0002
@@ -546,6 +545,15 @@ struct ieee80211_radiotap_tlv {
 #define IEEE80211_RADIOTAP_USIG_BSS_COLOR                       0x01F80000
 #define IEEE80211_RADIOTAP_USIG_TXOP                            0xFE000000
 
+/* IEEE80211_RADIOTAP_USIG_BW encoding*/
+#define IEEE80211_RADIOTAP_USIG_BW_SHIFT                        15
+#define IEEE80211_RADIOTAP_USIG_BW_20                           0x0
+#define IEEE80211_RADIOTAP_USIG_BW_40                           0x1
+#define IEEE80211_RADIOTAP_USIG_BW_80                           0x2
+#define IEEE80211_RADIOTAP_USIG_BW_160                          0x3
+#define IEEE80211_RADIOTAP_USIG_BW_320_1                        0x4
+#define IEEE80211_RADIOTAP_USIG_BW_320_2                        0x5
+
 #define IEEE80211_RADIOTAP_USIG_1_B20_B24                       0x0000001F
 #define IEEE80211_RADIOTAP_USIG_1_B25                           0x00000020
 #define IEEE80211_RADIOTAP_USIG_2_B0_B1                         0x000000C0
@@ -589,5 +597,32 @@ struct ieee80211_radiotap_tlv {
 #define IEEE80211_RADIOTAP_EHT_TB_RU_ALLOCATION_KNOWN           0x01000000
 #define IEEE80211_RADIOTAP_EHT_PRIMARY_80MHZ_CHANNEL_POS_KNOWN  0x02000000
 #define IEEE80211_RADIOTAP_EHT_RESERVED_FC                      0xFC000000
+
+/* EHT Data 0*/
+#define IEEE80211_RADIOTAP_EHT_GI_MASK                          0x00000180
+#define IEEE80211_RADIOTAP_EHT_GI_SHIFT                         7
+
+/* EHT Data 1*/
+#define IEEE80211_RADIOTAP_EHT_RU_MRU_SIZE_MASK                 0x0000001F
+#define IEEE80211_RADIOTAP_EHT_RU_MRU_SIZE_SHIFT                0
+
+/* IEEE80211_RADIOTAP_EHT_RU_MRU_SIZE encoding*/
+#define IEEE80211_RADIOTAP_EHT_RU_26                            0
+#define IEEE80211_RADIOTAP_EHT_RU_52                            0x1
+#define IEEE80211_RADIOTAP_EHT_RU_106                           0x2
+#define IEEE80211_RADIOTAP_EHT_RU_242                           0x3
+#define IEEE80211_RADIOTAP_EHT_RU_484                           0x4
+#define IEEE80211_RADIOTAP_EHT_RU_996                           0x5
+#define IEEE80211_RADIOTAP_EHT_RU_2_TIMES_996                   0x6
+#define IEEE80211_RADIOTAP_EHT_RU_4_TIMES_994                   0x7
+#define IEEE80211_RADIOTAP_EHT_RU_52_PLUS_26                    0x8
+#define IEEE80211_RADIOTAP_EHT_RU_106_PLUS_26                   0x9
+/* Punctured modes, additional RUs*/
+#define IEEE80211_RADIOTAP_EHT_RU_484_PLUS_242                  0xA
+#define IEEE80211_RADIOTAP_EHT_RU_996_PLUS_484                  0xB
+#define IEEE80211_RADIOTAP_EHT_RU_996_PLUS_484_242              0xC
+#define IEEE80211_RADIOTAP_EHT_RU_2_TIMES_996_PLUS_484          0xD
+#define IEEE80211_RADIOTAP_EHT_RU_3_TIMES_996                   0xE
+#define IEEE80211_RADIOTAP_EHT_RU_3_TIMES_996_PLUS_484          0xF
 
 #endif				/* IEEE80211_RADIOTAP_H */

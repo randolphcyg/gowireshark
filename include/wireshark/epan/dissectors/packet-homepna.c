@@ -1,5 +1,8 @@
 /* packet-homepna.c
  *
+ * ITU-T Rec. G.9954 (renumbered from G.989.2)
+ * https://www.itu.int/rec/T-REC-G.9954/en
+ *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
  * Copyright 1998 Gerald Combs
@@ -17,16 +20,16 @@ void proto_reg_handoff_homepna(void);
 
 static dissector_handle_t homepna_handle;
 
-static int proto_homepna = -1;
+static int proto_homepna;
 
-static int hf_homepna_type   = -1;
-static int hf_homepna_length = -1;
-static int hf_homepna_version = -1;
-static int hf_homepna_data = -1;
-static int hf_homepna_etype = -1;
-static int hf_homepna_trailer = -1;
+static int hf_homepna_type;
+static int hf_homepna_length;
+static int hf_homepna_version;
+static int hf_homepna_data;
+static int hf_homepna_etype;
+static int hf_homepna_trailer;
 
-static gint ett_homepna  = -1;
+static int ett_homepna;
 
 static dissector_handle_t ethertype_handle;
 
@@ -54,12 +57,29 @@ typedef enum
 static int
 dissect_homepna(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
+    /*
+     * XXX: Ethertype 0x886C is assigned by IEEE to HomePNA, which was
+     * originally developed by Epigram and bought by Broadcom.
+     * Broadcom *also* uses 0x886C in their Wi-Fi firmware for certain
+     * event frames with an entirely different unregistered protocol,
+     * and at least up to certain firmware versions, there was an
+     * exploit based on these so people might want to dissect them.
+     * https://googleprojectzero.blogspot.com/2017/04/over-air-exploiting-broadcoms-wi-fi_11.html
+     * https://github.com/kanstrup/bcmdhd-dissector/
+     * https://android.googlesource.com/kernel/common.git/+/bcmdhd-3.10/drivers/net/wireless/bcmdhd/include/proto/ethernet.h
+     * There's an example at
+     * https://gitlab.com/wireshark/wireshark/-/issues/12759
+     * We could eventually have a dissector for that; right now this
+     * dissectors will incorrectly dissect such packets and probably call
+     * them malformed.
+     */
+
     proto_tree *ti;
     proto_tree *homepna_tree;
     int offset = 0;
-    guint32 control_length;
+    uint32_t control_length;
     homepna_format_e homepna_format = HOMEPNA_FORMAT_SHORT;
-    guint16 protocol;
+    uint16_t protocol;
     ethertype_data_t ethertype_data;
 
     if (tvb_captured_length(tvb) < 4)
@@ -71,7 +91,7 @@ dissect_homepna(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
     ti = proto_tree_add_item(tree, proto_homepna, tvb, 0, -1, ENC_NA);
     homepna_tree = proto_item_add_subtree(ti, ett_homepna);
 
-    if (tvb_get_guint8(tvb, offset) > 127)
+    if (tvb_get_uint8(tvb, offset) > 127)
         homepna_format = HOMEPNA_FORMAT_LONG;
 
     if (homepna_format == HOMEPNA_FORMAT_SHORT)
@@ -97,15 +117,23 @@ dissect_homepna(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 
     protocol = tvb_get_ntohs(tvb, offset);
     proto_tree_add_uint(homepna_tree, hf_homepna_etype, tvb, offset, 2, protocol);
+
     offset += 2;
+    if (protocol == 0) {
+        /* No next layer protocol. Set our length here so the previous
+         * dissector can find any padding, trailer, and FCS.
+         */
+        proto_item_set_len(ti, offset);
+        set_actual_length(tvb, offset);
+    } else {
+        ethertype_data.etype = protocol;
+        ethertype_data.payload_offset = offset;
+        ethertype_data.fh_tree = homepna_tree;
+        ethertype_data.trailer_id = hf_homepna_trailer;
+        ethertype_data.fcs_len = 0;
 
-    ethertype_data.etype = protocol;
-    ethertype_data.payload_offset = offset;
-    ethertype_data.fh_tree = homepna_tree;
-    ethertype_data.trailer_id = hf_homepna_trailer;
-    ethertype_data.fcs_len = 4;
-
-    call_dissector_with_data(ethertype_handle, tvb, pinfo, tree, &ethertype_data);
+        call_dissector_with_data(ethertype_handle, tvb, pinfo, tree, &ethertype_data);
+    }
 
     return tvb_captured_length(tvb);
 }
@@ -135,7 +163,7 @@ proto_register_homepna(void)
 
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_homepna,
     };
 

@@ -33,33 +33,33 @@ void proto_reg_handoff_isl(void);
  *
  * for information on ISL.
  */
-static int proto_isl = -1;
-static int hf_isl_dst = -1;
-static int hf_isl_type = -1;
-static int hf_isl_user_eth = -1;
-static int hf_isl_user = -1;
-static int hf_isl_src = -1;
-static int hf_isl_addr = -1;
-static int hf_isl_len = -1;
-static int hf_isl_hsa = -1;
-static int hf_isl_dsap = -1;
-static int hf_isl_ssap = -1;
-static int hf_isl_control = -1;
-static int hf_isl_vlan_id = -1;
-static int hf_isl_bpdu = -1;
-static int hf_isl_index = -1;
-static int hf_isl_reserved = -1;
-/* static int hf_isl_crc = -1; */
-static int hf_isl_src_vlan_id = -1;
-static int hf_isl_explorer = -1;
-static int hf_isl_dst_route_descriptor = -1;
-static int hf_isl_src_route_descriptor = -1;
-static int hf_isl_fcs_not_incl = -1;
-static int hf_isl_esize = -1;
-static int hf_isl_trailer = -1;
+static int proto_isl;
+static int hf_isl_dst;
+static int hf_isl_type;
+static int hf_isl_user_eth;
+static int hf_isl_user;
+static int hf_isl_src;
+static int hf_isl_addr;
+static int hf_isl_len;
+static int hf_isl_hsa;
+static int hf_isl_dsap;
+static int hf_isl_ssap;
+static int hf_isl_control;
+static int hf_isl_vlan_id;
+static int hf_isl_bpdu;
+static int hf_isl_index;
+static int hf_isl_reserved;
+/* static int hf_isl_crc; */
+static int hf_isl_src_vlan_id;
+static int hf_isl_explorer;
+static int hf_isl_dst_route_descriptor;
+static int hf_isl_src_route_descriptor;
+static int hf_isl_fcs_not_incl;
+static int hf_isl_esize;
+static int hf_isl_trailer;
 
-static gint ett_isl = -1;
-static gint ett_isl_dst = -1;
+static int ett_isl;
+static int ett_isl_dst;
 
 #define ISL_HEADER_SIZE 26
 
@@ -79,13 +79,13 @@ static dissector_handle_t tr_handle;
 static capture_dissector_handle_t eth_cap_handle;
 static capture_dissector_handle_t tr_cap_handle;
 
-static gboolean
-capture_isl(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header _U_)
+static bool
+capture_isl(const unsigned char *pd, int offset, int len, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header _U_)
 {
-  guint8 type;
+  uint8_t type;
 
   if (!BYTES_ARE_IN_FRAME(offset, len, ISL_HEADER_SIZE))
-    return FALSE;
+    return false;
 
   type = (pd[offset+5] >> 4)&0x0F;
 
@@ -98,10 +98,9 @@ capture_isl(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo
   case TYPE_TR:
     offset += 14+17;    /* skip the header */
     return call_capture_dissector(tr_cap_handle, pd, offset, len, cpinfo, pseudo_header);
-    break;
   }
 
-  return FALSE;
+  return false;
 }
 
 static const value_string type_vals[] = {
@@ -131,9 +130,9 @@ dissect_isl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int fcs_len)
   proto_tree *volatile fh_tree = NULL;
   proto_tree *dst_tree;
   proto_item *ti, *hidden_item;
-  volatile guint8 type;
-  volatile guint16 length;
-  gint captured_length;
+  volatile uint8_t type;
+  volatile uint16_t length;
+  int captured_length;
   tvbuff_t *volatile payload_tvb = NULL;
   tvbuff_t *volatile next_tvb;
   tvbuff_t *volatile trailer_tvb = NULL;
@@ -142,7 +141,7 @@ dissect_isl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int fcs_len)
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "ISL");
   col_clear(pinfo->cinfo, COL_INFO);
 
-  type = (tvb_get_guint8(tvb, 5) >> 4)&0x0F;
+  type = (tvb_get_uint8(tvb, 5) >> 4)&0x0F;
 
   if (tree) {
     ti = proto_tree_add_protocol_format(tree, proto_isl, tvb, 0, ISL_HEADER_SIZE,
@@ -281,7 +280,7 @@ dissect_isl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int fcs_len)
 
       /* Now add the Ethernet trailer and FCS.
          XXX - do this only if we're encapsulated in Ethernet? */
-      add_ethernet_trailer(pinfo, tree, fh_tree, hf_isl_trailer, tvb, trailer_tvb, fcs_len);
+      add_ethernet_trailer(pinfo, tree, fh_tree, hf_isl_trailer, tvb, trailer_tvb, fcs_len, 14);
     }
     break;
 
@@ -384,7 +383,7 @@ proto_register_isl(void)
       { "Trailer",    "isl.trailer", FT_BYTES, BASE_NONE, NULL, 0x0,
         "Ethernet Trailer or Checksum", HFILL }},
   };
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_isl,
     &ett_isl_dst,
   };

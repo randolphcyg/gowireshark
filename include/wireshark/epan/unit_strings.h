@@ -11,6 +11,7 @@
 #ifndef __UNIT_STRINGS_H__
 #define __UNIT_STRINGS_H__
 
+#include <stdint.h>
 #include "include/ws_symbol_export.h"
 
 #ifdef __cplusplus
@@ -34,7 +35,7 @@ typedef struct unit_name_string {
  * @param[in] units The unit_name_string containing the relevant strings
  * @return          Pointer to the appropriate string
  */
-WS_DLL_PUBLIC const char* unit_name_string_get_value(guint32 value, const unit_name_string* units);
+WS_DLL_PUBLIC const char* unit_name_string_get_value(uint32_t value, const unit_name_string* units);
 
 /** Returns the unit string appropriate for the 64 bit value.
  *
@@ -43,7 +44,7 @@ WS_DLL_PUBLIC const char* unit_name_string_get_value(guint32 value, const unit_n
  * @param[in] units The unit_name_string containing the relevant strings
  * @return          Pointer to the appropriate string
  */
-WS_DLL_PUBLIC const char* unit_name_string_get_value64(guint64 value, const unit_name_string* units);
+WS_DLL_PUBLIC const char* unit_name_string_get_value64(uint64_t value, const unit_name_string* units);
 
 /** Returns the unit string appropriate for the double value.
  *
@@ -129,6 +130,7 @@ WS_DLL_PUBLIC const unit_name_string units_watthour;
 WS_DLL_PUBLIC const unit_name_string units_watt;
 WS_DLL_PUBLIC const unit_name_string units_bpm;
 WS_DLL_PUBLIC const unit_name_string units_calorie;
+WS_DLL_PUBLIC const unit_name_string units_cycle_cycles;
 
 #ifdef __cplusplus
 }

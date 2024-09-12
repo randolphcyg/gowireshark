@@ -29,28 +29,28 @@
 void proto_register_epmd(void);
 void proto_reg_handoff_epmd(void);
 
-static int proto_epmd = -1;
-static int hf_epmd_len = -1;
-static int hf_epmd_type = -1;
-static int hf_epmd_port_no = -1;
-static int hf_epmd_node_type = -1;
-static int hf_epmd_protocol = -1;
-static int hf_epmd_dist_high = -1;
-static int hf_epmd_dist_low = -1;
-static int hf_epmd_name_len = -1;
-static int hf_epmd_name = -1;
-static int hf_epmd_elen = -1;
-static int hf_epmd_edata = -1;
-static int hf_epmd_names = -1;
-static int hf_epmd_result = -1;
-static int hf_epmd_creation = -1;
+static int proto_epmd;
+static int hf_epmd_len;
+static int hf_epmd_type;
+static int hf_epmd_port_no;
+static int hf_epmd_node_type;
+static int hf_epmd_protocol;
+static int hf_epmd_dist_high;
+static int hf_epmd_dist_low;
+static int hf_epmd_name_len;
+static int hf_epmd_name;
+static int hf_epmd_elen;
+static int hf_epmd_edata;
+static int hf_epmd_names;
+static int hf_epmd_result;
+static int hf_epmd_creation;
 
-static gint ett_epmd = -1;
+static int ett_epmd;
 
-static dissector_handle_t epmd_handle = NULL;
+static dissector_handle_t epmd_handle;
 
 /* Other dissectors */
-static dissector_handle_t edp_handle = NULL;
+static dissector_handle_t edp_handle;
 
 #define EPMD_PORT 4369
 
@@ -108,14 +108,14 @@ const value_string epmd_version_vals[] = {
 };
 
 static void
-dissect_epmd_request(packet_info *pinfo, tvbuff_t *tvb, gint offset, proto_tree *tree) {
-    guint8        type;
-    guint16       name_length = 0;
-    const guint8 *name        = NULL;
+dissect_epmd_request(packet_info *pinfo, tvbuff_t *tvb, int offset, proto_tree *tree) {
+    uint8_t       type;
+    uint16_t      name_length = 0;
+    const uint8_t *name        = NULL;
 
     proto_tree_add_item(tree, hf_epmd_len, tvb, offset, 2, ENC_BIG_ENDIAN);
     offset += 2;
-    type = tvb_get_guint8(tvb, offset);
+    type = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(tree, hf_epmd_type, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
     col_add_str(pinfo->cinfo, COL_INFO, val_to_str(type, VALS(message_types), "unknown (0x%02X)"));
@@ -137,7 +137,7 @@ dissect_epmd_request(packet_info *pinfo, tvbuff_t *tvb, gint offset, proto_tree 
             proto_tree_add_item_ret_string(tree, hf_epmd_name, tvb, offset + 2, name_length, ENC_ASCII|ENC_NA, pinfo->pool, &name);
             offset += 2 + name_length;
             if (tvb_reported_length_remaining(tvb, offset) >= 2) {
-                guint16 elen=0;
+                uint16_t elen=0;
                 elen = tvb_get_ntohs(tvb, offset);
                 proto_tree_add_item(tree, hf_epmd_elen, tvb, offset, 2, ENC_BIG_ENDIAN);
                 if (elen > 0)
@@ -171,18 +171,18 @@ dissect_epmd_request(packet_info *pinfo, tvbuff_t *tvb, gint offset, proto_tree 
 }
 
 static void
-dissect_epmd_response_names(packet_info *pinfo _U_, tvbuff_t *tvb, gint offset, proto_tree *tree) {
+dissect_epmd_response_names(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, proto_tree *tree) {
     proto_tree_add_item(tree, hf_epmd_port_no, tvb, offset, 2, ENC_BIG_ENDIAN);
     offset += 2;
     proto_tree_add_item(tree, hf_epmd_names, tvb, offset, -1, ENC_NA);
 }
 
 static int
-dissect_epmd_response(packet_info *pinfo, tvbuff_t *tvb, gint offset, proto_tree *tree) {
-    guint8          type, result;
-    guint32         port;
-    guint16         name_length = 0;
-    const guint8   *name        = NULL;
+dissect_epmd_response(packet_info *pinfo, tvbuff_t *tvb, int offset, proto_tree *tree) {
+    uint8_t         type, result;
+    uint32_t        port;
+    uint16_t        name_length = 0;
+    const uint8_t  *name        = NULL;
     conversation_t *conv        = NULL;
 
     port = tvb_get_ntohl(tvb, offset);
@@ -191,7 +191,7 @@ dissect_epmd_response(packet_info *pinfo, tvbuff_t *tvb, gint offset, proto_tree
         return 0;
     }
 
-    type = tvb_get_guint8(tvb, offset);
+    type = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(tree, hf_epmd_type, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
     col_add_str(pinfo->cinfo, COL_INFO, val_to_str(type, VALS(message_types), "unknown (0x%02X)"));
@@ -199,7 +199,7 @@ dissect_epmd_response(packet_info *pinfo, tvbuff_t *tvb, gint offset, proto_tree
     switch (type) {
         case EPMD_ALIVE_OK_RESP:
         case EPMD_ALIVE2_RESP:
-            result = tvb_get_guint8(tvb, offset);
+            result = tvb_get_uint8(tvb, offset);
             proto_tree_add_item(tree, hf_epmd_result, tvb, offset, 1, ENC_BIG_ENDIAN);
             offset++;
             proto_tree_add_item(tree, hf_epmd_creation, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -212,7 +212,7 @@ dissect_epmd_response(packet_info *pinfo, tvbuff_t *tvb, gint offset, proto_tree
             break;
 
         case EPMD_PORT2_RESP:
-            result = tvb_get_guint8(tvb, offset);
+            result = tvb_get_uint8(tvb, offset);
             proto_tree_add_item(tree, hf_epmd_result, tvb, offset, 1, ENC_BIG_ENDIAN);
             offset++;
             if (!result) {
@@ -237,7 +237,7 @@ dissect_epmd_response(packet_info *pinfo, tvbuff_t *tvb, gint offset, proto_tree
             proto_tree_add_item_ret_string(tree, hf_epmd_name, tvb, offset + 2, name_length, ENC_ASCII|ENC_NA, pinfo->pool, &name);
             offset += 2 + name_length;
             if (tvb_reported_length_remaining(tvb, offset) >= 2) {
-                guint16 elen=0;
+                uint16_t elen=0;
                 elen = tvb_get_ntohs(tvb, offset);
                 proto_tree_add_item(tree, hf_epmd_elen, tvb, offset, 2, ENC_BIG_ENDIAN);
                 if (elen > 0)
@@ -254,9 +254,9 @@ dissect_epmd_response(packet_info *pinfo, tvbuff_t *tvb, gint offset, proto_tree
     return offset;
 }
 
-static gboolean
+static bool
 check_epmd(tvbuff_t *tvb) {
-    guint8 type;
+    uint8_t type;
 
     /* simple heuristic:
      *
@@ -267,31 +267,31 @@ check_epmd(tvbuff_t *tvb) {
      * doesn't bring very much.
      */
     if (tvb_captured_length(tvb) < 3)
-        return (FALSE);
+        return false;
 
-    type = tvb_get_guint8(tvb, 0);
+    type = tvb_get_uint8(tvb, 0);
     switch (type) {
         case EPMD_ALIVE_OK_RESP:
         case EPMD_ALIVE2_RESP:
         case EPMD_PORT2_RESP:
-            return (TRUE);
+            return true;
         default:
             break;
     }
 
-    type = tvb_get_guint8(tvb, 2);
+    type = tvb_get_uint8(tvb, 2);
     switch (type) {
         case EPMD_ALIVE_REQ:
         case EPMD_ALIVE2_REQ:
         case EPMD_PORT_REQ:
         case EPMD_PORT2_REQ:
         case EPMD_NAMES_REQ:
-            return (TRUE);
+            return true;
         default:
             break;
     }
 
-    return (FALSE);
+    return false;
 }
 
 static int
@@ -300,7 +300,7 @@ dissect_epmd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
     proto_item *ti;
 
     if (!check_epmd(tvb))
-        return (0);
+        return 0;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, PSNAME);
 
@@ -391,7 +391,7 @@ proto_register_epmd(void)
             "List of names", HFILL }}
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_epmd,
     };
 

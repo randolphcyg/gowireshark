@@ -87,40 +87,40 @@ typedef struct {
  * will be printed regardless of log level. This is a feature, not a bug. */
 static enum ws_log_level current_log_level = LOG_LEVEL_NONE;
 
-static bool stdout_color_enabled = false;
+static bool stdout_color_enabled;
 
-static bool stderr_color_enabled = false;
+static bool stderr_color_enabled;
 
 /* Use stdout for levels "info" and below, for backward compatibility
  * with GLib. */
-static bool stdout_logging_enabled = false;
+static bool stdout_logging_enabled;
 
 static const char *registered_progname = DEFAULT_PROGNAME;
 
 /* List of domains to filter. */
-static log_filter_t *domain_filter = NULL;
+static log_filter_t *domain_filter;
 
 /* List of domains to output debug level unconditionally. */
-static log_filter_t *debug_filter = NULL;
+static log_filter_t *debug_filter;
 
 /* List of domains to output noisy level unconditionally. */
-static log_filter_t *noisy_filter = NULL;
+static log_filter_t *noisy_filter;
 
 /* List of domains that are fatal. */
-static log_filter_t *fatal_filter = NULL;
+static log_filter_t *fatal_filter;
 
-static ws_log_writer_cb *registered_log_writer = NULL;
+static ws_log_writer_cb *registered_log_writer;
 
-static void *registered_log_writer_data = NULL;
+static void *registered_log_writer_data;
 
-static ws_log_writer_free_data_cb *registered_log_writer_data_free = NULL;
+static ws_log_writer_free_data_cb *registered_log_writer_data_free;
 
-static FILE *custom_log = NULL;
+static FILE *custom_log;
 
 static enum ws_log_level fatal_log_level = LOG_LEVEL_ERROR;
 
 #ifdef WS_DEBUG
-static bool init_complete = false;
+static bool init_complete;
 #endif
 
 ws_log_console_open_pref ws_log_console_open = LOG_CONSOLE_OPEN_NEVER;
@@ -864,13 +864,8 @@ void ws_log_init(const char *progname,
     if ((fd = fileno(stderr)) >= 0)
         stderr_color_enabled = g_log_writer_supports_color(fd);
 
-    /* Set the GLib log handler for the default domain. */
-    g_log_set_handler(NULL, G_LOG_LEVEL_MASK | G_LOG_FLAG_FATAL,
-                        glib_log_handler, NULL);
-
-    /* Set the GLib log handler for GLib itself. */
-    g_log_set_handler("GLib", G_LOG_LEVEL_MASK | G_LOG_FLAG_FATAL,
-                        glib_log_handler, NULL);
+    /* Set ourselves as the default log handler for all GLib domains. */
+    g_log_set_default_handler(glib_log_handler, NULL);
 
 #ifdef _WIN32
     load_registry();

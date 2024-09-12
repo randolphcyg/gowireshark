@@ -20,11 +20,12 @@
 #include <wsutil/pint.h>
 #include <epan/crc32-tvb.h>
 #include <wsutil/802_11-utils.h>
-#include <epan/tap.h>
 #include <epan/prefs.h>
 #include <epan/addr_resolv.h>
 #include <epan/expert.h>
 #include <epan/arptypes.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
 #include "packet-ieee80211.h"
 #include "packet-ieee80211-radiotap-iter.h"
 
@@ -32,733 +33,653 @@ void proto_register_radiotap(void);
 void proto_reg_handoff_radiotap(void);
 
 /* protocol */
-static int proto_radiotap = -1;
+static int proto_radiotap;
 
-static int hf_radiotap_version = -1;
-static int hf_radiotap_pad = -1;
-static int hf_radiotap_length = -1;
-static int hf_radiotap_present = -1;
+static int hf_radiotap_version;
+static int hf_radiotap_pad;
+static int hf_radiotap_length;
+static int hf_radiotap_present;
 
-static int hf_radiotap_tlv_type = -1;
-static int hf_radiotap_tlv_datalen = -1;
-static int hf_radiotap_unknown_tlv_data = -1;
+static int hf_radiotap_tlv_type;
+static int hf_radiotap_tlv_datalen;
+static int hf_radiotap_unknown_tlv_data;
 
-static int hf_radiotap_mactime = -1;
-/* static int hf_radiotap_channel = -1; */
-static int hf_radiotap_channel_frequency = -1;
-static int hf_radiotap_channel_flags = -1;
-static int hf_radiotap_channel_flags_700mhz = -1;
-static int hf_radiotap_channel_flags_800mhz = -1;
-static int hf_radiotap_channel_flags_900mhz = -1;
-static int hf_radiotap_channel_flags_turbo = -1;
-static int hf_radiotap_channel_flags_cck = -1;
-static int hf_radiotap_channel_flags_ofdm = -1;
-static int hf_radiotap_channel_flags_2ghz = -1;
-static int hf_radiotap_channel_flags_5ghz = -1;
-static int hf_radiotap_channel_flags_passive = -1;
-static int hf_radiotap_channel_flags_dynamic = -1;
-static int hf_radiotap_channel_flags_gfsk = -1;
-static int hf_radiotap_channel_flags_gsm = -1;
-static int hf_radiotap_channel_flags_sturbo = -1;
-static int hf_radiotap_channel_flags_half = -1;
-static int hf_radiotap_channel_flags_quarter = -1;
-static int hf_radiotap_rxflags = -1;
-static int hf_radiotap_rxflags_badplcp = -1;
-static int hf_radiotap_txflags = -1;
-static int hf_radiotap_txflags_fail = -1;
-static int hf_radiotap_txflags_cts = -1;
-static int hf_radiotap_txflags_rts = -1;
-static int hf_radiotap_txflags_noack = -1;
-static int hf_radiotap_txflags_noseqno = -1;
-static int hf_radiotap_txflags_order = -1;
-static int hf_radiotap_xchannel_channel = -1;
-static int hf_radiotap_xchannel_frequency = -1;
-static int hf_radiotap_xchannel_flags = -1;
-static int hf_radiotap_xchannel_flags_turbo = -1;
-static int hf_radiotap_xchannel_flags_cck = -1;
-static int hf_radiotap_xchannel_flags_ofdm = -1;
-static int hf_radiotap_xchannel_flags_2ghz = -1;
-static int hf_radiotap_xchannel_flags_5ghz = -1;
-static int hf_radiotap_xchannel_flags_passive = -1;
-static int hf_radiotap_xchannel_flags_dynamic = -1;
-static int hf_radiotap_xchannel_flags_gfsk = -1;
-static int hf_radiotap_xchannel_flags_gsm = -1;
-static int hf_radiotap_xchannel_flags_sturbo = -1;
-static int hf_radiotap_xchannel_flags_half = -1;
-static int hf_radiotap_xchannel_flags_quarter = -1;
-static int hf_radiotap_xchannel_flags_ht20 = -1;
-static int hf_radiotap_xchannel_flags_ht40u = -1;
-static int hf_radiotap_xchannel_flags_ht40d = -1;
+static int hf_radiotap_mactime;
+/* static int hf_radiotap_channel; */
+static int hf_radiotap_channel_frequency;
+static int hf_radiotap_channel_flags;
+static int hf_radiotap_channel_flags_700mhz;
+static int hf_radiotap_channel_flags_800mhz;
+static int hf_radiotap_channel_flags_900mhz;
+static int hf_radiotap_channel_flags_turbo;
+static int hf_radiotap_channel_flags_cck;
+static int hf_radiotap_channel_flags_ofdm;
+static int hf_radiotap_channel_flags_2ghz;
+static int hf_radiotap_channel_flags_5ghz;
+static int hf_radiotap_channel_flags_passive;
+static int hf_radiotap_channel_flags_dynamic;
+static int hf_radiotap_channel_flags_gfsk;
+static int hf_radiotap_channel_flags_gsm;
+static int hf_radiotap_channel_flags_sturbo;
+static int hf_radiotap_channel_flags_half;
+static int hf_radiotap_channel_flags_quarter;
+static int hf_radiotap_rxflags;
+static int hf_radiotap_rxflags_badplcp;
+static int hf_radiotap_txflags;
+static int hf_radiotap_txflags_fail;
+static int hf_radiotap_txflags_cts;
+static int hf_radiotap_txflags_rts;
+static int hf_radiotap_txflags_noack;
+static int hf_radiotap_txflags_noseqno;
+static int hf_radiotap_txflags_order;
+static int hf_radiotap_xchannel_channel;
+static int hf_radiotap_xchannel_frequency;
+static int hf_radiotap_xchannel_flags;
+static int hf_radiotap_xchannel_flags_turbo;
+static int hf_radiotap_xchannel_flags_cck;
+static int hf_radiotap_xchannel_flags_ofdm;
+static int hf_radiotap_xchannel_flags_2ghz;
+static int hf_radiotap_xchannel_flags_5ghz;
+static int hf_radiotap_xchannel_flags_passive;
+static int hf_radiotap_xchannel_flags_dynamic;
+static int hf_radiotap_xchannel_flags_gfsk;
+static int hf_radiotap_xchannel_flags_gsm;
+static int hf_radiotap_xchannel_flags_sturbo;
+static int hf_radiotap_xchannel_flags_half;
+static int hf_radiotap_xchannel_flags_quarter;
+static int hf_radiotap_xchannel_flags_ht20;
+static int hf_radiotap_xchannel_flags_ht40u;
+static int hf_radiotap_xchannel_flags_ht40d;
 #if 0
-static int hf_radiotap_xchannel_maxpower = -1;
+static int hf_radiotap_xchannel_maxpower;
 #endif
-static int hf_radiotap_fhss_hopset = -1;
-static int hf_radiotap_fhss_pattern = -1;
-static int hf_radiotap_datarate = -1;
-static int hf_radiotap_antenna = -1;
-static int hf_radiotap_dbm_antsignal = -1;
-static int hf_radiotap_db_antsignal = -1;
-static int hf_radiotap_dbm_antnoise = -1;
-static int hf_radiotap_db_antnoise = -1;
-static int hf_radiotap_tx_attenuation = -1;
-static int hf_radiotap_db_tx_attenuation = -1;
-static int hf_radiotap_txpower = -1;
-static int hf_radiotap_data_retries = -1;
-static int hf_radiotap_vendor_ns = -1;
-static int hf_radiotap_ven_oui = -1;
-static int hf_radiotap_ven_subns = -1;
-static int hf_radiotap_ven_skip = -1;
-static int hf_radiotap_ven_item = -1;
-static int hf_radiotap_ven_data = -1;
-static int hf_radiotap_mcs = -1;
-static int hf_radiotap_mcs_known = -1;
-static int hf_radiotap_mcs_have_bw = -1;
-static int hf_radiotap_mcs_have_index = -1;
-static int hf_radiotap_mcs_have_gi = -1;
-static int hf_radiotap_mcs_have_format = -1;
-static int hf_radiotap_mcs_have_fec = -1;
-static int hf_radiotap_mcs_have_stbc = -1;
-static int hf_radiotap_mcs_have_ness = -1;
-static int hf_radiotap_mcs_ness_bit1 = -1;
-static int hf_radiotap_mcs_bw = -1;
-static int hf_radiotap_mcs_index = -1;
-static int hf_radiotap_mcs_gi = -1;
-static int hf_radiotap_mcs_format = -1;
-static int hf_radiotap_mcs_fec = -1;
-static int hf_radiotap_mcs_stbc = -1;
-static int hf_radiotap_mcs_ness_bit0 = -1;
-static int hf_radiotap_ampdu = -1;
-static int hf_radiotap_ampdu_ref = -1;
-static int hf_radiotap_ampdu_flags = -1;
-static int hf_radiotap_ampdu_flags_report_zerolen = -1;
-static int hf_radiotap_ampdu_flags_is_zerolen = -1;
-static int hf_radiotap_ampdu_flags_last_known = -1;
-static int hf_radiotap_ampdu_flags_is_last = -1;
-static int hf_radiotap_ampdu_flags_delim_crc_error = -1;
-static int hf_radiotap_ampdu_delim_crc = -1;
-static int hf_radiotap_ampdu_flags_eof_known = -1;
-static int hf_radiotap_ampdu_flags_eof = -1;
-static int hf_radiotap_vht = -1;
-static int hf_radiotap_vht_known = -1;
-static int hf_radiotap_vht_have_stbc = -1;
-static int hf_radiotap_vht_have_txop_ps = -1;
-static int hf_radiotap_vht_have_gi = -1;
-static int hf_radiotap_vht_have_sgi_nsym_da = -1;
-static int hf_radiotap_vht_have_ldpc_extra = -1;
-static int hf_radiotap_vht_have_bf = -1;
-static int hf_radiotap_vht_have_bw = -1;
-static int hf_radiotap_vht_have_gid = -1;
-static int hf_radiotap_vht_have_p_aid = -1;
-static int hf_radiotap_vht_stbc = -1;
-static int hf_radiotap_vht_txop_ps = -1;
-static int hf_radiotap_vht_gi = -1;
-static int hf_radiotap_vht_sgi_nsym_da = -1;
-static int hf_radiotap_vht_ldpc_extra = -1;
-static int hf_radiotap_vht_bf = -1;
-static int hf_radiotap_vht_bw = -1;
-static int hf_radiotap_vht_nsts[4] = { -1, -1, -1, -1 };
-static int hf_radiotap_vht_mcs[4] = { -1, -1, -1, -1 };
-static int hf_radiotap_vht_nss[4] = { -1, -1, -1, -1 };
-static int hf_radiotap_vht_coding[4] = { -1, -1, -1, -1 };
-static int hf_radiotap_vht_datarate[4] = { -1, -1, -1, -1 };
-static int hf_radiotap_vht_gid = -1;
-static int hf_radiotap_vht_p_aid = -1;
-static int hf_radiotap_vht_user = -1;
-static int hf_radiotap_timestamp = -1;
-static int hf_radiotap_timestamp_ts = -1;
-static int hf_radiotap_timestamp_accuracy = -1;
-static int hf_radiotap_timestamp_unit = -1;
-static int hf_radiotap_timestamp_spos = -1;
-static int hf_radiotap_timestamp_flags_32bit = -1;
-static int hf_radiotap_timestamp_flags_accuracy = -1;
+static int hf_radiotap_fhss_hopset;
+static int hf_radiotap_fhss_pattern;
+static int hf_radiotap_datarate;
+static int hf_radiotap_antenna;
+static int hf_radiotap_dbm_antsignal;
+static int hf_radiotap_db_antsignal;
+static int hf_radiotap_dbm_antnoise;
+static int hf_radiotap_db_antnoise;
+static int hf_radiotap_tx_attenuation;
+static int hf_radiotap_db_tx_attenuation;
+static int hf_radiotap_txpower;
+static int hf_radiotap_data_retries;
+static int hf_radiotap_vendor_ns;
+static int hf_radiotap_ven_oui;
+static int hf_radiotap_ven_subns;
+static int hf_radiotap_ven_skip;
+static int hf_radiotap_ven_item;
+static int hf_radiotap_ven_data;
+static int hf_radiotap_mcs;
+static int hf_radiotap_mcs_known;
+static int hf_radiotap_mcs_have_bw;
+static int hf_radiotap_mcs_have_index;
+static int hf_radiotap_mcs_have_gi;
+static int hf_radiotap_mcs_have_format;
+static int hf_radiotap_mcs_have_fec;
+static int hf_radiotap_mcs_have_stbc;
+static int hf_radiotap_mcs_have_ness;
+static int hf_radiotap_mcs_ness_bit1;
+static int hf_radiotap_mcs_bw;
+static int hf_radiotap_mcs_index;
+static int hf_radiotap_mcs_gi;
+static int hf_radiotap_mcs_format;
+static int hf_radiotap_mcs_fec;
+static int hf_radiotap_mcs_stbc;
+static int hf_radiotap_mcs_ness_bit0;
+static int hf_radiotap_ampdu;
+static int hf_radiotap_ampdu_ref;
+static int hf_radiotap_ampdu_flags;
+static int hf_radiotap_ampdu_flags_report_zerolen;
+static int hf_radiotap_ampdu_flags_is_zerolen;
+static int hf_radiotap_ampdu_flags_last_known;
+static int hf_radiotap_ampdu_flags_is_last;
+static int hf_radiotap_ampdu_flags_delim_crc_error;
+static int hf_radiotap_ampdu_delim_crc;
+static int hf_radiotap_ampdu_flags_eof_known;
+static int hf_radiotap_ampdu_flags_eof;
+static int hf_radiotap_vht;
+static int hf_radiotap_vht_known;
+static int hf_radiotap_vht_have_stbc;
+static int hf_radiotap_vht_have_txop_ps;
+static int hf_radiotap_vht_have_gi;
+static int hf_radiotap_vht_have_sgi_nsym_da;
+static int hf_radiotap_vht_have_ldpc_extra;
+static int hf_radiotap_vht_have_bf;
+static int hf_radiotap_vht_have_bw;
+static int hf_radiotap_vht_have_gid;
+static int hf_radiotap_vht_have_p_aid;
+static int hf_radiotap_vht_stbc;
+static int hf_radiotap_vht_txop_ps;
+static int hf_radiotap_vht_gi;
+static int hf_radiotap_vht_sgi_nsym_da;
+static int hf_radiotap_vht_ldpc_extra;
+static int hf_radiotap_vht_bf;
+static int hf_radiotap_vht_bw;
+static int hf_radiotap_vht_nsts[4];
+static int hf_radiotap_vht_mcs[4];
+static int hf_radiotap_vht_nss[4];
+static int hf_radiotap_vht_coding[4];
+static int hf_radiotap_vht_datarate[4];
+static int hf_radiotap_vht_gid;
+static int hf_radiotap_vht_p_aid;
+static int hf_radiotap_vht_user;
+static int hf_radiotap_timestamp;
+static int hf_radiotap_timestamp_ts;
+static int hf_radiotap_timestamp_accuracy;
+static int hf_radiotap_timestamp_unit;
+static int hf_radiotap_timestamp_spos;
+static int hf_radiotap_timestamp_flags_32bit;
+static int hf_radiotap_timestamp_flags_accuracy;
 
 /* "Present" flags */
-static int hf_radiotap_present_word = -1;
-static int hf_radiotap_present_tsft = -1;
-static int hf_radiotap_present_flags = -1;
-static int hf_radiotap_present_rate = -1;
-static int hf_radiotap_present_channel = -1;
-static int hf_radiotap_present_fhss = -1;
-static int hf_radiotap_present_dbm_antsignal = -1;
-static int hf_radiotap_present_dbm_antnoise = -1;
-static int hf_radiotap_present_lock_quality = -1;
-static int hf_radiotap_present_tx_attenuation = -1;
-static int hf_radiotap_present_db_tx_attenuation = -1;
-static int hf_radiotap_present_dbm_tx_power = -1;
-static int hf_radiotap_present_antenna = -1;
-static int hf_radiotap_present_db_antsignal = -1;
-static int hf_radiotap_present_db_antnoise = -1;
-static int hf_radiotap_present_hdrfcs = -1;
-static int hf_radiotap_present_rxflags = -1;
-static int hf_radiotap_present_txflags = -1;
-static int hf_radiotap_present_data_retries = -1;
-static int hf_radiotap_present_xchannel = -1;
-static int hf_radiotap_present_mcs = -1;
-static int hf_radiotap_present_ampdu = -1;
-static int hf_radiotap_present_vht = -1;
-static int hf_radiotap_present_timestamp = -1;
-static int hf_radiotap_present_he = -1;
-static int hf_radiotap_present_he_mu = -1;
-static int hf_radiotap_present_0_length_psdu = -1;
-static int hf_radiotap_present_l_sig = -1;
-static int hf_radiotap_present_tlv = -1;
-static int hf_radiotap_present_reserved = -1;
-static int hf_radiotap_present_rtap_ns = -1;
-static int hf_radiotap_present_vendor_ns = -1;
-static int hf_radiotap_present_ext = -1;
+static int hf_radiotap_present_word;
+static int hf_radiotap_present_tsft;
+static int hf_radiotap_present_flags;
+static int hf_radiotap_present_rate;
+static int hf_radiotap_present_channel;
+static int hf_radiotap_present_fhss;
+static int hf_radiotap_present_dbm_antsignal;
+static int hf_radiotap_present_dbm_antnoise;
+static int hf_radiotap_present_lock_quality;
+static int hf_radiotap_present_tx_attenuation;
+static int hf_radiotap_present_db_tx_attenuation;
+static int hf_radiotap_present_dbm_tx_power;
+static int hf_radiotap_present_antenna;
+static int hf_radiotap_present_db_antsignal;
+static int hf_radiotap_present_db_antnoise;
+static int hf_radiotap_present_hdrfcs;
+static int hf_radiotap_present_rxflags;
+static int hf_radiotap_present_txflags;
+static int hf_radiotap_present_data_retries;
+static int hf_radiotap_present_xchannel;
+static int hf_radiotap_present_mcs;
+static int hf_radiotap_present_ampdu;
+static int hf_radiotap_present_vht;
+static int hf_radiotap_present_timestamp;
+static int hf_radiotap_present_he;
+static int hf_radiotap_present_he_mu;
+static int hf_radiotap_present_0_length_psdu;
+static int hf_radiotap_present_l_sig;
+static int hf_radiotap_present_tlv;
+static int hf_radiotap_present_reserved;
+static int hf_radiotap_present_rtap_ns;
+static int hf_radiotap_present_vendor_ns;
+static int hf_radiotap_present_ext;
 
 /* "present.flags" flags */
-static int hf_radiotap_flags = -1;
-static int hf_radiotap_flags_cfp = -1;
-static int hf_radiotap_flags_preamble = -1;
-static int hf_radiotap_flags_wep = -1;
-static int hf_radiotap_flags_frag = -1;
-static int hf_radiotap_flags_fcs = -1;
-static int hf_radiotap_flags_datapad = -1;
-static int hf_radiotap_flags_badfcs = -1;
-static int hf_radiotap_flags_shortgi = -1;
+static int hf_radiotap_flags;
+static int hf_radiotap_flags_cfp;
+static int hf_radiotap_flags_preamble;
+static int hf_radiotap_flags_wep;
+static int hf_radiotap_flags_frag;
+static int hf_radiotap_flags_fcs;
+static int hf_radiotap_flags_datapad;
+static int hf_radiotap_flags_badfcs;
+static int hf_radiotap_flags_shortgi;
 
-static int hf_radiotap_quality = -1;
-static int hf_radiotap_fcs = -1;
-static int hf_radiotap_fcs_bad = -1;
+static int hf_radiotap_quality;
+static int hf_radiotap_fcs;
+static int hf_radiotap_fcs_bad;
 
 /* HE Info fields */
-static int hf_radiotap_he_ppdu_format = -1;
-static int hf_radiotap_he_bss_color_known = -1;
-static int hf_radiotap_he_beam_change_known = -1;
-static int hf_radiotap_he_ul_dl_known = -1;
-static int hf_radiotap_he_data_mcs_known = -1;
-static int hf_radiotap_he_data_dcm_known = -1;
-static int hf_radiotap_he_coding_known = -1;
-static int hf_radiotap_he_ldpc_extra_symbol_segment_known = -1;
-static int hf_radiotap_he_stbc_known = -1;
-static int hf_radiotap_he_spatial_reuse_1_known = -1;
-static int hf_radiotap_he_spatial_reuse_2_known = -1;
-static int hf_radiotap_he_spatial_reuse_3_known = -1;
-static int hf_radiotap_he_spatial_reuse_4_known = -1;
-static int hf_radiotap_he_data_bw_ru_allocation_known = -1;
-static int hf_radiotap_he_doppler_known = -1;
-static int hf_radiotap_he_pri_sec_80_mhz_known = -1;
-static int hf_radiotap_he_gi_known = -1;
-static int hf_radiotap_he_num_ltf_symbols_known = -1;
-static int hf_radiotap_he_pre_fec_padding_factor_known = -1;
-static int hf_radiotap_he_txbf_known = -1;
-static int hf_radiotap_he_pe_disambiguity_known = -1;
-static int hf_radiotap_he_txop_known = -1;
-static int hf_radiotap_he_midamble_periodicity_known = -1;
-static int hf_radiotap_he_ru_allocation_offset = -1;
-static int hf_radiotap_he_ru_allocation_offset_known = -1;
-static int hf_radiotap_he_pri_sec_80_mhz = -1;
-static int hf_radiotap_he_bss_color = -1;
-static int hf_radiotap_he_bss_color_unknown = -1;
-static int hf_radiotap_he_beam_change = -1;
-static int hf_radiotap_he_beam_change_unknown = -1;
-static int hf_radiotap_he_ul_dl = -1;
-static int hf_radiotap_he_ul_dl_unknown = -1;
-static int hf_radiotap_he_data_mcs = -1;
-static int hf_radiotap_he_data_mcs_unknown = -1;
-static int hf_radiotap_he_data_dcm = -1;
-static int hf_radiotap_he_data_dcm_unknown = -1;
-static int hf_radiotap_he_coding = -1;
-static int hf_radiotap_he_coding_unknown = -1;
-static int hf_radiotap_he_ldpc_extra_symbol_segment = -1;
-static int hf_radiotap_he_ldpc_extra_symbol_segment_unknown = -1;
-static int hf_radiotap_he_stbc = -1;
-static int hf_radiotap_he_stbc_unknown = -1;
-static int hf_radiotap_spatial_reuse = -1;
-static int hf_radiotap_spatial_reuse_unknown = -1;
-static int hf_radiotap_he_su_reserved = -1;
-static int hf_radiotap_spatial_reuse_1 = -1;
-static int hf_radiotap_spatial_reuse_1_unknown = -1;
-static int hf_radiotap_spatial_reuse_2 = -1;
-static int hf_radiotap_spatial_reuse_2_unknown = -1;
-static int hf_radiotap_spatial_reuse_3 = -1;
-static int hf_radiotap_spatial_reuse_3_unknown = -1;
-static int hf_radiotap_spatial_reuse_4 = -1;
-static int hf_radiotap_spatial_reuse_4_unknown = -1;
-static int hf_radiotap_sta_id_user_captured = -1;
-static int hf_radiotap_he_mu_reserved = -1;
-static int hf_radiotap_data_bandwidth_ru_allocation = -1;
-static int hf_radiotap_data_bandwidth_ru_allocation_unknown = -1;
-static int hf_radiotap_gi = -1;
-static int hf_radiotap_gi_unknown = -1;
-static int hf_radiotap_ltf_symbol_size = -1;
-static int hf_radiotap_ltf_symbol_size_unknown = -1;
-static int hf_radiotap_num_ltf_symbols = -1;
-static int hf_radiotap_num_ltf_symbols_unknown = -1;
-static int hf_radiotap_d5_reserved_b11 = -1;
-static int hf_radiotap_pre_fec_padding_factor = -1;
-static int hf_radiotap_pre_fec_padding_factor_unknown = -1;
-static int hf_radiotap_txbf = -1;
-static int hf_radiotap_txbf_unknown = -1;
-static int hf_radiotap_pe_disambiguity = -1;
-static int hf_radiotap_pe_disambiguity_unknown = -1;
-static int hf_radiotap_he_nsts = -1;
-static int hf_radiotap_he_doppler_value = -1;
-static int hf_radiotap_he_doppler_value_unknown = -1;
-static int hf_radiotap_he_d6_reserved_00e0 = -1;
-static int hf_radiotap_he_txop_value = -1;
-static int hf_radiotap_he_txop_value_unknown = -1;
-static int hf_radiotap_midamble_periodicity = -1;
-static int hf_radiotap_midamble_periodicity_unknown = -1;
-static int hf_radiotap_he_info_data_1 = -1;
-static int hf_radiotap_he_info_data_2 = -1;
-static int hf_radiotap_he_info_data_3 = -1;
-static int hf_radiotap_he_info_data_4 = -1;
-static int hf_radiotap_he_info_data_5 = -1;
-static int hf_radiotap_he_info_data_6 = -1;
-static int hf_radiotap_he_mu_sig_b_mcs = -1;
-static int hf_radiotap_he_mu_sig_b_mcs_unknown = -1;
-static int hf_radiotap_he_mu_sig_b_mcs_known = -1;
-static int hf_radiotap_he_mu_sig_b_dcm = -1;
-static int hf_radiotap_he_mu_sig_b_dcm_unknown = -1;
-static int hf_radiotap_he_mu_sig_b_dcm_known = -1;
-static int hf_radiotap_he_mu_chan2_center_26_tone_ru_bit_known = -1;
-static int hf_radiotap_he_mu_chan2_center_26_tone_ru_bit_unknown = -1;
-static int hf_radiotap_he_mu_chan1_rus_known = -1;
-static int hf_radiotap_he_mu_chan1_rus_unknown = -1;
-static int hf_radiotap_he_mu_chan2_rus_known = -1;
-static int hf_radiotap_he_mu_chan2_rus_unknown = -1;
-static int hf_radiotap_he_mu_reserved_f1_b10_b11 = -1;
-static int hf_radiotap_he_mu_chan1_center_26_tone_ru_bit_known = -1;
-static int hf_radiotap_he_mu_chan1_center_26_tone_ru_bit_unknown = -1;
-static int hf_radiotap_he_mu_chan1_center_26_tone_ru_value = -1;
-static int hf_radiotap_he_mu_sig_b_compression_known = -1;
-static int hf_radiotap_he_mu_sig_b_compression_unknown = -1;
-static int hf_radiotap_he_mu_sig_b_compression_from_sig_a = -1;
-static int hf_radiotap_he_mu_sig_b_syms_mu_mimo_users_known = -1;
-static int hf_radiotap_he_mu_sig_b_syms_mu_mimo_users_unknown = -1;
-static int hf_radiotap_he_mu_info_flags_1 = -1;
-static int hf_radiotap_he_mu_bw_from_bw_in_sig_a = -1;
-static int hf_radiotap_he_mu_bw_from_bw_in_sig_a_unknown = -1;
-static int hf_radiotap_he_mu_bw_from_bw_in_sig_a_known = -1;
-static int hf_radiotap_he_mu_sig_b_syms_mu_mimo_users = -1;
-static int hf_radiotap_he_mu_preamble_puncturing = -1;
-static int hf_radiotap_he_mu_preamble_puncturing_unknown = -1;
-static int hf_radiotap_he_mu_preamble_puncturing_known = -1;
-static int hf_radiotap_he_mu_chan2_center_26_tone_ru_value = -1;
-static int hf_radiotap_he_mu_reserved_f2_b12_b15 = -1;
-static int hf_radiotap_he_mu_info_flags_2 = -1;
-static int hf_radiotap_he_mu_chan1_rus_0 = -1;
-static int hf_radiotap_he_mu_chan1_rus_0_unknown = -1;
-static int hf_radiotap_he_mu_chan1_rus_1 = -1;
-static int hf_radiotap_he_mu_chan1_rus_1_unknown = -1;
-static int hf_radiotap_he_mu_chan1_rus_2 = -1;
-static int hf_radiotap_he_mu_chan1_rus_2_unknown = -1;
-static int hf_radiotap_he_mu_chan1_rus_3 = -1;
-static int hf_radiotap_he_mu_chan1_rus_3_unknown = -1;
-static int hf_radiotap_he_mu_chan2_rus_0 = -1;
-static int hf_radiotap_he_mu_chan2_rus_0_unknown = -1;
-static int hf_radiotap_he_mu_chan2_rus_1 = -1;
-static int hf_radiotap_he_mu_chan2_rus_1_unknown = -1;
-static int hf_radiotap_he_mu_chan2_rus_2 = -1;
-static int hf_radiotap_he_mu_chan2_rus_2_unknown = -1;
-static int hf_radiotap_he_mu_chan2_rus_3 = -1;
-static int hf_radiotap_he_mu_chan2_rus_3_unknown = -1;
+static int hf_radiotap_he_ppdu_format;
+static int hf_radiotap_he_bss_color_known;
+static int hf_radiotap_he_beam_change_known;
+static int hf_radiotap_he_ul_dl_known;
+static int hf_radiotap_he_data_mcs_known;
+static int hf_radiotap_he_data_dcm_known;
+static int hf_radiotap_he_coding_known;
+static int hf_radiotap_he_ldpc_extra_symbol_segment_known;
+static int hf_radiotap_he_stbc_known;
+static int hf_radiotap_he_spatial_reuse_1_known;
+static int hf_radiotap_he_spatial_reuse_2_known;
+static int hf_radiotap_he_spatial_reuse_3_known;
+static int hf_radiotap_he_spatial_reuse_4_known;
+static int hf_radiotap_he_data_bw_ru_allocation_known;
+static int hf_radiotap_he_doppler_known;
+static int hf_radiotap_he_pri_sec_80_mhz_known;
+static int hf_radiotap_he_gi_known;
+static int hf_radiotap_he_num_ltf_symbols_known;
+static int hf_radiotap_he_pre_fec_padding_factor_known;
+static int hf_radiotap_he_txbf_known;
+static int hf_radiotap_he_pe_disambiguity_known;
+static int hf_radiotap_he_txop_known;
+static int hf_radiotap_he_midamble_periodicity_known;
+static int hf_radiotap_he_ru_allocation_offset;
+static int hf_radiotap_he_ru_allocation_offset_known;
+static int hf_radiotap_he_pri_sec_80_mhz;
+static int hf_radiotap_he_bss_color;
+static int hf_radiotap_he_bss_color_unknown;
+static int hf_radiotap_he_beam_change;
+static int hf_radiotap_he_beam_change_unknown;
+static int hf_radiotap_he_ul_dl;
+static int hf_radiotap_he_ul_dl_unknown;
+static int hf_radiotap_he_data_mcs;
+static int hf_radiotap_he_data_mcs_unknown;
+static int hf_radiotap_he_data_dcm;
+static int hf_radiotap_he_data_dcm_unknown;
+static int hf_radiotap_he_coding;
+static int hf_radiotap_he_coding_unknown;
+static int hf_radiotap_he_ldpc_extra_symbol_segment;
+static int hf_radiotap_he_ldpc_extra_symbol_segment_unknown;
+static int hf_radiotap_he_stbc;
+static int hf_radiotap_he_stbc_unknown;
+static int hf_radiotap_spatial_reuse;
+static int hf_radiotap_spatial_reuse_unknown;
+static int hf_radiotap_he_su_reserved;
+static int hf_radiotap_spatial_reuse_1;
+static int hf_radiotap_spatial_reuse_1_unknown;
+static int hf_radiotap_spatial_reuse_2;
+static int hf_radiotap_spatial_reuse_2_unknown;
+static int hf_radiotap_spatial_reuse_3;
+static int hf_radiotap_spatial_reuse_3_unknown;
+static int hf_radiotap_spatial_reuse_4;
+static int hf_radiotap_spatial_reuse_4_unknown;
+static int hf_radiotap_sta_id_user_captured;
+static int hf_radiotap_he_mu_reserved;
+static int hf_radiotap_data_bandwidth_ru_allocation;
+static int hf_radiotap_data_bandwidth_ru_allocation_unknown;
+static int hf_radiotap_gi;
+static int hf_radiotap_gi_unknown;
+static int hf_radiotap_ltf_symbol_size;
+static int hf_radiotap_ltf_symbol_size_unknown;
+static int hf_radiotap_num_ltf_symbols;
+static int hf_radiotap_num_ltf_symbols_unknown;
+static int hf_radiotap_d5_reserved_b11;
+static int hf_radiotap_pre_fec_padding_factor;
+static int hf_radiotap_pre_fec_padding_factor_unknown;
+static int hf_radiotap_txbf;
+static int hf_radiotap_txbf_unknown;
+static int hf_radiotap_pe_disambiguity;
+static int hf_radiotap_pe_disambiguity_unknown;
+static int hf_radiotap_he_nsts;
+static int hf_radiotap_he_doppler_value;
+static int hf_radiotap_he_doppler_value_unknown;
+static int hf_radiotap_he_d6_reserved_00e0;
+static int hf_radiotap_he_txop_value;
+static int hf_radiotap_he_txop_value_unknown;
+static int hf_radiotap_midamble_periodicity;
+static int hf_radiotap_midamble_periodicity_unknown;
+static int hf_radiotap_he_info_data_1;
+static int hf_radiotap_he_info_data_2;
+static int hf_radiotap_he_info_data_3;
+static int hf_radiotap_he_info_data_4;
+static int hf_radiotap_he_info_data_5;
+static int hf_radiotap_he_info_data_6;
+static int hf_radiotap_he_mu_sig_b_mcs;
+static int hf_radiotap_he_mu_sig_b_mcs_unknown;
+static int hf_radiotap_he_mu_sig_b_mcs_known;
+static int hf_radiotap_he_mu_sig_b_dcm;
+static int hf_radiotap_he_mu_sig_b_dcm_unknown;
+static int hf_radiotap_he_mu_sig_b_dcm_known;
+static int hf_radiotap_he_mu_chan2_center_26_tone_ru_bit_known;
+static int hf_radiotap_he_mu_chan2_center_26_tone_ru_bit_unknown;
+static int hf_radiotap_he_mu_chan1_rus_known;
+static int hf_radiotap_he_mu_chan1_rus_unknown;
+static int hf_radiotap_he_mu_chan2_rus_known;
+static int hf_radiotap_he_mu_chan2_rus_unknown;
+static int hf_radiotap_he_mu_reserved_f1_b10_b11;
+static int hf_radiotap_he_mu_chan1_center_26_tone_ru_bit_known;
+static int hf_radiotap_he_mu_chan1_center_26_tone_ru_bit_unknown;
+static int hf_radiotap_he_mu_chan1_center_26_tone_ru_value;
+static int hf_radiotap_he_mu_sig_b_compression_known;
+static int hf_radiotap_he_mu_sig_b_compression_unknown;
+static int hf_radiotap_he_mu_sig_b_compression_from_sig_a;
+static int hf_radiotap_he_mu_sig_b_syms_mu_mimo_users_known;
+static int hf_radiotap_he_mu_sig_b_syms_mu_mimo_users_unknown;
+static int hf_radiotap_he_mu_info_flags_1;
+static int hf_radiotap_he_mu_bw_from_bw_in_sig_a;
+static int hf_radiotap_he_mu_bw_from_bw_in_sig_a_unknown;
+static int hf_radiotap_he_mu_bw_from_bw_in_sig_a_known;
+static int hf_radiotap_he_mu_sig_b_syms_mu_mimo_users;
+static int hf_radiotap_he_mu_preamble_puncturing;
+static int hf_radiotap_he_mu_preamble_puncturing_unknown;
+static int hf_radiotap_he_mu_preamble_puncturing_known;
+static int hf_radiotap_he_mu_chan2_center_26_tone_ru_value;
+static int hf_radiotap_he_mu_reserved_f2_b12_b15;
+static int hf_radiotap_he_mu_info_flags_2;
+static int hf_radiotap_he_mu_chan1_rus_0;
+static int hf_radiotap_he_mu_chan1_rus_0_unknown;
+static int hf_radiotap_he_mu_chan1_rus_1;
+static int hf_radiotap_he_mu_chan1_rus_1_unknown;
+static int hf_radiotap_he_mu_chan1_rus_2;
+static int hf_radiotap_he_mu_chan1_rus_2_unknown;
+static int hf_radiotap_he_mu_chan1_rus_3;
+static int hf_radiotap_he_mu_chan1_rus_3_unknown;
+static int hf_radiotap_he_mu_chan2_rus_0;
+static int hf_radiotap_he_mu_chan2_rus_0_unknown;
+static int hf_radiotap_he_mu_chan2_rus_1;
+static int hf_radiotap_he_mu_chan2_rus_1_unknown;
+static int hf_radiotap_he_mu_chan2_rus_2;
+static int hf_radiotap_he_mu_chan2_rus_2_unknown;
+static int hf_radiotap_he_mu_chan2_rus_3;
+static int hf_radiotap_he_mu_chan2_rus_3_unknown;
 
 /* 0-length-psdu */
-static int hf_radiotap_0_length_psdu_type = -1;
+static int hf_radiotap_0_length_psdu_type;
 
 /* L-SIG */
-static int hf_radiotap_l_sig_data_1 = -1;
-static int hf_radiotap_l_sig_rate_known = -1;
-static int hf_radiotap_l_sig_length_known = -1;
-static int hf_radiotap_l_sig_reserved = -1;
-static int hf_radiotap_l_sig_data_2 = -1;
-static int hf_radiotap_l_sig_rate = -1;
-static int hf_radiotap_l_sig_length = -1;
+static int hf_radiotap_l_sig_data_1;
+static int hf_radiotap_l_sig_rate_known;
+static int hf_radiotap_l_sig_length_known;
+static int hf_radiotap_l_sig_reserved;
+static int hf_radiotap_l_sig_data_2;
+static int hf_radiotap_l_sig_rate;
+static int hf_radiotap_l_sig_length;
 
 /* U-SIG */
-static int hf_radiotap_u_sig_common = -1;
-static int hf_radiotap_usig_phy_version_identifier_known = -1;
-static int hf_radiotap_usig_bw_known = -1;
-static int hf_radiotap_usig_ul_dl_known = -1;
-static int hf_radiotap_usig_bss_color_known = -1;
-static int hf_radiotap_usig_txop_known = -1;
-static int hf_radiotap_usig_bad_u_sig_crc = -1;
-static int hf_radiotap_usig_validate_bits_checked = -1;
-static int hf_radiotap_usig_validate_bits_ok = -1;
-static int hf_radiotap_usig_reserved = -1;
-static int hf_radiotap_usig_phy_version_id = -1;
-static int hf_radiotap_usig_bw = -1;
-static int hf_radiotap_usig_ul_dl = -1;
-static int hf_radiotap_usig_bss_color = -1;
-static int hf_radiotap_usig_txop = -1;
-static int hf_radiotap_usig_value_mu_ppdu = -1;
-static int hf_radiotap_usig_eht_mu_b20_b24 = -1;
-static int hf_radiotap_usig_eht_mu_b20_b24_not_known = -1;
-static int hf_radiotap_usig_eht_mu_b25 = -1;
-static int hf_radiotap_usig_eht_mu_b25_not_known = -1;
-static int hf_radiotap_usig_ppdu_type_and_comp_mode = -1;
-static int hf_radiotap_usig_validate1 = -1;
-static int hf_radiotap_usig_validate1_not_known = -1;
-static int hf_radiotap_usig_punctured_channel_info = -1;
-static int hf_radiotap_usig_punctured_channel_info_not_known = -1;
-static int hf_radiotap_usig_validate2 = -1;
-static int hf_radiotap_usig_validate2_not_known = -1;
-static int hf_radiotap_usig_eht_sig_mcs = -1;
-static int hf_radiotap_usig_eht_sig_mcs_not_known = -1;
-static int hf_radiotap_usig_number_eht_sig_symbols = -1;
-static int hf_radiotap_usig_number_eht_sig_symbols_not_known = -1;
-static int hf_radiotap_usig_crc = -1;
-static int hf_radiotap_usig_crc_not_known = -1;
-static int hf_radiotap_usig_tail = -1;
-static int hf_radiotap_usig_tail_not_known = -1;
-static int hf_radiotap_u_sig_mask = -1;
-static int hf_radiotap_usig_value_tb_ppdu = -1;
-static int hf_radiotap_usig_eht_tb_b20_b25 = -1;
-static int hf_radiotap_usig_eht_tb_b20_b25_not_known = -1;
-static int hf_radiotap_usig_eht_tb_validate1 = -1;
-static int hf_radiotap_usig_eht_tb_validate1_not_known = -1;
-static int hf_radiotap_usig_eht_tb_spatial_reuse_1 = -1;
-static int hf_radiotap_usig_eht_tb_spatial_reuse_1_not_known = -1;
-static int hf_radiotap_usig_eht_tb_spatial_reuse_2 = -1;
-static int hf_radiotap_usig_eht_tb_spatial_reuse_2_not_known = -1;
-static int hf_radiotap_usig_eht_tb_disregard = -1;
-static int hf_radiotap_usig_eht_tb_disregard_not_known = -1;
-static int hf_radiotap_usig_eht_tb_crc = -1;
-static int hf_radiotap_usig_eht_tb_crc_not_known = -1;
-static int hf_radiotap_usig_eht_tb_tail = -1;
-static int hf_radiotap_usig_eht_tb_tail_not_known = -1;
+static int hf_radiotap_u_sig_common;
+static int hf_radiotap_usig_phy_version_identifier_known;
+static int hf_radiotap_usig_bw_known;
+static int hf_radiotap_usig_ul_dl_known;
+static int hf_radiotap_usig_bss_color_known;
+static int hf_radiotap_usig_txop_known;
+static int hf_radiotap_usig_bad_u_sig_crc;
+static int hf_radiotap_usig_validate_bits_checked;
+static int hf_radiotap_usig_validate_bits_ok;
+static int hf_radiotap_usig_reserved;
+static int hf_radiotap_usig_phy_version_id;
+static int hf_radiotap_usig_bw;
+static int hf_radiotap_usig_ul_dl;
+static int hf_radiotap_usig_bss_color;
+static int hf_radiotap_usig_txop;
+static int hf_radiotap_usig_value_mu_ppdu;
+static int hf_radiotap_usig_eht_mu_b20_b24;
+static int hf_radiotap_usig_eht_mu_b20_b24_not_known;
+static int hf_radiotap_usig_eht_mu_b25;
+static int hf_radiotap_usig_eht_mu_b25_not_known;
+static int hf_radiotap_usig_ppdu_type_and_comp_mode;
+static int hf_radiotap_usig_validate1;
+static int hf_radiotap_usig_validate1_not_known;
+static int hf_radiotap_usig_punctured_channel_info;
+static int hf_radiotap_usig_punctured_channel_info_not_known;
+static int hf_radiotap_usig_validate2;
+static int hf_radiotap_usig_validate2_not_known;
+static int hf_radiotap_usig_eht_sig_mcs;
+static int hf_radiotap_usig_eht_sig_mcs_not_known;
+static int hf_radiotap_usig_number_eht_sig_symbols;
+static int hf_radiotap_usig_number_eht_sig_symbols_not_known;
+static int hf_radiotap_usig_crc;
+static int hf_radiotap_usig_crc_not_known;
+static int hf_radiotap_usig_tail;
+static int hf_radiotap_usig_tail_not_known;
+static int hf_radiotap_u_sig_mask;
+static int hf_radiotap_usig_value_tb_ppdu;
+static int hf_radiotap_usig_eht_tb_b20_b25;
+static int hf_radiotap_usig_eht_tb_b20_b25_not_known;
+static int hf_radiotap_usig_eht_tb_validate1;
+static int hf_radiotap_usig_eht_tb_validate1_not_known;
+static int hf_radiotap_usig_eht_tb_spatial_reuse_1;
+static int hf_radiotap_usig_eht_tb_spatial_reuse_1_not_known;
+static int hf_radiotap_usig_eht_tb_spatial_reuse_2;
+static int hf_radiotap_usig_eht_tb_spatial_reuse_2_not_known;
+static int hf_radiotap_usig_eht_tb_disregard;
+static int hf_radiotap_usig_eht_tb_disregard_not_known;
+static int hf_radiotap_usig_eht_tb_crc;
+static int hf_radiotap_usig_eht_tb_crc_not_known;
+static int hf_radiotap_usig_eht_tb_tail;
+static int hf_radiotap_usig_eht_tb_tail_not_known;
 
 /* EHT */
-static int hf_radiotap_eht_known = -1;
-static int hf_radiotap_eht_reserved_1 = -1;
-static int hf_radiotap_eht_spatial_reuse_known = -1;
-static int hf_radiotap_eht_guard_interval_known = -1;
-static int hf_radiotap_eht_reserved_8 = -1;
-static int hf_radiotap_eht_number_ltf_symbols_known = -1;
-static int hf_radiotap_eht_ldpc_extra_symbol_segment_known = -1;
-static int hf_radiotap_eht_pre_fec_padding_factor_known = -1;
-static int hf_radiotap_eht_pe_disambiguity_known = -1;
-static int hf_radiotap_eht_disregard_known = -1;
-static int hf_radiotap_eht_reserved1 = -1;
-static int hf_radiotap_eht_reserved_2 = -1;
-static int hf_radiotap_eht_crc1_known = -1;
-static int hf_radiotap_eht_tail1_known = -1;
-static int hf_radiotap_eht_crc2_known = -1;
-static int hf_radiotap_eht_tail2_known = -1;
-static int hf_radiotap_eht_nss_known = -1;
-static int hf_radiotap_eht_beamformed_known = -1;
-static int hf_radiotap_eht_number_non_ofdma_users_known = -1;
-static int hf_radiotap_eht_user_encoding_block_crc_known = -1;
-static int hf_radiotap_eht_user_encoding_block_tail_known = -1;
-static int hf_radiotap_eht_ru_mru_size_known = -1;
-static int hf_radiotap_eht_ru_mru_index_known = -1;
-static int hf_radiotap_eht_tb_ru_allocation_known = -1;
-static int hf_radiotap_eht_primary_80mhz_channel_pos_known = -1;
-static int hf_radiotap_eht_reserved_fc = -1;
-static int hf_radiotap_eht_data0 = -1;
-static int hf_radiotap_eht_data0_reserved1 = -1;
-static int hf_radiotap_eht_data0_spatial_reuse = -1;
-static int hf_radiotap_eht_data0_spatial_reuse_not_known = -1;
-static int hf_radiotap_eht_data0_gi = -1;
-static int hf_radiotap_eht_data0_gi_not_known = -1;
-static int hf_radiotap_eht_data0_ltf_symbol_size = -1;
-static int hf_radiotap_eht_data0_number_ltf_symbols = -1;
-static int hf_radiotap_eht_data0_number_ltf_symbols_not_known = -1;
-static int hf_radiotap_eht_data0_ldpc_extra_symbol_segment = -1;
-static int hf_radiotap_eht_data0_ldpc_extra_symbol_segment_not_known = -1;
-static int hf_radiotap_eht_data0_pre_fec_padding_factor = -1;
-static int hf_radiotap_eht_data0_pre_fec_padding_factor_not_known = -1;
-static int hf_radiotap_eht_data0_pe_disambiguity = -1;
-static int hf_radiotap_eht_data0_pe_disambiguity_not_known = -1;
-static int hf_radiotap_eht_data0_disregard = -1;
-static int hf_radiotap_eht_data0_disregard_not_known = -1;
-static int hf_radiotap_eht_data0_crc1 = -1;
-static int hf_radiotap_eht_data0_crc1_not_known = -1;
-static int hf_radiotap_eht_data0_tail1 = -1;
-static int hf_radiotap_eht_data0_tail1_not_known = -1;
-static int hf_radiotap_eht_data1 = -1;
-static int hf_radiotap_eht_data1_ru_mru_size = -1;
-static int hf_radiotap_eht_data1_ru_mru_size_not_known = -1;
-static int hf_radiotap_eht_data1_ru_mru_index = -1;
-static int hf_radiotap_eht_data1_ru_mru_index_not_known = -1;
-static int hf_radiotap_eht_data1_ru_alloc_c1_1_1 = -1;
-static int hf_radiotap_eht_data1_ru_alloc_c1_1_1_not_known = -1;
-static int hf_radiotap_eht_data1_ru_alloc_c1_1_1_known = -1;
-static int hf_radiotap_eht_data1_reserved = -1;
-static int hf_radiotap_eht_data1_primary_80_mhz_chan_pos = -1;
-static int hf_radiotap_eht_data1_primary_80_mhz_chan_pos_not_known = -1;
-static int hf_radiotap_eht_data2 = -1;
-static int hf_radiotap_eht_data2_ru_alloc_c2_1_1 = -1;
-static int hf_radiotap_eht_data2_ru_alloc_c2_1_1_not_known = -1;
-static int hf_radiotap_eht_data2_ru_alloc_c2_1_1_known = -1;
-static int hf_radiotap_eht_data2_ru_alloc_c1_1_2 = -1;
-static int hf_radiotap_eht_data2_ru_alloc_c1_1_2_not_known = -1;
-static int hf_radiotap_eht_data2_ru_alloc_c1_1_2_known = -1;
-static int hf_radiotap_eht_data2_ru_alloc_c2_1_2 = -1;
-static int hf_radiotap_eht_data2_ru_alloc_c2_1_2_not_known = -1;
-static int hf_radiotap_eht_data2_ru_alloc_c2_1_2_known = -1;
-static int hf_radiotap_eht_data2_reserved = -1;
-static int hf_radiotap_eht_data3 = -1;
-static int hf_radiotap_eht_data3_ru_alloc_c1_2_1 = -1;
-static int hf_radiotap_eht_data3_ru_alloc_c1_2_1_not_known = -1;
-static int hf_radiotap_eht_data3_ru_alloc_c1_2_1_known = -1;
-static int hf_radiotap_eht_data3_ru_alloc_c2_2_1 = -1;
-static int hf_radiotap_eht_data3_ru_alloc_c2_2_1_not_known = -1;
-static int hf_radiotap_eht_data3_ru_alloc_c2_2_1_known = -1;
-static int hf_radiotap_eht_data3_ru_alloc_c1_2_2 = -1;
-static int hf_radiotap_eht_data3_ru_alloc_c1_2_2_not_known = -1;
-static int hf_radiotap_eht_data3_ru_alloc_c1_2_2_known = -1;
-static int hf_radiotap_eht_data3_reserved = -1;
-static int hf_radiotap_eht_data4 = -1;
-static int hf_radiotap_eht_data4_ru_alloc_c2_2_2 = -1;
-static int hf_radiotap_eht_data4_ru_alloc_c2_2_2_not_known = -1;
-static int hf_radiotap_eht_data4_ru_alloc_c2_2_2_known = -1;
-static int hf_radiotap_eht_data4_ru_alloc_c1_2_3 = -1;
-static int hf_radiotap_eht_data4_ru_alloc_c1_2_3_not_known = -1;
-static int hf_radiotap_eht_data4_ru_alloc_c1_2_3_known = -1;
-static int hf_radiotap_eht_data4_ru_alloc_c2_2_3 = -1;
-static int hf_radiotap_eht_data4_ru_alloc_c2_2_3_not_known = -1;
-static int hf_radiotap_eht_data4_ru_alloc_c2_2_3_known = -1;
-static int hf_radiotap_eht_data4_reserved = -1;
-static int hf_radiotap_eht_data5 = -1;
-static int hf_radiotap_eht_data5_ru_alloc_c1_2_4 = -1;
-static int hf_radiotap_eht_data5_ru_alloc_c1_2_4_not_known = -1;
-static int hf_radiotap_eht_data5_ru_alloc_c1_2_4_known = -1;
-static int hf_radiotap_eht_data5_ru_alloc_c2_2_4 = -1;
-static int hf_radiotap_eht_data5_ru_alloc_c2_2_4_not_known = -1;
-static int hf_radiotap_eht_data5_ru_alloc_c2_2_4_known = -1;
-static int hf_radiotap_eht_data5_ru_alloc_c1_2_5 = -1;
-static int hf_radiotap_eht_data5_ru_alloc_c1_2_5_not_known = -1;
-static int hf_radiotap_eht_data5_ru_alloc_c1_2_5_known = -1;
-static int hf_radiotap_eht_data5_reserved = -1;
-static int hf_radiotap_eht_data6 = -1;
-static int hf_radiotap_eht_data6_ru_alloc_c2_2_5 = -1;
-static int hf_radiotap_eht_data6_ru_alloc_c2_2_5_not_known = -1;
-static int hf_radiotap_eht_data6_ru_alloc_c2_2_5_known = -1;
-static int hf_radiotap_eht_data6_ru_alloc_c1_2_6 = -1;
-static int hf_radiotap_eht_data6_ru_alloc_c1_2_6_not_known = -1;
-static int hf_radiotap_eht_data6_ru_alloc_c1_2_6_known = -1;
-static int hf_radiotap_eht_data6_ru_alloc_c2_2_6 = -1;
-static int hf_radiotap_eht_data6_ru_alloc_c2_2_6_not_known = -1;
-static int hf_radiotap_eht_data6_ru_alloc_c2_2_6_known = -1;
-static int hf_radiotap_eht_data6_reserved = -1;
-static int hf_radiotap_eht_data7 = -1;
-static int hf_radiotap_eht_data7_crc2 = -1;
-static int hf_radiotap_eht_data7_tail2 = -1;
-static int hf_radiotap_eht_data7_rsvd = -1;
-static int hf_radiotap_eht_data7_nss = -1;
-static int hf_radiotap_eht_data7_beamformed = -1;
-static int hf_radiotap_eht_data7_number_non_ofdma_users = -1;
-static int hf_radiotap_eht_data7_number_non_ofdma_users_not_known = -1;
-static int hf_radiotap_eht_data7_user_encode_crc = -1;
-static int hf_radiotap_eht_data7_user_encode_tail = -1;
-static int hf_radiotap_eht_data7_rsvd2 = -1;
-static int hf_radiotap_eht_data8 = -1;
-static int hf_radiotap_eht_data8_ru_alloc_ps_160 = -1;
-static int hf_radiotap_eht_data8_ru_alloc_b0 = -1;
-static int hf_radiotap_eht_data8_ru_alloc_b7_b1 = -1;
-static int hf_radiotap_eht_data8_rsvd = -1;
-static int hf_radiotap_eht_user_info = -1;
-static int hf_radiotap_eht_ui_sta_id_known = -1;
-static int hf_radiotap_eht_ui_mcs_known = -1;
-static int hf_radiotap_eht_ui_coding_known = -1;
-static int hf_radiotap_eht_ui_rsvd_known = -1;
-static int hf_radiotap_eht_ui_nss_known = -1;
-static int hf_radiotap_eht_ui_beamforming_known = -1;
-static int hf_radiotap_eht_ui_spatial_config_known = -1;
-static int hf_radiotap_eht_ui_data_captured = -1;
-static int hf_radiotap_eht_ui_sta_id = -1;
-static int hf_radiotap_eht_ui_sta_id_not_known = -1;
-static int hf_radiotap_eht_ui_coding = -1;
-static int hf_radiotap_eht_ui_coding_not_known = -1;
-static int hf_radiotap_eht_ui_mcs = -1;
-static int hf_radiotap_eht_ui_mcs_not_known = -1;
-static int hf_radiotap_eht_ui_nss = -1;
-static int hf_radiotap_eht_ui_nss_not_known = -1;
-static int hf_radiotap_eht_ui_reserved = -1;
-static int hf_radiotap_eht_ui_reserved_not_known = -1;
-static int hf_radiotap_eht_ui_beamforming = -1;
-static int hf_radiotap_eht_ui_beamforming_not_known = -1;
-static int hf_radiotap_eht_ui_spatial_config = -1;
-static int hf_radiotap_eht_ui_rsvd1 = -1;
+static int hf_radiotap_eht_known;
+static int hf_radiotap_eht_reserved_1;
+static int hf_radiotap_eht_spatial_reuse_known;
+static int hf_radiotap_eht_guard_interval_known;
+static int hf_radiotap_eht_reserved_8;
+static int hf_radiotap_eht_number_ltf_symbols_known;
+static int hf_radiotap_eht_ldpc_extra_symbol_segment_known;
+static int hf_radiotap_eht_pre_fec_padding_factor_known;
+static int hf_radiotap_eht_pe_disambiguity_known;
+static int hf_radiotap_eht_disregard_known;
+static int hf_radiotap_eht_reserved1;
+static int hf_radiotap_eht_reserved_2;
+static int hf_radiotap_eht_crc1_known;
+static int hf_radiotap_eht_tail1_known;
+static int hf_radiotap_eht_crc2_known;
+static int hf_radiotap_eht_tail2_known;
+static int hf_radiotap_eht_nss_known;
+static int hf_radiotap_eht_beamformed_known;
+static int hf_radiotap_eht_number_non_ofdma_users_known;
+static int hf_radiotap_eht_user_encoding_block_crc_known;
+static int hf_radiotap_eht_user_encoding_block_tail_known;
+static int hf_radiotap_eht_ru_mru_size_known;
+static int hf_radiotap_eht_ru_mru_index_known;
+static int hf_radiotap_eht_tb_ru_allocation_known;
+static int hf_radiotap_eht_primary_80mhz_channel_pos_known;
+static int hf_radiotap_eht_reserved_fc;
+static int hf_radiotap_eht_data0;
+static int hf_radiotap_eht_data0_reserved1;
+static int hf_radiotap_eht_data0_spatial_reuse;
+static int hf_radiotap_eht_data0_spatial_reuse_not_known;
+static int hf_radiotap_eht_data0_gi;
+static int hf_radiotap_eht_data0_gi_not_known;
+static int hf_radiotap_eht_data0_ltf_symbol_size;
+static int hf_radiotap_eht_data0_number_ltf_symbols;
+static int hf_radiotap_eht_data0_number_ltf_symbols_not_known;
+static int hf_radiotap_eht_data0_ldpc_extra_symbol_segment;
+static int hf_radiotap_eht_data0_ldpc_extra_symbol_segment_not_known;
+static int hf_radiotap_eht_data0_pre_fec_padding_factor;
+static int hf_radiotap_eht_data0_pre_fec_padding_factor_not_known;
+static int hf_radiotap_eht_data0_pe_disambiguity;
+static int hf_radiotap_eht_data0_pe_disambiguity_not_known;
+static int hf_radiotap_eht_data0_disregard;
+static int hf_radiotap_eht_data0_disregard_not_known;
+static int hf_radiotap_eht_data0_crc1;
+static int hf_radiotap_eht_data0_crc1_not_known;
+static int hf_radiotap_eht_data0_tail1;
+static int hf_radiotap_eht_data0_tail1_not_known;
+static int hf_radiotap_eht_data1;
+static int hf_radiotap_eht_data1_ru_mru_size;
+static int hf_radiotap_eht_data1_ru_mru_size_not_known;
+static int hf_radiotap_eht_data1_ru_mru_index;
+static int hf_radiotap_eht_data1_ru_mru_index_not_known;
+static int hf_radiotap_eht_data1_ru_alloc_c1_1_1;
+static int hf_radiotap_eht_data1_ru_alloc_c1_1_1_not_known;
+static int hf_radiotap_eht_data1_ru_alloc_c1_1_1_known;
+static int hf_radiotap_eht_data1_reserved;
+static int hf_radiotap_eht_data1_primary_80_mhz_chan_pos;
+static int hf_radiotap_eht_data1_primary_80_mhz_chan_pos_not_known;
+static int hf_radiotap_eht_data2;
+static int hf_radiotap_eht_data2_ru_alloc_c2_1_1;
+static int hf_radiotap_eht_data2_ru_alloc_c2_1_1_not_known;
+static int hf_radiotap_eht_data2_ru_alloc_c2_1_1_known;
+static int hf_radiotap_eht_data2_ru_alloc_c1_1_2;
+static int hf_radiotap_eht_data2_ru_alloc_c1_1_2_not_known;
+static int hf_radiotap_eht_data2_ru_alloc_c1_1_2_known;
+static int hf_radiotap_eht_data2_ru_alloc_c2_1_2;
+static int hf_radiotap_eht_data2_ru_alloc_c2_1_2_not_known;
+static int hf_radiotap_eht_data2_ru_alloc_c2_1_2_known;
+static int hf_radiotap_eht_data2_reserved;
+static int hf_radiotap_eht_data3;
+static int hf_radiotap_eht_data3_ru_alloc_c1_2_1;
+static int hf_radiotap_eht_data3_ru_alloc_c1_2_1_not_known;
+static int hf_radiotap_eht_data3_ru_alloc_c1_2_1_known;
+static int hf_radiotap_eht_data3_ru_alloc_c2_2_1;
+static int hf_radiotap_eht_data3_ru_alloc_c2_2_1_not_known;
+static int hf_radiotap_eht_data3_ru_alloc_c2_2_1_known;
+static int hf_radiotap_eht_data3_ru_alloc_c1_2_2;
+static int hf_radiotap_eht_data3_ru_alloc_c1_2_2_not_known;
+static int hf_radiotap_eht_data3_ru_alloc_c1_2_2_known;
+static int hf_radiotap_eht_data3_reserved;
+static int hf_radiotap_eht_data4;
+static int hf_radiotap_eht_data4_ru_alloc_c2_2_2;
+static int hf_radiotap_eht_data4_ru_alloc_c2_2_2_not_known;
+static int hf_radiotap_eht_data4_ru_alloc_c2_2_2_known;
+static int hf_radiotap_eht_data4_ru_alloc_c1_2_3;
+static int hf_radiotap_eht_data4_ru_alloc_c1_2_3_not_known;
+static int hf_radiotap_eht_data4_ru_alloc_c1_2_3_known;
+static int hf_radiotap_eht_data4_ru_alloc_c2_2_3;
+static int hf_radiotap_eht_data4_ru_alloc_c2_2_3_not_known;
+static int hf_radiotap_eht_data4_ru_alloc_c2_2_3_known;
+static int hf_radiotap_eht_data4_reserved;
+static int hf_radiotap_eht_data5;
+static int hf_radiotap_eht_data5_ru_alloc_c1_2_4;
+static int hf_radiotap_eht_data5_ru_alloc_c1_2_4_not_known;
+static int hf_radiotap_eht_data5_ru_alloc_c1_2_4_known;
+static int hf_radiotap_eht_data5_ru_alloc_c2_2_4;
+static int hf_radiotap_eht_data5_ru_alloc_c2_2_4_not_known;
+static int hf_radiotap_eht_data5_ru_alloc_c2_2_4_known;
+static int hf_radiotap_eht_data5_ru_alloc_c1_2_5;
+static int hf_radiotap_eht_data5_ru_alloc_c1_2_5_not_known;
+static int hf_radiotap_eht_data5_ru_alloc_c1_2_5_known;
+static int hf_radiotap_eht_data5_reserved;
+static int hf_radiotap_eht_data6;
+static int hf_radiotap_eht_data6_ru_alloc_c2_2_5;
+static int hf_radiotap_eht_data6_ru_alloc_c2_2_5_not_known;
+static int hf_radiotap_eht_data6_ru_alloc_c2_2_5_known;
+static int hf_radiotap_eht_data6_ru_alloc_c1_2_6;
+static int hf_radiotap_eht_data6_ru_alloc_c1_2_6_not_known;
+static int hf_radiotap_eht_data6_ru_alloc_c1_2_6_known;
+static int hf_radiotap_eht_data6_ru_alloc_c2_2_6;
+static int hf_radiotap_eht_data6_ru_alloc_c2_2_6_not_known;
+static int hf_radiotap_eht_data6_ru_alloc_c2_2_6_known;
+static int hf_radiotap_eht_data6_reserved;
+static int hf_radiotap_eht_data7;
+static int hf_radiotap_eht_data7_crc2;
+static int hf_radiotap_eht_data7_tail2;
+static int hf_radiotap_eht_data7_rsvd;
+static int hf_radiotap_eht_data7_nss;
+static int hf_radiotap_eht_data7_beamformed;
+static int hf_radiotap_eht_data7_number_non_ofdma_users;
+static int hf_radiotap_eht_data7_number_non_ofdma_users_not_known;
+static int hf_radiotap_eht_data7_user_encode_crc;
+static int hf_radiotap_eht_data7_user_encode_tail;
+static int hf_radiotap_eht_data7_rsvd2;
+static int hf_radiotap_eht_data8;
+static int hf_radiotap_eht_data8_ru_alloc_ps_160;
+static int hf_radiotap_eht_data8_ru_alloc_b0;
+static int hf_radiotap_eht_data8_ru_alloc_b7_b1;
+static int hf_radiotap_eht_data8_rsvd;
+static int hf_radiotap_eht_user_info;
+static int hf_radiotap_eht_ui_sta_id_known;
+static int hf_radiotap_eht_ui_mcs_known;
+static int hf_radiotap_eht_ui_coding_known;
+static int hf_radiotap_eht_ui_rsvd_known;
+static int hf_radiotap_eht_ui_nss_known;
+static int hf_radiotap_eht_ui_beamforming_known;
+static int hf_radiotap_eht_ui_spatial_config_known;
+static int hf_radiotap_eht_ui_data_captured;
+static int hf_radiotap_eht_ui_sta_id;
+static int hf_radiotap_eht_ui_sta_id_not_known;
+static int hf_radiotap_eht_ui_coding;
+static int hf_radiotap_eht_ui_coding_not_known;
+static int hf_radiotap_eht_ui_mcs;
+static int hf_radiotap_eht_ui_mcs_not_known;
+static int hf_radiotap_eht_ui_nss;
+static int hf_radiotap_eht_ui_nss_not_known;
+static int hf_radiotap_eht_ui_reserved;
+static int hf_radiotap_eht_ui_reserved_not_known;
+static int hf_radiotap_eht_ui_beamforming;
+static int hf_radiotap_eht_ui_beamforming_not_known;
+static int hf_radiotap_eht_ui_spatial_config;
+static int hf_radiotap_eht_ui_rsvd1;
+
+
+static const value_string eht_data_ru_mru_size_vals[] = {
+	{ IEEE80211_RADIOTAP_EHT_RU_26, "26-tone RU" },
+	{ IEEE80211_RADIOTAP_EHT_RU_52, "52-tone RU" },
+	{ IEEE80211_RADIOTAP_EHT_RU_106, "106-tone RU" },
+	{ IEEE80211_RADIOTAP_EHT_RU_242, "242-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_484, "484-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_996, "996-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_2_TIMES_996, "2x996-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_4_TIMES_994, "4x996-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_52_PLUS_26, "52+26-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_106_PLUS_26, "106+26-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_484_PLUS_242, "484+242-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_996_PLUS_484, "996+484-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_996_PLUS_484_242, "996+484+242-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_2_TIMES_996_PLUS_484, "2x996+484-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_3_TIMES_996, "3x996-tone RU"},
+	{ IEEE80211_RADIOTAP_EHT_RU_3_TIMES_996_PLUS_484, "3x996+484-tone RU"},
+	{ 0,  NULL}
+};
 
 /* S1G */
-static int hf_radiotap_s1g_known = -1;
-static int hf_radiotap_s1g_s1g_ppdu_format_known = -1;
-static int hf_radiotap_s1g_response_indication_known = -1;
-static int hf_radiotap_s1g_guard_interval_known = -1;
-static int hf_radiotap_s1g_nss_known = -1;
-static int hf_radiotap_s1g_bandwidth_known = -1;
-static int hf_radiotap_s1g_mcs_known = -1;
-static int hf_radiotap_s1g_color_known = -1;
-static int hf_radiotap_s1g_uplink_indication_known = -1;
-static int hf_radiotap_s1g_reserved_1 = -1;
-static int hf_radiotap_s1g_data_1 = -1;
-static int hf_radiotap_s1g_s1g_ppdu_format = -1;
-static int hf_radiotap_s1g_response_indication = -1;
-static int hf_radiotap_s1g_reserved_2 = -1;
-static int hf_radiotap_s1g_guard_interval = -1;
-static int hf_radiotap_s1g_nss = -1;
-static int hf_radiotap_s1g_bandwidth = -1;
-static int hf_radiotap_s1g_mcs = -1;
-static int hf_radiotap_s1g_data_2 = -1;
-static int hf_radiotap_s1g_color = -1;
-static int hf_radiotap_s1g_uplink_indication = -1;
-static int hf_radiotap_s1g_rssi = -1;
-static int hf_radiotap_s1g_reserved_3 = -1;
+static int hf_radiotap_s1g_known;
+static int hf_radiotap_s1g_s1g_ppdu_format_known;
+static int hf_radiotap_s1g_response_indication_known;
+static int hf_radiotap_s1g_guard_interval_known;
+static int hf_radiotap_s1g_nss_known;
+static int hf_radiotap_s1g_bandwidth_known;
+static int hf_radiotap_s1g_mcs_known;
+static int hf_radiotap_s1g_color_known;
+static int hf_radiotap_s1g_uplink_indication_known;
+static int hf_radiotap_s1g_reserved_1;
+static int hf_radiotap_s1g_data_1;
+static int hf_radiotap_s1g_s1g_ppdu_format;
+static int hf_radiotap_s1g_response_indication;
+static int hf_radiotap_s1g_reserved_2;
+static int hf_radiotap_s1g_guard_interval;
+static int hf_radiotap_s1g_nss;
+static int hf_radiotap_s1g_bandwidth;
+static int hf_radiotap_s1g_mcs;
+static int hf_radiotap_s1g_data_2;
+static int hf_radiotap_s1g_color;
+static int hf_radiotap_s1g_uplink_indication;
+static int hf_radiotap_s1g_rssi;
+static int hf_radiotap_s1g_reserved_3;
 
-/* S1G NDP */
-static int hf_radiotap_s1g_ndp_bytes = -1;
-static int hf_radiotap_s1g_ndp_ctrl = -1;
-static int hf_radiotap_s1g_ndp_mgmt = -1;
-static int hf_radiotap_s1g_ndp_type_3bit = -1;
-static int hf_radiotap_s1g_ndp_ack_1m = -1;
-static int hf_radiotap_s1g_ndp_ack_1m_ack_id = -1;
-static int hf_radiotap_s1g_ndp_ack_1m_more_data = -1;
-static int hf_radiotap_s1g_ndp_ack_1m_idle_indication = -1;
-static int hf_radiotap_s1g_ndp_ack_1m_duration = -1;
-static int hf_radiotap_s1g_ndp_ack_1m_relayed_frame = -1;
-static int hf_radiotap_s1g_ndp_ack_2m = -1;
-static int hf_radiotap_s1g_ndp_ack_2m_ack_id = -1;
-static int hf_radiotap_s1g_ndp_ack_2m_more_data = -1;
-static int hf_radiotap_s1g_ndp_ack_2m_idle_indication = -1;
-static int hf_radiotap_s1g_ndp_ack_2m_duration = -1;
-static int hf_radiotap_s1g_ndp_ack_2m_relayed_frame = -1;
-static int hf_radiotap_s1g_ndp_ack_2m_reserved = -1;
-static int hf_radiotap_s1g_ndp_cts_1m = -1;
-static int hf_radiotap_s1g_ndp_cts_cf_end_indic = -1;
-static int hf_radiotap_s1g_ndp_cts_address_indic = -1;
-static int hf_radiotap_s1g_ndp_cts_ra_partial_bssid = -1;
-static int hf_radiotap_s1g_ndp_cts_duration_1m = -1;
-static int hf_radiotap_s1g_ndp_cts_duration_2m = -1;
-static int hf_radiotap_s1g_ndp_cts_early_sector_indic_1m = -1;
-static int hf_radiotap_s1g_ndp_cts_2m = -1;
-static int hf_radiotap_s1g_ndp_cts_early_sector_indic_2m = -1;
-static int hf_radiotap_s1g_ndp_cts_bandwidth_indic_2m = -1;
-static int hf_radiotap_s1g_ndp_cts_reserved = -1;
-static int hf_radiotap_s1g_ndp_cf_end_1m = -1;
-static int hf_radiotap_s1g_ndp_cf_end_partial_bssid = -1;
-static int hf_radiotap_s1g_ndp_cf_end_duration_1m = -1;
-static int hf_radiotap_s1g_ndp_cf_end_reserved_1m = -1;
-static int hf_radiotap_s1g_ndp_cf_end_2m = -1;
-static int hf_radiotap_s1g_ndp_cf_end_duration_2m = -1;
-static int hf_radiotap_s1g_ndp_cf_end_reserved_2m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_1m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ra = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ta = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_preferred_mcs_1m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_udi_1m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_2m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_preferred_mcs_2m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_udi_2m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_1m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_id = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_more_data = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_idle_indication = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_duration_1m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_reserved_1m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_2m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_id_2m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_more_data_2m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_idle_indication_2m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_duration_2m = -1;
-static int hf_radiotap_s1g_ndp_ps_poll_ack_reserved_2m = -1;
-static int hf_radiotap_s1g_ndp_block_ack_1m = -1;
-static int hf_radiotap_s1g_ndp_block_ack_id_1m = -1;
-static int hf_radiotap_s1g_ndp_block_ack_starting_sequence_control_1m = -1;
-static int hf_radiotap_s1g_ndp_block_ack_bitmap_1m = -1;
-static int hf_radiotap_s1g_ndp_block_ack_unused_1m = -1;
-static int hf_radiotap_s1g_ndp_block_ack_2m = -1;
-static int hf_radiotap_s1g_ndp_block_ack_id_2m = -1;
-static int hf_radiotap_s1g_ndp_block_ack_starting_sequence_control_2m = -1;
-static int hf_radiotap_s1g_ndp_block_ack_bitmap_2m = -1;
-static int hf_radiotap_s1g_ndp_beamforming_report_poll = -1;
-static int hf_radiotap_s1g_ndp_beamforming_ap_address = -1;
-static int hf_radiotap_s1g_ndp_beamforming_non_ap_sta_address = -1;
-static int hf_radiotap_s1g_ndp_beamforming_feedback_segment_bitmap = -1;
-static int hf_radiotap_s1g_ndp_beamforming_reserved = -1;
-static int hf_radiotap_s1g_ndp_paging_1m = -1;
-static int hf_radiotap_s1g_ndp_paging_p_id = -1;
-static int hf_radiotap_s1g_ndp_paging_apdi_partial_aid = -1;
-static int hf_radiotap_s1g_ndp_paging_direction = -1;
-static int hf_radiotap_s1g_ndp_paging_reserved_1m = -1;
-static int hf_radiotap_s1g_ndp_paging_2m = -1;
-static int hf_radiotap_s1g_ndp_paging_reserved_2m = -1;
-static int hf_radiotap_s1g_ndp_probe_1m = -1;
-static int hf_radiotap_s1g_ndp_probe_cssid_ano_present = -1;
-static int hf_radiotap_s1g_ndp_probe_1m_cssid_ano = -1;
-static int hf_radiotap_s1g_ndp_probe_1m_requested_response_type = -1;
-static int hf_radiotap_s1g_ndp_probe_1m_reserved = -1;
-static int hf_radiotap_s1g_ndp_probe_2m = -1;
-static int hf_radiotap_s1g_ndp_probe_2m_cssid_ano = -1;
-static int hf_radiotap_s1g_ndp_probe_2m_requested_response_type = -1;
-static int hf_radiotap_s1g_ndp_1m_unused = -1;
-static int hf_radiotap_s1g_ndp_2m_unused = -1;
-static int hf_radiotap_s1g_ndp_bw = -1;
-
-static gint ett_radiotap = -1;
-static gint ett_radiotap_tlv = -1;
-static gint ett_radiotap_present = -1;
-static gint ett_radiotap_present_word = -1;
-static gint ett_radiotap_flags = -1;
-static gint ett_radiotap_rxflags = -1;
-static gint ett_radiotap_txflags = -1;
-static gint ett_radiotap_channel_flags = -1;
-static gint ett_radiotap_xchannel_flags = -1;
-static gint ett_radiotap_vendor = -1;
-static gint ett_radiotap_mcs = -1;
-static gint ett_radiotap_mcs_known = -1;
-static gint ett_radiotap_ampdu = -1;
-static gint ett_radiotap_ampdu_flags = -1;
-static gint ett_radiotap_vht = -1;
-static gint ett_radiotap_vht_known = -1;
-static gint ett_radiotap_vht_user = -1;
-static gint ett_radiotap_timestamp = -1;
-static gint ett_radiotap_timestamp_flags = -1;
-static gint ett_radiotap_he_info = -1;
-static gint ett_radiotap_he_info_data_1 = -1;
-static gint ett_radiotap_he_info_data_2 = -1;
-static gint ett_radiotap_he_info_data_3 = -1;
-static gint ett_radiotap_he_info_data_4 = -1;
-static gint ett_radiotap_he_info_data_5 = -1;
-static gint ett_radiotap_he_info_data_6 = -1;
-static gint ett_radiotap_he_mu_info = -1;
-static gint ett_radiotap_he_mu_info_flags_1 = -1;
-static gint ett_radiotap_he_mu_info_flags_2 = -1;
-static gint ett_radiotap_he_mu_chan_rus = -1;
-static gint ett_radiotap_0_length_psdu = -1;
-static gint ett_radiotap_l_sig = -1;
-static gint ett_radiotap_l_sig_data_1 = -1;
-static gint ett_radiotap_l_sig_data_2 = -1;
-static gint ett_radiotap_unknown_tlv = -1;
+static int ett_radiotap;
+static int ett_radiotap_tlv;
+static int ett_radiotap_present;
+static int ett_radiotap_present_word;
+static int ett_radiotap_flags;
+static int ett_radiotap_rxflags;
+static int ett_radiotap_txflags;
+static int ett_radiotap_channel_flags;
+static int ett_radiotap_xchannel_flags;
+static int ett_radiotap_vendor;
+static int ett_radiotap_mcs;
+static int ett_radiotap_mcs_known;
+static int ett_radiotap_ampdu;
+static int ett_radiotap_ampdu_flags;
+static int ett_radiotap_vht;
+static int ett_radiotap_vht_known;
+static int ett_radiotap_vht_user;
+static int ett_radiotap_timestamp;
+static int ett_radiotap_timestamp_flags;
+static int ett_radiotap_he_info;
+static int ett_radiotap_he_info_data_1;
+static int ett_radiotap_he_info_data_2;
+static int ett_radiotap_he_info_data_3;
+static int ett_radiotap_he_info_data_4;
+static int ett_radiotap_he_info_data_5;
+static int ett_radiotap_he_info_data_6;
+static int ett_radiotap_he_mu_info;
+static int ett_radiotap_he_mu_info_flags_1;
+static int ett_radiotap_he_mu_info_flags_2;
+static int ett_radiotap_he_mu_chan_rus;
+static int ett_radiotap_0_length_psdu;
+static int ett_radiotap_l_sig;
+static int ett_radiotap_l_sig_data_1;
+static int ett_radiotap_l_sig_data_2;
+static int ett_radiotap_unknown_tlv;
 
 /* U-SIG */
-static gint ett_radiotap_u_sig = -1;
-static gint ett_radiotap_u_sig_common = -1;
-static gint ett_radiotap_u_sig_value = -1;
+static int ett_radiotap_u_sig;
+static int ett_radiotap_u_sig_common;
+static int ett_radiotap_u_sig_value;
 
 /* S1G */
-static gint ett_radiotap_s1g = -1;
-static gint ett_radiotap_s1g_known = -1;
-static gint ett_radiotap_s1g_data_1 = -1;
-static gint ett_radiotap_s1g_data_2 = -1;
-
-/* S1G NDP */
-static gint ett_s1g_ndp = -1;
-static gint ett_s1g_ndp_ack = -1;
-static gint ett_s1g_ndp_cts = -1;
-static gint ett_s1g_ndp_cf_end = -1;
-static gint ett_s1g_ndp_ps_poll = -1;
-static gint ett_s1g_ndp_ps_poll_ack = -1;
-static gint ett_s1g_ndp_block_ack = -1;
-static gint ett_s1g_ndp_beamforming_report_poll = -1;
-static gint ett_s1g_ndp_paging = -1;
-static gint ett_s1g_ndp_probe = -1;
+static int ett_radiotap_s1g;
+static int ett_radiotap_s1g_known;
+static int ett_radiotap_s1g_data_1;
+static int ett_radiotap_s1g_data_2;
 
 /* EHT */
-static gint ett_radiotap_eht = -1;
-static gint ett_radiotap_eht_known = -1;
-static gint ett_radiotap_eht_data = -1;
-static gint ett_radiotap_eht_user_info = -1;
-static gint ett_radiotap_eht_user_info_i = -1;
+static int ett_radiotap_eht;
+static int ett_radiotap_eht_known;
+static int ett_radiotap_eht_data;
+static int ett_radiotap_eht_user_info;
+static int ett_radiotap_eht_user_info_i;
 
-static expert_field ei_radiotap_invalid_header_length = EI_INIT;
-static expert_field ei_radiotap_data_past_header = EI_INIT;
-static expert_field ei_radiotap_present = EI_INIT;
-static expert_field ei_radiotap_invalid_data_rate = EI_INIT;
+static expert_field ei_radiotap_invalid_header_length;
+static expert_field ei_radiotap_data_past_header;
+static expert_field ei_radiotap_present;
+static expert_field ei_radiotap_invalid_data_rate;
 
 static dissector_handle_t ieee80211_radio_handle;
 
@@ -768,8 +689,8 @@ static capture_dissector_handle_t ieee80211_datapad_cap_handle;
 static dissector_table_t vendor_dissector_table;
 
 /* Settings */
-static gboolean radiotap_bit14_fcs = FALSE;
-static gboolean radiotap_interpret_high_rates_as_mcs = FALSE;
+static bool radiotap_bit14_fcs;
+static bool radiotap_interpret_high_rates_as_mcs;
 
 #define USE_FCS_BIT        0
 #define ASSUME_FCS_PRESENT 1
@@ -840,88 +761,88 @@ static const int ieee80211_vht_bw2rate_index[] = {
 };
 
 struct mcs_vht_valid {
-	gboolean valid[4][MAX_VHT_NSS]; /* indexed by bandwidth and NSS-1 */
+	bool valid[4][MAX_VHT_NSS]; /* indexed by bandwidth and NSS-1 */
 };
 
 static const struct mcs_vht_valid ieee80211_vhtvalid[MAX_MCS_VHT_INDEX+1] = {
 		/* MCS  0  */
 		{
-			{	/* 20 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 40 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 80 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 160 Mhz */ { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
+			{	/* 20 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 40 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 80 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 160 Mhz */ { true,  true,  true,  true,  true,  true,  true,  true },
 			}
 		},
 		/* MCS  1  */
 		{
-			{	/* 20 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 40 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 80 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 160 Mhz */ { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
+			{	/* 20 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 40 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 80 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 160 Mhz */ { true,  true,  true,  true,  true,  true,  true,  true },
 			}
 		},
 		/* MCS  2  */
 		{
-			{	/* 20 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 40 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 80 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 160 Mhz */ { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
+			{	/* 20 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 40 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 80 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 160 Mhz */ { true,  true,  true,  true,  true,  true,  true,  true },
 			}
 		},
 		/* MCS  3  */
 		{
-			{	/* 20 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 40 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 80 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 160 Mhz */ { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
+			{	/* 20 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 40 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 80 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 160 Mhz */ { true,  true,  true,  true,  true,  true,  true,  true },
 			}
 		},
 		/* MCS  4  */
 		{
-			{	/* 20 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 40 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 80 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 160 Mhz */ { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
+			{	/* 20 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 40 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 80 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 160 Mhz */ { true,  true,  true,  true,  true,  true,  true,  true },
 			}
 		},
 		/* MCS  5  */
 		{
-			{	/* 20 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 40 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 80 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 160 Mhz */ { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
+			{	/* 20 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 40 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 80 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 160 Mhz */ { true,  true,  true,  true,  true,  true,  true,  true },
 			}
 		},
 		/* MCS  6  */
 		{
-			{	/* 20 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 40 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 80 Mhz */  { TRUE,  TRUE,  FALSE, TRUE,  TRUE,  TRUE,  FALSE, TRUE },
-				/* 160 Mhz */ { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
+			{	/* 20 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 40 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 80 Mhz */  { true,  true,  false, true,  true,  true,  false, true },
+				/* 160 Mhz */ { true,  true,  true,  true,  true,  true,  true,  true },
 			}
 		},
 		/* MCS  7  */
 		{
-			{	/* 20 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 40 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 80 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 160 Mhz */ { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
+			{	/* 20 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 40 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 80 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 160 Mhz */ { true,  true,  true,  true,  true,  true,  true,  true },
 			}
 		},
 		/* MCS  8  */
 		{
-			{	/* 20 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 40 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 80 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 160 Mhz */ { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
+			{	/* 20 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 40 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 80 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 160 Mhz */ { true,  true,  true,  true,  true,  true,  true,  true },
 			}
 		},
 		/* MCS  9  */
 		{
-			{	/* 20 Mhz */  { FALSE, FALSE, TRUE,  FALSE, FALSE, TRUE,  FALSE, FALSE },
-				/* 40 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
-				/* 80 Mhz */  { TRUE,  TRUE,  TRUE,  TRUE,  TRUE,  FALSE, TRUE,  TRUE },
-				/* 160 Mhz */ { TRUE,  TRUE,  FALSE, TRUE,  TRUE,  TRUE,  TRUE,  TRUE },
+			{	/* 20 Mhz */  { false, false, true,  false, false, true,  false, false },
+				/* 40 Mhz */  { true,  true,  true,  true,  true,  true,  true,  true },
+				/* 80 Mhz */  { true,  true,  true,  true,  true,  false, true,  true },
+				/* 160 Mhz */ { true,  true,  false, true,  true,  true,  true,  true },
 			}
 		}
 };
@@ -1180,31 +1101,31 @@ static const range_string tlv_type_rvals[] = {
  *    dissectors, such as tcpdump(8), expect the padding.
  */
 
-static gboolean
-capture_radiotap(const guchar * pd, int offset, int len, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header _U_)
+static bool
+capture_radiotap(const unsigned char * pd, int offset, int len, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header _U_)
 {
-	guint16 it_len;
-	guint32 present, xpresent;
-	guint8  rflags;
+	uint16_t it_len;
+	uint32_t present, xpresent;
+	uint8_t rflags;
 	const struct ieee80211_radiotap_header *hdr;
 
 	if (!BYTES_ARE_IN_FRAME(offset, len,
 				sizeof(struct ieee80211_radiotap_header))) {
-		return FALSE;
+		return false;
 	}
 	hdr = (const struct ieee80211_radiotap_header *)pd;
 	it_len = pletoh16(&hdr->it_len);
 	if (!BYTES_ARE_IN_FRAME(offset, len, it_len))
-		return FALSE;
+		return false;
 
 	if (it_len > len) {
 		/* Header length is bigger than total packet length */
-		return FALSE;
+		return false;
 	}
 
 	if (it_len < sizeof(struct ieee80211_radiotap_header)) {
 		/* Header length is shorter than fixed-length portion of header */
-		return FALSE;
+		return false;
 	}
 
 	present = pletoh32(&hdr->it_present);
@@ -1215,7 +1136,7 @@ capture_radiotap(const guchar * pd, int offset, int len, capture_packet_info_t *
 	xpresent = present;
 	while (xpresent & BIT(IEEE80211_RADIOTAP_EXT)) {
 		if (!BYTES_ARE_IN_FRAME(offset, 4, it_len)) {
-			return FALSE;
+			return false;
 		}
 		xpresent = pletoh32(pd + offset);
 		offset += 4;
@@ -1238,7 +1159,7 @@ capture_radiotap(const guchar * pd, int offset, int len, capture_packet_info_t *
 
 		if (it_len < 8) {
 			/* No room in header for this field. */
-			return FALSE;
+			return false;
 		}
 		/* That field is present, and it's 8 bytes long. */
 		offset += 8;
@@ -1251,11 +1172,11 @@ capture_radiotap(const guchar * pd, int offset, int len, capture_packet_info_t *
 	if (present & BIT(IEEE80211_RADIOTAP_FLAGS)) {
 		if (it_len < 1) {
 			/* No room in header for this field. */
-			return FALSE;
+			return false;
 		}
 		/* That field is present; fetch it. */
 		if (!BYTES_ARE_IN_FRAME(offset, len, 1)) {
-			return FALSE;
+			return false;
 		}
 		rflags = pd[offset];
 	}
@@ -1414,40 +1335,40 @@ static const value_string he_midamble_periodicity_vals[] = {
 
 static void
 dissect_radiotap_he_info(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-	int offset, struct ieee_802_11ax *info_11ax, gboolean is_tlv)
+	int offset, struct ieee_802_11ax *info_11ax, bool is_tlv)
 {
-	guint16 ppdu_format = tvb_get_letohs(tvb, offset) &
+	uint16_t ppdu_format = tvb_get_letohs(tvb, offset) &
 		IEEE80211_RADIOTAP_HE_PPDU_FORMAT_MASK;
 	proto_tree *he_info_tree = NULL;
-	gboolean bss_color_known = FALSE;
-	gboolean beam_change_known = FALSE;
-	gboolean ul_dl_known = FALSE;
-	gboolean data_mcs_known = FALSE;
-	gboolean data_dcm_known = FALSE;
-	gboolean coding_known = FALSE;
-	gboolean ldpc_extra_symbol_segment_known = FALSE;
-	gboolean stbc_known = FALSE;
-	gboolean spatial_reuse_1_known = FALSE;
-	gboolean spatial_reuse_2_known = FALSE;
-	gboolean spatial_reuse_3_known = FALSE;
-	gboolean spatial_reuse_4_known = FALSE;
-	gboolean data_bw_ru_alloc_known = FALSE;
-	gboolean doppler_known = FALSE;
-	gboolean gi_known = FALSE;
-	gboolean num_ltf_symbols_known = FALSE;
-	gboolean ltf_symbol_size_known = FALSE;
-	gboolean pre_fec_padding_factor_known = FALSE;
-	gboolean txbf_known = FALSE;
-	gboolean pe_disambiguity_known = FALSE;
-	gboolean txop_known = FALSE;
-	gboolean midamble_periodicity_known = FALSE;
-	guint16 data1 = tvb_get_letohs(tvb, offset);
-	guint16 data2 = 0;
-	guint16 data3 = 0;
-	guint16 data5 = 0;
-	guint16 data6 = 0;
+	bool bss_color_known = false;
+	bool beam_change_known = false;
+	bool ul_dl_known = false;
+	bool data_mcs_known = false;
+	bool data_dcm_known = false;
+	bool coding_known = false;
+	bool ldpc_extra_symbol_segment_known = false;
+	bool stbc_known = false;
+	bool spatial_reuse_1_known = false;
+	bool spatial_reuse_2_known = false;
+	bool spatial_reuse_3_known = false;
+	bool spatial_reuse_4_known = false;
+	bool data_bw_ru_alloc_known = false;
+	bool doppler_known = false;
+	bool gi_known = false;
+	bool num_ltf_symbols_known = false;
+	bool ltf_symbol_size_known = false;
+	bool pre_fec_padding_factor_known = false;
+	bool txbf_known = false;
+	bool pe_disambiguity_known = false;
+	bool txop_known = false;
+	bool midamble_periodicity_known = false;
+	uint16_t data1 = tvb_get_letohs(tvb, offset);
+	uint16_t data2 = 0;
+	uint16_t data3 = 0;
+	uint16_t data5 = 0;
+	uint16_t data6 = 0;
 
-	guint8 ltf_symbol_size = 0;
+	uint8_t ltf_symbol_size = 0;
 
 	/*
 	 * This is set differetly for each packet, depending on
@@ -1515,33 +1436,33 @@ dissect_radiotap_he_info(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 	 * Determine what is known.
 	 */
 	if (data1 & IEEE80211_RADIOTAP_HE_BSS_COLOR_KNOWN)
-		bss_color_known = TRUE;
+		bss_color_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_BEAM_CHANGE_KNOWN)
-		beam_change_known = TRUE;
+		beam_change_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_UL_DL_KNOWN)
-		ul_dl_known = TRUE;
+		ul_dl_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_DATA_MCS_KNOWN)
-		data_mcs_known = TRUE;
+		data_mcs_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_DATA_DCM_KNOWN)
-		data_dcm_known = TRUE;
+		data_dcm_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_CODING_KNOWN)
-		coding_known = TRUE;
+		coding_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_LDPC_EXTRA_SYMBOL_SEGMENT_KNOWN)
-		ldpc_extra_symbol_segment_known = TRUE;
+		ldpc_extra_symbol_segment_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_STBC_KNOWN)
-		stbc_known = TRUE;
+		stbc_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_SPATIAL_REUSE_KNOWN)
-		spatial_reuse_1_known = TRUE;
+		spatial_reuse_1_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_SPATIAL_REUSE_2_KNOWN)
-		spatial_reuse_2_known = TRUE;
+		spatial_reuse_2_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_SPATIAL_REUSE_3_KNOWN)
-		spatial_reuse_3_known = TRUE;
+		spatial_reuse_3_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_SPATIAL_REUSE_4_KNOWN)
-		spatial_reuse_4_known = TRUE;
+		spatial_reuse_4_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_DATA_BW_RU_ALLOCATION_KNOWN)
-		data_bw_ru_alloc_known = TRUE;
+		data_bw_ru_alloc_known = true;
 	if (data1 & IEEE80211_RADIOTAP_HE_DOPPLER_KNOWN)
-		doppler_known = TRUE;
+		doppler_known = true;
 
 	he_info_tree = proto_tree_add_subtree(tree, tvb, offset, 12,
 		ett_radiotap_he_info, NULL, "HE information");
@@ -1566,19 +1487,19 @@ dissect_radiotap_he_info(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 	 * Second lot of what is known
 	 */
 	if (data2 & IEEE80211_RADIOTAP_HE_GI_KNOWN)
-		gi_known = TRUE;
+		gi_known = true;
 	if (data2 & IEEE80211_RADIOTAP_HE_NUM_LTF_SYMBOLS_KNOWN)
-		num_ltf_symbols_known = TRUE;
+		num_ltf_symbols_known = true;
 	if (data2 & IEEE80211_RADIOTAP_HE_PRE_FEC_PADDING_FACTOR_KNOWN)
-		pre_fec_padding_factor_known = TRUE;
+		pre_fec_padding_factor_known = true;
 	if (data2 & IEEE80211_RADIOTAP_HE_TXBF_KNOWN)
-		txbf_known = TRUE;
+		txbf_known = true;
 	if (data2 & IEEE80211_RADIOTAP_HE_PE_DISAMBIGUITY_KNOWN)
-		pe_disambiguity_known = TRUE;
+		pe_disambiguity_known = true;
 	if (data2 & IEEE80211_RADIOTAP_HE_TXOP_KNOWN)
-		txop_known = TRUE;
+		txop_known = true;
 	if (data2 & IEEE80211_RADIOTAP_HE_MIDAMBLE_PERIODICITY_KNOWN)
-		midamble_periodicity_known = TRUE;
+		midamble_periodicity_known = true;
 
 	/*
 	 * Set those fields that should be reserved
@@ -1602,7 +1523,7 @@ dissect_radiotap_he_info(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 
 	data3 = tvb_get_letohs(tvb, offset);
 	if (data_mcs_known) {
-		info_11ax->has_mcs_index = TRUE;
+		info_11ax->has_mcs_index = true;
 		info_11ax->mcs = (data3 & IEEE80211_RADIOTAP_HE_DATA_MCS_MASK) >> 8;
 	}
 	proto_tree_add_bitmask(he_info_tree, tvb, offset,
@@ -1651,7 +1572,7 @@ dissect_radiotap_he_info(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 	 */
 	ltf_symbol_size = (tvb_get_letohs(tvb, offset) >> 6) & 0x03;
 	if (ltf_symbol_size != 0)
-		ltf_symbol_size_known = TRUE;
+		ltf_symbol_size_known = true;
 	if (!data_bw_ru_alloc_known)
 		data5_headers[0] = &hf_radiotap_data_bandwidth_ru_allocation_unknown;
 	if (!gi_known)
@@ -1668,11 +1589,11 @@ dissect_radiotap_he_info(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 		data5_headers[7] = &hf_radiotap_pe_disambiguity_unknown;
 	data5 = tvb_get_letohs(tvb, offset);
 	if (gi_known) {
-		info_11ax->has_gi = TRUE;
+		info_11ax->has_gi = true;
 		info_11ax->gi = (data5 & IEEE80211_RADIOTAP_HE_GI_MASK) >> 4;
 	}
 	if (data_bw_ru_alloc_known) {
-		info_11ax->has_bwru = TRUE;
+		info_11ax->has_bwru = true;
 		info_11ax->bwru = (data5 & IEEE80211_RADIOTAP_HE_DATA_BANDWIDTH_RU_ALLOC_MASK);
 	}
 	proto_tree_add_bitmask(he_info_tree, tvb, offset,
@@ -1696,26 +1617,26 @@ dissect_radiotap_he_info(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 }
 
 static void
-not_captured_custom(gchar *result, guint32 value _U_)
+not_captured_custom(char *result, uint32_t value _U_)
 {
 	snprintf(result, ITEM_LABEL_LENGTH,
 		"NOT CAPTURED BY CAPTURE SOFTWARE");
 }
 
 static void
-he_sig_b_symbols_custom(gchar *result, guint32 value)
+he_sig_b_symbols_custom(char *result, uint32_t value)
 {
 	snprintf(result, ITEM_LABEL_LENGTH, "%d", value+1);
 }
 
 static void
 dissect_radiotap_he_mu_info(tvbuff_t *tvb, packet_info *pinfo _U_,
-		proto_tree *tree, int offset, gboolean is_tlv)
+		proto_tree *tree, int offset, bool is_tlv)
 {
 	proto_tree *he_mu_info_tree = NULL;
-	guint16 flags1 = tvb_get_letohs(tvb, offset);
-	gboolean sig_b_mcs_known = FALSE;
-	gboolean sig_b_dcm_known = FALSE;
+	uint16_t flags1 = tvb_get_letohs(tvb, offset);
+	bool sig_b_mcs_known = false;
+	bool sig_b_dcm_known = false;
 	proto_tree *mu_chan1_rus = NULL;
 	proto_tree *mu_chan2_rus = NULL;
 	int mu_rus_chan1_rus_0 = -1;
@@ -1726,16 +1647,16 @@ dissect_radiotap_he_mu_info(tvbuff_t *tvb, packet_info *pinfo _U_,
 	int mu_rus_chan2_rus_1 = -1;
 	int mu_rus_chan2_rus_2 = -1;
 	int mu_rus_chan2_rus_3 = -1;
-	gboolean mu_chan2_center_26_tone_ru_bit_known = FALSE;
-	gboolean mu_chan1_rus_known = FALSE;
-	gboolean mu_chan2_rus_known = FALSE;
-	gboolean mu_chan1_center_26_tone_ru_bit_known = FALSE;
-	gboolean mu_sig_b_compression_known = FALSE;
-	gboolean mu_symbol_cnt_or_user_cnt_known = FALSE;
-	gboolean mu_preamble_puncturing_known = FALSE;
-	gboolean mu_bw_from_bw_sig_a_known = FALSE;
-	guint8 bw_from_sig_a = 0;
-	guint16 flags2;
+	bool mu_chan2_center_26_tone_ru_bit_known = false;
+	bool mu_chan1_rus_known = false;
+	bool mu_chan2_rus_known = false;
+	bool mu_chan1_center_26_tone_ru_bit_known = false;
+	bool mu_sig_b_compression_known = false;
+	bool mu_symbol_cnt_or_user_cnt_known = false;
+	bool mu_preamble_puncturing_known = false;
+	bool mu_bw_from_bw_sig_a_known = false;
+	uint8_t bw_from_sig_a = 0;
+	uint16_t flags2;
 
 	/*
 	 * This is set differetly for each packet, depending on
@@ -1774,21 +1695,21 @@ dissect_radiotap_he_mu_info(tvbuff_t *tvb, packet_info *pinfo _U_,
 	};
 
 	if (flags1 & IEEE80211_RADIOTAP_HE_MU_SIG_B_MCS_KNOWN)
-		sig_b_mcs_known = TRUE;
+		sig_b_mcs_known = true;
 	if (flags1 & IEEE80211_RADIOTAP_HE_MU_SIG_B_DCM_KNOWN)
-		sig_b_dcm_known = TRUE;
+		sig_b_dcm_known = true;
 	if (flags1 & IEEE80211_RADIOTAP_HE_MU_CHAN2_CENTER_26_TONE_RU_BIT_KNOWN)
-		mu_chan2_center_26_tone_ru_bit_known = TRUE;
+		mu_chan2_center_26_tone_ru_bit_known = true;
 	if (flags1 & IEEE80211_RADIOTAP_HE_MU_CHAN1_RUS_KNOWN)
-		mu_chan1_rus_known = TRUE;
+		mu_chan1_rus_known = true;
 	if (flags1 & IEEE80211_RADIOTAP_HE_MU_CHAN2_RUS_KNOWN)
-		mu_chan2_rus_known = TRUE;
+		mu_chan2_rus_known = true;
 	if (flags1 & IEEE80211_RADIOTAP_HE_MU_CHAN1_CENTER_26_TONE_RU_BIT_KNOWN)
-		mu_chan1_center_26_tone_ru_bit_known = TRUE;
+		mu_chan1_center_26_tone_ru_bit_known = true;
 	if (flags1 & IEEE80211_RADIOTAP_HE_MU_SIG_B_COMPRESSION_KNOWN)
-		mu_sig_b_compression_known = TRUE;
+		mu_sig_b_compression_known = true;
 	if (flags1 & IEEE80211_RADIOTAP_HE_MU_SYMBOL_CNT_OR_USER_CNT_KNOWN)
-		mu_symbol_cnt_or_user_cnt_known = TRUE;
+		mu_symbol_cnt_or_user_cnt_known = true;
 
 	if (!sig_b_mcs_known) {
 		flags1_headers[1] = &hf_radiotap_he_mu_sig_b_mcs_unknown;
@@ -1839,9 +1760,9 @@ dissect_radiotap_he_mu_info(tvbuff_t *tvb, packet_info *pinfo _U_,
 
 	flags2 = tvb_get_letohs(tvb, offset + 2);
 	if (flags2 & IEEE80211_RADIOTAP_HE_MU_BW_FROM_BW_IN_SIG_A_KNOWN)
-		mu_bw_from_bw_sig_a_known = TRUE;
+		mu_bw_from_bw_sig_a_known = true;
 	if (flags2 & IEEE80211_RADIOTAP_HE_MU_PREAMBLE_PUNCTURING_KNOWN)
-		mu_preamble_puncturing_known = TRUE;
+		mu_preamble_puncturing_known = true;
 
 	if (!mu_bw_from_bw_sig_a_known) {
 		flags2_headers[0] = &hf_radiotap_he_mu_bw_from_bw_in_sig_a_unknown;
@@ -1974,22 +1895,17 @@ dissect_radiotap_he_mu_info(tvbuff_t *tvb, packet_info *pinfo _U_,
 static const range_string zero_length_psdu_rsvals[] = {
 	{ 0, 0, "sounding PPDU" },
 	{ 1, 1, "reserved" },
-	{ 2, 2, "S1G NDP CMAC frame" },
-	{ 3, 254, "reserved" },
+	{ 2, 254, "reserved" },
 	{ 255, 255, "vendor-specific" },
 	{ 0, 0, NULL }
 };
-
-static int
-dissect_s1g_ndp(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree);
 
 static void
 dissect_radiotap_0_length_psdu(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 	int offset, struct ieee_802_11_phdr *phdr)
 {
 	proto_tree *zero_len_tree = NULL;
-	guint32 psdu_type;
-	tvbuff_t *new_tvb = NULL;
+	uint32_t psdu_type;
 
 	zero_len_tree = proto_tree_add_subtree(tree, tvb, offset,
 		tvb_captured_length_remaining(tvb, offset),
@@ -1997,29 +1913,21 @@ dissect_radiotap_0_length_psdu(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
 
 	proto_tree_add_item_ret_uint(zero_len_tree, hf_radiotap_0_length_psdu_type,
 		tvb, offset, 1, ENC_NA, &psdu_type);
-	offset += 1;
 
 	switch (psdu_type) {
 
 	case 0:
-		phdr->has_zero_length_psdu_type = TRUE;
+		phdr->has_zero_length_psdu_type = true;
 		phdr->zero_length_psdu_type = PHDR_802_11_SOUNDING_PSDU;
 		break;
 
 	case 1:
-		phdr->has_zero_length_psdu_type = TRUE;
+		phdr->has_zero_length_psdu_type = true;
 		phdr->zero_length_psdu_type = PHDR_802_11_DATA_NOT_CAPTURED;
 		break;
 
-	case 2:
-		phdr->has_zero_length_psdu_type = TRUE;
-		phdr->zero_length_psdu_type = PHDR_802_11_0_LENGTH_PSDU_S1G_NDP;
-		new_tvb = tvb_new_subset_length(tvb, offset, 6);
-		dissect_s1g_ndp(new_tvb, pinfo, zero_len_tree);
-		break;
-
 	case 0xff:
-		phdr->has_zero_length_psdu_type = TRUE;
+		phdr->has_zero_length_psdu_type = true;
 		phdr->zero_length_psdu_type = PHDR_802_11_0_LENGTH_PSDU_VENDOR_SPECIFIC;
 		break;
 	}
@@ -2055,394 +1963,6 @@ dissect_radiotap_l_sig(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 	proto_tree_add_bitmask(l_sig_tree, tvb, offset,
 		hf_radiotap_l_sig_data_2, ett_radiotap_l_sig_data_2,
 		l_sig_data2_headers, ENC_LITTLE_ENDIAN);
-}
-
-/*
- * Dissect an S1G NDP as it is currently. This is a 6-byte field, with the
- * first byte looking like the first byte of the FCF, and coded using
- * reserved values for the subtype. The remaining bytes are the NDP data,
- * with the last two bits distinguishing between 1M and 2M.
- */
-
-#define S1G_NDP_CTS_CF_END              0x00
-#define S1G_NDP_PS_POLL                 0x01
-#define S1G_NDP_ACK                     0x02
-#define S1G_NDP_PS_POLL_ACK             0x03
-#define S1G_NDP_BLOCK_ACK               0x04
-#define S1G_NDP_BEAMFORMING_REPORT_POLL 0x05
-#define S1G_NDP_PAGING                  0x06
-#define S1G_NDP_PROBE_REQ               0x07
-
-static int * const ndp_ack_1m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_ack_1m_ack_id,
-  &hf_radiotap_s1g_ndp_ack_1m_more_data,
-  &hf_radiotap_s1g_ndp_ack_1m_idle_indication,
-  &hf_radiotap_s1g_ndp_ack_1m_duration,
-  &hf_radiotap_s1g_ndp_ack_1m_relayed_frame,
-  &hf_radiotap_s1g_ndp_1m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_ack_2m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_ack_2m_ack_id,
-  &hf_radiotap_s1g_ndp_ack_2m_more_data,
-  &hf_radiotap_s1g_ndp_ack_2m_idle_indication,
-  &hf_radiotap_s1g_ndp_ack_2m_duration,
-  &hf_radiotap_s1g_ndp_ack_2m_relayed_frame,
-  &hf_radiotap_s1g_ndp_ack_2m_reserved,
-  &hf_radiotap_s1g_ndp_2m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_probe_1m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_probe_cssid_ano_present,
-  &hf_radiotap_s1g_ndp_probe_1m_cssid_ano,
-  &hf_radiotap_s1g_ndp_probe_1m_requested_response_type,
-  &hf_radiotap_s1g_ndp_probe_1m_reserved,
-  &hf_radiotap_s1g_ndp_1m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_probe_2m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_probe_cssid_ano_present,
-  &hf_radiotap_s1g_ndp_probe_2m_cssid_ano,
-  &hf_radiotap_s1g_ndp_probe_2m_requested_response_type,
-  &hf_radiotap_s1g_ndp_2m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_cts_1m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_cts_cf_end_indic,
-  &hf_radiotap_s1g_ndp_cts_address_indic,
-  &hf_radiotap_s1g_ndp_cts_ra_partial_bssid,
-  &hf_radiotap_s1g_ndp_cts_duration_1m,
-  &hf_radiotap_s1g_ndp_cts_early_sector_indic_1m,
-  &hf_radiotap_s1g_ndp_1m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_cts_2m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_cts_cf_end_indic,
-  &hf_radiotap_s1g_ndp_cts_address_indic,
-  &hf_radiotap_s1g_ndp_cts_ra_partial_bssid,
-  &hf_radiotap_s1g_ndp_cts_duration_2m,
-  &hf_radiotap_s1g_ndp_cts_early_sector_indic_2m,
-  &hf_radiotap_s1g_ndp_cts_bandwidth_indic_2m,
-  &hf_radiotap_s1g_ndp_cts_reserved,
-  &hf_radiotap_s1g_ndp_2m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_cf_end_1m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_cts_cf_end_indic,
-  &hf_radiotap_s1g_ndp_cf_end_partial_bssid,
-  &hf_radiotap_s1g_ndp_cf_end_duration_1m,
-  &hf_radiotap_s1g_ndp_cf_end_reserved_1m,
-  &hf_radiotap_s1g_ndp_1m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_cf_end_2m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_cts_cf_end_indic,
-  &hf_radiotap_s1g_ndp_cf_end_partial_bssid,
-  &hf_radiotap_s1g_ndp_cf_end_duration_2m,
-  &hf_radiotap_s1g_ndp_cf_end_reserved_2m,
-  &hf_radiotap_s1g_ndp_1m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_ps_poll_1m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_ps_poll_ra,
-  &hf_radiotap_s1g_ndp_ps_poll_ta,
-  &hf_radiotap_s1g_ndp_ps_poll_preferred_mcs_1m,
-  &hf_radiotap_s1g_ndp_ps_poll_udi_1m,
-  &hf_radiotap_s1g_ndp_1m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_ps_poll_2m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_ps_poll_ra,
-  &hf_radiotap_s1g_ndp_ps_poll_ta,
-  &hf_radiotap_s1g_ndp_ps_poll_preferred_mcs_2m,
-  &hf_radiotap_s1g_ndp_ps_poll_udi_2m,
-  &hf_radiotap_s1g_ndp_2m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_ps_poll_ack_1m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_ps_poll_ack_id,
-  &hf_radiotap_s1g_ndp_ps_poll_ack_more_data,
-  &hf_radiotap_s1g_ndp_ps_poll_ack_idle_indication,
-  &hf_radiotap_s1g_ndp_ps_poll_ack_duration_1m,
-  &hf_radiotap_s1g_ndp_ps_poll_ack_reserved_1m,
-  &hf_radiotap_s1g_ndp_1m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_ps_poll_ack_2m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_ps_poll_ack_id_2m,
-  &hf_radiotap_s1g_ndp_ps_poll_ack_more_data_2m,
-  &hf_radiotap_s1g_ndp_ps_poll_ack_idle_indication_2m,
-  &hf_radiotap_s1g_ndp_ps_poll_ack_duration_2m,
-  &hf_radiotap_s1g_ndp_ps_poll_ack_reserved_2m,
-  &hf_radiotap_s1g_ndp_2m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_block_ack_1m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_block_ack_id_1m,
-  &hf_radiotap_s1g_ndp_block_ack_starting_sequence_control_1m,
-  &hf_radiotap_s1g_ndp_block_ack_bitmap_1m,
-  &hf_radiotap_s1g_ndp_block_ack_unused_1m,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_block_ack_2m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_block_ack_id_2m,
-  &hf_radiotap_s1g_ndp_block_ack_starting_sequence_control_2m,
-  &hf_radiotap_s1g_ndp_block_ack_bitmap_2m,
-  &hf_radiotap_s1g_ndp_2m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_beamforming_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_beamforming_ap_address,
-  &hf_radiotap_s1g_ndp_beamforming_non_ap_sta_address,
-  &hf_radiotap_s1g_ndp_beamforming_feedback_segment_bitmap,
-  &hf_radiotap_s1g_ndp_beamforming_reserved,
-  &hf_radiotap_s1g_ndp_2m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_paging_1m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_paging_p_id,
-  &hf_radiotap_s1g_ndp_paging_apdi_partial_aid,
-  &hf_radiotap_s1g_ndp_paging_direction,
-  &hf_radiotap_s1g_ndp_paging_reserved_1m,
-  &hf_radiotap_s1g_ndp_1m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int * const ndp_paging_2m_headers[] = {
-  &hf_radiotap_s1g_ndp_type_3bit,
-  &hf_radiotap_s1g_ndp_paging_p_id,
-  &hf_radiotap_s1g_ndp_paging_apdi_partial_aid,
-  &hf_radiotap_s1g_ndp_paging_direction,
-  &hf_radiotap_s1g_ndp_paging_reserved_2m,
-  &hf_radiotap_s1g_ndp_2m_unused,
-  &hf_radiotap_s1g_ndp_bw,
-  NULL
-};
-
-static int
-dissect_s1g_ndp(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
-{
-  proto_tree *ndp_tree = NULL;
-  proto_item *ndp_item = NULL;
-  int offset = 0;
-  guint8 ndp_type = tvb_get_guint8(tvb, 1);
-  guint8 ndp_bw = tvb_get_guint8(tvb, 5) >> 7;
-
-  ndp_tree = proto_tree_add_subtree(tree, tvb, offset, 6, ett_s1g_ndp,
-                                    &ndp_item, "S1G NDP");
-
-  switch (ndp_type & 0x07) {
-  case S1G_NDP_PROBE_REQ:
-    proto_tree_add_item(ndp_tree, hf_radiotap_s1g_ndp_mgmt, tvb, offset, 1,
-                        ENC_NA);
-    break;
-
-  default:
-    proto_tree_add_item(ndp_tree, hf_radiotap_s1g_ndp_ctrl, tvb, offset, 1,
-                        ENC_NA);
-  }
-  offset += 1;
-
-  col_append_str(pinfo->cinfo, COL_INFO, ", S1G");
-
-  switch (ndp_type & 0x07) {
-  case S1G_NDP_CTS_CF_END: /* This uses an extra bit to distinguish */
-    if (ndp_type & 0x8) { /* NDP CF-END */
-      proto_item_append_text(ndp_item, " CF-End");
-      if (ndp_bw == 0) {
-        col_append_str(pinfo->cinfo, COL_INFO, " CF-End 1MHz");
-        proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                               hf_radiotap_s1g_ndp_cf_end_1m,
-                               ett_s1g_ndp_cf_end, ndp_cf_end_1m_headers,
-                               ENC_LITTLE_ENDIAN);
-      } else {
-        col_append_str(pinfo->cinfo, COL_INFO, " CF-End 2MHz");
-        proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                               hf_radiotap_s1g_ndp_cf_end_2m,
-                               ett_s1g_ndp_cf_end, ndp_cf_end_2m_headers,
-                               ENC_LITTLE_ENDIAN);
-      }
-    } else {               /* NDP CTS */
-      proto_item_append_text(ndp_item, " CTS");
-      if (ndp_bw == 0) {
-        col_append_str(pinfo->cinfo, COL_INFO, " CTS 1MHz");
-        proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                               hf_radiotap_s1g_ndp_cts_1m,
-                               ett_s1g_ndp_cts, ndp_cts_1m_headers,
-                               ENC_LITTLE_ENDIAN);
-      } else {
-        col_append_str(pinfo->cinfo, COL_INFO, " CTS 2MHz");
-        proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                               hf_radiotap_s1g_ndp_cts_2m,
-                               ett_s1g_ndp_cts, ndp_cts_2m_headers,
-                               ENC_LITTLE_ENDIAN);
-      }
-    }
-    break;
-
-  case S1G_NDP_PS_POLL:
-    proto_item_append_text(ndp_item, " PS-Poll");
-    if (ndp_bw == 0) {
-      col_append_str(pinfo->cinfo, COL_INFO, " PS-Poll 1MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_ps_poll_1m,
-                             ett_s1g_ndp_ps_poll, ndp_ps_poll_1m_headers,
-                             ENC_LITTLE_ENDIAN);
-    } else {
-      col_append_str(pinfo->cinfo, COL_INFO, " PS-Poll 2MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_ps_poll_2m,
-                             ett_s1g_ndp_ps_poll, ndp_ps_poll_2m_headers,
-                             ENC_LITTLE_ENDIAN);
-    }
-    break;
-
-  case S1G_NDP_ACK:
-    proto_item_append_text(ndp_item, " Ack");
-    if (ndp_bw == 0) {
-      col_append_str(pinfo->cinfo, COL_INFO, " ACK 1MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_ack_1m,
-                             ett_s1g_ndp_ack, ndp_ack_1m_headers,
-                             ENC_LITTLE_ENDIAN);
-    } else {
-      col_append_str(pinfo->cinfo, COL_INFO, " ACK 2MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_ack_2m,
-                             ett_s1g_ndp_ack, ndp_ack_2m_headers,
-                             ENC_LITTLE_ENDIAN);
-    }
-    break;
-
-  case S1G_NDP_PS_POLL_ACK:
-    proto_item_append_text(ndp_item, " PS-Poll-Ack");
-    if (ndp_bw == 0) {
-      col_append_str(pinfo->cinfo, COL_INFO, " PS-Poll-Ack 1MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_ps_poll_ack_1m,
-                             ett_s1g_ndp_ps_poll_ack, ndp_ps_poll_ack_1m_headers,
-                             ENC_LITTLE_ENDIAN);
-    } else {
-      col_append_str(pinfo->cinfo, COL_INFO, " PS-Poll-Ack 2MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_ps_poll_ack_2m,
-                             ett_s1g_ndp_ps_poll_ack, ndp_ps_poll_ack_2m_headers,
-                             ENC_LITTLE_ENDIAN);
-    }
-    break;
-
-  case S1G_NDP_BLOCK_ACK:
-    proto_item_append_text(ndp_item, " BlockAck");
-    if (ndp_bw == 0) {
-      col_append_str(pinfo->cinfo, COL_INFO, " BlockAck 1MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_block_ack_1m,
-                             ett_s1g_ndp_block_ack, ndp_block_ack_1m_headers,
-                             ENC_LITTLE_ENDIAN);
-    } else {
-      col_append_str(pinfo->cinfo, COL_INFO, " BlockAck 2MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_block_ack_2m,
-                             ett_s1g_ndp_block_ack, ndp_block_ack_2m_headers,
-                             ENC_LITTLE_ENDIAN);
-    }
-    break;
-
-  case S1G_NDP_BEAMFORMING_REPORT_POLL:
-    proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                           hf_radiotap_s1g_ndp_beamforming_report_poll,
-                           ett_s1g_ndp_beamforming_report_poll, ndp_beamforming_headers,
-                           ENC_LITTLE_ENDIAN);
-    break;
-
-  case S1G_NDP_PAGING:
-    proto_item_append_text(ndp_item, " NDP Paging");
-    if (ndp_bw == 0) {
-      col_append_str(pinfo->cinfo, COL_INFO, " NDP Paging 1MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_paging_1m,
-                             ett_s1g_ndp_paging, ndp_paging_1m_headers,
-                             ENC_LITTLE_ENDIAN);
-    } else {
-      col_append_str(pinfo->cinfo, COL_INFO, " NDP Paging 2MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_paging_2m,
-                             ett_s1g_ndp_paging, ndp_paging_2m_headers,
-                             ENC_LITTLE_ENDIAN);
-    }
-    break;
-
-  case S1G_NDP_PROBE_REQ:
-    proto_item_append_text(ndp_item, " Probe Request");
-    if (ndp_bw == 0) {
-      col_append_str(pinfo->cinfo, COL_INFO, " Probe Request 1MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_probe_1m,
-                             ett_s1g_ndp_probe, ndp_probe_1m_headers,
-                             ENC_LITTLE_ENDIAN);
-    } else {
-      col_append_str(pinfo->cinfo, COL_INFO, " Probe Request 2MHz");
-      proto_tree_add_bitmask(ndp_tree, tvb, offset,
-                             hf_radiotap_s1g_ndp_probe_2m,
-                             ett_s1g_ndp_probe, ndp_probe_2m_headers,
-                             ENC_LITTLE_ENDIAN);
-    }
-    break;
-  default:
-    proto_item_append_text(ndp_item, ", Unknown NDP type");
-    col_append_str(pinfo->cinfo, COL_INFO, " Unknown NDP type");
-    proto_tree_add_item(ndp_tree, hf_radiotap_s1g_ndp_bytes, tvb, offset,
-                        5, ENC_NA);
-  }
-
-  return tvb_captured_length(tvb);
 }
 
 static int * const usig_common_headers[] = {
@@ -2526,12 +2046,15 @@ static int * usig_eht_tb_ppdu_headers[] = {
 static void
 dissect_radiotap_u_sig(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
                        int offset, struct ieee_802_11_phdr *phdr _U_,
-                       gboolean is_tlv _U_)
+                       bool is_tlv _U_)
 {
 	proto_tree *u_sig_tree = NULL;
-	guint8 ul_dl = 0;
-	guint8 type_and_comp = 0;
-	guint32 mask;
+	uint8_t ul_dl = 0;
+	uint8_t type_and_comp = 0;
+	uint32_t mask;
+	bool bw_known = false;
+	struct ieee_802_11be *info_11be = &phdr->phy_info.info_11be;
+	uint32_t usig_common = tvb_get_letohl(tvb, offset);
 
 	phdr->phy = PHDR_802_11_PHY_11BE;
 
@@ -2541,18 +2064,24 @@ dissect_radiotap_u_sig(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 	add_tlv_items(u_sig_tree, tvb, offset);
 
-	ul_dl = (tvb_get_guint8(tvb, offset + 2) & 0x04) >> 2;
+	ul_dl = (tvb_get_uint8(tvb, offset + 2) & 0x04) >> 2;
 	proto_tree_add_bitmask(u_sig_tree, tvb, offset,
 			       hf_radiotap_u_sig_common,
 			       ett_radiotap_u_sig_common,
 			       usig_common_headers, ENC_LITTLE_ENDIAN);
+
+	bw_known = usig_common & IEEE80211_RADIOTAP_USIG_BW_KNOWN;
+	if (bw_known) {
+		info_11be->has_bandwidth = true;
+		info_11be->bandwidth = (usig_common & IEEE80211_RADIOTAP_USIG_BW) >> IEEE80211_RADIOTAP_USIG_BW_SHIFT;
+	}
 	offset += 4;
 
 	/*
 	 * Now handle the Value and Mask ...
 	 */
 	mask = tvb_get_letohl(tvb, offset + 4);
-	type_and_comp = (tvb_get_guint8(tvb, offset) & 0xc0) >> 6;
+	type_and_comp = (tvb_get_uint8(tvb, offset) & 0xc0) >> 6;
 
 	if ((ul_dl == 0 && (type_and_comp == 0 || type_and_comp == 1 ||
 		   type_and_comp == 2)) ||
@@ -2679,12 +2208,21 @@ static int * const eht_known_headers[] = {
 #define EHT_USER_INFO_BEAMFORMING_KNOWN           0x20
 #define EHT_USER_INFO_SPATIAL_CONFIGURATION_KNOWN 0x40
 
+#define EHT_USER_INFO_STA_ID_MASK                0x0007FF00
+#define EHT_USER_INFO_STA_ID_SHIFT               8
+
+#define EHT_USER_INFO_MCS_MASK                   0x00F00000
+#define EHT_USER_INFO_MCS_SHIFT                  20
+
+#define EHT_USER_INFO_NSS_MASK                   0x0F000000
+#define EHT_USER_INFO_NSS_SHIFT                  24
+
 static void
-dissect_eht_user_info(proto_tree *tree, tvbuff_t *tvb, int offset)
+dissect_eht_user_info(proto_tree *tree, tvbuff_t *tvb, int offset, struct ieee_802_11be *info_11be)
 {
 	proto_item *item = NULL;
 	proto_tree *sub_tree = NULL;
-	guint32 known = tvb_get_letohl(tvb, offset);
+	uint32_t known = tvb_get_letohl(tvb, offset);
 
 	item = proto_tree_add_item(tree, hf_radiotap_eht_user_info,
 			           tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -2709,6 +2247,11 @@ dissect_eht_user_info(proto_tree *tree, tvbuff_t *tvb, int offset)
 	if (known & EHT_USER_INFO_STA_ID_KNOWN) {
 		proto_tree_add_item(sub_tree, hf_radiotap_eht_ui_sta_id, tvb,
 			    offset, 4, ENC_LITTLE_ENDIAN);
+		if (info_11be->num_users < 4) {
+			info_11be->user[info_11be->num_users].sta_id_known = true;
+			info_11be->user[info_11be->num_users].sta_id =
+							(known & EHT_USER_INFO_STA_ID_MASK) >> EHT_USER_INFO_STA_ID_SHIFT;
+		}
 	} else {
 		item = proto_tree_add_item(sub_tree,
 				hf_radiotap_eht_ui_sta_id_not_known, tvb,
@@ -2727,6 +2270,11 @@ dissect_eht_user_info(proto_tree *tree, tvbuff_t *tvb, int offset)
 	if (known & EHT_USER_INFO_MCS_KNOWN) {
 		proto_tree_add_item(sub_tree, hf_radiotap_eht_ui_mcs, tvb,
 			    offset, 4, ENC_LITTLE_ENDIAN);
+		if (info_11be->num_users < 4) {
+			info_11be->user[info_11be->num_users].mcs_known = true;
+			info_11be->user[info_11be->num_users].mcs =
+						(known & EHT_USER_INFO_MCS_MASK) >> EHT_USER_INFO_MCS_SHIFT;
+		}
 	} else {
 		item = proto_tree_add_item(sub_tree,
 				hf_radiotap_eht_ui_mcs_not_known, tvb,
@@ -2738,6 +2286,11 @@ dissect_eht_user_info(proto_tree *tree, tvbuff_t *tvb, int offset)
 	if (known & EHT_USER_INFO_NSS_KNOWN) {
 		proto_tree_add_item(sub_tree, hf_radiotap_eht_ui_nss, tvb,
 			    offset, 4, ENC_LITTLE_ENDIAN);
+		if (info_11be->num_users < 4) {
+			info_11be->user[info_11be->num_users].nsts_known = true;
+			info_11be->user[info_11be->num_users].nsts =
+						((known & EHT_USER_INFO_NSS_MASK) >> EHT_USER_INFO_NSS_SHIFT) + 1;
+		}
 	} else {
 		item = proto_tree_add_item(sub_tree,
 				hf_radiotap_eht_ui_nss_not_known, tvb,
@@ -2772,23 +2325,28 @@ dissect_eht_user_info(proto_tree *tree, tvbuff_t *tvb, int offset)
 
 	proto_tree_add_item(sub_tree, hf_radiotap_eht_ui_rsvd1, tvb,
 			    offset, 4, ENC_LITTLE_ENDIAN);
-
+	info_11be->num_users ++;
 }
 
 static void
 dissect_radiotap_eht(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
                     int offset, struct ieee_802_11_phdr *phdr _U_,
-                    gboolean is_tlv _U_)
+                    bool is_tlv _U_)
 {
 	proto_tree *eht_tree = NULL;
-	guint32 known = 0;
-	guint32 ru_alloc_1_known;
-	guint32 ru_x_alloc;
-	guint16 len = tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
+	uint32_t known = 0;
+	uint32_t ru_alloc_1_known;
+	uint32_t ru_x_alloc;
+	uint16_t len = tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
 	proto_item *data = NULL, *item = NULL;
 	proto_tree *sub_tree = NULL, *user_info_tree = NULL;
+	bool data_ru_mru_size_known = false;
+	bool gi_known = false;
+	uint32_t data0;
+	uint32_t data1;
 
 	phdr->phy = PHDR_802_11_PHY_11BE;
+	struct ieee_802_11be *info_11be = &phdr->phy_info.info_11be;
 
 	eht_tree = proto_tree_add_subtree(tree, tvb, offset, len,
 					  ett_radiotap_eht, NULL,
@@ -2796,7 +2354,7 @@ dissect_radiotap_eht(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 
 	add_tlv_items(eht_tree, tvb, offset);
 
-	known = tvb_get_guint32(tvb, offset, ENC_LITTLE_ENDIAN);
+	known = tvb_get_uint32(tvb, offset, ENC_LITTLE_ENDIAN);
 	proto_tree_add_bitmask(eht_tree, tvb, offset,
 			       hf_radiotap_eht_known,
 			       ett_radiotap_eht_known,
@@ -2827,6 +2385,7 @@ dissect_radiotap_eht(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 		proto_tree_add_item(sub_tree,
 				hf_radiotap_eht_data0_gi,
 				tvb, offset, 4, ENC_LITTLE_ENDIAN);
+				gi_known = true;
 	} else {
 		item = proto_tree_add_item(sub_tree,
 				hf_radiotap_eht_data0_gi_not_known,
@@ -2915,6 +2474,12 @@ dissect_radiotap_eht(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 		proto_item_append_text(item, " (Not known)");
 	}
 
+	data0 = tvb_get_letohs(tvb, offset);
+	if (gi_known) {
+		info_11be->has_gi = true;
+		info_11be->gi = (data0 & IEEE80211_RADIOTAP_EHT_GI_MASK) >> IEEE80211_RADIOTAP_EHT_GI_SHIFT;
+	}
+
 	offset += 4;
 
 	ru_alloc_1_known = (tvb_get_letohl(tvb, offset) >> 22) & 0x01;
@@ -2928,6 +2493,7 @@ dissect_radiotap_eht(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 		proto_tree_add_item(sub_tree,
 				    hf_radiotap_eht_data1_ru_mru_size,
 				    tvb, offset, 4, ENC_LITTLE_ENDIAN);
+		data_ru_mru_size_known = true;
 	} else {
 		item = proto_tree_add_item(sub_tree,
 				hf_radiotap_eht_data1_ru_mru_size_not_known,
@@ -2974,6 +2540,11 @@ dissect_radiotap_eht(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 			hf_radiotap_eht_data1_primary_80_mhz_chan_pos_not_known,
 			tvb, offset, 4, ENC_LITTLE_ENDIAN);
 		proto_item_append_text(item, " (Not known)");
+	}
+	data1 = tvb_get_letohs(tvb, offset);
+	if (data_ru_mru_size_known) {
+		info_11be->has_ru_mru_size = true;
+		info_11be->ru_mru_size = (data1 & IEEE80211_RADIOTAP_EHT_RU_MRU_SIZE_MASK);
 	}
 
 	offset += 4;
@@ -3297,12 +2868,13 @@ dissect_radiotap_eht(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
         /*
          * Now, are there any user-info entries?
          */
+	info_11be->num_users = 0;
 	if (tvb_captured_length_remaining(tvb, offset) && len > 0) {
 		user_info_tree = proto_tree_add_subtree(eht_tree, tvb, offset,
 			4, ett_radiotap_eht_user_info, NULL,
 			"User Info");
 		while (tvb_captured_length_remaining(tvb, offset) && len > 0) {
-			dissect_eht_user_info(user_info_tree, tvb, offset);
+			dissect_eht_user_info(user_info_tree, tvb, offset, info_11be);
 			offset += 4;
 			len -= 4;
 		}
@@ -3343,7 +2915,7 @@ static int * const s1g_data2_headers[] = {
 
 static void
 dissect_radiotap_s1g(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-        int offset, struct ieee_802_11_phdr *phdr, gboolean is_tlv _U_)
+        int offset, struct ieee_802_11_phdr *phdr, bool is_tlv _U_)
 {
 	proto_tree *s1g_tree = NULL;
 
@@ -3373,21 +2945,21 @@ dissect_radiotap_tsft(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 	int offset, struct ieee_802_11_phdr *phdr)
 {
 	phdr->tsf_timestamp = tvb_get_letoh64(tvb, offset);
-	phdr->has_tsf_timestamp = TRUE;
+	phdr->has_tsf_timestamp = true;
 	proto_tree_add_uint64(tree, hf_radiotap_mactime, tvb, offset, 8,
 			      phdr->tsf_timestamp);
 }
 
 static void
 dissect_radiotap_flags(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-	int offset, guint8 *rflags, struct ieee_802_11_phdr *phdr)
+	int offset, uint8_t *rflags, struct ieee_802_11_phdr *phdr)
 {
 	proto_tree *ft;
 	proto_tree *flags_tree;
 
-	*rflags = tvb_get_guint8(tvb, offset);
+	*rflags = tvb_get_uint8(tvb, offset);
 	if (*rflags & IEEE80211_RADIOTAP_F_DATAPAD)
-		phdr->datapad = TRUE;
+		phdr->datapad = true;
 	switch (radiotap_fcs_handling) {
 
 	case USE_FCS_BIT:
@@ -3431,9 +3003,9 @@ static void
 dissect_radiotap_rate(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 	int offset, struct ieee_802_11_phdr *phdr)
 {
-	guint32 rate;
+	uint32_t rate;
 
-	rate = tvb_get_guint8(tvb, offset);
+	rate = tvb_get_uint8(tvb, offset);
 	/*
 	 * XXX On FreeBSD rate & 0x80 means we have an MCS. On
 	 * Linux and AirPcap it does not.  (What about
@@ -3471,7 +3043,7 @@ dissect_radiotap_rate(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 					    tvb, offset, 1, (float)rate / 2,
 					    "Data Rate: %.1f Mb/s",
 					    (float)rate / 2);
-		phdr->has_data_rate = TRUE;
+		phdr->has_data_rate = true;
 		phdr->data_rate = rate;
 	}
 }
@@ -3480,8 +3052,8 @@ static void
 dissect_radiotap_channel(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 	int offset, struct ieee_802_11_phdr *phdr)
 {
-	guint32     freq;
-	guint16     cflags;
+	uint32_t    freq;
+	uint16_t    cflags;
 
 	freq = tvb_get_letohs(tvb, offset);
 	if (freq != 0) {
@@ -3489,13 +3061,13 @@ dissect_radiotap_channel(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 		 * XXX - some captures have 0, which is
 		 * obviously bogus.
 		 */
-		gint calc_channel;
+		int calc_channel;
 
-		phdr->has_frequency = TRUE;
+		phdr->has_frequency = true;
 		phdr->frequency = freq;
 		calc_channel = ieee80211_mhz_to_chan(freq);
 		if (calc_channel != -1) {
-			phdr->has_channel = TRUE;
+			phdr->has_channel = true;
 			phdr->channel = calc_channel;
 		}
 	}
@@ -3513,7 +3085,7 @@ dissect_radiotap_channel(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 
 	case IEEE80211_CHAN_A:
 		phdr->phy = PHDR_802_11_PHY_11A;
-		phdr->phy_info.info_11a.has_turbo_type = TRUE;
+		phdr->phy_info.info_11a.has_turbo_type = true;
 		phdr->phy_info.info_11a.turbo_type = PHDR_802_11A_TURBO_TYPE_NORMAL;
 		break;
 
@@ -3533,20 +3105,20 @@ dissect_radiotap_channel(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 		 * instead.
 		 */
 		phdr->phy = PHDR_802_11_PHY_11G;
-		phdr->phy_info.info_11g.has_mode = TRUE;
+		phdr->phy_info.info_11g.has_mode = true;
 		phdr->phy_info.info_11g.mode = PHDR_802_11G_MODE_NORMAL;
 		break;
 
 	case IEEE80211_CHAN_108A:
 		phdr->phy = PHDR_802_11_PHY_11A;
-		phdr->phy_info.info_11a.has_turbo_type = TRUE;
+		phdr->phy_info.info_11a.has_turbo_type = true;
 		/* We assume non-STURBO is dynamic turbo */
 		phdr->phy_info.info_11a.turbo_type = PHDR_802_11A_TURBO_TYPE_DYNAMIC_TURBO;
 		break;
 
 	case IEEE80211_CHAN_108PUREG:
 		phdr->phy = PHDR_802_11_PHY_11G;
-		phdr->phy_info.info_11g.has_mode = TRUE;
+		phdr->phy_info.info_11g.has_mode = true;
 		phdr->phy_info.info_11g.mode = PHDR_802_11G_MODE_SUPER_G;
 		break;
 	}
@@ -3556,11 +3128,19 @@ dissect_radiotap_channel(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 	 * an 11ad packet.  Anything with a frequency in the 802.11ad range
 	 * is treated as 11ad.
 	 */
-	if (IS_80211AD(freq))
+	if (IS_80211AD(freq)) {
 		phdr->phy = PHDR_802_11_PHY_11AD;
+	}
+
+	/* XXX - Control frames are transmitted in legacy mode using the basic
+	 * rate, and in the 6 GHz band will get called PHY_11A (assuming the
+	 * 5 GHz bit is set), even though that the use of that band indicates
+	 * 802.11ax or 802.11be certified devices, which is confusing for some
+	 * users. (#17393)
+	 */
 
 	if (tree) {
-		gchar	   *chan_str;
+		char	   *chan_str;
 		static int * const channel_flags[] = {
 			&hf_radiotap_channel_flags_700mhz,
 			&hf_radiotap_channel_flags_800mhz,
@@ -3581,8 +3161,8 @@ dissect_radiotap_channel(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 		};
 
 		chan_str = ieee80211_mhz_to_str(freq);
-		col_add_fstr(pinfo->cinfo,
-			     COL_FREQ_CHAN, "%s", chan_str);
+		col_add_str(pinfo->cinfo,
+				 COL_FREQ_CHAN, chan_str);
 		proto_tree_add_uint_format_value(tree,
 					   hf_radiotap_channel_frequency,
 					   tvb, offset, 2, freq,
@@ -3608,10 +3188,10 @@ dissect_radiotap_fhss(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 	 * FHSS.
 	 */
 	phdr->phy = PHDR_802_11_PHY_11_FHSS;
-	phdr->phy_info.info_11_fhss.has_hop_set = TRUE;
-	phdr->phy_info.info_11_fhss.hop_set = tvb_get_guint8(tvb, offset);
-	phdr->phy_info.info_11_fhss.has_hop_pattern = TRUE;
-	phdr->phy_info.info_11_fhss.hop_pattern = tvb_get_guint8(tvb, offset + 1);
+	phdr->phy_info.info_11_fhss.has_hop_set = true;
+	phdr->phy_info.info_11_fhss.hop_set = tvb_get_uint8(tvb, offset);
+	phdr->phy_info.info_11_fhss.has_hop_pattern = true;
+	phdr->phy_info.info_11_fhss.hop_pattern = tvb_get_uint8(tvb, offset + 1);
 	proto_tree_add_item(tree, hf_radiotap_fhss_hopset, tvb, offset, 1,
 			    ENC_LITTLE_ENDIAN);
 	proto_tree_add_item(tree, hf_radiotap_fhss_pattern, tvb, offset + 1, 1,
@@ -3622,9 +3202,9 @@ static void
 dissect_radiotap_dbm_antsignal(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, int offset, struct ieee_802_11_phdr *phdr)
 {
-	gint8 dbm = tvb_get_gint8(tvb, offset);
+	int8_t dbm = tvb_get_int8(tvb, offset);
 
-	phdr->has_signal_dbm = TRUE;
+	phdr->has_signal_dbm = true;
 	phdr->signal_dbm = dbm;
 	col_add_fstr(pinfo->cinfo, COL_RSSI, "%d dBm", dbm);
 	proto_tree_add_int(tree, hf_radiotap_dbm_antsignal, tvb, offset, 1, dbm);
@@ -3635,9 +3215,9 @@ static void
 dissect_radiotap_dbm_antnoise(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, int offset, struct ieee_802_11_phdr *phdr)
 {
-	gint dbm = tvb_get_gint8(tvb, offset);
+	int dbm = tvb_get_int8(tvb, offset);
 
-	phdr->has_noise_dbm = TRUE;
+	phdr->has_noise_dbm = true;
 	phdr->noise_dbm = dbm;
 	if (tree) {
 		proto_tree_add_int(tree, hf_radiotap_dbm_antnoise, tvb, offset,
@@ -3649,9 +3229,9 @@ static void
 dissect_radiotap_db_antsignal(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, int offset, struct ieee_802_11_phdr *phdr)
 {
-	guint8 db = tvb_get_guint8(tvb, offset);
+	uint8_t db = tvb_get_uint8(tvb, offset);
 
-	phdr->has_signal_db = TRUE;
+	phdr->has_signal_db = true;
 	phdr->signal_db = db;
 	col_add_fstr(pinfo->cinfo, COL_RSSI, "%u dB", db);
 	proto_tree_add_uint(tree, hf_radiotap_db_antsignal, tvb, offset, 1, db);
@@ -3661,9 +3241,9 @@ static void
 dissect_radiotap_db_antnoise(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, int offset, struct ieee_802_11_phdr *phdr)
 {
-	guint db = tvb_get_guint8(tvb, offset);
+	unsigned db = tvb_get_uint8(tvb, offset);
 
-	phdr->has_noise_db = TRUE;
+	phdr->has_noise_db = true;
 	phdr->noise_db = db;
 	if (tree) {
 		proto_tree_add_uint(tree, hf_radiotap_db_antnoise, tvb, offset,
@@ -3720,8 +3300,8 @@ static void
 dissect_radiotap_xchannel(tvbuff_t *tvb, packet_info *pinfo _U_,
 	proto_tree *tree, int offset, struct ieee_802_11_phdr *phdr)
 {
-	guint32     xcflags = tvb_get_letohl(tvb, offset);
-	guint32     freq;
+	uint32_t    xcflags = tvb_get_letohl(tvb, offset);
+	uint32_t    freq;
 
 	switch (xcflags & IEEE80211_CHAN_ALLTURBO) {
 
@@ -3735,7 +3315,7 @@ dissect_radiotap_xchannel(tvbuff_t *tvb, packet_info *pinfo _U_,
 
 	case IEEE80211_CHAN_A:
 		phdr->phy = PHDR_802_11_PHY_11A;
-		phdr->phy_info.info_11a.has_turbo_type = TRUE;
+		phdr->phy_info.info_11a.has_turbo_type = true;
 		phdr->phy_info.info_11a.turbo_type = PHDR_802_11A_TURBO_TYPE_NORMAL;
 		break;
 
@@ -3746,26 +3326,26 @@ dissect_radiotap_xchannel(tvbuff_t *tvb, packet_info *pinfo _U_,
 	case IEEE80211_CHAN_PUREG:
 	case IEEE80211_CHAN_G:
 		phdr->phy = PHDR_802_11_PHY_11G;
-		phdr->phy_info.info_11g.has_mode = TRUE;
+		phdr->phy_info.info_11g.has_mode = true;
 		phdr->phy_info.info_11g.mode = PHDR_802_11G_MODE_NORMAL;
 		break;
 
 	case IEEE80211_CHAN_108A:
 		phdr->phy = PHDR_802_11_PHY_11A;
-		phdr->phy_info.info_11a.has_turbo_type = TRUE;
+		phdr->phy_info.info_11a.has_turbo_type = true;
 		/* We assume non-STURBO is dynamic turbo */
 		phdr->phy_info.info_11a.turbo_type = PHDR_802_11A_TURBO_TYPE_DYNAMIC_TURBO;
 		break;
 
 	case IEEE80211_CHAN_108PUREG:
 		phdr->phy = PHDR_802_11_PHY_11G;
-		phdr->phy_info.info_11g.has_mode = TRUE;
+		phdr->phy_info.info_11g.has_mode = true;
 		phdr->phy_info.info_11g.mode = PHDR_802_11G_MODE_SUPER_G;
 		break;
 
 	case IEEE80211_CHAN_ST:
 		phdr->phy = PHDR_802_11_PHY_11A;
-		phdr->phy_info.info_11a.has_turbo_type = TRUE;
+		phdr->phy_info.info_11a.has_turbo_type = true;
 		phdr->phy_info.info_11a.turbo_type = PHDR_802_11A_TURBO_TYPE_STATIC_TURBO;
 		break;
 
@@ -3784,7 +3364,7 @@ dissect_radiotap_xchannel(tvbuff_t *tvb, packet_info *pinfo _U_,
 		 * XXX - some captures have 0, which is
 		 * obviously bogus.
 		 */
-		phdr->has_frequency = TRUE;
+		phdr->has_frequency = true;
 		phdr->frequency = freq;
 
 		/*
@@ -3795,8 +3375,8 @@ dissect_radiotap_xchannel(tvbuff_t *tvb, packet_info *pinfo _U_,
 		if (IS_80211AD(freq))
 			phdr->phy = PHDR_802_11_PHY_11AD;
 	}
-	phdr->has_channel = TRUE;
-	phdr->channel = tvb_get_guint8(tvb, offset + 6);
+	phdr->has_channel = true;
+	phdr->channel = tvb_get_uint8(tvb, offset + 6);
 	if (tree) {
 		static int * const xchannel_flags[] = {
 			&hf_radiotap_xchannel_flags_turbo,
@@ -3875,29 +3455,29 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 	proto_item *hidden_item;
 	int         offset;
 	tvbuff_t   *next_tvb;
-	guint8      version;
-	guint       length;
+	uint8_t     version;
+	unsigned    length;
 	proto_item *rate_ti;
-	gboolean    have_rflags       = FALSE;
-	guint8      rflags            = 0;
+	bool        have_rflags       = false;
+	uint8_t     rflags            = 0;
 	/* backward compat with bit 14 == fcs in header */
 	proto_item *hdr_fcs_ti        = NULL;
 	int         hdr_fcs_offset    = 0;
-	guint32     sent_fcs          = 0;
-	guint32     calc_fcs;
-	gint        err               = -ENOENT;
+	uint32_t    sent_fcs          = 0;
+	uint32_t    calc_fcs;
+	int         err               = -ENOENT;
 	void       *data;
 	struct ieee80211_radiotap_iterator  iter;
 	struct ieee_802_11_phdr phdr;
-	guchar	 *bmap_start;
-	guint	  n_bitmaps;
-	guint	  i;
-	gboolean  rtap_ns;
-	gboolean  rtap_ns_next;
-	guint	  rtap_ns_offset;
-	guint	  rtap_ns_offset_next;
-	gboolean  zero_length_psdu = FALSE;
-	guint32   ven_ns_id;
+	unsigned char	 *bmap_start;
+	unsigned	  n_bitmaps;
+	unsigned	  i;
+	bool      rtap_ns;
+	bool      rtap_ns_next;
+	unsigned	  rtap_ns_offset;
+	unsigned	  rtap_ns_offset_next;
+	bool      zero_length_psdu = false;
+	uint32_t  ven_ns_id;
 	tvbuff_t  *ven_data_tvb;
 
 	/* our non-standard overrides */
@@ -3907,7 +3487,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 		/* keep last */
 		{14, 4, 4},	/* FCS in header */
 	};
-	guint n_overrides = array_length(overrides);
+	unsigned n_overrides = array_length(overrides);
 
 	if (!radiotap_bit14_fcs)
 		n_overrides--;
@@ -3915,14 +3495,14 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 	/* We don't have any 802.11 metadata yet. */
 	memset(&phdr, 0, sizeof(phdr));
 	phdr.fcs_len = -1;
-	phdr.decrypted = FALSE;
-	phdr.datapad = FALSE;
+	phdr.decrypted = false;
+	phdr.datapad = false;
 	phdr.phy = PHDR_802_11_PHY_UNKNOWN;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "WLAN");
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	version = tvb_get_guint8(tvb, 0);
+	version = tvb_get_uint8(tvb, 0);
 	length = tvb_get_letohs(tvb, 2);
 
 	col_add_fstr(pinfo->cinfo, COL_INFO, "Radiotap Capture v%u, Length %u",
@@ -3970,9 +3550,9 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 	 * Check the "present flags" bitmaps, and add them if we're
 	 * building a tree.
 	 */
-	bmap_start = (guchar *)data + 4;
-	n_bitmaps = (guint)(iter.this_arg - bmap_start) / 4;
-	rtap_ns_next = TRUE;
+	bmap_start = (unsigned char *)data + 4;
+	n_bitmaps = (unsigned)(iter.this_arg - bmap_start) / 4;
+	rtap_ns_next = true;
 	rtap_ns_offset_next = 0;
 	present_item = proto_tree_add_item(radiotap_tree,
 	    hf_radiotap_present, tvb, 4, n_bitmaps * 4, ENC_NA);
@@ -3980,7 +3560,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 	    ett_radiotap_present);
 
 	for (i = 0; i < n_bitmaps; i++) {
-		guint32 bmap = pletoh32(bmap_start + 4 * i);
+		uint32_t bmap = pletoh32(bmap_start + 4 * i);
 
 		rtap_ns_offset = rtap_ns_offset_next;
 		rtap_ns_offset_next += 32;
@@ -4000,11 +3580,11 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 
 		/* Evaluate what kind of namespaces will come next */
 		if (bmap & BIT(IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE)) {
-			rtap_ns_next = TRUE;
+			rtap_ns_next = true;
 			rtap_ns_offset_next = 0;
 		}
 		if (bmap & BIT(IEEE80211_RADIOTAP_VENDOR_NAMESPACE))
-			rtap_ns_next = FALSE;
+			rtap_ns_next = false;
 		if ((bmap & (BIT(IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE) |
 			     BIT(IEEE80211_RADIOTAP_VENDOR_NAMESPACE)))
 			== (BIT(IEEE80211_RADIOTAP_RADIOTAP_NAMESPACE) |
@@ -4134,17 +3714,17 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 	while (!(err = ieee80211_radiotap_iterator_next(&iter))) {
 		proto_tree *item_tree = radiotap_tree;
 
-		offset = (int)((guchar *) iter.this_arg - (guchar *) data);
+		offset = (int)((unsigned char *) iter.this_arg - (unsigned char *) data);
 
 		if (iter.this_arg_index == IEEE80211_RADIOTAP_VENDOR_NAMESPACE
 		    && tree && !iter.tlv_mode) {
 			proto_tree *ven_tree;
 			proto_item *vt;
-			const gchar *manuf_name;
-			guint8 subns;
+			const char *manuf_name;
+			uint8_t subns;
 
 			manuf_name = tvb_get_manuf_name(tvb, offset);
-			subns = tvb_get_guint8(tvb, offset+3);
+			subns = tvb_get_uint8(tvb, offset+3);
 
 			vt = proto_tree_add_bytes_format_value(item_tree,
 							 hf_radiotap_vendor_ns,
@@ -4165,7 +3745,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 			proto_tree_add_item(ven_tree, hf_radiotap_ven_subns,
 					    tvb, offset + 3, 1, ENC_LITTLE_ENDIAN);
 			/* Get OUI and sub namespace as UINT32 */
-			ven_ns_id = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+			ven_ns_id = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
 			if (iter.tlv_mode) {
 				proto_tree_add_item(ven_tree, hf_radiotap_ven_item, tvb,
 						    offset + 4, 2, ENC_LITTLE_ENDIAN);
@@ -4175,7 +3755,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 						    offset + 4, 2, ENC_LITTLE_ENDIAN);
 				ven_data_tvb = tvb_new_subset_length(tvb, offset + 6, iter.this_arg_size - 6);
 			}
-			if (!dissector_try_uint_new(vendor_dissector_table, ven_ns_id, ven_data_tvb, pinfo, ven_tree, TRUE, NULL)) {
+			if (!dissector_try_uint_new(vendor_dissector_table, ven_ns_id, ven_data_tvb, pinfo, ven_tree, true, NULL)) {
 				proto_tree_add_item(ven_tree, hf_radiotap_ven_data, ven_data_tvb, 0, -1, ENC_NA);
 			}
 		}
@@ -4191,7 +3771,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 			break;
 
 		case IEEE80211_RADIOTAP_FLAGS:
-			have_rflags = TRUE;
+			have_rflags = true;
 			dissect_radiotap_flags(tvb, pinfo, item_tree, offset,
 					&rflags, &phdr);
 			break;
@@ -4285,20 +3865,20 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 
 		case IEEE80211_RADIOTAP_MCS: {
 			proto_tree *mcs_tree = NULL;
-			guint8	    mcs_known, mcs_flags;
-			guint8	    mcs;
-			guint	    bandwidth;
-			guint	    gi_length;
-			gboolean    can_calculate_rate;
+			uint8_t	    mcs_known, mcs_flags;
+			uint8_t	    mcs;
+			unsigned	    bandwidth;
+			unsigned	    gi_length;
+			bool        can_calculate_rate;
 
 			/*
 			 * Start out assuming that we can calculate the rate;
 			 * if we are missing any of the MCS index, channel
 			 * width, or guard interval length, we can't.
 			 */
-			can_calculate_rate = TRUE;
+			can_calculate_rate = true;
 
-			mcs_known = tvb_get_guint8(tvb, offset);
+			mcs_known = tvb_get_uint8(tvb, offset);
 			/*
 			 * If there's actually any data here, not an
 			 * empty field, this is 802.11n - unless we've
@@ -4311,42 +3891,42 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 				memset(&phdr.phy_info.info_11n, 0, sizeof(phdr.phy_info.info_11n));
 			}
 
-			mcs_flags = tvb_get_guint8(tvb, offset + 1);
+			mcs_flags = tvb_get_uint8(tvb, offset + 1);
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_MCS) {
-				mcs = tvb_get_guint8(tvb, offset + 2);
-				phdr.phy_info.info_11n.has_mcs_index = TRUE;
+				mcs = tvb_get_uint8(tvb, offset + 2);
+				phdr.phy_info.info_11n.has_mcs_index = true;
 				phdr.phy_info.info_11n.mcs_index = mcs;
 			} else {
 				mcs = 0;
-				can_calculate_rate = FALSE;	/* no MCS index */
+				can_calculate_rate = false;	/* no MCS index */
 			}
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_BW) {
-				phdr.phy_info.info_11n.has_bandwidth = TRUE;
+				phdr.phy_info.info_11n.has_bandwidth = true;
 				phdr.phy_info.info_11n.bandwidth = (mcs_flags & IEEE80211_RADIOTAP_MCS_BW_MASK);
 			}
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_GI) {
 				gi_length = (mcs_flags & IEEE80211_RADIOTAP_MCS_SGI) ?
 				    1 : 0;
-				phdr.phy_info.info_11n.has_short_gi = TRUE;
+				phdr.phy_info.info_11n.has_short_gi = true;
 				phdr.phy_info.info_11n.short_gi = gi_length;
 			} else {
 				gi_length = 0;
-				can_calculate_rate = FALSE;	/* no GI width */
+				can_calculate_rate = false;	/* no GI width */
 			}
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_FMT) {
-				phdr.phy_info.info_11n.has_greenfield = TRUE;
+				phdr.phy_info.info_11n.has_greenfield = true;
 				phdr.phy_info.info_11n.greenfield = (mcs_flags & IEEE80211_RADIOTAP_MCS_FMT_GF) != 0;
 			}
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_FEC) {
-				phdr.phy_info.info_11n.has_fec = TRUE;
+				phdr.phy_info.info_11n.has_fec = true;
 				phdr.phy_info.info_11n.fec = (mcs_flags & IEEE80211_RADIOTAP_MCS_FEC_LDPC) ? 1 : 0;
 			}
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_STBC) {
-				phdr.phy_info.info_11n.has_stbc_streams = TRUE;
+				phdr.phy_info.info_11n.has_stbc_streams = true;
 				phdr.phy_info.info_11n.stbc_streams = (mcs_flags & IEEE80211_RADIOTAP_MCS_STBC_MASK) >> IEEE80211_RADIOTAP_MCS_STBC_SHIFT;
 			}
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_NESS) {
-				phdr.phy_info.info_11n.has_ness = TRUE;
+				phdr.phy_info.info_11n.has_ness = true;
 				/* This is stored a bit weirdly */
 				phdr.phy_info.info_11n.ness =
 				    ((mcs_known & IEEE80211_RADIOTAP_MCS_NESS_BIT1) >> 6) |
@@ -4393,7 +3973,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 							    tvb, offset + 1, 1, mcs_flags);
 			} else {
 				bandwidth = 0;
-				can_calculate_rate = FALSE;	/* no bandwidth */
+				can_calculate_rate = false;	/* no bandwidth */
 			}
 			if (mcs_known & IEEE80211_RADIOTAP_MCS_HAVE_GI) {
 				proto_tree_add_uint(mcs_tree, hf_radiotap_mcs_gi,
@@ -4445,7 +4025,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 		case IEEE80211_RADIOTAP_AMPDU_STATUS: {
 			proto_item *it;
 			proto_tree *ampdu_tree = NULL, *ampdu_flags_tree;
-			guint16	    ampdu_flags;
+			uint16_t	    ampdu_flags;
 
 			phdr.has_aggregate_info = 1;
 			phdr.aggregate_flags = 0;
@@ -4493,21 +4073,21 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 		case IEEE80211_RADIOTAP_VHT: {
 			proto_item *it, *it_root = NULL;
 			proto_tree *vht_tree	 = NULL, *vht_known_tree = NULL, *user_tree = NULL;
-			guint16	    known;
-			guint8	    vht_flags, bw, mcs_nss;
-			guint	    bandwidth	 = 0;
-			guint	    gi_length	 = 0;
-			guint	    nss		 = 0;
-			guint	    mcs		 = 0;
-			gboolean    can_calculate_rate;
-			guint	    user;
+			uint16_t	    known;
+			uint8_t	    vht_flags, bw, mcs_nss;
+			unsigned	    bandwidth	 = 0;
+			unsigned	    gi_length	 = 0;
+			unsigned	    nss		 = 0;
+			unsigned	    mcs		 = 0;
+			bool        can_calculate_rate;
+			unsigned	    user;
 
 			/*
 			 * Start out assuming that we can calculate the rate;
 			 * if we are missing any of the MCS index, channel
 			 * width, or guard interval length, we can't.
 			 */
-			can_calculate_rate = TRUE;
+			can_calculate_rate = true;
 
 			known = tvb_get_letohs(tvb, offset);
 			/*
@@ -4517,7 +4097,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 			if (known != 0) {
 				phdr.phy = PHDR_802_11_PHY_11AC;
 			}
-			vht_flags = tvb_get_guint8(tvb, offset + 2);
+			vht_flags = tvb_get_uint8(tvb, offset + 2);
 			if (tree) {
 				it_root = proto_tree_add_item(item_tree, hf_radiotap_vht,
 						tvb, offset, 12, ENC_NA);
@@ -4547,7 +4127,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 			}
 
 			if (known & IEEE80211_RADIOTAP_VHT_HAVE_STBC) {
-				phdr.phy_info.info_11ac.has_stbc = TRUE;
+				phdr.phy_info.info_11ac.has_stbc = true;
 				phdr.phy_info.info_11ac.stbc = (vht_flags & IEEE80211_RADIOTAP_VHT_STBC) != 0;
 				if (vht_tree)
 					proto_tree_add_item(vht_tree, hf_radiotap_vht_stbc,
@@ -4555,7 +4135,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 			}
 
 			if (known & IEEE80211_RADIOTAP_VHT_HAVE_TXOP_PS) {
-				phdr.phy_info.info_11ac.has_txop_ps_not_allowed = TRUE;
+				phdr.phy_info.info_11ac.has_txop_ps_not_allowed = true;
 				phdr.phy_info.info_11ac.txop_ps_not_allowed = (vht_flags & IEEE80211_RADIOTAP_VHT_TXOP_PS) != 0;
 				if (vht_tree)
 					proto_tree_add_item(vht_tree, hf_radiotap_vht_txop_ps,
@@ -4564,18 +4144,18 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 
 			if (known & IEEE80211_RADIOTAP_VHT_HAVE_GI) {
 				gi_length = (vht_flags & IEEE80211_RADIOTAP_VHT_SGI) ? 1 : 0;
-				phdr.phy_info.info_11ac.has_short_gi = TRUE;
+				phdr.phy_info.info_11ac.has_short_gi = true;
 				phdr.phy_info.info_11ac.short_gi = gi_length;
 				if (vht_tree) {
 					proto_tree_add_item(vht_tree, hf_radiotap_vht_gi,
 							tvb, offset + 2, 1, ENC_LITTLE_ENDIAN);
 				}
 			} else {
-				can_calculate_rate = FALSE;	/* no GI width */
+				can_calculate_rate = false;	/* no GI width */
 			}
 
 			if (known & IEEE80211_RADIOTAP_VHT_HAVE_SGI_NSYM_DA) {
-				phdr.phy_info.info_11ac.has_short_gi_nsym_disambig = TRUE;
+				phdr.phy_info.info_11ac.has_short_gi_nsym_disambig = true;
 				phdr.phy_info.info_11ac.short_gi_nsym_disambig = (vht_flags & IEEE80211_RADIOTAP_VHT_SGI_NSYM_DA) != 0;
 				if (vht_tree) {
 					it = proto_tree_add_item(vht_tree, hf_radiotap_vht_sgi_nsym_da,
@@ -4588,7 +4168,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 			}
 
 			if (known & IEEE80211_RADIOTAP_VHT_HAVE_LDPC_EXTRA) {
-				phdr.phy_info.info_11ac.has_ldpc_extra_ofdm_symbol = TRUE;
+				phdr.phy_info.info_11ac.has_ldpc_extra_ofdm_symbol = true;
 				phdr.phy_info.info_11ac.ldpc_extra_ofdm_symbol = (vht_flags & IEEE80211_RADIOTAP_VHT_LDPC_EXTRA) != 0;
 				if (vht_tree) {
 					proto_tree_add_item(vht_tree, hf_radiotap_vht_ldpc_extra,
@@ -4597,7 +4177,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 			}
 
 			if (known & IEEE80211_RADIOTAP_VHT_HAVE_BF) {
-				phdr.phy_info.info_11ac.has_beamformed = TRUE;
+				phdr.phy_info.info_11ac.has_beamformed = true;
 				phdr.phy_info.info_11ac.beamformed = (vht_flags & IEEE80211_RADIOTAP_VHT_BF) != 0;
 				if (vht_tree)
 					proto_tree_add_item(vht_tree, hf_radiotap_vht_bf,
@@ -4605,26 +4185,26 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 			}
 
 			if (known & IEEE80211_RADIOTAP_VHT_HAVE_BW) {
-				bw = tvb_get_guint8(tvb, offset + 3) & IEEE80211_RADIOTAP_VHT_BW_MASK;
-				phdr.phy_info.info_11ac.has_bandwidth = TRUE;
+				bw = tvb_get_uint8(tvb, offset + 3) & IEEE80211_RADIOTAP_VHT_BW_MASK;
+				phdr.phy_info.info_11ac.has_bandwidth = true;
 				phdr.phy_info.info_11ac.bandwidth = bw;
-				if (bw < sizeof(ieee80211_vht_bw2rate_index)/sizeof(ieee80211_vht_bw2rate_index[0]))
+				if (bw < array_length(ieee80211_vht_bw2rate_index))
 					bandwidth = ieee80211_vht_bw2rate_index[bw];
 				else
-					can_calculate_rate = FALSE; /* unknown bandwidth */
+					can_calculate_rate = false; /* unknown bandwidth */
 
 				if (vht_tree)
 					proto_tree_add_item(vht_tree, hf_radiotap_vht_bw,
 							tvb, offset + 3, 1, ENC_LITTLE_ENDIAN);
 			} else {
-				can_calculate_rate = FALSE;	/* no bandwidth */
+				can_calculate_rate = false;	/* no bandwidth */
 			}
 
-			phdr.phy_info.info_11ac.has_fec = TRUE;
-			phdr.phy_info.info_11ac.fec = tvb_get_guint8(tvb, offset + 8);
+			phdr.phy_info.info_11ac.has_fec = true;
+			phdr.phy_info.info_11ac.fec = tvb_get_uint8(tvb, offset + 8);
 
 			for (user = 0; user < 4; user++) {
-				mcs_nss = tvb_get_guint8(tvb, offset + 4 + user);
+				mcs_nss = tvb_get_uint8(tvb, offset + 4 + user);
 				nss = (mcs_nss & IEEE80211_RADIOTAP_VHT_NSS);
 				mcs = (mcs_nss & IEEE80211_RADIOTAP_VHT_MCS) >> 4;
 				phdr.phy_info.info_11ac.mcs[user] = mcs;
@@ -4659,7 +4239,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 						proto_tree_add_item(user_tree, hf_radiotap_vht_nss[user],
 							tvb, offset + 4 + user, 1, ENC_LITTLE_ENDIAN);
 						if (known & IEEE80211_RADIOTAP_VHT_HAVE_STBC) {
-							guint nsts;
+							unsigned nsts;
 							proto_item *nsts_ti;
 
 							if (vht_flags & IEEE80211_RADIOTAP_VHT_STBC)
@@ -4683,7 +4263,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 									tvb, offset, 12, rate,
 									"Data Rate: %.1f Mb/s", rate);
 							proto_item_set_generated(rate_ti);
-							if (ieee80211_vhtvalid[mcs].valid[bandwidth][nss-1] == FALSE)
+							if (ieee80211_vhtvalid[mcs].valid[bandwidth][nss-1] == false)
 								expert_add_info(pinfo, rate_ti, &ei_radiotap_invalid_data_rate);
 
 						}
@@ -4692,15 +4272,15 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 			}
 
 			if (known & IEEE80211_RADIOTAP_VHT_HAVE_GID) {
-				phdr.phy_info.info_11ac.has_group_id = TRUE;
-				phdr.phy_info.info_11ac.group_id = tvb_get_guint8(tvb, offset + 9);
+				phdr.phy_info.info_11ac.has_group_id = true;
+				phdr.phy_info.info_11ac.group_id = tvb_get_uint8(tvb, offset + 9);
 				if (vht_tree)
 					proto_tree_add_item(vht_tree, hf_radiotap_vht_gid,
 							tvb, offset+9, 1, ENC_LITTLE_ENDIAN);
 			}
 
 			if (known & IEEE80211_RADIOTAP_VHT_HAVE_PAID) {
-				phdr.phy_info.info_11ac.has_partial_aid = TRUE;
+				phdr.phy_info.info_11ac.has_partial_aid = true;
 				phdr.phy_info.info_11ac.partial_aid = tvb_get_letohs(tvb, offset + 10);
 				if (vht_tree) {
 					proto_tree_add_item(vht_tree, hf_radiotap_vht_p_aid,
@@ -4732,7 +4312,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 			break;
 		case IEEE80211_RADIOTAP_0_LENGTH_PSDU:
 			dissect_radiotap_0_length_psdu(tvb, pinfo, item_tree, offset, &phdr);
-			zero_length_psdu = TRUE;
+			zero_length_psdu = true;
 			break;
 		case IEEE80211_RADIOTAP_L_SIG:
 			dissect_radiotap_l_sig(tvb, pinfo, item_tree, offset);
@@ -4915,11 +4495,11 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 		 * property.
 		 */
 		if (have_rflags) {
-			phdr.phy_info.info_11b.has_short_preamble = TRUE;
+			phdr.phy_info.info_11b.has_short_preamble = true;
 			phdr.phy_info.info_11b.short_preamble =
-			    (rflags & IEEE80211_RADIOTAP_F_SHORTPRE) ? TRUE : FALSE;;
+			    (rflags & IEEE80211_RADIOTAP_F_SHORTPRE) ? true : false;
 		} else
-			phdr.phy_info.info_11b.has_short_preamble = FALSE;
+			phdr.phy_info.info_11b.has_short_preamble = false;
 		break;
 
 	case PHDR_802_11_PHY_11N:
@@ -4931,7 +4511,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 		 * the radiotap.org page for that field.
 		 */
 		if (!phdr.phy_info.info_11n.has_short_gi && have_rflags) {
-			phdr.phy_info.info_11n.has_short_gi = TRUE;
+			phdr.phy_info.info_11n.has_short_gi = true;
 			if (rflags & 0x80)
 				phdr.phy_info.info_11n.short_gi = 1;
 			else
@@ -4947,9 +4527,9 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 	 * This can only happen if the backward-compat configuration option
 	 * is chosen by the user. */
 	if (hdr_fcs_ti) {
-		guint captured_length = tvb_captured_length(next_tvb);
-		guint reported_length = tvb_reported_length(next_tvb);
-		guint fcs_len = (phdr.fcs_len > 0) ? phdr.fcs_len : 0;
+		unsigned captured_length = tvb_captured_length(next_tvb);
+		unsigned reported_length = tvb_reported_length(next_tvb);
+		unsigned fcs_len = (phdr.fcs_len > 0) ? phdr.fcs_len : 0;
 
 		/* It would be very strange for the header to have an FCS for the
 		 * frame *and* the frame to have the FCS at the end, but it's possible, so
@@ -4974,7 +4554,7 @@ dissect_radiotap(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, void* u
 				    proto_tree_add_boolean(radiotap_tree,
 							   hf_radiotap_fcs_bad,
 							   tvb, hdr_fcs_offset,
-							   4, TRUE);
+							   4, true);
 				proto_item_set_hidden(hidden_item);
 			}
 		} else {
@@ -5510,25 +5090,25 @@ void proto_register_radiotap(void)
 
 		{&hf_radiotap_dbm_antsignal,
 		 {"Antenna signal", "radiotap.dbm_antsignal",
-		  FT_INT8, BASE_DEC|BASE_UNIT_STRING, &units_dbm, 0x0,
+		  FT_INT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_dbm), 0x0,
 		  "RF signal power at the antenna expressed as decibels"
 		  " from one milliwatt", HFILL}},
 
 		{&hf_radiotap_db_antsignal,
 		 {"dB antenna signal", "radiotap.db_antsignal",
-		  FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_decibels, 0x0,
+		  FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_decibels), 0x0,
 		  "RF signal power at the antenna expressed as decibels"
 		  " from a fixed, arbitrary value", HFILL}},
 
 		{&hf_radiotap_dbm_antnoise,
 		 {"Antenna noise", "radiotap.dbm_antnoise",
-		  FT_INT8, BASE_DEC|BASE_UNIT_STRING, &units_dbm, 0x0,
+		  FT_INT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_dbm), 0x0,
 		  "RF noise power at the antenna expressed as decibels"
 		  " from one milliwatt", HFILL}},
 
 		{&hf_radiotap_db_antnoise,
 		 {"dB antenna noise", "radiotap.db_antnoise",
-		  FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_decibels, 0x0,
+		  FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_decibels), 0x0,
 		  "RF noise power at the antenna expressed as decibels"
 		  " from a fixed, arbitrary value", HFILL}},
 
@@ -5540,13 +5120,13 @@ void proto_register_radiotap(void)
 
 		{&hf_radiotap_db_tx_attenuation,
 		 {"dB TX attenuation", "radiotap.db_txattenuation",
-		  FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_decibels, 0x0,
+		  FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_decibels), 0x0,
 		  "Transmit power expressed as decibels from max power"
 		  " set at factory calibration (0 is max power)", HFILL}},
 
 		{&hf_radiotap_txpower,
 		 {"Transmit power", "radiotap.txpower",
-		  FT_INT8, BASE_DEC|BASE_UNIT_STRING, &units_dbm, 0x0,
+		  FT_INT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_dbm), 0x0,
 		  "Transmit power at the antenna port expressed as decibels"
 		  " from one milliwatt", HFILL}},
 
@@ -6104,7 +5684,7 @@ void proto_register_radiotap(void)
 		  NULL, HFILL}},
 
 		{&hf_radiotap_he_ru_allocation_offset_known,
-		 {"RU allocation offset known", "radiotap.he.data_2.ru_allocation_offseti_known",
+		 {"RU allocation offset known", "radiotap.he.data_2.ru_allocation_offset_known",
 		  FT_BOOLEAN, 16, TFS(&tfs_known_unknown),
 			IEEE80211_RADIOTAP_HE_RU_ALLOCATION_OFFSET_KNOWN,
 		  NULL, HFILL}},
@@ -6691,34 +6271,34 @@ void proto_register_radiotap(void)
 		  FT_UINT16, BASE_DEC, NULL,
 		  IEEE80211_RADIOTAP_L_SIG_LENGTH_MASK, NULL, HFILL}},
 
-                {&hf_radiotap_u_sig_common,
-                 {"U-SIG common", "radiotap.u_sig.common",
-                  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+		{&hf_radiotap_u_sig_common,
+		 {"U-SIG common", "radiotap.u_sig.common",
+		  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
 
-                {&hf_radiotap_usig_phy_version_identifier_known,
-                 {"PHY version identifier known",
-                  "radiotap.u_sig.common.phy_version_identifier_known",
-                  FT_BOOLEAN, 32, NULL, 0x00000001, NULL, HFILL }},
+		{&hf_radiotap_usig_phy_version_identifier_known,
+		 {"PHY version identifier known",
+		  "radiotap.u_sig.common.phy_version_identifier_known",
+		  FT_BOOLEAN, 32, NULL, 0x00000001, NULL, HFILL }},
 
-                {&hf_radiotap_usig_bw_known,
-                 {"BW known", "radiotap.u_sig.common.bw_known",
-                  FT_BOOLEAN, 32, NULL, 0x00000002, NULL, HFILL }},
+		{&hf_radiotap_usig_bw_known,
+		 {"BW known", "radiotap.u_sig.common.bw_known",
+		  FT_BOOLEAN, 32, NULL, 0x00000002, NULL, HFILL }},
 
-                {&hf_radiotap_usig_ul_dl_known,
-                 {"UL/DL known", "radiotap.u_sig.common.ul_dl_known",
-                  FT_BOOLEAN, 32, NULL, 0x00000004, NULL, HFILL }},
+		{&hf_radiotap_usig_ul_dl_known,
+		 {"UL/DL known", "radiotap.u_sig.common.ul_dl_known",
+		  FT_BOOLEAN, 32, NULL, 0x00000004, NULL, HFILL }},
 
-                {&hf_radiotap_usig_bss_color_known,
-                 {"BSS Color known", "radiotap.u_sig.common.bss_color_known",
-                  FT_BOOLEAN, 32, NULL, 0x00000008, NULL, HFILL }},
+		{&hf_radiotap_usig_bss_color_known,
+		 {"BSS Color known", "radiotap.u_sig.common.bss_color_known",
+		  FT_BOOLEAN, 32, NULL, 0x00000008, NULL, HFILL }},
 
-                {&hf_radiotap_usig_txop_known,
-                 {"TXOP known", "radiotap.u_sig.common.txop_known",
-                  FT_BOOLEAN, 32, NULL, 0x00000010, NULL, HFILL }},
+		{&hf_radiotap_usig_txop_known,
+		 {"TXOP known", "radiotap.u_sig.common.txop_known",
+		  FT_BOOLEAN, 32, NULL, 0x00000010, NULL, HFILL }},
 
-                {&hf_radiotap_usig_bad_u_sig_crc,
-                 {"Bad U-SIG CRC", "radiotap.u_sig.common.bad_u_sig_crc",
-                  FT_BOOLEAN, 32, NULL, 0x00000020, NULL, HFILL }},
+		{&hf_radiotap_usig_bad_u_sig_crc,
+		 {"Bad U-SIG CRC", "radiotap.u_sig.common.bad_u_sig_crc",
+		  FT_BOOLEAN, 32, NULL, 0x00000020, NULL, HFILL }},
 
 		{&hf_radiotap_usig_validate_bits_checked,
 		 {"Validate bits checked", "radiotap.u_sig.common.validate_bits_checked",
@@ -6728,172 +6308,172 @@ void proto_register_radiotap(void)
 		 {"Validate bits OK", "radiotap.u_sig.common.validate_bits_ok",
 		  FT_BOOLEAN, 32, NULL, 0x00000080, NULL, HFILL }},
 
-                {&hf_radiotap_usig_reserved,
-                 {"Reserved", "radiotap.u_sig.common.reserved",
-                  FT_UINT32, BASE_HEX, NULL, 0x00000fc0, NULL, HFILL }},
+		{&hf_radiotap_usig_reserved,
+		 {"Reserved", "radiotap.u_sig.common.reserved",
+		  FT_UINT32, BASE_HEX, NULL, 0x00000fc0, NULL, HFILL }},
 
-                {&hf_radiotap_usig_phy_version_id,
-                 {"Phy version identifier",
-                  "radiotap.u_sig.common.phy_version_identifier",
-                  FT_UINT32, BASE_DEC, NULL, 0x00007000, NULL, HFILL }},
+		{&hf_radiotap_usig_phy_version_id,
+		 {"Phy version identifier",
+		  "radiotap.u_sig.common.phy_version_identifier",
+		  FT_UINT32, BASE_DEC, NULL, 0x00007000, NULL, HFILL }},
 
-                {&hf_radiotap_usig_bw,
-                 {"BW", "radiotap.u_sig.common.bw",
-                  FT_UINT32, BASE_HEX, VALS(eht_u_sig_bw_vals), 0x00038000,
-                  NULL, HFILL }},
+		{&hf_radiotap_usig_bw,
+		 {"BW", "radiotap.u_sig.common.bw",
+		  FT_UINT32, BASE_HEX, VALS(eht_u_sig_bw_vals), 0x00038000,
+		  NULL, HFILL }},
 
-                {&hf_radiotap_usig_ul_dl,
-                 {"UL/DL", "radiotap.u_sig.common.ul_dl",
-                  FT_BOOLEAN, 32, NULL, 0x00040000, NULL, HFILL }},
+		{&hf_radiotap_usig_ul_dl,
+		 {"UL/DL", "radiotap.u_sig.common.ul_dl",
+		  FT_BOOLEAN, 32, NULL, 0x00040000, NULL, HFILL }},
 
-                {&hf_radiotap_usig_bss_color,
-                 {"BSS Color", "radiotap.u_sig.common.bss_color",
-                  FT_UINT32, BASE_DEC, NULL, 0x01f80000, NULL, HFILL }},
+		{&hf_radiotap_usig_bss_color,
+		 {"BSS Color", "radiotap.u_sig.common.bss_color",
+		  FT_UINT32, BASE_DEC, NULL, 0x01f80000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_txop,
-                 {"TXOP", "radiotap.u_sig.common.txop",
-                  FT_UINT32, BASE_DEC, NULL, 0xfe000000, NULL, HFILL }},
+		 {"TXOP", "radiotap.u_sig.common.txop",
+		  FT_UINT32, BASE_DEC, NULL, 0xfe000000, NULL, HFILL }},
 
-                {&hf_radiotap_u_sig_mask,
-                 {"mask", "radiotap.u_sig.mask",
-                  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+		{&hf_radiotap_u_sig_mask,
+		 {"mask", "radiotap.u_sig.mask",
+		  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
 
-                {&hf_radiotap_usig_value_mu_ppdu,
-                 {"EHT MU PPDU", "radiotap.u_sig.value.mu_ppdu",
-                  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+		{&hf_radiotap_usig_value_mu_ppdu,
+		 {"EHT MU PPDU", "radiotap.u_sig.value.mu_ppdu",
+		  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
 
-                {&hf_radiotap_usig_eht_mu_b20_b24,
-                 {"U-SIG-1 B20-B24",
-                  "radiotap.u_sig.value.mu_ppdu.u_sig_1_b20_b24",
-                  FT_UINT32, BASE_HEX, NULL, 0x0000001f, NULL, HFILL }},
+		{&hf_radiotap_usig_eht_mu_b20_b24,
+		 {"U-SIG-1 B20-B24",
+		  "radiotap.u_sig.value.mu_ppdu.u_sig_1_b20_b24",
+		  FT_UINT32, BASE_HEX, NULL, 0x0000001f, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_mu_b20_b24_not_known,
 		 {"U-SIG-1 B20-B24 not known",
 		  "radiotap.u_sig.value.mu_ppdu.u_sig_1_b20_b24_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x0000001f, NULL, HFILL }},
 
-                {&hf_radiotap_usig_eht_mu_b25,
-                 {"U-SIG-1 B25", "radiotap.u_sig.value.mu_ppdu.u_sig_1_b25",
-                  FT_UINT32, BASE_HEX, NULL, 0x00000020, NULL, HFILL }},
+		{&hf_radiotap_usig_eht_mu_b25,
+		 {"U-SIG-1 B25", "radiotap.u_sig.value.mu_ppdu.u_sig_1_b25",
+		  FT_UINT32, BASE_HEX, NULL, 0x00000020, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_mu_b25_not_known,
 		 {"U-SIG-1 B25 not known",
 		  "radiotap.u_sig.value.mu_ppdu.u_sig_1_b25_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x00000020, NULL, HFILL }},
 
-                {&hf_radiotap_usig_ppdu_type_and_comp_mode,
-                 {"PPDU Type and Compression Mode",
-                  "radiotap.u_sig.value.ppdu_type_and_compression_mode",
-                  FT_UINT32, BASE_HEX, NULL, 0x000000c0, NULL, HFILL }},
+		{&hf_radiotap_usig_ppdu_type_and_comp_mode,
+		 {"PPDU Type and Compression Mode",
+		  "radiotap.u_sig.value.ppdu_type_and_compression_mode",
+		  FT_UINT32, BASE_HEX, NULL, 0x000000c0, NULL, HFILL }},
 
-                {&hf_radiotap_usig_validate1,
-                 {"Validate", "radiotap.u_sig.value.mu_ppdu.validate1",
-                  FT_UINT32, BASE_HEX, NULL, 0x00000100, NULL, HFILL }},
+		{&hf_radiotap_usig_validate1,
+		 {"Validate", "radiotap.u_sig.value.mu_ppdu.validate1",
+		  FT_UINT32, BASE_HEX, NULL, 0x00000100, NULL, HFILL }},
 
 		{&hf_radiotap_usig_validate1_not_known,
 		 {"Validate not known",
 		  "radiotap.u_sig.value.mu_ppdu.validate1_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x00000100, NULL, HFILL }},
 
-                {&hf_radiotap_usig_punctured_channel_info,
-                 {"Punctured Channel Information",
-                  "radiotap.u_sig.value.mu_ppdu.punctured_channel_information",
-                  FT_UINT32, BASE_HEX, NULL, 0x00003e00, NULL, HFILL }},
+		{&hf_radiotap_usig_punctured_channel_info,
+		 {"Punctured Channel Information",
+		  "radiotap.u_sig.value.mu_ppdu.punctured_channel_information",
+		  FT_UINT32, BASE_HEX, NULL, 0x00003e00, NULL, HFILL }},
 
 		{&hf_radiotap_usig_punctured_channel_info_not_known,
 		 {"Punctured Channel Information not known",
 		  "radiotap.u_sig.value.mu_ppdu.punctured_channel_information_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x00003e00, NULL, HFILL }},
 
-                {&hf_radiotap_usig_validate2,
-                 {"Validate", "radiotap.u_sig.value.mu_ppdu.validate2",
-                  FT_UINT32, BASE_HEX, NULL, 0x00004000, NULL, HFILL }},
+		{&hf_radiotap_usig_validate2,
+		 {"Validate", "radiotap.u_sig.value.mu_ppdu.validate2",
+		  FT_UINT32, BASE_HEX, NULL, 0x00004000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_validate2_not_known,
 		 {"Validate not known",
 		  "radiotap.u_sig.value.mu_ppdu.validate2_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x00004000, NULL, HFILL }},
 
-                {&hf_radiotap_usig_eht_sig_mcs,
-                 {"EHT-SIG MCS", "radiotap.u_sig.value.mu_ppdu.eht_sig_mcs",
-                  FT_UINT32, BASE_HEX, NULL, 0x00018000, NULL, HFILL }},
+		{&hf_radiotap_usig_eht_sig_mcs,
+		 {"EHT-SIG MCS", "radiotap.u_sig.value.mu_ppdu.eht_sig_mcs",
+		  FT_UINT32, BASE_HEX, NULL, 0x00018000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_sig_mcs_not_known,
 		 {"EHT-SIG MCS not known",
 		  "radiotap.u_sig.value.mu_ppdu.eht_sig_mcs_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x00018000, NULL, HFILL }},
 
-                {&hf_radiotap_usig_number_eht_sig_symbols,
-                 {"Number of EHT-SIG Symbols",
-                  "radiotap.u_sig.value.mu_ppdu.number_of_eht_sig_symbols",
-                  FT_UINT32, BASE_HEX, NULL, 0x003e0000, NULL, HFILL }},
+		{&hf_radiotap_usig_number_eht_sig_symbols,
+		 {"Number of EHT-SIG Symbols",
+		  "radiotap.u_sig.value.mu_ppdu.number_of_eht_sig_symbols",
+		  FT_UINT32, BASE_HEX, NULL, 0x003e0000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_number_eht_sig_symbols_not_known,
 		 {"Number of EHT-SIG Symbols not known",
 		  "radiotap.u_sig.value.mu_ppdu.number_of_eht_sig_symbols_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x003e0000, NULL, HFILL }},
 
-                {&hf_radiotap_usig_crc,
-                 {"CRC", "radiotap.u_sig.value.mu_ppdu.crc",
-                  FT_UINT32, BASE_HEX, NULL, 0x03c00000, NULL, HFILL }},
+		{&hf_radiotap_usig_crc,
+		 {"CRC", "radiotap.u_sig.value.mu_ppdu.crc",
+		  FT_UINT32, BASE_HEX, NULL, 0x03c00000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_crc_not_known,
 		 {"CRC not known", "radiotap.u_sig.value.mu_ppdu.crc_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x03c00000, NULL, HFILL }},
 
-                {&hf_radiotap_usig_tail,
-                 {"Tail", "radiotap.u_sig.value.mu_ppdu.tail",
-                  FT_UINT32, BASE_HEX, NULL, 0xfc000000, NULL, HFILL }},
+		{&hf_radiotap_usig_tail,
+		 {"Tail", "radiotap.u_sig.value.mu_ppdu.tail",
+		  FT_UINT32, BASE_HEX, NULL, 0xfc000000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_tail_not_known,
 		 {"Tail not known", "radiotap.u_sig.value.mu_ppdu.tail_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0xfc000000, NULL, HFILL }},
 
-                {&hf_radiotap_usig_value_tb_ppdu,
-                 {"EHT TB PPDU", "radiotap.u_sig.value.tb_ppdu",
-                  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+		{&hf_radiotap_usig_value_tb_ppdu,
+		 {"EHT TB PPDU", "radiotap.u_sig.value.tb_ppdu",
+		  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
 
-                {&hf_radiotap_usig_eht_tb_b20_b25,
-                 {"Disregard", "radiotap.u_sig.value.tb_ppdu.disregard",
-                  FT_UINT32, BASE_HEX, NULL, 0x0000003f, NULL, HFILL }},
+		{&hf_radiotap_usig_eht_tb_b20_b25,
+		 {"Disregard", "radiotap.u_sig.value.tb_ppdu.disregard",
+		  FT_UINT32, BASE_HEX, NULL, 0x0000003f, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_tb_b20_b25_not_known,
 		 {"Disregard not known",
 		  "radiotap.u_sig.value.tb_ppdu.disregard_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x0000003f, NULL, HFILL }},
 
-                {&hf_radiotap_usig_eht_tb_validate1,
-                 {"Validate", "radiotap.u_sig.value.tb_ppdu.validate1",
-                  FT_UINT32, BASE_HEX, NULL, 0x00000100, NULL, HFILL }},
+		{&hf_radiotap_usig_eht_tb_validate1,
+		 {"Validate", "radiotap.u_sig.value.tb_ppdu.validate1",
+		  FT_UINT32, BASE_HEX, NULL, 0x00000100, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_tb_validate1_not_known,
-		 {"Validate not knwon",
+		 {"Validate not known",
 		  "radiotap.u_sig.value.tb_ppdu.validate1_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x00000100, NULL, HFILL }},
 
-                {&hf_radiotap_usig_eht_tb_spatial_reuse_1,
-                 {"Spatial Reuse 1",
-                  "radiotap.u_sig.value.tb_ppdu.spatial_reuse_1",
-                  FT_UINT32, BASE_HEX, NULL, 0x00001e00, NULL, HFILL }},
+		{&hf_radiotap_usig_eht_tb_spatial_reuse_1,
+		 {"Spatial Reuse 1",
+		  "radiotap.u_sig.value.tb_ppdu.spatial_reuse_1",
+		  FT_UINT32, BASE_HEX, NULL, 0x00001e00, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_tb_spatial_reuse_1_not_known,
 		 {"Spatial Reuse 1 not known",
 		  "radiotap.u_sig.value.tb_ppdu.spatial_reuse_1_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x00001e00, NULL, HFILL }},
 
-                {&hf_radiotap_usig_eht_tb_spatial_reuse_2,
-                 {"Spatial Reuse 2",
-                  "radiotap.u_sig.value.tb_ppdu.spatial_reuse_2",
-                  FT_UINT32, BASE_HEX, NULL, 0x0001e000, NULL, HFILL }},
+		{&hf_radiotap_usig_eht_tb_spatial_reuse_2,
+		 {"Spatial Reuse 2",
+		  "radiotap.u_sig.value.tb_ppdu.spatial_reuse_2",
+		  FT_UINT32, BASE_HEX, NULL, 0x0001e000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_tb_spatial_reuse_2_not_known,
 		 {"Spatial Reuse 2 not known",
 		  "radiotap.u_sig.value.tb_ppdu.spatial_reuse_2_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x0001e000, NULL, HFILL }},
 
-                {&hf_radiotap_usig_eht_tb_disregard,
-                 {"Disregard", "radiotap.u_sig.value.tb_ppdu.disregard",
-                  FT_UINT32, BASE_HEX, NULL, 0x003e0000, NULL, HFILL }},
+		{&hf_radiotap_usig_eht_tb_disregard,
+		 {"Disregard", "radiotap.u_sig.value.tb_ppdu.disregard",
+		  FT_UINT32, BASE_HEX, NULL, 0x003e0000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_tb_disregard_not_known,
 		 {"Disregard not known",
@@ -6901,30 +6481,30 @@ void proto_register_radiotap(void)
 		  FT_UINT32, BASE_HEX, NULL, 0x003e0000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_tb_crc,
-                 {"CRC", "radiotap.u_sig.value.tb_ppdu.crc",
-                  FT_UINT32, BASE_HEX, NULL, 0x03c00000, NULL, HFILL }},
+		 {"CRC", "radiotap.u_sig.value.tb_ppdu.crc",
+		  FT_UINT32, BASE_HEX, NULL, 0x03c00000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_tb_crc_not_known,
-                 {"CRC not known", "radiotap.u_sig.value.tb_ppdu.crc_not_known",
-                  FT_UINT32, BASE_HEX, NULL, 0x03c00000, NULL, HFILL }},
+		 {"CRC not known", "radiotap.u_sig.value.tb_ppdu.crc_not_known",
+		  FT_UINT32, BASE_HEX, NULL, 0x03c00000, NULL, HFILL }},
 
-                {&hf_radiotap_usig_eht_tb_tail,
-                 {"Tail", "radiotap.u_sig.value.tb_ppdu.tail",
-                  FT_UINT32, BASE_HEX, NULL, 0xfc000000, NULL, HFILL }},
+		{&hf_radiotap_usig_eht_tb_tail,
+		 {"Tail", "radiotap.u_sig.value.tb_ppdu.tail",
+		  FT_UINT32, BASE_HEX, NULL, 0xfc000000, NULL, HFILL }},
 
 		{&hf_radiotap_usig_eht_tb_tail_not_known,
-                 {"Tail not known",
-                  "radiotap.u_sig.value.tb_ppdu.tail_not_known",
-                  FT_UINT32, BASE_HEX, NULL, 0xfc000000, NULL, HFILL }},
+		 {"Tail not known",
+		  "radiotap.u_sig.value.tb_ppdu.tail_not_known",
+		  FT_UINT32, BASE_HEX, NULL, 0xfc000000, NULL, HFILL }},
 
 		{&hf_radiotap_eht_known,
 		 {"known", "radiotap.eht.known",
 		  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
 
 		{&hf_radiotap_eht_reserved_1,
-                 {"Reserved",
-                  "radiotap.eht.known.reserved_1",
-                  FT_UINT32, BASE_HEX, NULL, 0x00000001, NULL, HFILL }},
+		 {"Reserved",
+		  "radiotap.eht.known.reserved_1",
+		  FT_UINT32, BASE_HEX, NULL, 0x00000001, NULL, HFILL }},
 
 		{&hf_radiotap_eht_spatial_reuse_known,
 		 {"Spatial Reuse Known",
@@ -7156,7 +6736,7 @@ void proto_register_radiotap(void)
 		{&hf_radiotap_eht_data1_ru_mru_size,
 		 {"RU/MRU Size",
 		  "radiotap.eht.data_1.ru_mru_size",
-		  FT_UINT32, BASE_DEC, NULL, 0x0000001F, NULL, HFILL }},
+		  FT_UINT32, BASE_DEC, VALS(eht_data_ru_mru_size_vals), 0x0000001F, NULL, HFILL }},
 
 		{&hf_radiotap_eht_data1_ru_mru_size_not_known,
 		 {"RU/MRU Size",
@@ -7244,7 +6824,7 @@ void proto_register_radiotap(void)
 
 		{&hf_radiotap_eht_data2_ru_alloc_c2_1_2_not_known,
 		 {"Content Channel 2 RU Allocation 1::2",
-		  "radiotap.eht.data_2.content_channel_2_ru_allocation_1_2_not_knwon",
+		  "radiotap.eht.data_2.content_channel_2_ru_allocation_1_2_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x1ff00000, NULL, HFILL }},
 
 		{&hf_radiotap_eht_data2_ru_alloc_c2_1_2_known,
@@ -7297,7 +6877,7 @@ void proto_register_radiotap(void)
 
 		{&hf_radiotap_eht_data3_ru_alloc_c1_2_2_not_known,
 		 {"Content Channel 1 RU Allocation 2::2",
-		  "radiotap.eht.data_3.content_channel_1_ru_allocation_2_2_not_knwon",
+		  "radiotap.eht.data_3.content_channel_1_ru_allocation_2_2_not_known",
 		  FT_UINT32, BASE_HEX, NULL, 0x1ff00000, NULL, HFILL }},
 
 		{&hf_radiotap_eht_data3_ru_alloc_c1_2_2_known,
@@ -7415,9 +6995,9 @@ void proto_register_radiotap(void)
 		 {"Reserved", "radiotap.eht.data_5.reserved",
 		  FT_UINT32, BASE_HEX, NULL, 0xc0000000, NULL, HFILL }},
 
-                {&hf_radiotap_eht_data6,
-                 {"data[6]", "radiotap.eht.data_6",
-                  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+		{&hf_radiotap_eht_data6,
+		 {"data[6]", "radiotap.eht.data_6",
+		  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
 
 		{&hf_radiotap_eht_data6_ru_alloc_c2_2_5,
 		 {"Content Channel 2 RU Allocation 2::5",
@@ -7468,9 +7048,9 @@ void proto_register_radiotap(void)
 		 {"Reserved", "radiotap.eht.data_6.reserved",
 		  FT_UINT32, BASE_HEX, NULL, 0xc0000000, NULL, HFILL }},
 
-                {&hf_radiotap_eht_data7,
-                 {"data[7]", "radiotap.eht.data_7",
-                  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+		{&hf_radiotap_eht_data7,
+		 {"data[7]", "radiotap.eht.data_7",
+		  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
 
 		{&hf_radiotap_eht_data7_crc2,
 		 {"CRC2 (OFDMA Only: For RU Allocation-2)",
@@ -7492,7 +7072,7 @@ void proto_register_radiotap(void)
 
 		{&hf_radiotap_eht_data7_beamformed,
 		 {"Beamformed (EHT sounding)",
-		  "radiotap.eht.data_7.beamdormed_eht_sounding",
+		  "radiotap.eht.data_7.beamformed_eht_sounding",
 		  FT_BOOLEAN, 32, NULL, 0x00010000, NULL, HFILL }},
 
 		{&hf_radiotap_eht_data7_number_non_ofdma_users,
@@ -7519,9 +7099,9 @@ void proto_register_radiotap(void)
 		 {"Reserved", "radiotap.eht.data_7.reserved2",
 		  FT_UINT32, BASE_HEX, NULL, 0xC0000000, NULL, HFILL }},
 
-                {&hf_radiotap_eht_data8,
-                 {"data[8]", "radiotap.eht.data_8",
-                  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+		{&hf_radiotap_eht_data8,
+		 {"data[8]", "radiotap.eht.data_8",
+		  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
 
 		{&hf_radiotap_eht_data8_ru_alloc_ps_160,
 		 {"RU Allocation (TB Format): PS 160",
@@ -7543,9 +7123,9 @@ void proto_register_radiotap(void)
 		  "radiotap.eht.data_8.reserved1",
 		  FT_UINT32, BASE_HEX, NULL, 0xfffffe00, NULL, HFILL }},
 
-                {&hf_radiotap_eht_user_info,
-                 {"user_info", "radiotap.eht.user_info",
-                  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+		{&hf_radiotap_eht_user_info,
+		 {"user_info", "radiotap.eht.user_info",
+		  FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
 
 		{&hf_radiotap_eht_ui_sta_id_known,
 		 {"STA-ID known", "radiotap.eht.user_info.sta_id_known",
@@ -7752,358 +7332,8 @@ void proto_register_radiotap(void)
 		 {"RSSI", "radiotap.s1g.rssi",
 		  FT_INT16, BASE_DEC, NULL,
 		  IEEE80211_RADIOTAP_TLV_S1G_RSSI, NULL, HFILL}},
-
-		{&hf_radiotap_s1g_ndp_bytes,
-		 {"NDP Bytes", "radiotap.s1g.ndp.bytes",
-		  FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ctrl,
-		 {"NDP Control", "radiotap.s1g.ndp.control",
-		  FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_mgmt,
-		 {"NDP Management", "radiotap.s1g.ndp.management",
-		  FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_type_3bit,
-		 {"NDP Type", "radiotap.s1g.ndp.type",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000000007, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_1m,
-		 {"NDP Ack 1MHz", "radiotap.s1g.ndp.ack_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_1m_ack_id,
-		 {"ACK Id", "radiotap.s1g.ndp.ack.ack_id",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000000FF8, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_1m_more_data,
-		 {"More Data", "radiotap.s1g.ndp.ack.more_data",
-		  FT_BOOLEAN, 40, NULL, 0x0000001000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_1m_idle_indication,
-		 {"Idle Indication", "radiotap.s1g.ndp.ack.idle_indication",
-		  FT_BOOLEAN, 40, NULL, 0x0000002000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_1m_duration,
-		 {"Duration", "radiotap.s1g.ndp.ack.duration",
-		  FT_UINT40, BASE_DEC, NULL, 0x0000FFC000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_1m_relayed_frame,
-		 {"Relayed Frame", "radiotap.s1g.ndp.ack.relayed_frame",
-		  FT_BOOLEAN, 40, NULL, 0x0001000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_2m,
-		 {"NDP Ack 2MHz", "radiotap.s1g.ndp.ack_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_2m_ack_id,
-		 {"ACK Id", "radiotap.s1g.ndp.ack.ack_id",
-		  FT_UINT40, BASE_HEX, NULL, 0x000007FFF8, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_2m_more_data,
-		 {"More Data", "radiotap.s1g.ndp.ack.more_data",
-		  FT_BOOLEAN, 40, NULL, 0x0000080000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_2m_idle_indication,
-		 {"Idle Indication", "radiotap.s1g.ndp.ack.idle_indication",
-		  FT_BOOLEAN, 40, NULL, 0x0000100000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_2m_duration,
-		 {"Duration", "radiotap.s1g.ndp.ack.duration",
-		  FT_UINT40, BASE_DEC, NULL, 0x07FFE00000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_2m_relayed_frame,
-		 {"Relayed Frame", "radiotap.s1g.ndp.ack.relayed_frame",
-		  FT_BOOLEAN, 40, NULL, 0x0800000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ack_2m_reserved,
-		 {"Reserved", "radiotap.s1g.ndp.ack.reserved",
-		  FT_UINT40, BASE_HEX, NULL, 0x1000000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_1m,
-		 {"NDP CTS 1MHz", "radiotap.s1g.ndp.cts_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_cf_end_indic,
-		 {"NDP CTS/CF_End Indicator", "radiotap.s1g.ndp.cts_cf_end_indic",
-		  FT_BOOLEAN, 40, NULL, 0x0000000008, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_address_indic,
-		 {"Address Indicator", "radiotap.s1g.ndp.cts.address_indic",
-		  FT_BOOLEAN, 40, NULL, 0x0000000010, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_ra_partial_bssid,
-		 {"RA/Partial BSSID", "radiotap.s1g.ndp.cts.ra_partial_bssid",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000003FE0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_duration_1m,
-		 {"Duration", "radiotap.s1g.ndp.cts.duration_1m",
-		  FT_UINT40, BASE_DEC, NULL, 0x0000FFC000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_early_sector_indic_1m,
-		 {"Early Sector Indicator", "radiotap.s1g.ndp.cts.early_sector_indic_1m",
-		  FT_BOOLEAN, 40, NULL, 0x0001000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_2m,
-		 {"NDP CTS 2MHz", "radiotap.s1g.ndp.cts_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_duration_2m,
-		 {"Duration", "radiotap.s1g.ndp.cts.duration_2m",
-		  FT_UINT40, BASE_DEC, NULL, 0x001FFFC000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_early_sector_indic_2m,
-		 {"Early Sector Indicator", "radiotap.s1g.ndp.cts.early_sector_indic_2m",
-		  FT_BOOLEAN, 40, NULL, 0x0020000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_bandwidth_indic_2m,
-		 {"Bandwidth Indicator", "radiotap.s1g.ndp.cts.bandwidth_indic_2m",
-		  FT_UINT40, BASE_DEC, NULL, 0x01C0000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cts_reserved,
-		 {"Reserved", "radiotap.s1g.ndp.cts.reserved",
-		  FT_UINT40, BASE_HEX, NULL, 0x1E00000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cf_end_1m,
-		 {"NDP CF-End 1MHz", "radiotap.s1g.ndp.cf_end_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cf_end_partial_bssid,
-		 {"Partial BSSID (TA)", "radiotap.s1g.ndp.cf_end.partial_bssid",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000001FF0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cf_end_duration_1m,
-		 {"Duration", "radiotap.s1g.ndp.cf_end.duration_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x00007FE000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cf_end_reserved_1m,
-		 {"Reserved", "radiotap.s1g.ndp.cf_end.reserved_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0001800000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cf_end_2m,
-		 {"NDP CF-End 2MHz", "radiotap.s1g.ndp.cf_end_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cf_end_duration_2m,
-		 {"Duration", "radiotap.s1g.ndp.cf_end.duration_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x000FFFE000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_cf_end_reserved_2m,
-		 {"Reserved", "radiotap.s1g.ndp.cf_end.reserved_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x1FF0000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_1m,
-		 {"NDP PS-Poll 1MHz", "radiotap.s1g.ndp.ps_poll_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ra,
-		 {"RA", "radiotap.s1g.ndp.ps_poll.ra",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000000FF8, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ta,
-		 {"TA", "radiotap.s1g.ndp.ps_poll.ta",
-		  FT_UINT40, BASE_HEX, NULL, 0x00001FF000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_preferred_mcs_1m,
-		 {"Preferred MCS", "radiotap.s1g.ndp.ps_poll.preferred_mcs",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000E00000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_udi_1m,
-		 {"UDI", "radiotap.s1g.ndp.ps_poll.udi",
-		  FT_UINT40, BASE_HEX, NULL, 0x0001000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_2m,
-		 {"NDP PS-Poll 2MHz", "radiotap.s1g.ndp.ps_poll_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_preferred_mcs_2m,
-		 {"Preferred MCS", "radiotap.s1g.ndp.ps_poll.preferred_mcs",
-		  FT_UINT40, BASE_HEX, NULL, 0x0001E00000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_udi_2m,
-		 {"UDI", "radiotap.s1g.ndp.ps_poll.udi",
-		  /* TODO: not sure this mask is correct.. */
-		  FT_UINT40, BASE_HEX, NULL, 0x01FFE00000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_1m,
-		 {"NDP PS-Poll-Ack 1MHz", "radiotap.s1g.ndp.ndp_ps_poll_ack_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_id,
-		 {"Ack ID", "radiotap.s1g.ndp.ps_poll.ack_id",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000000FF8, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_more_data,
-		 {"More Data", "radiotap.s1g.ndp.ps_poll.more_data",
-		  FT_BOOLEAN, 40, NULL, 0x0000001000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_idle_indication,
-		 {"Idle Indication", "radiotap.s1g.ndp.ps_poll.idle_indication",
-		  FT_BOOLEAN, 40, NULL, 0x0000002000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_duration_1m,
-		 {"Duration", "radiotap.s1g.ndp.ps_poll.duration",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000FFC000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_reserved_1m,
-		 {"Reserved", "radiotap.s1g.ndp.ps_poll.reserved_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0001000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_2m,
-		 {"NDP PS-Poll-Ack 2MHz", "radiotap.s1g.ndp.ndp_ps_poll_ack_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_id_2m,
-		 {"Ack ID", "radiotap.s1g.ndp.ps_poll.ack_id",
-		  FT_UINT40, BASE_HEX, NULL, 0x000007FFF8, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_more_data_2m,
-		 {"More Data", "radiotap.s1g.ndp.ps_poll.more_data",
-		  FT_BOOLEAN, 40, NULL, 0x0000080000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_idle_indication_2m,
-		 {"Idle Indication", "radiotap.s1g.ndp.ps_poll.idle_indication",
-		  FT_BOOLEAN, 40, NULL, 0x0000100000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_duration_2m,
-		 {"Duration", "radiotap.s1g.ndp.ps_poll.duration",
-		  FT_UINT40, BASE_HEX, NULL, 0x07FFE00000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_ps_poll_ack_reserved_2m,
-		 {"Reserved", "radiotap.s1g.ndp.ps_poll.reserved",
-		  FT_UINT40, BASE_HEX, NULL, 0x1800000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_block_ack_1m,
-		 {"NDP Block Ack 1MHz", "radiotap.s1g.ndp.block_ack_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_block_ack_id_1m,
-		 {"BlockAck ID", "radiotap.s1g.ndp.block_ack.blockack_id",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000000018, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_block_ack_starting_sequence_control_1m,
-		 {"Starting Sequence Control", "radiotap.s1g.ndp.ps_poll.starting_sequence_control",
-		  FT_UINT40, BASE_HEX, NULL, 0x000001FFE0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_block_ack_bitmap_1m,
-		 {"Block Ack Bitmap", "radiotap.s1g.ndp.ps_poll.block_ack_bitmap",
-		  FT_UINT40, BASE_HEX, NULL, 0x001FFE0000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_block_ack_unused_1m,
-		 {"Unused", "radiotap.s1g.ndp.ps_poll.block_ack_unused",
-		  FT_UINT40, BASE_HEX, NULL, 0x3FE0000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_block_ack_2m,
-		 {"NDP Block Ack 2MHz", "radiotap.s1g.ndp.block_ack_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_block_ack_id_2m,
-		 {"BlockAck ID", "radiotap.s1g.ndp.ps_poll.blockack_id",
-		  FT_UINT40, BASE_HEX, NULL, 0x00000001F8, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_block_ack_starting_sequence_control_2m,
-		 {"Starting Sequence Control", "radiotap.s1g.ndp.ps_poll.starting_sequence_control",
-		  FT_UINT40, BASE_HEX, NULL, 0x00001FFE00, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_block_ack_bitmap_2m,
-		 {"Block Ack Bitmap", "radiotap.s1g.ndp.ps_poll.block_ack_bitmap",
-		  FT_UINT40, BASE_HEX, NULL, 0x1FFFE00000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_beamforming_report_poll,
-		 {"Beamforming Report Poll", "radiotap.s1g.ndp.beamforming_report_poll",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_beamforming_ap_address,
-		 {"AP Address", "radiotap.s1g.ndp.beamforming_report_poll.ap_address",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000000FF8, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_beamforming_non_ap_sta_address,
-		 {"Non-AP STA Address", "radiotap.s1g.ndp.beamforming_report_poll.non_ap_sta_address",
-		  FT_UINT40, BASE_HEX, NULL, 0x0001FFF000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_beamforming_feedback_segment_bitmap,
-		 {"Retransmission Segment Retransmission Bitmap",
-      "radiotap.s1g.ndp.beamforming_report_poll.feedback_segment_retransmission_bitmap",
-		  FT_UINT40, BASE_HEX, NULL, 0x01FE000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_beamforming_reserved,
-		 {"Reserved", "radiotap.s1g.ndp.beamforming_report_poll.reserved",
-		  FT_UINT40, BASE_HEX, NULL, 0x1E00000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_paging_1m,
-		 {"NDP Paging 1MHz", "radiotap.s1g.ndp.ndp_paging_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_paging_p_id,
-		 {"P-ID", "radiotap.s1g.ndp.ndp_paging.p_id",
-		  FT_BOOLEAN, 40, NULL, 0x0000000FF8, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_paging_apdi_partial_aid,
-		 {"APDI/Partial AID", "radiotap.s1g.ndp.ndp_paging.apdi_partial_aid",
-		  FT_BOOLEAN, 40, NULL, 0x00001FF000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_paging_direction,
-		 {"Direction", "radiotap.s1g.ndp.ndp_paging.direction",
-		  FT_BOOLEAN, 40, NULL, 0x0000200000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_paging_reserved_1m,
-		 {"Reserved", "radiotap.s1g.ndp.ndp_paging.reserved",
-		  FT_BOOLEAN, 40, NULL, 0x0001C00000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_paging_2m,
-		 {"NDP Paging 2MHz", "radiotap.s1g.ndp.ndp_paging_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_paging_reserved_2m,
-		 {"Reserved", "radiotap.s1g.ndp.reserved",
-		  FT_BOOLEAN, 40, NULL, 0x1FFFC00000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_probe_1m,
-		 {"NDP Probe 1MHz", "radiotap.s1g.ndp.ndp_probe_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_probe_cssid_ano_present,
-		 {"CSSID/ANO Present", "radiotap.s1g.ndp.ndp_probe.cssid_ano_present",
-		  FT_BOOLEAN, 40, NULL, 0x0000000008, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_probe_1m_cssid_ano,
-		 {"Compressed SSID/ANO", "radiotap.s1g.ndp.ndp_probe.compressed_ssid_ano",
-		  FT_UINT40, BASE_HEX, NULL, 0x00000FFFF0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_probe_1m_requested_response_type,
-		 {"Requested Response Type", "radiotap.s1g.ndp.ndp_probe.requested_response_type_1m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0000100000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_probe_1m_reserved,
-		 {"Reserved", "radiotap.s1g.ndp.probe_1m.ndp_probe.reserved",
-		  FT_UINT40, BASE_HEX, NULL, 0x0001E00000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_probe_2m,
-		 {"NDP Probe 2MHz", "radiotap.s1g.ndp.probe_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_probe_2m_cssid_ano,
-		 {"Compressed SSID/ANO", "radiotap.s1g.ndp.ndp_probe.compressed_ssid_ano",
-		  FT_UINT40, BASE_HEX, NULL, 0x0FFFFFFFF0, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_probe_2m_requested_response_type,
-		 {"Requested Response Type", "radiotap.s1g.ndp.ndp_probe.requested_response_type_2m",
-		  FT_UINT40, BASE_HEX, NULL, 0x1000000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_1m_unused,
-		 {"Unused", "radiotap.s1g.ndp.ack.1m_unused",
-		  FT_UINT40, BASE_HEX, NULL, 0x3FFE000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_2m_unused,
-		 {"Unused", "radiotap.s1g.ndp.ack.2m_unused",
-		  FT_UINT40, BASE_HEX, NULL, 0x2000000000, NULL, HFILL }},
-
-		{&hf_radiotap_s1g_ndp_bw,
-		 {"NDP BW", "radiotap.s1g.ndp.bw",
-		  FT_UINT40, BASE_HEX, NULL, 0xC000000000, NULL, HFILL }},
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_radiotap,
 		&ett_radiotap_tlv,
 		&ett_radiotap_present,
@@ -8150,16 +7380,6 @@ void proto_register_radiotap(void)
 		&ett_radiotap_s1g_known,
 		&ett_radiotap_s1g_data_1,
 		&ett_radiotap_s1g_data_2,
-		&ett_s1g_ndp,
-		&ett_s1g_ndp_ack,
-		&ett_s1g_ndp_cts,
-		&ett_s1g_ndp_cf_end,
-		&ett_s1g_ndp_ps_poll,
-		&ett_s1g_ndp_ps_poll_ack,
-		&ett_s1g_ndp_block_ack,
-		&ett_s1g_ndp_beamforming_report_poll,
-		&ett_s1g_ndp_paging,
-		&ett_s1g_ndp_probe,
 		&ett_radiotap_unknown_tlv,
 	};
 	static ei_register_info ei[] = {
@@ -8203,7 +7423,7 @@ void proto_register_radiotap(void)
 				       "Whether to use the FCS bit, assume the FCS is always present, "
 					   "or assume the FCS is never present.",
 				       &radiotap_fcs_handling,
-				       fcs_handling, FALSE);
+				       fcs_handling, false);
 }
 
 void proto_reg_handoff_radiotap(void)

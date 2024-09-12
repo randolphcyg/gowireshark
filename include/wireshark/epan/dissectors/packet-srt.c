@@ -27,7 +27,10 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/conversation.h>
-#include <wsutil/str_util.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
 #include <wsutil/inet_addr.h>
 
 /* Prototypes */
@@ -35,72 +38,99 @@ void proto_reg_handoff_srt(void);
 void proto_register_srt(void);
 
 /* Initialize the protocol */
-static int proto_srt = -1;
-static int hf_srt_iscontrol = -1;
-static int hf_srt_type = -1;
-static int hf_srt_exttype = -1;
-static int hf_srt_exttype_none = -1;
-static int hf_srt_seqno = -1;
-static int hf_srt_ack_seqno = -1;
-static int hf_srt_ackno = -1;
-static int hf_srt_msgno = -1;
-static int hf_srt_msgno_pb = -1;
-static int hf_srt_msgno_inorder = -1;
-static int hf_srt_msgno_enctypes = -1;
-static int hf_srt_msgno_rexmit = -1;
-static int hf_srt_timestamp = -1;
-static int hf_srt_id = -1;
-static int hf_srt_addinfo = -1;
-static int hf_srt_rtt = -1;
-static int hf_srt_rttvar = -1;
-static int hf_srt_bufavail = -1;
-static int hf_srt_rate = -1;
-static int hf_srt_bandwidth = -1;
-static int hf_srt_rcvrate = -1;
+static int proto_srt;
+static int hf_srt_iscontrol;
+static int hf_srt_type;
+static int hf_srt_exttype;
+static int hf_srt_exttype_none;
+static int hf_srt_seqno;
+static int hf_srt_ack_seqno;
+static int hf_srt_ackno;
+static int hf_srt_msgno;
+static int hf_srt_msgno_pb;
+static int hf_srt_msgno_inorder;
+static int hf_srt_msgno_enctypes;
+static int hf_srt_msgno_rexmit;
+static int hf_srt_timestamp;
+static int hf_srt_id;
+static int hf_srt_addinfo;
+static int hf_srt_rtt;
+static int hf_srt_rttvar;
+static int hf_srt_bufavail;
+static int hf_srt_rate;
+static int hf_srt_bandwidth;
+static int hf_srt_rcvrate;
 
 /* SRT Handshake */
-static int hf_srt_handshake_version = -1;
-static int hf_srt_handshake_type_v4 = -1;
-static int hf_srt_handshake_enc_field_v5 = -1;
-static int hf_srt_handshake_ext_field_v5 = -1;
-static int hf_srt_handshake_ext_field_v5_flag_hsreq = -1;
-static int hf_srt_handshake_ext_field_v5_flag_kmreq = -1;
-static int hf_srt_handshake_ext_field_v5_flag_config = -1;
-static int hf_srt_handshake_isn = -1;
-static int hf_srt_handshake_mtu = -1;
-static int hf_srt_handshake_flow_window = -1;
-static int hf_srt_handshake_reqtype = -1;
-static int hf_srt_handshake_failure_type = -1;
-static int hf_srt_handshake_id = -1;
-static int hf_srt_handshake_cookie = -1;
-static int hf_srt_handshake_peerip = -1;
+static int hf_srt_handshake_version;
+static int hf_srt_handshake_type_v4;
+static int hf_srt_handshake_enc_field_v5;
+static int hf_srt_handshake_ext_field_v5;
+static int hf_srt_handshake_ext_field_v5_flag_hsreq;
+static int hf_srt_handshake_ext_field_v5_flag_kmreq;
+static int hf_srt_handshake_ext_field_v5_flag_config;
+static int hf_srt_handshake_isn;
+static int hf_srt_handshake_mtu;
+static int hf_srt_handshake_flow_window;
+static int hf_srt_handshake_reqtype;
+static int hf_srt_handshake_failure_type;
+static int hf_srt_handshake_id;
+static int hf_srt_handshake_cookie;
+static int hf_srt_handshake_peerip;
 /* SRT Handshake Extension */
-static int hf_srt_handshake_ext_version = -1;
-static int hf_srt_handshake_ext_flags = -1;
-static int hf_srt_handshake_ext_flag_tsbpd_snd = -1;
-static int hf_srt_handshake_ext_flag_tsbpd_rcv = -1;
-static int hf_srt_handshake_ext_flag_haicrypt = -1;
-static int hf_srt_handshake_ext_flag_tlpkt_drop = -1;
-static int hf_srt_handshake_ext_flag_nak_report = -1;
-static int hf_srt_handshake_ext_flag_rexmit = -1;
-static int hf_srt_handshake_ext_flag_stream = -1;
+static int hf_srt_handshake_ext_version;
+static int hf_srt_handshake_ext_flags;
+static int hf_srt_handshake_ext_flag_tsbpd_snd;
+static int hf_srt_handshake_ext_flag_tsbpd_rcv;
+static int hf_srt_handshake_ext_flag_haicrypt;
+static int hf_srt_handshake_ext_flag_tlpkt_drop;
+static int hf_srt_handshake_ext_flag_nak_report;
+static int hf_srt_handshake_ext_flag_rexmit;
+static int hf_srt_handshake_ext_flag_stream;
 
-static int hf_srt_srths_blocktype = -1;
-static int hf_srt_srths_blocklen = -1;
-static int hf_srt_srths_agent_latency = -1; // TSBPD delay
-static int hf_srt_srths_peer_latency = -1; // TSBPD delay
-static int hf_srt_srtkm_msg = -1;
-static int hf_srt_srtkm_error = -1;
-static int hf_srt_srths_sid = -1;
-static int hf_srt_srths_congestcontrol = -1;
+/* Key Material (KM) */
+static int hf_srt_km;
+static int hf_srt_km_s;
+static int hf_srt_km_v;
+static int hf_srt_km_pt;
+static int hf_srt_km_sign;
+static int hf_srt_km_resv1;
+static int hf_srt_km_kk;
+static int hf_srt_km_keki;
+static int hf_srt_km_cipher;
+static int hf_srt_km_auth;
+static int hf_srt_km_se;
+static int hf_srt_km_resv2;
+static int hf_srt_km_resv3;
+static int hf_srt_km_slen;
+static int hf_srt_km_klen;
+static int hf_srt_km_salt;
+static int hf_srt_km_wrap;
 
-static gint ett_srt = -1;
-static gint ett_srt_handshake_ext_flags = -1;
-static gint ett_srt_handshake_ext_field_flags = -1;
+/* HS Extension: Group */
+static int hf_srt_hs_ext_group_id;
+static int hf_srt_hs_ext_group_type;
+static int hf_srt_hs_ext_group_flags;
+static int hf_srt_hs_ext_group_weight;
 
-static expert_field ei_srt_nak_seqno = EI_INIT;
-static expert_field ei_srt_hs_ext_hsreq_len = EI_INIT;
-static expert_field ei_srt_hs_ext_type = EI_INIT;
+static int hf_srt_srths_blocktype;
+static int hf_srt_srths_blocklen;
+static int hf_srt_srths_agent_latency; // TSBPD delay
+static int hf_srt_srths_peer_latency; // TSBPD delay
+static int hf_srt_srtkm_msg;
+static int hf_srt_srtkm_error;
+static int hf_srt_srths_sid;
+static int hf_srt_srths_congestcontrol;
+static int hf_srt_hs_ext_filter;
+
+static int ett_srt;
+static int ett_srt_handshake_ext_flags;
+static int ett_srt_handshake_ext_field_flags;
+
+static expert_field ei_srt_nak_seqno;
+static expert_field ei_srt_hs_ext_hsreq_len;
+static expert_field ei_srt_hs_ext_type;
+static expert_field ei_srt_hs_ext_group_len;
 
 static dissector_handle_t srt_udp_handle;
 
@@ -109,6 +139,12 @@ static dissector_handle_t srt_udp_handle;
 #define SRT_TYPE_DATA            0
 #define SRT_TYPE_CONTROL        1
 #define SRT_CONTROL_MASK (~0x80000000)
+
+#define SRT_KM_S_MASK           0x80
+#define SRT_KM_V_MASK           0x70
+#define SRT_KM_PT_MASK          0x0F
+#define SRT_KM_KK_MASK          0x03
+#define SRT_KM_RESV1_MASK       0xFC
 
 #define SRT_LOSS_SEQUENCE_FIRST 0x80000000
 #define SRT_LOSS_SEQUENCE_MASK  (~SRT_LOSS_SEQUENCE_FIRST)
@@ -168,9 +204,10 @@ enum PacketBoundary
 
 /* Rest of the bits are for message sequence number */
 #define SRT_MSGNO_MSGNO_MASK 0x03ffffff
+#define SRT_MSGNO_REXMIT_FLG 0x04000000
 
 
-/* The message types used by UDT protocol. This is a part of UDT
+/* The message types used by SRT protocol. This is a part of SRT
  * protocol and should never be changed.
  */
 enum UDTMessageType
@@ -195,7 +232,9 @@ enum UDTMessageType
 #define SRT_CMD_KMREQ       3
 #define SRT_CMD_KMRSP       4
 #define SRT_CMD_SID         5
-#define SRT_CMD_CONGESTCTRL 6
+#define SRT_CMD_CONGESTION  6
+#define SRT_CMD_FILTER      7
+#define SRT_CMD_GROUP       8
 
 enum SrtDataStruct
 {
@@ -229,29 +268,39 @@ enum SRT_KM_STATE
 };
 
 static const value_string srt_ctrlmsg_types[] = {
-    {UMSG_HANDSHAKE,  "UMSG_HANDSHAKE"},
-    {UMSG_KEEPALIVE,  "UMSG_KEEPALIVE"},
-    {UMSG_ACK,        "UMSG_ACK"},
-    {UMSG_LOSSREPORT, "UMSG_LOSSREPORT"},
-    {UMSG_CGWARNING,  "UMSG_CGWARNING"},
-    {UMSG_SHUTDOWN,   "UMSG_SHUTDOWN"},
-    {UMSG_ACKACK,     "UMSG_ACKACK"},
-    {UMSG_DROPREQ,    "UMSG_DROPREQ"},
-    {UMSG_PEERERROR,  "UMSG_PEERERROR"},
-    {UMSG_EXT,        "UMSG_EXT"},
+    {UMSG_HANDSHAKE,  "HANDSHAKE"},
+    {UMSG_KEEPALIVE,  "KEEPALIVE"},
+    {UMSG_ACK,        "ACK"},
+    {UMSG_LOSSREPORT, "LOSSREPORT"},
+    {UMSG_CGWARNING,  "CGWARNING"},
+    {UMSG_SHUTDOWN,   "SHUTDOWN"},
+    {UMSG_ACKACK,     "ACKACK"},
+    {UMSG_DROPREQ,    "DROPREQ"},
+    {UMSG_PEERERROR,  "PEERERROR"},
+    {UMSG_EXT,        "EXT"},
 
     {0, NULL},
 };
 
 static const value_string srt_ctrlmsg_exttypes[] = {
-    {SRT_CMD_HSREQ,       "SRT_CMD_HSREQ"},
-    {SRT_CMD_HSRSP,       "SRT_CMD_HSRSP"},
-    {SRT_CMD_KMREQ,       "SRT_CMD_KMREQ"},
-    {SRT_CMD_KMRSP,       "SRT_CMD_KMRSP"},
-    {SRT_CMD_SID,         "SRT_CMD_SID"},
-    {SRT_CMD_CONGESTCTRL, "SRT_CMD_CONGESTCTRL"},
+    {SRT_CMD_HSREQ,       "HSREQ"},
+    {SRT_CMD_HSRSP,       "HSRSP"},
+    {SRT_CMD_KMREQ,       "KMREQ"},
+    {SRT_CMD_KMRSP,       "KMRSP"},
+    {SRT_CMD_SID,         "SID"},
+    {SRT_CMD_CONGESTION,  "CONGESTION"},
+    {SRT_CMD_FILTER,      "FILTER"},
+    {SRT_CMD_GROUP,       "GROUP"},
 
     { 0, NULL },
+};
+
+static const value_string srt_hs_ext_group_type[] = {
+        { 0, "Undefined" },
+        { 1, "Broadcast" },
+        { 2, "Main/Backup" },
+        { 3, "Balancing"},
+        { 0, NULL }
 };
 
 static const value_string srt_hsv4_socket_types[] = {
@@ -285,8 +334,8 @@ static const value_string srt_pb_types[] = {
 
 static const value_string srt_msgno_enctypes[] = {
     {SRT_MSGNO_EK_NONE, "Not encrypted"},
-    {SRT_MSGNO_EK_EVEN, "Encrypted ith even key"},
-    {SRT_MSGNO_EK_ODD,  "Encrypted with odd key"},
+    {SRT_MSGNO_EK_EVEN, "Encrypted (even key)"},
+    {SRT_MSGNO_EK_ODD,  "Encrypted (odd key)"},
     {0, NULL},
 };
 
@@ -316,7 +365,7 @@ static const value_string srt_enc_kmstate[] = {
 
 /*
  * XXX To be added later to extract correct IPv4/IPv6 address from 16 bytes of data
- * static void srt_tree_add_ipaddr( proto_tree *tree, const int hf, tvbuff_t *tvb, gint offset)
+ * static void srt_tree_add_ipaddr( proto_tree *tree, const int hf, tvbuff_t *tvb, int offset)
  * {
  *
  * }
@@ -324,7 +373,7 @@ static const value_string srt_enc_kmstate[] = {
 
 #define IP_BUFFER_SIZE 64
 
-static void srt_format_ip_address(gchar* dest, size_t dest_size, const gchar* ptr)
+static void srt_format_ip_address(char* dest, size_t dest_size, const char* ptr)
 {
     /* Initial IPv4 check.
      * The address is considered IPv4 if:
@@ -334,22 +383,22 @@ static void srt_format_ip_address(gchar* dest, size_t dest_size, const gchar* pt
 
     ws_in4_addr ia4;
     ws_in6_addr ia6;
-    guint32* p;
+    uint32_t* p;
     int i, j;
 
     if (ptr[0] != 0 && ptr[3] != 0)
     {
         for (i = 4; i < 16; ++i)
         {
-            if ( ptr[i] == 0 )
+            if (ptr[i] == 0)
                 continue;
 
             /* This is not an IP4 */
-            p = (guint32*) &ia6;
+            p = (uint32_t*)&ia6;
             for (j = 0; j < 4; ++j)
-                p[j] = g_ntohl(((guint32*)ptr)[j]);
+                p[j] = g_ntohl(((uint32_t*)ptr)[j]);
 
-            ws_inet_ntop6(&ia6, dest, (guint) dest_size);
+            ws_inet_ntop6(&ia6, dest, (unsigned)dest_size);
             return;
         }
     }
@@ -359,9 +408,9 @@ static void srt_format_ip_address(gchar* dest, size_t dest_size, const gchar* pt
     // The address must be inverted.
 
     // Here's IPv4, so invert only one l.
-    ia4 = g_ntohl(*((const guint32*)ptr));
+    ia4 = g_ntohl(*((const uint32_t*)ptr));
 
-    ws_inet_ntop4(&ia4, dest, (guint) dest_size);
+    ws_inet_ntop4(&ia4, dest, (unsigned)dest_size);
     return;
 }
 
@@ -369,7 +418,7 @@ static void srt_format_ip_address(gchar* dest, size_t dest_size, const gchar* pt
 static void srt_format_hs_ext_hsreq(proto_tree* tree, tvbuff_t* tvb, int baseoff)
 {
     proto_item* pi;
-    guint32 version = 0;
+    uint32_t version = 0;
     pi = proto_tree_add_item_ret_uint(tree, hf_srt_handshake_ext_version, tvb, baseoff, 4, ENC_BIG_ENDIAN, &version);
 
     const int vminor = (version >>  8) & 0xff;
@@ -389,10 +438,97 @@ static void srt_format_hs_ext_hsreq(proto_tree* tree, tvbuff_t* tvb, int baseoff
     };
 
     proto_tree_add_bitmask_with_flags(tree, tvb, baseoff + 4, hf_srt_handshake_ext_flags,
-                                      ett_srt_handshake_ext_flags, ext_hs_flags, ENC_NA, BMT_NO_APPEND);
+        ett_srt_handshake_ext_flags, ext_hs_flags, ENC_NA, BMT_NO_APPEND);
 
-    proto_tree_add_item(tree, hf_srt_srths_peer_latency, tvb, baseoff+8, 2, ENC_BIG_ENDIAN);
-    proto_tree_add_item(tree, hf_srt_srths_agent_latency, tvb, baseoff+10, 2, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_srt_srths_peer_latency, tvb, baseoff + 8, 2, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_srt_srths_agent_latency, tvb, baseoff + 10, 2, ENC_BIG_ENDIAN);
+}
+
+static void srt_format_km(proto_tree* tree, tvbuff_t* tvb, int baseoff, int blocklen)
+{
+    //  0                   1                   2                   3
+    //  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    // |S|  V  |   PT  |              Sign             |   Resv1   | KK|
+    // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    // |                              KEKI                             |
+    // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    // |     Cipher    |      Auth     |       SE      |     Resv2     |
+    // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    // |             Resv3             |     SLen/4    |     KLen/4    |
+    // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    // |                              Salt                             |
+    // |                           (16 bytes)                          |
+    // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    // |                                                               |
+    // +                          Wrapped Key                          +
+    // |                                                               |
+    // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    unsigned   u8bits = 0;
+    uint32_t slen = 0;
+
+    proto_tree_add_item(tree, hf_srt_km_s, tvb, baseoff, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_srt_km_v, tvb, baseoff, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_srt_km_pt, tvb, baseoff, 1, ENC_BIG_ENDIAN);
+
+    proto_tree_add_item(tree, hf_srt_km_sign, tvb, baseoff + 1, 2, ENC_NA);
+
+    proto_tree_add_item(tree, hf_srt_km_resv1, tvb, baseoff + 3, 1, ENC_NA);
+
+    static const value_string kk_desc[] = {
+        { 0, "No SEK is provided - invalid KM" },
+        { 1, "Even key is provided" },
+        { 2, "Odd key is provided" },
+        { 3, "Both even and odd keys are provided"},
+        { 0, NULL }
+    };
+
+    u8bits = tvb_get_uint8(tvb, baseoff + 3);
+    proto_tree_add_uint_format_value(tree, hf_srt_km_kk, tvb, baseoff + 3, 1,
+        u8bits, "%u (%s)", (u8bits & SRT_KM_KK_MASK), try_val_to_str(u8bits & SRT_KM_KK_MASK, kk_desc));
+
+    static const value_string cipher_desc[] = {
+        { 0, "None or KEKI indexed crypto context" },
+        { 1, "AES-ECB (reserved, not supported)" },
+        { 2, "AES-CTR" },
+        { 3, "AES-CBC (reserved, not supported)" },
+        { 4, "AES-GCM" },
+        { 0, NULL }
+    };
+    proto_tree_add_item(tree, hf_srt_km_keki, tvb, baseoff + 4, 4, ENC_BIG_ENDIAN);
+
+    u8bits = tvb_get_uint8(tvb, baseoff + 8);
+    proto_tree_add_uint_format_value(tree, hf_srt_km_cipher, tvb, baseoff + 8, 1,
+        u8bits, "%u (%s)", u8bits, try_val_to_str(u8bits, cipher_desc));
+
+    proto_tree_add_item(tree, hf_srt_km_auth, tvb, baseoff + 9, 1, ENC_BIG_ENDIAN);
+
+    static const value_string se_desc[] = {
+        { 0, "Unspecified" },
+        { 1, "MPEG2-TS/UDP" },
+        { 2, "MPEG2-TS/SRT" },
+        { 0, NULL }
+    };
+    u8bits = tvb_get_uint8(tvb, baseoff + 10); // km.se
+    proto_tree_add_uint_format_value(tree, hf_srt_km_se, tvb, baseoff + 10, 1,
+        u8bits, "%u (%s)", u8bits, try_val_to_str(u8bits, se_desc));
+
+    proto_tree_add_item(tree, hf_srt_km_resv2, tvb, baseoff + 11, 1, ENC_NA);
+    proto_tree_add_item(tree, hf_srt_km_resv3, tvb, baseoff + 12, 2, ENC_NA);
+
+    u8bits = tvb_get_uint8(tvb, baseoff + 14); // km.slen
+    slen = 4 * u8bits;
+    proto_tree_add_uint_format_value(tree, hf_srt_km_slen, tvb, baseoff + 14, 1,
+        u8bits, "%u (%d bytes)", u8bits, slen);
+
+    u8bits = tvb_get_uint8(tvb, baseoff + 15); // km.klen
+    proto_tree_add_uint_format_value(tree, hf_srt_km_klen, tvb, baseoff + 15, 1,
+        u8bits, "%u (%d bytes)", u8bits, 4 * u8bits);
+
+    proto_tree_add_item(tree, hf_srt_km_salt, tvb, baseoff + 16, slen, ENC_NA);
+
+    const int wrap_offset = 16 + slen;
+    proto_tree_add_item(tree, hf_srt_km_wrap, tvb, baseoff + wrap_offset, blocklen - wrap_offset, ENC_NA);
 }
 
 static void srt_format_kmx(proto_tree* tree, tvbuff_t* tvb, int baseoff, int blocklen)
@@ -404,7 +540,35 @@ static void srt_format_kmx(proto_tree* tree, tvbuff_t* tvb, int baseoff, int blo
     }
     else
     {
-        proto_tree_add_item(tree, hf_srt_srtkm_msg, tvb, baseoff, blocklen, ENC_NA);
+        srt_format_km(tree, tvb, baseoff, blocklen);
+    }
+}
+
+static void srt_format_hs_ext_group(proto_tree* tree, tvbuff_t* tvb, packet_info* pinfo, int baseoff, int blocklen)
+{
+    //  0                   1                   2                   3
+    //  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    // |                           Group ID                            |
+    // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    // |     Type    |     Flags     |             Weight              |
+    // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    if (blocklen < 8)
+    {
+        proto_tree_add_expert_format(tree, pinfo, &ei_srt_hs_ext_hsreq_len,
+            tvb, baseoff, blocklen, "Actual length is %u", blocklen);
+        return;
+    }
+
+    proto_tree_add_item(tree, hf_srt_hs_ext_group_id,     tvb, baseoff,     4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_srt_hs_ext_group_type,   tvb, baseoff + 4, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_srt_hs_ext_group_flags,  tvb, baseoff + 5, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_srt_hs_ext_group_weight, tvb, baseoff + 6, 2, ENC_BIG_ENDIAN);
+
+    if (blocklen > 8)
+    {
+        proto_tree_add_expert_format(tree, pinfo, &ei_srt_hs_ext_hsreq_len,
+            tvb, baseoff, blocklen, "Actual length is %u", blocklen);
     }
 }
 
@@ -412,7 +576,7 @@ static void srt_format_kmx(proto_tree* tree, tvbuff_t* tvb, int baseoff, int blo
 static void dissect_srt_hs_ext_field(proto_tree* tree,
         tvbuff_t* tvb, int baseoff)
 {
-    static const gint ext_field_len = 2;
+    static const int ext_field_len = 2;
 
     const int bits = tvb_get_ntohs(tvb, baseoff);
     if (bits == SRT_HS_V5_EXT_FIELD_MAGIC)
@@ -464,9 +628,9 @@ static void dissect_srt_hs_ext_field(proto_tree* tree,
  *
  * and so on, with null padding (not null termination).
  */
-static void format_text_reorder_32(proto_tree* tree, tvbuff_t* tvb, int hfinfo, int baseoff, int blocklen)
+static void format_text_reorder_32(proto_tree* tree, tvbuff_t* tvb, packet_info *pinfo, int hfinfo, int baseoff, int blocklen)
 {
-    wmem_strbuf_t *sid = wmem_strbuf_create(wmem_packet_scope());
+    wmem_strbuf_t *sid = wmem_strbuf_create(pinfo->pool);
     for (int ii = 0; ii < blocklen; ii += 4)
     {
         //
@@ -487,7 +651,7 @@ static void format_text_reorder_32(proto_tree* tree, tvbuff_t* tvb, int hfinfo, 
         // No, I have no idea why they chose this representation for
         // strings.
         //
-        const guint32 u = tvb_get_ntohl(tvb, baseoff + ii);
+        const uint32_t u = tvb_get_ntohl(tvb, baseoff + ii);
         wmem_strbuf_append_c(sid, 0xFF & (u >>  0));
         wmem_strbuf_append_c(sid, 0xFF & (u >>  8));
         wmem_strbuf_append_c(sid, 0xFF & (u >> 16));
@@ -507,8 +671,8 @@ static void
 dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
                            proto_tree *tree, proto_item *srt_item)
 {
-    guint32 type    = 0;
-    guint32 exttype = 0;
+    uint32_t type    = 0;
+    uint32_t exttype = 0;
 
     proto_tree_add_item_ret_uint(tree, hf_srt_type, tvb, 0, 2,
                                  ENC_BIG_ENDIAN, &type);
@@ -523,26 +687,26 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
     switch (type)
     {
     case UMSG_EXT:
-        col_add_fstr(pinfo->cinfo, COL_INFO, "Control/ext: %s  socket: 0x%x",
+        col_add_fstr(pinfo->cinfo, COL_INFO, "Control/ext: %s socket: %d",
                         val_to_str(exttype, srt_ctrlmsg_exttypes,
-                                   "Unknown SRT Control Type (0x%x)"),
+                                   "Unknown EXT Control Type (%d)"),
                         tvb_get_ntohl(tvb, 12));
         break;
     case UMSG_ACK:
-        col_add_fstr(pinfo->cinfo, COL_INFO, "Control: UMSG_ACK %d ackseq: %d  socket: 0x%x",
+        col_add_fstr(pinfo->cinfo, COL_INFO, "Control: ACK %d seqno: %u socket: %d",
                         tvb_get_ntohl(tvb, 4),
                         tvb_get_ntohl(tvb, 16),
                         tvb_get_ntohl(tvb, 12));
         break;
     case UMSG_ACKACK:
-        col_add_fstr(pinfo->cinfo, COL_INFO, "Control: UMSG_ACKACK %d socket: 0x%x",
+        col_add_fstr(pinfo->cinfo, COL_INFO, "Control: ACKACK %d socket: %d",
                         tvb_get_ntohl(tvb, 4),
                         tvb_get_ntohl(tvb, 12));
         break;
     default:
-        col_add_fstr(pinfo->cinfo, COL_INFO, "Control: %s  socket: 0x%x",
+        col_add_fstr(pinfo->cinfo, COL_INFO, "Control: %s socket: %d",
                         val_to_str(type, srt_ctrlmsg_types,
-                                   "Unknown UDT Control Type (%x)"),
+                                   "Unknown Control Type (%d)"),
                         tvb_get_ntohl(tvb, 12));
         break;
     }
@@ -619,11 +783,35 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
             }
             else
             {
-                int error_code = handshake_reqtype - URQ_FAILURE_TYPES;
+                static const range_string rej_codes_rvals[] = {
+                    { 0,            0, "REJ_UNKNOWN" },
+                    { 1,            1, "REJ_SYSTEM" },
+                    { 2,            2, "REJ_PEER" },
+                    { 3,            3, "REJ_RESOURCE" },
+                    { 4,            4, "REJ_ROGUE" },
+                    { 5,            5, "REJ_BACKLOG" },
+                    { 6,            6, "REJ_IPE" },
+                    { 7,            7, "REJ_CLOSE" },
+                    { 8,            8, "REJ_VERSION" },
+                    { 9,            9, "REJ_RDVCOOKIE" },
+                    { 10,          10, "REJ_BADSECRET" },
+                    { 11,          11, "REJ_UNSECURE" },
+                    { 12,          12, "REJ_MESSAGEAPI" },
+                    { 13,          13, "REJ_CONGESTION" },
+                    { 14,          14, "REJ_FILTER" },
+                    { 15,          15, "REJ_GROUP" },
+                    { 16,          16, "REJ_TIMEOUT" },
+                    { 17,          17, "REJ_CRYPTO" },
+                    { 18,         999, "SRT Internal Rejection Reason"},
+                    { 1000,      1999, "SRT Predefined Rejection Reason"},
+                    { 2000, INT32_MAX, "User Defined Rejection Reason"},
+
+                    { 0x00,      0x00,  NULL },
+                };
+
+                const int error_code = handshake_reqtype - URQ_FAILURE_TYPES;
                 proto_tree_add_uint_format_value(tree, hf_srt_handshake_failure_type, tvb, 36, 4, handshake_reqtype,
-                        "%d (%s)", error_code,
-                        error_code < 1000 ? "SRT internal" :
-                        error_code < 2000 ? "SRT predefined" : "user-defined");
+                    "%d (%s)", error_code, rval_to_str_const(error_code, rej_codes_rvals, "Unknown"));
             }
 
             proto_tree_add_item(tree, hf_srt_handshake_id, tvb,
@@ -631,7 +819,7 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
             proto_tree_add_item(tree, hf_srt_handshake_cookie, tvb,
                         44,  4, ENC_BIG_ENDIAN);
 
-            srt_format_ip_address(ipbuf, sizeof ipbuf, (const gchar *)tvb_memdup(wmem_packet_scope(), tvb, 48, 16));
+            srt_format_ip_address(ipbuf, sizeof ipbuf, (const char *)tvb_memdup(pinfo->pool, tvb, 48, 16));
 
             proto_tree_add_string(tree, hf_srt_handshake_peerip, tvb,
                                   48, 16, ipbuf);
@@ -643,8 +831,8 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
                 int begin = baselen;
                 for (;;)
                 {
-                    const guint16 blockid  = tvb_get_ntohs(tvb, begin);
-                    const guint16 blocklen = tvb_get_ntohs(tvb, begin + 2);
+                    const uint16_t blockid  = tvb_get_ntohs(tvb, begin);
+                    const uint16_t blocklen = tvb_get_ntohs(tvb, begin + 2);
 
                     proto_tree_add_item(tree, hf_srt_srths_blocktype, tvb,
                                         begin, 2, ENC_BIG_ENDIAN);
@@ -679,11 +867,19 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
                         break;
 
                     case SRT_CMD_SID:
-                        format_text_reorder_32(tree, tvb, hf_srt_srths_sid, begin, 4 * blocklen);
+                        format_text_reorder_32(tree, tvb, pinfo, hf_srt_srths_sid, begin, 4 * blocklen);
                         break;
 
-                    case SRT_CMD_CONGESTCTRL:
-                        format_text_reorder_32(tree, tvb, hf_srt_srths_congestcontrol, begin, 4 * blocklen);
+                    case SRT_CMD_CONGESTION:
+                        format_text_reorder_32(tree, tvb, pinfo, hf_srt_srths_congestcontrol, begin, 4 * blocklen);
+                        break;
+
+                    case SRT_CMD_FILTER:
+                        format_text_reorder_32(tree, tvb, pinfo, hf_srt_hs_ext_filter, begin, 4 * blocklen);
+                        break;
+
+                    case SRT_CMD_GROUP:
+                        srt_format_hs_ext_group(tree, tvb, pinfo, begin, blocklen * 4);
                         break;
 
                     default:
@@ -709,7 +905,7 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
         break;
     case UMSG_ACK:
         {
-            guint len = tvb_reported_length(tvb);
+            unsigned len = tvb_reported_length(tvb);
 
             proto_tree_add_item(tree, hf_srt_ack_seqno, tvb, 4 * 4, 4,
                                 ENC_BIG_ENDIAN);
@@ -742,7 +938,7 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
                         len = (4 + 7) * 4;
                     }
 
-                    proto_item_set_len(srt_item, (gint) len);
+                    proto_item_set_len(srt_item, (int) len);
                 }
                 else
                 {
@@ -753,25 +949,25 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
         break;
     case UMSG_DROPREQ:
         {
-            guint len = tvb_reported_length(tvb);
+            unsigned len = tvb_reported_length(tvb);
             if (len > (4 + 0) * 4)
             {
-                guint lo = tvb_get_ntohl(tvb, (4 + 0) * 4);
-                guint hi = tvb_get_ntohl(tvb, (4 + 1) * 4);
+                unsigned lo = tvb_get_ntohl(tvb, (4 + 0) * 4);
+                unsigned hi = tvb_get_ntohl(tvb, (4 + 1) * 4);
 
                 proto_tree_add_expert_format(tree, pinfo, &ei_srt_nak_seqno,
                         tvb, 16, 8, "Drop sequence range: %u-%u",
                         lo, hi);
-                proto_item_set_len(srt_item, (gint) len);
+                proto_item_set_len(srt_item, (int) len);
             }
         }
         break;
     case UMSG_LOSSREPORT:
         {
-            guint len = tvb_reported_length(tvb);
-            guint pos;
-            guint32 val;
-            guint prev = 0;
+            unsigned len = tvb_reported_length(tvb);
+            unsigned pos;
+            uint32_t val;
+            unsigned prev = 0;
             for (pos = 16; pos < len; pos += 4)
             {
                 val = tvb_get_ntohl(tvb, pos);
@@ -849,7 +1045,7 @@ dissect_srt_udp(tvbuff_t *tvb, packet_info* pinfo, proto_tree *parent_tree,
                 void *data _U_)
 {
     /* Other misc. local variables. */
-    gboolean is_control = 0;
+    bool is_control = 0;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "SRT");
     col_clear  (pinfo->cinfo, COL_INFO);
@@ -869,10 +1065,11 @@ dissect_srt_udp(tvbuff_t *tvb, packet_info* pinfo, proto_tree *parent_tree,
         tvbuff_t *next_tvb;
 
         col_add_fstr(pinfo->cinfo, COL_INFO,
-                     "DATA: seqno: %u  msgno: %u  socket: 0x%x",
+                     "DATA: seqno: %u msgno: #%u socket: %d %s",
                      tvb_get_ntohl(tvb, 0),
                      tvb_get_ntohl(tvb, 4) & SRT_MSGNO_MSGNO_MASK,
-                     tvb_get_ntohl(tvb, 12));
+                     tvb_get_ntohl(tvb, 12),
+                     tvb_get_ntohl(tvb, 4) & SRT_MSGNO_REXMIT_FLG ? "R" : "");
 
         if (tree)
         {
@@ -898,33 +1095,33 @@ dissect_srt_udp(tvbuff_t *tvb, packet_info* pinfo, proto_tree *parent_tree,
 }
 
 
-static gboolean
+static bool
 dissect_srt_heur_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     conversation_t *conv;
 
     /* Must have at least 24 captured bytes for heuristic check */
     if (tvb_captured_length(tvb) < 24)
-        return FALSE;
+        return false;
 
     /* detect handshake control packet */
     if (tvb_get_ntohl(tvb, 0) != (0x80000000 | UMSG_HANDSHAKE))
-        return FALSE;
+        return false;
 
     /* must be version 4 or 5*/
-    const guint32 version = tvb_get_ntohl(tvb, 16);
+    const uint32_t version = tvb_get_ntohl(tvb, 16);
     if (version != 4 && version != 5)
-        return FALSE;
+        return false;
 
     /* SRT: must be DGRAM. STREAM is not supported in SRT */
     if (version == 4 && tvb_get_ntohl(tvb, 20) != SRT_DGRAM)
-        return FALSE;
+        return false;
 
     conv = find_or_create_conversation(pinfo);
     conversation_set_dissector(conv, srt_udp_handle);
     dissect_srt_udp(tvb, pinfo, tree, data);
 
-    return TRUE;
+    return true;
 }
 
 
@@ -1002,7 +1199,7 @@ void proto_register_srt(void)
 
         {&hf_srt_id, {
             "Destination Socket ID", "srt.id",
-            FT_UINT32, BASE_HEX,
+            FT_UINT32, BASE_DEC,
             NULL, 0, NULL, HFILL}},
 
         {&hf_srt_ack_seqno, {
@@ -1018,32 +1215,32 @@ void proto_register_srt(void)
         {&hf_srt_rtt, {
             "ACKD_RTT", "srt.rtt",
             FT_UINT32, BASE_DEC | BASE_UNIT_STRING,
-            &units_microseconds, 0, NULL, HFILL}},
+            UNS(&units_microseconds), 0, NULL, HFILL}},
 
         {&hf_srt_rttvar, {
             "ACKD_RTTVAR", "srt.rttvar",
             FT_UINT32, BASE_DEC | BASE_UNIT_STRING,
-            &units_microseconds, 0, NULL, HFILL}},
+            UNS(&units_microseconds), 0, NULL, HFILL}},
 
         {&hf_srt_bufavail, {
             "ACKD_BUFFERLEFT", "srt.bufavail",
             FT_UINT32, BASE_DEC | BASE_UNIT_STRING,
-            &units_pkts, 0, NULL, HFILL}},
+            UNS(&units_pkts), 0, NULL, HFILL}},
 
         {&hf_srt_rate, {
             "ACKD_RCVSPEED", "srt.rate",
             FT_UINT32, BASE_DEC | BASE_UNIT_STRING,
-            &units_pkts_per_sec, 0, NULL, HFILL}},
+            UNS(&units_pkts_per_sec), 0, NULL, HFILL}},
 
         {&hf_srt_bandwidth, {
             "ACKD_BANDWIDTH", "srt.bw",
             FT_UINT32, BASE_DEC | BASE_UNIT_STRING,
-            &units_pkts_per_sec, 0, NULL, HFILL}},
+            UNS(&units_pkts_per_sec), 0, NULL, HFILL}},
 
         {&hf_srt_rcvrate, {
             "ACKD_RCVRATE", "srt.rcvrate",
             FT_UINT32, BASE_DEC | BASE_UNIT_STRING,
-            &units_byte_bytespsecond, 0, NULL, HFILL}},
+            UNS(&units_byte_bytespsecond), 0, NULL, HFILL}},
 
         {&hf_srt_handshake_version, {
             "Handshake Version", "srt.hs.version",
@@ -1057,7 +1254,7 @@ void proto_register_srt(void)
             HFILL}},
 
         {&hf_srt_handshake_enc_field_v5, {
-            "Encryption Field", "srt.hs.encfield",
+            "Crypto Key Field", "srt.hs.enckeyfield",
             FT_UINT16, BASE_HEX,
             VALS(srt_handshake_enc_field), 0, NULL,
             HFILL}},
@@ -1116,13 +1313,14 @@ void proto_register_srt(void)
 
         {&hf_srt_handshake_id, {
             "Socket ID", "srt.hs.id",
-            FT_UINT32, BASE_HEX,
+            FT_UINT32, BASE_DEC,
             NULL, 0, NULL, HFILL}},
 
         {&hf_srt_handshake_cookie, {
             "SYN Cookie", "srt.hs.cookie",
             FT_UINT32, BASE_HEX,
             NULL, 0, NULL, HFILL}},
+
         {&hf_srt_handshake_peerip, {
             /* FT_STRINGZ is used because the value
              * is formatted to a temporary buffer first */
@@ -1204,12 +1402,12 @@ void proto_register_srt(void)
         {&hf_srt_srths_agent_latency, {
             "Latency", "srt.hs.agent_latency",
             FT_UINT16, BASE_DEC | BASE_UNIT_STRING,
-            &units_milliseconds, 0, NULL, HFILL}},
+            UNS(&units_milliseconds), 0, NULL, HFILL}},
 
         {&hf_srt_srths_peer_latency, {
             "Peer Latency", "srt.hs.peer_latency",
             FT_UINT16, BASE_DEC | BASE_UNIT_STRING,
-            &units_milliseconds, 0, NULL, HFILL}},
+            UNS(&units_milliseconds), 0, NULL, HFILL}},
 
         {&hf_srt_srtkm_msg, {
             "KMX Message (or KM State if 4 bytes)", "srt.km.msg",
@@ -1229,10 +1427,134 @@ void proto_register_srt(void)
         {&hf_srt_srths_congestcontrol, {
             "Congestion Control Type", "srt.hs.congestctrl",
             FT_STRING, BASE_NONE,
+            NULL, 0, NULL, HFILL}},
+
+        {&hf_srt_hs_ext_filter, {
+            "Packet Filter Type", "srt.hs.filter",
+            FT_STRING, BASE_NONE,
+            NULL, 0, NULL, HFILL}},
+
+        {&hf_srt_km, {
+            "Key Material", "srt.km",
+            FT_BYTES, BASE_NONE,
+            NULL, 0, NULL, HFILL}},
+
+        {&hf_srt_km_s, {
+            "Reserved 'S' Bit", "srt.km.s",
+            FT_UINT8, BASE_DEC, NULL,
+            SRT_KM_S_MASK, NULL, HFILL}},
+
+        {&hf_srt_km_v, {
+            "KM Version", "srt.km.v",
+            FT_UINT8, BASE_DEC,
+            NULL, SRT_KM_V_MASK, NULL,
+            HFILL} },
+
+        {&hf_srt_km_pt, {
+            "KM Payload Type", "srt.km.pt",
+            FT_UINT8, BASE_DEC,
+            NULL, SRT_KM_PT_MASK, NULL,
+            HFILL} },
+
+        {&hf_srt_km_sign, {
+            "KM Signature", "srt.km.sign",
+            FT_BYTES, BASE_NONE,
+            NULL, 0, NULL,
+            HFILL} },
+
+        {&hf_srt_km_resv1, {
+            "Reserved1", "srt.km.resv1",
+            FT_UINT8, BASE_DEC,
+            NULL, SRT_KM_RESV1_MASK, NULL,
+            HFILL} },
+
+        {&hf_srt_km_kk, {
+            "Encryption Keys", "srt.km.kk",
+            FT_UINT8, BASE_DEC,
+            NULL, SRT_KM_KK_MASK, NULL,
+            HFILL} },
+
+        {&hf_srt_km_keki, {
+            "KEK index", "srt.km.keki",
+            FT_UINT32, BASE_DEC,
+            NULL, 0, NULL,
+            HFILL} },
+
+        {&hf_srt_km_cipher, {
+            "Cipher", "srt.km.cipher",
+            FT_UINT8, BASE_DEC,
+            NULL, 0, NULL,
+            HFILL} },
+
+        {&hf_srt_km_auth, {
+            "Auth", "srt.km.auth",
+            FT_UINT8, BASE_DEC,
+            NULL, 0, NULL,
+            HFILL} },
+
+        {&hf_srt_km_se, {
+            "Stream Encapsulation", "srt.km.se",
+            FT_UINT8, BASE_DEC,
+            NULL, 0, NULL,
+            HFILL} },
+
+        {&hf_srt_km_resv2, {
+            "Reserved2", "srt.km.resv2",
+            FT_UINT8, BASE_DEC,
+            NULL, 0, NULL,
+            HFILL} },
+
+        { &hf_srt_km_resv3, {
+            "Reserved3", "srt.km.resv3",
+            FT_UINT16, BASE_DEC,
+            NULL, 0, NULL,
+            HFILL} },
+
+        {&hf_srt_km_slen, {
+            "Salt Length (4-byte blocks)", "srt.km.slen",
+            FT_UINT8, BASE_DEC,
+            NULL, 0, NULL,
+            HFILL} },
+
+        {&hf_srt_km_klen, {
+            "SEK Length (4-byte blocks)", "srt.km.klen",
+            FT_UINT8, BASE_DEC,
+            NULL, 0, NULL,
+            HFILL} },
+
+         {&hf_srt_km_salt, {
+            "Salt", "srt.km.salt",
+            FT_BYTES, BASE_NONE,
+            NULL, 0, NULL, HFILL}},
+
+        {&hf_srt_km_wrap, {
+            "Key wrap", "srt.km.wrap",
+            FT_BYTES, BASE_NONE,
+            NULL, 0, NULL, HFILL}},
+
+        {&hf_srt_hs_ext_group_id, {
+            "Group ID", "srt.hs_ext_group.id",
+            FT_UINT32, BASE_DEC,
+            NULL, 0, NULL, HFILL}},
+
+        { &hf_srt_hs_ext_group_type, {
+            "Group Type", "srt.hs_ext_group.type",
+            FT_UINT8, BASE_DEC,
+            VALS(srt_hs_ext_group_type), 0, NULL, HFILL}},
+
+        { &hf_srt_hs_ext_group_flags, {
+            "Group Flags", "srt.hs_ext_group.flags",
+            FT_UINT8, BASE_DEC,
+            NULL, 0, NULL, HFILL}},
+
+        { &hf_srt_hs_ext_group_weight, {
+            "Member Weight", "srt.hs_ext_group.member_weight",
+            FT_UINT16, BASE_DEC,
             NULL, 0, NULL, HFILL}}
+
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_srt,
         &ett_srt_handshake_ext_flags,
         &ett_srt_handshake_ext_field_flags
@@ -1250,6 +1572,10 @@ void proto_register_srt(void)
         { &ei_srt_hs_ext_type,
             { "srt.hs.ext.type", PI_PROTOCOL, PI_WARN,
               "Unknown HS Ext Type", EXPFILL }},
+
+        { &ei_srt_hs_ext_group_len,
+            { "srt.hs.ext.group", PI_PROTOCOL, PI_WARN,
+              "Wrong HS Ext Group length", EXPFILL }},
     };
 
     proto_srt = proto_register_protocol("SRT Protocol", "SRT", "srt");

@@ -14,6 +14,7 @@
 #include <epan/packet.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-per.h"
 
@@ -25,11 +26,11 @@ void proto_register_h282(void);
 void proto_reg_handoff_h282(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_h282 = -1;
+static int proto_h282;
 #include "packet-h282-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_h282 = -1;
+static int ett_h282;
 #include "packet-h282-ett.c"
 
 /* Dissectors */
@@ -61,7 +62,7 @@ void proto_register_h282(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_h282,
 #include "packet-h282-ettarr.c"
   };

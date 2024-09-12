@@ -34,15 +34,15 @@ static dissector_handle_t dpaux_handle;
 static dissector_handle_t dpauxmon_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_dpauxmon = -1;
+static int proto_dpauxmon;
 
-static int hf_packet_type = -1;
-static int hf_origin = -1;
-static int hf_inputs = -1;
-static int hf_hpd = -1;
-static int hf_in0 = -1;
-static int hf_in1 = -1;
-static int hf_in2 = -1;
+static int hf_packet_type;
+static int hf_origin;
+static int hf_inputs;
+static int hf_hpd;
+static int hf_in0;
+static int hf_in1;
+static int hf_in2;
 
 static int * const input_fields[] = {
     &hf_hpd,
@@ -53,7 +53,7 @@ static int * const input_fields[] = {
 };
 
 /* Initialize the subtree pointers */
-static gint ett_dpauxmon = -1;
+static int ett_dpauxmon;
 
 static const value_string packet_type_vals[] = {
     { DPAUXMON_DATA, "Data" },
@@ -76,7 +76,7 @@ dissect_dpauxmon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
     proto_item *ti;
     proto_tree *dpauxmon_tree;
-    guint32 packet_type;
+    uint32_t packet_type;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "DPAUXMON");
     col_set_str(pinfo->cinfo, COL_RES_DL_DST, "N/A");
@@ -93,7 +93,7 @@ dissect_dpauxmon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     case DPAUXMON_DATA: {
         struct dpaux_info dpaux_info;
 
-        dpaux_info.from_source = tvb_get_guint8(tvb, 1);
+        dpaux_info.from_source = tvb_get_uint8(tvb, 1);
         proto_tree_add_uint(dpauxmon_tree, hf_origin, tvb, 1, 1, dpaux_info.from_source);
 
         call_dissector_with_data(dpaux_handle, tvb_new_subset_remaining(tvb, 2),
@@ -118,7 +118,7 @@ void
 proto_register_dpauxmon(void)
 {
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_dpauxmon
     };
 
@@ -173,12 +173,12 @@ proto_register_dpauxmon(void)
 void
 proto_reg_handoff_dpauxmon(void)
 {
-    static gboolean initialized = FALSE;
+    static bool initialized = false;
 
     dpaux_handle = find_dissector_add_dependency("dpaux", proto_dpauxmon);
 
     if (!initialized) {
-        initialized = TRUE;
+        initialized = true;
     } else {
         dissector_delete_uint("wtap_encap", WTAP_ENCAP_DPAUXMON, dpauxmon_handle);
     }

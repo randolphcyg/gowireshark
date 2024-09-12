@@ -24,23 +24,23 @@
 void proto_reg_handoff_vmware_hb(void);
 void proto_register_vmware_hb(void);
 
-static int proto_vmware_hb = -1;
-static int hf_vmware_hb_magic = -1;
-static int hf_vmware_hb_build_number = -1;
-static int hf_vmware_hb_server_id = -1;
-static int hf_vmware_hb_host_key_length = -1;
-static int hf_vmware_hb_host_key = -1;
-static int hf_vmware_hb_change_gen = -1;
-static int hf_vmware_hb_spec_gen = -1;
-static int hf_vmware_hb_bundle_version = -1;
-static int hf_vmware_hb_heartbeat_counter = -1;
-static int hf_vmware_hb_ip4_address_length = -1;
-static int hf_vmware_hb_ip4_address = -1;
-static int hf_vmware_hb_verification_signature = -1;
+static int proto_vmware_hb;
+static int hf_vmware_hb_magic;
+static int hf_vmware_hb_build_number;
+static int hf_vmware_hb_server_id;
+static int hf_vmware_hb_host_key_length;
+static int hf_vmware_hb_host_key;
+static int hf_vmware_hb_change_gen;
+static int hf_vmware_hb_spec_gen;
+static int hf_vmware_hb_bundle_version;
+static int hf_vmware_hb_heartbeat_counter;
+static int hf_vmware_hb_ip4_address_length;
+static int hf_vmware_hb_ip4_address;
+static int hf_vmware_hb_verification_signature;
 
 static dissector_handle_t vmware_hb_handle;
 
-static gint ett_vmware_hb = -1;
+static int ett_vmware_hb;
 
 static const value_string vmware_hb_build_number[] = {
     { 164009, "ESXi 4.0.0 GA" },
@@ -396,6 +396,13 @@ static const value_string vmware_hb_build_number[] = {
     { 22348808, "ESXi 7.0 Update 3o (Security Only)" },
     { 22348816, "ESXi 7.0 Update 3o" },
     { 22380479, "ESXi 8.0 Update 2" },
+    { 23299997, "ESXi 8.0 Update 1d" },
+    { 23305545, "ESXi 8.0 Update 2b (Security Only)" },
+    { 23305546, "ESXi 8.0 Update 2b" },
+    { 23307199, "ESXi 7.0 Update 3p" },
+    { 23794019, "ESXi 7.0 Update 3q (Security Only)" },
+    { 23794027, "ESXi 7.0 Update 3q" },
+    { 23825572, "ESXi 8.0 Update 2c" },
     {0, NULL}
 };
 static value_string_ext vmware_hb_build_number_ext = VALUE_STRING_EXT_INIT(vmware_hb_build_number);
@@ -406,7 +413,8 @@ dissect_vmware_hb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
     proto_item *ti;
     proto_tree *vmware_hb_tree;
-    guint       offset = 0, host_key_length, ip4_length;
+    unsigned    offset = 0, host_key_length, ip4_length;
+    const uint8_t *host_key, *ip4_str;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "VMWARE-HB");
 
@@ -426,7 +434,8 @@ dissect_vmware_hb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     proto_tree_add_item_ret_uint(vmware_hb_tree, hf_vmware_hb_host_key_length, tvb, offset, 1, ENC_BIG_ENDIAN, &host_key_length);
     offset += 1;
 
-    proto_tree_add_item(vmware_hb_tree, hf_vmware_hb_host_key, tvb, offset, host_key_length, ENC_ASCII);
+    proto_tree_add_item_ret_string(vmware_hb_tree, hf_vmware_hb_host_key, tvb, offset, host_key_length, ENC_ASCII, pinfo->pool, &host_key);
+    col_add_fstr(pinfo->cinfo, COL_INFO, "Host Key: %s", host_key);
     offset += host_key_length;
 
     proto_tree_add_item(vmware_hb_tree, hf_vmware_hb_change_gen, tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -444,16 +453,16 @@ dissect_vmware_hb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     proto_tree_add_item_ret_uint(vmware_hb_tree, hf_vmware_hb_ip4_address_length, tvb, offset, 1, ENC_BIG_ENDIAN, &ip4_length);
     offset += 1;
 
-    proto_tree_add_item(vmware_hb_tree, hf_vmware_hb_ip4_address, tvb, offset, ip4_length, ENC_ASCII);
-    offset += ip4_length;
+    if (ip4_length) {
+        proto_tree_add_item_ret_string(vmware_hb_tree, hf_vmware_hb_ip4_address, tvb, offset, ip4_length, ENC_ASCII, pinfo->pool, &ip4_str);
+        col_append_fstr(pinfo->cinfo, COL_INFO, " - IP: %s", ip4_str);
+        offset += ip4_length;
+    }
 
-    proto_tree_add_item(vmware_hb_tree, hf_vmware_hb_verification_signature, tvb, offset, -1, ENC_NA);
-    offset += tvb_reported_length_remaining(tvb, offset);
-
-    col_add_fstr(pinfo->cinfo, COL_INFO, "Host Key: %s - IP: %s",
-                tvb_get_string_enc(pinfo->pool, tvb, 13, host_key_length, ENC_ASCII), /* Host Key */
-                tvb_get_string_enc(pinfo->pool, tvb, (13+host_key_length+17), ip4_length, ENC_ASCII)  /* ESX IPv4 Address ID*/
-                );
+    if (tvb_reported_length_remaining(tvb, offset)) {
+        proto_tree_add_item(vmware_hb_tree, hf_vmware_hb_verification_signature, tvb, offset, -1, ENC_NA);
+        offset += tvb_reported_length_remaining(tvb, offset);
+    }
 
     return offset;
 }
@@ -539,7 +548,7 @@ proto_register_vmware_hb(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_vmware_hb
     };
 

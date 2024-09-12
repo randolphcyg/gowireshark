@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 #include "config.h"
+#include "wtap_opttypes.h"
 
 #define WS_LOG_DOMAIN LOG_DOMAIN_WIRETAP
 
@@ -14,13 +15,11 @@
 #include <string.h>
 
 #include "wtap.h"
-#include "wtap_opttypes.h"
 #include "wtap-int.h"
 #include "pcapng_module.h"
 #include <wsutil/ws_assert.h>
 
 #include <wsutil/glib-compat.h>
-#include <wsutil/inet_ipv6.h>
 #include <wsutil/unicode-utils.h>
 
 #if 0
@@ -55,7 +54,7 @@ typedef struct {
     const char *name;                            /**< name of option */
     const char *description;                     /**< human-readable description of option */
     wtap_opttype_e data_type;                    /**< data type of that option */
-    guint flags;                                 /**< flags for the option */
+    unsigned flags;                                 /**< flags for the option */
 } wtap_opttype_t;
 
 /* Flags */
@@ -63,21 +62,21 @@ typedef struct {
 
 /* Debugging reference counting */
 #ifdef DEBUG_COUNT_REFS
-static guint block_count = 0;
-static guint8 blocks_active[sizeof(guint)/8];
+static unsigned block_count;
+static uint8_t blocks_active[sizeof(unsigned)/8];
 
-static void rc_set(guint refnum)
+static void rc_set(unsigned refnum)
 {
-    guint cellno = refnum / 8;
-    guint bitno = refnum % 8;
-    blocks_active[cellno] |= (guint8)(1 << bitno);
+    unsigned cellno = refnum / 8;
+    unsigned bitno = refnum % 8;
+    blocks_active[cellno] |= (uint8_t)(1 << bitno);
 }
 
-static void rc_clear(guint refnum)
+static void rc_clear(unsigned refnum)
 {
-    guint cellno = refnum / 8;
-    guint bitno = refnum % 8;
-    blocks_active[cellno] &= (guint8)~(1 << bitno);
+    unsigned cellno = refnum / 8;
+    unsigned bitno = refnum % 8;
+    blocks_active[cellno] &= (uint8_t)~(1 << bitno);
 }
 
 #endif /* DEBUG_COUNT_REFS */
@@ -87,9 +86,9 @@ struct wtap_block
     wtap_blocktype_t* info;
     void* mandatory_data;
     GArray* options;
-    gint ref_count;
+    int ref_count;
 #ifdef DEBUG_COUNT_REFS
-    guint id;
+    unsigned id;
 #endif
 };
 
@@ -160,7 +159,7 @@ packet_verdict_dup(packet_verdict_opt_t* verdict_src)
     case packet_verdict_hardware:
         /* array of octets */
         verdict_dest.data.verdict_bytes =
-            g_byte_array_new_take((guint8 *)g_memdup2(verdict_src->data.verdict_bytes->data,
+            g_byte_array_new_take((uint8_t *)g_memdup2(verdict_src->data.verdict_bytes->data,
                                                       verdict_src->data.verdict_bytes->len),
                                   verdict_src->data.verdict_bytes->len);
         break;
@@ -189,7 +188,7 @@ void wtap_packet_verdict_free(packet_verdict_opt_t* verdict)
 
     case packet_verdict_hardware:
         /* array of bytes */
-        g_byte_array_free(verdict->data.verdict_bytes, TRUE);
+        g_byte_array_free(verdict->data.verdict_bytes, true);
         break;
 
     default:
@@ -208,7 +207,7 @@ packet_hash_dup(packet_hash_opt_t* hash_src)
     hash_dest.type = hash_src->type;
     /* array of octets */
     hash_dest.hash_bytes =
-        g_byte_array_new_take((guint8 *)g_memdup2(hash_src->hash_bytes->data,
+        g_byte_array_new_take((uint8_t *)g_memdup2(hash_src->hash_bytes->data,
                                                   hash_src->hash_bytes->len),
                               hash_src->hash_bytes->len);
     return hash_dest;
@@ -217,7 +216,7 @@ packet_hash_dup(packet_hash_opt_t* hash_src)
 void wtap_packet_hash_free(packet_hash_opt_t* hash)
 {
     /* array of bytes */
-    g_byte_array_free(hash->hash_bytes, TRUE);
+    g_byte_array_free(hash->hash_bytes, true);
 }
 
 static void wtap_opttype_block_register(wtap_blocktype_t *blocktype)
@@ -259,23 +258,23 @@ static void wtap_opttype_block_register(wtap_blocktype_t *blocktype)
      */
     blocktype->options = g_hash_table_new(g_direct_hash, g_direct_equal);
     g_hash_table_insert(blocktype->options, GUINT_TO_POINTER(OPT_COMMENT),
-                        (gpointer)&opt_comment);
+                        (void *)&opt_comment);
     g_hash_table_insert(blocktype->options, GUINT_TO_POINTER(OPT_CUSTOM_STR_COPY),
-                        (gpointer)&opt_custom);
+                        (void *)&opt_custom);
     g_hash_table_insert(blocktype->options, GUINT_TO_POINTER(OPT_CUSTOM_BIN_COPY),
-                        (gpointer)&opt_custom);
+                        (void *)&opt_custom);
     g_hash_table_insert(blocktype->options, GUINT_TO_POINTER(OPT_CUSTOM_STR_NO_COPY),
-                        (gpointer)&opt_custom);
+                        (void *)&opt_custom);
     g_hash_table_insert(blocktype->options, GUINT_TO_POINTER(OPT_CUSTOM_BIN_NO_COPY),
-                        (gpointer)&opt_custom);
+                        (void *)&opt_custom);
 
     blocktype_list[block_type] = blocktype;
 }
 
-static void wtap_opttype_option_register(wtap_blocktype_t *blocktype, guint opttype, const wtap_opttype_t *option)
+static void wtap_opttype_option_register(wtap_blocktype_t *blocktype, unsigned opttype, const wtap_opttype_t *option)
 {
     g_hash_table_insert(blocktype->options, GUINT_TO_POINTER(opttype),
-                        (gpointer) option);
+                        (void *) option);
 }
 
 wtap_block_type_t wtap_block_get_type(wtap_block_t block)
@@ -289,9 +288,9 @@ void* wtap_block_get_mandatory_data(wtap_block_t block)
 }
 
 static wtap_optval_t *
-wtap_block_get_option(wtap_block_t block, guint option_id)
+wtap_block_get_option(wtap_block_t block, unsigned option_id)
 {
-    guint i;
+    unsigned i;
     wtap_option_t *opt;
 
     if (block == NULL) {
@@ -308,11 +307,11 @@ wtap_block_get_option(wtap_block_t block, guint option_id)
 }
 
 static wtap_optval_t *
-wtap_block_get_nth_option(wtap_block_t block, guint option_id, guint idx)
+wtap_block_get_nth_option(wtap_block_t block, unsigned option_id, unsigned idx)
 {
-    guint i;
+    unsigned i;
     wtap_option_t *opt;
-    guint opt_idx;
+    unsigned opt_idx;
 
     if (block == NULL) {
         return NULL;
@@ -340,7 +339,7 @@ wtap_block_t wtap_block_create(wtap_block_type_t block_type)
 
     block = g_new(struct wtap_block, 1);
     block->info = blocktype_list[block_type];
-    block->options = g_array_new(FALSE, FALSE, sizeof(wtap_option_t));
+    block->options = g_array_new(false, false, sizeof(wtap_option_t));
     block->info->create(block);
     block->ref_count = 1;
 #ifdef DEBUG_COUNT_REFS
@@ -401,7 +400,7 @@ static void wtap_block_free_option(wtap_block_t block, wtap_option_t *opt)
 
 static void wtap_block_free_options(wtap_block_t block)
 {
-    guint i;
+    unsigned i;
     wtap_option_t *opt;
 
     if (block == NULL || block->options == NULL) {
@@ -442,7 +441,7 @@ void wtap_block_unref(wtap_block_t block)
 
             g_free(block->mandatory_data);
             wtap_block_free_options(block);
-            g_array_free(block->options, TRUE);
+            g_array_free(block->options, true);
             g_free(block);
         }
 #ifdef DEBUG_COUNT_REFS
@@ -455,7 +454,7 @@ void wtap_block_unref(wtap_block_t block)
 
 void wtap_block_array_free(GArray* block_array)
 {
-    guint block;
+    unsigned block;
 
     if (block_array == NULL)
         return;
@@ -463,7 +462,7 @@ void wtap_block_array_free(GArray* block_array)
     for (block = 0; block < block_array->len; block++) {
         wtap_block_unref(g_array_index(block_array, wtap_block_t, block));
     }
-    g_array_free(block_array, TRUE);
+    g_array_free(block_array, true);
 }
 
 void wtap_block_array_ref(GArray* block_array)
@@ -498,7 +497,7 @@ void wtap_block_array_unref(GArray* block_array)
 void
 wtap_block_copy(wtap_block_t dest_block, wtap_block_t src_block)
 {
-    guint i;
+    unsigned i;
     wtap_option_t *src_opt;
     const wtap_opttype_t *opttype;
 
@@ -593,11 +592,11 @@ wtap_block_t wtap_block_make_copy(wtap_block_t block)
     return block_copy;
 }
 
-guint
-wtap_block_count_option(wtap_block_t block, guint option_id)
+unsigned
+wtap_block_count_option(wtap_block_t block, unsigned option_id)
 {
-    guint i;
-    guint ret_val = 0;
+    unsigned i;
+    unsigned ret_val = 0;
     wtap_option_t *opt;
 
     if (block == NULL) {
@@ -614,31 +613,31 @@ wtap_block_count_option(wtap_block_t block, guint option_id)
 }
 
 
-gboolean wtap_block_foreach_option(wtap_block_t block, wtap_block_foreach_func func, void* user_data)
+bool wtap_block_foreach_option(wtap_block_t block, wtap_block_foreach_func func, void* user_data)
 {
-    guint i;
+    unsigned i;
     wtap_option_t *opt;
     const wtap_opttype_t *opttype;
 
     if (block == NULL) {
-        return TRUE;
+        return true;
     }
 
     for (i = 0; i < block->options->len; i++) {
         opt = &g_array_index(block->options, wtap_option_t, i);
         opttype = GET_OPTION_TYPE(block->info->options, opt->option_id);
         if (!func(block, opt->option_id, opttype->data_type, &opt->value, user_data))
-            return FALSE;
+            return false;
     }
-    return TRUE;
+    return true;
 }
 
 static wtap_opttype_return_val
-wtap_block_add_option_common(wtap_block_t block, guint option_id, wtap_opttype_e type, wtap_option_t **optp)
+wtap_block_add_option_common(wtap_block_t block, unsigned option_id, wtap_opttype_e type, wtap_option_t **optp)
 {
     wtap_option_t *opt;
     const wtap_opttype_t *opttype;
-    guint i;
+    unsigned i;
 
     if (block == NULL) {
         return WTAP_OPTTYPE_BAD_BLOCK;
@@ -687,7 +686,7 @@ wtap_block_add_option_common(wtap_block_t block, guint option_id, wtap_opttype_e
 }
 
 static wtap_opttype_return_val
-wtap_block_get_option_common(wtap_block_t block, guint option_id, wtap_opttype_e type, wtap_optval_t **optvalp)
+wtap_block_get_option_common(wtap_block_t block, unsigned option_id, wtap_opttype_e type, wtap_optval_t **optvalp)
 {
     const wtap_opttype_t *opttype;
     wtap_optval_t *optval;
@@ -733,7 +732,7 @@ wtap_block_get_option_common(wtap_block_t block, guint option_id, wtap_opttype_e
 }
 
 static wtap_opttype_return_val
-wtap_block_get_nth_option_common(wtap_block_t block, guint option_id, wtap_opttype_e type, guint idx, wtap_optval_t **optvalp)
+wtap_block_get_nth_option_common(wtap_block_t block, unsigned option_id, wtap_opttype_e type, unsigned idx, wtap_optval_t **optvalp)
 {
     const wtap_opttype_t *opttype;
     wtap_optval_t *optval;
@@ -779,7 +778,7 @@ wtap_block_get_nth_option_common(wtap_block_t block, guint option_id, wtap_optty
 }
 
 wtap_opttype_return_val
-wtap_block_add_uint8_option(wtap_block_t block, guint option_id, guint8 value)
+wtap_block_add_uint8_option(wtap_block_t block, unsigned option_id, uint8_t value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -792,7 +791,7 @@ wtap_block_add_uint8_option(wtap_block_t block, guint option_id, guint8 value)
 }
 
 wtap_opttype_return_val
-wtap_block_set_uint8_option_value(wtap_block_t block, guint option_id, guint8 value)
+wtap_block_set_uint8_option_value(wtap_block_t block, unsigned option_id, uint8_t value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -805,7 +804,7 @@ wtap_block_set_uint8_option_value(wtap_block_t block, guint option_id, guint8 va
 }
 
 wtap_opttype_return_val
-wtap_block_get_uint8_option_value(wtap_block_t block, guint option_id, guint8* value)
+wtap_block_get_uint8_option_value(wtap_block_t block, unsigned option_id, uint8_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -818,7 +817,7 @@ wtap_block_get_uint8_option_value(wtap_block_t block, guint option_id, guint8* v
 }
 
 wtap_opttype_return_val
-wtap_block_add_uint32_option(wtap_block_t block, guint option_id, guint32 value)
+wtap_block_add_uint32_option(wtap_block_t block, unsigned option_id, uint32_t value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -831,7 +830,7 @@ wtap_block_add_uint32_option(wtap_block_t block, guint option_id, guint32 value)
 }
 
 wtap_opttype_return_val
-wtap_block_set_uint32_option_value(wtap_block_t block, guint option_id, guint32 value)
+wtap_block_set_uint32_option_value(wtap_block_t block, unsigned option_id, uint32_t value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -844,7 +843,7 @@ wtap_block_set_uint32_option_value(wtap_block_t block, guint option_id, guint32 
 }
 
 wtap_opttype_return_val
-wtap_block_get_uint32_option_value(wtap_block_t block, guint option_id, guint32* value)
+wtap_block_get_uint32_option_value(wtap_block_t block, unsigned option_id, uint32_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -857,7 +856,7 @@ wtap_block_get_uint32_option_value(wtap_block_t block, guint option_id, guint32*
 }
 
 wtap_opttype_return_val
-wtap_block_add_uint64_option(wtap_block_t block, guint option_id, guint64 value)
+wtap_block_add_uint64_option(wtap_block_t block, unsigned option_id, uint64_t value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -870,7 +869,7 @@ wtap_block_add_uint64_option(wtap_block_t block, guint option_id, guint64 value)
 }
 
 wtap_opttype_return_val
-wtap_block_set_uint64_option_value(wtap_block_t block, guint option_id, guint64 value)
+wtap_block_set_uint64_option_value(wtap_block_t block, unsigned option_id, uint64_t value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -883,7 +882,7 @@ wtap_block_set_uint64_option_value(wtap_block_t block, guint option_id, guint64 
 }
 
 wtap_opttype_return_val
-wtap_block_get_uint64_option_value(wtap_block_t block, guint option_id, guint64 *value)
+wtap_block_get_uint64_option_value(wtap_block_t block, unsigned option_id, uint64_t *value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -896,7 +895,7 @@ wtap_block_get_uint64_option_value(wtap_block_t block, guint option_id, guint64 
 }
 
 wtap_opttype_return_val
-wtap_block_add_int8_option(wtap_block_t block, guint option_id, gint8 value)
+wtap_block_add_int8_option(wtap_block_t block, unsigned option_id, int8_t value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -909,7 +908,7 @@ wtap_block_add_int8_option(wtap_block_t block, guint option_id, gint8 value)
 }
 
 wtap_opttype_return_val
-wtap_block_set_int8_option_value(wtap_block_t block, guint option_id, gint8 value)
+wtap_block_set_int8_option_value(wtap_block_t block, unsigned option_id, int8_t value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -922,7 +921,7 @@ wtap_block_set_int8_option_value(wtap_block_t block, guint option_id, gint8 valu
 }
 
 wtap_opttype_return_val
-wtap_block_get_int8_option_value(wtap_block_t block, guint option_id, gint8* value)
+wtap_block_get_int8_option_value(wtap_block_t block, unsigned option_id, int8_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -935,7 +934,7 @@ wtap_block_get_int8_option_value(wtap_block_t block, guint option_id, gint8* val
 }
 
 wtap_opttype_return_val
-wtap_block_add_int32_option(wtap_block_t block, guint option_id, gint32 value)
+wtap_block_add_int32_option(wtap_block_t block, unsigned option_id, int32_t value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -948,7 +947,7 @@ wtap_block_add_int32_option(wtap_block_t block, guint option_id, gint32 value)
 }
 
 wtap_opttype_return_val
-wtap_block_set_int32_option_value(wtap_block_t block, guint option_id, gint32 value)
+wtap_block_set_int32_option_value(wtap_block_t block, unsigned option_id, int32_t value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -961,7 +960,7 @@ wtap_block_set_int32_option_value(wtap_block_t block, guint option_id, gint32 va
 }
 
 wtap_opttype_return_val
-wtap_block_get_int32_option_value(wtap_block_t block, guint option_id, gint32* value)
+wtap_block_get_int32_option_value(wtap_block_t block, unsigned option_id, int32_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -974,7 +973,7 @@ wtap_block_get_int32_option_value(wtap_block_t block, guint option_id, gint32* v
 }
 
 wtap_opttype_return_val
-wtap_block_add_int64_option(wtap_block_t block, guint option_id, gint64 value)
+wtap_block_add_int64_option(wtap_block_t block, unsigned option_id, int64_t value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -987,7 +986,7 @@ wtap_block_add_int64_option(wtap_block_t block, guint option_id, gint64 value)
 }
 
 wtap_opttype_return_val
-wtap_block_set_int64_option_value(wtap_block_t block, guint option_id, gint64 value)
+wtap_block_set_int64_option_value(wtap_block_t block, unsigned option_id, int64_t value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1000,7 +999,7 @@ wtap_block_set_int64_option_value(wtap_block_t block, guint option_id, gint64 va
 }
 
 wtap_opttype_return_val
-wtap_block_get_int64_option_value(wtap_block_t block, guint option_id, gint64 *value)
+wtap_block_get_int64_option_value(wtap_block_t block, unsigned option_id, int64_t *value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1013,7 +1012,7 @@ wtap_block_get_int64_option_value(wtap_block_t block, guint option_id, gint64 *v
 }
 
 wtap_opttype_return_val
-wtap_block_add_ipv4_option(wtap_block_t block, guint option_id, guint32 value)
+wtap_block_add_ipv4_option(wtap_block_t block, unsigned option_id, uint32_t value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1026,7 +1025,7 @@ wtap_block_add_ipv4_option(wtap_block_t block, guint option_id, guint32 value)
 }
 
 wtap_opttype_return_val
-wtap_block_set_ipv4_option_value(wtap_block_t block, guint option_id, guint32 value)
+wtap_block_set_ipv4_option_value(wtap_block_t block, unsigned option_id, uint32_t value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1039,7 +1038,7 @@ wtap_block_set_ipv4_option_value(wtap_block_t block, guint option_id, guint32 va
 }
 
 wtap_opttype_return_val
-wtap_block_get_ipv4_option_value(wtap_block_t block, guint option_id, guint32* value)
+wtap_block_get_ipv4_option_value(wtap_block_t block, unsigned option_id, uint32_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1052,7 +1051,7 @@ wtap_block_get_ipv4_option_value(wtap_block_t block, guint option_id, guint32* v
 }
 
 wtap_opttype_return_val
-wtap_block_add_ipv6_option(wtap_block_t block, guint option_id, ws_in6_addr *value)
+wtap_block_add_ipv6_option(wtap_block_t block, unsigned option_id, ws_in6_addr *value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1065,7 +1064,7 @@ wtap_block_add_ipv6_option(wtap_block_t block, guint option_id, ws_in6_addr *val
 }
 
 wtap_opttype_return_val
-wtap_block_set_ipv6_option_value(wtap_block_t block, guint option_id, ws_in6_addr *value)
+wtap_block_set_ipv6_option_value(wtap_block_t block, unsigned option_id, ws_in6_addr *value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1078,7 +1077,7 @@ wtap_block_set_ipv6_option_value(wtap_block_t block, guint option_id, ws_in6_add
 }
 
 wtap_opttype_return_val
-wtap_block_get_ipv6_option_value(wtap_block_t block, guint option_id, ws_in6_addr* value)
+wtap_block_get_ipv6_option_value(wtap_block_t block, unsigned option_id, ws_in6_addr* value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1091,7 +1090,7 @@ wtap_block_get_ipv6_option_value(wtap_block_t block, guint option_id, ws_in6_add
 }
 
 wtap_opttype_return_val
-wtap_block_add_string_option(wtap_block_t block, guint option_id, const char *value, gsize value_length)
+wtap_block_add_string_option(wtap_block_t block, unsigned option_id, const char *value, size_t value_length)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1105,7 +1104,7 @@ wtap_block_add_string_option(wtap_block_t block, guint option_id, const char *va
 }
 
 wtap_opttype_return_val
-wtap_block_add_string_option_owned(wtap_block_t block, guint option_id, char *value)
+wtap_block_add_string_option_owned(wtap_block_t block, unsigned option_id, char *value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1119,7 +1118,7 @@ wtap_block_add_string_option_owned(wtap_block_t block, guint option_id, char *va
 }
 
 static wtap_opttype_return_val
-wtap_block_add_string_option_vformat(wtap_block_t block, guint option_id, const char *format, va_list va)
+wtap_block_add_string_option_vformat(wtap_block_t block, unsigned option_id, const char *format, va_list va)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1133,7 +1132,7 @@ wtap_block_add_string_option_vformat(wtap_block_t block, guint option_id, const 
 }
 
 wtap_opttype_return_val
-wtap_block_add_string_option_format(wtap_block_t block, guint option_id, const char *format, ...)
+wtap_block_add_string_option_format(wtap_block_t block, unsigned option_id, const char *format, ...)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1149,7 +1148,7 @@ wtap_block_add_string_option_format(wtap_block_t block, guint option_id, const c
 }
 
 wtap_opttype_return_val
-wtap_block_set_string_option_value(wtap_block_t block, guint option_id, const char *value, size_t value_length)
+wtap_block_set_string_option_value(wtap_block_t block, unsigned option_id, const char *value, size_t value_length)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1172,7 +1171,7 @@ wtap_block_set_string_option_value(wtap_block_t block, guint option_id, const ch
 }
 
 wtap_opttype_return_val
-wtap_block_set_nth_string_option_value(wtap_block_t block, guint option_id, guint idx, const char *value, size_t value_length)
+wtap_block_set_nth_string_option_value(wtap_block_t block, unsigned option_id, unsigned idx, const char *value, size_t value_length)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1186,7 +1185,7 @@ wtap_block_set_nth_string_option_value(wtap_block_t block, guint option_id, guin
 }
 
 wtap_opttype_return_val
-wtap_block_set_string_option_value_format(wtap_block_t block, guint option_id, const char *format, ...)
+wtap_block_set_string_option_value_format(wtap_block_t block, unsigned option_id, const char *format, ...)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1215,7 +1214,7 @@ wtap_block_set_string_option_value_format(wtap_block_t block, guint option_id, c
 }
 
 wtap_opttype_return_val
-wtap_block_set_nth_string_option_value_format(wtap_block_t block, guint option_id, guint idx, const char *format, ...)
+wtap_block_set_nth_string_option_value_format(wtap_block_t block, unsigned option_id, unsigned idx, const char *format, ...)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1232,7 +1231,7 @@ wtap_block_set_nth_string_option_value_format(wtap_block_t block, guint option_i
 }
 
 wtap_opttype_return_val
-wtap_block_get_string_option_value(wtap_block_t block, guint option_id, char** value)
+wtap_block_get_string_option_value(wtap_block_t block, unsigned option_id, char** value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1245,7 +1244,7 @@ wtap_block_get_string_option_value(wtap_block_t block, guint option_id, char** v
 }
 
 wtap_opttype_return_val
-wtap_block_get_nth_string_option_value(wtap_block_t block, guint option_id, guint idx, char** value)
+wtap_block_get_nth_string_option_value(wtap_block_t block, unsigned option_id, unsigned idx, char** value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1258,7 +1257,7 @@ wtap_block_get_nth_string_option_value(wtap_block_t block, guint option_id, guin
 }
 
 wtap_opttype_return_val
-wtap_block_add_bytes_option(wtap_block_t block, guint option_id, const guint8 *value, gsize value_length)
+wtap_block_add_bytes_option(wtap_block_t block, unsigned option_id, const uint8_t *value, size_t value_length)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1271,7 +1270,7 @@ wtap_block_add_bytes_option(wtap_block_t block, guint option_id, const guint8 *v
 }
 
 wtap_opttype_return_val
-wtap_block_add_bytes_option_borrow(wtap_block_t block, guint option_id, GBytes *value)
+wtap_block_add_bytes_option_borrow(wtap_block_t block, unsigned option_id, GBytes *value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1284,7 +1283,7 @@ wtap_block_add_bytes_option_borrow(wtap_block_t block, guint option_id, GBytes *
 }
 
 wtap_opttype_return_val
-wtap_block_set_bytes_option_value(wtap_block_t block, guint option_id, const guint8 *value, size_t value_length)
+wtap_block_set_bytes_option_value(wtap_block_t block, unsigned option_id, const uint8_t *value, size_t value_length)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1307,7 +1306,7 @@ wtap_block_set_bytes_option_value(wtap_block_t block, guint option_id, const gui
 }
 
 wtap_opttype_return_val
-wtap_block_set_nth_bytes_option_value(wtap_block_t block, guint option_id, guint idx, GBytes *value)
+wtap_block_set_nth_bytes_option_value(wtap_block_t block, unsigned option_id, unsigned idx, GBytes *value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1321,7 +1320,7 @@ wtap_block_set_nth_bytes_option_value(wtap_block_t block, guint option_id, guint
 }
 
 wtap_opttype_return_val
-wtap_block_get_bytes_option_value(wtap_block_t block, guint option_id, GBytes** value)
+wtap_block_get_bytes_option_value(wtap_block_t block, unsigned option_id, GBytes** value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1334,7 +1333,7 @@ wtap_block_get_bytes_option_value(wtap_block_t block, guint option_id, GBytes** 
 }
 
 wtap_opttype_return_val
-wtap_block_get_nth_bytes_option_value(wtap_block_t block, guint option_id, guint idx, GBytes** value)
+wtap_block_get_nth_bytes_option_value(wtap_block_t block, unsigned option_id, unsigned idx, GBytes** value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1347,7 +1346,7 @@ wtap_block_get_nth_bytes_option_value(wtap_block_t block, guint option_id, guint
 }
 
 wtap_opttype_return_val
-wtap_block_add_nflx_custom_option(wtap_block_t block, guint32 type, const char *custom_data, gsize custom_data_len)
+wtap_block_add_nflx_custom_option(wtap_block_t block, uint32_t type, const char *custom_data, size_t custom_data_len)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1364,11 +1363,11 @@ wtap_block_add_nflx_custom_option(wtap_block_t block, guint32 type, const char *
 }
 
 wtap_opttype_return_val
-wtap_block_get_nflx_custom_option(wtap_block_t block, guint32 nflx_type, char *nflx_custom_data _U_, gsize nflx_custom_data_len)
+wtap_block_get_nflx_custom_option(wtap_block_t block, uint32_t nflx_type, char *nflx_custom_data _U_, size_t nflx_custom_data_len)
 {
     const wtap_opttype_t *opttype;
     wtap_option_t *opt;
-    guint i;
+    unsigned i;
 
     if (block == NULL) {
         return WTAP_OPTTYPE_BAD_BLOCK;
@@ -1397,11 +1396,11 @@ wtap_block_get_nflx_custom_option(wtap_block_t block, guint32 nflx_type, char *n
     }
     switch (nflx_type) {
     case NFLX_OPT_TYPE_VERSION: {
-        guint32 *src, *dst;
+        uint32_t *src, *dst;
 
-        ws_assert(nflx_custom_data_len == sizeof(guint32));
-        src = (guint32 *)opt->value.custom_opt.data.nflx_data.custom_data;
-        dst = (guint32 *)nflx_custom_data;
+        ws_assert(nflx_custom_data_len == sizeof(uint32_t));
+        src = (uint32_t *)opt->value.custom_opt.data.nflx_data.custom_data;
+        dst = (uint32_t *)nflx_custom_data;
         *dst = GUINT32_FROM_LE(*src);
         break;
     }
@@ -1512,11 +1511,11 @@ wtap_block_get_nflx_custom_option(wtap_block_t block, guint32 nflx_type, char *n
         break;
     }
     case NFLX_OPT_TYPE_DUMPTIME: {
-        guint64 *src, *dst;
+        uint64_t *src, *dst;
 
-        ws_assert(nflx_custom_data_len == sizeof(guint64));
-        src = (guint64 *)opt->value.custom_opt.data.nflx_data.custom_data;
-        dst = (guint64 *)nflx_custom_data;
+        ws_assert(nflx_custom_data_len == sizeof(uint64_t));
+        src = (uint64_t *)opt->value.custom_opt.data.nflx_data.custom_data;
+        dst = (uint64_t *)nflx_custom_data;
         *dst = GUINT64_FROM_LE(*src);
         break;
     }
@@ -1531,7 +1530,7 @@ wtap_block_get_nflx_custom_option(wtap_block_t block, guint32 nflx_type, char *n
 }
 
 wtap_opttype_return_val
-wtap_block_add_custom_option(wtap_block_t block, guint option_id, guint32 pen, const char *custom_data, gsize custom_data_len)
+wtap_block_add_custom_option(wtap_block_t block, unsigned option_id, uint32_t pen, const char *custom_data, size_t custom_data_len)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1546,7 +1545,7 @@ wtap_block_add_custom_option(wtap_block_t block, guint option_id, guint32 pen, c
 }
 
 wtap_opttype_return_val
-wtap_block_add_if_filter_option(wtap_block_t block, guint option_id, if_filter_opt_t* value)
+wtap_block_add_if_filter_option(wtap_block_t block, unsigned option_id, if_filter_opt_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1559,7 +1558,7 @@ wtap_block_add_if_filter_option(wtap_block_t block, guint option_id, if_filter_o
 }
 
 wtap_opttype_return_val
-wtap_block_set_if_filter_option_value(wtap_block_t block, guint option_id, if_filter_opt_t* value)
+wtap_block_set_if_filter_option_value(wtap_block_t block, unsigned option_id, if_filter_opt_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1577,7 +1576,7 @@ wtap_block_set_if_filter_option_value(wtap_block_t block, guint option_id, if_fi
 }
 
 wtap_opttype_return_val
-wtap_block_get_if_filter_option_value(wtap_block_t block, guint option_id, if_filter_opt_t* value)
+wtap_block_get_if_filter_option_value(wtap_block_t block, unsigned option_id, if_filter_opt_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1590,7 +1589,7 @@ wtap_block_get_if_filter_option_value(wtap_block_t block, guint option_id, if_fi
 }
 
 wtap_opttype_return_val
-wtap_block_add_packet_verdict_option(wtap_block_t block, guint option_id, packet_verdict_opt_t* value)
+wtap_block_add_packet_verdict_option(wtap_block_t block, unsigned option_id, packet_verdict_opt_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1603,7 +1602,7 @@ wtap_block_add_packet_verdict_option(wtap_block_t block, guint option_id, packet
 }
 
 wtap_opttype_return_val
-wtap_block_set_nth_packet_verdict_option_value(wtap_block_t block, guint option_id, guint idx, packet_verdict_opt_t* value)
+wtap_block_set_nth_packet_verdict_option_value(wtap_block_t block, unsigned option_id, unsigned idx, packet_verdict_opt_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1621,7 +1620,7 @@ wtap_block_set_nth_packet_verdict_option_value(wtap_block_t block, guint option_
 }
 
 wtap_opttype_return_val
-wtap_block_get_nth_packet_verdict_option_value(wtap_block_t block, guint option_id, guint idx, packet_verdict_opt_t* value)
+wtap_block_get_nth_packet_verdict_option_value(wtap_block_t block, unsigned option_id, unsigned idx, packet_verdict_opt_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_optval_t *optval;
@@ -1634,7 +1633,7 @@ wtap_block_get_nth_packet_verdict_option_value(wtap_block_t block, guint option_
 }
 
 wtap_opttype_return_val
-wtap_block_add_packet_hash_option(wtap_block_t block, guint option_id, packet_hash_opt_t* value)
+wtap_block_add_packet_hash_option(wtap_block_t block, unsigned option_id, packet_hash_opt_t* value)
 {
     wtap_opttype_return_val ret;
     wtap_option_t *opt;
@@ -1647,10 +1646,10 @@ wtap_block_add_packet_hash_option(wtap_block_t block, guint option_id, packet_ha
 }
 
 wtap_opttype_return_val
-wtap_block_remove_option(wtap_block_t block, guint option_id)
+wtap_block_remove_option(wtap_block_t block, unsigned option_id)
 {
     const wtap_opttype_t *opttype;
-    guint i;
+    unsigned i;
     wtap_option_t *opt;
 
     if (block == NULL) {
@@ -1689,13 +1688,13 @@ wtap_block_remove_option(wtap_block_t block, guint option_id)
 }
 
 wtap_opttype_return_val
-wtap_block_remove_nth_option_instance(wtap_block_t block, guint option_id,
-                                      guint idx)
+wtap_block_remove_nth_option_instance(wtap_block_t block, unsigned option_id,
+                                      unsigned idx)
 {
     const wtap_opttype_t *opttype;
-    guint i;
+    unsigned i;
     wtap_option_t *opt;
-    guint opt_idx;
+    unsigned opt_idx;
 
     if (block == NULL) {
         return WTAP_OPTTYPE_BAD_BLOCK;
@@ -1763,7 +1762,7 @@ static void nrb_free_mand(wtap_block_t block)
 }
 
 #if 0
-static gpointer copy_hashipv4(gconstpointer src, gpointer user_data _U_
+static void *copy_hashipv4(const void *src, void *user_data _U_
 {
     hashipv4_t *src_ipv4 = (hashipv4_t*)src;
     hashipv4_t *dst = g_new0(hashipv4_t, 1);
@@ -1772,7 +1771,7 @@ static gpointer copy_hashipv4(gconstpointer src, gpointer user_data _U_
     return dst;
 }
 
-static gpointer copy_hashipv4(gconstpointer src, gpointer user_data _U_
+static void *copy_hashipv4(const void *src, void *user_data _U_
 {
     hashipv6_t *src_ipv6 = (hashipv6_t*)src;
     hashipv6_t *dst = g_new0(hashipv6_t, 1);
@@ -1809,7 +1808,7 @@ static void idb_create(wtap_block_t block)
 
 static void idb_free_mand(wtap_block_t block)
 {
-    guint j;
+    unsigned j;
     wtap_block_t if_stats;
     wtapng_if_descr_mandatory_t* mand = (wtapng_if_descr_mandatory_t*)block->mandatory_data;
 
@@ -1819,24 +1818,24 @@ static void idb_free_mand(wtap_block_t block)
     }
 
     if (mand->interface_statistics)
-        g_array_free(mand->interface_statistics, TRUE);
+        g_array_free(mand->interface_statistics, true);
 }
 
 static void idb_copy_mand(wtap_block_t dest_block, wtap_block_t src_block)
 {
-    guint j;
+    unsigned j;
     wtap_block_t src_if_stats, dest_if_stats;
     wtapng_if_descr_mandatory_t *src_mand = (wtapng_if_descr_mandatory_t*)src_block->mandatory_data,
                                 *dest_mand = (wtapng_if_descr_mandatory_t*)dest_block->mandatory_data;
 
     /* Need special consideration for copying of the interface_statistics member */
     if (dest_mand->num_stat_entries != 0)
-        g_array_free(dest_mand->interface_statistics, TRUE);
+        g_array_free(dest_mand->interface_statistics, true);
 
     memcpy(dest_mand, src_mand, sizeof(wtapng_if_descr_mandatory_t));
     if (src_mand->num_stat_entries != 0)
     {
-        dest_mand->interface_statistics = g_array_new(FALSE, FALSE, sizeof(wtap_block_t));
+        dest_mand->interface_statistics = g_array_new(false, false, sizeof(wtap_block_t));
         for (j = 0; j < src_mand->num_stat_entries; j++)
         {
             src_if_stats = g_array_index(src_mand->interface_statistics, wtap_block_t, j);
@@ -1864,28 +1863,28 @@ static void dsb_copy_mand(wtap_block_t dest_block, wtap_block_t src_block)
     dst->secrets_type = src->secrets_type;
     dst->secrets_len = src->secrets_len;
     g_free(dst->secrets_data);
-    dst->secrets_data = (guint8 *)g_memdup2(src->secrets_data, src->secrets_len);
+    dst->secrets_data = (uint8_t *)g_memdup2(src->secrets_data, src->secrets_len);
 }
 
-static void sysdig_mev_create(wtap_block_t block)
+static void mev_create(wtap_block_t block)
 {
-    block->mandatory_data = g_new0(wtapng_sysdig_mev_mandatory_t, 1);
+    block->mandatory_data = g_new0(wtapng_meta_event_mandatory_t, 1);
 }
 
-static void sysdig_mev_free_mand(wtap_block_t block)
+static void mev_free_mand(wtap_block_t block)
 {
-    wtapng_sysdig_mev_mandatory_t *mand = (wtapng_sysdig_mev_mandatory_t *)block->mandatory_data;
+    wtapng_meta_event_mandatory_t *mand = (wtapng_meta_event_mandatory_t *)block->mandatory_data;
     g_free(mand->mev_data);
 }
 
-static void sysdig_mev_copy_mand(wtap_block_t dest_block, wtap_block_t src_block)
+static void mev_copy_mand(wtap_block_t dest_block, wtap_block_t src_block)
 {
-    wtapng_sysdig_mev_mandatory_t *src = (wtapng_sysdig_mev_mandatory_t *)src_block->mandatory_data;
-    wtapng_sysdig_mev_mandatory_t *dst = (wtapng_sysdig_mev_mandatory_t *)dest_block->mandatory_data;
-    dst->mev_type = src->mev_type;
+    wtapng_meta_event_mandatory_t *src = (wtapng_meta_event_mandatory_t *)src_block->mandatory_data;
+    wtapng_meta_event_mandatory_t *dst = (wtapng_meta_event_mandatory_t *)dest_block->mandatory_data;
+    dst->mev_block_type = src->mev_block_type;
     dst->mev_data_len = src->mev_data_len;
     g_free(dst->mev_data);
-    dst->mev_data = (guint8 *)g_memdup2(src->mev_data, src->mev_data_len);
+    dst->mev_data = (uint8_t *)g_memdup2(src->mev_data, src->mev_data_len);
 }
 
 static void pkt_create(wtap_block_t block)
@@ -2105,13 +2104,13 @@ void wtap_opttypes_initialize(void)
         0
     };
 
-    static wtap_blocktype_t sysdig_mev_block = {
-        WTAP_BLOCK_SYSDIG_META_EVENT,
-        "Sysdig MEV",
-        "Sysdig Meta Event Block",
-        sysdig_mev_create,
-        sysdig_mev_free_mand,
-        sysdig_mev_copy_mand,
+    static wtap_blocktype_t mev_block = {
+        WTAP_BLOCK_META_EVENT,
+        "MEV",
+        "Meta Event Block",
+        mev_create,
+        mev_free_mand,
+        mev_copy_mand,
         NULL
     };
 
@@ -2231,7 +2230,7 @@ void wtap_opttypes_initialize(void)
     /*
      * Register the Sysdig MEV, currently no options are defined.
      */
-    wtap_opttype_block_register(&sysdig_mev_block);
+    wtap_opttype_block_register(&mev_block);
 
     /*
      * Register EPB/SPB/PB and the options that can appear in it/them.
@@ -2264,16 +2263,16 @@ void wtap_opttypes_initialize(void)
 
 void wtap_opttypes_cleanup(void)
 {
-    guint block_type;
+    unsigned block_type;
 #ifdef DEBUG_COUNT_REFS
-    guint i;
-    guint cellno;
-    guint bitno;
-    guint8 mask;
+    unsigned i;
+    unsigned cellno;
+    unsigned bitno;
+    uint8_t mask;
 #endif /* DEBUG_COUNT_REFS */
 
-    for (block_type = (guint)WTAP_BLOCK_SECTION;
-         block_type < (guint)MAX_WTAP_BLOCK_TYPE_VALUE; block_type++) {
+    for (block_type = (unsigned)WTAP_BLOCK_SECTION;
+         block_type < (unsigned)MAX_WTAP_BLOCK_TYPE_VALUE; block_type++) {
         if (blocktype_list[block_type]) {
             if (blocktype_list[block_type]->options)
                 g_hash_table_destroy(blocktype_list[block_type]->options);

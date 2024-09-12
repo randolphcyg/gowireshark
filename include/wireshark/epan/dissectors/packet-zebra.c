@@ -41,7 +41,7 @@
 
 #include "config.h"
 
-
+#include <wsutil/array.h>
 #include <epan/packet.h>
 
 /*  Function declarations */
@@ -50,105 +50,105 @@ void proto_register_zebra(void);
 
 static dissector_handle_t zebra_handle;
 
-static int proto_zebra = -1;
-static int hf_zebra_len = -1;
-static int hf_zebra_command = -1;
-static int hf_zebra_request = -1;
-static int hf_zebra_interface = -1;
-static int hf_zebra_index = -1;
-static int hf_zebra_indexnum = -1;
-static int hf_zebra_type_v0 = -1;
-static int hf_zebra_type_v1 = -1;
-static int hf_zebra_intflags = -1;
-static int hf_zebra_rtflags = -1;
-static int hf_zebra_distance = -1;
-static int hf_zebra_metric = -1;
-static int hf_zebra_mtu = -1;
-static int hf_zebra_mtu6 = -1;
-static int hf_zebra_bandwidth = -1;
-static int hf_zebra_family = -1;
-static int hf_zebra_flags = -1;
-static int hf_zebra_message = -1;
-static int hf_zebra_route_safi = -1;
-static int hf_zebra_msg_nexthop = -1;
-static int hf_zebra_msg_index = -1;
-static int hf_zebra_msg_distance = -1;
-static int hf_zebra_msg_metric = -1;
-static int hf_zebra_nexthopnum = -1;
-static int hf_zebra_nexthop4 = -1;
-static int hf_zebra_nexthop6 = -1;
-static int hf_zebra_dest4 = -1;
-static int hf_zebra_dest6 = -1;
-static int hf_zebra_prefixlen = -1;
-static int hf_zebra_prefix4 = -1;
-static int hf_zebra_prefix6 = -1;
-static int hf_zebra_version = -1;
-static int hf_zebra_marker = -1;
-static int hf_zebra_intstatus = -1;
-static int hf_zebra_routeridaddress = -1;
-static int hf_zebra_routeridmask = -1;
-static int hf_zebra_mac = -1;
-static int hf_zebra_redist_default = -1;
-static int hf_zebra_vrfid = -1;
-static int hf_zebra_routeridfamily = -1;
-static int hf_zebra_nexthoptype = -1;
-static int hf_zebra_msg_mtu = -1;
-static int hf_zebra_msg_tag = -1;
-static int hf_zebra_tag = -1;
-static int hf_zebra_maclen = -1;
-static int hf_zebra_haslinkparam = -1;
+static int proto_zebra;
+static int hf_zebra_len;
+static int hf_zebra_command;
+static int hf_zebra_request;
+static int hf_zebra_interface;
+static int hf_zebra_index;
+static int hf_zebra_indexnum;
+static int hf_zebra_type_v0;
+static int hf_zebra_type_v1;
+static int hf_zebra_intflags;
+static int hf_zebra_rtflags;
+static int hf_zebra_distance;
+static int hf_zebra_metric;
+static int hf_zebra_mtu;
+static int hf_zebra_mtu6;
+static int hf_zebra_bandwidth;
+static int hf_zebra_family;
+static int hf_zebra_flags;
+static int hf_zebra_message;
+static int hf_zebra_route_safi;
+static int hf_zebra_msg_nexthop;
+static int hf_zebra_msg_index;
+static int hf_zebra_msg_distance;
+static int hf_zebra_msg_metric;
+static int hf_zebra_nexthopnum;
+static int hf_zebra_nexthop4;
+static int hf_zebra_nexthop6;
+static int hf_zebra_dest4;
+static int hf_zebra_dest6;
+static int hf_zebra_prefixlen;
+static int hf_zebra_prefix4;
+static int hf_zebra_prefix6;
+static int hf_zebra_version;
+static int hf_zebra_marker;
+static int hf_zebra_intstatus;
+static int hf_zebra_routeridaddress;
+static int hf_zebra_routeridmask;
+static int hf_zebra_mac;
+static int hf_zebra_redist_default;
+static int hf_zebra_vrfid;
+static int hf_zebra_routeridfamily;
+static int hf_zebra_nexthoptype;
+static int hf_zebra_msg_mtu;
+static int hf_zebra_msg_tag;
+static int hf_zebra_tag;
+static int hf_zebra_maclen;
+static int hf_zebra_haslinkparam;
 /* FRRouting, Zebra API v4, v5 and v6 */
-static int hf_zebra_command_v4 = -1;
-static int hf_zebra_command_v5 = -1;
-static int hf_zebra_command_v6 = -1;
-static int hf_zebra_type_v4 = -1;
-static int hf_zebra_type_v5 = -1;
-static int hf_zebra_ptmenable = -1;
-static int hf_zebra_ptmstatus = -1;
-static int hf_zebra_instance = -1;
-static int hf_zebra_rtflags_u32 = -1;
-static int hf_zebra_speed = -1;
-static int hf_zebra_lltype = -1;
-static int hf_zebra_message4 = -1;
-static int hf_zebra_message5 = -1;
-static int hf_zebra_route_safi_u8 = -1;
-static int hf_zebra_rmac = -1;
-static int hf_zebra_msg4_tag = -1;
-static int hf_zebra_msg4_mtu = -1;
-static int hf_zebra_msg4_srcpfx = -1;
-static int hf_zebra_msg5_distance = -1;
-static int hf_zebra_msg5_metric = -1;
-static int hf_zebra_msg5_tag = -1;
-static int hf_zebra_msg5_mtu = -1;
-static int hf_zebra_msg5_srcpfx = -1;
-static int hf_zebra_msg_label = -1;
-static int hf_zebra_msg_tableid = -1;
-static int hf_zebra_nexthopnum_u16 = -1;
-static int hf_zebra_nexthoptype_frr = -1;
-static int hf_zebra_bhtype = -1;
-static int hf_zebra_srcprefixlen = -1;
-static int hf_zebra_srcprefix4 = -1;
-static int hf_zebra_srcprefix6 = -1;
-static int hf_zebra_tableid = -1;
-static int hf_zebra_afi = -1;
-static int hf_zebra_pid = -1;
-static int hf_zebra_vrf_table_id = -1;
-static int hf_zebra_vrf_netns_name = -1;
-static int hf_zebra_vrf_name = -1;
-static int hf_zebra_proto = -1;
-static int hf_zebra_label_chunk_keep = -1;
-static int hf_zebra_label_chunk_size = -1;
-static int hf_zebra_label_chunk_start = -1;
-static int hf_zebra_label_chunk_end = -1;
-static int hf_zebra_mpls_enabled = -1;
-static int hf_zebra_multipath_num = -1;
-static int hf_zebra_labelnum = -1;
-static int hf_zebra_label = -1;
-static int hf_zebra_receive_notify = -1;
+static int hf_zebra_command_v4;
+static int hf_zebra_command_v5;
+static int hf_zebra_command_v6;
+static int hf_zebra_type_v4;
+static int hf_zebra_type_v5;
+static int hf_zebra_ptmenable;
+static int hf_zebra_ptmstatus;
+static int hf_zebra_instance;
+static int hf_zebra_rtflags_u32;
+static int hf_zebra_speed;
+static int hf_zebra_lltype;
+static int hf_zebra_message4;
+static int hf_zebra_message5;
+static int hf_zebra_route_safi_u8;
+static int hf_zebra_rmac;
+static int hf_zebra_msg4_tag;
+static int hf_zebra_msg4_mtu;
+static int hf_zebra_msg4_srcpfx;
+static int hf_zebra_msg5_distance;
+static int hf_zebra_msg5_metric;
+static int hf_zebra_msg5_tag;
+static int hf_zebra_msg5_mtu;
+static int hf_zebra_msg5_srcpfx;
+static int hf_zebra_msg_label;
+static int hf_zebra_msg_tableid;
+static int hf_zebra_nexthopnum_u16;
+static int hf_zebra_nexthoptype_frr;
+static int hf_zebra_bhtype;
+static int hf_zebra_srcprefixlen;
+static int hf_zebra_srcprefix4;
+static int hf_zebra_srcprefix6;
+static int hf_zebra_tableid;
+static int hf_zebra_afi;
+static int hf_zebra_pid;
+static int hf_zebra_vrf_table_id;
+static int hf_zebra_vrf_netns_name;
+static int hf_zebra_vrf_name;
+static int hf_zebra_proto;
+static int hf_zebra_label_chunk_keep;
+static int hf_zebra_label_chunk_size;
+static int hf_zebra_label_chunk_start;
+static int hf_zebra_label_chunk_end;
+static int hf_zebra_mpls_enabled;
+static int hf_zebra_multipath_num;
+static int hf_zebra_labelnum;
+static int hf_zebra_label;
+static int hf_zebra_receive_notify;
 
-static gint ett_zebra = -1;
-static gint ett_zebra_request = -1;
-static gint ett_message = -1;
+static int ett_zebra;
+static int ett_zebra_request;
+static int ett_message;
 
 #define TCP_PORT_ZEBRA			2600 /* Not IANA registered */
 
@@ -1000,20 +1000,20 @@ static const value_string blackhole_type[] = {
 #define PSIZE(a) (((a) + 7) / (8))
 
 typedef struct _zebra_header_t {
-	guint16 len;
-	guint16 command;
-	guint8  version;
+	uint16_t len;
+	uint16_t command;
+	uint8_t version;
 
 } zebra_header_t;
 
 static int
-zebra_route_nexthop(proto_tree *tree, gboolean request, tvbuff_t *tvb,
-		    int offset, guint16 len, guint8 family, guint8 version)
+zebra_route_nexthop(proto_tree *tree, bool request, tvbuff_t *tvb,
+		    int offset, uint16_t len, uint8_t family, uint8_t version)
 {
-	guint8 nexthoptype = 0, interfacenamelength;
-	guint16 nexthopcount;
+	uint8_t nexthoptype = 0, interfacenamelength;
+	uint16_t nexthopcount;
 	if (version < 5) {
-		nexthopcount = tvb_get_guint8(tvb, offset);
+		nexthopcount = tvb_get_uint8(tvb, offset);
 		proto_tree_add_uint(tree, hf_zebra_nexthopnum, tvb, offset, 1,
 				    nexthopcount);
 		offset += 1;
@@ -1034,12 +1034,12 @@ zebra_route_nexthop(proto_tree *tree, gboolean request, tvbuff_t *tvb,
 			offset += 4;
 		}
 		if (version < 4 && request) { /* Quagga */
-			nexthoptype = tvb_get_guint8(tvb, offset);
+			nexthoptype = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(tree, hf_zebra_nexthoptype, tvb,
 					    offset, 1, ENC_BIG_ENDIAN);
 			offset += 1;
 		} else if (version >= 4) { /* FRR */
-			nexthoptype = tvb_get_guint8(tvb, offset);
+			nexthoptype = tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(tree, hf_zebra_nexthoptype_frr, tvb,
 					    offset, 1, ENC_BIG_ENDIAN);
 			offset += 1;
@@ -1086,7 +1086,7 @@ zebra_route_nexthop(proto_tree *tree, gboolean request, tvbuff_t *tvb,
 		    (nexthoptype == ZEBRA_NEXTHOP_TYPE_IFNAME ||
 		     nexthoptype == ZEBRA_NEXTHOP_TYPE_IPV4_IFNAME ||
 		     nexthoptype == ZEBRA_NEXTHOP_TYPE_IPV6_IFNAME)) {
-			interfacenamelength = tvb_get_guint8(tvb, offset);
+			interfacenamelength = tvb_get_uint8(tvb, offset);
 			offset += 1;
 			proto_tree_add_item(tree, hf_zebra_interface, tvb,
 					    offset, interfacenamelength,
@@ -1104,9 +1104,9 @@ zebra_route_nexthop(proto_tree *tree, gboolean request, tvbuff_t *tvb,
 }
 
 static int
-zebra_route_ifindex(proto_tree *tree, tvbuff_t *tvb, int offset, guint16 len)
+zebra_route_ifindex(proto_tree *tree, tvbuff_t *tvb, int offset, uint16_t len)
 {
-	guint16 indexcount = tvb_get_guint8(tvb, offset);
+	uint16_t indexcount = tvb_get_uint8(tvb, offset);
 	proto_tree_add_uint(tree, hf_zebra_indexnum,
 			    tvb, offset, 1, indexcount);
 	offset += 1;
@@ -1122,7 +1122,7 @@ zebra_route_ifindex(proto_tree *tree, tvbuff_t *tvb, int offset, guint16 len)
 }
 
 static int
-zebra_route_message(proto_tree *tree, tvbuff_t *tvb, int offset, guint8 version)
+zebra_route_message(proto_tree *tree, tvbuff_t *tvb, int offset, uint8_t version)
 {
 	static int * const flags[] = {
 		&hf_zebra_msg_nexthop,
@@ -1171,11 +1171,11 @@ zebra_route_message(proto_tree *tree, tvbuff_t *tvb, int offset, guint8 version)
 }
 
 static int
-zebra_route(proto_tree *tree, gboolean request, tvbuff_t *tvb, int offset,
-	    guint16 len, guint8 family, guint16 command, guint8 version)
+zebra_route(proto_tree *tree, bool request, tvbuff_t *tvb, int offset,
+	    uint16_t len, uint8_t family, uint16_t command, uint8_t version)
 {
-	guint32 prefix4, srcprefix4, rtflags = 0;
-	guint8  message, prefixlen, buffer6[16], srcprefixlen, srcbuffer6[16];
+	uint32_t prefix4, srcprefix4, rtflags = 0;
+	uint8_t message, prefixlen, buffer6[16], srcprefixlen, srcbuffer6[16];
 
 	if (version == 0) {
 		proto_tree_add_item(tree, hf_zebra_type_v0, tvb,
@@ -1206,7 +1206,7 @@ zebra_route(proto_tree *tree, gboolean request, tvbuff_t *tvb, int offset,
 		offset += 1;
 	}
 
-	message = tvb_get_guint8(tvb, offset);
+	message = tvb_get_uint8(tvb, offset);
 	offset = zebra_route_message(tree, tvb, offset, version);
 
 	if (version > 1 && version < 5) {
@@ -1231,13 +1231,13 @@ zebra_route(proto_tree *tree, gboolean request, tvbuff_t *tvb, int offset,
 					    ENC_NA);
 			offset += 6;
 		}
-		family = tvb_get_guint8(tvb, offset);
+		family = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(tree, hf_zebra_family, tvb, offset, 1,
 				    ENC_BIG_ENDIAN);
 		offset += 1;
 	}
 
-	prefixlen = tvb_get_guint8(tvb, offset);
+	prefixlen = tvb_get_uint8(tvb, offset);
 	proto_tree_add_uint(tree, hf_zebra_prefixlen, tvb,
 			    offset, 1, prefixlen);
 	offset += 1;
@@ -1250,7 +1250,7 @@ zebra_route(proto_tree *tree, gboolean request, tvbuff_t *tvb, int offset,
 				    tvb, offset, PSIZE(prefixlen), (ws_in6_addr *)buffer6);
 	} else if (family == ZEBRA_FAMILY_IPV4) {
 		prefix4 = 0;
-		tvb_memcpy(tvb, (guint8 *)&prefix4, offset,
+		tvb_memcpy(tvb, (uint8_t *)&prefix4, offset,
 			   MIN((unsigned) PSIZE(prefixlen), sizeof prefix4));
 		proto_tree_add_ipv4(tree, hf_zebra_prefix4,
 				    tvb, offset, PSIZE(prefixlen), prefix4);
@@ -1260,7 +1260,7 @@ zebra_route(proto_tree *tree, gboolean request, tvbuff_t *tvb, int offset,
 	if ((version == 4 && family == ZEBRA_FAMILY_IPV6 &&
 	     message & FRR_ZAPI4_MESSAGE_SRCPFX) ||
 	    (version > 4 && message & FRR_ZAPI5_MESSAGE_SRCPFX)) {
-		srcprefixlen = tvb_get_guint8(tvb, offset);
+		srcprefixlen = tvb_get_uint8(tvb, offset);
 		proto_tree_add_uint(tree, hf_zebra_srcprefixlen, tvb, offset, 1,
 				    srcprefixlen);
 		offset += 1;
@@ -1275,7 +1275,7 @@ zebra_route(proto_tree *tree, gboolean request, tvbuff_t *tvb, int offset,
 					    (ws_in6_addr *)srcbuffer6);
 		} else if (family == ZEBRA_FAMILY_IPV4) {
 			prefix4 = 0;
-			tvb_memcpy(tvb, (guint8 *)&srcprefix4, offset,
+			tvb_memcpy(tvb, (uint8_t *)&srcprefix4, offset,
 				   MIN((unsigned)PSIZE(srcprefixlen),
 				       sizeof srcprefix4));
 			proto_tree_add_ipv4(tree, hf_zebra_srcprefix4, tvb,
@@ -1349,7 +1349,7 @@ zebra_route(proto_tree *tree, gboolean request, tvbuff_t *tvb, int offset,
 static int
 zebra_interface_address(proto_tree *tree, tvbuff_t *tvb, int offset)
 {
-	guint8 family;
+	uint8_t family;
 	proto_tree_add_item(tree, hf_zebra_index, tvb,
 			    offset, 4, ENC_BIG_ENDIAN);
 	offset += 4;
@@ -1358,7 +1358,7 @@ zebra_interface_address(proto_tree *tree, tvbuff_t *tvb, int offset)
 	offset += 1;
 	proto_tree_add_item(tree, hf_zebra_family, tvb,
 			    offset, 1, ENC_BIG_ENDIAN);
-	family = tvb_get_guint8(tvb, offset);
+	family = tvb_get_uint8(tvb, offset);
 	offset += 1;
 	if (family == ZEBRA_FAMILY_IPV4) {
 		proto_tree_add_item(tree, hf_zebra_prefix4,
@@ -1391,7 +1391,7 @@ zebra_interface_address(proto_tree *tree, tvbuff_t *tvb, int offset)
 }
 
 static int zebra_hello(proto_tree *tree, tvbuff_t *tvb, int offset, int left,
-		       guint8 version)
+		       uint8_t version)
 {
 	proto_tree_add_item(tree, hf_zebra_redist_default, tvb, offset, 1,
 			    ENC_BIG_ENDIAN);
@@ -1411,7 +1411,7 @@ static int zebra_hello(proto_tree *tree, tvbuff_t *tvb, int offset, int left,
 }
 
 static int zebra_redistribute(proto_tree *tree, tvbuff_t *tvb, int offset,
-			      guint8 version)
+			      uint8_t version)
 {
 	if (version > 3) {
 		proto_tree_add_item(tree, hf_zebra_afi, tvb, offset, 1,
@@ -1467,7 +1467,7 @@ static int zebra_label_manager_connect(proto_tree *tree, tvbuff_t *tvb,
 	return offset;
 }
 
-static int zebra_get_label_chunk(proto_tree *tree, gboolean request,
+static int zebra_get_label_chunk(proto_tree *tree, bool request,
 				 tvbuff_t *tvb, int offset)
 {
 	proto_tree_add_item(tree, hf_zebra_proto, tvb, offset, 1,
@@ -1507,10 +1507,10 @@ static int zebra_capabilties(proto_tree *tree, tvbuff_t *tvb, int offset)
 }
 
 static int zebra_nexthop_register(proto_tree *tree, tvbuff_t *tvb, int offset,
-				  guint16 len, int msg_offset)
+				  uint16_t len, int msg_offset)
 {
 	int     init_offset = offset, rest = (int)len - msg_offset;
-	guint16 family = ZEBRA_FAMILY_UNSPEC;
+	uint16_t family = ZEBRA_FAMILY_UNSPEC;
 	while (rest > offset - init_offset) {
 		proto_tree_add_item(tree, hf_zebra_flags, tvb, offset, 1,
 				    ENC_BIG_ENDIAN);
@@ -1537,9 +1537,9 @@ static int zebra_nexthop_register(proto_tree *tree, tvbuff_t *tvb, int offset,
 
 static int
 zebra_interface(proto_tree *tree, tvbuff_t *tvb, int offset,
-		guint16 command, guint8 version)
+		uint16_t command, uint8_t version)
 {
-	gint maclen;
+	int maclen;
 	proto_tree_add_item(tree, hf_zebra_interface,
 			    tvb, offset, INTERFACE_NAMSIZ, ENC_ASCII);
 	offset += INTERFACE_NAMSIZ;
@@ -1592,7 +1592,7 @@ zebra_interface(proto_tree *tree, tvbuff_t *tvb, int offset,
 			offset += 4;
 		}
 		if (version != 0) {
-			maclen = (gint)tvb_get_ntohl(tvb, offset);
+			maclen = (int)tvb_get_ntohl(tvb, offset);
 			proto_tree_add_item(tree, hf_zebra_maclen, tvb,
 					    offset, 4, ENC_BIG_ENDIAN);
 			offset += 4;
@@ -1611,8 +1611,8 @@ zebra_interface(proto_tree *tree, tvbuff_t *tvb, int offset,
 }
 
 static int
-zebra_nexthop_lookup(proto_tree *tree, gboolean request, tvbuff_t *tvb,
-		     int offset, guint16 len, guint8 family, guint8 version)
+zebra_nexthop_lookup(proto_tree *tree, bool request, tvbuff_t *tvb,
+		     int offset, uint16_t len, uint8_t family, uint8_t version)
 {
 	if (family == ZEBRA_FAMILY_IPV6) {
 		proto_tree_add_item(tree, hf_zebra_dest6, tvb, offset, 16,
@@ -1650,14 +1650,14 @@ zerba_router_update(proto_tree *tree, tvbuff_t *tvb, int offset)
 
 static int
 zebra_nexthop_update(proto_tree *tree, tvbuff_t *tvb, int offset,
-		     guint8 version)
+		     uint8_t version)
 {
-	guint16 family = tvb_get_ntohs(tvb, offset);
-	guint8  prefixlen, nexthopcount, nexthoptype, labelnum;
+	uint16_t family = tvb_get_ntohs(tvb, offset);
+	uint8_t prefixlen, nexthopcount, nexthoptype, labelnum;
 	proto_tree_add_item(tree, hf_zebra_family, tvb, offset, 2,
 			    ENC_BIG_ENDIAN);
 	offset += 2;
-	prefixlen = tvb_get_guint8(tvb, offset);
+	prefixlen = tvb_get_uint8(tvb, offset);
 	proto_tree_add_uint(tree, hf_zebra_prefixlen, tvb, offset, 1,
 			    prefixlen);
 	offset += 1;
@@ -1692,13 +1692,13 @@ zebra_nexthop_update(proto_tree *tree, tvbuff_t *tvb, int offset,
 			    ENC_BIG_ENDIAN);
 	offset += 4;
 
-	nexthopcount = tvb_get_guint8(tvb, offset);
+	nexthopcount = tvb_get_uint8(tvb, offset);
 	proto_tree_add_uint(tree, hf_zebra_nexthopnum, tvb, offset, 1,
 			    nexthopcount);
 	offset += 1;
 
 	while (nexthopcount--) {
-		nexthoptype = tvb_get_guint8(tvb, offset);
+		nexthoptype = tvb_get_uint8(tvb, offset);
 		if (version > 3) {
 			proto_tree_add_item(tree, hf_zebra_nexthoptype_frr, tvb,
 					    offset, 1, ENC_BIG_ENDIAN);
@@ -1747,7 +1747,7 @@ zebra_nexthop_update(proto_tree *tree, tvbuff_t *tvb, int offset,
 			offset += 4;
 		}
 		if (version > 4) {
-			labelnum = tvb_get_guint8(tvb, offset);
+			labelnum = tvb_get_uint8(tvb, offset);
 			proto_tree_add_uint(tree, hf_zebra_labelnum, tvb,
 					    offset, 1, labelnum);
 			offset += 1;
@@ -1762,9 +1762,9 @@ zebra_nexthop_update(proto_tree *tree, tvbuff_t *tvb, int offset,
 }
 
 static int
-dissect_zebra_request(proto_tree *tree, gboolean request, tvbuff_t *tvb,
-		      int offset, int left, guint16 len, guint16 command,
-		      guint8 version)
+dissect_zebra_request(proto_tree *tree, bool request, tvbuff_t *tvb,
+		      int offset, int left, uint16_t len, uint16_t command,
+		      uint8_t version)
 {
 	int init_offset = offset;
 	proto_tree_add_uint(tree, hf_zebra_len, tvb, offset, 2, len);
@@ -2318,31 +2318,31 @@ dissect_zebra_request(proto_tree *tree, gboolean request, tvbuff_t *tvb,
  from version 0.
  */
 
-static gboolean
+static bool
 zebra_get_header(tvbuff_t *tvb, int offset, zebra_header_t *header)
 {
-	guint16 len, command;
-	guint8  version;
+	uint16_t len, command;
+	uint8_t version;
 
 	if (tvb_captured_length_remaining(tvb, offset) < 3) {
-		return FALSE;
+		return false;
 	}
 
 	len = tvb_get_ntohs(tvb, offset);
 	if (len < 3) {
-		return FALSE;
+		return false;
 	}
 
 	offset += 2;
-	command = tvb_get_guint8(tvb, offset);
+	command = tvb_get_uint8(tvb, offset);
 	if (command < 0xFE) { // version 0
 		version = 0;
 	} else { // not version 0
 		offset++;
 		if (tvb_captured_length_remaining(tvb, offset) < 3) {
-			return FALSE;
+			return false;
 		}
-		version = tvb_get_guint8(tvb, offset);
+		version = tvb_get_uint8(tvb, offset);
 		if (version == 1 || version == 2) {
 			offset++;
 		} else if (version == 3 || version == 4) {
@@ -2352,10 +2352,10 @@ zebra_get_header(tvbuff_t *tvb, int offset, zebra_header_t *header)
 			 * to invent a few more. */
 			offset += 5;
 		} else {
-			return FALSE;
+			return false;
 		}
 		if (tvb_captured_length_remaining(tvb, offset) < 2) {
-			return FALSE;
+			return false;
 		}
 		command = tvb_get_ntohs(tvb, offset);
 	}
@@ -2364,44 +2364,44 @@ zebra_get_header(tvbuff_t *tvb, int offset, zebra_header_t *header)
 		header->command = command;
 		header->version = version;
 	}
-	return TRUE;
+	return true;
 }
 
-static gboolean
+static bool
 test_zebra(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
 	zebra_header_t header;
 
 	if (!zebra_get_header(tvb, offset, &header)) {
-		return FALSE;
+		return false;
 	}
 
 	if (header.len > 1024) {
 		/* There can be multiple PDUs in a segment, but PDUs themselves
 		 * are small. Even 1024 is a generous overestimate.
 		 */
-		return FALSE;
+		return false;
 	}
 
 	if (header.version < 4) {
 		if (!try_val_to_str(header.command, messages)) {
-			return FALSE;
+			return false;
 		}
 	} else if (header.version == 4) {
 		if (!try_val_to_str(header.command, frr_zapi4_messages)) {
-			return FALSE;
+			return false;
 		}
 	} else if (header.version == 5) {
 		if (!try_val_to_str(header.command, frr_zapi5_messages)) {
-			return FALSE;
+			return false;
 		}
 	} else {
 		if (!try_val_to_str(header.command, frr_zapi6_messages)) {
-			return FALSE;
+			return false;
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 static int
@@ -2409,7 +2409,7 @@ dissect_zebra(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 {
 	proto_item	*ti;
 	proto_tree	*zebra_tree;
-	gboolean	request;
+	bool	request;
 	int		left, offset = 0;
 
 	if (!test_zebra(pinfo, tvb, offset, data)) {
@@ -2502,7 +2502,7 @@ proto_register_zebra(void)
 		{ &hf_zebra_request,
 		  { "Request",		"zebra.request",
 		    FT_BOOLEAN, BASE_NONE, NULL, 0x0,
-		    "TRUE if Zebra request", HFILL }},
+		    "true if Zebra request", HFILL }},
 		{ &hf_zebra_command,
 		  { "Command",		"zebra.command",
 		    FT_UINT16, BASE_DEC, VALS(messages), 0x0,
@@ -2626,7 +2626,7 @@ proto_register_zebra(void)
 		{ &hf_zebra_routeridaddress,
 		  { "Router ID address",	"zebra.routerIDAddress",
 		    FT_IPv4, BASE_NONE, NULL, 0x0,
-		    "Router ID", HFILL }},
+		    NULL, HFILL }},
 		{ &hf_zebra_routeridmask,
 		  { "Router ID mask",	"zebra.routerIDMask",
 		    FT_UINT8, BASE_DEC, NULL, 0x0,
@@ -2638,7 +2638,7 @@ proto_register_zebra(void)
 		{ &hf_zebra_redist_default,
 		  { "Redistribute default",		"zebra.redist_default",
 		    FT_BOOLEAN,  BASE_NONE, NULL, 0x0,
-		    "TRUE if redistribute default", HFILL }},
+		    "true if redistribute default", HFILL }},
 		{ &hf_zebra_vrfid,
 		  { "VRF-ID",		"zebra.vrfid",
 		    FT_UINT32, BASE_HEX, NULL, 0x0,
@@ -2861,10 +2861,10 @@ proto_register_zebra(void)
 		{ &hf_zebra_receive_notify,
 		  { "Receive Notify",	"zebra.receive_notify",
 		    FT_BOOLEAN, BASE_NONE, NULL, 0x0,
-		    "TRUE if receive notify", HFILL }}
+		    "true if receive notify", HFILL }}
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_zebra,
 		&ett_zebra_request,
 		&ett_message,

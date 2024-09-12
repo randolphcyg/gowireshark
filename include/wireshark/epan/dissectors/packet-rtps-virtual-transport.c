@@ -85,72 +85,72 @@
 #define PARAM_ID_LOST_MESSAGES                   0x0001
 
 void proto_register_rtps_virtual_transport(void);
-static gint dissect_rtps_virtual_transport(
+static int dissect_rtps_virtual_transport(
         tvbuff_t *tvb,
         packet_info *pinfo,
         proto_tree *tree,
         void *data _U_);
-static gint dissect_rtps_virtual_transport_rtps_type(
+static int dissect_rtps_virtual_transport_rtps_type(
         tvbuff_t *tvb,
         packet_info *pinfo,
         proto_tree *tree,
         proto_tree *tree_transport,
-        gint offset,
+        int offset,
         struct rtpsvt_data *transport_data);
-static gint dissect_parameter_transport_rtps_type(
+static int dissect_parameter_transport_rtps_type(
         tvbuff_t *tvb,
         proto_tree *rtpsvt_tree_general,
         proto_tree *rtpsvt_tree_identifier,
         proto_tree *rtpsvt_tree_information,
-        gint offset,
+        int offset,
         packet_info *pinfo,
         struct rtpsvt_data *transport_data);
-static gint dissect_rtps_virtual_transport_loss_info_type(
+static int dissect_rtps_virtual_transport_loss_info_type(
         tvbuff_t *tvb,
         packet_info *pinfo,
         proto_tree *tree_transport,
-        gint offset);
+        int offset);
 
 /* Subtree pointers */
-static gint proto_rtpsvt = -1;
-static gint rtpsvt_ett = -1;
-static gint rtpsvt_ett_version = -1;
-static gint rtpsvt_ett_identifier = -1;
-static gint rtpsvt_ett_information = -1;
-static gint rtpsvt_ett_information_class = -1;
-static gint rtpsvt_ett_information_src_port = -1;
-static gint rtpsvt_ett_information_dst_port = -1;
-static gint rtpsvt_ett_information_src_addr = -1;
-static gint rtpsvt_ett_information_dst_addr = -1;
-static gint rtpsvt_ett_information_direction = -1;
-static gint rtpsvt_ett_monitoring_sn = -1;
-static gint rtpsvt_ett_frame = -1;
+static int proto_rtpsvt;
+static int ett_rtpsvt;
+static int ett_rtpsvt_version;
+static int ett_rtpsvt_identifier;
+static int ett_rtpsvt_information;
+static int ett_rtpsvt_information_class;
+static int ett_rtpsvt_information_src_port;
+static int ett_rtpsvt_information_dst_port;
+static int ett_rtpsvt_information_src_addr;
+static int ett_rtpsvt_information_dst_addr;
+static int ett_rtpsvt_information_direction;
+static int ett_rtpsvt_monitoring_sn;
+static int ett_rtpsvt_frame;
 
 /* Initialize the protocol and registered fields */
-static header_field_info *rtpsvt_hf = NULL;
-static gint rtpsvt_hf_version = -1;
-static gint rtpsvt_hf_version_major = -1;
-static gint rtpsvt_hf_version_minor = -1;
-static gint rtpsvt_hf_content_kind = -1;
-static gint rtpsvt_hf_param_id = -1;
-static gint rtpsvt_hf_param_length = -1;
-static gint rtpsvt_hf_packet_identifier = -1;
-static gint rtpsvt_hf_monitoring_guid = -1;
-static gint rtpsvt_hf_monitoring_seqNr = -1;
-static gint rtpsvt_hf_information = -1;
-static gint rtpsvt_hf_class = -1;
-static gint rtpsvt_hf_source_port = -1;
-static gint rtpsvt_hf_source_address = -1;
-static gint rtpsvt_hf_source_pid = -1;
-static gint rtpsvt_hf_destination_port = -1;
-static gint rtpsvt_hf_destination_rtps_port = -1;
-static gint rtpsvt_hf_destination_address = -1;
-static gint rtpsvt_hf_direction = -1;
-static gint rtpsvt_hf_destination_pid = -1;
-static gint rtpsvt_hf_missing_messages = -1;
+static header_field_info *rtpsvt_hf;
+static int hf_rtpsvt_version;
+static int hf_rtpsvt_version_major;
+static int hf_rtpsvt_version_minor;
+static int hf_rtpsvt_content_kind;
+static int hf_rtpsvt_param_id;
+static int hf_rtpsvt_param_length;
+static int hf_rtpsvt_packet_identifier;
+static int hf_rtpsvt_monitoring_guid;
+static int hf_rtpsvt_monitoring_seqNr;
+static int hf_rtpsvt_information;
+static int hf_rtpsvt_class;
+static int hf_rtpsvt_source_port;
+static int hf_rtpsvt_source_address;
+static int hf_rtpsvt_source_pid;
+static int hf_rtpsvt_destination_port;
+static int hf_rtpsvt_destination_rtps_port;
+static int hf_rtpsvt_destination_address;
+static int hf_rtpsvt_direction;
+static int hf_rtpsvt_destination_pid;
+static int hf_rtpsvt_missing_messages;
 
 /* expert info fields */
-static expert_field ei_missing_msg = EI_INIT;
+static expert_field ei_missing_msg;
 
 /* Vendor specific: RTI */
 static const value_string ndds_transport_class_id_vals[] = {
@@ -171,7 +171,7 @@ static const value_string ndds_transport_class_id_vals[] = {
     { 0, NULL }
 };
 
-static gint dissect_rtps_virtual_transport(
+static int dissect_rtps_virtual_transport(
         tvbuff_t *tvb,
         packet_info *pinfo,
         proto_tree *tree,
@@ -183,11 +183,11 @@ static gint dissect_rtps_virtual_transport(
     proto_tree *rtpsvt_tree_version;
     proto_item *rtpsvt_ti_content_kind;
     struct rtpsvt_data transport_data;
-    guint16 version;
-    guint8 content_type;
-    const gchar *content_type_label;
-    gint offset = 0;
-    gint output = 0;
+    uint16_t version;
+    uint8_t content_type;
+    const char *content_type_label;
+    int offset = 0;
+    int output = 0;
 
     /* Add transport tree, used for the fields of our proto_rtpsvt */
     rtpsvt_ti_transport = proto_tree_add_item(
@@ -197,7 +197,7 @@ static gint dissect_rtps_virtual_transport(
             offset,
             -1,
             ENC_BIG_ENDIAN);
-    rtpsvt_tree_transport = proto_item_add_subtree(rtpsvt_ti_transport, rtpsvt_ett);
+    rtpsvt_tree_transport = proto_item_add_subtree(rtpsvt_ti_transport, ett_rtpsvt);
 
     /* Add the version to the transport protocol */
     version = tvb_get_ntohs(tvb, offset);
@@ -205,42 +205,42 @@ static gint dissect_rtps_virtual_transport(
     transport_data.version_minor = version & 0xff;
     rtpsvt_ti_version = proto_tree_add_uint_format(
             rtpsvt_tree_transport,
-            rtpsvt_hf_version,
+            hf_rtpsvt_version,
             tvb,
             offset,
-            2, /* 2B: sizeof(guint16) */
+            2, /* 2B: sizeof(uint16_t) */
             version,
             "Version: %d.%d",
             transport_data.version_major,
             transport_data.version_minor);
     rtpsvt_tree_version = proto_item_add_subtree(
             rtpsvt_ti_version,
-            rtpsvt_ett_version);
+            ett_rtpsvt_version);
 
     proto_tree_add_item(
             rtpsvt_tree_version,
-            rtpsvt_hf_version_major,
+            hf_rtpsvt_version_major,
             tvb,
             offset,
-            1, /* length: sizeof(guint8) */
+            1, /* length: sizeof(uint8_t) */
             ENC_NA);
     proto_tree_add_item(
             rtpsvt_tree_version,
-            rtpsvt_hf_version_minor,
+            hf_rtpsvt_version_minor,
             tvb,
             offset + 1,
-            1, /* length: sizeof(guint8) */
+            1, /* length: sizeof(uint8_t) */
             ENC_NA);
     offset += 2;
 
     /* Add the content kind. */
-    content_type = tvb_get_guint8(tvb, offset);
+    content_type = tvb_get_uint8(tvb, offset);
     rtpsvt_ti_content_kind = proto_tree_add_item(
             rtpsvt_ti_transport,
-            rtpsvt_hf_content_kind,
+            hf_rtpsvt_content_kind,
             tvb,
             offset,
-            1, /* length: sizeof(guint8) */
+            1, /* length: sizeof(uint8_t) */
             ENC_NA);
     if (content_type == CONTENT_KIND_RTPS) {
         content_type_label = "RTPS";
@@ -272,12 +272,12 @@ static gint dissect_rtps_virtual_transport(
     return output;
 }
 
-static gint dissect_rtps_virtual_transport_rtps_type(
+static int dissect_rtps_virtual_transport_rtps_type(
         tvbuff_t *tvb,
         packet_info *pinfo,
         proto_tree *tree,
         proto_tree *tree_transport,
-        gint offset,
+        int offset,
         struct rtpsvt_data *transport_data)
 {
     proto_item *rtpsvt_ti_identifier;
@@ -287,8 +287,8 @@ static gint dissect_rtps_virtual_transport_rtps_type(
     tvbuff_t *advanced_payload;
     static dissector_handle_t advanced_handle = NULL;
     unsigned int idx = FIRST_PARAM_ID_RTPS;
-    guint16 param_id;
-    guint16 param_length;
+    uint16_t param_id;
+    uint16_t param_length;
 
     /*
      * Add the tree for the packet identifier, which will be populated in
@@ -296,14 +296,14 @@ static gint dissect_rtps_virtual_transport_rtps_type(
      */
     rtpsvt_ti_identifier = proto_tree_add_item(
             tree_transport,
-            rtpsvt_hf_packet_identifier,
+            hf_rtpsvt_packet_identifier,
             tvb,
             offset,
             -1,
             ENC_NA);
     rtpsvt_tree_identifier = proto_item_add_subtree(
             rtpsvt_ti_identifier,
-            rtpsvt_ett_identifier);
+            ett_rtpsvt_identifier);
 
     /*
      * Add the tree for the transport information, which will be populated in
@@ -311,14 +311,14 @@ static gint dissect_rtps_virtual_transport_rtps_type(
      */
     rtpsvt_ti_information = proto_tree_add_item(
             tree_transport,
-            rtpsvt_hf_information,
+            hf_rtpsvt_information,
             tvb,
             offset,
             -1,
             ENC_NA);
     rtpsvt_tree_information = proto_item_add_subtree(
             rtpsvt_ti_information,
-            rtpsvt_ett_information);
+            ett_rtpsvt_information);
 
     /*
      * Each parameter has an id, a length and a value.
@@ -342,9 +342,9 @@ static gint dissect_rtps_virtual_transport_rtps_type(
      * of those parameters and parse only the ones we know about.
      */
     do {
-        param_id = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+        param_id = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
         offset += 2;
-        param_length = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+        param_length = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
         offset += 2;
         if (param_id == PARAM_ID_MAIN_FRAME) {
             proto_tree *rtpsvt_tree_frame;
@@ -354,20 +354,20 @@ static gint dissect_rtps_virtual_transport_rtps_type(
                     tvb,
                     offset,
                     0,
-                    rtpsvt_ett_frame,
+                    ett_rtpsvt_frame,
                     NULL,
                     "Real-Time Publish-Subscribe Wire Protocol (content)");
 
             proto_tree_add_uint(
                     rtpsvt_tree_frame,
-                    rtpsvt_hf_param_id,
+                    hf_rtpsvt_param_id,
                     tvb,
                     offset,
-                    2, /* 2B: sizeof(guint16) */
+                    2, /* 2B: sizeof(uint16_t) */
                     param_id);
             proto_tree_add_uint(
                     rtpsvt_tree_frame,
-                    rtpsvt_hf_param_length,
+                    hf_rtpsvt_param_length,
                     tvb,
                     offset + 2,
                     2,
@@ -399,12 +399,12 @@ static gint dissect_rtps_virtual_transport_rtps_type(
     return tvb_captured_length(tvb);
 }
 
-static gint dissect_parameter_transport_rtps_type(
+static int dissect_parameter_transport_rtps_type(
         tvbuff_t *tvb,
         proto_tree *rtpsvt_tree_general,
         proto_tree *rtpsvt_tree_identifier,
         proto_tree *rtpsvt_tree_information,
-        gint offset,
+        int offset,
         packet_info *pinfo,
         struct rtpsvt_data *transport_data)
 {
@@ -414,9 +414,9 @@ static gint dissect_parameter_transport_rtps_type(
      * That is why value of the parameter is now at offset + 4
      * (i.e. offset + sizeof(param_id) + sizeof(param_length))
      */
-    guint16 param_id = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
-    guint16 param_length = tvb_get_guint16(tvb, offset + 2, ENC_BIG_ENDIAN);
-    const gint OFFSET_TO_VAL = offset + 4;
+    uint16_t param_id = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
+    uint16_t param_length = tvb_get_uint16(tvb, offset + 2, ENC_BIG_ENDIAN);
+    const int OFFSET_TO_VAL = offset + 4;
     if (param_length <=0) {
         /* Length not valid: skip parameter (id + length) */
         return OFFSET_TO_VAL;
@@ -426,8 +426,8 @@ static gint dissect_parameter_transport_rtps_type(
         case PARAM_ID_TRANSPORT_CLASS:
             {
                 proto_tree *rtpsvt_tree_information_class;
-                gint32 classId = tvb_get_gint32(tvb, OFFSET_TO_VAL, ENC_BIG_ENDIAN);
-                const gchar *className = val_to_str(
+                int32_t classId = tvb_get_int32(tvb, OFFSET_TO_VAL, ENC_BIG_ENDIAN);
+                const char *className = val_to_str(
                         classId,
                         ndds_transport_class_id_vals,
                         "%d");
@@ -437,7 +437,7 @@ static gint dissect_parameter_transport_rtps_type(
                         tvb,
                         offset,
                         0,
-                        rtpsvt_ett_information_class,
+                        ett_rtpsvt_information_class,
                         NULL,
                         "Class: %s",
                         className);
@@ -445,18 +445,18 @@ static gint dissect_parameter_transport_rtps_type(
                 /* Add parameter identifier and length */
                 proto_tree_add_uint(
                         rtpsvt_tree_information_class,
-                        rtpsvt_hf_param_id,
+                        hf_rtpsvt_param_id,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_id);
                 offset += 2;
                 proto_tree_add_uint(
                         rtpsvt_tree_information_class,
-                        rtpsvt_hf_param_length,
+                        hf_rtpsvt_param_length,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_length);
                 offset += 2;
 
@@ -466,7 +466,7 @@ static gint dissect_parameter_transport_rtps_type(
                  */
                 proto_tree_add_string(
                         rtpsvt_tree_information_class,
-                        rtpsvt_hf_class,
+                        hf_rtpsvt_class,
                         tvb,
                         offset,
                         param_length,
@@ -487,11 +487,11 @@ static gint dissect_parameter_transport_rtps_type(
         case PARAM_ID_MONITORING_GUID:
             {
                 proto_tree *rtpsvt_tree_monitoring_guid;
-                const guint8 *guid_bytes = tvb_get_ptr(
+                const uint8_t *guid_bytes = tvb_get_ptr(
                         tvb,
                         OFFSET_TO_VAL,
                         param_length);
-                const gchar *guid_string = bytes_to_str_punct(
+                const char *guid_string = bytes_to_str_punct(
                         pinfo->pool,
                         guid_bytes,
                         MIN(param_length, 12),
@@ -502,7 +502,7 @@ static gint dissect_parameter_transport_rtps_type(
                         tvb,
                         offset,
                         0,
-                        rtpsvt_ett_information_src_addr,
+                        ett_rtpsvt_information_src_addr,
                         NULL,
                         "Monitoring GUID Prefix: %s",
                         guid_string);
@@ -510,24 +510,24 @@ static gint dissect_parameter_transport_rtps_type(
                 /* Add parameter identifier and length */
                 proto_tree_add_uint(
                         rtpsvt_tree_monitoring_guid,
-                        rtpsvt_hf_param_id,
+                        hf_rtpsvt_param_id,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_id);
                 offset += 2;
                 proto_tree_add_uint(
                         rtpsvt_tree_monitoring_guid,
-                        rtpsvt_hf_param_length,
+                        hf_rtpsvt_param_length,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_length);
                 offset += 2;
 
                 proto_tree_add_item(
                         rtpsvt_tree_monitoring_guid,
-                        rtpsvt_hf_monitoring_guid,
+                        hf_rtpsvt_monitoring_guid,
                         tvb,
                         offset,
                         param_length,
@@ -544,14 +544,14 @@ static gint dissect_parameter_transport_rtps_type(
         case PARAM_ID_MONITORING_SN:
             {
                 proto_tree *rtpsvt_tree_seqNr;
-                guint64 seqNr = tvb_get_guint64(tvb, OFFSET_TO_VAL, ENC_BIG_ENDIAN);
+                uint64_t seqNr = tvb_get_uint64(tvb, OFFSET_TO_VAL, ENC_BIG_ENDIAN);
 
                 rtpsvt_tree_seqNr = proto_tree_add_subtree_format(
                         rtpsvt_tree_identifier,
                         tvb,
                         offset,
                         0,
-                        rtpsvt_ett_monitoring_sn,
+                        ett_rtpsvt_monitoring_sn,
                         NULL,
                         "Monitoring Sequence Number: %" PRIu64,
                         seqNr);
@@ -559,24 +559,24 @@ static gint dissect_parameter_transport_rtps_type(
                 /* Add parameter identifier and length */
                 proto_tree_add_uint(
                         rtpsvt_tree_seqNr,
-                        rtpsvt_hf_param_id,
+                        hf_rtpsvt_param_id,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_id);
                 offset += 2;
                 proto_tree_add_uint(
                         rtpsvt_tree_seqNr,
-                        rtpsvt_hf_param_length,
+                        hf_rtpsvt_param_length,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_length);
                 offset += 2;
 
                 proto_tree_add_uint64(
                         rtpsvt_tree_seqNr,
-                        rtpsvt_hf_monitoring_seqNr,
+                        hf_rtpsvt_monitoring_seqNr,
                         tvb,
                         offset,
                         param_length,
@@ -593,21 +593,21 @@ static gint dissect_parameter_transport_rtps_type(
         case PARAM_ID_SOURCE_IP_ADDRESS:
             {
                 proto_tree *rtpsvt_tree_information_address;
-                gint temporary_hf = rtpsvt_hf_source_address;
-                const gchar *prefix = "shmem_prefix";
-                const gchar *title_tree = "Source address";
-                gchar addr[COL_MAX_LEN];
+                int temporary_hf = hf_rtpsvt_source_address;
+                const char *prefix = "shmem_prefix";
+                const char *title_tree = "Source address";
+                char addr[COL_MAX_LEN];
                 ws_in6_addr addr_raw;
-                const guint8 bytes_zeroed[12] = {0};
+                static const uint8_t bytes_zeroed[12] = {0};
                 tvb_get_ipv6(tvb, OFFSET_TO_VAL, &addr_raw);
 
                 /* shared memory pid or address? */
                 if (memcmp(&addr_raw.bytes, prefix, strlen(prefix)) == 0) {
-                    temporary_hf = rtpsvt_hf_source_pid;
+                    temporary_hf = hf_rtpsvt_source_pid;
                     title_tree = "Source process ID";
-                    guint32 pid = tvb_get_guint32(
+                    uint32_t pid = tvb_get_uint32(
                             tvb,
-                            OFFSET_TO_VAL + (gint) (strlen(prefix)),
+                            OFFSET_TO_VAL + (int) (strlen(prefix)),
                             ENC_BIG_ENDIAN);
                     snprintf(addr, sizeof(addr), "%u", pid);
                 } else if (memcmp(
@@ -637,7 +637,7 @@ static gint dissect_parameter_transport_rtps_type(
                         tvb,
                         offset,
                         0,
-                        rtpsvt_ett_information_src_addr,
+                        ett_rtpsvt_information_src_addr,
                         NULL,
                         "%s: %s",
                         title_tree,
@@ -646,18 +646,18 @@ static gint dissect_parameter_transport_rtps_type(
                 /* Add parameter identifier and length */
                 proto_tree_add_uint(
                         rtpsvt_tree_information_address,
-                        rtpsvt_hf_param_id,
+                        hf_rtpsvt_param_id,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_id);
                 offset += 2;
                 proto_tree_add_uint(
                         rtpsvt_tree_information_address,
-                        rtpsvt_hf_param_length,
+                        hf_rtpsvt_param_length,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_length);
                 offset += 2;
 
@@ -684,7 +684,7 @@ static gint dissect_parameter_transport_rtps_type(
         case PARAM_ID_SOURCE_PORT:
             {
                 proto_tree *rtpsvt_tree_information_port;
-                guint32 port = tvb_get_guint32(
+                uint32_t port = tvb_get_uint32(
                         tvb,
                         OFFSET_TO_VAL,
                         ENC_BIG_ENDIAN);
@@ -694,7 +694,7 @@ static gint dissect_parameter_transport_rtps_type(
                         tvb,
                         offset,
                         0,
-                        rtpsvt_ett_information_src_port,
+                        ett_rtpsvt_information_src_port,
                         NULL,
                         "Source port: %d",
                         port);
@@ -702,24 +702,24 @@ static gint dissect_parameter_transport_rtps_type(
                 /* Add parameter identifier and length */
                 proto_tree_add_uint(
                         rtpsvt_tree_information_port,
-                        rtpsvt_hf_param_id,
+                        hf_rtpsvt_param_id,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_id);
                 offset += 2;
                 proto_tree_add_uint(
                         rtpsvt_tree_information_port,
-                        rtpsvt_hf_param_length,
+                        hf_rtpsvt_param_length,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_length);
                 offset += 2;
 
                 proto_tree_add_uint(
                         rtpsvt_tree_information_port,
-                        rtpsvt_hf_source_port,
+                        hf_rtpsvt_source_port,
                         tvb,
                         offset,
                         param_length,
@@ -746,21 +746,21 @@ static gint dissect_parameter_transport_rtps_type(
         case PARAM_ID_DESTINATION_IP_ADDRESS:
             {
                 proto_tree *rtpsvt_tree_information_address;
-                gint temporary_hf= rtpsvt_hf_destination_address;
-                const gchar *prefix = "shmem_prefix";
-                const gchar *title_tree = "Destination address";
-                gchar addr[COL_MAX_LEN];
+                int temporary_hf= hf_rtpsvt_destination_address;
+                const char *prefix = "shmem_prefix";
+                const char *title_tree = "Destination address";
+                char addr[COL_MAX_LEN];
                 ws_in6_addr addr_raw;
-                const guint8 bytes_zeroed[12] = {0};
+                static const uint8_t bytes_zeroed[12] = {0};
                 tvb_get_ipv6(tvb, OFFSET_TO_VAL, &addr_raw);
 
                 /* shared memory pid or address? */
                 if (memcmp(&addr_raw.bytes, prefix, strlen(prefix)) == 0) {
-                    temporary_hf = rtpsvt_hf_destination_pid;
+                    temporary_hf = hf_rtpsvt_destination_pid;
                     title_tree = "Destination process ID";
-                    guint32 pid = tvb_get_guint32(
+                    uint32_t pid = tvb_get_uint32(
                             tvb,
-                            OFFSET_TO_VAL + (gint) (strlen(prefix)),
+                            OFFSET_TO_VAL + (int) (strlen(prefix)),
                             ENC_BIG_ENDIAN);
                     snprintf(addr, sizeof(addr), "%u", pid);
                 } else if (memcmp(
@@ -790,7 +790,7 @@ static gint dissect_parameter_transport_rtps_type(
                         tvb,
                         offset,
                         0,
-                        rtpsvt_ett_information_dst_addr,
+                        ett_rtpsvt_information_dst_addr,
                         NULL,
                         "%s: %s",
                         title_tree,
@@ -799,18 +799,18 @@ static gint dissect_parameter_transport_rtps_type(
                 /* Add parameter identifier and length */
                 proto_tree_add_uint(
                         rtpsvt_tree_information_address,
-                        rtpsvt_hf_param_id,
+                        hf_rtpsvt_param_id,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_id);
                 offset += 2;
                 proto_tree_add_uint(
                         rtpsvt_tree_information_address,
-                        rtpsvt_hf_param_length,
+                        hf_rtpsvt_param_length,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_length);
                 offset += 2;
 
@@ -836,11 +836,11 @@ static gint dissect_parameter_transport_rtps_type(
             break;
         case PARAM_ID_DESTINATION_RTPS_PORT:
             {
-                guint32 port = tvb_get_guint32(tvb, OFFSET_TO_VAL, ENC_BIG_ENDIAN);
+                uint32_t port = tvb_get_uint32(tvb, OFFSET_TO_VAL, ENC_BIG_ENDIAN);
 
                 proto_tree_add_uint(
                         rtpsvt_tree_information,
-                        rtpsvt_hf_destination_rtps_port,
+                        hf_rtpsvt_destination_rtps_port,
                         tvb,
                         OFFSET_TO_VAL,
                         param_length,
@@ -852,14 +852,14 @@ static gint dissect_parameter_transport_rtps_type(
         case PARAM_ID_DESTINATION_PORT:
             {
                 proto_tree *rtpsvt_tree_information_port;
-                guint32 port = tvb_get_guint32(tvb, OFFSET_TO_VAL, ENC_BIG_ENDIAN);
+                uint32_t port = tvb_get_uint32(tvb, OFFSET_TO_VAL, ENC_BIG_ENDIAN);
 
                 rtpsvt_tree_information_port = proto_tree_add_subtree_format(
                         rtpsvt_tree_information,
                         tvb,
                         offset,
                         0,
-                        rtpsvt_ett_information_dst_port,
+                        ett_rtpsvt_information_dst_port,
                         NULL,
                         "Destination port: %d",
                         port);
@@ -867,24 +867,24 @@ static gint dissect_parameter_transport_rtps_type(
                 /* Add parameter identifier and length */
                 proto_tree_add_uint(
                         rtpsvt_tree_information_port,
-                        rtpsvt_hf_param_id,
+                        hf_rtpsvt_param_id,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_id);
                 offset += 2;
                 proto_tree_add_uint(
                         rtpsvt_tree_information_port,
-                        rtpsvt_hf_param_length,
+                        hf_rtpsvt_param_length,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_length);
                 offset += 2;
 
                 proto_tree_add_uint(
                         rtpsvt_tree_information_port,
-                        rtpsvt_hf_destination_port,
+                        hf_rtpsvt_destination_port,
                         tvb,
                         offset,
                         param_length,
@@ -911,15 +911,15 @@ static gint dissect_parameter_transport_rtps_type(
         case PARAM_ID_DIRECTION:
             {
                 proto_tree *rtpsvt_tree_direction;
-                guint8 value = tvb_get_guint8(tvb, OFFSET_TO_VAL);
-                const gchar *direction = value ? "INBOUND" : "OUTBOUND";
+                uint8_t value = tvb_get_uint8(tvb, OFFSET_TO_VAL);
+                const char *direction = value ? "INBOUND" : "OUTBOUND";
 
                 rtpsvt_tree_direction = proto_tree_add_subtree_format(
                         rtpsvt_tree_general,
                         tvb,
                         offset,
                         0,
-                        rtpsvt_ett_information_src_addr,
+                        ett_rtpsvt_information_src_addr,
                         NULL,
                         "Traffic Direction: %s",
                         direction);
@@ -927,23 +927,23 @@ static gint dissect_parameter_transport_rtps_type(
                 /* Add parameter identifier and length */
                 proto_tree_add_uint(
                         rtpsvt_tree_direction,
-                        rtpsvt_hf_param_id,
+                        hf_rtpsvt_param_id,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_id);
                 offset += 2;
                 proto_tree_add_uint(
                         rtpsvt_tree_direction,
-                        rtpsvt_hf_param_length,
+                        hf_rtpsvt_param_length,
                         tvb,
                         offset,
-                        2, /* length: sizeof(guint16) */
+                        2, /* length: sizeof(uint16_t) */
                         param_length);
 
                 proto_tree_add_string(
                         rtpsvt_tree_direction,
-                        rtpsvt_hf_direction,
+                        hf_rtpsvt_direction,
                         tvb,
                         OFFSET_TO_VAL,
                         param_length,
@@ -958,21 +958,21 @@ static gint dissect_parameter_transport_rtps_type(
     return offset;
 }
 
-static gint dissect_rtps_virtual_transport_loss_info_type(
+static int dissect_rtps_virtual_transport_loss_info_type(
         tvbuff_t *tvb,
         packet_info *pinfo,
         proto_tree *tree_transport,
-        gint offset)
+        int offset)
 {
 
-    guint16 param_id;
+    uint16_t param_id;
 
-    param_id = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+    param_id = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
     offset += 2;
     offset += 2; /* parameter length */
     if (param_id == PARAM_ID_LOST_MESSAGES) {
-        guint64 first_lost = tvb_get_guint64(tvb, offset, ENC_BIG_ENDIAN);
-        guint64 last_lost = tvb_get_guint64(tvb, offset+8, ENC_BIG_ENDIAN);
+        uint64_t first_lost = tvb_get_uint64(tvb, offset, ENC_BIG_ENDIAN);
+        uint64_t last_lost = tvb_get_uint64(tvb, offset+8, ENC_BIG_ENDIAN);
 
         if (pinfo->cinfo) {
             char info[COL_MAX_INFO_LEN] = {'\0'};
@@ -998,161 +998,161 @@ proto_register_rtps_virtual_transport(void)
 
     static hf_register_info hf[] = {
         {
-            &rtpsvt_hf_version,
+            &hf_rtpsvt_version,
             {
                 "Version", "rtpsvt.version",
-                FT_UINT16, BASE_HEX, NULL, 0, 0, HFILL
+                FT_UINT16, BASE_HEX, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_version_major,
+            &hf_rtpsvt_version_major,
             {
                 "Major", "rtpsvt.version.major",
-                FT_INT8, BASE_DEC, NULL, 0, 0, HFILL
+                FT_INT8, BASE_DEC, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_version_minor,
+            &hf_rtpsvt_version_minor,
             {
                 "Minor", "rtpsvt.version.minor",
-                FT_INT8, BASE_DEC, NULL, 0, 0, HFILL
+                FT_INT8, BASE_DEC, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_content_kind,
+            &hf_rtpsvt_content_kind,
             {
                 "Content kind", "rtpsvt.content.kind",
-                FT_INT8, BASE_DEC, NULL, 0, 0, HFILL
+                FT_INT8, BASE_DEC, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_param_id,
+            &hf_rtpsvt_param_id,
             {
                 "Parameter Identifier", "rtpsvt.param.id",
-                FT_UINT16, BASE_DEC, NULL, 0, 0, HFILL
+                FT_UINT16, BASE_DEC, NULL, 0, NULL, HFILL
             },
         },
         {
-            &rtpsvt_hf_param_length,
+            &hf_rtpsvt_param_length,
             {
                 "Parameter Length", "rtpsvt.param.length",
-                FT_UINT16, BASE_DEC, NULL, 0, 0, HFILL
+                FT_UINT16, BASE_DEC, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_direction,
+            &hf_rtpsvt_direction,
             {
                 "Traffic Direction", "rtpsvt.direction",
-                FT_STRING, BASE_NONE, NULL, 0x0, 0, HFILL
+                FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_packet_identifier,
+            &hf_rtpsvt_packet_identifier,
             {
                 "Packet identifier", "rtpsvt.identifier",
-                FT_NONE, BASE_NONE, NULL, 0, 0, HFILL
+                FT_NONE, BASE_NONE, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_monitoring_guid,
+            &hf_rtpsvt_monitoring_guid,
             {
                 "GUID", "rtpsvt.monitoring_guid",
-                FT_BYTES, BASE_NONE, NULL, 0, 0, HFILL
+                FT_BYTES, BASE_NONE, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_monitoring_seqNr,
+            &hf_rtpsvt_monitoring_seqNr,
             {
                 "SeqNum", "rtpsvt.seqNr",
-                FT_UINT64, BASE_DEC, NULL, 0x0, 0, HFILL
+                FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_information,
+            &hf_rtpsvt_information,
             {
                 "Transport Information", "rtpsvt.information",
-                FT_NONE, BASE_NONE, NULL, 0x0, 0, HFILL
+                FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_source_port,
+            &hf_rtpsvt_source_port,
             {
                 "Source Port", "rtpsvt.source_port",
-                FT_UINT32, BASE_DEC, NULL, 0x0, 0, HFILL
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_source_address,
+            &hf_rtpsvt_source_address,
             {
                 "Source address", "rtpsvt.source_address",
-                FT_STRING, BASE_NONE, NULL, 0, 0, HFILL
+                FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_source_pid,
+            &hf_rtpsvt_source_pid,
             {
                 "Source process ID", "rtpsvt.source_pid",
-                FT_STRING, BASE_NONE, NULL, 0, 0, HFILL
+                FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_destination_port,
+            &hf_rtpsvt_destination_port,
             {
                 "Destination Port", "rtpsvt.port",
-                FT_UINT32, BASE_DEC, NULL, 0x0, 0, HFILL
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_destination_rtps_port,
+            &hf_rtpsvt_destination_rtps_port,
             {
                 "Destination RTPS Port", "rtpsvt.rtps_port",
-                FT_UINT32, BASE_DEC, NULL, 0x0, 0, HFILL
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_destination_address,
+            &hf_rtpsvt_destination_address,
             {
                 "Destination address", "rtpsvt.destination_address",
-                FT_STRING, BASE_NONE, NULL, 0, 0, HFILL
+                FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_destination_pid,
+            &hf_rtpsvt_destination_pid,
             {
                 "Destination process ID", "rtpsvt.destination_pid",
-                FT_STRING, BASE_NONE, NULL, 0, 0, HFILL
+                FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL
             }
         },
         {
-            &rtpsvt_hf_class,
+            &hf_rtpsvt_class,
             {
                 "Transport class", "rtpsvt.class",
-                FT_STRING, BASE_NONE, NULL, 0, 0, HFILL
+                FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL
             }
         },
         {
             /* Information related to the 'lost' content type */
-            &rtpsvt_hf_missing_messages,
+            &hf_rtpsvt_missing_messages,
             {
                 "Packets lost", "rtpsvt.missing_messages",
-                FT_UINT64, BASE_DEC, NULL, 0x0, 0, HFILL
+                FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL
             }
         }
     };
 
-    static gint *ett[] = {
-        &rtpsvt_ett,
-        &rtpsvt_ett_version,
-        &rtpsvt_ett_identifier,
-        &rtpsvt_ett_information,
-        &rtpsvt_ett_information_class,
-        &rtpsvt_ett_information_src_port,
-        &rtpsvt_ett_information_dst_port,
-        &rtpsvt_ett_information_src_addr,
-        &rtpsvt_ett_information_dst_addr,
-        &rtpsvt_ett_information_direction,
-        &rtpsvt_ett_monitoring_sn,
-        &rtpsvt_ett_frame
+    static int *ett[] = {
+        &ett_rtpsvt,
+        &ett_rtpsvt_version,
+        &ett_rtpsvt_identifier,
+        &ett_rtpsvt_information,
+        &ett_rtpsvt_information_class,
+        &ett_rtpsvt_information_src_port,
+        &ett_rtpsvt_information_dst_port,
+        &ett_rtpsvt_information_src_addr,
+        &ett_rtpsvt_information_dst_addr,
+        &ett_rtpsvt_information_direction,
+        &ett_rtpsvt_monitoring_sn,
+        &ett_rtpsvt_frame
     };
 
     static ei_register_info ei[] = {

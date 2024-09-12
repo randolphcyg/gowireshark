@@ -37,15 +37,15 @@ void proto_register_gelf(void);
 void proto_reg_handoff_gelf(void);
 
 static dissector_handle_t json_handle;
-static int proto_gelf = -1;
+static int proto_gelf;
 static dissector_handle_t gelf_udp_handle;
 
-static gint ett_gelf = -1;
-static gint hf_gelf_pdu_type = -1;
-static gint hf_gelf_pdu_message_id = -1;
-static gint hf_gelf_pdu_chunk_number = -1;
-static gint hf_gelf_pdu_chunk_count = -1;
-static gint hf_gelf_pdu_chunked = -1;
+static int ett_gelf;
+static int hf_gelf_pdu_type;
+static int hf_gelf_pdu_message_id;
+static int hf_gelf_pdu_chunk_number;
+static int hf_gelf_pdu_chunk_count;
+static int hf_gelf_pdu_chunked;
 
 static const value_string gelf_udp_types[] = {
     { HEADER_GZIP, "gzip" },
@@ -61,19 +61,19 @@ static const value_string gelf_udp_types[] = {
 
 static reassembly_table gelf_udp_reassembly_table;
 
-static gint ett_gelf_fragment = -1;
-static gint ett_gelf_fragments = -1;
+static int ett_gelf_fragment;
+static int ett_gelf_fragments;
 
-static int hf_gelf_fragments = -1;
-static int hf_gelf_fragment = -1;
-static int hf_gelf_fragment_overlap = -1;
-static int hf_gelf_fragment_overlap_conflict = -1;
-static int hf_gelf_fragment_multiple_tails = -1;
-static int hf_gelf_fragment_too_long_fragment = -1;
-static int hf_gelf_fragment_error = -1;
-static int hf_gelf_fragment_count = -1;
-static int hf_gelf_reassembled_in = -1;
-static int hf_gelf_reassembled_length = -1;
+static int hf_gelf_fragments;
+static int hf_gelf_fragment;
+static int hf_gelf_fragment_overlap;
+static int hf_gelf_fragment_overlap_conflict;
+static int hf_gelf_fragment_multiple_tails;
+static int hf_gelf_fragment_too_long_fragment;
+static int hf_gelf_fragment_error;
+static int hf_gelf_fragment_count;
+static int hf_gelf_reassembled_in;
+static int hf_gelf_reassembled_length;
 
 static const fragment_items gelf_fragment_items = {
     &ett_gelf_fragment,
@@ -92,16 +92,16 @@ static const fragment_items gelf_fragment_items = {
     "GELF fragments"
 };
 
-static expert_field ei_gelf_invalid_header = EI_INIT;
-static expert_field ei_gelf_broken_compression = EI_INIT;
+static expert_field ei_gelf_invalid_header;
+static expert_field ei_gelf_broken_compression;
 
-static inline gboolean
-is_simple_zlib(guint16 header) {
+static inline bool
+is_simple_zlib(uint16_t header) {
     return header == 0x7801 || header == 0x785e || header == 0x789c || header == 0x78da;
 }
 
 static int
-dissect_gelf_simple_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint16 header,
+dissect_gelf_simple_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint16_t header,
                         proto_item* pdu_item)
 {
     int len;
@@ -109,7 +109,7 @@ dissect_gelf_simple_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
 
     len = tvb_captured_length(tvb);
     if (header == HEADER_GZIP || is_simple_zlib(header)) {
-        next_tvb = tvb_child_uncompress(tvb, tvb, 0, len);
+        next_tvb = tvb_child_uncompress_zlib(tvb, tvb, 0, len);
         if (next_tvb) {
             add_new_data_source(pinfo, next_tvb, "compressed data");
             call_dissector(json_handle, next_tvb, pinfo, tree);
@@ -134,10 +134,10 @@ dissect_gelf_simple_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
 }
 
 static int
-dissect_gelf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean heur_check)
+dissect_gelf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, bool heur_check)
 {
-    guint16 header;
-    guint captured_length;
+    uint16_t header;
+    unsigned captured_length;
     proto_item *it;
 
     captured_length = tvb_captured_length(tvb);
@@ -148,8 +148,8 @@ dissect_gelf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean heur_
     header = tvb_get_ntohs(tvb, 0);
 
     if (heur_check) {
-        guint min_len;
-        guint8 number, count;
+        unsigned min_len;
+        uint8_t number, count;
 
         switch(header) {
             case HEADER_GZIP:
@@ -178,8 +178,8 @@ dissect_gelf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean heur_
             return 0;
 
         if (header == HEADER_CHUNKED && captured_length >= 10) {
-            number = tvb_get_guint8(tvb, 10);
-            count = tvb_get_guint8(tvb, 11);
+            number = tvb_get_uint8(tvb, 10);
+            count = tvb_get_uint8(tvb, 11);
             if (number >= count)
                 return 0;
         }
@@ -192,16 +192,16 @@ dissect_gelf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean heur_
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "GELF");
 
     if (header == HEADER_CHUNKED) {
-        guint32 number, count, short_id, data_len;
+        uint32_t number, count, short_id, data_len;
         GByteArray *bytes;
         char message_id[17];
-        gboolean more_frags;
+        bool more_frags;
         fragment_head *fd_head;
 
         message_id[0] = '\0';
         bytes = g_byte_array_sized_new(8);
 
-        it = proto_tree_add_boolean(gelf_tree, hf_gelf_pdu_chunked, tvb, 0, 2, TRUE);
+        it = proto_tree_add_boolean(gelf_tree, hf_gelf_pdu_chunked, tvb, 0, 2, true);
         proto_item_set_generated(it);
         proto_tree_add_bytes_item(gelf_tree, hf_gelf_pdu_message_id, tvb, 2, 8, ENC_BIG_ENDIAN, bytes,
                                   NULL, NULL);
@@ -213,11 +213,11 @@ dissect_gelf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean heur_
         message_id[16] = '\0';
         // HACK: convert 64 bit message id to 32 bit :)
         short_id = BUILD_MESSAGE_ID(bytes->data);
-        g_byte_array_free(bytes, TRUE);
+        g_byte_array_free(bytes, true);
         col_add_fstr(pinfo->cinfo, COL_INFO, "Chunked packet: id: %s, number %u, count %u", message_id,
                      number, count);
         data_len = tvb_captured_length_remaining(tvb, 12);
-        more_frags = (count == number + 1) ? FALSE : TRUE;
+        more_frags = (count == number + 1) ? false : true;
         fd_head = fragment_add_seq_check(&gelf_udp_reassembly_table, tvb, 12, pinfo, short_id, NULL, number,
                                          data_len, more_frags);
         if (fd_head != NULL) {
@@ -225,13 +225,13 @@ dissect_gelf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean heur_
             newtvb = process_reassembled_data(tvb, 12, pinfo, "Reassembled GELF", fd_head,
                                               &gelf_fragment_items, NULL, gelf_tree);
             if (newtvb != NULL) {
-                guint16 newheader = tvb_get_ntohs(newtvb, 0);
+                uint16_t newheader = tvb_get_ntohs(newtvb, 0);
                 dissect_gelf_simple_udp(newtvb, pinfo, tree, newheader, pdu_item);
            }
         }
         return captured_length;
     } else {
-        it = proto_tree_add_boolean(gelf_tree, hf_gelf_pdu_chunked, tvb, 0, 2, FALSE);
+        it = proto_tree_add_boolean(gelf_tree, hf_gelf_pdu_chunked, tvb, 0, 2, false);
         proto_item_set_generated(it);
 
         switch(header) {
@@ -261,16 +261,16 @@ dissect_gelf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean heur_
 
 static int
 dissect_gelf_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_) {
-    return dissect_gelf(tvb, pinfo, tree, FALSE);
+    return dissect_gelf(tvb, pinfo, tree, false);
 }
 
-static gboolean
+static bool
 dissect_gelf_heur_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    if (dissect_gelf(tvb, pinfo, tree, TRUE) > 0) {
-        return TRUE;
+    if (dissect_gelf(tvb, pinfo, tree, true) > 0) {
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -391,7 +391,7 @@ proto_register_gelf(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_gelf,
         &ett_gelf_fragment,
         &ett_gelf_fragments

@@ -30,24 +30,24 @@ void proto_register_gluster_cli(void);
 void proto_reg_handoff_gluster_cli(void);
 
 /* Initialize the protocol and registered fields */
-static gint proto_gluster_cli = -1;
+static int proto_gluster_cli;
 
 /* programs and procedures */
-static gint hf_gluster_cli_proc = -1;
-static gint hf_gluster_cli_2_proc = -1;
-static gint hf_gluster_dict = -1;
-static gint hf_gluster_path = -1;
-static gint hf_gluster_lazy = -1;
-static gint hf_gluster_label = -1;
-static gint hf_gluster_unused = -1;
-static gint hf_gluster_wd= -1;
-static gint hf_gluster_op_errstr= -1;
-static gint hf_gluster_hostname = -1;
-static gint hf_gluster_port = -1;
-static gint hf_gluster_flags = -1;
+static int hf_gluster_cli_proc;
+static int hf_gluster_cli_2_proc;
+static int hf_gluster_dict;
+static int hf_gluster_path;
+static int hf_gluster_lazy;
+static int hf_gluster_label;
+static int hf_gluster_unused;
+static int hf_gluster_wd;
+static int hf_gluster_op_errstr;
+static int hf_gluster_hostname;
+static int hf_gluster_port;
+static int hf_gluster_flags;
 
 /* Initialize the subtree pointers */
-static gint ett_gluster_cli = -1;
+static int ett_gluster_cli;
 
 /* CLI Operations */
 static int
@@ -526,7 +526,7 @@ proto_register_gluster_cli(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_gluster_cli
 	};
 

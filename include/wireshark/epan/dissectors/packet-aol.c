@@ -67,68 +67,68 @@ static const value_string aol_wmem_mode[] = {
 };
 
 /* Protocol */
-static int proto_aol            = -1;
+static int proto_aol;
 
 /* Special fields */
-static int hf_aol_udata         = -1;
-static int hf_aol_init          = -1;
+static int hf_aol_udata;
+static int hf_aol_init;
 
 /* Header fields */
-static int hf_aol_start         = -1;
-static int hf_aol_crc           = -1;
-static int hf_aol_len           = -1;
-static int hf_aol_tx_seq        = -1;
-static int hf_aol_rx_seq        = -1;
-static int hf_aol_type          = -1;
-static int hf_aol_token         = -1;
-static int hf_aol_data          = -1;
-static int hf_aol_end           = -1;
+static int hf_aol_start;
+static int hf_aol_crc;
+static int hf_aol_len;
+static int hf_aol_tx_seq;
+static int hf_aol_rx_seq;
+static int hf_aol_type;
+static int hf_aol_token;
+static int hf_aol_data;
+static int hf_aol_end;
 
 /* 'INIT' PDU Fields */
-static int hf_aol_platform      = -1;
-static int hf_aol_version       = -1;
-static int hf_aol_subversion    = -1;
-static int hf_aol_unused        = -1;
-static int hf_aol_machine_mem   = -1;
-static int hf_aol_app_mem       = -1;
-static int hf_aol_pc_type       = -1;
-static int hf_aol_rel_month     = -1;
-static int hf_aol_rel_day       = -1;
-static int hf_aol_cust_class    = -1;
-static int hf_aol_udo_timestamp = -1;
-static int hf_aol_dos_ver       = -1;
-static int hf_aol_sess_flags    = -1;
-static int hf_aol_video_type    = -1;
-static int hf_aol_cpu_type      = -1;
-static int hf_aol_media_type    = -1;
-static int hf_aol_win_ver       = -1;
-static int hf_aol_wmem_mode     = -1;
-static int hf_aol_horiz_res     = -1;
-static int hf_aol_vert_res      = -1;
-static int hf_aol_num_colors    = -1;
-static int hf_aol_filler        = -1;
-static int hf_aol_region        = -1;
-static int hf_aol_lang          = -1;
-static int hf_aol_conn_spd      = -1;
+static int hf_aol_platform;
+static int hf_aol_version;
+static int hf_aol_subversion;
+static int hf_aol_unused;
+static int hf_aol_machine_mem;
+static int hf_aol_app_mem;
+static int hf_aol_pc_type;
+static int hf_aol_rel_month;
+static int hf_aol_rel_day;
+static int hf_aol_cust_class;
+static int hf_aol_udo_timestamp;
+static int hf_aol_dos_ver;
+static int hf_aol_sess_flags;
+static int hf_aol_video_type;
+static int hf_aol_cpu_type;
+static int hf_aol_media_type;
+static int hf_aol_win_ver;
+static int hf_aol_wmem_mode;
+static int hf_aol_horiz_res;
+static int hf_aol_vert_res;
+static int hf_aol_num_colors;
+static int hf_aol_filler;
+static int hf_aol_region;
+static int hf_aol_lang;
+static int hf_aol_conn_spd;
 
 /* Subtrees */
-static int ett_aol              = -1;
-static int ett_aol_data         = -1;
+static int ett_aol;
+static int ett_aol_data;
 
-static expert_field ei_aol_pdu_length_bad = EI_INIT;
-static expert_field ei_aol_end_missing = EI_INIT;
+static expert_field ei_aol_pdu_length_bad;
+static expert_field ei_aol_end_missing;
 
 /* Prefs */
-static gboolean aol_desegment  = TRUE;
+static bool aol_desegment  = true;
 
 /**
  * Dissect the 'INIT' PDU.
  */
-static guint dissect_aol_init(tvbuff_t *tvb, packet_info *pinfo _U_, guint offset, proto_tree *tree) {
+static unsigned dissect_aol_init(tvbuff_t *tvb, packet_info *pinfo _U_, unsigned offset, proto_tree *tree) {
 	proto_item *data_item;
 	proto_tree *data_tree;
-	guint16     dos_ver   = 0;
-	guint16     win_ver   = 0;
+	uint16_t    dos_ver   = 0;
+	uint16_t    win_ver   = 0;
 
 	/* Add the Data subtree */
 	data_item = proto_tree_add_item(tree,hf_aol_init,tvb,offset,tvb_reported_length_remaining(tvb,offset)-1,ENC_NA);
@@ -185,10 +185,10 @@ static guint dissect_aol_init(tvbuff_t *tvb, packet_info *pinfo _U_, guint offse
 /**
  * Get the length of a particular PDU (+6 bytes for the frame)
  */
-static guint get_aol_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb,
+static unsigned get_aol_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb,
                              int offset, void *data _U_)
 {
-	guint16 plen;
+	uint16_t plen;
 
 	/* Get the PDU length */
 	plen = tvb_get_ntohs(tvb,offset+3);
@@ -201,9 +201,9 @@ static guint get_aol_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb,
 static int dissect_aol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
 	proto_item    *ti;
 	proto_tree    *aol_tree;
-	guint          offset     = 0;
-	guint16        pdu_len;
-	guint8         pdu_type   = 0;
+	unsigned       offset     = 0;
+	uint16_t       pdu_len;
+	uint8_t        pdu_type   = 0;
 
 	/* Set the protocol name, and info column text. */
 	col_set_str(pinfo->cinfo,COL_PROTOCOL,"AOL");
@@ -228,7 +228,7 @@ static int dissect_aol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 
 	/* Add type (and add it to the tree item / info column) */
 	if (pdu_len >= 1) {
-		pdu_type = tvb_get_guint8(tvb,offset) & 0x3f;
+		pdu_type = tvb_get_uint8(tvb,offset) & 0x3f;
 		col_append_fstr(pinfo->cinfo,COL_INFO," [Type: %s]",val_to_str_const(pdu_type,aol_p3_types,"Unknown"));
 		proto_item_append_text(ti," [Type: %s]",val_to_str_const(pdu_type,aol_p3_types,"Unknown"));
 		proto_tree_add_uint(aol_tree,hf_aol_type,tvb,offset,1,pdu_type);
@@ -237,7 +237,7 @@ static int dissect_aol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 
 	/* Now for the data... */
 	if (pdu_len > 0) {
-		guint old_offset = offset;
+		unsigned old_offset = offset;
 
 		if (tvb_reported_length_remaining(tvb,offset) > pdu_len) {
 			/* Init packets are a special case */
@@ -245,7 +245,7 @@ static int dissect_aol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 				offset = dissect_aol_init(tvb,pinfo,offset,aol_tree);
 			} else {
 				if (pdu_len >= 2) {
-					const guint8* token;
+					const uint8_t* token;
 					/* Get the token */
 					proto_tree_add_item_ret_string(aol_tree,hf_aol_token,tvb,offset,2,ENC_ASCII,pinfo->pool,&token);
 					/* Add it */
@@ -288,7 +288,7 @@ static int dissect_aol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
  */
 static int dissect_aol(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
 	/* Ensure this really is an AOL packet */
-	if (tvb_reported_length(tvb) >= 1 && tvb_get_guint8(tvb,0) != AOL_P3_FRAME_START) return 0;
+	if (tvb_reported_length(tvb) >= 1 && tvb_get_uint8(tvb,0) != AOL_P3_FRAME_START) return 0;
 
 	/* Dissect PDUs */
 	tcp_dissect_pdus(tvb,pinfo,tree,aol_desegment,9,get_aol_pdu_len,dissect_aol_pdu,data);
@@ -347,7 +347,7 @@ void proto_register_aol(void) {
 	};
 
 	/* Trees */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_aol,
 		&ett_aol_data
 	};

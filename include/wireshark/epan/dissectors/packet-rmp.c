@@ -18,20 +18,20 @@
 void proto_register_rmp(void);
 void proto_reg_handoff_rmp(void);
 
-static int proto_rmp = -1;
+static int proto_rmp;
 
-static int hf_rmp_type = -1;
-static int hf_rmp_retcode = -1;
-static int hf_rmp_seqnum = -1;
-static int hf_rmp_sessionid = -1;
-static int hf_rmp_version = -1;
-static int hf_rmp_machtype = -1;
-static int hf_rmp_filename = -1;
-static int hf_rmp_offset = -1;
-static int hf_rmp_size = -1;
-static int hf_rmp_reserved = -1;
+static int hf_rmp_type;
+static int hf_rmp_retcode;
+static int hf_rmp_seqnum;
+static int hf_rmp_sessionid;
+static int hf_rmp_version;
+static int hf_rmp_machtype;
+static int hf_rmp_filename;
+static int hf_rmp_offset;
+static int hf_rmp_size;
+static int hf_rmp_reserved;
 
-static gint ett_rmp = -1;
+static int ett_rmp;
 
 static dissector_handle_t rmp_handle;
 
@@ -90,13 +90,13 @@ dissect_rmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	proto_tree	*rmp_tree = NULL;
 	proto_item	*ti = NULL;
-	guint8		type, len;
+	uint8_t		type, len;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "RMP");
 
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	type = tvb_get_guint8(tvb, 0);
+	type = tvb_get_uint8(tvb, 0);
 
 	col_set_str(pinfo->cinfo, COL_INFO,
 		    val_to_str_const(type, rmp_type_vals, "Unknown Type"));
@@ -120,7 +120,7 @@ dissect_rmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 			/* The remaining fields are optional */
 			if(!tvb_offset_exists(tvb, 30))
 				return 30;
-			len = tvb_get_guint8(tvb, 30);
+			len = tvb_get_uint8(tvb, 30);
 			proto_tree_add_item(rmp_tree,
 				hf_rmp_filename, tvb, 30, 1, ENC_ASCII|ENC_BIG_ENDIAN);
 			if(tvb_offset_exists(tvb, len+31))
@@ -137,7 +137,7 @@ dissect_rmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 				hf_rmp_sessionid, tvb, 6, 2, ENC_BIG_ENDIAN);
 			proto_tree_add_item(rmp_tree,
 				hf_rmp_version, tvb, 8, 2, ENC_BIG_ENDIAN);
-			len = tvb_get_guint8(tvb, 10);
+			len = tvb_get_uint8(tvb, 10);
 			proto_tree_add_item(rmp_tree,
 				hf_rmp_filename, tvb, 10, 1, ENC_ASCII|ENC_BIG_ENDIAN);
 			if(tvb_offset_exists(tvb, len+11))
@@ -223,7 +223,7 @@ proto_register_rmp(void)
 			NULL, 0x0, NULL, HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_rmp,
 	};
 

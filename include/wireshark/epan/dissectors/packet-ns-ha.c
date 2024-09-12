@@ -18,28 +18,28 @@ void proto_reg_handoff_ns_ha(void);
 
 static dissector_handle_t nsha_handle;
 
-static int proto_ns_ha = -1;
-static gint ett_nsha = -1;
-static gint ett_nsha_flags = -1;
+static int proto_ns_ha;
+static int ett_nsha;
+static int ett_nsha_flags;
 
-static int hf_nsha_signature = -1;
-static int hf_nsha_version = -1;
-static int hf_nsha_app = -1;
-static int hf_nsha_type = -1;
-static int hf_nsha_state = -1;
-static int hf_nsha_startime = -1;
-static int hf_nsha_masterstate = -1;
-static int hf_nsha_release = -1;
-static int hf_nsha_inc = -1;
-static int hf_nsha_syncstate = -1;
-static int hf_nsha_drinc = -1;
-static int hf_nsha_flags = -1;
-static int hf_nsha_flags_vm = -1;
-static int hf_nsha_flags_sp = -1;
-static int hf_nsha_flags_propdis = -1;
-static int hf_nsha_flags_inc = -1;
-static int hf_nsha_flags_sslfail = -1;
-static int hf_nsha_flags_nossl = -1;
+static int hf_nsha_signature;
+static int hf_nsha_version;
+static int hf_nsha_app;
+static int hf_nsha_type;
+static int hf_nsha_state;
+static int hf_nsha_startime;
+static int hf_nsha_masterstate;
+static int hf_nsha_release;
+static int hf_nsha_inc;
+static int hf_nsha_syncstate;
+static int hf_nsha_drinc;
+static int hf_nsha_flags;
+static int hf_nsha_flags_vm;
+static int hf_nsha_flags_sp;
+static int hf_nsha_flags_propdis;
+static int hf_nsha_flags_inc;
+static int hf_nsha_flags_sslfail;
+static int hf_nsha_flags_nossl;
 
 static const value_string ns_ha_app_vals[] = {
 	{ 0x00, "BASE" },
@@ -92,12 +92,12 @@ static const value_string ns_ha_syncstate_vals[] = {
 	{ 0, NULL }
 };
 
-#define NSAHA_SSLCARD_DOWN		0x100
-#define NSAHA_NO_DEVICES		0x200
-#define NSAHA_INC_STATE			0x1000
-#define NSAHA_PROP_DISABLED		0x2000
-#define NSAHA_STAY_PRIMARY		0x4000
-#define NSAHA_VERSION_MISMATCH	0x8000
+#define NSAHA_SSLCARD_DOWN		0x00000100
+#define NSAHA_NO_DEVICES		0x00000200
+#define NSAHA_INC_STATE			0x00001000
+#define NSAHA_PROP_DISABLED		0x00002000
+#define NSAHA_STAY_PRIMARY		0x00004000
+#define NSAHA_VERSION_MISMATCH	0x00008000
 
 static int * const ha_flags[] = {
 	&hf_nsha_flags_vm,
@@ -112,10 +112,10 @@ static int * const ha_flags[] = {
 static int
 dissect_ns_ha(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-	guint32 offset = 0, master_state=0;
+	uint32_t offset = 0, master_state=0;
 	proto_item *ti;
 	proto_tree *ns_ha_tree;
-	guint32 version, state;
+	uint32_t version, state;
 
 	/* It is Netscaler HA heartbeat packet. */
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "NS-HA");
@@ -272,7 +272,7 @@ proto_register_ns_ha(void)
 
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_nsha,
 		&ett_nsha_flags,
 	};

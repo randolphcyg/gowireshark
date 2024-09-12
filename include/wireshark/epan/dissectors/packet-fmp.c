@@ -12,109 +12,110 @@
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
+#include <epan/tfs.h>
 #include "packet-fmp.h"
 #include "packet-rpc.h"
 
 void proto_register_fmp(void);
 void proto_reg_handoff_fmp(void);
 
-static int hf_fmp_procedure = -1;
-static int hf_fmp_fsID = -1;
-static int hf_fmp_fsBlkSz = -1;
-static int hf_fmp_sessionHandle = -1;
-static int hf_fmp_fmpFHandle = -1;
-static int hf_fmp_msgNum = -1;
-static int hf_fmp_fileSize = -1;
-static int hf_fmp_cookie = -1;
-static int hf_fmp_firstLogBlk = -1;
-static int hf_fmp_numBlksReq = -1;
+static int hf_fmp_procedure;
+static int hf_fmp_fsID;
+static int hf_fmp_fsBlkSz;
+static int hf_fmp_sessionHandle;
+static int hf_fmp_fmpFHandle;
+static int hf_fmp_msgNum;
+static int hf_fmp_fileSize;
+static int hf_fmp_cookie;
+static int hf_fmp_firstLogBlk;
+static int hf_fmp_numBlksReq;
 
-static int proto_fmp = -1;
-static int hf_fmp_hostID = -1;
-static int hf_fmp_status = -1;
-static int hf_fmp_btime = -1;
-static int hf_fmp_time_sec = -1;
-static int hf_fmp_time_nsec = -1;
-static int hf_fmp_notifyPort = -1;
-static int hf_fmp_minBlks = -1;
-static int hf_fmp_eof = -1;
-static int hf_fmp_path = -1;
-static int hf_fmp_plugInID = -1;
-static int hf_fmp_plugInBuf = -1;
-static int hf_fmp_nfsFHandle = -1;
-static int hf_fmp_extentList_len = -1;
-static int hf_fmp_extent_state = -1;
-static int hf_fmp_numBlks = -1;
-static int hf_fmp_volID = -1;
-static int hf_fmp_startOffset = -1;
-static int hf_fmp_volHandle = -1;
-static int hf_fmp_devSignature = -1;
-static int hf_fmp_dskSigEnt_val = -1;
-static int hf_fmp_mount_path = -1;
-static int hf_fmp_sig_offset = -1;
-static int hf_fmp_os_major = -1;
-static int hf_fmp_os_minor = -1;
-static int hf_fmp_os_name = -1;
-static int hf_fmp_os_patch = -1;
-static int hf_fmp_os_build = -1;
-static int hf_fmp_server_version_string = -1;
-static int hf_fmp_description = -1;
-static int hf_fmp_nfsv3Attr_type = -1;
-static int hf_fmp_nfsv3Attr_mode = -1;
-static int hf_fmp_nfsv3Attr_nlink = -1;
-static int hf_fmp_nfsv3Attr_uid = -1;
-static int hf_fmp_nfsv3Attr_gid = -1;
-static int hf_fmp_nfsv3Attr_used = -1;
-static int hf_fmp_nfsv3Attr_rdev = -1;
-static int hf_fmp_nfsv3Attr_fsid = -1;
-static int hf_fmp_nfsv3Attr_fileid = -1;
-static int hf_fmp_cmd = -1;
-static int hf_fmp_topVolumeId = -1;
-static int hf_fmp_cursor = -1;
-static int hf_fmp_offset64 = -1;
-static int hf_fmp_start_offset64 = -1;
-static int hf_fmp_slice_size = -1;
-static int hf_fmp_volume = -1;
-static int hf_fmp_stripeSize = -1;
-static int hf_fmp_firstLogBlk64 =-1;
-static int hf_fmp_native_protocol = -1;
-static int hf_fmp_encoding_mode = -1;
-static int hf_fmp_capability = -1;
-static int hf_fmp_devSerial_query_cmd = -1;
-static int hf_fmp_volume_desc = -1;
-static int hf_fmp_disk_identifier = -1;
-static int hf_fmp_volume_mgmt_type = -1;
-static int hf_fmp_notify_protocol = -1;
-static int hf_fmp_client_error_number = -1;
+static int proto_fmp;
+static int hf_fmp_hostID;
+static int hf_fmp_status;
+static int hf_fmp_btime;
+static int hf_fmp_time_sec;
+static int hf_fmp_time_nsec;
+static int hf_fmp_notifyPort;
+static int hf_fmp_minBlks;
+static int hf_fmp_eof;
+static int hf_fmp_path;
+static int hf_fmp_plugInID;
+static int hf_fmp_plugInBuf;
+static int hf_fmp_nfsFHandle;
+static int hf_fmp_extentList_len;
+static int hf_fmp_extent_state;
+static int hf_fmp_numBlks;
+static int hf_fmp_volID;
+static int hf_fmp_startOffset;
+static int hf_fmp_volHandle;
+static int hf_fmp_devSignature;
+static int hf_fmp_dskSigEnt_val;
+static int hf_fmp_mount_path;
+static int hf_fmp_sig_offset;
+static int hf_fmp_os_major;
+static int hf_fmp_os_minor;
+static int hf_fmp_os_name;
+static int hf_fmp_os_patch;
+static int hf_fmp_os_build;
+static int hf_fmp_server_version_string;
+static int hf_fmp_description;
+static int hf_fmp_nfsv3Attr_type;
+static int hf_fmp_nfsv3Attr_mode;
+static int hf_fmp_nfsv3Attr_nlink;
+static int hf_fmp_nfsv3Attr_uid;
+static int hf_fmp_nfsv3Attr_gid;
+static int hf_fmp_nfsv3Attr_used;
+static int hf_fmp_nfsv3Attr_rdev;
+static int hf_fmp_nfsv3Attr_fsid;
+static int hf_fmp_nfsv3Attr_fileid;
+static int hf_fmp_cmd;
+static int hf_fmp_topVolumeId;
+static int hf_fmp_cursor;
+static int hf_fmp_offset64;
+static int hf_fmp_start_offset64;
+static int hf_fmp_slice_size;
+static int hf_fmp_volume;
+static int hf_fmp_stripeSize;
+static int hf_fmp_firstLogBlk64;
+static int hf_fmp_native_protocol;
+static int hf_fmp_encoding_mode;
+static int hf_fmp_capability;
+static int hf_fmp_devSerial_query_cmd;
+static int hf_fmp_volume_desc;
+static int hf_fmp_disk_identifier;
+static int hf_fmp_volume_mgmt_type;
+static int hf_fmp_notify_protocol;
+static int hf_fmp_client_error_number;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_fmp_cap = -1;
-static int hf_fmp_cap_revoke_handle_list = -1;
-static int hf_fmp_length_of_volume_list = -1;
-static int hf_fmp_cap_unc_names = -1;
-static int hf_fmp_length_of_list = -1;
-static int hf_fmp_sigoffset = -1;
-static int hf_fmp_uid = -1;
-static int hf_fmp_fid = -1;
-static int hf_fmp_fsid = -1;
-static int hf_fmp_tid = -1;
-static int hf_fmp_cifsport = -1;
-static int hf_fmp_blockindex = -1;
-static int hf_fmp_number_of_disk = -1;
-static int hf_fmp_cap_cifsv2 = -1;
-static int hf_fmp_mtime = -1;
-static int hf_fmp_atime = -1;
-static int hf_fmp_ctime = -1;
-static int hf_fmp_heartbeat_interval = -1;
-static int hf_fmp_volindex = -1;
+static int hf_fmp_cap;
+static int hf_fmp_cap_revoke_handle_list;
+static int hf_fmp_length_of_volume_list;
+static int hf_fmp_cap_unc_names;
+static int hf_fmp_length_of_list;
+static int hf_fmp_sigoffset;
+static int hf_fmp_uid;
+static int hf_fmp_fid;
+static int hf_fmp_fsid;
+static int hf_fmp_tid;
+static int hf_fmp_cifsport;
+static int hf_fmp_blockindex;
+static int hf_fmp_number_of_disk;
+static int hf_fmp_cap_cifsv2;
+static int hf_fmp_mtime;
+static int hf_fmp_atime;
+static int hf_fmp_ctime;
+static int hf_fmp_heartbeat_interval;
+static int hf_fmp_volindex;
 
-static gint ett_fmp = -1;
-static gint ett_fmp_timeval = -1;
-static gint ett_fmp_extList = -1;
-static gint ett_fmp_ext = -1;
-static gint ett_fmp_fileHandle = -1;
-static gint ett_capabilities = -1;
-static gint ett_HierVolumeDescription = -1;
-static gint ett_attrs = -1;
+static int ett_fmp;
+static int ett_fmp_timeval;
+static int ett_fmp_extList;
+static int ett_fmp_ext;
+static int ett_fmp_fileHandle;
+static int ett_capabilities;
+static int ett_HierVolumeDescription;
+static int ett_attrs;
 
 static const value_string fmp_encoding_mode_vals[] = {
     {FMP_ASCII, "ASCII"},
@@ -123,7 +124,7 @@ static const value_string fmp_encoding_mode_vals[] = {
     {0,NULL}
 };
 
-static gboolean fmp_fhandle_reqrep_matching = FALSE;
+static bool fmp_fhandle_reqrep_matching;
 
 static int
 dissect_fmp_genString(tvbuff_t *tvb, int offset, proto_tree *tree)
@@ -269,12 +270,12 @@ dissect_fmp_extentState(tvbuff_t *tvb, int offset, proto_tree *tree)
 }
 
 static int
-dissect_fmp_extent(tvbuff_t *tvb, int offset, packet_info *pinfo _U_, proto_tree *tree, guint32 ext_num)
+dissect_fmp_extent(tvbuff_t *tvb, int offset, packet_info *pinfo _U_, proto_tree *tree, uint32_t ext_num)
 {
     proto_tree *extTree;
 
     extTree = proto_tree_add_subtree_format(tree, tvb, offset, 20 ,
-                                  ett_fmp_ext, NULL, "Extent (%u)", (guint32) ext_num);
+                                  ett_fmp_ext, NULL, "Extent (%u)", (uint32_t) ext_num);
 
     offset = dissect_rpc_uint32(tvb,  extTree, hf_fmp_firstLogBlk,
                                 offset);
@@ -292,10 +293,10 @@ static int
 dissect_fmp_extentList(tvbuff_t *tvb, int offset, packet_info *pinfo,
                        proto_tree *tree)
 {
-    guint32     numExtents;
-    guint32     totalLength;
+    uint32_t    numExtents;
+    uint32_t    totalLength;
     proto_tree *extListTree;
-    guint32     i;
+    uint32_t    i;
 
     numExtents = tvb_get_ntohl(tvb, offset);
     totalLength = 4 + (20 * numExtents);
@@ -318,9 +319,9 @@ static int
 dissect_fmp_extentListEx(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
                          proto_tree *tree)
 {
-    guint32     numExtents;
+    uint32_t    numExtents;
     proto_tree *extListTree;
-    guint32     i;
+    uint32_t    i;
 
     numExtents = tvb_get_ntohl(tvb, offset);
 
@@ -362,9 +363,9 @@ dissect_plugInID(tvbuff_t *tvb, int offset, proto_tree *tree)
 static int
 dissect_fmp_flushCmd(tvbuff_t *tvb, int offset,  proto_tree *tree)
 {
-    guint32 cmd;
+    uint32_t cmd;
     char    msg[MAX_MSG_SIZE];
-    guint32 bitValue;
+    uint32_t bitValue;
     int     i;
 
     if (tree) {
@@ -477,7 +478,7 @@ dissect_fmp_timeval(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
         time_tree = proto_item_add_subtree(time_item, ett_fmp_timeval);
 
         proto_tree_add_uint(time_tree, hf_time_sec, tvb, offset, 4,
-                            (guint32) ts.secs);
+                            (uint32_t) ts.secs);
         proto_tree_add_uint(time_tree, hf_time_nsec, tvb, offset+4, 4,
                             ts.nsecs);
     }
@@ -677,7 +678,7 @@ dissect_fmp_Hiervolume(tvbuff_t *tvb, int offset, proto_tree * tree)
     offset = dissect_rpc_uint32(tvb, tree, hf_fmp_cookie, offset);
 
     /* hierarchical description of volume.  Each volume describes a
-       piece of the entire hierarchy and is guarenteed to only refer to
+       piece of the entire hierarchy and is guaranteed to only refer to
        volumes that have already been described by the data structure up
        to this point in time.  In some extreme cases, the number of
        volumes and their descriptions may be to large to fit in a single
@@ -713,7 +714,7 @@ dissect_fmp_vmInfo(tvbuff_t *tvb, int offset, packet_info *pinfo,
                    proto_tree *tree)
 {
     int     vmType;
-    guint32 phyVolList_len;
+    uint32_t phyVolList_len;
 
     vmType = tvb_get_ntohl(tvb, offset);
     proto_tree_add_item(tree, hf_fmp_volume_mgmt_type, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -2258,7 +2259,7 @@ proto_register_fmp(void)
       { &hf_fmp_volindex, { "volIndex", "fmp.volindex", FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_fmp,
         &ett_fmp_timeval,
         &ett_fmp_extList,

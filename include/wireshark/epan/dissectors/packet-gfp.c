@@ -24,7 +24,7 @@
 
 #include <epan/packet.h>   /* Should be first Wireshark include (other than config.h) */
 #include <epan/expert.h>
-#include <epan/prefs.h>
+#include <epan/tfs.h>
 #include <epan/crc16-tvb.h>
 #include <epan/crc32-tvb.h>
 #include <epan/decode_as.h>
@@ -41,35 +41,35 @@ void proto_register_gfp(void);
 static dissector_handle_t gfp_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_gfp = -1;
-static int hf_gfp_pli = -1;
-static int hf_gfp_chec = -1;
-static int hf_gfp_chec_status = -1;
-static int hf_gfp_type = -1;
-static int hf_gfp_pti = -1;
-static int hf_gfp_pfi = -1;
-static int hf_gfp_exi = -1;
-static int hf_gfp_upi_data = -1;
-static int hf_gfp_upi_management = -1;
-static int hf_gfp_thec = -1;
-static int hf_gfp_thec_status = -1;
-static int hf_gfp_cid = -1;
-static int hf_gfp_ehec = -1;
-static int hf_gfp_ehec_status = -1;
-static int hf_gfp_fcs = -1;
-static int hf_gfp_fcs_good = -1;
-static int hf_gfp_fcs_bad = -1;
+static int proto_gfp;
+static int hf_gfp_pli;
+static int hf_gfp_chec;
+static int hf_gfp_chec_status;
+static int hf_gfp_type;
+static int hf_gfp_pti;
+static int hf_gfp_pfi;
+static int hf_gfp_exi;
+static int hf_gfp_upi_data;
+static int hf_gfp_upi_management;
+static int hf_gfp_thec;
+static int hf_gfp_thec_status;
+static int hf_gfp_cid;
+static int hf_gfp_ehec;
+static int hf_gfp_ehec_status;
+static int hf_gfp_fcs;
+static int hf_gfp_fcs_good;
+static int hf_gfp_fcs_bad;
 
-static expert_field ei_gfp_pli_idle_nonempty = EI_INIT;
-static expert_field ei_gfp_pli_unknown = EI_INIT;
-static expert_field ei_gfp_pli_invalid = EI_INIT;
-static expert_field ei_gfp_chec_bad = EI_INIT;
-static expert_field ei_gfp_thec_bad = EI_INIT;
-static expert_field ei_gfp_ehec_bad = EI_INIT;
-static expert_field ei_gfp_exi_short = EI_INIT;
-static expert_field ei_gfp_pfi_short = EI_INIT;
-static expert_field ei_gfp_payload_undecoded = EI_INIT;
-static expert_field ei_gfp_fcs_bad = EI_INIT;
+static expert_field ei_gfp_pli_idle_nonempty;
+static expert_field ei_gfp_pli_unknown;
+static expert_field ei_gfp_pli_invalid;
+static expert_field ei_gfp_chec_bad;
+static expert_field ei_gfp_thec_bad;
+static expert_field ei_gfp_ehec_bad;
+static expert_field ei_gfp_exi_short;
+static expert_field ei_gfp_pfi_short;
+static expert_field ei_gfp_payload_undecoded;
+static expert_field ei_gfp_fcs_bad;
 
 #define GFP_USER_DATA 0
 #define GFP_CLIENT_MANAGEMENT 4
@@ -80,9 +80,9 @@ static expert_field ei_gfp_fcs_bad = EI_INIT;
 #define GFP_EXT_RING 2
 
 /* Initialize the subtree pointers */
-static gint ett_gfp = -1;
-static gint ett_gfp_type = -1;
-static gint ett_gfp_fcs = -1;
+static int ett_gfp;
+static int ett_gfp_type;
+static int ett_gfp_fcs;
 
 static dissector_table_t gfp_dissector_table;
 
@@ -90,7 +90,7 @@ static dissector_table_t gfp_dissector_table;
 static const range_string gfp_pli_rvals[] = {
     {0, 0, "Idle Frame"},
     {1, 3, "Control Frame (Reserved)"},
-    {4, G_MAXUINT16, "Client Frame"},
+    {4, UINT16_MAX, "Client Frame"},
     {0, 0, NULL}
 };
 
@@ -176,13 +176,13 @@ static const range_string gfp_upi_management_rvals[] = {
  * If data is received with fewer than this it is rejected. */
 #define GFP_MIN_LENGTH 4
 
-static void gfp_prompt(packet_info *pinfo, gchar* result)
+static void gfp_prompt(packet_info *pinfo, char* result)
 {
     snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "UPI %u as",
         GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_gfp, 0)));
 }
 
-static gpointer gfp_value(packet_info *pinfo)
+static void *gfp_value(packet_info *pinfo)
 {
     return p_get_proto_data(pinfo->pool, pinfo, proto_gfp, 0);
 }
@@ -190,10 +190,10 @@ static gpointer gfp_value(packet_info *pinfo)
 /* GFP has several identical 16 bit CRCs in its header (HECs). Note that
  * this function increases the offset. */
 static void
-gfp_add_hec_tree(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint *offset, const guint len, const int field, const int field_status, expert_field *ei_bad)
+gfp_add_hec_tree(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned *offset, const unsigned len, const int field, const int field_status, expert_field *ei_bad)
 {
 
-    guint hec_calc;
+    unsigned hec_calc;
 
     hec_calc = crc16_r3_ccitt_tvb(tvb, *offset, len);
     *offset += len;
@@ -204,15 +204,15 @@ gfp_add_hec_tree(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint *off
 
 /* G.7041 6.1.2 GFP payload area */
 static void
-dissect_gfp_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tree *gfp_tree, guint *offset, guint payload_len)
+dissect_gfp_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tree *gfp_tree, unsigned *offset, unsigned payload_len)
 {
     tvbuff_t *payload_tvb;
     proto_item *type_ti = NULL;
     proto_item *fcs_ti;
     proto_tree *fcs_tree = NULL;
-    guint pti, pfi, exi, upi;
-    guint fcs, fcs_calc;
-    guint fcs_len = 0;
+    unsigned pti, pfi, exi, upi;
+    unsigned fcs, fcs_calc;
+    unsigned fcs_len = 0;
 
     /* G.7041 6.1.2.3 Payload area scrambling
      * Note that payload when sent on the wire is scrambled as per ATM
@@ -229,7 +229,7 @@ dissect_gfp_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_t
     pti = tvb_get_bits8(tvb, 8*(*offset), 3);
     pfi = tvb_get_bits8(tvb, 8*(*offset)+3, 1);
     exi = tvb_get_bits8(tvb, 8*(*offset)+4, 4);
-    upi = tvb_get_guint8(tvb, *offset+1);
+    upi = tvb_get_uint8(tvb, *offset+1);
     p_add_proto_data(pinfo->pool, pinfo, proto_gfp, 0, GUINT_TO_POINTER(upi));
 
     col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pti, gfp_pti_vals, "Reserved PTI (%d)"));
@@ -305,16 +305,16 @@ dissect_gfp_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_t
         if (fcs == ~fcs_calc) {
             fcs_ti = proto_tree_add_uint_format_value(gfp_tree, hf_gfp_fcs, tvb, *offset+payload_len, 4, fcs, "0x%08x [correct]", fcs);
             fcs_tree = proto_item_add_subtree(fcs_ti, ett_gfp_fcs);
-            fcs_ti = proto_tree_add_boolean(fcs_tree, hf_gfp_fcs_good, tvb, *offset+payload_len, 4, TRUE);
+            fcs_ti = proto_tree_add_boolean(fcs_tree, hf_gfp_fcs_good, tvb, *offset+payload_len, 4, true);
             proto_item_set_generated(fcs_ti);
-            fcs_ti = proto_tree_add_boolean(fcs_tree, hf_gfp_fcs_bad, tvb, *offset+payload_len, 4, FALSE);
+            fcs_ti = proto_tree_add_boolean(fcs_tree, hf_gfp_fcs_bad, tvb, *offset+payload_len, 4, false);
             proto_item_set_generated(fcs_ti);
         } else {
             fcs_ti = proto_tree_add_uint_format_value(gfp_tree, hf_gfp_fcs, tvb, *offset+payload_len, 4, fcs, "0x%08x [incorrect, should be 0x%08x]", fcs, fcs_calc);
             fcs_tree = proto_item_add_subtree(fcs_ti, ett_gfp_fcs);
-            fcs_ti = proto_tree_add_boolean(fcs_tree, hf_gfp_fcs_good, tvb, *offset+payload_len, 4, FALSE);
+            fcs_ti = proto_tree_add_boolean(fcs_tree, hf_gfp_fcs_good, tvb, *offset+payload_len, 4, false);
             proto_item_set_generated(fcs_ti);
-            fcs_ti = proto_tree_add_boolean(fcs_tree, hf_gfp_fcs_bad, tvb, *offset+payload_len, 4, TRUE);
+            fcs_ti = proto_tree_add_boolean(fcs_tree, hf_gfp_fcs_bad, tvb, *offset+payload_len, 4, true);
             proto_item_set_generated(fcs_ti);
             expert_add_info(pinfo, fcs_ti, &ei_gfp_fcs_bad);
         }
@@ -354,9 +354,9 @@ dissect_gfp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
     proto_item *ti, *pli_ti;
     proto_tree *gfp_tree;
-    guint       offset = 0;
+    unsigned    offset = 0;
     int         len    = 0;
-    guint       pli;
+    unsigned    pli;
 
     /*** HEURISTICS ***/
 
@@ -496,7 +496,7 @@ proto_register_gfp(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_gfp,
         &ett_gfp_type,
         &ett_gfp_fcs

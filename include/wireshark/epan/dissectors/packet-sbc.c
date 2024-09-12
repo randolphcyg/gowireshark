@@ -15,7 +15,9 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/prefs.h>
+#include <epan/unit_strings.h>
 
+#include <wsutil/array.h>
 #include "packet-btavdtp.h"
 
 #define CHANNELS_MONO          0x00
@@ -29,37 +31,37 @@
 
 void proto_register_sbc(void);
 
-static int proto_sbc = -1;
+static int proto_sbc;
 
-static int hf_sbc_fragmented                                               = -1;
-static int hf_sbc_starting_packet                                          = -1;
-static int hf_sbc_last_packet                                              = -1;
-static int hf_sbc_rfa                                                      = -1;
-static int hf_sbc_number_of_frames                                         = -1;
+static int hf_sbc_fragmented;
+static int hf_sbc_starting_packet;
+static int hf_sbc_last_packet;
+static int hf_sbc_rfa;
+static int hf_sbc_number_of_frames;
 
-static int hf_sbc_syncword                                                 = -1;
-static int hf_sbc_sampling_frequency                                       = -1;
-static int hf_sbc_blocks                                                   = -1;
-static int hf_sbc_channel_mode                                             = -1;
-static int hf_sbc_allocation_method                                        = -1;
-static int hf_sbc_subbands                                                 = -1;
-static int hf_sbc_bitpool                                                  = -1;
-static int hf_sbc_crc_check                                                = -1;
-static int hf_sbc_expected_data_speed                                      = -1;
-static int hf_sbc_frame_duration                                           = -1;
-static int hf_sbc_cumulative_frame_duration                               = -1;
-static int hf_sbc_delta_time                                               = -1;
-static int hf_sbc_delta_time_from_the_beginning                            = -1;
-static int hf_sbc_cumulative_duration                                     = -1;
-static int hf_sbc_avrcp_song_position                                      = -1;
-static int hf_sbc_diff                                                     = -1;
+static int hf_sbc_syncword;
+static int hf_sbc_sampling_frequency;
+static int hf_sbc_blocks;
+static int hf_sbc_channel_mode;
+static int hf_sbc_allocation_method;
+static int hf_sbc_subbands;
+static int hf_sbc_bitpool;
+static int hf_sbc_crc_check;
+static int hf_sbc_expected_data_speed;
+static int hf_sbc_frame_duration;
+static int hf_sbc_cumulative_frame_duration;
+static int hf_sbc_delta_time;
+static int hf_sbc_delta_time_from_the_beginning;
+static int hf_sbc_cumulative_duration;
+static int hf_sbc_avrcp_song_position;
+static int hf_sbc_diff;
 
-static int hf_sbc_data                                                     = -1;
+static int hf_sbc_data;
 
-static gint ett_sbc             = -1;
-static gint ett_sbc_list        = -1;
+static int ett_sbc;
+static int ett_sbc_list;
 
-static expert_field ei_sbc_syncword = EI_INIT;
+static expert_field ei_sbc_syncword;
 
 extern value_string_ext media_codec_audio_type_vals_ext;
 
@@ -100,31 +102,31 @@ static const value_string subbands_vals[] = {
 };
 
 
-static gint
+static int
 dissect_sbc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     proto_item  *ti;
     proto_tree  *sbc_tree;
     proto_item  *pitem;
     proto_tree  *rtree;
-    gint        offset = 0;
-    guint8      number_of_frames;
-    guint8      syncword;
-    guint8      byte;
-    guint8      blocks;
-    guint8      channels;
-    guint8      subbands;
-    guint8      bitpool;
-    guint       frequency;
-    guint8      sbc_blocks;
-    gint        sbc_channels;
-    guint8      sbc_subbands;
-    gint        val;
-    gint        counter = 1;
-    gint        frame_length;
-    gint        expected_speed_data;
-    gdouble     frame_duration;
-    gdouble     cumulative_frame_duration = 0;
+    int         offset = 0;
+    uint8_t     number_of_frames;
+    uint8_t     syncword;
+    uint8_t     byte;
+    uint8_t     blocks;
+    uint8_t     channels;
+    uint8_t     subbands;
+    uint8_t     bitpool;
+    unsigned    frequency;
+    uint8_t     sbc_blocks;
+    int         sbc_channels;
+    uint8_t     sbc_subbands;
+    int         val;
+    int         counter = 1;
+    int         frame_length;
+    int         expected_speed_data;
+    double      frame_duration;
+    double      cumulative_frame_duration = 0;
     bta2dp_codec_info_t  *info;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "SBC");
@@ -139,17 +141,17 @@ dissect_sbc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     proto_tree_add_item(sbc_tree, hf_sbc_last_packet,      tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(sbc_tree, hf_sbc_rfa,              tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(sbc_tree, hf_sbc_number_of_frames, tvb, offset, 1, ENC_BIG_ENDIAN);
-    number_of_frames = tvb_get_guint8(tvb, offset) & 0x0F;
+    number_of_frames = tvb_get_uint8(tvb, offset) & 0x0F;
     offset += 1;
 
     while (tvb_reported_length_remaining(tvb, offset) > 0) {
-        byte = tvb_get_guint8(tvb, offset + 1);
+        byte = tvb_get_uint8(tvb, offset + 1);
         frequency = (byte & 0xC0) >> 6;
         blocks = (byte & 0x30) >> 4;
         channels = (byte & 0x0C)>> 2;
         subbands = byte & 0x01;
 
-        bitpool = tvb_get_guint8(tvb, offset + 2);
+        bitpool = tvb_get_uint8(tvb, offset + 2);
 
         if (channels == CHANNELS_MONO)
             sbc_channels = 1;
@@ -192,7 +194,7 @@ dissect_sbc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
                 ett_sbc_list, NULL, "Frame: %3u/%3u", counter, number_of_frames);
 
         pitem = proto_tree_add_item(rtree, hf_sbc_syncword, tvb, offset, 1, ENC_BIG_ENDIAN);
-        syncword = tvb_get_guint8(tvb, offset);
+        syncword = tvb_get_uint8(tvb, offset);
         if (syncword != 0x9C) {
             expert_add_info(pinfo, pitem, &ei_sbc_syncword);
         }
@@ -341,43 +343,43 @@ proto_register_sbc(void)
             NULL, HFILL }
         },
         { &hf_sbc_expected_data_speed,
-            { "Expected data speed",             "sbc.expected_speed_data",
-            FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_kibps, 0x00,
+            { "Expected data speed",             "sbc.expected_data_speed",
+            FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_kibps), 0x00,
             NULL, HFILL }
         },
         { &hf_sbc_frame_duration,
             { "Frame Duration",                  "sbc.frame_duration",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_milliseconds, 0x00,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x00,
             NULL, HFILL }
         },
         { &hf_sbc_cumulative_frame_duration,
             { "Cumulative Frame Duration",      "sbc.cumulative_frame_duration",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_milliseconds, 0x00,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x00,
             NULL, HFILL }
         },
         { &hf_sbc_delta_time,
             { "Delta time",                      "sbc.delta_time",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_milliseconds, 0x00,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x00,
             NULL, HFILL }
         },
         { &hf_sbc_delta_time_from_the_beginning,
             { "Delta time from the beginning",   "sbc.delta_time_from_the_beginning",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_milliseconds, 0x00,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x00,
             NULL, HFILL }
         },
         { &hf_sbc_cumulative_duration,
             { "Cumulative Music Duration",      "sbc.cumulative_music_duration",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_milliseconds, 0x00,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x00,
             NULL, HFILL }
         },
         { &hf_sbc_avrcp_song_position,
             { "AVRCP Song Position",             "sbc.avrcp_song_position",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_milliseconds, 0x00,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x00,
             NULL, HFILL }
         },
         { &hf_sbc_diff,
             { "Diff",            "sbc.diff",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_milliseconds, 0x00,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x00,
             NULL, HFILL }
         },
         { &hf_sbc_data,
@@ -387,7 +389,7 @@ proto_register_sbc(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_sbc,
         &ett_sbc_list,
     };

@@ -20,18 +20,18 @@ void proto_reg_handoff_gsmtap_log(void);
 
 static dissector_handle_t gsmtap_log_handle;
 
-static int proto_gsmtap_log = -1;
+static int proto_gsmtap_log;
 
-static int hf_log_ident = -1;
-static int hf_log_subsys = -1;
-static int hf_log_file_name = -1;
-static int hf_log_file_line = -1;
-static int hf_log_ts = -1;
-static int hf_log_pid = -1;
-static int hf_log_level = -1;
-static int hf_log_string = -1;
+static int hf_log_ident;
+static int hf_log_subsys;
+static int hf_log_file_name;
+static int hf_log_file_line;
+static int hf_log_ts;
+static int hf_log_pid;
+static int hf_log_level;
+static int hf_log_string;
 
-static int ett_gsmtap_log = -1;
+static int ett_gsmtap_log;
 
 /* from libosmocore include/osmocom/core/logging.h */
 static const value_string gsmtap_log_levels[] = {
@@ -49,11 +49,11 @@ dissect_gsmtap_log(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * d
 {
 	proto_item *ti;
 	proto_tree *log_tree;
-	gint offset = 0;
-	gint log_str_len;
-	guint log_pid, log_level, log_src_line;
+	int offset = 0;
+	int log_str_len;
+	unsigned log_pid, log_level, log_src_line;
 	const char *log_str;
-	const guint8 *log_ident, *log_subsys, *log_src_fname;
+	const uint8_t *log_ident, *log_subsys, *log_src_fname;
 
 	ti = proto_tree_add_item(tree, proto_gsmtap_log, tvb, 0, -1, ENC_NA);
 	log_tree = proto_item_add_subtree(ti, ett_gsmtap_log);
@@ -108,7 +108,7 @@ proto_register_gsmtap_log(void)
 		  FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL } },
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_gsmtap_log,
 	};
 

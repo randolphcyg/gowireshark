@@ -43,28 +43,28 @@
 void proto_reg_handoff_tali(void);
 void proto_register_tali(void);
 
-static int proto_tali = -1;
+static int proto_tali;
 
-static int hf_tali_length_indicator = -1;
-static int hf_tali_opcode_indicator = -1;
-static int hf_tali_sync_indicator = -1;
+static int hf_tali_length_indicator;
+static int hf_tali_opcode_indicator;
+static int hf_tali_sync_indicator;
 
 /* Initialize the subtree pointers */
-static gint ett_tali = -1;
-static gint ett_tali_sync = -1;
-static gint ett_tali_opcode = -1;
-static gint ett_tali_msu_length = -1;
+static int ett_tali;
+static int ett_tali_sync;
+static int ett_tali_opcode;
+static int ett_tali_msu_length;
 
 static dissector_table_t tali_dissector_table;
 
 /* Desegment TALI messages */
-static gboolean tali_desegment = TRUE;
+static bool tali_desegment = true;
 
 /* Code to actually dissect the packets */
-static guint
+static unsigned
 get_tali_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-  guint16 length;
+  uint16_t length;
 
   length = tvb_get_letohs(tvb, offset + TALI_SYNC_LENGTH + TALI_OPCODE_LENGTH);
   return length+TALI_HEADER_LENGTH;
@@ -74,7 +74,7 @@ static int
 dissect_tali_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
   char *opcode; /* TALI opcode */
-  guint16 length; /* TALI length */
+  uint16_t length; /* TALI length */
   tvbuff_t *payload_tvb = NULL;
 
   /* Set up structures needed to add the protocol subtree and manage it */
@@ -124,7 +124,7 @@ dissect_tali(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
  *   the fixed header is there
  *   it is a 'well-known' operation
  */
-static gboolean
+static bool
 dissect_tali_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   char opcode[TALI_OPCODE_LENGTH]; /* TALI opcode */
@@ -137,12 +137,12 @@ dissect_tali_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
    * to the snapshot length specified for the capture.
    */
   if (tvb_captured_length(tvb) < TALI_HEADER_LENGTH)   /* Mandatory header */
-    return FALSE;
+    return false;
 
   if (tvb_strneql(tvb, 0, TALI_SYNC, TALI_SYNC_LENGTH) != 0)
-    return FALSE;
+    return false;
 
-  tvb_memcpy(tvb, (guint8*)opcode, TALI_SYNC_LENGTH, TALI_OPCODE_LENGTH);
+  tvb_memcpy(tvb, (uint8_t*)opcode, TALI_SYNC_LENGTH, TALI_OPCODE_LENGTH);
   if (strncmp(opcode, TALI_TEST, TALI_OPCODE_LENGTH) != 0 &&
       strncmp(opcode, TALI_ALLO, TALI_OPCODE_LENGTH) != 0 &&
       strncmp(opcode, TALI_PROH, TALI_OPCODE_LENGTH) != 0 &&
@@ -153,10 +153,10 @@ dissect_tali_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
       strncmp(opcode, TALI_ISOT, TALI_OPCODE_LENGTH) != 0 &&
       strncmp(opcode, TALI_MTP3, TALI_OPCODE_LENGTH) != 0 &&
       strncmp(opcode, TALI_SAAL, TALI_OPCODE_LENGTH) != 0)
-    return FALSE;
+    return false;
 
   dissect_tali(tvb, pinfo, tree, data);
-  return TRUE;
+  return true;
 }
 
 void
@@ -181,7 +181,7 @@ proto_register_tali(void)
   };
 
   /* Setup protocol subtree array */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_tali,
     &ett_tali_sync,
     &ett_tali_opcode,

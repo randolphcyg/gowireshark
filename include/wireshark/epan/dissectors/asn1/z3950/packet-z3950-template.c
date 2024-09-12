@@ -14,12 +14,12 @@
  *
  * References:
  * ISO 2709: https://www.iso.org/standard/41319.html
- * MARC21: http://www.loc.gov/marc/bibliographic/
- * Z39.50 Maintenance Agency: http://www.loc.gov/z3950/agency/
- * Z39.50 2003 standard: http://www.loc.gov/z3950/agency/Z39-50-2003.pdf
+ * MARC21: https://www.loc.gov/marc/bibliographic/
+ * Z39.50 Maintenance Agency: https://www.loc.gov/z3950/agency/
+ * Z39.50 2003 standard: https://www.loc.gov/z3950/agency/Z39-50-2003.pdf
  * Z39.50 1995 ASN.1: https://www.loc.gov/z3950/agency/asn1.html
  * Registered Z39.50 Object Identifiers:
- *   http://www.loc.gov/z3950/agency/defns/oids.html
+ *   https://www.loc.gov/z3950/agency/defns/oids.html
  * Bib-1 Attribute Set: https://www.loc.gov/z3950/agency/defns/bib1.html
  * Bib-1 Diagnostics: https://www.loc.gov/z3950/agency/defns/bib1diag.html
  * RFC for Z39.50 over TCP/IP: https://tools.ietf.org/html/rfc1729
@@ -36,19 +36,20 @@
 #include <epan/proto_data.h>
 #include <wsutil/str_util.h>
 
+
 #include <string.h>
 
 #include "packet-ber.h"
 #include "packet-tcp.h"
 
 typedef struct z3950_atinfo_t {
-    gint     atsetidx;
-    gint     attype;
+    int      atsetidx;
+    int      attype;
 } z3950_atinfo_t;
 
 typedef struct z3950_diaginfo_t {
-    gint     diagsetidx;
-    gint     diagcondition;
+    int      diagsetidx;
+    int      diagcondition;
 } z3950_diaginfo_t;
 
 #define PNAME  "Z39.50 Protocol"
@@ -94,20 +95,20 @@ typedef struct z3950_diaginfo_t {
 #define marc_char_to_int(x)        ((x) - '0')
 
 typedef struct marc_directory_entry {
-    guint32 tag;
-    guint32 length;
-    guint32 starting_character;
+    uint32_t tag;
+    uint32_t length;
+    uint32_t starting_character;
 } marc_directory_entry;
 
-static dissector_handle_t z3950_handle=NULL;
+static dissector_handle_t z3950_handle;
 
 void proto_reg_handoff_z3950(void);
 void proto_register_z3950(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_z3950 = -1;
+static int proto_z3950;
 static int global_z3950_port = Z3950_PORT;
-static gboolean z3950_desegment = TRUE;
+static bool z3950_desegment = true;
 
 static const value_string z3950_bib1_att_types[] = {
     { Z3950_BIB1_AT_USE, "Use" },
@@ -293,7 +294,7 @@ static const value_string z3950_bib1_at_use[] = {
     { 1108, "DC-Source" },
     { 1109, "DC-Relation" },
     { 1110, "DC-Coverage" },
-    { 1111, "DC-RightsManagment" },
+    { 1111, "DC-RightsManagement" },
     { 1112, "GILS Controlled Subject Index" },
     { 1113, "GILS Subject Thesaurus" },
     { 1114, "GILS Index Terms -- Controlled" },
@@ -653,11 +654,11 @@ static const value_string z3950_bib1_diagconditions[] = {
 
 #include "packet-z3950-hf.c"
 
-static int hf_z3950_referenceId_printable = -1;
-static int hf_z3950_general_printable = -1;
+static int hf_z3950_referenceId_printable;
+static int hf_z3950_general_printable;
 
 /* Initialize the subtree pointers */
-static int ett_z3950 = -1;
+static int ett_z3950;
 
 #include "packet-z3950-ett.c"
 
@@ -666,52 +667,52 @@ static int ett_z3950 = -1;
 static int dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * data _U_);
 
 /* MARC fields */
-static int hf_marc_record = -1;
-static int hf_marc_record_terminator = -1;
-static int hf_marc_leader = -1;
-static int hf_marc_leader_length = -1;
-static int hf_marc_leader_status = -1;
-static int hf_marc_leader_type = -1;
-static int hf_marc_leader_biblevel = -1;
-static int hf_marc_leader_control = -1;
-static int hf_marc_leader_encoding = -1;
-static int hf_marc_leader_indicator_count = -1;
-static int hf_marc_leader_subfield_count = -1;
-static int hf_marc_leader_data_offset = -1;
-static int hf_marc_leader_encoding_level = -1;
-static int hf_marc_leader_descriptive_cataloging = -1;
-static int hf_marc_leader_multipart_level = -1;
-static int hf_marc_leader_length_of_field_length = -1;
-static int hf_marc_leader_starting_character_position_length = -1;
-static int hf_marc_leader_implementation_defined_length = -1;
-static int hf_marc_directory = -1;
-static int hf_marc_directory_entry = -1;
-static int hf_marc_directory_entry_tag = -1;
-static int hf_marc_directory_entry_length = -1;
-static int hf_marc_directory_entry_starting_position = -1;
-static int hf_marc_directory_terminator = -1;
-static int hf_marc_fields = -1;
-static int hf_marc_field = -1;
-static int hf_marc_field_control = -1;
-static int hf_marc_field_terminator = -1;
-static int hf_marc_field_indicator1 = -1;
-static int hf_marc_field_indicator2 = -1;
-static int hf_marc_field_subfield_indicator = -1;
-static int hf_marc_field_subfield_tag = -1;
-static int hf_marc_field_subfield = -1;
+static int hf_marc_record;
+static int hf_marc_record_terminator;
+static int hf_marc_leader;
+static int hf_marc_leader_length;
+static int hf_marc_leader_status;
+static int hf_marc_leader_type;
+static int hf_marc_leader_biblevel;
+static int hf_marc_leader_control;
+static int hf_marc_leader_encoding;
+static int hf_marc_leader_indicator_count;
+static int hf_marc_leader_subfield_count;
+static int hf_marc_leader_data_offset;
+static int hf_marc_leader_encoding_level;
+static int hf_marc_leader_descriptive_cataloging;
+static int hf_marc_leader_multipart_level;
+static int hf_marc_leader_length_of_field_length;
+static int hf_marc_leader_starting_character_position_length;
+static int hf_marc_leader_implementation_defined_length;
+static int hf_marc_directory;
+static int hf_marc_directory_entry;
+static int hf_marc_directory_entry_tag;
+static int hf_marc_directory_entry_length;
+static int hf_marc_directory_entry_starting_position;
+static int hf_marc_directory_terminator;
+static int hf_marc_fields;
+static int hf_marc_field;
+static int hf_marc_field_control;
+static int hf_marc_field_terminator;
+static int hf_marc_field_indicator1;
+static int hf_marc_field_indicator2;
+static int hf_marc_field_subfield_indicator;
+static int hf_marc_field_subfield_tag;
+static int hf_marc_field_subfield;
 
 /* MARC subtree pointers */
-static int ett_marc_record = -1;
-static int ett_marc_leader = -1;
-static int ett_marc_directory = -1;
-static int ett_marc_directory_entry = -1;
-static int ett_marc_fields = -1;
-static int ett_marc_field = -1;
+static int ett_marc_record;
+static int ett_marc_leader;
+static int ett_marc_directory;
+static int ett_marc_directory_entry;
+static int ett_marc_fields;
+static int ett_marc_field;
 
 /* MARC expert fields */
-static expert_field ei_marc_invalid_length = EI_INIT;
-static expert_field ei_marc_invalid_value = EI_INIT;
-static expert_field ei_marc_invalid_record_length = EI_INIT;
+static expert_field ei_marc_invalid_length;
+static expert_field ei_marc_invalid_value;
+static expert_field ei_marc_invalid_record_length;
 
 /* MARC value strings */
 
@@ -884,8 +885,8 @@ static const value_string marc_tag_names[] = {
 static int
 dissect_z3950_printable_OCTET_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
     tvbuff_t *next_tvb = NULL;
-    int hf_alternate = -1;
-    guint old_offset = offset;
+    int hf_alternate = 0;
+    unsigned old_offset = offset;
 
     if (hf_index == hf_z3950_referenceId) {
         hf_alternate = hf_z3950_referenceId_printable;
@@ -926,7 +927,7 @@ dissect_z3950(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
     proto_tree      *z3950_tree = NULL;
     int                     offset = 0;
     asn1_ctx_t asn1_ctx;
-    asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+    asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
 
     /* make entry in the Protocol column on summary display */
@@ -936,14 +937,14 @@ dissect_z3950(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
     z3950_item = proto_tree_add_item(tree, proto_z3950, tvb, 0, -1, ENC_NA);
     z3950_tree = proto_item_add_subtree(z3950_item, ett_z3950);
 
-    return dissect_z3950_PDU(FALSE, tvb, offset, &asn1_ctx, z3950_tree, -1);
+    return dissect_z3950_PDU(false, tvb, offset, &asn1_ctx, z3950_tree, -1);
 }
 
-static guint
+static unsigned
 get_z3950_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    guint plen;
-    guint ber_offset;
+    unsigned plen;
+    unsigned ber_offset;
     TRY {
         /* Skip past identifier */
         ber_offset = get_ber_identifier(tvb, offset, NULL, NULL, NULL);
@@ -962,7 +963,7 @@ static int
 dissect_z3950_segment(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * data _U_)
 {
 
-    /* Min length of 8 assumes 3 for identifer and 5 for length. */
+    /* Min length of 8 assumes 3 for identifier and 5 for length. */
     tcp_dissect_pdus(tvb, pinfo, tree, z3950_desegment, 8, get_z3950_pdu_len, dissect_z3950, data);
     return tvb_captured_length(tvb);
 }
@@ -1121,7 +1122,7 @@ void proto_register_z3950(void) {
     };
 
     /* List of subtrees */
-    static gint *ett[] = {
+    static int *ett[] = {
 		  &ett_z3950,
 /* MARC etts */
                   &ett_marc_record,
@@ -1276,9 +1277,9 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
                *directory_tree,
                *fields_tree;
     marc_directory_entry *marc_directory;
-    guint len = tvb_reported_length(tvb);
-    const guint8 *marc_value_str;
-    guint record_length = 0,
+    unsigned len = tvb_reported_length(tvb);
+    const uint8_t *marc_value_str;
+    unsigned record_length = 0,
           data_offset = 0,
           length_of_field_size,
           starting_character_position_size,
@@ -1286,7 +1287,7 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
           directory_entry_count,
           dir_index,
           offset = 0;
-    guint32 marc_value_char;
+    uint32_t marc_value_char;
 
     record_item = proto_tree_add_item(tree, hf_marc_record,
                            tvb, 0, len, ENC_NA);
@@ -1308,7 +1309,7 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
 
     if (marc_value_str) {
         if (isdigit_string(marc_value_str)) {
-            record_length = (guint)strtoul(marc_value_str, NULL, 10);
+            record_length = (unsigned)strtoul(marc_value_str, NULL, 10);
         }
         else {
             expert_add_info_format(pinfo, item,
@@ -1376,7 +1377,7 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
     offset += 5;
     if (marc_value_str) {
         if (isdigit_string(marc_value_str)) {
-            data_offset = (guint)strtoul(marc_value_str, NULL, 10);
+            data_offset = (unsigned)strtoul(marc_value_str, NULL, 10);
         }
         else {
             expert_add_info_format(pinfo, item,
@@ -1459,7 +1460,7 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
     dir_index = 0;
     /* Minus one for the terminator character */
     while (offset < (data_offset - 1)) {
-        guint32 tag_value = 0,
+        uint32_t tag_value = 0,
                 length_value = 0,
                 starting_char_value = 0;
         proto_item *length_item;
@@ -1477,7 +1478,7 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
         offset += 3;
         if (marc_value_str) {
             if (isdigit_string(marc_value_str)) {
-                tag_value = (guint)strtoul(marc_value_str, NULL, 10);
+                tag_value = (unsigned)strtoul(marc_value_str, NULL, 10);
             }
             else {
                 expert_add_info_format(pinfo, item,
@@ -1494,7 +1495,7 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
         offset += length_of_field_size;
         if (marc_value_str) {
             if (isdigit_string(marc_value_str)) {
-                length_value = (guint)strtoul(marc_value_str, NULL, 10);
+                length_value = (unsigned)strtoul(marc_value_str, NULL, 10);
             }
             else {
                 expert_add_info_format(pinfo, length_item,
@@ -1510,7 +1511,7 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
         offset += starting_character_position_size;
         if (marc_value_str) {
             if (isdigit_string(marc_value_str)) {
-                starting_char_value = (guint)strtoul(marc_value_str, NULL, 10);
+                starting_char_value = (unsigned)strtoul(marc_value_str, NULL, 10);
             }
             else {
                 expert_add_info_format(pinfo, item,
@@ -1546,7 +1547,7 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
     fields_tree = proto_item_add_subtree(fields_item, ett_marc_fields);
 
     for (dir_index = 0; dir_index < directory_entry_count; dir_index++) {
-        const gchar *tag_str;
+        const char *tag_str;
         proto_item *field_item;
         proto_tree *field_tree;
 
@@ -1573,7 +1574,7 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
             offset += 1;
         }
         else {
-            guint next_offset = offset + marc_directory[dir_index].length - 1;
+            unsigned next_offset = offset + marc_directory[dir_index].length - 1;
             proto_tree_add_item(field_tree, hf_marc_field_indicator1,
                     tvb, offset, 1, ENC_ASCII);
             offset += 1;
@@ -1581,14 +1582,14 @@ dissect_marc_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void * 
                     tvb, offset, 1, ENC_ASCII);
             offset += 1;
             do {
-                gint next_subfield;
+                int next_subfield;
                 proto_tree_add_item(field_tree, hf_marc_field_subfield_indicator,
                         tvb, offset, 1, ENC_ASCII);
                 offset += 1;
                 proto_tree_add_item(field_tree, hf_marc_field_subfield_tag,
                         tvb, offset, 1, ENC_ASCII);
                 offset += 1;
-                next_subfield = tvb_find_guint8(tvb, offset, next_offset - offset,
+                next_subfield = tvb_find_uint8(tvb, offset, next_offset - offset,
                                                 MARC_SUBFIELD_INDICATOR);
                 if (next_subfield >= 0) {
                     proto_tree_add_item(field_tree, hf_marc_field_subfield,

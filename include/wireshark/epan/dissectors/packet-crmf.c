@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-crmf.c                                                              */
-/* asn2wrs.py -b -L -p crmf -c ./crmf.cnf -s ./packet-crmf-template -D . -O ../.. CRMF.asn */
+/* asn2wrs.py -b -q -L -p crmf -c ./crmf.cnf -s ./packet-crmf-template -D . -O ../.. CRMF.asn */
 
 /* packet-crmf.c
  * Routines for RFC2511 Certificate Request Message Format packet dissection
@@ -19,6 +19,7 @@
 #include <epan/packet.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-crmf.h"
@@ -34,116 +35,116 @@ void proto_register_crmf(void);
 void proto_reg_handoff_crmf(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_crmf = -1;
-static int hf_crmf_type_oid = -1;
-static int hf_crmf_PBMParameter_PDU = -1;         /* PBMParameter */
-static int hf_crmf_RegToken_PDU = -1;             /* RegToken */
-static int hf_crmf_Authenticator_PDU = -1;        /* Authenticator */
-static int hf_crmf_PKIPublicationInfo_PDU = -1;   /* PKIPublicationInfo */
-static int hf_crmf_PKIArchiveOptions_PDU = -1;    /* PKIArchiveOptions */
-static int hf_crmf_OldCertId_PDU = -1;            /* OldCertId */
-static int hf_crmf_ProtocolEncrKey_PDU = -1;      /* ProtocolEncrKey */
-static int hf_crmf_UTF8Pairs_PDU = -1;            /* UTF8Pairs */
-static int hf_crmf_CertReq_PDU = -1;              /* CertReq */
-static int hf_crmf_EncKeyWithID_PDU = -1;         /* EncKeyWithID */
-static int hf_crmf_CertReqMessages_item = -1;     /* CertReqMsg */
-static int hf_crmf_certReq = -1;                  /* CertRequest */
-static int hf_crmf_popo = -1;                     /* ProofOfPossession */
-static int hf_crmf_regInfo = -1;                  /* SEQUENCE_SIZE_1_MAX_OF_AttributeTypeAndValue */
-static int hf_crmf_regInfo_item = -1;             /* AttributeTypeAndValue */
-static int hf_crmf_certReqId = -1;                /* INTEGER */
-static int hf_crmf_certTemplate = -1;             /* CertTemplate */
-static int hf_crmf_controls = -1;                 /* Controls */
-static int hf_crmf_version = -1;                  /* Version */
-static int hf_crmf_serialNumber = -1;             /* INTEGER_MIN_MAX */
-static int hf_crmf_signingAlg = -1;               /* AlgorithmIdentifier */
-static int hf_crmf_template_issuer = -1;          /* Name */
-static int hf_crmf_validity = -1;                 /* OptionalValidity */
-static int hf_crmf_subject = -1;                  /* Name */
-static int hf_crmf_publicKey = -1;                /* SubjectPublicKeyInfo */
-static int hf_crmf_issuerUID = -1;                /* UniqueIdentifier */
-static int hf_crmf_subjectUID = -1;               /* UniqueIdentifier */
-static int hf_crmf_extensions = -1;               /* Extensions */
-static int hf_crmf_notBefore = -1;                /* Time */
-static int hf_crmf_notAfter = -1;                 /* Time */
-static int hf_crmf_Controls_item = -1;            /* AttributeTypeAndValue */
-static int hf_crmf_type = -1;                     /* T_type */
-static int hf_crmf_value = -1;                    /* T_value */
-static int hf_crmf_raVerified = -1;               /* NULL */
-static int hf_crmf_signature = -1;                /* POPOSigningKey */
-static int hf_crmf_keyEncipherment = -1;          /* POPOPrivKey */
-static int hf_crmf_keyAgreement = -1;             /* POPOPrivKey */
-static int hf_crmf_poposkInput = -1;              /* POPOSigningKeyInput */
-static int hf_crmf_algorithmIdentifier = -1;      /* AlgorithmIdentifier */
-static int hf_crmf_sk_signature = -1;             /* BIT_STRING */
-static int hf_crmf_authInfo = -1;                 /* T_authInfo */
-static int hf_crmf_sender = -1;                   /* GeneralName */
-static int hf_crmf_publicKeyMAC = -1;             /* PKMACValue */
-static int hf_crmf_algId = -1;                    /* AlgorithmIdentifier */
-static int hf_crmf_pkmac_value = -1;              /* BIT_STRING */
-static int hf_crmf_salt = -1;                     /* OCTET_STRING */
-static int hf_crmf_owf = -1;                      /* AlgorithmIdentifier */
-static int hf_crmf_iterationCount = -1;           /* INTEGER */
-static int hf_crmf_mac = -1;                      /* AlgorithmIdentifier */
-static int hf_crmf_thisMessage = -1;              /* BIT_STRING */
-static int hf_crmf_subsequentMessage = -1;        /* SubsequentMessage */
-static int hf_crmf_dhMAC = -1;                    /* BIT_STRING */
-static int hf_crmf_agreeMAC = -1;                 /* PKMACValue */
-static int hf_crmf_encryptedKey = -1;             /* EnvelopedData */
-static int hf_crmf_action = -1;                   /* T_action */
-static int hf_crmf_pubInfos = -1;                 /* SEQUENCE_SIZE_1_MAX_OF_SinglePubInfo */
-static int hf_crmf_pubInfos_item = -1;            /* SinglePubInfo */
-static int hf_crmf_pubMethod = -1;                /* T_pubMethod */
-static int hf_crmf_pubLocation = -1;              /* GeneralName */
-static int hf_crmf_encryptedPrivKey = -1;         /* EncryptedKey */
-static int hf_crmf_keyGenParameters = -1;         /* KeyGenParameters */
-static int hf_crmf_archiveRemGenPrivKey = -1;     /* BOOLEAN */
-static int hf_crmf_encryptedValue = -1;           /* EncryptedValue */
-static int hf_crmf_envelopedData = -1;            /* EnvelopedData */
-static int hf_crmf_intendedAlg = -1;              /* AlgorithmIdentifier */
-static int hf_crmf_symmAlg = -1;                  /* AlgorithmIdentifier */
-static int hf_crmf_encSymmKey = -1;               /* BIT_STRING */
-static int hf_crmf_keyAlg = -1;                   /* AlgorithmIdentifier */
-static int hf_crmf_valueHint = -1;                /* OCTET_STRING */
-static int hf_crmf_encValue = -1;                 /* BIT_STRING */
-static int hf_crmf_issuer = -1;                   /* GeneralName */
-static int hf_crmf_enckeywid_privkey = -1;        /* PrivateKeyInfo */
-static int hf_crmf_identifier = -1;               /* T_identifier */
-static int hf_crmf_string = -1;                   /* UTF8String */
-static int hf_crmf_generalName = -1;              /* GeneralName */
-static int hf_crmf_privkey_version = -1;          /* INTEGER */
-static int hf_crmf_privateKeyAlgorithm = -1;      /* AlgorithmIdentifier */
-static int hf_crmf_privateKey = -1;               /* OCTET_STRING */
-static int hf_crmf_attributes = -1;               /* Attributes */
-static int hf_crmf_Attributes_item = -1;          /* Attribute */
+static int proto_crmf;
+static int hf_crmf_type_oid;
+static int hf_crmf_PBMParameter_PDU;              /* PBMParameter */
+static int hf_crmf_RegToken_PDU;                  /* RegToken */
+static int hf_crmf_Authenticator_PDU;             /* Authenticator */
+static int hf_crmf_PKIPublicationInfo_PDU;        /* PKIPublicationInfo */
+static int hf_crmf_PKIArchiveOptions_PDU;         /* PKIArchiveOptions */
+static int hf_crmf_OldCertId_PDU;                 /* OldCertId */
+static int hf_crmf_ProtocolEncrKey_PDU;           /* ProtocolEncrKey */
+static int hf_crmf_UTF8Pairs_PDU;                 /* UTF8Pairs */
+static int hf_crmf_CertReq_PDU;                   /* CertReq */
+static int hf_crmf_EncKeyWithID_PDU;              /* EncKeyWithID */
+static int hf_crmf_CertReqMessages_item;          /* CertReqMsg */
+static int hf_crmf_certReq;                       /* CertRequest */
+static int hf_crmf_popo;                          /* ProofOfPossession */
+static int hf_crmf_regInfo;                       /* SEQUENCE_SIZE_1_MAX_OF_AttributeTypeAndValue */
+static int hf_crmf_regInfo_item;                  /* AttributeTypeAndValue */
+static int hf_crmf_certReqId;                     /* INTEGER */
+static int hf_crmf_certTemplate;                  /* CertTemplate */
+static int hf_crmf_controls;                      /* Controls */
+static int hf_crmf_version;                       /* Version */
+static int hf_crmf_serialNumber;                  /* INTEGER_MIN_MAX */
+static int hf_crmf_signingAlg;                    /* AlgorithmIdentifier */
+static int hf_crmf_template_issuer;               /* Name */
+static int hf_crmf_validity;                      /* OptionalValidity */
+static int hf_crmf_subject;                       /* Name */
+static int hf_crmf_publicKey;                     /* SubjectPublicKeyInfo */
+static int hf_crmf_issuerUID;                     /* UniqueIdentifier */
+static int hf_crmf_subjectUID;                    /* UniqueIdentifier */
+static int hf_crmf_extensions;                    /* Extensions */
+static int hf_crmf_notBefore;                     /* Time */
+static int hf_crmf_notAfter;                      /* Time */
+static int hf_crmf_Controls_item;                 /* AttributeTypeAndValue */
+static int hf_crmf_type;                          /* T_type */
+static int hf_crmf_value;                         /* T_value */
+static int hf_crmf_raVerified;                    /* NULL */
+static int hf_crmf_signature;                     /* POPOSigningKey */
+static int hf_crmf_keyEncipherment;               /* POPOPrivKey */
+static int hf_crmf_keyAgreement;                  /* POPOPrivKey */
+static int hf_crmf_poposkInput;                   /* POPOSigningKeyInput */
+static int hf_crmf_algorithmIdentifier;           /* AlgorithmIdentifier */
+static int hf_crmf_sk_signature;                  /* BIT_STRING */
+static int hf_crmf_authInfo;                      /* T_authInfo */
+static int hf_crmf_sender;                        /* GeneralName */
+static int hf_crmf_publicKeyMAC;                  /* PKMACValue */
+static int hf_crmf_algId;                         /* AlgorithmIdentifier */
+static int hf_crmf_pkmac_value;                   /* BIT_STRING */
+static int hf_crmf_salt;                          /* OCTET_STRING */
+static int hf_crmf_owf;                           /* AlgorithmIdentifier */
+static int hf_crmf_iterationCount;                /* INTEGER */
+static int hf_crmf_mac;                           /* AlgorithmIdentifier */
+static int hf_crmf_thisMessage;                   /* BIT_STRING */
+static int hf_crmf_subsequentMessage;             /* SubsequentMessage */
+static int hf_crmf_dhMAC;                         /* BIT_STRING */
+static int hf_crmf_agreeMAC;                      /* PKMACValue */
+static int hf_crmf_encryptedKey;                  /* EnvelopedData */
+static int hf_crmf_action;                        /* T_action */
+static int hf_crmf_pubInfos;                      /* SEQUENCE_SIZE_1_MAX_OF_SinglePubInfo */
+static int hf_crmf_pubInfos_item;                 /* SinglePubInfo */
+static int hf_crmf_pubMethod;                     /* T_pubMethod */
+static int hf_crmf_pubLocation;                   /* GeneralName */
+static int hf_crmf_encryptedPrivKey;              /* EncryptedKey */
+static int hf_crmf_keyGenParameters;              /* KeyGenParameters */
+static int hf_crmf_archiveRemGenPrivKey;          /* BOOLEAN */
+static int hf_crmf_encryptedValue;                /* EncryptedValue */
+static int hf_crmf_envelopedData;                 /* EnvelopedData */
+static int hf_crmf_intendedAlg;                   /* AlgorithmIdentifier */
+static int hf_crmf_symmAlg;                       /* AlgorithmIdentifier */
+static int hf_crmf_encSymmKey;                    /* BIT_STRING */
+static int hf_crmf_keyAlg;                        /* AlgorithmIdentifier */
+static int hf_crmf_valueHint;                     /* OCTET_STRING */
+static int hf_crmf_encValue;                      /* BIT_STRING */
+static int hf_crmf_issuer;                        /* GeneralName */
+static int hf_crmf_enckeywid_privkey;             /* PrivateKeyInfo */
+static int hf_crmf_identifier;                    /* T_identifier */
+static int hf_crmf_string;                        /* UTF8String */
+static int hf_crmf_generalName;                   /* GeneralName */
+static int hf_crmf_privkey_version;               /* INTEGER */
+static int hf_crmf_privateKeyAlgorithm;           /* AlgorithmIdentifier */
+static int hf_crmf_privateKey;                    /* OCTET_STRING */
+static int hf_crmf_attributes;                    /* Attributes */
+static int hf_crmf_Attributes_item;               /* Attribute */
 
 /* Initialize the subtree pointers */
-static gint ett_crmf_CertReqMessages = -1;
-static gint ett_crmf_CertReqMsg = -1;
-static gint ett_crmf_SEQUENCE_SIZE_1_MAX_OF_AttributeTypeAndValue = -1;
-static gint ett_crmf_CertRequest = -1;
-static gint ett_crmf_CertTemplate = -1;
-static gint ett_crmf_OptionalValidity = -1;
-static gint ett_crmf_Controls = -1;
-static gint ett_crmf_AttributeTypeAndValue = -1;
-static gint ett_crmf_ProofOfPossession = -1;
-static gint ett_crmf_POPOSigningKey = -1;
-static gint ett_crmf_POPOSigningKeyInput = -1;
-static gint ett_crmf_T_authInfo = -1;
-static gint ett_crmf_PKMACValue = -1;
-static gint ett_crmf_PBMParameter = -1;
-static gint ett_crmf_POPOPrivKey = -1;
-static gint ett_crmf_PKIPublicationInfo = -1;
-static gint ett_crmf_SEQUENCE_SIZE_1_MAX_OF_SinglePubInfo = -1;
-static gint ett_crmf_SinglePubInfo = -1;
-static gint ett_crmf_PKIArchiveOptions = -1;
-static gint ett_crmf_EncryptedKey = -1;
-static gint ett_crmf_EncryptedValue = -1;
-static gint ett_crmf_CertId = -1;
-static gint ett_crmf_EncKeyWithID = -1;
-static gint ett_crmf_T_identifier = -1;
-static gint ett_crmf_PrivateKeyInfo = -1;
-static gint ett_crmf_Attributes = -1;
+static int ett_crmf_CertReqMessages;
+static int ett_crmf_CertReqMsg;
+static int ett_crmf_SEQUENCE_SIZE_1_MAX_OF_AttributeTypeAndValue;
+static int ett_crmf_CertRequest;
+static int ett_crmf_CertTemplate;
+static int ett_crmf_OptionalValidity;
+static int ett_crmf_Controls;
+static int ett_crmf_AttributeTypeAndValue;
+static int ett_crmf_ProofOfPossession;
+static int ett_crmf_POPOSigningKey;
+static int ett_crmf_POPOSigningKeyInput;
+static int ett_crmf_T_authInfo;
+static int ett_crmf_PKMACValue;
+static int ett_crmf_PBMParameter;
+static int ett_crmf_POPOPrivKey;
+static int ett_crmf_PKIPublicationInfo;
+static int ett_crmf_SEQUENCE_SIZE_1_MAX_OF_SinglePubInfo;
+static int ett_crmf_SinglePubInfo;
+static int ett_crmf_PKIArchiveOptions;
+static int ett_crmf_EncryptedKey;
+static int ett_crmf_EncryptedValue;
+static int ett_crmf_CertId;
+static int ett_crmf_EncKeyWithID;
+static int ett_crmf_T_identifier;
+static int ett_crmf_PrivateKeyInfo;
+static int ett_crmf_Attributes;
 
 
 static int
@@ -811,71 +812,71 @@ dissect_crmf_EncKeyWithID(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
 static int dissect_PBMParameter_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_crmf_PBMParameter(FALSE, tvb, offset, &asn1_ctx, tree, hf_crmf_PBMParameter_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_crmf_PBMParameter(false, tvb, offset, &asn1_ctx, tree, hf_crmf_PBMParameter_PDU);
   return offset;
 }
 static int dissect_RegToken_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_crmf_RegToken(FALSE, tvb, offset, &asn1_ctx, tree, hf_crmf_RegToken_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_crmf_RegToken(false, tvb, offset, &asn1_ctx, tree, hf_crmf_RegToken_PDU);
   return offset;
 }
 static int dissect_Authenticator_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_crmf_Authenticator(FALSE, tvb, offset, &asn1_ctx, tree, hf_crmf_Authenticator_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_crmf_Authenticator(false, tvb, offset, &asn1_ctx, tree, hf_crmf_Authenticator_PDU);
   return offset;
 }
 static int dissect_PKIPublicationInfo_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_crmf_PKIPublicationInfo(FALSE, tvb, offset, &asn1_ctx, tree, hf_crmf_PKIPublicationInfo_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_crmf_PKIPublicationInfo(false, tvb, offset, &asn1_ctx, tree, hf_crmf_PKIPublicationInfo_PDU);
   return offset;
 }
 static int dissect_PKIArchiveOptions_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_crmf_PKIArchiveOptions(FALSE, tvb, offset, &asn1_ctx, tree, hf_crmf_PKIArchiveOptions_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_crmf_PKIArchiveOptions(false, tvb, offset, &asn1_ctx, tree, hf_crmf_PKIArchiveOptions_PDU);
   return offset;
 }
 static int dissect_OldCertId_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_crmf_OldCertId(FALSE, tvb, offset, &asn1_ctx, tree, hf_crmf_OldCertId_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_crmf_OldCertId(false, tvb, offset, &asn1_ctx, tree, hf_crmf_OldCertId_PDU);
   return offset;
 }
 static int dissect_ProtocolEncrKey_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_crmf_ProtocolEncrKey(FALSE, tvb, offset, &asn1_ctx, tree, hf_crmf_ProtocolEncrKey_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_crmf_ProtocolEncrKey(false, tvb, offset, &asn1_ctx, tree, hf_crmf_ProtocolEncrKey_PDU);
   return offset;
 }
 static int dissect_UTF8Pairs_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_crmf_UTF8Pairs(FALSE, tvb, offset, &asn1_ctx, tree, hf_crmf_UTF8Pairs_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_crmf_UTF8Pairs(false, tvb, offset, &asn1_ctx, tree, hf_crmf_UTF8Pairs_PDU);
   return offset;
 }
 static int dissect_CertReq_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_crmf_CertReq(FALSE, tvb, offset, &asn1_ctx, tree, hf_crmf_CertReq_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_crmf_CertReq(false, tvb, offset, &asn1_ctx, tree, hf_crmf_CertReq_PDU);
   return offset;
 }
 static int dissect_EncKeyWithID_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_crmf_EncKeyWithID(FALSE, tvb, offset, &asn1_ctx, tree, hf_crmf_EncKeyWithID_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_crmf_EncKeyWithID(false, tvb, offset, &asn1_ctx, tree, hf_crmf_EncKeyWithID_PDU);
   return offset;
 }
 
@@ -1213,7 +1214,7 @@ void proto_register_crmf(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_crmf_CertReqMessages,
     &ett_crmf_CertReqMsg,
     &ett_crmf_SEQUENCE_SIZE_1_MAX_OF_AttributeTypeAndValue,

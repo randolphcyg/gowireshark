@@ -30,43 +30,43 @@
 void proto_register_mctp(void);
 void proto_reg_handoff_mctp(void);
 
-static int proto_mctp = -1;
+static int proto_mctp;
 
-static int hf_mctp_ver = -1;
-static int hf_mctp_dst = -1;
-static int hf_mctp_src = -1;
-static int hf_mctp_flags = -1;
-static int hf_mctp_flags_som = -1;
-static int hf_mctp_flags_eom = -1;
-static int hf_mctp_seq = -1;
-static int hf_mctp_tag = -1;
-static int hf_mctp_tag_to = -1;
-static int hf_mctp_tag_value = -1;
-static int hf_mctp_msg_ic = -1;
-static int hf_mctp_msg_type = -1;
+static int hf_mctp_ver;
+static int hf_mctp_dst;
+static int hf_mctp_src;
+static int hf_mctp_flags;
+static int hf_mctp_flags_som;
+static int hf_mctp_flags_eom;
+static int hf_mctp_seq;
+static int hf_mctp_tag;
+static int hf_mctp_tag_to;
+static int hf_mctp_tag_value;
+static int hf_mctp_msg_ic;
+static int hf_mctp_msg_type;
 
-static gint ett_mctp = -1;
-static gint ett_mctp_fst = -1;
-static gint ett_mctp_flags = -1;
-static gint ett_mctp_tag = -1;
-static gint ett_mctp_type = -1;
+static int ett_mctp;
+static int ett_mctp_fst;
+static int ett_mctp_flags;
+static int ett_mctp_tag;
+static int ett_mctp_type;
 
 static const true_false_string tfs_tag_to = { "Sender", "Receiver" };
 
-static int hf_mctp_fragments = -1;
-static int hf_mctp_fragment = -1;
-static int hf_mctp_fragment_overlap = -1;
-static int hf_mctp_fragment_overlap_conflicts = -1;
-static int hf_mctp_fragment_multiple_tails = -1;
-static int hf_mctp_fragment_too_long_fragment = -1;
-static int hf_mctp_fragment_error = -1;
-static int hf_mctp_fragment_count = -1;
-static int hf_mctp_reassembled_in = -1;
-static int hf_mctp_reassembled_length = -1;
-static int hf_mctp_reassembled_data = -1;
+static int hf_mctp_fragments;
+static int hf_mctp_fragment;
+static int hf_mctp_fragment_overlap;
+static int hf_mctp_fragment_overlap_conflicts;
+static int hf_mctp_fragment_multiple_tails;
+static int hf_mctp_fragment_too_long_fragment;
+static int hf_mctp_fragment_error;
+static int hf_mctp_fragment_count;
+static int hf_mctp_reassembled_in;
+static int hf_mctp_reassembled_length;
+static int hf_mctp_reassembled_data;
 
-static gint ett_mctp_fragment = -1;
-static gint ett_mctp_fragments = -1;
+static int ett_mctp_fragment;
+static int ett_mctp_fragments;
 
 static const fragment_items mctp_frag_items = {
     /* Fragment subtrees */
@@ -116,11 +116,11 @@ dissect_mctp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         void *data _U_)
 {
     proto_tree *mctp_tree, *fst_tree;
-    guint len, ver, type, seq, fst;
+    unsigned len, ver, type, seq, fst;
     bool save_fragmented;
     proto_item *ti, *tti;
     tvbuff_t *next_tvb;
-    guint8 tag;
+    uint8_t tag;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "MCTP");
     col_clear(pinfo->cinfo, COL_INFO);
@@ -170,7 +170,7 @@ dissect_mctp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         NULL,
     };
 
-    fst = tvb_get_guint8(tvb, 3);
+    fst = tvb_get_uint8(tvb, 3);
     tag = fst & 0x0f;
     fst_tree = proto_tree_add_subtree_format(mctp_tree, tvb, 3, 1, ett_mctp_fst,
                                       &tti, "Flags %s, seq %d, tag %s%d",
@@ -225,7 +225,7 @@ dissect_mctp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         proto_tree *type_tree;
         int rc;
 
-        type = tvb_get_guint8(next_tvb, 0);
+        type = tvb_get_uint8(next_tvb, 0);
         type_tree = proto_tree_add_subtree_format(mctp_tree, next_tvb, 0, 1,
                                                   ett_mctp_type,
                                                   &tti, "Type: %s (0x%x)%s",
@@ -333,18 +333,18 @@ proto_register_mctp(void)
                 FT_FRAMENUM, BASE_NONE, NULL, 0x00, NULL, HFILL } },
         {&hf_mctp_fragment_overlap,
             {"Message fragment overlap", "mctp.fragment.overlap",
-                FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL } },
+                FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL } },
         {&hf_mctp_fragment_overlap_conflicts,
             {"Message fragment overlapping with conflicting data",
                 "mctp.fragment.overlap.conflicts",
-                FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL } },
+                FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL } },
         {&hf_mctp_fragment_multiple_tails,
             {"Message has multiple tail fragments",
                 "mctp.fragment.multiple_tails",
-                FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL } },
+                FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL } },
         {&hf_mctp_fragment_too_long_fragment,
             {"Message fragment too long", "mctp.fragment.too_long_fragment",
-                FT_BOOLEAN, 0, NULL, 0x00, NULL, HFILL } },
+                FT_BOOLEAN, BASE_NONE, NULL, 0x00, NULL, HFILL } },
         {&hf_mctp_fragment_error,
             {"Message defragmentation error", "mctp.fragment.error",
                 FT_FRAMENUM, BASE_NONE, NULL, 0x00, NULL, HFILL } },
@@ -363,7 +363,7 @@ proto_register_mctp(void)
     };
 
     /* protocol subtree */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_mctp,
         &ett_mctp_flags,
         &ett_mctp_fst,

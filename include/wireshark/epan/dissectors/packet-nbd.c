@@ -19,32 +19,32 @@
 void proto_register_nbd(void);
 void proto_reg_handoff_nbd(void);
 
-static gint proto_nbd = -1;
-static int hf_nbd_magic = -1;
-static int hf_nbd_type = -1;
-static int hf_nbd_error = -1;
-static int hf_nbd_handle = -1;
-static int hf_nbd_from = -1;
-static int hf_nbd_len = -1;
-static int hf_nbd_response_in = -1;
-static int hf_nbd_response_to = -1;
-static int hf_nbd_time = -1;
-static int hf_nbd_data = -1;
+static int proto_nbd;
+static int hf_nbd_magic;
+static int hf_nbd_type;
+static int hf_nbd_error;
+static int hf_nbd_handle;
+static int hf_nbd_from;
+static int hf_nbd_len;
+static int hf_nbd_response_in;
+static int hf_nbd_response_to;
+static int hf_nbd_time;
+static int hf_nbd_data;
 
-static gint ett_nbd = -1;
+static int ett_nbd;
 
 
-static gboolean nbd_desegment = TRUE;
+static bool nbd_desegment = true;
 
 typedef struct _nbd_transaction_t {
-	guint32 req_frame;
-	guint32 rep_frame;
+	uint32_t req_frame;
+	uint32_t rep_frame;
 	nstime_t req_time;
-	guint32 datalen;
-	guint8 type;
+	uint32_t datalen;
+	uint8_t type;
 } nbd_transaction_t;
 typedef struct _nbd_conv_info_t {
-	wmem_tree_t *unacked_pdus;    /* indexed by handle, whichs wraps quite frequently  */
+	wmem_tree_t *unacked_pdus;    /* indexed by handle, which wraps quite frequently  */
 	wmem_tree_t *acked_pdus;    /* indexed by packet# and handle */
 } nbd_conv_info_t;
 
@@ -66,15 +66,15 @@ static const value_string nbd_type_vals[] = {
 /* This function will try to determine the complete size of a PDU
  * based on the information in the header.
  */
-static guint
+static unsigned
 get_nbd_tcp_pdu_len(packet_info *pinfo, tvbuff_t *tvb, int offset, void *data _U_)
 {
-	guint32 magic, type, packet;
+	uint32_t magic, type, packet;
 	conversation_t *conversation;
 	nbd_conv_info_t *nbd_info;
 	nbd_transaction_t *nbd_trans=NULL;
 	wmem_tree_key_t hkey[3];
-	guint32 handle[2];
+	uint32_t handle[2];
 
 	magic=tvb_get_ntohl(tvb, offset);
 
@@ -155,9 +155,9 @@ get_nbd_tcp_pdu_len(packet_info *pinfo, tvbuff_t *tvb, int offset, void *data _U
 static int
 dissect_nbd_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* data _U_)
 {
-	guint32 magic, error, packet;
-	guint32 handle[2];
-	guint64 from;
+	uint32_t magic, error, packet;
+	uint32_t handle[2];
+	uint64_t from;
 	int offset=0;
 	proto_tree *tree=NULL;
 	proto_item *item=NULL;
@@ -254,7 +254,7 @@ dissect_nbd_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, 
 
 		nbd_trans=(nbd_transaction_t *)wmem_tree_lookup32_array(nbd_info->acked_pdus, hkey);
 	}
-	/* The bloody handles are reused !!! eventhough they are 64 bits.
+	/* The bloody handles are reused !!! even though they are 64 bits.
 	 * So we must verify we got the "correct" one
 	 */
 	if( (magic==NBD_RESPONSE_MAGIC)
@@ -352,14 +352,14 @@ dissect_nbd_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, 
 	return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_nbd_tcp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-	guint32 magic, type;
+	uint32_t magic, type;
 
 	/* We need at least this much to tell whether this is NBD or not */
 	if(tvb_captured_length(tvb)<4){
-		return FALSE;
+		return false;
 	}
 
 	/* Check if it looks like NBD */
@@ -368,7 +368,7 @@ dissect_nbd_tcp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 	case NBD_REQUEST_MAGIC:
 		/* requests are 28 bytes or more */
 		if(tvb_captured_length(tvb)<28){
-			return FALSE;
+			return false;
 		}
 		/* verify type */
 		type=tvb_get_ntohl(tvb, 4);
@@ -378,23 +378,23 @@ dissect_nbd_tcp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 		case NBD_CMD_DISC:
 			break;
 		default:
-			return FALSE;
+			return false;
 		}
 
 		tcp_dissect_pdus(tvb, pinfo, tree, nbd_desegment, 28, get_nbd_tcp_pdu_len, dissect_nbd_tcp_pdu, data);
-		return TRUE;
+		return true;
 	case NBD_RESPONSE_MAGIC:
 		/* responses are 16 bytes or more */
 		if(tvb_captured_length(tvb)<16){
-			return FALSE;
+			return false;
 		}
 		tcp_dissect_pdus(tvb, pinfo, tree, nbd_desegment, 16, get_nbd_tcp_pdu_len, dissect_nbd_tcp_pdu, data);
-		return TRUE;
+		return true;
 	default:
 		break;
 	}
 
-	return FALSE;
+	return false;
 }
 
 void proto_register_nbd(void)
@@ -435,7 +435,7 @@ void proto_register_nbd(void)
 	};
 
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_nbd,
 	};
 

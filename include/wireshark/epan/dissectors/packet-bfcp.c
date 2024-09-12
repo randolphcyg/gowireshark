@@ -20,6 +20,7 @@
 #include <epan/expert.h>
 #include <epan/conversation.h>
 #include <epan/proto_data.h>
+#include <epan/tfs.h>
 
 #include "packet-bfcp.h"
 
@@ -27,50 +28,50 @@ void proto_register_bfcp(void);
 void proto_reg_handoff_bfcp(void);
 
 /* Initialize protocol and registered fields */
-static int proto_bfcp = -1;
+static int proto_bfcp;
 
-static int hf_bfcp_version = -1;
-static int hf_bfcp_hdr_r_bit = -1;
-static int hf_bfcp_hdr_f_bit = -1;
-static int hf_bfcp_primitive = -1;
-static int hf_bfcp_payload_length = -1;
-static int hf_bfcp_conference_id = -1;
-static int hf_bfcp_transaction_id = -1;
-static int hf_bfcp_user_id = -1;
-static int hf_bfcp_fragment_offset = -1;
-static int hf_bfcp_fragment_length = -1;
-static int hf_bfcp_payload = -1;
-static int hf_bfcp_attribute_types = -1;
-static int hf_bfcp_attribute_types_m_bit = -1;
-static int hf_bfcp_attribute_length = -1;
-static int hf_bfcp_beneficiary_id = -1;
-static int hf_bfcp_floor_id = -1;
-static int hf_bfcp_floor_request_id = -1;
-static int hf_bfcp_priority = -1;
-static int hf_bfcp_request_status = -1;
-static int hf_bfcp_queue_pos = -1;
-static int hf_bfcp_error_code = -1;
-static int hf_bfcp_error_info_text = -1;
-static int hf_bfcp_part_prov_info_text = -1;
-static int hf_bfcp_status_info_text = -1;
-static int hf_bfcp_supp_attr = -1;
-static int hf_bfcp_supp_prim = -1;
-static int hf_bfcp_user_disp_name = -1;
-static int hf_bfcp_user_uri = -1;
-static int hf_bfcp_req_by_id = -1;
-static int hf_bfcp_padding = -1;
-static int hf_bfcp_error_specific_details = -1;
+static int hf_bfcp_version;
+static int hf_bfcp_hdr_r_bit;
+static int hf_bfcp_hdr_f_bit;
+static int hf_bfcp_primitive;
+static int hf_bfcp_payload_length;
+static int hf_bfcp_conference_id;
+static int hf_bfcp_transaction_id;
+static int hf_bfcp_user_id;
+static int hf_bfcp_fragment_offset;
+static int hf_bfcp_fragment_length;
+static int hf_bfcp_payload;
+static int hf_bfcp_attribute_types;
+static int hf_bfcp_attribute_types_m_bit;
+static int hf_bfcp_attribute_length;
+static int hf_bfcp_beneficiary_id;
+static int hf_bfcp_floor_id;
+static int hf_bfcp_floor_request_id;
+static int hf_bfcp_priority;
+static int hf_bfcp_request_status;
+static int hf_bfcp_queue_pos;
+static int hf_bfcp_error_code;
+static int hf_bfcp_error_info_text;
+static int hf_bfcp_part_prov_info_text;
+static int hf_bfcp_status_info_text;
+static int hf_bfcp_supp_attr;
+static int hf_bfcp_supp_prim;
+static int hf_bfcp_user_disp_name;
+static int hf_bfcp_user_uri;
+static int hf_bfcp_req_by_id;
+static int hf_bfcp_padding;
+static int hf_bfcp_error_specific_details;
 /* BFCP setup fields */
-static int hf_bfcp_setup        = -1;
-static int hf_bfcp_setup_frame  = -1;
-static int hf_bfcp_setup_method = -1;
+static int hf_bfcp_setup;
+static int hf_bfcp_setup_frame;
+static int hf_bfcp_setup_method;
 
 /* Initialize subtree pointers */
-static gint ett_bfcp = -1;
-static gint ett_bfcp_setup = -1;
-static gint ett_bfcp_attr = -1;
+static int ett_bfcp;
+static int ett_bfcp_setup;
+static int ett_bfcp_attr;
 
-static expert_field ei_bfcp_attribute_length_too_small = EI_INIT;
+static expert_field ei_bfcp_attribute_length_too_small;
 
 static dissector_handle_t bfcp_handle;
 
@@ -168,7 +169,7 @@ static const value_string bfcp_error_code_valuse[] = {
 void
 bfcp_add_address( packet_info *pinfo, port_type ptype,
 		address *addr, int port,
-		const gchar *setup_method, guint32 setup_frame_number)
+		const char *setup_method, uint32_t setup_frame_number)
 {
 	address null_addr;
 	conversation_t* p_conv;
@@ -197,7 +198,7 @@ bfcp_add_address( packet_info *pinfo, port_type ptype,
 	*/
 	if (!p_conv) {
 		p_conv = conversation_new( pinfo->num, addr, &null_addr, conversation_pt_to_conversation_type(ptype),
-				   (guint32)port, 0,
+				   (uint32_t)port, 0,
 				   NO_ADDR2 | NO_PORT2);
 	}
 
@@ -221,7 +222,7 @@ bfcp_add_address( packet_info *pinfo, port_type ptype,
 	/*
 	* Update the conversation data.
 	*/
-	p_conv_data->setup_method_set = TRUE;
+	p_conv_data->setup_method_set = true;
 	(void) g_strlcpy(p_conv_data->setup_method, setup_method, MAX_BFCP_SETUP_METHOD_SIZE);
 	p_conv_data->setup_frame_number = setup_frame_number;
 }
@@ -286,11 +287,11 @@ dissect_bfcp_attributes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
 {
 	proto_item *ti, *item;
 	proto_tree  *bfcp_attr_tree = NULL;
-	gint        attr_start_offset;
-	gint        length;
-	guint8      attribute_type;
-	gint        read_attr = 0;
-	guint8      first_byte, pad_len;
+	int         attr_start_offset;
+	int         length;
+	uint8_t     attribute_type;
+	int         read_attr = 0;
+	uint8_t     first_byte, pad_len;
 
 	increment_dissection_depth(pinfo);
 	while ((tvb_reported_length_remaining(tvb, offset) >= 2) &&
@@ -298,7 +299,7 @@ dissect_bfcp_attributes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
 	{
 
 		attr_start_offset = offset;
-		first_byte = tvb_get_guint8(tvb, offset);
+		first_byte = tvb_get_uint8(tvb, offset);
 
 		/* Padding so continue to next attribute */
 		if (first_byte == 0){
@@ -323,7 +324,7 @@ dissect_bfcp_attributes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
 	 */
 
 		item = proto_tree_add_item(bfcp_attr_tree, hf_bfcp_attribute_length, tvb, offset, 1, ENC_BIG_ENDIAN);
-		length = tvb_get_guint8(tvb, offset);
+		length = tvb_get_uint8(tvb, offset);
 		/* At least Type, M bit and Length fields */
 		if (length < 2){
 			expert_add_info_format(pinfo, item, &ei_bfcp_attribute_length_too_small,
@@ -507,20 +508,20 @@ dissect_bfcp_attributes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
 }
 
 
-static gboolean
+static bool
 dissect_bfcp_heur_check(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_)
 {
-	guint8       primitive;
-	guint8      first_byte;
-	const gchar *str;
+	uint8_t      primitive;
+	uint8_t     first_byte;
+	const char *str;
 
 
 	/* Size of smallest BFCP packet: 12 octets */
 	if (tvb_captured_length(tvb) < BFCP_HDR_LEN)
-		return FALSE;
+		return false;
 
 	/* Check version and reserved bits in first byte */
-	first_byte = tvb_get_guint8(tvb, 0);
+	first_byte = tvb_get_uint8(tvb, 0);
 
 	/* If first_byte of bfcp_packet is a combination of the
 	 * version, the R-bit and the F-bit. The value must be:
@@ -528,18 +529,18 @@ dissect_bfcp_heur_check(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree 
 	 * if the bit is set, otherwise it is not BFCP.
 	 */
 	if ((first_byte != 0x20) && (first_byte != 0x30) && (first_byte != 0x40) && (first_byte != 0x48) && (first_byte != 0x50) && (first_byte != 0x58))
-		return FALSE;
+		return false;
 
-	primitive = tvb_get_guint8(tvb, 1);
+	primitive = tvb_get_uint8(tvb, 1);
 
 	if ((primitive < 1) || (primitive > 18))
-		return FALSE;
+		return false;
 
 	str = try_val_to_str(primitive, map_bfcp_primitive);
 	if (NULL == str)
-		return FALSE;
+		return false;
 
-	return TRUE;
+	return true;
 }
 
 /* Code to actually dissect BFCP packets */
@@ -547,17 +548,17 @@ static int
 dissect_bfcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
 	int          offset = 0;
-	guint8       primitive;
-	const gchar *str;
-	gint         bfcp_payload_length;
-	gboolean     f_bit;
+	uint8_t      primitive;
+	const char *str;
+	int          bfcp_payload_length;
+	bool         f_bit;
 	proto_tree  *bfcp_tree;
 	proto_item	*ti;
 
 	if (!dissect_bfcp_heur_check(tvb, pinfo, tree, data))
 		return 0;
 
-	primitive = tvb_get_guint8(tvb, 1);
+	primitive = tvb_get_uint8(tvb, 1);
 	str = try_val_to_str(primitive, map_bfcp_primitive);
 
 	/* Make entries in Protocol column and Info column on summary display*/
@@ -623,14 +624,14 @@ dissect_bfcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 	return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_bfcp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
 	if (!dissect_bfcp_heur_check(tvb, pinfo, tree, data))
-		return FALSE;
+		return false;
 
 	dissect_bfcp(tvb, pinfo, tree, data);
-	return TRUE;
+	return true;
 }
 
 void proto_register_bfcp(void)
@@ -842,7 +843,7 @@ void proto_register_bfcp(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_bfcp,
 		&ett_bfcp_setup,
 		&ett_bfcp_attr,

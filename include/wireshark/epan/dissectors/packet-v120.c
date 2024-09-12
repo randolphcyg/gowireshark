@@ -16,46 +16,46 @@
 
 void proto_register_v120(void);
 
-static int proto_v120 = -1;
-static int hf_v120_address = -1;
-static int hf_v120_rc = -1;
-static int hf_v120_lli = -1;
-static int hf_v120_ea0 = -1;
-static int hf_v120_ea1 = -1;
-static int hf_v120_control = -1;
-static int hf_v120_n_r = -1;
-static int hf_v120_n_s = -1;
-static int hf_v120_p = -1;
-static int hf_v120_p_ext = -1;
-static int hf_v120_f = -1;
-static int hf_v120_f_ext = -1;
-static int hf_v120_s_ftype = -1;
-static int hf_v120_u_modifier_cmd = -1;
-static int hf_v120_u_modifier_resp = -1;
-static int hf_v120_ftype_i = -1;
-static int hf_v120_ftype_s_u = -1;
-static int hf_v120_ftype_s_u_ext = -1;
-static int hf_v120_header8 = -1;
-static int hf_v120_header_ext8 = -1;
-static int hf_v120_header_break8 = -1;
-static int hf_v120_header_error_control8 = -1;
-static int hf_v120_header_segb8 = -1;
-static int hf_v120_header_segf8 = -1;
-static int hf_v120_header16 = -1;
-static int hf_v120_header_ext16 = -1;
-static int hf_v120_header_break16 = -1;
-static int hf_v120_header_error_control16 = -1;
-static int hf_v120_header_segb16 = -1;
-static int hf_v120_header_segf16 = -1;
-static int hf_v120_header_e = -1;
-static int hf_v120_header_dr = -1;
-static int hf_v120_header_sr = -1;
-static int hf_v120_header_rr = -1;
+static int proto_v120;
+static int hf_v120_address;
+static int hf_v120_rc;
+static int hf_v120_lli;
+static int hf_v120_ea0;
+static int hf_v120_ea1;
+static int hf_v120_control;
+static int hf_v120_n_r;
+static int hf_v120_n_s;
+static int hf_v120_p;
+static int hf_v120_p_ext;
+static int hf_v120_f;
+static int hf_v120_f_ext;
+static int hf_v120_s_ftype;
+static int hf_v120_u_modifier_cmd;
+static int hf_v120_u_modifier_resp;
+static int hf_v120_ftype_i;
+static int hf_v120_ftype_s_u;
+static int hf_v120_ftype_s_u_ext;
+static int hf_v120_header8;
+static int hf_v120_header_ext8;
+static int hf_v120_header_break8;
+static int hf_v120_header_error_control8;
+static int hf_v120_header_segb8;
+static int hf_v120_header_segf8;
+static int hf_v120_header16;
+static int hf_v120_header_ext16;
+static int hf_v120_header_break16;
+static int hf_v120_header_error_control16;
+static int hf_v120_header_segb16;
+static int hf_v120_header_segf16;
+static int hf_v120_header_e;
+static int hf_v120_header_dr;
+static int hf_v120_header_sr;
+static int hf_v120_header_rr;
 
-static gint ett_v120 = -1;
-static gint ett_v120_address = -1;
-static gint ett_v120_control = -1;
-static gint ett_v120_header = -1;
+static int ett_v120;
+static int ett_v120_address;
+static int ett_v120_control;
+static int ett_v120_header;
 
 static int dissect_v120_header(tvbuff_t *tvb, int offset, proto_tree *tree);
 
@@ -92,18 +92,18 @@ dissect_v120(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	proto_item *ti, *tc;
 	int	    is_response;
 	int	    v120len;
-	guint8      byte0, byte1;
-	guint16     control;
+	uint8_t     byte0, byte1;
+	uint16_t    control;
 	tvbuff_t   *next_tvb;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "V.120");
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	byte0 = tvb_get_guint8(tvb, 0);
+	byte0 = tvb_get_uint8(tvb, 0);
 
 	col_add_fstr(pinfo->cinfo, COL_RES_DL_SRC, "0x%02X", byte0);
 
-	byte1 = tvb_get_guint8(tvb, 1);
+	byte1 = tvb_get_uint8(tvb, 1);
 
 	if ( ((byte0 & 0x01) != 0x00) && ((byte1 & 0x01) != 0x01) )
 	{
@@ -115,12 +115,12 @@ dissect_v120(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	}
 
 	if (pinfo->p2p_dir == P2P_DIR_SENT) {
-		is_response = (byte0 & 0x02) ? FALSE: TRUE;
+		is_response = (byte0 & 0x02) ? false: true;
 		col_set_str(pinfo->cinfo, COL_RES_DL_DST, "DCE");
 		col_set_str(pinfo->cinfo, COL_RES_DL_SRC, "DTE");
 	} else {
 		/* XXX - what if the direction is unknown? */
-		is_response = (byte0 & 0x02) ? TRUE : FALSE;
+		is_response = (byte0 & 0x02) ? true : false;
 		col_set_str(pinfo->cinfo, COL_RES_DL_DST, "DTE");
 		col_set_str(pinfo->cinfo, COL_RES_DL_SRC, "DCE");
 	}
@@ -140,9 +140,9 @@ dissect_v120(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
 	control = dissect_xdlc_control(tvb, 2, pinfo, v120_tree, hf_v120_control,
 		ett_v120_control, &v120_cf_items, &v120_cf_items_ext,
-		NULL, NULL, is_response, TRUE, FALSE);
+		NULL, NULL, is_response, true, false);
 
-	v120len = 2 + XDLC_CONTROL_LEN(control, TRUE);
+	v120len = 2 + XDLC_CONTROL_LEN(control, true);
 
 	if (tvb_bytes_exist(tvb, v120len, 1))
 		v120len += dissect_v120_header(tvb, v120len, v120_tree);
@@ -157,11 +157,11 @@ static int
 dissect_v120_header(tvbuff_t *tvb, int offset, proto_tree *tree)
 {
 	int         header_len;
-	guint8      byte0;
+	uint8_t     byte0;
 	proto_tree *h_tree;
 	proto_item *tc;
 
-	byte0 = tvb_get_guint8(tvb, offset);
+	byte0 = tvb_get_uint8(tvb, offset);
 	if (byte0 & 0x80) {
 		header_len = 1;
 		tc = proto_tree_add_item(tree, hf_v120_header8, tvb, 0, 1, ENC_BIG_ENDIAN);
@@ -300,7 +300,7 @@ proto_register_v120(void)
 		  { "RR", "v120.header.rr", FT_BOOLEAN, 16, TFS(&tfs_yes_no), 0x1000,
 		    NULL, HFILL }},
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_v120,
 		&ett_v120_address,
 		&ett_v120_control,

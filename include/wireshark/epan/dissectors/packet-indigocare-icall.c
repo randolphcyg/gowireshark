@@ -43,29 +43,29 @@ void proto_register_icall(void);
 
 static dissector_handle_t icall_handle;
 
-static expert_field ei_icall_unexpected_header = EI_INIT;
-static expert_field ei_icall_unexpected_record = EI_INIT;
-static expert_field ei_icall_unexpected_end = EI_INIT;
+static expert_field ei_icall_unexpected_header;
+static expert_field ei_icall_unexpected_record;
+static expert_field ei_icall_unexpected_end;
 
-static int proto_icall = -1;
-static int hf_icall_header_type = -1;
+static int proto_icall;
+static int hf_icall_header_type;
 
-static int hf_icall_call_room_type = -1;
-static int hf_icall_call_type_type = -1;
-static int hf_icall_call_addition_type = -1;
-static int hf_icall_call_id_type = -1;
-static int hf_icall_call_task_type = -1;
-static int hf_icall_call_location_type = -1;
-static int hf_icall_call_name1_type = -1;
-static int hf_icall_call_name2_type = -1;
-static int hf_icall_call_numerical_type = -1;
-static int hf_icall_call_nurse_type = -1;
+static int hf_icall_call_room_type;
+static int hf_icall_call_type_type;
+static int hf_icall_call_addition_type;
+static int hf_icall_call_id_type;
+static int hf_icall_call_task_type;
+static int hf_icall_call_location_type;
+static int hf_icall_call_name1_type;
+static int hf_icall_call_name2_type;
+static int hf_icall_call_numerical_type;
+static int hf_icall_call_nurse_type;
 
-static int hf_icall_padding_type = -1;
+static int hf_icall_padding_type;
 
-static gint ett_icall = -1;
-static gint ett_icall_call = -1;
-static gint ett_icall_unknown = -1;
+static int ett_icall;
+static int ett_icall_call;
+static int ett_icall_unknown;
 
 static const value_string icall_headertypenames[] = {
 	{ INDIGOCARE_ICALL_CALL,		"Call Info" },
@@ -79,13 +79,13 @@ dissect_icall(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *dat
 	proto_item *header_item;
 	proto_tree *icall_tree;
 	proto_tree *icall_header_tree;
-	gint32 current_offset = 0, header_offset, identifier_start, identifier_offset, data_start, data_offset, ett;
-	gint32 header;
-	gint32 record_identifier;
-	const guint8 * record_data;
+	int32_t current_offset = 0, header_offset, identifier_start, identifier_offset, data_start, data_offset, ett;
+	int32_t header;
+	int32_t record_identifier;
+	const uint8_t * record_data;
 
 	/* Starts with SOH */
-	if ( tvb_get_guint8(tvb, 0) != INDIGOCARE_ICALL_SOH )
+	if ( tvb_get_uint8(tvb, 0) != INDIGOCARE_ICALL_SOH )
 		return 0;
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "iCall");
 	col_clear(pinfo->cinfo,COL_INFO);
@@ -94,7 +94,7 @@ dissect_icall(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *dat
 	current_offset++;
 
 	/* Read header */
-	header_offset = tvb_find_guint8(tvb, current_offset, -1, INDIGOCARE_ICALL_STX);
+	header_offset = tvb_find_uint8(tvb, current_offset, -1, INDIGOCARE_ICALL_STX);
 	ws_strtoi32(tvb_get_string_enc(pinfo->pool, tvb, current_offset, header_offset - current_offset, ENC_ASCII|ENC_NA), NULL, &header);
 	col_add_fstr(pinfo->cinfo, COL_INFO, "%s:", val_to_str(header, icall_headertypenames, "Unknown (%d)"));
 	switch(header) {
@@ -111,14 +111,14 @@ dissect_icall(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *dat
 	current_offset = header_offset + 1;
 
 	/* Read records */
-	while (tvb_get_guint8(tvb, current_offset) != INDIGOCARE_ICALL_ETX) {
+	while (tvb_get_uint8(tvb, current_offset) != INDIGOCARE_ICALL_ETX) {
 		identifier_start = current_offset;
-		identifier_offset = tvb_find_guint8(tvb, current_offset, -1, INDIGOCARE_ICALL_US);
+		identifier_offset = tvb_find_uint8(tvb, current_offset, -1, INDIGOCARE_ICALL_US);
 		ws_strtoi32(tvb_get_string_enc(pinfo->pool, tvb, current_offset, identifier_offset - current_offset, ENC_ASCII|ENC_NA), NULL, &record_identifier);
 		current_offset = identifier_offset + 1;
 
 		data_start = current_offset;
-		data_offset = tvb_find_guint8(tvb, data_start, -1, INDIGOCARE_ICALL_RS);
+		data_offset = tvb_find_uint8(tvb, data_start, -1, INDIGOCARE_ICALL_RS);
 		record_data = tvb_get_string_enc(pinfo->pool, tvb, current_offset, data_offset - data_start, ENC_ASCII|ENC_NA);
 
 		current_offset = data_offset + 1;
@@ -169,7 +169,7 @@ dissect_icall(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree _U_, void *dat
 		}
 	}
 	current_offset++;
-	if (tvb_get_guint8(tvb, current_offset) != INDIGOCARE_ICALL_EOT) {
+	if (tvb_get_uint8(tvb, current_offset) != INDIGOCARE_ICALL_EOT) {
 		/* Malformed packet terminator */
 		proto_tree_add_expert(icall_header_tree, pinfo, &ei_icall_unexpected_end, tvb, current_offset, 1);
 		return tvb_captured_length(tvb);
@@ -276,7 +276,7 @@ proto_register_icall(void)
 	expert_module_t* expert_icall;
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_icall,
 		&ett_icall_call,
 		&ett_icall_unknown

@@ -20,213 +20,205 @@
 #include <epan/epan.h>
 #include <epan/exceptions.h>
 #include <epan/show_exception.h>
-#include <epan/timestamp.h>
 #include <epan/prefs.h>
 #include <epan/to_str.h>
 #include <epan/sequence_analysis.h>
 #include <epan/tap.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 #include <wsutil/wsgcrypt.h>
 #include <wsutil/str_util.h>
 #include <wsutil/wslog.h>
 #include <wsutil/ws_assert.h>
-#include <epan/proto_data.h>
 #include <epan/addr_resolv.h>
 #include <epan/wmem_scopes.h>
 #include <epan/column-info.h>
 
 #include "packet-frame.h"
 #include "packet-bblog.h"
-#include "packet-icmp.h"
 
 #include <epan/color_filters.h>
 
 void proto_register_frame(void);
 void proto_reg_handoff_frame(void);
 
-static int proto_frame = -1;
-static int proto_pkt_comment = -1;
-static int proto_syscall = -1;
-static int proto_bblog = -1;
+static int proto_frame;
+static int proto_pkt_comment;
+static int proto_syscall;
+static int proto_bblog;
 
-static int hf_frame_arrival_time_local = -1;
-static int hf_frame_arrival_time_utc = -1;
-static int hf_frame_arrival_time_epoch = -1;
-static int hf_frame_shift_offset = -1;
-static int hf_frame_time_delta = -1;
-static int hf_frame_time_delta_displayed = -1;
-static int hf_frame_time_relative = -1;
-static int hf_frame_time_relative_cap = -1;
-static int hf_frame_time_reference = -1;
-static int hf_frame_number = -1;
-static int hf_frame_len = -1;
-static int hf_frame_capture_len = -1;
-static int hf_frame_p2p_dir = -1;
-static int hf_frame_file_off = -1;
-static int hf_frame_md5_hash = -1;
-static int hf_frame_marked = -1;
-static int hf_frame_ignored = -1;
-static int hf_link_number = -1;
-static int hf_frame_packet_id = -1;
-static int hf_frame_hash = -1;
-static int hf_frame_hash_bytes = -1;
-static int hf_frame_verdict = -1;
-static int hf_frame_verdict_hardware = -1;
-static int hf_frame_verdict_tc = -1;
-static int hf_frame_verdict_xdp = -1;
-static int hf_frame_verdict_unknown = -1;
-static int hf_frame_drop_count = -1;
-static int hf_frame_protocols = -1;
-static int hf_frame_color_filter_name = -1;
-static int hf_frame_color_filter_text = -1;
-static int hf_frame_section_number = -1;
-static int hf_frame_interface_id = -1;
-static int hf_frame_interface_name = -1;
-static int hf_frame_interface_description = -1;
-static int hf_frame_interface_queue = -1;
-static int hf_frame_pack_flags = -1;
-static int hf_frame_pack_direction = -1;
-static int hf_frame_pack_reception_type = -1;
-static int hf_frame_pack_fcs_length = -1;
-static int hf_frame_pack_reserved = -1;
-static int hf_frame_pack_crc_error = -1;
-static int hf_frame_pack_wrong_packet_too_long_error = -1;
-static int hf_frame_pack_wrong_packet_too_short_error = -1;
-static int hf_frame_pack_wrong_inter_frame_gap_error = -1;
-static int hf_frame_pack_unaligned_frame_error = -1;
-static int hf_frame_pack_start_frame_delimiter_error = -1;
-static int hf_frame_pack_preamble_error = -1;
-static int hf_frame_pack_symbol_error = -1;
-static int hf_frame_wtap_encap = -1;
-static int hf_frame_cb_pen = -1;
-static int hf_frame_cb_copy_allowed = -1;
-static int hf_frame_bblog = -1;
-static int hf_frame_bblog_ticks = -1;
-static int hf_frame_bblog_serial_nr = -1;
-static int hf_frame_bblog_event_id = -1;
-static int hf_frame_bblog_event_flags = -1;
-static int hf_frame_bblog_event_flags_rxbuf = -1;
-static int hf_frame_bblog_event_flags_txbuf = -1;
-static int hf_frame_bblog_event_flags_hdr = -1;
-static int hf_frame_bblog_event_flags_verbose = -1;
-static int hf_frame_bblog_event_flags_stack = -1;
-static int hf_frame_bblog_errno = -1;
-static int hf_frame_bblog_rxb_acc = -1;
-static int hf_frame_bblog_rxb_ccc = -1;
-static int hf_frame_bblog_rxb_spare = -1;
-static int hf_frame_bblog_txb_acc = -1;
-static int hf_frame_bblog_txb_ccc = -1;
-static int hf_frame_bblog_txb_spare = -1;
-static int hf_frame_bblog_state = -1;
-static int hf_frame_bblog_starttime = -1;
-static int hf_frame_bblog_iss = -1;
-static int hf_frame_bblog_t_flags = -1;
-static int hf_frame_bblog_t_flags_ack_now = -1;
-static int hf_frame_bblog_t_flags_delayed_ack = -1;
-static int hf_frame_bblog_t_flags_no_delay = -1;
-static int hf_frame_bblog_t_flags_no_opt = -1;
-static int hf_frame_bblog_t_flags_sent_fin = -1;
-static int hf_frame_bblog_t_flags_request_window_scale = -1;
-static int hf_frame_bblog_t_flags_received_window_scale = -1;
-static int hf_frame_bblog_t_flags_request_timestamp = -1;
-static int hf_frame_bblog_t_flags_received_timestamp = -1;
-static int hf_frame_bblog_t_flags_sack_permitted = -1;
-static int hf_frame_bblog_t_flags_need_syn = -1;
-static int hf_frame_bblog_t_flags_need_fin = -1;
-static int hf_frame_bblog_t_flags_no_push = -1;
-static int hf_frame_bblog_t_flags_prev_valid = -1;
-static int hf_frame_bblog_t_flags_wake_socket_receive = -1;
-static int hf_frame_bblog_t_flags_goodput_in_progress = -1;
-static int hf_frame_bblog_t_flags_more_to_come = -1;
-static int hf_frame_bblog_t_flags_listen_queue_overflow = -1;
-static int hf_frame_bblog_t_flags_last_idle = -1;
-static int hf_frame_bblog_t_flags_zero_recv_window_sent = -1;
-static int hf_frame_bblog_t_flags_be_in_fast_recovery = -1;
-static int hf_frame_bblog_t_flags_was_in_fast_recovery = -1;
-static int hf_frame_bblog_t_flags_signature = -1;
-static int hf_frame_bblog_t_flags_force_data = -1;
-static int hf_frame_bblog_t_flags_tso = -1;
-static int hf_frame_bblog_t_flags_toe = -1;
-static int hf_frame_bblog_t_flags_unused_0 = -1;
-static int hf_frame_bblog_t_flags_unused_1 = -1;
-static int hf_frame_bblog_t_flags_lost_rtx_detection = -1;
-static int hf_frame_bblog_t_flags_be_in_cong_recovery = -1;
-static int hf_frame_bblog_t_flags_was_in_cong_recovery = -1;
-static int hf_frame_bblog_t_flags_fast_open = -1;
-static int hf_frame_bblog_snd_una = -1;
-static int hf_frame_bblog_snd_max = -1;
-static int hf_frame_bblog_snd_cwnd = -1;
-static int hf_frame_bblog_snd_nxt = -1;
-static int hf_frame_bblog_snd_recover = -1;
-static int hf_frame_bblog_snd_wnd = -1;
-static int hf_frame_bblog_snd_ssthresh = -1;
-static int hf_frame_bblog_srtt = -1;
-static int hf_frame_bblog_rttvar = -1;
-static int hf_frame_bblog_rcv_up = -1;
-static int hf_frame_bblog_rcv_adv = -1;
-static int hf_frame_bblog_t_flags2 = -1;
-static int hf_frame_bblog_t_flags2_plpmtu_blackhole = -1;
-static int hf_frame_bblog_t_flags2_plpmtu_pmtud = -1;
-static int hf_frame_bblog_t_flags2_plpmtu_maxsegsnt = -1;
-static int hf_frame_bblog_t_flags2_log_auto = -1;
-static int hf_frame_bblog_t_flags2_drop_after_data = -1;
-static int hf_frame_bblog_t_flags2_ecn_permit = -1;
-static int hf_frame_bblog_t_flags2_ecn_snd_cwr = -1;
-static int hf_frame_bblog_t_flags2_ecn_snd_ece = -1;
-static int hf_frame_bblog_t_flags2_ace_permit = -1;
-static int hf_frame_bblog_t_flags2_first_bytes_complete = -1;
-static int hf_frame_bblog_rcv_nxt = -1;
-static int hf_frame_bblog_rcv_wnd = -1;
-static int hf_frame_bblog_dupacks = -1;
-static int hf_frame_bblog_seg_qlen = -1;
-static int hf_frame_bblog_snd_num_holes = -1;
-static int hf_frame_bblog_flex_1 = -1;
-static int hf_frame_bblog_flex_2 = -1;
-static int hf_frame_bblog_first_byte_in = -1;
-static int hf_frame_bblog_first_byte_out = -1;
-static int hf_frame_bblog_snd_scale = -1;
-static int hf_frame_bblog_rcv_scale = -1;
-static int hf_frame_bblog_pad_1 = -1;
-static int hf_frame_bblog_pad_2 = -1;
-static int hf_frame_bblog_pad_3 = -1;
-static int hf_frame_bblog_payload_len = -1;
-static int hf_frame_pcaplog_type = -1;
-static int hf_frame_pcaplog_length = -1;
-static int hf_frame_pcaplog_data = -1;
-static int hf_comments_text = -1;
+static int hf_frame_arrival_time_local;
+static int hf_frame_arrival_time_utc;
+static int hf_frame_arrival_time_epoch;
+static int hf_frame_shift_offset;
+static int hf_frame_time_delta;
+static int hf_frame_time_delta_displayed;
+static int hf_frame_time_relative;
+static int hf_frame_time_relative_cap;
+static int hf_frame_time_reference;
+static int hf_frame_number;
+static int hf_frame_len;
+static int hf_frame_capture_len;
+static int hf_frame_p2p_dir;
+static int hf_frame_file_off;
+static int hf_frame_md5_hash;
+static int hf_frame_marked;
+static int hf_frame_ignored;
+static int hf_link_number;
+static int hf_frame_packet_id;
+static int hf_frame_hash;
+static int hf_frame_hash_bytes;
+static int hf_frame_verdict;
+static int hf_frame_verdict_hardware;
+static int hf_frame_verdict_tc;
+static int hf_frame_verdict_xdp;
+static int hf_frame_verdict_unknown;
+static int hf_frame_drop_count;
+static int hf_frame_protocols;
+static int hf_frame_color_filter_name;
+static int hf_frame_color_filter_text;
+static int hf_frame_section_number;
+static int hf_frame_interface_id;
+static int hf_frame_interface_name;
+static int hf_frame_interface_description;
+static int hf_frame_interface_queue;
+static int hf_frame_pack_flags;
+static int hf_frame_pack_direction;
+static int hf_frame_pack_reception_type;
+static int hf_frame_pack_fcs_length;
+static int hf_frame_pack_reserved;
+static int hf_frame_pack_crc_error;
+static int hf_frame_pack_wrong_packet_too_long_error;
+static int hf_frame_pack_wrong_packet_too_short_error;
+static int hf_frame_pack_wrong_inter_frame_gap_error;
+static int hf_frame_pack_unaligned_frame_error;
+static int hf_frame_pack_start_frame_delimiter_error;
+static int hf_frame_pack_preamble_error;
+static int hf_frame_pack_symbol_error;
+static int hf_frame_wtap_encap;
+static int hf_frame_cb_pen;
+static int hf_frame_cb_copy_allowed;
+static int hf_frame_bblog;
+static int hf_frame_bblog_ticks;
+static int hf_frame_bblog_serial_nr;
+static int hf_frame_bblog_event_id;
+static int hf_frame_bblog_event_flags;
+static int hf_frame_bblog_event_flags_rxbuf;
+static int hf_frame_bblog_event_flags_txbuf;
+static int hf_frame_bblog_event_flags_hdr;
+static int hf_frame_bblog_event_flags_verbose;
+static int hf_frame_bblog_event_flags_stack;
+static int hf_frame_bblog_errno;
+static int hf_frame_bblog_rxb_acc;
+static int hf_frame_bblog_rxb_ccc;
+static int hf_frame_bblog_rxb_spare;
+static int hf_frame_bblog_txb_acc;
+static int hf_frame_bblog_txb_ccc;
+static int hf_frame_bblog_txb_spare;
+static int hf_frame_bblog_state;
+static int hf_frame_bblog_starttime;
+static int hf_frame_bblog_iss;
+static int hf_frame_bblog_t_flags;
+static int hf_frame_bblog_t_flags_ack_now;
+static int hf_frame_bblog_t_flags_delayed_ack;
+static int hf_frame_bblog_t_flags_no_delay;
+static int hf_frame_bblog_t_flags_no_opt;
+static int hf_frame_bblog_t_flags_sent_fin;
+static int hf_frame_bblog_t_flags_request_window_scale;
+static int hf_frame_bblog_t_flags_received_window_scale;
+static int hf_frame_bblog_t_flags_request_timestamp;
+static int hf_frame_bblog_t_flags_received_timestamp;
+static int hf_frame_bblog_t_flags_sack_permitted;
+static int hf_frame_bblog_t_flags_need_syn;
+static int hf_frame_bblog_t_flags_need_fin;
+static int hf_frame_bblog_t_flags_no_push;
+static int hf_frame_bblog_t_flags_prev_valid;
+static int hf_frame_bblog_t_flags_wake_socket_receive;
+static int hf_frame_bblog_t_flags_goodput_in_progress;
+static int hf_frame_bblog_t_flags_more_to_come;
+static int hf_frame_bblog_t_flags_listen_queue_overflow;
+static int hf_frame_bblog_t_flags_last_idle;
+static int hf_frame_bblog_t_flags_zero_recv_window_sent;
+static int hf_frame_bblog_t_flags_be_in_fast_recovery;
+static int hf_frame_bblog_t_flags_was_in_fast_recovery;
+static int hf_frame_bblog_t_flags_signature;
+static int hf_frame_bblog_t_flags_force_data;
+static int hf_frame_bblog_t_flags_tso;
+static int hf_frame_bblog_t_flags_toe;
+static int hf_frame_bblog_t_flags_unused_0;
+static int hf_frame_bblog_t_flags_unused_1;
+static int hf_frame_bblog_t_flags_lost_rtx_detection;
+static int hf_frame_bblog_t_flags_be_in_cong_recovery;
+static int hf_frame_bblog_t_flags_was_in_cong_recovery;
+static int hf_frame_bblog_t_flags_fast_open;
+static int hf_frame_bblog_snd_una;
+static int hf_frame_bblog_snd_max;
+static int hf_frame_bblog_snd_cwnd;
+static int hf_frame_bblog_snd_nxt;
+static int hf_frame_bblog_snd_recover;
+static int hf_frame_bblog_snd_wnd;
+static int hf_frame_bblog_snd_ssthresh;
+static int hf_frame_bblog_srtt;
+static int hf_frame_bblog_rttvar;
+static int hf_frame_bblog_rcv_up;
+static int hf_frame_bblog_rcv_adv;
+static int hf_frame_bblog_t_flags2;
+static int hf_frame_bblog_t_flags2_plpmtu_blackhole;
+static int hf_frame_bblog_t_flags2_plpmtu_pmtud;
+static int hf_frame_bblog_t_flags2_plpmtu_maxsegsnt;
+static int hf_frame_bblog_t_flags2_log_auto;
+static int hf_frame_bblog_t_flags2_drop_after_data;
+static int hf_frame_bblog_t_flags2_ecn_permit;
+static int hf_frame_bblog_t_flags2_ecn_snd_cwr;
+static int hf_frame_bblog_t_flags2_ecn_snd_ece;
+static int hf_frame_bblog_t_flags2_ace_permit;
+static int hf_frame_bblog_t_flags2_first_bytes_complete;
+static int hf_frame_bblog_rcv_nxt;
+static int hf_frame_bblog_rcv_wnd;
+static int hf_frame_bblog_dupacks;
+static int hf_frame_bblog_seg_qlen;
+static int hf_frame_bblog_snd_num_holes;
+static int hf_frame_bblog_flex_1;
+static int hf_frame_bblog_flex_2;
+static int hf_frame_bblog_first_byte_in;
+static int hf_frame_bblog_first_byte_out;
+static int hf_frame_bblog_snd_scale;
+static int hf_frame_bblog_rcv_scale;
+static int hf_frame_bblog_pad_1;
+static int hf_frame_bblog_pad_2;
+static int hf_frame_bblog_pad_3;
+static int hf_frame_bblog_payload_len;
+static int hf_comments_text;
 
-static gint ett_frame = -1;
-static gint ett_ifname = -1;
-static gint ett_flags = -1;
-static gint ett_comments = -1;
-static gint ett_hash = -1;
-static gint ett_verdict = -1;
-static gint ett_bblog = -1;
-static gint ett_bblog_event_flags = -1;
-static gint ett_bblog_t_flags = -1;
-static gint ett_bblog_t_flags2 = -1;
-static gint ett_pcaplog_data = -1;
+static int ett_frame;
+static int ett_ifname;
+static int ett_flags;
+static int ett_comments;
+static int ett_hash;
+static int ett_verdict;
+static int ett_bblog;
+static int ett_bblog_event_flags;
+static int ett_bblog_t_flags;
+static int ett_bblog_t_flags2;
 
-static expert_field ei_comments_text = EI_INIT;
-static expert_field ei_arrive_time_out_of_range = EI_INIT;
-static expert_field ei_incomplete = EI_INIT;
-static expert_field ei_len_lt_caplen = EI_INIT;
+static expert_field ei_comments_text;
+static expert_field ei_arrive_time_out_of_range;
+static expert_field ei_incomplete;
+static expert_field ei_len_lt_caplen;
 
-static int frame_tap = -1;
+static int frame_tap;
 
 static dissector_handle_t docsis_handle;
 static dissector_handle_t sysdig_handle;
 static dissector_handle_t systemd_journal_handle;
-static dissector_handle_t bblog_handle;
-static dissector_handle_t xml_handle;
 
 /* Preferences */
-static gboolean show_file_off       = FALSE;
-static gboolean force_docsis_encap  = FALSE;
-static gboolean generate_md5_hash   = FALSE;
-static gboolean generate_bits_field = TRUE;
-static gboolean disable_packet_size_limited_in_summary = FALSE;
-static guint    max_comment_lines   = 30;
+static bool show_file_off;
+static bool force_docsis_encap;
+static bool generate_md5_hash;
+static bool generate_bits_field = true;
+static bool disable_packet_size_limited_in_summary;
+static unsigned max_comment_lines   = 30;
 
 static const value_string p2p_dirs[] = {
 	{ P2P_DIR_UNKNOWN, "Unknown" },
@@ -276,6 +268,7 @@ static const val64_string verdict_ebpf_xdp_types[] = {
 
 static dissector_table_t wtap_encap_dissector_table;
 static dissector_table_t wtap_fts_rec_dissector_table;
+static dissector_table_t block_pen_dissector_table;
 
 /* The number of tree items required to add an exception to the tree */
 #define EXCEPTION_TREE_ITEMS 10
@@ -299,11 +292,11 @@ typedef struct fr_foreach_s {
 	proto_tree *tree;
 	tvbuff_t *tvb;
 	packet_info *pinfo;
-	guint n_changes;
+	unsigned n_changes;
 } fr_foreach_t;
 
 static const char *
-get_verdict_type_string(guint8 type)
+get_verdict_type_string(uint8_t type)
 {
 	switch(type) {
 	case OPT_VERDICT_TYPE_HW:
@@ -317,7 +310,7 @@ get_verdict_type_string(guint8 type)
 }
 
 static const char *
-get_hash_type_string(guint8 type)
+get_hash_type_string(uint8_t type)
 {
 	switch(type) {
 	case OPT_HASH_2COMP:
@@ -338,7 +331,7 @@ get_hash_type_string(guint8 type)
 }
 
 static void
-ensure_tree_item(proto_tree *tree, guint count)
+ensure_tree_item(proto_tree *tree, unsigned count)
 {
 	/*
 	 * Ensure that no exception is thrown in proto.c when adding the
@@ -372,7 +365,7 @@ frame_seq_analysis_packet( void *ptr, packet_info *pinfo, epan_dissect_t *edt _U
 
 	sai->line_style = 1;
 	sai->conv_num = 0;
-	sai->display = TRUE;
+	sai->display = true;
 
 	g_queue_push_tail(sainfo->items, sai);
 
@@ -387,28 +380,28 @@ frame_seq_analysis_packet( void *ptr, packet_info *pinfo, epan_dissect_t *edt _U
 void
 register_frame_end_routine(packet_info *pinfo, void (*func)(void))
 {
-	pinfo->frame_end_routines = g_slist_append(pinfo->frame_end_routines, (gpointer)func);
+	pinfo->frame_end_routines = g_slist_append(pinfo->frame_end_routines, (void *)func);
 }
 
 typedef void (*void_func_t)(void);
 
 static void
-call_frame_end_routine(gpointer routine)
+call_frame_end_routine(void *routine)
 {
 	void_func_t func = (void_func_t)routine;
 	(*func)();
 }
 
-static gboolean
-frame_add_comment(wtap_block_t block _U_, guint option_id, wtap_opttype_e option_type _U_, wtap_optval_t *option, void *user_data)
+static bool
+frame_add_comment(wtap_block_t block _U_, unsigned option_id, wtap_opttype_e option_type _U_, wtap_optval_t *option, void *user_data)
 {
 	fr_foreach_t *fr_user_data = (fr_foreach_t *)user_data;
 	proto_item *comment_item;
 	proto_item *hidden_item;
 	proto_tree *comments_tree;
-	gchar *newline;             /* location of next newline in comment */
-	gchar *ch;                  /* utility pointer */
-	guint i;                    /* track number of lines */
+	char *newline;             /* location of next newline in comment */
+	char *ch;                  /* utility pointer */
+	unsigned i;                    /* track number of lines */
 
 	if (option_id == OPT_COMMENT) {
 		ch = option->stringval;
@@ -492,18 +485,18 @@ frame_add_comment(wtap_block_t block _U_, guint option_id, wtap_opttype_e option
 		proto_item_set_hidden(hidden_item);
 	}
 	fr_user_data->n_changes++;
-	return TRUE;
+	return true;
 }
 
-static gboolean
-frame_add_hash(wtap_block_t block _U_, guint option_id, wtap_opttype_e option_type _U_, wtap_optval_t *option, void *user_data)
+static bool
+frame_add_hash(wtap_block_t block _U_, unsigned option_id, wtap_opttype_e option_type _U_, wtap_optval_t *option, void *user_data)
 {
 	fr_foreach_t *fr_user_data = (fr_foreach_t *)user_data;
 
 	if (option_id == OPT_PKT_HASH) {
 		packet_hash_opt_t *hash = &option->packet_hash;
 		const char *format
-			= fr_user_data->n_changes ? "%s (%u)" : ", %s (%u)";
+			= fr_user_data->n_changes ? ", %s (%u)" : "%s (%u)";
 
 		proto_item_append_text(fr_user_data->item, format,
 				       get_hash_type_string(hash->type),
@@ -516,11 +509,11 @@ frame_add_hash(wtap_block_t block _U_, guint option_id, wtap_opttype_e option_ty
 						 hash->hash_bytes->len);
 	}
 	fr_user_data->n_changes++;
-	return TRUE;
+	return true;
 }
 
-static gboolean
-frame_add_verdict(wtap_block_t block _U_, guint option_id, wtap_opttype_e option_type _U_, wtap_optval_t *option, void *user_data)
+static bool
+frame_add_verdict(wtap_block_t block _U_, unsigned option_id, wtap_opttype_e option_type _U_, wtap_optval_t *option, void *user_data)
 {
 	fr_foreach_t *fr_user_data = (fr_foreach_t *)user_data;
 
@@ -562,29 +555,29 @@ frame_add_verdict(wtap_block_t block _U_, guint option_id, wtap_opttype_e option
 		}
 	}
 	fr_user_data->n_changes++;
-	return TRUE;
+	return true;
 }
 
 static int
 dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* data)
 {
 	proto_item  *volatile ti = NULL;
-	guint	     cap_len = 0, frame_len = 0;
-	guint32      pack_flags;
-	guint32      interface_queue;
-	guint64      drop_count;
-	guint64      packetid;
+	unsigned	     cap_len = 0, frame_len = 0;
+	uint32_t     pack_flags;
+	uint32_t     interface_queue;
+	uint64_t     drop_count;
+	uint64_t     packetid;
 	proto_tree  *volatile tree;
 	proto_tree  *comments_tree;
 	proto_tree  *volatile fh_tree = NULL;
 	proto_item  *item;
-	const gchar *cap_plurality, *frame_plurality;
+	const char *cap_plurality, *frame_plurality;
 	frame_data_t *fr_data = (frame_data_t*)data;
 	const color_filter_t *color_filter;
 	dissector_handle_t dissector_handle;
 	fr_foreach_t fr_user_data;
 	struct nflx_tcpinfo tcpinfo;
-	gboolean tcpinfo_filled = false;
+	bool tcpinfo_filled = false;
 
 	tree=parent_tree;
 
@@ -801,7 +794,8 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 			}
 			if (pinfo->rec->presence_flags & WTAP_HAS_INTERFACE_ID) {
 				const char *interface_name = epan_get_interface_name(pinfo->epan,
-				    pinfo->rec->rec_header.packet_header.interface_id);
+				    pinfo->rec->rec_header.packet_header.interface_id,
+				    pinfo->rec->presence_flags & WTAP_HAS_SECTION_NUMBER ? pinfo->rec->section_number : 0);
 				if (interface_name != NULL) {
 					proto_item_append_text(ti, " on interface %s, id %u",
 					    interface_name, pinfo->rec->rec_header.packet_header.interface_id);
@@ -864,7 +858,7 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 			 * be preferred?
 			 */
 			ti = proto_tree_add_protocol_format(tree, proto_syscall, tvb, 0, tvb_captured_length(tvb),
-			    "Sysdig Event %u: %u byte%s",
+			    "System Event %u: %u byte%s",
 			    pinfo->num, frame_len, frame_plurality);
 			break;
 
@@ -917,8 +911,9 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 
 		if (pinfo->rec->presence_flags & WTAP_HAS_INTERFACE_ID &&
 		   (proto_field_is_referenced(tree, hf_frame_interface_id) || proto_field_is_referenced(tree, hf_frame_interface_name) || proto_field_is_referenced(tree, hf_frame_interface_description))) {
-			const char *interface_name = epan_get_interface_name(pinfo->epan, pinfo->rec->rec_header.packet_header.interface_id);
-			const char *interface_description = epan_get_interface_description(pinfo->epan, pinfo->rec->rec_header.packet_header.interface_id);
+			unsigned section_number = pinfo->rec->presence_flags & WTAP_HAS_SECTION_NUMBER ? pinfo->rec->section_number : 0;
+			const char *interface_name = epan_get_interface_name(pinfo->epan, pinfo->rec->rec_header.packet_header.interface_id, section_number);
+			const char *interface_description = epan_get_interface_description(pinfo->epan, pinfo->rec->rec_header.packet_header.interface_id, section_number);
 			proto_tree *if_tree;
 			proto_item *if_item;
 
@@ -1080,9 +1075,9 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 		}
 
 		if (generate_md5_hash) {
-			const guint8 *cp;
-			guint8        digest[HASH_MD5_LENGTH];
-			const gchar  *digest_string;
+			const uint8_t *cp;
+			uint8_t       digest[HASH_MD5_LENGTH];
+			const char   *digest_string;
 
 			cp = tvb_get_ptr(tvb, 0, cap_len);
 
@@ -1233,7 +1228,7 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 	if (pinfo->fd->ignored) {
 		/* Ignored package, stop handling here */
 		col_set_str(pinfo->cinfo, COL_INFO, "<Ignored>");
-		proto_tree_add_boolean_format(tree, hf_frame_ignored, tvb, 0, 0, TRUE, "This frame is marked as ignored");
+		proto_tree_add_boolean_format(tree, hf_frame_ignored, tvb, 0, 0, true, "This frame is marked as ignored");
 		return tvb_captured_length(tvb);
 	}
 
@@ -1255,7 +1250,7 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 		/* Note: A Windows "exceptional exception" may leave the kazlib's (Portable Exception Handling)
 		   stack in an inconsistent state thus causing a crash at some point in the
 		   handling of the exception.
-		   See: https://www.wireshark.org/lists/wireshark-dev/200704/msg00243.html
+		   See: https://lists.wireshark.org/archives/wireshark-dev/200704/msg00243.html
 		*/
 		__try {
 #endif
@@ -1289,7 +1284,7 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 					        pinfo->rec->rec_header.packet_header.pkt_encap);
 				}
 				if (dissector_handle != NULL) {
-					guint32 save_match_uint = pinfo->match_uint;
+					uint32_t save_match_uint = pinfo->match_uint;
 
 					pinfo->match_uint =
 					    pinfo->rec->rec_header.packet_header.pkt_encap;
@@ -1340,53 +1335,9 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 				break;
 
 			case REC_TYPE_CUSTOM_BLOCK:
-				switch (pinfo->rec->rec_header.custom_block_header.pen) {
-				case PEN_NFLX:
-					switch (pinfo->rec->rec_header.custom_block_header.custom_data_header.nflx_custom_data_header.type) {
-					case BBLOG_TYPE_SKIPPED_BLOCK:
-						col_set_str(pinfo->cinfo, COL_PROTOCOL, "BBLog");
-						col_add_fstr(pinfo->cinfo, COL_INFO, "Number of skipped events: %u",
-						             pinfo->rec->rec_header.custom_block_header.custom_data_header.nflx_custom_data_header.skipped);
-						break;
-					case BBLOG_TYPE_EVENT_BLOCK:
-						call_dissector_with_data(bblog_handle,
-						                         tvb, pinfo, parent_tree,
-						                         (void *)pinfo->pseudo_header);
-						break;
-					default:
-						col_set_str(pinfo->cinfo, COL_PROTOCOL, "BBLog");
-						col_add_fstr(pinfo->cinfo, COL_INFO, "Unknown type: %u",
-						             pinfo->rec->rec_header.custom_block_header.custom_data_header.nflx_custom_data_header.type);
-						break;
-					}
-					break;
-				case PEN_VCTR:
-				{
-					guint32 data_type;
-					guint32 data_length;
-					proto_item *pi_tmp;
-					proto_tree *pt_pcaplog_data;
-
-					proto_tree_add_item_ret_uint(fh_tree, hf_frame_pcaplog_type, tvb, 0, 4, ENC_LITTLE_ENDIAN, &data_type);
-					proto_tree_add_item_ret_uint(fh_tree, hf_frame_pcaplog_length, tvb, 4, 4, ENC_LITTLE_ENDIAN, &data_length);
-					pi_tmp = proto_tree_add_item(fh_tree, hf_frame_pcaplog_data, tvb, 8, data_length, ENC_NA);
-					pt_pcaplog_data = proto_item_add_subtree(pi_tmp, ett_pcaplog_data);
-
-					col_set_str(pinfo->cinfo, COL_PROTOCOL, "pcaplog");
-					col_add_fstr(pinfo->cinfo, COL_INFO, "Custom Block: PEN = %s (%d), will%s be copied",
-						enterprises_lookup(pinfo->rec->rec_header.custom_block_header.pen, "Unknown"),
-						pinfo->rec->rec_header.custom_block_header.pen,
-						pinfo->rec->rec_header.custom_block_header.copy_allowed ? "" : " not");
-
-					/* at least data_types 1-3 seem XML-based */
-					if (data_type > 0 && data_type <= 3) {
-						call_dissector(xml_handle, tvb_new_subset_remaining(tvb, 8), pinfo, pt_pcaplog_data);
-					} else {
-						call_data_dissector(tvb_new_subset_remaining(tvb, 8), pinfo, pt_pcaplog_data);
-					}
-				}
-					break;
-				default:
+				if (!dissector_try_uint(block_pen_dissector_table,
+				    pinfo->rec->rec_header.custom_block_header.pen,
+				    tvb, pinfo, parent_tree)) {
 					col_set_str(pinfo->cinfo, COL_PROTOCOL, "PCAPNG");
 					proto_tree_add_uint_format_value(fh_tree, hf_frame_cb_pen, tvb, 0, 0,
 					                                 pinfo->rec->rec_header.custom_block_header.pen,
@@ -1399,10 +1350,8 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 					             pinfo->rec->rec_header.custom_block_header.pen,
 					             pinfo->rec->rec_header.custom_block_header.copy_allowed ? "" : " not");
 					call_data_dissector(tvb, pinfo, parent_tree);
-					break;
 				}
 				break;
-
 			}
 #ifdef _MSC_VER
 		} __except(EXCEPTION_EXECUTE_HANDLER /* handle all exceptions */) {
@@ -1479,7 +1428,7 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 			/* Note: A Windows "exceptional exception" may leave the kazlib's (Portable Exception Handling)
 			   stack in an inconsistent state thus causing a crash at some point in the
 			   handling of the exception.
-			   See: https://www.wireshark.org/lists/wireshark-dev/200704/msg00243.html
+			   See: https://lists.wireshark.org/archives/wireshark-dev/200704/msg00243.html
 			*/
 			__try {
 #endif
@@ -1545,11 +1494,11 @@ dissect_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* 
 	}
 
 	if (prefs.enable_incomplete_dissectors_check && tree && tree->tree_data->visible) {
-		gchar* decoded;
-		guint length;
-		guint i;
-		guint byte;
-		guint bit;
+		char* decoded;
+		unsigned length;
+		unsigned i;
+		unsigned byte;
+		unsigned bit;
 
 		length = tvb_captured_length(tvb);
 		decoded = proto_find_undecoded_data(tree, length);
@@ -1834,7 +1783,7 @@ proto_register_frame(void)
 
 		{ &hf_frame_cb_copy_allowed,
 		  { "Copying", "frame.cb_copy",
-		    FT_BOOLEAN, BASE_DEC, TFS(&tfs_allowed_not_allowed), 0x0,
+		    FT_BOOLEAN, BASE_NONE, TFS(&tfs_allowed_not_allowed), 0x0,
 		    "Whether the custom block will be written or not", HFILL }},
 
 		{ &hf_frame_bblog,
@@ -2287,20 +2236,6 @@ proto_register_frame(void)
 		    FT_UINT32, BASE_DEC, NULL, 0x0,
 		    NULL, HFILL}},
 
-		{ &hf_frame_pcaplog_type,
-		{ "Date Type", "frame.pcaplog.data_type",
-		    FT_UINT32, BASE_DEC, NULL, 0x0,
-		    NULL, HFILL} },
-
-		{ &hf_frame_pcaplog_length,
-		{ "Data Length", "frame.pcaplog.data_length",
-		    FT_UINT32, BASE_DEC, NULL, 0x0,
-		    NULL, HFILL} },
-
-		{ &hf_frame_pcaplog_data,
-		{ "Data", "frame.pcaplog.data",
-		    FT_BYTES, BASE_NONE, NULL, 0x0,
-		    NULL, HFILL} },
 	};
 
 	static hf_register_info hf_encap =
@@ -2309,7 +2244,7 @@ proto_register_frame(void)
 		    FT_INT16, BASE_DEC, NULL, 0x0,
 		    NULL, HFILL }};
 
- 	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_frame,
 		&ett_ifname,
 		&ett_flags,
@@ -2320,7 +2255,6 @@ proto_register_frame(void)
 		&ett_bblog_event_flags,
 		&ett_bblog_t_flags,
 		&ett_bblog_t_flags2,
-		&ett_pcaplog_data
 	};
 
 	static ei_register_info ei[] = {
@@ -2364,6 +2298,8 @@ proto_register_frame(void)
 	    "Wiretap encapsulation type", proto_frame, FT_UINT32, BASE_DEC);
 	wtap_fts_rec_dissector_table = register_dissector_table("wtap_fts_rec",
 	    "Wiretap file type for file-type-specific records", proto_frame, FT_UINT32, BASE_DEC);
+	block_pen_dissector_table = register_dissector_table("pcapng_custom_block",
+	    "PcapNG custom block PEN", proto_frame, FT_UINT32, BASE_DEC);
 	register_capture_dissector_table("wtap_encap", "Wiretap encapsulation type");
 
 	/* You can't disable dissection of "Frame", as that would be
@@ -2406,8 +2342,6 @@ proto_reg_handoff_frame(void)
 	docsis_handle = find_dissector_add_dependency("docsis", proto_frame);
 	sysdig_handle = find_dissector_add_dependency("sysdig", proto_frame);
 	systemd_journal_handle = find_dissector_add_dependency("systemd_journal", proto_frame);
-	bblog_handle = find_dissector_add_dependency("bblog", proto_frame);
-	xml_handle = find_dissector_add_dependency("xml", proto_frame);
 }
 
 /*

@@ -41,8 +41,8 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/reassemble.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 #include <epan/wscbor.h>
 #include "packet-bpv6.h"
 #include "packet-cfdp.h"
@@ -51,7 +51,7 @@ void proto_register_bpv6(void);
 void proto_reg_handoff_bpv6(void);
 
 static int dissect_admin_record(proto_tree *primary_tree, tvbuff_t *tvb, packet_info *pinfo,
-                                int offset, int payload_length, gboolean* success);
+                                int offset, int payload_length, bool* success);
 
 extern void
 dissect_amp_as_subtree(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset);
@@ -64,200 +64,200 @@ static int evaluate_sdnv_ei(tvbuff_t *tvb, int offset, int *bytecount, expert_fi
 
 static int add_sdnv_time_to_tree(proto_tree *tree, tvbuff_t *tvb, int offset, int hf_sdnv_time);
 
-static gint64
+static int64_t
 evaluate_sdnv_64(tvbuff_t *tvb, int offset, int *bytecount);
 
-static int proto_bundle = -1;
-static dissector_handle_t bundle_handle = NULL;
-static dissector_handle_t bpv6_handle = NULL;
-static dissector_handle_t bpv7_handle = NULL;
+static int proto_bundle;
+static dissector_handle_t bundle_handle;
+static dissector_handle_t bpv6_handle;
+static dissector_handle_t bpv7_handle;
 
-static int hf_bundle_pdu_version = -1;
+static int hf_bundle_pdu_version;
 
 /* Primary Header Processing Flag Variables */
-static int hf_bundle_procflags = -1;
-static int hf_bundle_procflags_fragment = -1;
-static int hf_bundle_procflags_admin = -1;
-static int hf_bundle_procflags_dont_fragment = -1;
-static int hf_bundle_procflags_cust_xfer_req = -1;
-static int hf_bundle_procflags_dest_singleton = -1;
-static int hf_bundle_procflags_application_ack = -1;
+static int hf_bundle_procflags;
+static int hf_bundle_procflags_fragment;
+static int hf_bundle_procflags_admin;
+static int hf_bundle_procflags_dont_fragment;
+static int hf_bundle_procflags_cust_xfer_req;
+static int hf_bundle_procflags_dest_singleton;
+static int hf_bundle_procflags_application_ack;
 
 /* Additions for Version 5 */
-static int hf_bundle_control_flags = -1;
-static int hf_bundle_procflags_general = -1;
-static int hf_bundle_procflags_cos = -1;
-static int hf_bundle_procflags_status = -1;
+static int hf_bundle_control_flags;
+static int hf_bundle_procflags_general;
+static int hf_bundle_procflags_cos;
+static int hf_bundle_procflags_status;
 
 /* Primary Header COS Flag Variables */
-static int hf_bundle_cosflags = -1;
-static int hf_bundle_cosflags_priority = -1;
+static int hf_bundle_cosflags;
+static int hf_bundle_cosflags_priority;
 
 /* Primary Header Status Report Request Flag Variables */
-static int hf_bundle_srrflags = -1;
-static int hf_bundle_srrflags_report_receipt = -1;
-static int hf_bundle_srrflags_report_cust_accept = -1;
-static int hf_bundle_srrflags_report_forward = -1;
-static int hf_bundle_srrflags_report_delivery = -1;
-static int hf_bundle_srrflags_report_deletion = -1;
-static int hf_bundle_srrflags_report_ack = -1;
+static int hf_bundle_srrflags;
+static int hf_bundle_srrflags_report_receipt;
+static int hf_bundle_srrflags_report_cust_accept;
+static int hf_bundle_srrflags_report_forward;
+static int hf_bundle_srrflags_report_delivery;
+static int hf_bundle_srrflags_report_deletion;
+static int hf_bundle_srrflags_report_ack;
 
 /* Primary Header Fields*/
-static int hf_bundle_primary_header_len = -1;
-static int hf_bundle_primary_dictionary_len = -1;
-static int hf_bundle_primary_timestamp = -1;
-static int hf_bundle_primary_fragment_offset = -1;
-static int hf_bundle_primary_total_adu_len = -1;
-static int hf_bundle_primary_timestamp_seq_num64 = -1;
-static int hf_bundle_primary_timestamp_seq_num32 = -1;
+static int hf_bundle_primary_header_len;
+static int hf_bundle_primary_dictionary_len;
+static int hf_bundle_primary_timestamp;
+static int hf_bundle_primary_fragment_offset;
+static int hf_bundle_primary_total_adu_len;
+static int hf_bundle_primary_timestamp_seq_num64;
+static int hf_bundle_primary_timestamp_seq_num32;
 
-static int hf_bundle_dest_scheme_offset_u16 = -1;
-static int hf_bundle_dest_scheme_offset_i32 = -1;
-static int hf_bundle_dest_ssp_offset_u16 = -1;
-static int hf_bundle_dest_ssp_offset_i32 = -1;
-static int hf_bundle_source_scheme_offset_u16 = -1;
-static int hf_bundle_source_scheme_offset_i32 = -1;
-static int hf_bundle_source_ssp_offset_u16 = -1;
-static int hf_bundle_source_ssp_offset_i32 = -1;
-static int hf_bundle_report_scheme_offset_u16 = -1;
-static int hf_bundle_report_scheme_offset_i32 = -1;
-static int hf_bundle_report_ssp_offset_u16 = -1;
-static int hf_bundle_report_ssp_offset_i32 = -1;
-static int hf_bundle_cust_scheme_offset_u16 = -1;
-static int hf_bundle_cust_scheme_offset_i32 = -1;
-static int hf_bundle_cust_ssp_offset_u16 = -1;
-static int hf_bundle_cust_ssp_offset_i32 = -1;
+static int hf_bundle_dest_scheme_offset_u16;
+static int hf_bundle_dest_scheme_offset_i32;
+static int hf_bundle_dest_ssp_offset_u16;
+static int hf_bundle_dest_ssp_offset_i32;
+static int hf_bundle_source_scheme_offset_u16;
+static int hf_bundle_source_scheme_offset_i32;
+static int hf_bundle_source_ssp_offset_u16;
+static int hf_bundle_source_ssp_offset_i32;
+static int hf_bundle_report_scheme_offset_u16;
+static int hf_bundle_report_scheme_offset_i32;
+static int hf_bundle_report_ssp_offset_u16;
+static int hf_bundle_report_ssp_offset_i32;
+static int hf_bundle_cust_scheme_offset_u16;
+static int hf_bundle_cust_scheme_offset_i32;
+static int hf_bundle_cust_ssp_offset_u16;
+static int hf_bundle_cust_ssp_offset_i32;
 
 /* Dictionary EIDs */
-static int hf_bundle_dest_scheme = -1;
-static int hf_bundle_dest_ssp = -1;
-static int hf_bundle_source_scheme = -1;
-static int hf_bundle_source_ssp = -1;
-static int hf_bundle_report_scheme = -1;
-static int hf_bundle_report_ssp = -1;
-static int hf_bundle_custodian_scheme = -1;
-static int hf_bundle_custodian_ssp = -1;
+static int hf_bundle_dest_scheme;
+static int hf_bundle_dest_ssp;
+static int hf_bundle_source_scheme;
+static int hf_bundle_source_ssp;
+static int hf_bundle_report_scheme;
+static int hf_bundle_report_ssp;
+static int hf_bundle_custodian_scheme;
+static int hf_bundle_custodian_ssp;
 
 /* Remaining Primary Header Fields */
-static int hf_bundle_creation_timestamp = -1;
-static int hf_bundle_lifetime = -1;
-static int hf_bundle_lifetime_sdnv = -1;
+static int hf_bundle_creation_timestamp;
+static int hf_bundle_lifetime;
+static int hf_bundle_lifetime_sdnv;
 
 /* Secondary Header Processing Flag Variables */
-static int hf_bundle_payload_length = -1;
-static int hf_bundle_payload_header_type = -1;
-static int hf_bundle_payload_data = -1;
-static int hf_bundle_payload_flags = -1;
-static int hf_bundle_payload_flags_replicate_hdr = -1;
-static int hf_bundle_payload_flags_xmit_report = -1;
-static int hf_bundle_payload_flags_discard_on_fail = -1;
-static int hf_bundle_payload_flags_last_header = -1;
+static int hf_bundle_payload_length;
+static int hf_bundle_payload_header_type;
+static int hf_bundle_payload_data;
+static int hf_bundle_payload_flags;
+static int hf_bundle_payload_flags_replicate_hdr;
+static int hf_bundle_payload_flags_xmit_report;
+static int hf_bundle_payload_flags_discard_on_fail;
+static int hf_bundle_payload_flags_last_header;
 
 /* Block Processing Control Flag Variables (Version 5) */
-static int hf_block_control_flags = -1;
-static int hf_block_control_flags_sdnv = -1;
-static int hf_block_control_replicate = -1;
-static int hf_block_control_transmit_status = -1;
-static int hf_block_control_delete_bundle = -1;
-static int hf_block_control_last_block = -1;
-static int hf_block_control_discard_block = -1;
-static int hf_block_control_not_processed = -1;
-static int hf_block_control_eid_reference = -1;
-static int hf_block_control_block_length = -1;
-static int hf_block_control_block_cteb_custody_id = -1;
-static int hf_block_control_block_cteb_creator_custodian_eid = -1;
+static int hf_block_control_flags;
+static int hf_block_control_flags_sdnv;
+static int hf_block_control_replicate;
+static int hf_block_control_transmit_status;
+static int hf_block_control_delete_bundle;
+static int hf_block_control_last_block;
+static int hf_block_control_discard_block;
+static int hf_block_control_not_processed;
+static int hf_block_control_eid_reference;
+static int hf_block_control_block_length;
+static int hf_block_control_block_cteb_custody_id;
+static int hf_block_control_block_cteb_creator_custodian_eid;
 
 /* Non-Primary Block Type Code Variable */
-static int hf_bundle_block_type_code = -1;
-static int hf_bundle_unprocessed_block_data = -1;
+static int hf_bundle_block_type_code;
+static int hf_bundle_unprocessed_block_data;
 
 /* ECOS Flag Variables */
-static int hf_ecos_flags = -1;
-static int hf_ecos_flags_critical = -1;
-static int hf_ecos_flags_streaming = -1;
-static int hf_ecos_flags_flowlabel = -1;
-static int hf_ecos_flags_reliable = -1;
-static int hf_ecos_flow_label = -1;
+static int hf_ecos_flags;
+static int hf_ecos_flags_critical;
+static int hf_ecos_flags_streaming;
+static int hf_ecos_flags_flowlabel;
+static int hf_ecos_flags_reliable;
+static int hf_ecos_flow_label;
 
-static int hf_ecos_ordinal = -1;
+static int hf_ecos_ordinal;
 
 /* Administrative Record Variables */
-static int hf_bundle_admin_record_type = -1;
-static int hf_bundle_admin_record_fragment = -1;
-static int hf_bundle_admin_statflags = -1;
-static int hf_bundle_admin_rcvd = -1;
-static int hf_bundle_admin_accepted = -1;
-static int hf_bundle_admin_forwarded = -1;
-static int hf_bundle_admin_delivered = -1;
-static int hf_bundle_admin_deleted = -1;
-static int hf_bundle_admin_acked = -1;
-static int hf_bundle_admin_fragment_offset = -1;
-static int hf_bundle_admin_fragment_length = -1;
-static int hf_bundle_admin_timestamp_seq_num64 = -1;
-static int hf_bundle_admin_timestamp_seq_num32 = -1;
-static int hf_bundle_admin_endpoint_length = -1;
-static int hf_bundle_admin_endpoint_id = -1;
+static int hf_bundle_admin_record_type;
+static int hf_bundle_admin_record_fragment;
+static int hf_bundle_admin_statflags;
+static int hf_bundle_admin_rcvd;
+static int hf_bundle_admin_accepted;
+static int hf_bundle_admin_forwarded;
+static int hf_bundle_admin_delivered;
+static int hf_bundle_admin_deleted;
+static int hf_bundle_admin_acked;
+static int hf_bundle_admin_fragment_offset;
+static int hf_bundle_admin_fragment_length;
+static int hf_bundle_admin_timestamp_seq_num64;
+static int hf_bundle_admin_timestamp_seq_num32;
+static int hf_bundle_admin_endpoint_length;
+static int hf_bundle_admin_endpoint_id;
 
-static int hf_bundle_admin_receipt_time = -1;
-static int hf_bundle_admin_accept_time = -1;
-static int hf_bundle_admin_forward_time = -1;
-static int hf_bundle_admin_delivery_time = -1;
-static int hf_bundle_admin_delete_time = -1;
-static int hf_bundle_admin_ack_time = -1;
-static int hf_bundle_admin_timestamp_copy = -1;
-static int hf_bundle_admin_signal_time = -1;
-static int hf_bundle_status_report_reason_code = -1;
-static int hf_bundle_custody_trf_succ_flg = -1;
-static int hf_bundle_custody_signal_reason = -1;
-static int hf_bundle_custody_id_range_start = -1;
-static int hf_bundle_custody_id_range_end = -1;
+static int hf_bundle_admin_receipt_time;
+static int hf_bundle_admin_accept_time;
+static int hf_bundle_admin_forward_time;
+static int hf_bundle_admin_delivery_time;
+static int hf_bundle_admin_delete_time;
+static int hf_bundle_admin_ack_time;
+static int hf_bundle_admin_timestamp_copy;
+static int hf_bundle_admin_signal_time;
+static int hf_bundle_status_report_reason_code;
+static int hf_bundle_custody_trf_succ_flg;
+static int hf_bundle_custody_signal_reason;
+static int hf_bundle_custody_id_range_start;
+static int hf_bundle_custody_id_range_end;
 
-static int hf_bundle_age_extension_block_code = -1;
-static int hf_bundle_block_previous_hop_scheme = -1;
-static int hf_bundle_block_previous_hop_eid = -1;
+static int hf_bundle_age_extension_block_code;
+static int hf_bundle_block_previous_hop_scheme;
+static int hf_bundle_block_previous_hop_eid;
 
 /* Security Block Variables */
-static int hf_bundle_target_block_type = -1;
-static int hf_bundle_target_block_occurrence = -1;
-static int hf_bundle_ciphersuite_type = -1;
-static int hf_bundle_ciphersuite_flags = -1;
-static int hf_block_ciphersuite_params = -1;
-static int hf_block_ciphersuite_params_length = -1;
-static int hf_block_ciphersuite_params_item_length = -1;
-static int hf_block_ciphersuite_param_type = -1;
-static int hf_block_ciphersuite_param_data = -1;
-static int hf_block_ciphersuite_result_length = -1;
-static int hf_block_ciphersuite_result_item_length = -1;
-static int hf_block_ciphersuite_result_type = -1;
-static int hf_block_ciphersuite_result_data = -1;
-static int hf_block_ciphersuite_range_offset = -1;
-static int hf_block_ciphersuite_range_length = -1;
+static int hf_bundle_target_block_type;
+static int hf_bundle_target_block_occurrence;
+static int hf_bundle_ciphersuite_type;
+static int hf_bundle_ciphersuite_flags;
+static int hf_block_ciphersuite_params;
+static int hf_block_ciphersuite_params_length;
+static int hf_block_ciphersuite_params_item_length;
+static int hf_block_ciphersuite_param_type;
+static int hf_block_ciphersuite_param_data;
+static int hf_block_ciphersuite_result_length;
+static int hf_block_ciphersuite_result_item_length;
+static int hf_block_ciphersuite_result_type;
+static int hf_block_ciphersuite_result_data;
+static int hf_block_ciphersuite_range_offset;
+static int hf_block_ciphersuite_range_length;
 
 /* Tree Node Variables */
-static gint ett_bundle = -1;
-static gint ett_bundle_hdr = -1;
-static gint ett_primary_hdr = -1;
-static gint ett_proc_flags = -1;
-static gint ett_gen_flags = -1;
-static gint ett_cos_flags = -1;
-static gint ett_srr_flags = -1;
-static gint ett_dictionary = -1;
-static gint ett_payload_hdr = -1;
-static gint ett_payload_flags = -1;
-static gint ett_block_flags = -1;
-static gint ett_admin_record = -1;
-static gint ett_admin_rec_status = -1;
-static gint ett_metadata_hdr = -1;
-static gint ett_sec_block_param_data = -1;
+static int ett_bundle;
+static int ett_bundle_hdr;
+static int ett_primary_hdr;
+static int ett_proc_flags;
+static int ett_gen_flags;
+static int ett_cos_flags;
+static int ett_srr_flags;
+static int ett_dictionary;
+static int ett_payload_hdr;
+static int ett_payload_flags;
+static int ett_block_flags;
+static int ett_admin_record;
+static int ett_admin_rec_status;
+static int ett_metadata_hdr;
+static int ett_sec_block_param_data;
 
-static expert_field ei_bundle_payload_length = EI_INIT;
-static expert_field ei_bundle_control_flags_length = EI_INIT;
-static expert_field ei_bundle_block_control_flags = EI_INIT;
-static expert_field ei_bundle_sdnv_length = EI_INIT;
-static expert_field ei_bundle_timestamp_seq_num = EI_INIT;
-static expert_field ei_bundle_offset_error = EI_INIT;
-static expert_field ei_block_control_block_cteb_invalid = EI_INIT;
-static expert_field ei_block_control_block_cteb_valid = EI_INIT;
+static expert_field ei_bundle_payload_length;
+static expert_field ei_bundle_control_flags_length;
+static expert_field ei_bundle_block_control_flags;
+static expert_field ei_bundle_sdnv_length;
+static expert_field ei_bundle_timestamp_seq_num;
+static expert_field ei_bundle_offset_error;
+static expert_field ei_block_control_block_cteb_invalid;
+static expert_field ei_block_control_block_cteb_valid;
 
 
 typedef struct dictionary_data {
@@ -439,10 +439,10 @@ add_sdnv_to_tree(proto_tree *tree, tvbuff_t *tvb, packet_info* pinfo, int offset
  */
 static int
 dissect_dictionary(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offset, dictionary_data_t* dict_data,
-                    guint8 pri_hdr_procflags, gchar **bundle_custodian, int creation_timestamp, int timestamp_sequence)
+                    uint8_t pri_hdr_procflags, char **bundle_custodian, int creation_timestamp, int timestamp_sequence)
 {
     proto_tree  *dict_tree;
-    const gchar* col_text;
+    const char* col_text;
 
     col_text = col_get_text(pinfo->cinfo, COL_INFO);
 
@@ -456,7 +456,7 @@ dissect_dictionary(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offs
      */
     if (dict_data->bundle_header_dict_length == 0)
     {
-        const gchar *src_node, *dst_node;
+        const char *src_node, *dst_node;
 
         /*
          * Destination info
@@ -537,7 +537,7 @@ dissect_dictionary(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offs
         }
 
         /* remember custodian, for use in checking cteb validity */
-        col_set_writable(pinfo->cinfo, COL_INFO, TRUE);
+        col_set_writable(pinfo->cinfo, COL_INFO, true);
         col_clear_fence(pinfo->cinfo, COL_INFO);
         if (col_text && strstr(col_text, " > ")) {
             if (! strstr(col_text, "[multiple]")) {
@@ -598,7 +598,7 @@ dissect_dictionary(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offs
          * Add Source/Destination to INFO Field
          */
 
-        col_set_writable(pinfo->cinfo, COL_INFO, TRUE);
+        col_set_writable(pinfo->cinfo, COL_INFO, true);
         col_clear_fence(pinfo->cinfo, COL_INFO);
         if (col_text && strstr(col_text, " > "))
             col_append_str(pinfo->cinfo, COL_INFO, ", [multiple]");
@@ -654,7 +654,7 @@ dissect_dictionary(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offs
  */
 static int
 dissect_version_4_primary_header(packet_info *pinfo, proto_tree *primary_tree, tvbuff_t *tvb,
-                                 guint8* pri_hdr_procflags, gchar **bundle_custodian)
+                                 uint8_t* pri_hdr_procflags, char **bundle_custodian)
 {
     int bundle_header_length;
     int offset = 1;             /* Version Number already displayed */
@@ -665,7 +665,7 @@ dissect_version_4_primary_header(packet_info *pinfo, proto_tree *primary_tree, t
     proto_tree *srr_flag_tree, *proc_flag_tree, *cos_flag_tree;
 
     /* Primary Header Processing Flags */
-    *pri_hdr_procflags = tvb_get_guint8(tvb, offset);
+    *pri_hdr_procflags = tvb_get_uint8(tvb, offset);
     ti = proto_tree_add_item(primary_tree, hf_bundle_procflags, tvb,
                                                 offset, 1, ENC_BIG_ENDIAN);
     proc_flag_tree = proto_item_add_subtree(ti, ett_proc_flags);
@@ -808,17 +808,17 @@ static int dst_ssp;
 static int
 dissect_version_5_and_6_primary_header(packet_info *pinfo,
                                        proto_tree *primary_tree, tvbuff_t *tvb,
-                                       guint8* pri_hdr_procflags, gchar **bundle_custodian)
+                                       uint8_t* pri_hdr_procflags, char **bundle_custodian)
 {
-    guint64            bundle_processing_control_flags;
-    guint8             cosflags;
+    uint64_t           bundle_processing_control_flags;
+    uint8_t            cosflags;
     int                bundle_header_length;
     int                offset = 1; /* Version Number already displayed */
     int                sdnv_length;
     dictionary_data_t  dict_data;
     int                timestamp_sequence;
     int                creation_timestamp;
-    guint8             srrflags;
+    uint8_t            srrflags;
     proto_item        *ti;
     proto_item        *ti_dst_scheme_offset, *ti_dst_ssp_offset;
     proto_item        *ti_src_scheme_offset, *ti_src_ssp_offset;
@@ -847,7 +847,7 @@ dissect_version_5_and_6_primary_header(packet_info *pinfo,
     bundle_processing_control_flags = evaluate_sdnv_64(tvb, offset, &sdnv_length);
 
     /* Primary Header Processing Flags */
-    *pri_hdr_procflags = (guint8) (bundle_processing_control_flags & 0x7f);
+    *pri_hdr_procflags = (uint8_t) (bundle_processing_control_flags & 0x7f);
 
     if (sdnv_length < 1 || sdnv_length > 8) {
         expert_add_info_format(pinfo, primary_tree, &ei_bundle_control_flags_length,
@@ -868,7 +868,7 @@ dissect_version_5_and_6_primary_header(packet_info *pinfo,
     proto_tree_add_bitmask_list_value(gen_flag_tree, tvb, offset, sdnv_length, pri_flags, *pri_hdr_procflags);
 
     /* Primary Header COS Flags */
-    cosflags = (guint8) ((bundle_processing_control_flags >> 7) & 0x7f);
+    cosflags = (uint8_t) ((bundle_processing_control_flags >> 7) & 0x7f);
     ti = proto_tree_add_uint(proc_flag_tree, hf_bundle_procflags_cos, tvb, offset,
                                         sdnv_length, cosflags);
     cos_flag_tree = proto_item_add_subtree(ti, ett_cos_flags);
@@ -876,7 +876,7 @@ dissect_version_5_and_6_primary_header(packet_info *pinfo,
                                     sdnv_length, cosflags);
 
     /* Status Report Request Flags */
-    srrflags = (guint8) ((bundle_processing_control_flags >> 14) & 0x7f);
+    srrflags = (uint8_t) ((bundle_processing_control_flags >> 14) & 0x7f);
     ti = proto_tree_add_uint(proc_flag_tree, hf_bundle_procflags_status, tvb, offset,
                                         sdnv_length, srrflags);
     srr_flag_tree = proto_item_add_subtree(ti, ett_srr_flags);
@@ -985,7 +985,7 @@ dissect_version_5_and_6_primary_header(packet_info *pinfo,
     /* -- timestamp_sequence -- */
     timestamp_sequence = evaluate_sdnv(tvb, offset, &sdnv_length);
     if (timestamp_sequence < 0) {
-        gint64 ts_seq = evaluate_sdnv_64(tvb, offset, &sdnv_length);
+        int64_t ts_seq = evaluate_sdnv_64(tvb, offset, &sdnv_length);
 
         ti = proto_tree_add_int64(primary_tree, hf_bundle_primary_timestamp_seq_num64,
                                                         tvb, offset, sdnv_length, ts_seq);
@@ -1056,8 +1056,8 @@ dissect_version_5_and_6_primary_header(packet_info *pinfo,
  * Return new offset, and set lastheader if failure.
  */
 static int
-dissect_payload_header(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset, guint8 version,
-                       guint8 pri_hdr_procflags, gboolean *lastheader)
+dissect_payload_header(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset, uint8_t version,
+                       uint8_t pri_hdr_procflags, bool *lastheader)
 {
     proto_item *payload_block, *payload_item, *ti;
     proto_tree *payload_block_tree, *payload_tree;
@@ -1081,14 +1081,14 @@ dissect_payload_header(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int 
             &hf_bundle_payload_flags_last_header,
             NULL
         };
-        guint8      procflags;
+        uint8_t     procflags;
 
-        procflags = tvb_get_guint8(tvb, offset);
+        procflags = tvb_get_uint8(tvb, offset);
         if (procflags & HEADER_PROCFLAGS_LAST_HEADER) {
-            *lastheader = TRUE;
+            *lastheader = true;
         }
         else {
-            *lastheader = FALSE;
+            *lastheader = false;
         }
         proto_tree_add_bitmask(payload_tree, tvb, offset, hf_bundle_payload_flags,
                                ett_payload_flags, flags, ENC_BIG_ENDIAN);
@@ -1101,10 +1101,10 @@ dissect_payload_header(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int 
 
         control_flags = evaluate_sdnv(tvb, offset, &sdnv_length);
         if (control_flags & BLOCK_CONTROL_LAST_BLOCK) {
-            *lastheader = TRUE;
+            *lastheader = true;
         }
         else {
-            *lastheader = FALSE;
+            *lastheader = false;
         }
         block_flag_item = proto_tree_add_item(payload_tree, hf_block_control_flags, tvb,
                                                 offset, sdnv_length, ENC_BIG_ENDIAN);
@@ -1131,8 +1131,8 @@ dissect_payload_header(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int 
     ti = proto_tree_add_int(payload_tree, hf_bundle_payload_length, tvb, offset, sdnv_length, payload_length);
     if (payload_length < 0) {
         expert_add_info(pinfo, ti, &ei_bundle_payload_length);
-        /* Force quiting */
-        *lastheader = TRUE;
+        /* Force quitting */
+        *lastheader = true;
         return offset;
     }
 
@@ -1141,7 +1141,7 @@ dissect_payload_header(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int 
 
     offset += sdnv_length;
     if (pri_hdr_procflags & BUNDLE_PROCFLAGS_ADMIN_MASK) {
-        gboolean success = FALSE;
+        bool success = false;
 
         /*
          * XXXX - Have not allowed for admin record spanning multiple segments!
@@ -1149,8 +1149,8 @@ dissect_payload_header(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int 
 
         offset = dissect_admin_record(payload_block_tree, tvb, pinfo, offset, payload_length, &success);
         if (!success) {
-            /* Force quiting */
-            *lastheader = TRUE;
+            /* Force quitting */
+            *lastheader = true;
             return offset;
         }
     } else {
@@ -1181,26 +1181,26 @@ dissect_payload_header(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int 
 }
 
 /*
- * Return the offset after the Administrative Record or set success = FALSE if analysis fails.
+ * Return the offset after the Administrative Record or set success = false if analysis fails.
  */
 static int
 dissect_admin_record(proto_tree *primary_tree, tvbuff_t *tvb, packet_info *pinfo,
-                     int offset, int payload_length, gboolean* success)
+                     int offset, int payload_length, bool* success)
 {
     proto_item *admin_record_item;
     proto_tree *admin_record_tree;
     proto_item *timestamp_sequence_item;
-    guint8      record_type;
-    guint8      status;
+    uint8_t     record_type;
+    uint8_t     status;
     int         start_offset = offset;
     int         sdnv_length;
     int         timestamp_sequence;
     int         endpoint_length;
 
-    *success = FALSE;
+    *success = false;
     admin_record_tree = proto_tree_add_subtree(primary_tree, tvb, offset, -1,
                         ett_admin_record, &admin_record_item, "Administrative Record");
-    record_type = tvb_get_guint8(tvb, offset);
+    record_type = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(admin_record_tree, hf_bundle_admin_record_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 
@@ -1215,7 +1215,7 @@ dissect_admin_record(proto_tree *primary_tree, tvbuff_t *tvb, packet_info *pinfo
         ++offset;
 
         /* Decode Bundle Status Report Flags */
-        status = tvb_get_guint8(tvb, offset);
+        status = tvb_get_uint8(tvb, offset);
         status_flag_item = proto_tree_add_item(admin_record_tree,
                                 hf_bundle_admin_statflags, tvb, offset, 1, ENC_BIG_ENDIAN);
         status_flag_tree = proto_item_add_subtree(status_flag_item,
@@ -1301,7 +1301,7 @@ dissect_admin_record(proto_tree *primary_tree, tvbuff_t *tvb, packet_info *pinfo
 
         timestamp_sequence = evaluate_sdnv(tvb, offset, &sdnv_length);
         if (timestamp_sequence < 0) {
-            gint64 ts_seq = evaluate_sdnv_64(tvb, offset, &sdnv_length);
+            int64_t ts_seq = evaluate_sdnv_64(tvb, offset, &sdnv_length);
 
             timestamp_sequence_item = proto_tree_add_int64(admin_record_tree, hf_bundle_admin_timestamp_seq_num64,
                                                             tvb, offset, sdnv_length, ts_seq);
@@ -1370,7 +1370,7 @@ dissect_admin_record(proto_tree *primary_tree, tvbuff_t *tvb, packet_info *pinfo
 
         timestamp_sequence = evaluate_sdnv(tvb, offset, &sdnv_length);
         if (timestamp_sequence < 0) {
-            gint64 ts_seq = evaluate_sdnv_64(tvb, offset, &sdnv_length);
+            int64_t ts_seq = evaluate_sdnv_64(tvb, offset, &sdnv_length);
 
             timestamp_sequence_item = proto_tree_add_int64(admin_record_tree, hf_bundle_admin_timestamp_seq_num64,
                                                             tvb, offset, sdnv_length, ts_seq);
@@ -1471,12 +1471,12 @@ dissect_admin_record(proto_tree *primary_tree, tvbuff_t *tvb, packet_info *pinfo
     }   /* End Switch */
 
     proto_item_set_len(admin_record_item, offset - start_offset);
-    *success = TRUE;
+    *success = true;
     return offset;
 }
 
 static int
-display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset, gchar *bundle_custodian, gboolean *lastheader)
+display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset, char *bundle_custodian, bool *lastheader)
 {
     proto_item   *block_item, *ti, *block_flag_replicate_item, *block_flag_eid_reference_item;
     proto_tree   *block_tree;
@@ -1484,12 +1484,12 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
     int           block_length;
     int           block_overhead;
     int           bundle_age;
-    guint8        type;
+    uint8_t       type;
     unsigned int  control_flags;
     proto_tree   *block_flag_tree;
     proto_item   *block_flag_item;
 
-    type = tvb_get_guint8(tvb, offset);
+    type = tvb_get_uint8(tvb, offset);
     block_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_metadata_hdr, &block_item, "Extension Block");
 
     proto_tree_add_item(block_tree, hf_bundle_block_type_code, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -1498,9 +1498,9 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
 
     control_flags = (unsigned int)evaluate_sdnv(tvb, offset, &sdnv_length);
     if (control_flags & BLOCK_CONTROL_LAST_BLOCK) {
-        *lastheader = TRUE;
+        *lastheader = true;
     } else {
-        *lastheader = FALSE;
+        *lastheader = false;
     }
     block_flag_item = proto_tree_add_uint(block_tree, hf_block_control_flags_sdnv, tvb,
                                             offset, sdnv_length, control_flags);
@@ -1550,7 +1550,7 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
     if (block_length < 0) {
         expert_add_info_format(pinfo, ti, &ei_bundle_offset_error, "Metadata Block Length Error");
         /* Force quitting */
-        *lastheader = TRUE;
+        *lastheader = true;
         return offset;
     }
     offset += sdnv_length;
@@ -1586,7 +1586,7 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
         proto_tree_add_item(block_tree, hf_bundle_block_previous_hop_eid, tvb, offset, block_length-scheme_length, ENC_ASCII);
         if (block_length - scheme_length < 1) {
             expert_add_info_format(pinfo, ti, &ei_bundle_offset_error, "Metadata Block Length Error");
-            *lastheader = TRUE;
+            *lastheader = true;
             return offset;
         }
         offset += block_length - scheme_length;
@@ -1632,7 +1632,7 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
             params_length = evaluate_sdnv_ei(tvb, offset, &sdnv_length, &ei);
             if (ei) {
                 proto_tree_add_expert(block_tree, pinfo, ei, tvb, offset, -1);
-                *lastheader = TRUE;
+                *lastheader = true;
                 return offset;
             }
             param_tree = proto_tree_add_subtree(block_tree, tvb, offset, params_length+1, ett_sec_block_param_data, NULL, "Ciphersuite Parameters Data");
@@ -1650,7 +1650,7 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
                 proto_tree_add_int(param_tree, hf_block_ciphersuite_params_item_length, tvb, offset, sdnv_length, item_length);
                 if (ei) {
                     proto_tree_add_expert(param_tree, pinfo, ei, tvb, offset, -1);
-                    *lastheader = TRUE;
+                    *lastheader = true;
                     return offset;
                 }
 
@@ -1704,7 +1704,7 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
             proto_tree_add_int(result_tree, hf_block_ciphersuite_result_item_length, tvb, offset, sdnv_length, result_item_length);
             if (ei) {
                 proto_tree_add_expert(result_tree, pinfo, ei, tvb, offset, -1);
-                *lastheader = TRUE;
+                *lastheader = true;
                 return offset;
             }
             offset += sdnv_length;
@@ -1741,7 +1741,7 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
     case BUNDLE_BLOCK_TYPE_CUSTODY_TRANSFER:
     {
         int custody_id;
-        const guint8 *cteb_creator_custodian_eid;
+        const uint8_t *cteb_creator_custodian_eid;
         int cteb_creator_custodian_eid_length;
 
         /* check requirements for Block Processing Control Flags */
@@ -1760,7 +1760,7 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
         /* and second is the creator custodian EID */
         if (block_length - sdnv_length < 1) {
             expert_add_info_format(pinfo, ti, &ei_bundle_offset_error, "Metadata Block Length Error");
-            *lastheader = TRUE;
+            *lastheader = true;
             return offset;
         }
         cteb_creator_custodian_eid_length = block_length - sdnv_length;
@@ -1809,7 +1809,7 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
         }
 
         /* flags byte */
-        flags = (int)tvb_get_guint8(tvb, offset);
+        flags = (int)tvb_get_uint8(tvb, offset);
         proto_tree_add_bitmask(block_tree, tvb, offset, hf_ecos_flags, ett_block_flags, ecos_flags_fields, ENC_BIG_ENDIAN);
         offset += 1;
 
@@ -1825,7 +1825,7 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
             if (flow_label < 0) {
                 expert_add_info_format(pinfo, ti, &ei_bundle_sdnv_length, "ECOS Flow Label Error");
                 /* Force quitting */
-                *lastheader = TRUE;
+                *lastheader = true;
                 return offset;
             }
             offset += sdnv_length;
@@ -1849,15 +1849,15 @@ display_extension_block(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int
 static int
 evaluate_sdnv(tvbuff_t *tvb, int offset, int *bytecount)
 {
-    guint64 value = 0;
+    uint64_t value = 0;
     *bytecount = tvb_get_varint(tvb, offset, FT_VARINT_MAX_LEN, &value, ENC_VARINT_SDNV);
 
     if (*bytecount == 0) {
         return -1;
     }
-    if (value > G_MAXINT) {
+    if (value > INT_MAX) {
         ws_warning("evaluate_sdnv decoded a value too large to fit in an int, truncating");
-        return G_MAXINT;
+        return INT_MAX;
     }
     return (int)value;
 }
@@ -1871,16 +1871,16 @@ evaluate_sdnv_ei(tvbuff_t *tvb, int offset, int *bytecount, expert_field **error
 
 /* Special Function to evaluate 64 bit SDNVs */
 /*3rd arg is number of bytes in field (returned)*/
-static gint64
+static int64_t
 evaluate_sdnv_64(tvbuff_t *tvb, int offset, int *bytecount)
 {
-    guint64 val = 0;
+    uint64_t val = 0;
     *bytecount = tvb_get_varint(tvb, offset, FT_VARINT_MAX_LEN, &val, ENC_VARINT_SDNV);
 
     if (*bytecount == 0) {
         return -1;
     }
-    return val & G_MAXINT64;
+    return val & INT64_MAX;
 }
 
 static int
@@ -1889,14 +1889,14 @@ dissect_bpv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
     proto_item *ti, *ti_bundle_protocol;
     proto_tree *bundle_tree, *primary_tree;
     int         primary_header_size;
-    gboolean    lastheader = FALSE;
+    bool        lastheader = false;
     int         offset = 0;
-    guint8      version, pri_hdr_procflags;
+    uint8_t     version, pri_hdr_procflags;
     /* Custodian from Primary Block, used to validate CTEB */
-    gchar      *bundle_custodian = NULL;
+    char       *bundle_custodian = NULL;
 
 
-    version = tvb_get_guint8(tvb, offset);  /* Primary Header Version */
+    version = tvb_get_uint8(tvb, offset);  /* Primary Header Version */
     if ((version != 4) && (version != 5) && (version != 6)) {
         return 0;
     }
@@ -1924,8 +1924,8 @@ dissect_bpv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
     }
 
     if (primary_header_size == 0) {      /*Couldn't parse primary header*/
-        col_add_str(pinfo->cinfo, COL_INFO, "Protocol Error");
-        return(0);      /*Give up*/
+        col_set_str(pinfo->cinfo, COL_INFO, "Protocol Error");
+        return 0;      /*Give up*/
     }
 
     proto_item_set_len(ti, primary_header_size);
@@ -1935,10 +1935,10 @@ dissect_bpv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
      * Done with primary header; decode the remaining headers
      */
 
-    while (lastheader == FALSE) {
-        guint8 next_header_type;
+    while (lastheader == false) {
+        uint8_t next_header_type;
 
-        next_header_type = tvb_get_guint8(tvb, offset);
+        next_header_type = tvb_get_uint8(tvb, offset);
         if (next_header_type == BUNDLE_BLOCK_TYPE_PAYLOAD) {
 
             /*
@@ -1953,18 +1953,18 @@ dissect_bpv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
     proto_item_set_len(ti_bundle_protocol, offset);
 
-    return(offset);
+    return offset;
 }
 
 /// Introspect the data to choose a dissector version
 static int
 dissect_bundle(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    gint offset = 0;
+    int offset = 0;
 
     {
         // Primary Header Version octet
-        guint8 version = tvb_get_guint8(tvb, offset);
+        uint8_t version = tvb_get_uint8(tvb, offset);
         if ((version == 4) || (version == 5) || (version == 6)) {
             return call_dissector(bpv6_handle, tvb, pinfo, tree);
         }
@@ -1976,7 +1976,7 @@ dissect_bundle(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
         if (primary->type_major == CBOR_TYPE_ARRAY) {
             wscbor_chunk_t *version = wscbor_chunk_read(pinfo->pool, tvb, &offset);
             if (version->type_major == CBOR_TYPE_UINT) {
-                guint64 vers_val = version->head_value;
+                uint64_t vers_val = version->head_value;
                 if (vers_val == 7) {
                     return call_dissector(bpv7_handle, tvb, pinfo, tree);
                 }
@@ -2515,7 +2515,7 @@ proto_register_bpv6(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_bundle,
         &ett_bundle_hdr,
         &ett_primary_hdr,

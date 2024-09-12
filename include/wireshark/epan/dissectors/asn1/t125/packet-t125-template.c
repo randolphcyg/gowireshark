@@ -14,6 +14,7 @@
 
 #include <epan/packet.h>
 #include <epan/exceptions.h>
+#include <wsutil/array.h>
 
 #include <epan/asn1.h>
 #include "packet-ber.h"
@@ -39,12 +40,12 @@ void proto_register_t125(void);
 void proto_reg_handoff_t125(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_t125 = -1;
-static proto_tree *top_tree = NULL;
+static int proto_t125;
+static proto_tree *top_tree;
 #include "packet-t125-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_t125 = -1;
+static int ett_t125;
 
 #include "packet-t125-ett.c"
 
@@ -57,9 +58,9 @@ dissect_t125(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *d
 {
   proto_item *item = NULL;
   proto_tree *tree = NULL;
-  gint8 ber_class;
+  int8_t ber_class;
   bool pc;
-  gint32 tag;
+  int32_t tag;
 
   top_tree = parent_tree;
 
@@ -81,37 +82,37 @@ dissect_t125(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *d
   return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_t125_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *data _U_)
 {
-  gint8 ber_class;
+  int8_t ber_class;
   bool pc;
-  gint32 tag;
+  int32_t tag;
   volatile bool failed;
 
   /*
    * We must catch all the "ran past the end of the packet" exceptions
-   * here and, if we catch one, just return FALSE.  It's too painful
+   * here and, if we catch one, just return false.  It's too painful
    * to have a version of dissect_per_sequence() that checks all
    * references to the tvbuff before making them and returning "no"
    * if they would fail.
    */
-  failed = FALSE;
+  failed = false;
   TRY {
     /* could be BER */
     get_ber_identifier(tvb, 0, &ber_class, &pc, &tag);
   } CATCH_BOUNDS_ERRORS {
-    failed = TRUE;
+    failed = true;
   } ENDTRY;
 
   if (failed) {
-      return FALSE;
+      return false;
   }
 
   if (((ber_class==BER_CLASS_APP) && ((tag>=101) && (tag<=104)))) {
     dissect_t125(tvb, pinfo, parent_tree, NULL);
 
-    return TRUE;
+    return true;
   }
 
   /*
@@ -119,7 +120,7 @@ dissect_t125_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, vo
    * This might not be enough, but since t125 only catch COTP packets,
    * it should not be a problem.
    */
-  guint8 first_byte = tvb_get_guint8(tvb, 0) >> 2;
+  uint8_t first_byte = tvb_get_uint8(tvb, 0) >> 2;
   switch (first_byte) {
     case HF_T125_ERECT_DOMAIN_REQUEST:
     case HF_T125_ATTACH_USER_REQUEST:
@@ -130,10 +131,10 @@ dissect_t125_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, vo
     case HF_T125_SEND_DATA_REQUEST:
     case HF_T125_SEND_DATA_INDICATION:
       dissect_t125(tvb, pinfo, parent_tree, NULL);
-      return TRUE;
+      return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 
@@ -146,7 +147,7 @@ void proto_register_t125(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 	  &ett_t125,
 #include "packet-t125-ettarr.c"
   };
@@ -157,7 +158,7 @@ void proto_register_t125(void) {
   proto_register_field_array(proto_t125, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
 
-  t125_heur_subdissector_list= register_heur_dissector_list("t125", proto_t125);
+  t125_heur_subdissector_list= register_heur_dissector_list_with_description("t125", "T.125 User data", proto_t125);
 
   register_dissector("t125", dissect_t125, proto_t125);
 }

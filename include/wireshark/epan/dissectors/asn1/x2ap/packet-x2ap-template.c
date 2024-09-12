@@ -3,7 +3,7 @@
  * X2 Application Protocol (X2AP);
  * 3GPP TS 36.423 packet dissection
  * Copyright 2007-2014, Anders Broman <anders.broman@ericsson.com>
- * Copyright 2016-2023, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2016-2024, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -12,7 +12,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Ref:
- * 3GPP TS 36.423 V17.5.0 (2023-06)
+ * 3GPP TS 36.423 V18.2.0 (2024-06)
  */
 
 #include "config.h"
@@ -23,6 +23,9 @@
 #include <epan/prefs.h>
 #include <epan/sctpppids.h>
 #include <epan/proto_data.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
+#include <wsutil/array.h>
 
 #include "packet-x2ap.h"
 #include "packet-per.h"
@@ -53,138 +56,142 @@ void proto_register_x2ap(void);
 #include "packet-x2ap-val.h"
 
 /* Initialize the protocol and registered fields */
-static int proto_x2ap = -1;
-static int hf_x2ap_transportLayerAddressIPv4 = -1;
-static int hf_x2ap_transportLayerAddressIPv6 = -1;
-static int hf_x2ap_ReportCharacteristics_PRBPeriodic = -1;
-static int hf_x2ap_ReportCharacteristics_TNLLoadIndPeriodic = -1;
-static int hf_x2ap_ReportCharacteristics_HWLoadIndPeriodic = -1;
-static int hf_x2ap_ReportCharacteristics_CompositeAvailableCapacityPeriodic = -1;
-static int hf_x2ap_ReportCharacteristics_ABSStatusPeriodic = -1;
-static int hf_x2ap_ReportCharacteristics_RSRPMeasurementReportPeriodic = -1;
-static int hf_x2ap_ReportCharacteristics_CSIReportPeriodic = -1;
-static int hf_x2ap_ReportCharacteristics_Reserved = -1;
-static int hf_x2ap_measurementFailedReportCharacteristics_PRBPeriodic = -1;
-static int hf_x2ap_measurementFailedReportCharacteristics_TNLLoadIndPeriodic = -1;
-static int hf_x2ap_measurementFailedReportCharacteristics_HWLoadIndPeriodic = -1;
-static int hf_x2ap_measurementFailedReportCharacteristics_CompositeAvailableCapacityPeriodic = -1;
-static int hf_x2ap_measurementFailedReportCharacteristics_ABSStatusPeriodic = -1;
-static int hf_x2ap_measurementFailedReportCharacteristics_RSRPMeasurementReportPeriodic = -1;
-static int hf_x2ap_measurementFailedReportCharacteristics_CSIReportPeriodic = -1;
-static int hf_x2ap_measurementFailedReportCharacteristics_Reserved = -1;
-static int hf_x2ap_eUTRANTraceID_TraceID = -1;
-static int hf_x2ap_eUTRANTraceID_TraceRecordingSessionReference = -1;
-static int hf_x2ap_interfacesToTrace_S1_MME = -1;
-static int hf_x2ap_interfacesToTrace_X2 = -1;
-static int hf_x2ap_interfacesToTrace_Uu = -1;
-static int hf_x2ap_interfacesToTrace_F1_C = -1;
-static int hf_x2ap_interfacesToTrace_E1 = -1;
-static int hf_x2ap_interfacesToTrace_Reserved = -1;
-static int hf_x2ap_traceCollectionEntityIPAddress_IPv4 = -1;
-static int hf_x2ap_traceCollectionEntityIPAddress_IPv6 = -1;
-static int hf_x2ap_encryptionAlgorithms_EEA1 = -1;
-static int hf_x2ap_encryptionAlgorithms_EEA2 = -1;
-static int hf_x2ap_encryptionAlgorithms_EEA3 = -1;
-static int hf_x2ap_encryptionAlgorithms_Reserved = -1;
-static int hf_x2ap_integrityProtectionAlgorithms_EIA1 = -1;
-static int hf_x2ap_integrityProtectionAlgorithms_EIA2 = -1;
-static int hf_x2ap_integrityProtectionAlgorithms_EIA3 = -1;
-static int hf_x2ap_integrityProtectionAlgorithms_EIA7 = -1;
-static int hf_x2ap_integrityProtectionAlgorithms_Reserved = -1;
-static int hf_x2ap_measurementsToActivate_M1 = -1;
-static int hf_x2ap_measurementsToActivate_M2 = -1;
-static int hf_x2ap_measurementsToActivate_M3 = -1;
-static int hf_x2ap_measurementsToActivate_M4 = -1;
-static int hf_x2ap_measurementsToActivate_M5 = -1;
-static int hf_x2ap_measurementsToActivate_LoggingM1FromEventTriggered = -1;
-static int hf_x2ap_measurementsToActivate_M6 = -1;
-static int hf_x2ap_measurementsToActivate_M7 = -1;
-static int hf_x2ap_MDT_Location_Info_GNSS = -1;
-static int hf_x2ap_MDT_Location_Info_E_CID = -1;
-static int hf_x2ap_MDT_Location_Info_Reserved = -1;
-static int hf_x2ap_MDT_transmissionModes_tm1 = -1;
-static int hf_x2ap_MDT_transmissionModes_tm2 = -1;
-static int hf_x2ap_MDT_transmissionModes_tm3 = -1;
-static int hf_x2ap_MDT_transmissionModes_tm4 = -1;
-static int hf_x2ap_MDT_transmissionModes_tm6 = -1;
-static int hf_x2ap_MDT_transmissionModes_tm8 = -1;
-static int hf_x2ap_MDT_transmissionModes_tm9 = -1;
-static int hf_x2ap_MDT_transmissionModes_tm10 = -1;
-static int hf_x2ap_NRencryptionAlgorithms_NEA1 = -1;
-static int hf_x2ap_NRencryptionAlgorithms_NEA2 = -1;
-static int hf_x2ap_NRencryptionAlgorithms_NEA3 = -1;
-static int hf_x2ap_NRencryptionAlgorithms_Reserved = -1;
-static int hf_x2ap_NRintegrityProtectionAlgorithms_NIA1 = -1;
-static int hf_x2ap_NRintegrityProtectionAlgorithms_NIA2 = -1;
-static int hf_x2ap_NRintegrityProtectionAlgorithms_NIA3 = -1;
-static int hf_x2ap_NRintegrityProtectionAlgorithms_Reserved = -1;
-static int hf_x2ap_ReportCharacteristics_ENDC_PRBPeriodic = -1;
-static int hf_x2ap_ReportCharacteristics_ENDC_TNLCapacityIndPeriodic = -1;
-static int hf_x2ap_ReportCharacteristics_ENDC_CompositeAvailableCapacityPeriodic = -1;
-static int hf_x2ap_ReportCharacteristics_ENDC_NumberOfActiveUEs = -1;
-static int hf_x2ap_ReportCharacteristics_ENDC_Reserved = -1;
-static int hf_x2ap_Registration_Request_ENDC_PDU = -1;
-static int hf_x2ap_ReportingPeriodicity_ENDC_PDU = -1;
-static int hf_x2ap_ReportCharacteristics_ENDC_PDU = -1;
-static int hf_x2ap_rAT_RestrictionInformation_LEO = -1;
-static int hf_x2ap_rAT_RestrictionInformation_MEO = -1;
-static int hf_x2ap_rAT_RestrictionInformation_GEO = -1;
-static int hf_x2ap_rAT_RestrictionInformation_OTHERSAT = -1;
-static int hf_x2ap_rAT_RestrictionInformation_Reserved = -1;
+static int proto_x2ap;
+static int hf_x2ap_transportLayerAddressIPv4;
+static int hf_x2ap_transportLayerAddressIPv6;
+static int hf_x2ap_ReportCharacteristics_PRBPeriodic;
+static int hf_x2ap_ReportCharacteristics_TNLLoadIndPeriodic;
+static int hf_x2ap_ReportCharacteristics_HWLoadIndPeriodic;
+static int hf_x2ap_ReportCharacteristics_CompositeAvailableCapacityPeriodic;
+static int hf_x2ap_ReportCharacteristics_ABSStatusPeriodic;
+static int hf_x2ap_ReportCharacteristics_RSRPMeasurementReportPeriodic;
+static int hf_x2ap_ReportCharacteristics_CSIReportPeriodic;
+static int hf_x2ap_ReportCharacteristics_Reserved;
+static int hf_x2ap_measurementFailedReportCharacteristics_PRBPeriodic;
+static int hf_x2ap_measurementFailedReportCharacteristics_TNLLoadIndPeriodic;
+static int hf_x2ap_measurementFailedReportCharacteristics_HWLoadIndPeriodic;
+static int hf_x2ap_measurementFailedReportCharacteristics_CompositeAvailableCapacityPeriodic;
+static int hf_x2ap_measurementFailedReportCharacteristics_ABSStatusPeriodic;
+static int hf_x2ap_measurementFailedReportCharacteristics_RSRPMeasurementReportPeriodic;
+static int hf_x2ap_measurementFailedReportCharacteristics_CSIReportPeriodic;
+static int hf_x2ap_measurementFailedReportCharacteristics_Reserved;
+static int hf_x2ap_eUTRANTraceID_TraceID;
+static int hf_x2ap_eUTRANTraceID_TraceRecordingSessionReference;
+static int hf_x2ap_interfacesToTrace_S1_MME;
+static int hf_x2ap_interfacesToTrace_X2;
+static int hf_x2ap_interfacesToTrace_Uu;
+static int hf_x2ap_interfacesToTrace_F1_C;
+static int hf_x2ap_interfacesToTrace_E1;
+static int hf_x2ap_interfacesToTrace_Reserved;
+static int hf_x2ap_traceCollectionEntityIPAddress_IPv4;
+static int hf_x2ap_traceCollectionEntityIPAddress_IPv6;
+static int hf_x2ap_encryptionAlgorithms_EEA1;
+static int hf_x2ap_encryptionAlgorithms_EEA2;
+static int hf_x2ap_encryptionAlgorithms_EEA3;
+static int hf_x2ap_encryptionAlgorithms_Reserved;
+static int hf_x2ap_integrityProtectionAlgorithms_EIA1;
+static int hf_x2ap_integrityProtectionAlgorithms_EIA2;
+static int hf_x2ap_integrityProtectionAlgorithms_EIA3;
+static int hf_x2ap_integrityProtectionAlgorithms_EIA7;
+static int hf_x2ap_integrityProtectionAlgorithms_Reserved;
+static int hf_x2ap_measurementsToActivate_M1;
+static int hf_x2ap_measurementsToActivate_M2;
+static int hf_x2ap_measurementsToActivate_M3;
+static int hf_x2ap_measurementsToActivate_M4;
+static int hf_x2ap_measurementsToActivate_M5;
+static int hf_x2ap_measurementsToActivate_LoggingM1FromEventTriggered;
+static int hf_x2ap_measurementsToActivate_M6;
+static int hf_x2ap_measurementsToActivate_M7;
+static int hf_x2ap_MDT_Location_Info_GNSS;
+static int hf_x2ap_MDT_Location_Info_E_CID;
+static int hf_x2ap_MDT_Location_Info_Reserved;
+static int hf_x2ap_MDT_transmissionModes_tm1;
+static int hf_x2ap_MDT_transmissionModes_tm2;
+static int hf_x2ap_MDT_transmissionModes_tm3;
+static int hf_x2ap_MDT_transmissionModes_tm4;
+static int hf_x2ap_MDT_transmissionModes_tm6;
+static int hf_x2ap_MDT_transmissionModes_tm8;
+static int hf_x2ap_MDT_transmissionModes_tm9;
+static int hf_x2ap_MDT_transmissionModes_tm10;
+static int hf_x2ap_NRencryptionAlgorithms_NEA1;
+static int hf_x2ap_NRencryptionAlgorithms_NEA2;
+static int hf_x2ap_NRencryptionAlgorithms_NEA3;
+static int hf_x2ap_NRencryptionAlgorithms_Reserved;
+static int hf_x2ap_NRintegrityProtectionAlgorithms_NIA1;
+static int hf_x2ap_NRintegrityProtectionAlgorithms_NIA2;
+static int hf_x2ap_NRintegrityProtectionAlgorithms_NIA3;
+static int hf_x2ap_NRintegrityProtectionAlgorithms_Reserved;
+static int hf_x2ap_ReportCharacteristics_ENDC_PRBPeriodic;
+static int hf_x2ap_ReportCharacteristics_ENDC_TNLCapacityIndPeriodic;
+static int hf_x2ap_ReportCharacteristics_ENDC_CompositeAvailableCapacityPeriodic;
+static int hf_x2ap_ReportCharacteristics_ENDC_NumberOfActiveUEs;
+static int hf_x2ap_ReportCharacteristics_ENDC_Reserved;
+static int hf_x2ap_Registration_Request_ENDC_PDU;
+static int hf_x2ap_ReportingPeriodicity_ENDC_PDU;
+static int hf_x2ap_ReportCharacteristics_ENDC_PDU;
+static int hf_x2ap_rAT_RestrictionInformation_LEO;
+static int hf_x2ap_rAT_RestrictionInformation_MEO;
+static int hf_x2ap_rAT_RestrictionInformation_GEO;
+static int hf_x2ap_rAT_RestrictionInformation_OTHERSAT;
+static int hf_x2ap_rAT_RestrictionInformation_NR_LEO;
+static int hf_x2ap_rAT_RestrictionInformation_NR_MEO;
+static int hf_x2ap_rAT_RestrictionInformation_NR_GEO;
+static int hf_x2ap_rAT_RestrictionInformation_NR_OTHERSAT;
 #include "packet-x2ap-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_x2ap = -1;
-static int ett_x2ap_TransportLayerAddress = -1;
-static int ett_x2ap_PLMN_Identity = -1;
-static int ett_x2ap_TargeteNBtoSource_eNBTransparentContainer = -1;
-static int ett_x2ap_RRC_Context = -1;
-static int ett_x2ap_UE_HistoryInformationFromTheUE = -1;
-static int ett_x2ap_ReportCharacteristics = -1;
-static int ett_x2ap_measurementFailedReportCharacteristics = -1;
-static int ett_x2ap_UE_RLF_Report_Container = -1;
-static int ett_x2ap_UE_RLF_Report_Container_for_extended_bands = -1;
-static int ett_x2ap_MeNBtoSeNBContainer = -1;
-static int ett_x2ap_SeNBtoMeNBContainer = -1;
-static int ett_x2ap_EUTRANTraceID = -1;
-static int ett_x2ap_InterfacesToTrace = -1;
-static int ett_x2ap_TraceCollectionEntityIPAddress = -1;
-static int ett_x2ap_EncryptionAlgorithms = -1;
-static int ett_x2ap_IntegrityProtectionAlgorithms = -1;
-static int ett_x2ap_MeasurementsToActivate = -1;
-static int ett_x2ap_MDT_Location_Info = -1;
-static int ett_x2ap_transmissionModes = -1;
-static int ett_x2ap_X2AP_Message = -1;
-static int ett_x2ap_MeNBtoSgNBContainer = -1;
-static int ett_x2ap_SgNBtoMeNBContainer = -1;
-static int ett_x2ap_RRCContainer = -1;
-static int ett_x2ap_NRencryptionAlgorithms = -1;
-static int ett_x2ap_NRintegrityProtectionAlgorithms = -1;
-static int ett_x2ap_measurementTimingConfiguration = -1;
-static int ett_x2ap_LastVisitedNGRANCellInformation = -1;
-static int ett_x2ap_LastVisitedUTRANCellInformation = -1;
-static int ett_x2ap_EndcSONConfigurationTransfer = -1;
-static int ett_x2ap_EPCHandoverRestrictionListContainer = -1;
-static int ett_x2ap_NBIoT_RLF_Report_Container = -1;
-static int ett_x2ap_anchorCarrier_NPRACHConfig = -1;
-static int ett_x2ap_anchorCarrier_EDT_NPRACHConfig = -1;
-static int ett_x2ap_anchorCarrier_Format2_NPRACHConfig = -1;
-static int ett_x2ap_anchorCarrier_Format2_EDT_NPRACHConfig = -1;
-static int ett_x2ap_non_anchorCarrier_NPRACHConfig = -1;
-static int ett_x2ap_non_anchorCarrier_Format2_NPRACHConfig = -1;
-static int ett_x2ap_anchorCarrier_NPRACHConfigTDD = -1;
-static int ett_x2ap_non_anchorCarrier_NPRACHConfigTDD = -1;
-static int ett_x2ap_Non_anchorCarrierFrequency = -1;
-static int ett_x2ap_ReportCharacteristics_ENDC = -1;
-static int ett_x2ap_TargetCellInNGRAN = -1;
-static int ett_x2ap_TDDULDLConfigurationCommonNR = -1;
-static int ett_x2ap_MDT_ConfigurationNR = -1;
-static int ett_x2ap_NRCellPRACHConfig = -1;
-static int ett_x2ap_IntendedTDD_DL_ULConfiguration_NR = -1;
-static int ett_x2ap_UERadioCapability = -1;
-static int ett_x2ap_LastVisitedPSCell_Item = -1;
-static int ett_x2ap_NRRACHReportContainer = -1;
-static int ett_x2ap_rAT_RestrictionInformation = -1;
+static int ett_x2ap;
+static int ett_x2ap_TransportLayerAddress;
+static int ett_x2ap_PLMN_Identity;
+static int ett_x2ap_TargeteNBtoSource_eNBTransparentContainer;
+static int ett_x2ap_RRC_Context;
+static int ett_x2ap_UE_HistoryInformationFromTheUE;
+static int ett_x2ap_ReportCharacteristics;
+static int ett_x2ap_measurementFailedReportCharacteristics;
+static int ett_x2ap_UE_RLF_Report_Container;
+static int ett_x2ap_UE_RLF_Report_Container_for_extended_bands;
+static int ett_x2ap_MeNBtoSeNBContainer;
+static int ett_x2ap_SeNBtoMeNBContainer;
+static int ett_x2ap_EUTRANTraceID;
+static int ett_x2ap_InterfacesToTrace;
+static int ett_x2ap_TraceCollectionEntityIPAddress;
+static int ett_x2ap_EncryptionAlgorithms;
+static int ett_x2ap_IntegrityProtectionAlgorithms;
+static int ett_x2ap_MeasurementsToActivate;
+static int ett_x2ap_MDT_Location_Info;
+static int ett_x2ap_transmissionModes;
+static int ett_x2ap_X2AP_Message;
+static int ett_x2ap_MeNBtoSgNBContainer;
+static int ett_x2ap_SgNBtoMeNBContainer;
+static int ett_x2ap_RRCContainer;
+static int ett_x2ap_NRencryptionAlgorithms;
+static int ett_x2ap_NRintegrityProtectionAlgorithms;
+static int ett_x2ap_measurementTimingConfiguration;
+static int ett_x2ap_LastVisitedNGRANCellInformation;
+static int ett_x2ap_LastVisitedUTRANCellInformation;
+static int ett_x2ap_EndcSONConfigurationTransfer;
+static int ett_x2ap_EPCHandoverRestrictionListContainer;
+static int ett_x2ap_NBIoT_RLF_Report_Container;
+static int ett_x2ap_anchorCarrier_NPRACHConfig;
+static int ett_x2ap_anchorCarrier_EDT_NPRACHConfig;
+static int ett_x2ap_anchorCarrier_Format2_NPRACHConfig;
+static int ett_x2ap_anchorCarrier_Format2_EDT_NPRACHConfig;
+static int ett_x2ap_non_anchorCarrier_NPRACHConfig;
+static int ett_x2ap_non_anchorCarrier_Format2_NPRACHConfig;
+static int ett_x2ap_anchorCarrier_NPRACHConfigTDD;
+static int ett_x2ap_non_anchorCarrier_NPRACHConfigTDD;
+static int ett_x2ap_Non_anchorCarrierFrequency;
+static int ett_x2ap_ReportCharacteristics_ENDC;
+static int ett_x2ap_TargetCellInNGRAN;
+static int ett_x2ap_TDDULDLConfigurationCommonNR;
+static int ett_x2ap_MDT_ConfigurationNR;
+static int ett_x2ap_NRCellPRACHConfig;
+static int ett_x2ap_IntendedTDD_DL_ULConfiguration_NR;
+static int ett_x2ap_UERadioCapability;
+static int ett_x2ap_LastVisitedPSCell_Item;
+static int ett_x2ap_NRRAReportContainer;
+static int ett_x2ap_rAT_RestrictionInformation;
+static int ett_x2ap_PSCellListContainer;
 #include "packet-x2ap-ett.c"
 
 /* Forward declarations */
@@ -207,9 +214,9 @@ enum{
 };
 
 struct x2ap_private_data {
-  guint32 procedure_code;
-  guint32 protocol_ie_id;
-  guint32 message_type;
+  uint32_t procedure_code;
+  uint32_t protocol_ie_id;
+  uint32_t message_type;
   rrc_container_type_e rrc_container_type;
   e212_number_type_t number_type;
 };
@@ -226,7 +233,7 @@ static const enum_val_t x2ap_rrc_context_vals[] = {
 };
 
 /* Global variables */
-static gint g_x2ap_dissect_rrc_context_as = X2AP_RRC_CONTEXT_LTE;
+static int g_x2ap_dissect_rrc_context_as = X2AP_RRC_CONTEXT_LTE;
 
 /* Dissector tables */
 static dissector_table_t x2ap_ies_dissector_table;
@@ -250,44 +257,40 @@ static const true_false_string x2ap_tfs_failed_succeeded = {
   "Succeeded"
 };
 
-static const true_false_string x2ap_tfs_interfacesToTrace = {
-  "Should be traced",
-  "Should not be traced"
-};
-
-static const true_false_string x2ap_tfs_activate_do_not_activate = {
-  "Activate",
-  "Do not activate"
-};
-
 static void
-x2ap_Time_UE_StayedInCell_EnhancedGranularity_fmt(gchar *s, guint32 v)
+x2ap_Time_UE_StayedInCell_EnhancedGranularity_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fs", ((float)v)/10);
 }
 
 static void
-x2ap_handoverTriggerChange_fmt(gchar *s, guint32 v)
+x2ap_handoverTriggerChange_fmt(char *s, uint32_t v)
 {
-  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%d)", ((float)v)/2, (gint32)v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%d)", ((float)v)/2, (int32_t)v);
 }
 
 static void
-x2ap_Threshold_RSRP_fmt(gchar *s, guint32 v)
+x2ap_Threshold_RSRP_fmt(char *s, uint32_t v)
 {
-  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-140, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (int32_t)v-140, v);
 }
 
 static void
-x2ap_Threshold_RSRQ_fmt(gchar *s, guint32 v)
+x2ap_Threshold_RSRQ_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-20, v);
 }
 
 static void
-x2ap_Packet_LossRate_fmt(gchar *s, guint32 v)
+x2ap_Packet_LossRate_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1f %% (%u)", (float)v/10, v);
+}
+
+static void
+x2ap_cho_handover_window_duration_fmt(char *s, uint32_t v)
+{
+  snprintf(s, ITEM_LABEL_LENGTH, "%dms (%u)", v*100, v);
 }
 
 static struct x2ap_private_data*
@@ -307,14 +310,14 @@ static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto
 {
   struct x2ap_private_data *x2ap_data = x2ap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(x2ap_ies_dissector_table, x2ap_data->protocol_ie_id, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(x2ap_ies_dissector_table, x2ap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct x2ap_private_data *x2ap_data = x2ap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(x2ap_extension_dissector_table, x2ap_data->protocol_ie_id, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(x2ap_extension_dissector_table, x2ap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
@@ -322,7 +325,7 @@ static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, pro
   struct x2ap_private_data *x2ap_data = x2ap_get_private_data(pinfo);
 
   x2ap_data->message_type = INITIATING_MESSAGE;
-  return (dissector_try_uint_new(x2ap_proc_imsg_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(x2ap_proc_imsg_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
@@ -330,7 +333,7 @@ static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, pro
   struct x2ap_private_data *x2ap_data = x2ap_get_private_data(pinfo);
 
   x2ap_data->message_type = SUCCESSFUL_OUTCOME;
-  return (dissector_try_uint_new(x2ap_proc_sout_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(x2ap_proc_sout_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
@@ -338,7 +341,7 @@ static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, p
   struct x2ap_private_data *x2ap_data = x2ap_get_private_data(pinfo);
 
   x2ap_data->message_type = UNSUCCESSFUL_OUTCOME;
-  return (dissector_try_uint_new(x2ap_proc_uout_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(x2ap_proc_uout_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
@@ -447,23 +450,23 @@ void proto_register_x2ap(void) {
         NULL, HFILL }},
     { &hf_x2ap_interfacesToTrace_S1_MME,
       { "S1-MME", "x2ap.interfacesToTrace.S1_MME",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_interfacesToTrace), 0x80,
+        FT_BOOLEAN, 8, TFS(&tfs_should_be_traced_should_not_be_traced), 0x80,
         NULL, HFILL }},
     { &hf_x2ap_interfacesToTrace_X2,
       { "X2", "x2ap.interfacesToTrace.X2",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_interfacesToTrace), 0x40,
+        FT_BOOLEAN, 8, TFS(&tfs_should_be_traced_should_not_be_traced), 0x40,
         NULL, HFILL }},
     { &hf_x2ap_interfacesToTrace_Uu,
       { "Uu", "x2ap.interfacesToTrace.Uu",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_interfacesToTrace), 0x20,
+        FT_BOOLEAN, 8, TFS(&tfs_should_be_traced_should_not_be_traced), 0x20,
         NULL, HFILL }},
     { &hf_x2ap_interfacesToTrace_F1_C,
       { "F1-C", "x2ap.interfacesToTrace.F1_C",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_interfacesToTrace), 0x10,
+        FT_BOOLEAN, 8, TFS(&tfs_should_be_traced_should_not_be_traced), 0x10,
         NULL, HFILL }},
     { &hf_x2ap_interfacesToTrace_E1,
       { "E1", "x2ap.interfacesToTrace.E1",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_interfacesToTrace), 0x08,
+        FT_BOOLEAN, 8, TFS(&tfs_should_be_traced_should_not_be_traced), 0x08,
         NULL, HFILL }},
     { &hf_x2ap_interfacesToTrace_Reserved,
       { "Reserved", "x2ap.interfacesToTrace.Reserved",
@@ -515,43 +518,43 @@ void proto_register_x2ap(void) {
         NULL, HFILL }},
     { &hf_x2ap_measurementsToActivate_M1,
       { "M1", "x2ap.measurementsToActivate.M1",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_activate_do_not_activate), 0x80,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x80,
         NULL, HFILL }},
     { &hf_x2ap_measurementsToActivate_M2,
       { "M2", "x2ap.measurementsToActivate.M2",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_activate_do_not_activate), 0x40,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x40,
         NULL, HFILL }},
     { &hf_x2ap_measurementsToActivate_M3,
       { "M3", "x2ap.measurementsToActivate.M3",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_activate_do_not_activate), 0x20,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x20,
         NULL, HFILL }},
     { &hf_x2ap_measurementsToActivate_M4,
       { "M4", "x2ap.measurementsToActivate.M4",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_activate_do_not_activate), 0x10,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x10,
         NULL, HFILL }},
     { &hf_x2ap_measurementsToActivate_M5,
       { "M5", "x2ap.measurementsToActivate.M5",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_activate_do_not_activate), 0x08,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x08,
         NULL, HFILL }},
     { &hf_x2ap_measurementsToActivate_LoggingM1FromEventTriggered,
       { "LoggingOfM1FromEventTriggeredMeasurementReports", "x2ap.measurementsToActivate.LoggingM1FromEventTriggered",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_activate_do_not_activate), 0x04,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x04,
         NULL, HFILL }},
     { &hf_x2ap_measurementsToActivate_M6,
       { "M6", "x2ap.measurementsToActivate.M6",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_activate_do_not_activate), 0x02,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x02,
         NULL, HFILL }},
     { &hf_x2ap_measurementsToActivate_M7,
       { "M7", "x2ap.measurementsToActivate.M7",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_activate_do_not_activate), 0x01,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x01,
         NULL, HFILL }},
     { &hf_x2ap_MDT_Location_Info_GNSS,
       { "GNSS", "x2ap.MDT_Location_Info.GNSS",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_activate_do_not_activate), 0x80,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x80,
         NULL, HFILL }},
     { &hf_x2ap_MDT_Location_Info_E_CID,
       { "E-CID", "x2ap.MDT_Location_Info.E_CID",
-        FT_BOOLEAN, 8, TFS(&x2ap_tfs_activate_do_not_activate), 0x40,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x40,
         NULL, HFILL }},
     { &hf_x2ap_MDT_Location_Info_Reserved,
       { "Reserved", "x2ap.MDT_Location_Info.Reserved",
@@ -669,15 +672,27 @@ void proto_register_x2ap(void) {
       { "OTHERSAT", "x2ap.rAT_RestrictionInformation.OTHERSAT",
         FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x10,
         NULL, HFILL }},
-    { &hf_x2ap_rAT_RestrictionInformation_Reserved,
-      { "Reserved", "x2ap.rAT_RestrictionInformation.Reserved",
-        FT_UINT8, BASE_HEX, NULL, 0x0f,
+    { &hf_x2ap_rAT_RestrictionInformation_NR_LEO,
+      { "NR-LEO", "x2ap.rAT_RestrictionInformation.NR_LEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x08,
+        NULL, HFILL }},
+    { &hf_x2ap_rAT_RestrictionInformation_NR_MEO,
+      { "NR-MEO", "x2ap.rAT_RestrictionInformation.NR_MEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x04,
+        NULL, HFILL }},
+    { &hf_x2ap_rAT_RestrictionInformation_NR_GEO,
+      { "NR-GEO", "x2ap.rAT_RestrictionInformation.NR_GEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x02,
+        NULL, HFILL }},
+    { &hf_x2ap_rAT_RestrictionInformation_NR_OTHERSAT,
+      { "NR-OTHERSAT", "x2ap.rAT_RestrictionInformation.NR_OTHERSAT",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x01,
         NULL, HFILL }},
 #include "packet-x2ap-hfarr.c"
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_x2ap,
     &ett_x2ap_TransportLayerAddress,
     &ett_x2ap_PLMN_Identity,
@@ -727,8 +742,9 @@ void proto_register_x2ap(void) {
     &ett_x2ap_IntendedTDD_DL_ULConfiguration_NR,
     &ett_x2ap_UERadioCapability,
     &ett_x2ap_LastVisitedPSCell_Item,
-    &ett_x2ap_NRRACHReportContainer,
+    &ett_x2ap_NRRAReportContainer,
     &ett_x2ap_rAT_RestrictionInformation,
+    &ett_x2ap_PSCellListContainer,
 #include "packet-x2ap-ettarr.c"
   };
 
@@ -755,7 +771,7 @@ void proto_register_x2ap(void) {
 
   prefs_register_enum_preference(x2ap_module, "dissect_rrc_context_as", "Dissect RRC Context as",
                                  "Select whether RRC Context should be dissected as legacy LTE or NB-IOT",
-                                 &g_x2ap_dissect_rrc_context_as, x2ap_rrc_context_vals, FALSE);
+                                 &g_x2ap_dissect_rrc_context_as, x2ap_rrc_context_vals, false);
 }
 
 

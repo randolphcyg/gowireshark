@@ -26,23 +26,23 @@ void proto_reg_handoff_etag(void);
 static dissector_handle_t etag_handle;
 static dissector_handle_t ethertype_handle;
 
-static int proto_etag = -1;
+static int proto_etag;
 
-static gboolean etag_summary_in_tree = TRUE;
+static bool etag_summary_in_tree = true;
 
-static int hf_etag_etype = -1;
-static int hf_etag_pcp = -1;
-static int hf_etag_dei = -1;
-static int hf_etag_res = -1;
-static int hf_etag_grp = -1;
-static int hf_etag_iecid_base = -1;
-static int hf_etag_iecid_ext = -1;
-static int hf_etag_ecid_base = -1;
-static int hf_etag_ecid_ext = -1;
+static int hf_etag_etype;
+static int hf_etag_pcp;
+static int hf_etag_dei;
+static int hf_etag_res;
+static int hf_etag_grp;
+static int hf_etag_iecid_base;
+static int hf_etag_iecid_ext;
+static int hf_etag_ecid_base;
+static int hf_etag_ecid_ext;
 
-static int hf_etag_trailer = -1;
+static int hf_etag_trailer;
 
-static gint ett_etag = -1;
+static int ett_etag;
 
 #define IEEE8021BR_LEN 8    /* length including ethertype */
 
@@ -102,11 +102,11 @@ static const value_string grp_vals[] = {
 static int
 dissect_etag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint16     encap_proto;
+    uint16_t    encap_proto;
     proto_tree *etag_tree = NULL;
     ethertype_data_t ethertype_data;
 
-    guint64 tci;
+    uint64_t tci;
 
     /* Decoding per IEEE802.1BR-2012 */
     static int * const fields1[] = {
@@ -129,12 +129,12 @@ dissect_etag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     col_clear(pinfo->cinfo, COL_INFO);
 
     if (tree) {
-        guint32 e_cid, ing_e_cid;
+        uint32_t e_cid, ing_e_cid;
 
         proto_item *ti = proto_tree_add_item(tree, proto_etag, tvb, 0, IEEE8021BR_LEN - 2, ENC_NA);
 
-        e_cid =     (guint32)((((tci >> 16) & 0xFFF) |  (tci << 12))            & 0xFFFFF);    /* E-CID_base | E-CID_ext */
-        ing_e_cid = (guint32)((((tci >> 32) & 0xFFF) | ((tci <<  4) & 0xFF000)) & 0xFFFFF);    /* Ingress_E-CID_base | Ingress_E-CID ext */
+        e_cid =     (uint32_t)((((tci >> 16) & 0xFFF) |  (tci << 12))            & 0xFFFFF);    /* E-CID_base | E-CID_ext */
+        ing_e_cid = (uint32_t)((((tci >> 32) & 0xFFF) | ((tci <<  4) & 0xFF000)) & 0xFFFFF);    /* Ingress_E-CID_base | Ingress_E-CID ext */
 
         if (etag_summary_in_tree) {
             proto_item_append_text(ti, ", TCI: 0x%" PRIx64 " Ingress_E-CID: %u E-CID: %u", tci, ing_e_cid, e_cid);
@@ -199,7 +199,7 @@ proto_register_etag(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_etag
     };
 

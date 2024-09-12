@@ -1,5 +1,5 @@
 /* packet-li5g.c
- * Routines for ETSI TS 103 221-2 V1.1.1 (2019-03), Internal Network Interface X2/X3 for Lawful Interception
+ * Routines for ETSI TS 103 221-2 V1.6.1 (2022-06), Internal Network Interface X2/X3 for Lawful Interception
  * Roy Zhang <roy.zhang@nokia-sbell.com>
  *
  * Wireshark - Network traffic analyzer
@@ -11,31 +11,32 @@
 #include "config.h"
 #include <epan/packet.h>
 #include <epan/ipproto.h>
+#include <epan/unit_strings.h>
 #include "packet-tls.h"
 
 void proto_reg_handoff_li5g(void);
 void proto_register_li5g(void);
 
-static int proto_li5g = -1;
-static int hf_li5g_version = -1;
-static int hf_li5g_pduType = -1;
-static int hf_li5g_headerLen = -1;
-static int hf_li5g_payloadLen = -1;
-static int hf_li5g_payloadFormat = -1;
-static int hf_li5g_payloadDirection = -1;
-static int hf_li5g_xid = -1;
-static int hf_li5g_cid = -1;
-static int hf_li5g_attrType = -1;
-static int hf_li5g_attrLen = -1;
-static int hf_li5g_pld = -1;
+static int proto_li5g;
+static int hf_li5g_version;
+static int hf_li5g_pduType;
+static int hf_li5g_headerLen;
+static int hf_li5g_payloadLen;
+static int hf_li5g_payloadFormat;
+static int hf_li5g_payloadDirection;
+static int hf_li5g_xid;
+static int hf_li5g_cid;
+static int hf_li5g_attrType;
+static int hf_li5g_attrLen;
+static int hf_li5g_pld;
 
 /* the min Attribute Type is 1 */
-#define LI_5G_ATTR_TYPE_MAX 19
+#define LI_5G_ATTR_TYPE_MAX 23
 /* the min header length */
 #define LI_5G_HEADER_LEN_MIN 40
 
-static gint ett_li5g = -1;
-static gint ett_attrContents[LI_5G_ATTR_TYPE_MAX];
+static int ett_li5g;
+static int ett_attrContents[LI_5G_ATTR_TYPE_MAX];
 static int hf_li5g_attrContents[LI_5G_ATTR_TYPE_MAX];
 static dissector_handle_t li5g_handle;
 
@@ -64,6 +65,9 @@ static const value_string payload_format_vals[] = {
     {11, "RADIUS Packet"},
     {12, "GTP-U Message"},
     {13, "MSRP Message"},
+    {14, "3GPP TS 33.108 EpsIRIContent"},
+    {15, "MIME Message"},
+    {16, "3GPP Unstructured PDU"},
     { 0, NULL}
 };
 
@@ -96,6 +100,10 @@ static const value_string attribute_type_vals[] = {
     {16, "IP Protocol"},
     {17, "Matched Target Identifier"},
     {18, "Other Target Identifier"},
+    {19, "MIME Content Type"},
+    {20, "MIME Content Transfer Encoding"},
+    {21, "Additional XID Related Information"},
+    {22, "SDP Session Description"},
     {0, NULL}
 };
 
@@ -107,14 +115,14 @@ dissect_li5g(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     proto_item  *ti, *attr_ti;
     tvbuff_t    *payload_tvb;
     int offset = LI_5G_HEADER_LEN_MIN, hf_attr = -1;
-    guint32 headerLen, payloadLen, pduType;
-    guint16 payloadFormat, attrType, attrLen;
+    uint32_t headerLen, payloadLen, pduType;
+    uint16_t payloadFormat, attrType, attrLen;
     const char* info;
 
     address src_addr;
     address dst_addr;
-    guint32 src_port;
-    guint32 dst_port;
+    uint32_t src_port;
+    uint32_t dst_port;
 
     headerLen = tvb_get_ntohl(tvb, 4);
     payloadLen = tvb_get_ntohl(tvb, 8);
@@ -135,15 +143,18 @@ dissect_li5g(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     while(headerLen - offset > 0){
         attrType = tvb_get_ntohs(tvb, offset);
         attrLen = tvb_get_ntohs(tvb, offset+2);
-        /* The first 4 types not supporting now */
-        if (attrType > 4 && attrType < LI_5G_ATTR_TYPE_MAX){
+        if (attrType < LI_5G_ATTR_TYPE_MAX){
             hf_attr = hf_li5g_attrContents[attrType];
 
             attr_ti = proto_tree_add_item(li5g_tree, hf_attr, tvb, offset+4, attrLen, ENC_NA);
             attr_tree = proto_item_add_subtree(attr_ti, ett_attrContents[attrType]);
             proto_tree_add_item(attr_tree, hf_li5g_attrType, tvb, offset, 2, ENC_BIG_ENDIAN);
             proto_tree_add_item(attr_tree, hf_li5g_attrLen, tvb, offset+2, 2, ENC_BIG_ENDIAN);
-            proto_tree_add_item(attr_tree, hf_attr, tvb, offset+4, attrLen, ENC_BIG_ENDIAN);
+            if (attrType == 17 || attrType == 18) {
+                proto_tree_add_item(attr_tree, hf_attr, tvb, offset+4, attrLen, ENC_UTF_8 | ENC_NA);
+            } else {
+                proto_tree_add_item(attr_tree, hf_attr, tvb, offset+4, attrLen, ENC_BIG_ENDIAN);
+            }
         }
 
         offset = offset + 4 + attrLen;
@@ -179,7 +190,7 @@ dissect_li5g(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     }
 
     /* set these info at the end*/
-    col_set_str(pinfo->cinfo, COL_PROTOCOL, "5GLI");
+    col_set_str(pinfo->cinfo, COL_PROTOCOL, "LI5G");
     col_clear_fence(pinfo->cinfo, COL_INFO);
     col_clear(pinfo->cinfo, COL_INFO);
     info = try_val_to_str(pduType, pdu_type_vals);
@@ -196,44 +207,45 @@ dissect_li5g(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_li5g_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     struct tlsinfo* tlsinfo = (struct tlsinfo*)data;
     if (tvb_captured_length(tvb) < LI_5G_HEADER_LEN_MIN)
-        return FALSE;
+        return false;
     /* the version should be 1 */
     if (tvb_get_ntohs(tvb, 0) != 1)
-        return FALSE;
+        return false;
     /* only 4 types supported*/
     if(tvb_get_ntohs(tvb, 2) < 1 || tvb_get_ntohs(tvb, 2) > 4)
-        return (FALSE);
+        return false;
 
-    /* TLS can hold it, no need to find the disect every time */
+    /* TLS can hold it, no need to find the dissect every time */
     *(tlsinfo->app_handle) = li5g_handle;
     dissect_li5g(tvb, pinfo, tree, data);
 
-    return TRUE;
+    return true;
 }
 
 void
 proto_register_li5g(void)
 {
-    memset(ett_attrContents, -1, sizeof(ett_attrContents));
-    memset(hf_li5g_attrContents, -1, sizeof(hf_li5g_attrContents));
-
     static hf_register_info hf[] = {
         { &hf_li5g_version, { "Version", "li5g.ver", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_li5g_pduType, { "PDU Type", "li5g.type", FT_UINT16, BASE_DEC, VALS(pdu_type_vals), 0x0, NULL, HFILL }},
-        { &hf_li5g_headerLen, { "Header Length", "li5g.hl", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_octet_octets, 0x0, NULL, HFILL }},
-        { &hf_li5g_payloadLen, { "Payload Length", "li5g.pl", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_octet_octets, 0x0, NULL, HFILL }},
+        { &hf_li5g_headerLen, { "Header Length", "li5g.hl", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_octet_octets), 0x0, NULL, HFILL }},
+        { &hf_li5g_payloadLen, { "Payload Length", "li5g.pl", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_octet_octets), 0x0, NULL, HFILL }},
         { &hf_li5g_payloadFormat, { "Payload Format", "li5g.pf", FT_UINT16, BASE_DEC, VALS(payload_format_vals), 0x0, NULL, HFILL }},
         { &hf_li5g_payloadDirection, { "Payload Direction", "li5g.pd", FT_UINT16, BASE_DEC, VALS(payload_dir_vals), 0x0, NULL, HFILL }},
         { &hf_li5g_xid, { "XID", "li5g.xid", FT_GUID, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_li5g_cid, { "Correlation ID", "li5g.cid", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
 
         { &hf_li5g_attrType, { "Attribute Type", "li5g.attrType", FT_UINT16, BASE_DEC, VALS(attribute_type_vals), 0x0, NULL, HFILL }},
-        { &hf_li5g_attrLen, { "Attribute Length", "li5g.attrLen", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_octet_octets, 0x0, NULL, HFILL }},
+        { &hf_li5g_attrLen, { "Attribute Length", "li5g.attrLen", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_octet_octets), 0x0, NULL, HFILL }},
+        { &hf_li5g_attrContents[1], { "ETSI TS 102 232-1 Defined Attribute", "li5g.102_232_1_attr", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_li5g_attrContents[2], { "3GPP TS 33.128 Defined Attribute", "li5g.33_128_attr", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_li5g_attrContents[3], { "3GPP TS 33.108 Defined Attribute", "li5g.33_108_attr", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_li5g_attrContents[4], { "Proprietary Attribute", "li5g.proprietary_attr", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_li5g_attrContents[5], { "Domain ID", "li5g.did", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_li5g_attrContents[6], { "Network Function ID", "li5g.nfid", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_li5g_attrContents[7], { "Interception Point ID", "li5g.ipid", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
@@ -246,14 +258,22 @@ proto_register_li5g(void)
         { &hf_li5g_attrContents[14], { "Source Port", "li5g.srcport", FT_UINT16, BASE_PT_TCP, NULL, 0x0, NULL, HFILL }},
         { &hf_li5g_attrContents[15], { "Destination Port", "li5g.dstport", FT_UINT16, BASE_PT_TCP, NULL, 0x0, NULL, HFILL }},
         { &hf_li5g_attrContents[16], { "IP Protocol", "li5g.ipproto", FT_UINT8, BASE_DEC|BASE_EXT_STRING, &ipproto_val_ext, 0x0, NULL, HFILL }},
-        { &hf_li5g_attrContents[17], { "Matched Target Identifier", "li5g.mti", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
-        { &hf_li5g_attrContents[18], { "Other Target Identifier", "li5g.oti", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_li5g_attrContents[17], { "Matched Target Identifier", "li5g.mti", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_li5g_attrContents[18], { "Other Target Identifier", "li5g.oti", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_li5g_attrContents[19], { "MIME Content Type", "li5g.mime_content_type", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_li5g_attrContents[20], { "MIME Content Transfer Encoding", "li5g.mime_transfer_type_encoding", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_li5g_attrContents[21], { "Additional XID Related Information", "li5g.additional_xid", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_li5g_attrContents[22], { "SDP Session Description", "li5g.sdp", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
 
         { &hf_li5g_pld, { "Payload", "li5g.pld", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_li5g,
+        &ett_attrContents[1],
+        &ett_attrContents[2],
+        &ett_attrContents[3],
+        &ett_attrContents[4],
         &ett_attrContents[5],
         &ett_attrContents[6],
         &ett_attrContents[7],
@@ -268,9 +288,13 @@ proto_register_li5g(void)
         &ett_attrContents[16],
         &ett_attrContents[17],
         &ett_attrContents[18],
+        &ett_attrContents[19],
+        &ett_attrContents[20],
+        &ett_attrContents[21],
+        &ett_attrContents[22],
     };
 
-    proto_li5g = proto_register_protocol("5G Lawful Interception", "5GLI", "5gli");
+    proto_li5g = proto_register_protocol("Lawful Interception 5G", "LI5G", "li5g");
 
     li5g_handle = register_dissector("li5g", dissect_li5g, proto_li5g);
 
@@ -293,6 +317,7 @@ proto_reg_handoff_li5g(void)
     dissector_add_uint("li5g.payload", 11, find_dissector("radius"));
     dissector_add_uint("li5g.payload", 12, find_dissector("gtp"));
     dissector_add_uint("li5g.payload", 13, find_dissector("msrp"));
+    dissector_add_uint("li5g.payload", 14, find_dissector("HI2Operations"));
 
     dissector_add_uint_range_with_preference("tcp.port", "", li5g_handle);
     dissector_add_uint_range_with_preference("udp.port", "", li5g_handle);

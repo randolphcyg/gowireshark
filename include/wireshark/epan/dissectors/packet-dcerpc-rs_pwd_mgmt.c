@@ -21,19 +21,19 @@
 void proto_register_rs_pwd_mgmt (void);
 void proto_reg_handoff_rs_pwd_mgmt (void);
 
-static int proto_rs_pwd_mgmt = -1;
-static int hf_rs_pwd_mgmt_opnum = -1;
+static int proto_rs_pwd_mgmt;
+static int hf_rs_pwd_mgmt_opnum;
 
 
-static gint ett_rs_pwd_mgmt = -1;
+static int ett_rs_pwd_mgmt;
 static e_guid_t uuid_rs_pwd_mgmt =
   { 0x3139a0e2, 0x68da, 0x11cd, {0x91, 0xc7, 0x08, 0x00, 0x09, 0x24, 0x24,
                                  0x44} };
 
-static guint16 ver_rs_pwd_mgmt = 1;
+static uint16_t ver_rs_pwd_mgmt = 1;
 
 
-static dcerpc_sub_dissector rs_pwd_mgmt_dissectors[] = {
+static const dcerpc_sub_dissector rs_pwd_mgmt_dissectors[] = {
   {0, "lookup",                  NULL, NULL},
   {1, "replace",                 NULL, NULL},
   {2, "get_access",              NULL, NULL},
@@ -55,7 +55,7 @@ proto_register_rs_pwd_mgmt (void)
       NULL, HFILL}},
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_rs_pwd_mgmt,
   };
   proto_rs_pwd_mgmt =

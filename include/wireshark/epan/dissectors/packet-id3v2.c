@@ -30,35 +30,35 @@ void proto_register_id3v2(void);
 
 static dissector_table_t media_type_dissector_table;
 
-static int proto_id3v2 = -1;
-static int hf_id3v2 = -1;
-static int hf_id3v2_file_id = -1;
-static int hf_id3v2_version = -1;
-static int hf_id3v2_flags = -1;
-static int hf_id3v2_size = -1;
-static int hf_id3v2_frame = -1;
-static int hf_id3v2_frame_id = -1;
-static int hf_id3v2_frame_size = -1;
-static int hf_id3v2_frame_flags = -1;
-static int hf_id3v2_frame_text_encoding = -1;
-static int hf_id3v2_frame_text_description = -1;
-static int hf_id3v2_frame_text_value = -1;
-static int hf_id3v2_frame_ufi_owner = -1;
-static int hf_id3v2_frame_ufi_id = -1;
-static int hf_id3v2_frame_apic_mime_type = -1;
-static int hf_id3v2_frame_apic_picture_type = -1;
-static int hf_id3v2_frame_apic_description = -1;
-static int hf_id3v2_frame_private = -1;
-static int hf_id3v2_frame_comment_language = -1;
-static int hf_id3v2_frame_comment_description = -1;
-static int hf_id3v2_frame_comment_text = -1;
-static int hf_id3v2_undecoded = -1;
-static int hf_id3v2_padding = -1;
+static int proto_id3v2;
+static int hf_id3v2;
+static int hf_id3v2_file_id;
+static int hf_id3v2_version;
+static int hf_id3v2_flags;
+static int hf_id3v2_size;
+static int hf_id3v2_frame;
+static int hf_id3v2_frame_id;
+static int hf_id3v2_frame_size;
+static int hf_id3v2_frame_flags;
+static int hf_id3v2_frame_text_encoding;
+static int hf_id3v2_frame_text_description;
+static int hf_id3v2_frame_text_value;
+static int hf_id3v2_frame_ufi_owner;
+static int hf_id3v2_frame_ufi_id;
+static int hf_id3v2_frame_apic_mime_type;
+static int hf_id3v2_frame_apic_picture_type;
+static int hf_id3v2_frame_apic_description;
+static int hf_id3v2_frame_private;
+static int hf_id3v2_frame_comment_language;
+static int hf_id3v2_frame_comment_description;
+static int hf_id3v2_frame_comment_text;
+static int hf_id3v2_undecoded;
+static int hf_id3v2_padding;
 
-static gint ett_id3v2 = -1;
-static gint ett_id3v2_frame = -1;
+static int ett_id3v2;
+static int ett_id3v2_frame;
 
-static expert_field ei_id3v2_undecoded = EI_INIT;
+static expert_field ei_id3v2_undecoded;
 
 #define ID3V2_MIN_LENGTH 10
 
@@ -164,7 +164,7 @@ static const string_string id3v2_tag_names[] = {
 	{ "WPAY", "Payment" },
 	{ "WPUB", "Publishers official webpage" },
 	{ "WXXX", "User defined URL link frame" },
-	{ 0,      NULL } };
+	{ NULL,      NULL } };
 
 static const value_string id3v2_apic_types[] = {
 	{ 0x00,   "Other" },
@@ -197,10 +197,10 @@ static const value_string id3v2_text_encoding_values[] = {
 	{ 0x03,  "UTF-8" },
 	{ 0,     NULL } };
 
-static guint
-id3v2_decode_encoding(guint8 id3_encoding)
+static unsigned
+id3v2_decode_encoding(uint8_t id3_encoding)
 {
-	guint encoding;
+	unsigned encoding;
 
 	switch (id3_encoding) {
 		case 0x00:
@@ -222,15 +222,15 @@ id3v2_decode_encoding(guint8 id3_encoding)
 }
 
 static char *
-id3v2_dissect_textz_item(tvbuff_t *tvb, proto_tree *tree, guint *offset, guint8 id3_encoding, int hf)
+id3v2_dissect_textz_item(wmem_allocator_t *scope, tvbuff_t *tvb, proto_tree *tree, unsigned *offset, uint8_t id3_encoding, int hf)
 {
-	guint encoding;
+	unsigned encoding;
 	char *text_value;
-	guint text_length;
+	unsigned text_length;
 
 	encoding = id3v2_decode_encoding(id3_encoding);
 
-	text_value = tvb_get_stringz_enc(wmem_packet_scope(), tvb, *offset, &text_length, encoding);
+	text_value = tvb_get_stringz_enc(scope, tvb, *offset, &text_length, encoding);
 	proto_tree_add_item(tree, hf, tvb, *offset, text_length, encoding);
 	*offset += text_length;
 
@@ -238,95 +238,95 @@ id3v2_dissect_textz_item(tvbuff_t *tvb, proto_tree *tree, guint *offset, guint8 
 }
 
 static char *
-id3v2_dissect_text_item(tvbuff_t *tvb, proto_tree *tree, guint *offset, guint end, guint8 id3_encoding, int hf)
+id3v2_dissect_text_item(wmem_allocator_t *scope, tvbuff_t *tvb, proto_tree *tree, unsigned *offset, unsigned end, uint8_t id3_encoding, int hf)
 {
-	guint encoding;
+	unsigned encoding;
 	char *text_value;
 
 	encoding = id3v2_decode_encoding(id3_encoding);
 
-	text_value = tvb_get_string_enc(wmem_packet_scope(), tvb, *offset, (end - *offset), encoding);
+	text_value = tvb_get_string_enc(scope, tvb, *offset, (end - *offset), encoding);
 	proto_tree_add_item(tree, hf, tvb, *offset, (end - *offset), encoding);
 
 	return text_value;
 }
 
 static void
-dissect_id3v2_comment_frame(tvbuff_t *tvb, proto_tree *tree, guint offset, guint length, proto_item *pi)
+dissect_id3v2_comment_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, unsigned length, proto_item *pi)
 {
-	guint8 id3_encoding;
-	guint end = offset + length;
+	uint8_t id3_encoding;
+	unsigned end = offset + length;
 	char *comment_value;
 
-	id3_encoding = tvb_get_guint8(tvb, offset);
+	id3_encoding = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(tree, hf_id3v2_frame_text_encoding, tvb, offset, 1, ENC_NA);
 	offset += 1;
 
 	proto_tree_add_item(tree, hf_id3v2_frame_comment_language, tvb, offset, 3, ENC_ISO_8859_1);
 	offset += 3;
 
-	id3v2_dissect_textz_item(tvb, tree, &offset, id3_encoding, hf_id3v2_frame_comment_description);
+	id3v2_dissect_textz_item(pinfo->pool, tvb, tree, &offset, id3_encoding, hf_id3v2_frame_comment_description);
 
-	comment_value = id3v2_dissect_text_item(tvb, tree, &offset, end, id3_encoding, hf_id3v2_frame_comment_text);
+	comment_value = id3v2_dissect_text_item(pinfo->pool, tvb, tree, &offset, end, id3_encoding, hf_id3v2_frame_comment_text);
 	proto_item_append_text(pi, ": %s", comment_value);
 }
 
 static void
-dissect_id3v2_apic_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint offset, guint length)
+dissect_id3v2_apic_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, unsigned length)
 {
-	guint8 id3_encoding;
-	guint end = offset + length;
+	uint8_t id3_encoding;
+	unsigned end = offset + length;
 	char *mime_type;
 	tvbuff_t *image_tvb;
 
-	id3_encoding = tvb_get_guint8(tvb, offset);
+	id3_encoding = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(tree, hf_id3v2_frame_text_encoding, tvb, offset, 1, ENC_NA);
 	offset += 1;
 
-	mime_type = id3v2_dissect_textz_item(tvb, tree, &offset, id3_encoding, hf_id3v2_frame_apic_mime_type);
+	mime_type = id3v2_dissect_textz_item(pinfo->pool, tvb, tree, &offset, id3_encoding, hf_id3v2_frame_apic_mime_type);
 
 	proto_tree_add_item(tree, hf_id3v2_frame_apic_picture_type, tvb, offset, 1, ENC_NA);
 	offset += 1;
 
-	id3v2_dissect_textz_item(tvb, tree, &offset, id3_encoding, hf_id3v2_frame_apic_description);
+	id3v2_dissect_textz_item(pinfo->pool, tvb, tree, &offset, id3_encoding, hf_id3v2_frame_apic_description);
 
 	image_tvb = tvb_new_subset_length(tvb, offset, (end - offset));
 	dissector_try_string(media_type_dissector_table, mime_type, image_tvb, pinfo, tree, NULL);
 }
 
 static char *
-dissect_id3v2_text_frame(tvbuff_t *tvb, proto_item *item, proto_tree *tree, guint offset, guint length, gboolean is_txxx)
+dissect_id3v2_text_frame(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_tree *tree, unsigned offset, unsigned length, bool is_txxx)
 {
-	guint8 id3_encoding;
+	uint8_t id3_encoding;
 	char *text_value;
-	guint end = offset + length;
+	unsigned end = offset + length;
 
-	id3_encoding = tvb_get_guint8(tvb, offset);
+	id3_encoding = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(tree, hf_id3v2_frame_text_encoding, tvb, offset, 1, ENC_NA);
 	offset += 1;
 
 	if (is_txxx) {
 		/* This is a user-defined text frame (contains a description and a value) */
 
-		text_value = id3v2_dissect_textz_item(tvb, tree, &offset, id3_encoding, hf_id3v2_frame_text_description);
+		text_value = id3v2_dissect_textz_item(pinfo->pool, tvb, tree, &offset, id3_encoding, hf_id3v2_frame_text_description);
 		proto_item_append_text(item, ": %s", text_value);
 	}
 
-	text_value = id3v2_dissect_text_item(tvb, tree, &offset, end, id3_encoding, hf_id3v2_frame_text_value);
+	text_value = id3v2_dissect_text_item(pinfo->pool, tvb, tree, &offset, end, id3_encoding, hf_id3v2_frame_text_value);
 	proto_item_append_text(item, ": %s", text_value);
 
 	return text_value;
 }
 
 static int
-dissect_id3v2_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint offset, guint8 id3_version)
+dissect_id3v2_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, uint8_t id3_version)
 {
 	proto_item *frame_item;
 	proto_tree *frame_tree;
-	guint32 size;
+	uint32_t size;
 	char *frame_id;
 
-	frame_id = tvb_get_string_enc(wmem_packet_scope(), tvb, offset, 4, ENC_ISO_8859_1);
+	frame_id = tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ISO_8859_1);
 
 	if (strlen(frame_id) == 0) {
 		proto_tree_add_item(tree, hf_id3v2_padding, tvb, offset, -1, ENC_NA);
@@ -341,9 +341,9 @@ dissect_id3v2_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint o
 	proto_item_set_text(frame_item, "%s", str_to_str(frame_id, id3v2_tag_names, "Unknown: %s"));
 
 	if (id3_version == 0x04)
-		size = decode_synchsafe_int(tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN));
+		size = decode_synchsafe_int(tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN));
 	else
-		size = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+		size = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
 	proto_tree_add_uint(frame_tree, hf_id3v2_frame_size, tvb, offset, 4, size);
 	/* `size` does not include the 10-byte header */
 	proto_item_set_len(frame_item, size+10);
@@ -356,7 +356,7 @@ dissect_id3v2_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint o
 	if (frame_id[0] == 'T') {
 		char *tv;
 
-		tv = dissect_id3v2_text_frame(tvb, frame_item, frame_tree, offset, size, !strcmp(frame_id, "TXXX"));
+		tv = dissect_id3v2_text_frame(tvb, pinfo, frame_item, frame_tree, offset, size, !strcmp(frame_id, "TXXX"));
 		offset += size;
 
 		if (!strcmp(frame_id, "TIT2"))
@@ -364,10 +364,10 @@ dissect_id3v2_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint o
 		if (!strcmp(frame_id, "TPE1"))
 			col_append_fstr(pinfo->cinfo, COL_INFO, "Artist: %s, ", tv);
 	} else if (!strcmp(frame_id, "UFID")) {
-		guint text_length;
+		unsigned text_length;
 		char *text_value;
 
-		text_value = tvb_get_stringz_enc(wmem_packet_scope(), tvb, offset, &text_length, ENC_UTF_8);
+		text_value = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &text_length, ENC_UTF_8);
 		proto_tree_add_item(frame_tree, hf_id3v2_frame_ufi_owner, tvb, offset, text_length, ENC_ISO_8859_1);
 		offset += text_length;
 		proto_item_append_text(frame_item, " (Owner: %s)", text_value);
@@ -379,7 +379,7 @@ dissect_id3v2_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint o
 		dissect_id3v2_apic_frame(tvb, pinfo, frame_tree, offset, size);
 		offset += size;
 	} else if (!strcmp(frame_id, "COMM")) {
-		dissect_id3v2_comment_frame(tvb, frame_tree, offset, size, frame_item);
+		dissect_id3v2_comment_frame(tvb, pinfo, frame_tree, offset, size, frame_item);
 		offset += size;
 	} else if (!strcmp(frame_id, "PRIV")) {
 		proto_tree_add_item(frame_tree, hf_id3v2_frame_private, tvb, offset, size, ENC_NA);
@@ -402,30 +402,30 @@ dissect_id3v2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 	proto_item *id3v2_item;
 	proto_tree *id3v2_tree;
         tvbuff_t   *id3v2_tvb;
-	guint       offset = 0;
-	guint32     size;
-	guint8      id3_version;
+	unsigned    offset = 0;
+	uint32_t    size;
+	uint8_t     id3_version;
 
 	/* Check that the packet is long enough for it to belong to us. */
 	if (tvb_reported_length(tvb) < ID3V2_MIN_LENGTH)
 		return 0;
 
 	/* Check if the first 3 bytes are "ID3" */
-	if (tvb_get_guint24(tvb, 0, ENC_BIG_ENDIAN) != 0x494433)
+	if (tvb_get_uint24(tvb, 0, ENC_BIG_ENDIAN) != 0x494433)
 		return 0;
 
 	/* Check if any of the high bits of the (synchsafe int) size are set */
-	if (tvb_get_guint8(tvb, 7) & 0x80 ||
-	    tvb_get_guint8(tvb, 8) & 0x80 ||
-	    tvb_get_guint8(tvb, 9) & 0x80 ||
-	    tvb_get_guint8(tvb, 10) & 0x80)
+	if (tvb_get_uint8(tvb, 7) & 0x80 ||
+	    tvb_get_uint8(tvb, 8) & 0x80 ||
+	    tvb_get_uint8(tvb, 9) & 0x80 ||
+	    tvb_get_uint8(tvb, 10) & 0x80)
 		return 0;
 
 	/* Looks like this is ID3v2... */
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "ID3v2");
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	size = decode_synchsafe_int(tvb_get_guint32(tvb, 6, ENC_BIG_ENDIAN));
+	size = decode_synchsafe_int(tvb_get_uint32(tvb, 6, ENC_BIG_ENDIAN));
 	/* `size` does not include the 10-byte header */
         id3v2_tvb = tvb_new_subset_length(tvb, offset, size+10);
 	id3v2_item = proto_tree_add_item(tree, hf_id3v2, id3v2_tvb, offset, tvb_captured_length(id3v2_tvb), ENC_NA);
@@ -434,7 +434,7 @@ dissect_id3v2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 	proto_tree_add_item(id3v2_tree, hf_id3v2_file_id, id3v2_tvb, offset, 3, ENC_ISO_8859_1);
 	offset += 3;
 
-	id3_version = tvb_get_guint8(tvb, offset); /* Fetch just the major version info */
+	id3_version = tvb_get_uint8(tvb, offset); /* Fetch just the major version info */
 	proto_tree_add_item(id3v2_tree, hf_id3v2_version, id3v2_tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset += 2;
 
@@ -532,7 +532,7 @@ proto_register_id3v2(void)
 		FT_BYTES, BASE_NONE, NULL, 0, NULL, HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 	    &ett_id3v2,
 	    &ett_id3v2_frame,
 	};

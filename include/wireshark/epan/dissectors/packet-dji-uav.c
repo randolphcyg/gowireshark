@@ -30,7 +30,7 @@ void proto_reg_handoff_djiuav(void);
 static dissector_handle_t djiuav_handle;
 
 /* Enable desegmentation of djiuav over TCP */
-static gboolean djiuav_desegment = TRUE;
+static bool djiuav_desegment = true;
 
 /* Command/Response tracking */
 typedef struct _djiuav_conv_info_t {
@@ -38,43 +38,43 @@ typedef struct _djiuav_conv_info_t {
 } djiuav_conv_info_t;
 
 typedef struct _djiuav_transaction_t {
-	guint16	seqno;
-	guint8  command;
-	guint32	request_frame;
-	guint32	reply_frame;
+	uint16_t	seqno;
+	uint8_t command;
+	uint32_t	request_frame;
+	uint32_t	reply_frame;
 	nstime_t request_time;
 } djiuav_transaction_t;
 
 /* Finally: Protocol specific stuff */
 
 /* protocol handles */
-static int proto_djiuav = -1;
+static int proto_djiuav;
 
 /* ett handles */
-static int ett_djiuav = -1;
+static int ett_djiuav;
 
 /* hf elements */
-static int hf_djiuav_magic = -1;
-static int hf_djiuav_length = -1;
-static int hf_djiuav_flags = -1;
-static int hf_djiuav_seqno = -1;
-static int hf_djiuav_cmd = -1;
-static int hf_djiuav_checksum = -1;
+static int hf_djiuav_magic;
+static int hf_djiuav_length;
+static int hf_djiuav_flags;
+static int hf_djiuav_seqno;
+static int hf_djiuav_cmd;
+static int hf_djiuav_checksum;
 #if 0
-static int hf_djiuav_cmd04_unknown = -1;
-static int hf_djiuav_resp04_unknown = -1;
+static int hf_djiuav_cmd04_unknown;
+static int hf_djiuav_resp04_unknown;
 #endif
-static int hf_djiuav_cmd20_unknown = -1;
+static int hf_djiuav_cmd20_unknown;
 #if 0
-static int hf_djiuav_resp20_unknown = -1;
+static int hf_djiuav_resp20_unknown;
 #endif
-static int hf_djiuav_cmdunk = -1;
-static int hf_djiuav_respunk = -1;
-static int hf_djiuav_extradata = -1;
+static int hf_djiuav_cmdunk;
+static int hf_djiuav_respunk;
+static int hf_djiuav_extradata;
 /* hf request/response tracking */
-static int hf_djiuav_response_in = -1;
-static int hf_djiuav_response_to = -1;
-static int hf_djiuav_response_time = -1;
+static int hf_djiuav_response_in;
+static int hf_djiuav_response_to;
+static int hf_djiuav_response_time;
 
 #define PROTO_SHORT_NAME "DJIUAV"
 #define PROTO_LONG_NAME "DJI UAV Drone Control Protocol"
@@ -89,19 +89,19 @@ static const value_string djiuav_pdu_type[] = {
 
 static void
 request_response_handling(tvbuff_t *tvb, packet_info *pinfo, proto_tree *djiuav_tree,
-	guint32 offset)
+	uint32_t offset)
 {
 	conversation_t		*conversation;
 	djiuav_conv_info_t	*djiuav_info;
 	djiuav_transaction_t	*djiuav_trans;
 
-	guint16			seq_no;
-	gboolean		is_cmd;
-	guint8			packet_type;
+	uint16_t			seq_no;
+	bool		is_cmd;
+	uint8_t			packet_type;
 
 	is_cmd = (pinfo->match_uint == pinfo->destport);
 	seq_no = tvb_get_letohs(tvb, offset + 4);
-	packet_type = tvb_get_guint8(tvb, offset + 6);
+	packet_type = tvb_get_uint8(tvb, offset + 6);
 
 	conversation = find_or_create_conversation(pinfo);
 	djiuav_info = (djiuav_conv_info_t *)conversation_get_proto_data(conversation, proto_djiuav);
@@ -119,9 +119,9 @@ request_response_handling(tvbuff_t *tvb, packet_info *pinfo, proto_tree *djiuav_
 			djiuav_trans->request_time=pinfo->abs_ts;
 			djiuav_trans->seqno=seq_no;
 			djiuav_trans->command=packet_type;
-			wmem_map_insert(djiuav_info->pdus, GUINT_TO_POINTER((guint)seq_no), (void *)djiuav_trans);
+			wmem_map_insert(djiuav_info->pdus, GUINT_TO_POINTER((unsigned)seq_no), (void *)djiuav_trans);
 		} else {
-			djiuav_trans=(djiuav_transaction_t *)wmem_map_lookup(djiuav_info->pdus, GUINT_TO_POINTER((guint)seq_no));
+			djiuav_trans=(djiuav_transaction_t *)wmem_map_lookup(djiuav_info->pdus, GUINT_TO_POINTER((unsigned)seq_no));
 			if (djiuav_trans) {
 				/* Special case: djiuav seems to send 0x24 replies with seqno 0 and without a request */
 				if (djiuav_trans->reply_frame == 0)
@@ -129,7 +129,7 @@ request_response_handling(tvbuff_t *tvb, packet_info *pinfo, proto_tree *djiuav_
 			}
 		}
 	} else {
-		djiuav_trans=(djiuav_transaction_t *)wmem_map_lookup(djiuav_info->pdus, GUINT_TO_POINTER((guint)seq_no));
+		djiuav_trans=(djiuav_transaction_t *)wmem_map_lookup(djiuav_info->pdus, GUINT_TO_POINTER((unsigned)seq_no));
 	}
 
 	/* djiuav_trans may be 0 in case it's a reply without a matching request */
@@ -165,13 +165,13 @@ dissect_djiuav_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 {
 	proto_item		*ti;
 	proto_tree		*djiuav_tree = NULL;
-	guint32			offset = 0;
-	guint32			pdu_length;
-	guint8			packet_type;
-	gboolean		is_cmd;
+	uint32_t			offset = 0;
+	uint32_t			pdu_length;
+	uint8_t			packet_type;
+	bool		is_cmd;
 
 	is_cmd = (pinfo->match_uint == pinfo->destport);
-	packet_type = tvb_get_guint8(tvb, 6);
+	packet_type = tvb_get_uint8(tvb, 6);
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_SHORT_NAME);
 	col_add_str(pinfo->cinfo, COL_INFO, is_cmd?"C: ":"R: ");
@@ -188,7 +188,7 @@ dissect_djiuav_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 			ENC_BIG_ENDIAN);
 		offset += 2;
 
-		pdu_length = tvb_get_guint8(tvb, offset);
+		pdu_length = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(djiuav_tree, hf_djiuav_length, tvb, offset, 1,
 			ENC_NA);
 		offset += 1;
@@ -241,23 +241,23 @@ dissect_djiuav_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 	return offset;
 }
 
-static gboolean
+static bool
 test_djiuav(tvbuff_t *tvb)
 {
 	/* Minimum of 8 bytes, beginning with magic bytes 0x55BB */
 	if ( tvb_captured_length(tvb) < 8 /* Size of a command with empty data is at least 8 */
 		|| tvb_get_ntohs(tvb, 0) != 0x55BB
 	) {
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }
 
 /* Get the length of the full pdu */
-static guint
+static unsigned
 get_djiuav_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-	return tvb_get_guint8(tvb, offset + 2);
+	return tvb_get_uint8(tvb, offset + 2);
 }
 
 static int
@@ -351,7 +351,7 @@ proto_register_djiuav(void)
 			FT_RELATIVE_TIME, BASE_NONE, NULL,
 			0x0, "Time between Command and matching Response", HFILL }},
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_djiuav,
 	};
 	module_t *djiuav_module;

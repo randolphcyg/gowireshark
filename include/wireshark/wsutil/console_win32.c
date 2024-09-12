@@ -15,7 +15,9 @@
 #include <stdlib.h>
 
 #include <glib.h>
+
 #include <wsutil/file_util.h>
+#include <wsutil/filesystem.h>
 
 #include "console_win32.h"
 
@@ -26,7 +28,7 @@
 
 static bool has_console;  /* true if app has console */
 static bool console_wait; /* "Press any key..." */
-static bool stdin_capture = false; /* Don't grab stdin & stdout if true */
+static bool stdin_capture; /* Don't grab stdin & stdout if true */
 
 /*
  * Check whether a given standard handle needs to be redirected.
@@ -161,7 +163,11 @@ do a FreeConsole() first. */
         if (AllocConsole()) {
             /* That succeeded. */
             console_wait = true;
-            SetConsoleTitle(_T("Wireshark Debug Console"));
+            if (is_packet_configuration_namespace()) {
+                SetConsoleTitle(_T("Wireshark Debug Console"));
+            } else {
+                SetConsoleTitle(_T("Logray Debug Console"));
+            }
         } else {
             /* On Windows XP, this still fails; FreeConsole() apparently
                 doesn't clear the state, as it does on Windows 7. */

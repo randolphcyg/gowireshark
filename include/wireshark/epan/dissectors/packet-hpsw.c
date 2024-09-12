@@ -19,34 +19,34 @@
 void proto_register_hpsw(void);
 void proto_reg_handoff_hpsw(void);
 
-static int proto_hpsw = -1;
+static int proto_hpsw;
 
-static int hf_hpsw_version = -1;
-static int hf_hpsw_type = -1;
-static int hf_hpsw_tlvtype = -1;
-static int hf_hpsw_tlvlength = -1;
-static int hf_hpsw_field_10 = -1;
-static int hf_hpsw_own_mac_addr = -1;
-static int hf_hpsw_neighbor_mac_addr = -1;
-static int hf_hpsw_field_6 = -1;
-static int hf_hpsw_field_9 = -1;
-static int hf_hpsw_device_version = -1;
-static int hf_hpsw_device_name = -1;
-static int hf_hpsw_ip_addr = -1;
-static int hf_hpsw_field_8 = -1;
-static int hf_hpsw_domain = -1;
-static int hf_hpsw_field_12 = -1;
-static int hf_hpsw_config_name = -1;
-static int hf_hpsw_root_mac_addr = -1;
-static int hf_hpsw_device_id = -1;
-static int hf_hpsw_device_id_data = -1;
-static int hf_hpsw_data = -1;
+static int hf_hpsw_version;
+static int hf_hpsw_type;
+static int hf_hpsw_tlvtype;
+static int hf_hpsw_tlvlength;
+static int hf_hpsw_field_10;
+static int hf_hpsw_own_mac_addr;
+static int hf_hpsw_neighbor_mac_addr;
+static int hf_hpsw_field_6;
+static int hf_hpsw_field_9;
+static int hf_hpsw_device_version;
+static int hf_hpsw_device_name;
+static int hf_hpsw_ip_addr;
+static int hf_hpsw_field_8;
+static int hf_hpsw_domain;
+static int hf_hpsw_field_12;
+static int hf_hpsw_config_name;
+static int hf_hpsw_root_mac_addr;
+static int hf_hpsw_device_id;
+static int hf_hpsw_device_id_data;
+static int hf_hpsw_data;
 
 
-static gint ett_hpsw = -1;
-static gint ett_hpsw_tlv = -1;
+static int ett_hpsw;
+static int ett_hpsw_tlv;
 
-static expert_field ei_hpsw_tlvlength_bad = EI_INIT;
+static expert_field ei_hpsw_tlvlength_bad;
 
 static dissector_handle_t hpsw_handle;
 
@@ -85,7 +85,7 @@ static const value_string hpsw_tlv_type_vals[] = {
 
 static void
 dissect_hpsw_tlv(tvbuff_t *tvb, packet_info *pinfo, int offset, int length,
-                 proto_tree *tree, proto_item *ti, guint8 type)
+                 proto_tree *tree, proto_item *ti, uint8_t type)
 {
     switch (type) {
 
@@ -220,13 +220,13 @@ dissect_hpsw(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     proto_tree *hp_tree;
     proto_tree *tlv_tree;
     proto_item *ti;
-    guint8      version;
-    gint        offset = 0;
+    uint8_t     version;
+    int         offset = 0;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "HP");
     col_set_str(pinfo->cinfo, COL_INFO, "HP Switch Protocol");
 
-    version = tvb_get_guint8(tvb, 0);
+    version = tvb_get_uint8(tvb, 0);
 
     ti = proto_tree_add_item(tree, proto_hpsw, tvb, 0, -1, ENC_NA);
     hp_tree = proto_item_add_subtree(ti, ett_hpsw);
@@ -238,10 +238,10 @@ dissect_hpsw(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
     while ( tvb_reported_length_remaining(tvb, offset) > 0 )
     {
-        guint8 type, length;
+        uint8_t type, length;
 
-        type   = tvb_get_guint8(tvb, offset);
-        length = tvb_get_guint8(tvb, offset+1);
+        type   = tvb_get_uint8(tvb, offset);
+        length = tvb_get_uint8(tvb, offset+1);
 
         /* make sure still in valid tlv */
         if (( length < 1 ) || ( length > tvb_reported_length_remaining(tvb, offset+2)))
@@ -332,7 +332,7 @@ proto_register_hpsw(void)
             NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_hpsw,
         &ett_hpsw_tlv
     };

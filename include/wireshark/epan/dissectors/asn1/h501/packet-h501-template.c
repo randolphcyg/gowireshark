@@ -15,6 +15,7 @@
 #include <epan/prefs.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-tpkt.h"
 #include "packet-per.h"
@@ -28,11 +29,11 @@
 void proto_register_h501(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_h501 = -1;
+static int proto_h501;
 #include "packet-h501-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_h501 = -1;
+static int ett_h501;
 #include "packet-h501-ett.c"
 
 /* Dissectors */
@@ -42,7 +43,7 @@ static dissector_handle_t h501_tcp_handle;
 
 /* Preferences */
 #define H501_PORT 2099
-static gboolean h501_desegment_tcp = TRUE;
+static bool h501_desegment_tcp = true;
 
 void proto_reg_handoff_h501(void);
 
@@ -65,7 +66,7 @@ dissect_h501_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 static int
 dissect_h501_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  dissect_tpkt_encap(tvb, pinfo, tree, FALSE, h501_pdu_handle);
+  dissect_tpkt_encap(tvb, pinfo, tree, false, h501_pdu_handle);
   return tvb_captured_length(tvb);
 }
 
@@ -86,7 +87,7 @@ void proto_register_h501(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_h501,
 #include "packet-h501-ettarr.c"
   };

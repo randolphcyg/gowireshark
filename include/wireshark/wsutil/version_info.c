@@ -32,6 +32,10 @@
 #include <zlib.h>
 #endif
 
+//#ifdef HAVE_ZLIBNG
+//#include <zlib-ng.h>
+//#endif
+
 #include "vcs_version.h"
 
 #include <wsutil/cpu_info.h>
@@ -60,11 +64,11 @@ ws_init_version_info(const char *appname,
 
 	copyright_info_str = g_string_new(get_copyright_info());
 	end_string(copyright_info_str);
-	copyright_info = g_string_free(copyright_info_str, false);
+	copyright_info = g_string_free(copyright_info_str, FALSE);
 
 	license_info_str = g_string_new(get_license_info_short());
 	end_string(license_info_str);
-	license_info = g_string_free(license_info_str, false);
+	license_info = g_string_free(license_info_str, FALSE);
 
 	/*
 	 * Combine the supplied application name string with the
@@ -86,8 +90,8 @@ ws_init_version_info(const char *appname,
 	/* Get the run-time version information string */
 	runtime_info_str = get_runtime_version_info(gather_runtime);
 
-	comp_info = g_string_free(comp_info_str, false);
-	runtime_info = g_string_free(runtime_info_str, false);
+	comp_info = g_string_free(comp_info_str, FALSE);
+	runtime_info = g_string_free(runtime_info_str, FALSE);
 
 	/* Add this information to the information to be reported on a crash. */
 	ws_add_crash_info("%s\n"
@@ -162,7 +166,7 @@ gather_zlib_compile_info(feature_list l)
 {
 #ifdef HAVE_ZLIB
 #ifdef ZLIB_VERSION
-	with_feature(l, "zlib "ZLIB_VERSION);
+	with_feature(l, "zlib " ZLIB_VERSION);
 #else
 	with_feature(l, "zlib (version unknown)");
 #endif /* ZLIB_VERSION */
@@ -170,6 +174,17 @@ gather_zlib_compile_info(feature_list l)
 	without_feature(l, "zlib");
 #endif /* HAVE_ZLIB */
 }
+
+void
+gather_zlib_ng_compile_info(feature_list l)
+{
+#ifdef HAVE_ZLIBNG
+	with_feature(l, "zlib-ng " ZLIBNG_VERSION_STRING);
+#else
+	without_feature(l, "zlib-ng");
+#endif /* HAVE_ZLIB */
+}
+
 
 /*
  * Get various library compile-time versions, put them in a GString,
@@ -513,18 +528,28 @@ get_runtime_version_info(gather_feature_func gather_runtime)
 const char *
 get_ws_vcs_version_info(void)
 {
-#ifdef VCSVERSION
-	return VERSION " (" VCSVERSION ")";
+#ifdef VCS_VERSION
+	return VERSION " (" VCS_VERSION ")";
 #else
 	return VERSION;
 #endif
 }
 
 const char *
+get_lr_vcs_version_info(void)
+{
+#ifdef VCS_COMMIT_ID
+	return LOG_VERSION " (" VCS_NUM_COMMITS "-" VCS_COMMIT_ID ")";
+#else
+	return LOG_VERSION;
+#endif
+}
+
+const char *
 get_ws_vcs_version_info_short(void)
 {
-#ifdef VCSVERSION
-	return VCSVERSION;
+#ifdef VCS_VERSION
+	return VCS_VERSION;
 #else
 	return VERSION;
 #endif

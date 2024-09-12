@@ -32,18 +32,18 @@
 void proto_register_db_lsp(void);
 void proto_reg_handoff_db_lsp(void);
 
-static int proto_db_lsp = -1;
-static int proto_db_lsp_disc = -1;
+static int proto_db_lsp;
+static int proto_db_lsp_disc;
 
-static int hf_type = -1;
-static int hf_magic = -1;
-static int hf_length = -1;
-static int hf_opvalue = -1;
-static int hf_data = -1;
-static int hf_value = -1;
-static int hf_text = -1;
+static int hf_type;
+static int hf_magic;
+static int hf_length;
+static int hf_opvalue;
+static int hf_data;
+static int hf_value;
+static int hf_text;
 
-static gint ett_db_lsp = -1;
+static int ett_db_lsp;
 
 static heur_dissector_list_t heur_subdissector_list;
 
@@ -51,9 +51,9 @@ static dissector_handle_t db_lsp_tcp_handle;
 static dissector_handle_t db_lsp_udp_handle;
 
 /* Use heuristic */
-static gboolean try_heuristic = TRUE;
+static bool try_heuristic = true;
 /* desegmentation of tcp payload */
-static gboolean db_lsp_desegment = TRUE;
+static bool db_lsp_desegment = true;
 
 #define TYPE_CONFIG   0x16
 #define TYPE_DATA     0x17
@@ -76,9 +76,9 @@ dissect_db_lsp_pdu (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 {
   proto_tree *db_lsp_tree;
   proto_item *db_lsp_item;
-  gint        offset = 0;
-  guint8      type, opvalue;
-  guint16     magic, length;
+  int         offset = 0;
+  uint8_t     type, opvalue;
+  uint16_t    magic, length;
 
   col_set_str (pinfo->cinfo, COL_PROTOCOL, PSNAME);
   col_set_str (pinfo->cinfo, COL_INFO, PNAME);
@@ -86,7 +86,7 @@ dissect_db_lsp_pdu (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
   db_lsp_item = proto_tree_add_item (tree, proto_db_lsp, tvb, offset, -1, ENC_NA);
   db_lsp_tree = proto_item_add_subtree (db_lsp_item, ett_db_lsp);
 
-  type = tvb_get_guint8 (tvb, offset);
+  type = tvb_get_uint8 (tvb, offset);
   proto_tree_add_item (db_lsp_tree, hf_type, tvb, offset, 1, ENC_BIG_ENDIAN);
   offset += 1;
 
@@ -110,7 +110,7 @@ dissect_db_lsp_pdu (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
   }
 
   if (type == TYPE_CONFIG) {
-    opvalue = tvb_get_guint8 (tvb, offset);
+    opvalue = tvb_get_uint8 (tvb, offset);
     proto_tree_add_item (db_lsp_tree, hf_opvalue, tvb, offset, 1, ENC_BIG_ENDIAN);
 
     if (opvalue == OP_CERT) {
@@ -132,7 +132,7 @@ dissect_db_lsp_pdu (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
   return tvb_reported_length(tvb);
 }
 
-static guint
+static unsigned
 get_db_lsp_pdu_len (packet_info *pinfo _U_, tvbuff_t *tvb,
                     int offset, void *data _U_)
 {
@@ -157,7 +157,7 @@ dissect_db_lsp_disc (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
 {
   proto_tree *db_lsp_tree;
   proto_item *db_lsp_item;
-  gint        offset = 0;
+  int         offset = 0;
   heur_dtbl_entry_t *hdtbl_entry;
   proto_tree *data_subtree;
 
@@ -220,7 +220,7 @@ proto_register_db_lsp (void)
         NULL, HFILL } },
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_db_lsp,
   };
 
@@ -231,7 +231,7 @@ proto_register_db_lsp (void)
   db_lsp_tcp_handle = register_dissector ("db-lsp.tcp", dissect_db_lsp_tcp, proto_db_lsp);
   db_lsp_udp_handle = register_dissector ("db-lsp.udp", dissect_db_lsp_disc, proto_db_lsp_disc);
 
-  heur_subdissector_list = register_heur_dissector_list("db-lsp", proto_db_lsp);
+  heur_subdissector_list = register_heur_dissector_list_with_description("db-lsp", PSNAME_DISC " payload", proto_db_lsp);
 
   proto_register_field_array (proto_db_lsp, hf, array_length (hf));
   proto_register_subtree_array (ett, array_length (ett));

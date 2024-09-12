@@ -40,7 +40,7 @@ static const value_string sapenqueue_dest_vals[] = {
 	{  2, "ASYNC_ENQUEUE" },
 	{  3, "SERVER_ADMIN" },
 	{  5, "STAT_QUERY" },
-	{  6, "CONECTION_ADMIN" },
+	{  6, "CONNECTION_ADMIN" },
 	{  7, "ENQ_TO_REP" },
 	{  8, "REP_TO_ENQ" },
 	/* NULL */
@@ -119,59 +119,59 @@ static const value_string sapenqueue_conn_admin_param_vals[] = {
 	{  0, NULL }
 };
 
-static int proto_sapenqueue = -1;
+static int proto_sapenqueue;
 
-static int hf_sapenqueue_magic = -1;
-static int hf_sapenqueue_id = -1;
-static int hf_sapenqueue_length = -1;
-static int hf_sapenqueue_length_frag = -1;
-static int hf_sapenqueue_dest = -1;
-static int hf_sapenqueue_conn_admin_opcode = -1;
-static int hf_sapenqueue_more_frags = -1;
-static int hf_sapenqueue_type = -1;
+static int hf_sapenqueue_magic;
+static int hf_sapenqueue_id;
+static int hf_sapenqueue_length;
+static int hf_sapenqueue_length_frag;
+static int hf_sapenqueue_dest;
+static int hf_sapenqueue_conn_admin_opcode;
+static int hf_sapenqueue_more_frags;
+static int hf_sapenqueue_type;
 
-static int hf_sapenqueue_server_admin = -1;
-static int hf_sapenqueue_server_admin_eyecatcher = -1;
-static int hf_sapenqueue_server_admin_version = -1;
-static int hf_sapenqueue_server_admin_flag = -1;
-static int hf_sapenqueue_server_admin_length = -1;
-static int hf_sapenqueue_server_admin_opcode = -1;
-static int hf_sapenqueue_server_admin_flags = -1;
-static int hf_sapenqueue_server_admin_rc = -1;
-static int hf_sapenqueue_server_admin_value = -1;
+static int hf_sapenqueue_server_admin;
+static int hf_sapenqueue_server_admin_eyecatcher;
+static int hf_sapenqueue_server_admin_version;
+static int hf_sapenqueue_server_admin_flag;
+static int hf_sapenqueue_server_admin_length;
+static int hf_sapenqueue_server_admin_opcode;
+static int hf_sapenqueue_server_admin_flags;
+static int hf_sapenqueue_server_admin_rc;
+static int hf_sapenqueue_server_admin_value;
 
-static int hf_sapenqueue_server_admin_trace_request = -1;
-static int hf_sapenqueue_server_admin_trace_protocol_version = -1;
-static int hf_sapenqueue_server_admin_trace_action = -1;
-static int hf_sapenqueue_server_admin_trace_limit = -1;
-static int hf_sapenqueue_server_admin_trace_thread = -1;
-static int hf_sapenqueue_server_admin_trace_level = -1;
-static int hf_sapenqueue_server_admin_trace_logging = -1;
-static int hf_sapenqueue_server_admin_trace_max_file_size = -1;
-static int hf_sapenqueue_server_admin_trace_nopatterns = -1;
-static int hf_sapenqueue_server_admin_trace_eyecatcher = -1;
-static int hf_sapenqueue_server_admin_trace_patterns = -1;
-static int hf_sapenqueue_server_admin_trace_unknown = -1;
+static int hf_sapenqueue_server_admin_trace_request;
+static int hf_sapenqueue_server_admin_trace_protocol_version;
+static int hf_sapenqueue_server_admin_trace_action;
+static int hf_sapenqueue_server_admin_trace_limit;
+static int hf_sapenqueue_server_admin_trace_thread;
+static int hf_sapenqueue_server_admin_trace_level;
+static int hf_sapenqueue_server_admin_trace_logging;
+static int hf_sapenqueue_server_admin_trace_max_file_size;
+static int hf_sapenqueue_server_admin_trace_nopatterns;
+static int hf_sapenqueue_server_admin_trace_eyecatcher;
+static int hf_sapenqueue_server_admin_trace_patterns;
+static int hf_sapenqueue_server_admin_trace_unknown;
 
-static int hf_sapenqueue_server_admin_trace_pattern = -1;
-static int hf_sapenqueue_server_admin_trace_pattern_len = -1;
-static int hf_sapenqueue_server_admin_trace_pattern_value = -1;
+static int hf_sapenqueue_server_admin_trace_pattern;
+static int hf_sapenqueue_server_admin_trace_pattern_len;
+static int hf_sapenqueue_server_admin_trace_pattern_value;
 
-static int hf_sapenqueue_conn_admin = -1;
-static int hf_sapenqueue_conn_admin_params_count = -1;
-static int hf_sapenqueue_conn_admin_params = -1;
-static int hf_sapenqueue_conn_admin_param = -1;
-static int hf_sapenqueue_conn_admin_param_id = -1;
-static int hf_sapenqueue_conn_admin_param_len = -1;
-static int hf_sapenqueue_conn_admin_param_value = -1;
-static int hf_sapenqueue_conn_admin_param_name = -1;
+static int hf_sapenqueue_conn_admin;
+static int hf_sapenqueue_conn_admin_params_count;
+static int hf_sapenqueue_conn_admin_params;
+static int hf_sapenqueue_conn_admin_param;
+static int hf_sapenqueue_conn_admin_param_id;
+static int hf_sapenqueue_conn_admin_param_len;
+static int hf_sapenqueue_conn_admin_param_value;
+static int hf_sapenqueue_conn_admin_param_name;
 
-static gint ett_sapenqueue = -1;
+static int ett_sapenqueue;
 
 /* Expert info */
-static expert_field ei_sapenqueue_pattern_invalid_length= EI_INIT;
-static expert_field ei_sapenqueue_support_invalid_offset = EI_INIT;
-static expert_field ei_sapenqueue_support_invalid_length = EI_INIT;
+static expert_field ei_sapenqueue_pattern_invalid_length;
+static expert_field ei_sapenqueue_support_invalid_offset;
+static expert_field ei_sapenqueue_support_invalid_length;
 
 /* Protocol handle */
 static dissector_handle_t sapenqueue_handle;
@@ -185,8 +185,8 @@ void proto_register_sapenqueue(void);
 
 
 static void
-dissect_sapenqueue_server_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset){
-	guint8 opcode = 0;
+dissect_sapenqueue_server_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset){
+	uint8_t opcode = 0;
 	proto_item *server_admin = NULL;
 	proto_tree *server_admin_tree = NULL;
 
@@ -204,7 +204,7 @@ dissect_sapenqueue_server_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 	offset += 1;
 	proto_tree_add_item(server_admin_tree, hf_sapenqueue_server_admin_length, tvb, offset, 4, ENC_BIG_ENDIAN);
 	offset += 4;
-	opcode = tvb_get_guint8(tvb, offset);
+	opcode = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(server_admin_tree, hf_sapenqueue_server_admin_opcode, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset += 1;
 	proto_tree_add_item(server_admin_tree, hf_sapenqueue_server_admin_flags, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -217,8 +217,8 @@ dissect_sapenqueue_server_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 	if (tvb_reported_length_remaining(tvb, offset) > 0){
 		switch(opcode){
 			case 0x06:{		/* EnAdmTraceRequest */
-				guint8 pattern_length = 0;
-				guint32 nopatterns = 0, total_length = 0;
+				uint8_t pattern_length = 0;
+				uint32_t nopatterns = 0, total_length = 0;
 				proto_item *trace_request = NULL, *trace_request_patterns = NULL, *trace_request_pattern = NULL;
 				proto_tree *trace_request_tree = NULL, *trace_request_patterns_tree = NULL, *trace_request_pattern_tree = NULL;
 
@@ -261,13 +261,13 @@ dissect_sapenqueue_server_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 					trace_request_pattern = proto_tree_add_item(trace_request_patterns_tree, hf_sapenqueue_server_admin_trace_pattern, tvb, offset, 1, ENC_NA);
 					trace_request_pattern_tree = proto_item_add_subtree(trace_request_pattern, ett_sapenqueue);
 
-					pattern_length = tvb_get_guint8(tvb, offset) + 1; /* Pattern string is null terminated */
+					pattern_length = tvb_get_uint8(tvb, offset) + 1; /* Pattern string is null terminated */
 					proto_tree_add_item(trace_request_pattern_tree, hf_sapenqueue_server_admin_trace_pattern_len, tvb, offset, 1, ENC_BIG_ENDIAN);
 					offset += 1;
 
 					/* Set the max length to the remaining of the packet, just in case a malformed packet arrives */
 					if (!tvb_offset_exists(tvb, offset + pattern_length)) {
-						pattern_length = (guint8)tvb_reported_length_remaining(tvb, offset);
+						pattern_length = (uint8_t)tvb_reported_length_remaining(tvb, offset);
 						expert_add_info(pinfo, trace_request_pattern, &ei_sapenqueue_pattern_invalid_length);
 					}
 					proto_tree_add_item(trace_request_pattern_tree, hf_sapenqueue_server_admin_trace_pattern_value, tvb, offset, pattern_length, ENC_ASCII|ENC_NA);
@@ -296,7 +296,7 @@ dissect_sapenqueue_server_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 
 
 static void
-dissect_sapenqueue_conn_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint8 opcode){
+dissect_sapenqueue_conn_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset, uint8_t opcode){
 	proto_item *conn_admin = NULL;
 	proto_tree *conn_admin_tree = NULL;
 
@@ -306,9 +306,9 @@ dissect_sapenqueue_conn_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 	switch (opcode){
 		case 0x01:		/* Parameter Request */
 		case 0x02:{		/* Parameter Response */
-			gint name_length_remaining = 0;
-			guint8 length = 0, total_length = 0;
-			guint32 count = 0, id = 0, name_length = 0;
+			int name_length_remaining = 0;
+			uint8_t length = 0, total_length = 0;
+			uint32_t count = 0, id = 0, name_length = 0;
 			proto_item *params = NULL, *param = NULL;
 			proto_tree *params_tree = NULL, *param_tree = NULL;
 
@@ -359,8 +359,8 @@ dissect_sapenqueue_conn_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 							expert_add_info(pinfo, param, &ei_sapenqueue_support_invalid_offset);
 							break;
 						}
-						if ((guint32)name_length_remaining < name_length) {
-							name_length = (guint32)name_length_remaining;
+						if ((uint32_t)name_length_remaining < name_length) {
+							name_length = (uint32_t)name_length_remaining;
 							expert_add_info(pinfo, param, &ei_sapenqueue_support_invalid_length);
 						}
 
@@ -395,8 +395,8 @@ dissect_sapenqueue_conn_admin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 static int
 dissect_sapenqueue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	guint8 dest = 0, type = 0, opcode = 0;
-	guint32 offset = 4;
+	uint8_t dest = 0, type = 0, opcode = 0;
+	uint32_t offset = 4;
 	proto_item *ti = NULL;
 	proto_tree *sapenqueue_tree = NULL;
 
@@ -408,15 +408,15 @@ dissect_sapenqueue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 	}
 
 	/* Add the protocol to the column */
-	col_add_str(pinfo->cinfo, COL_PROTOCOL, "SAPENQUEUE");
+	col_set_str(pinfo->cinfo, COL_PROTOCOL, "SAPENQUEUE");
 	/* Clear out stuff in the info column */
 	col_clear(pinfo->cinfo,COL_INFO);
 
-	dest = tvb_get_guint8(tvb, offset + 16);
+	dest = tvb_get_uint8(tvb, offset + 16);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "Dest=%s", val_to_str_const(dest, sapenqueue_dest_vals, "Unknown"));
 
-	opcode = tvb_get_guint8(tvb, offset + 17);
-	type = tvb_get_guint8(tvb, offset + 19);
+	opcode = tvb_get_uint8(tvb, offset + 17);
+	type = tvb_get_uint8(tvb, offset + 19);
 	col_append_fstr(pinfo->cinfo, COL_INFO, ",Type=%s", val_to_str_const(type, sapenqueue_type_vals, "Unknown"));
 
 	if (dest == 0x06){
@@ -461,7 +461,7 @@ dissect_sapenqueue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 }
 
 
-static gboolean
+static bool
 dissect_sapenqueue_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_){
 	conversation_t *conversation = NULL;
 
@@ -469,7 +469,7 @@ dissect_sapenqueue_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	 * packet is a Enqueue server packet.
 	 */
 	if (tvb_get_ntohl(tvb, 0) != 0xabcde123){
-		return (FALSE);
+		return false;
 	}
 
 	/* From now on this conversation is dissected as SAP Enqueue traffic */
@@ -479,7 +479,7 @@ dissect_sapenqueue_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	/* Now dissect the packet */
 	dissect_sapenqueue(tvb, pinfo, tree, data);
 
-	return (TRUE);
+	return true;
 }
 
 
@@ -580,7 +580,7 @@ proto_register_sapenqueue(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_sapenqueue
 	};
 

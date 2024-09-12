@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-mudurl.c                                                            */
-/* asn2wrs.py -b -L -p mudurl -c ./mudurl.cnf -s ./packet-mudurl-template -D . -O ../.. MUDURL.asn */
+/* asn2wrs.py -b -q -L -p mudurl -c ./mudurl.cnf -s ./packet-mudurl-template -D . -O ../.. MUDURL.asn */
 
 /* packet-mudurl-template.c
  * Routines for mudurl found in draft-ietf-opsawg-mud
@@ -18,6 +18,7 @@
 
 #include <epan/packet.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 /* #include "packet-mudurl.h" */ // At the moment we are not exporting.
@@ -32,8 +33,8 @@ void proto_reg_handoff_mudurl(void);
 
 
 /* Initialize the protocol and registered fields */
-static int proto_mudurl = -1;
-static int hf_mudurl_MUDURLSyntax_PDU = -1;       /* MUDURLSyntax */
+static int proto_mudurl;
+static int hf_mudurl_MUDURLSyntax_PDU;            /* MUDURLSyntax */
 
 /* Initialize the subtree pointers */
 /* #include "packet-mudurl-ett.c" */
@@ -56,8 +57,8 @@ dissect_mudurl_MUDURLSyntax(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset
 static int dissect_MUDURLSyntax_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_mudurl_MUDURLSyntax(FALSE, tvb, offset, &asn1_ctx, tree, hf_mudurl_MUDURLSyntax_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_mudurl_MUDURLSyntax(false, tvb, offset, &asn1_ctx, tree, hf_mudurl_MUDURLSyntax_PDU);
   return offset;
 }
 
@@ -75,7 +76,7 @@ void proto_register_mudurl(void) {
   };
 
   /* List of subtrees */
-  /*  static gint *ett[] = {
+  /*  static int *ett[] = {
 #include "packet-mudurl-ettarr.c"
   }; */
 

@@ -20,7 +20,9 @@
 #include <epan/epan_dissect.h>
 #include <epan/exceptions.h>
 #include "dfilter.h"
+#include "dfunctions.h"
 #include "dfilter-macro.h"
+#include "dfilter-plugin.h"
 #include "scanner_lex.h"
 #include <wsutil/wslog.h>
 #include <wsutil/ws_assert.h>
@@ -30,7 +32,7 @@
 #define DFILTER_TOKEN_ID_OFFSET	1
 
 /* Holds the singular instance of our Lemon parser object */
-static void*	ParserObj = NULL;
+static void*	ParserObj;
 
 df_loc_t loc_empty = {-1, 0};
 
@@ -76,7 +78,7 @@ dfw_set_error_location(dfwork_t *dfw, df_loc_t loc)
 }
 
 header_field_info *
-dfilter_resolve_unparsed(dfsyntax_t *dfs, const char *name)
+dfilter_resolve_unparsed(const char *name, GPtrArray *deprecated)
 {
 	header_field_info *hfinfo;
 
@@ -89,8 +91,8 @@ dfilter_resolve_unparsed(dfsyntax_t *dfs, const char *name)
 	hfinfo = proto_registrar_get_byalias(name);
 	if (hfinfo != NULL) {
 		/* It's an aliased field name */
-		if (dfs)
-			add_deprecated_token(dfs, name);
+		if (deprecated)
+			add_deprecated_token(deprecated, name);
 		return hfinfo;
 	}
 
@@ -113,14 +115,18 @@ dfilter_init(void)
 	/* Initialize the syntax-tree sub-sub-system */
 	sttype_init();
 
+	df_func_init();
 	dfilter_macro_init();
+	dfilter_plugins_init();
 }
 
 /* Clean-up the dfilter module */
 void
 dfilter_cleanup(void)
 {
+	dfilter_plugins_cleanup();
 	dfilter_macro_cleanup();
+	df_func_cleanup();
 
 	/* Free the Lemon Parser object */
 	if (ParserObj) {
@@ -208,6 +214,7 @@ static dfsyntax_t*
 dfsyntax_new(unsigned flags)
 {
 	dfsyntax_t *dfs = g_new0(dfsyntax_t, 1);
+	dfs->deprecated  = g_ptr_array_new_full(0, g_free);
 	dfs->flags = flags;
 	return dfs;
 }
@@ -228,7 +235,7 @@ dfsyntax_free(dfsyntax_t *dfs)
 		stnode_free(dfs->lval);
 
 	if (dfs->quoted_string)
-		g_string_free(dfs->quoted_string, true);
+		g_string_free(dfs->quoted_string, TRUE);
 
 
 
@@ -332,8 +339,9 @@ const char *tokenstr(int token)
 		case TOKEN_STRING:	return "STRING";
 		case TOKEN_CHARCONST:	return "CHARCONST";
 		case TOKEN_IDENTIFIER:	return "IDENTIFIER";
-		case TOKEN_CONSTANT:	return "CONSTANT";
+		case TOKEN_UNPARSED:	return "UNPARSED";
 		case TOKEN_LITERAL:	return "LITERAL";
+		case TOKEN_NUMBER:	return "NUMBER";
 		case TOKEN_FIELD:	return "FIELD";
 		case TOKEN_LBRACKET:	return "LBRACKET";
 		case TOKEN_RBRACKET:	return "RBRACKET";
@@ -348,18 +356,14 @@ const char *tokenstr(int token)
 		case TOKEN_DOLLAR:	return "DOLLAR";
 		case TOKEN_ATSIGN:	return "ATSIGN";
 		case TOKEN_HASH:	return "HASH";
+		case TOKEN_INDEX:	return "INDEX";
 	}
 	return "<unknown>";
 }
 
 void
-add_deprecated_token(dfsyntax_t *dfs, const char *token)
+add_deprecated_token(GPtrArray *deprecated, const char *token)
 {
-	if (dfs->deprecated == NULL)
-		dfs->deprecated  = g_ptr_array_new_full(0, g_free);
-
-	GPtrArray *deprecated = dfs->deprecated;
-
 	for (unsigned i = 0; i < deprecated->len; i++) {
 		const char *str = g_ptr_array_index(deprecated, i);
 		if (g_ascii_strcasecmp(token, str) == 0) {
@@ -546,8 +550,7 @@ compile_filter(const char *expanded_text, unsigned flags, df_error_t **err_ptr)
 	dfw = dfwork_new(expanded_text, dfs->flags);
 	dfw->st_root = dfs->st_root;
 	dfs->st_root = NULL;
-	if (dfs->deprecated)
-		dfw->deprecated = g_ptr_array_ref(dfs->deprecated);
+	dfw->deprecated = g_ptr_array_ref(dfs->deprecated);
 	dfsyntax_free(dfs);
 	dfs = NULL;
 
@@ -639,10 +642,47 @@ dfilter_compile_full(const char *text, dfilter_t **dfp,
 	}
 
 	*dfp = dfcode;
-	ws_log(WS_LOG_DOMAIN, LOG_LEVEL_INFO, "Compiled display filter: %s", text);
+	ws_info("Compiled display filter: %s", text);
 	return true;
 }
 
+struct stnode *dfilter_get_syntax_tree(const char *text)
+{
+	dfsyntax_t *dfs = NULL;
+	dfwork_t *dfw = NULL;
+
+	dfs = dfsyntax_new(DF_EXPAND_MACROS);
+
+	char *expanded_text = dfilter_macro_apply(text, NULL);
+	if (!expanded_text) {
+		dfsyntax_free(dfs);
+		return NULL;
+	}
+
+	bool ok = dfwork_parse(expanded_text, dfs);
+	if (!ok || !dfs->st_root) {
+		g_free(expanded_text);
+		dfsyntax_free(dfs);
+		return NULL;
+	}
+
+	dfw = dfwork_new(expanded_text, dfs->flags);
+	dfw->st_root = dfs->st_root;
+	dfs->st_root = NULL;
+	g_free(expanded_text);
+	dfsyntax_free(dfs);
+
+	if (!dfw_semcheck(dfw)) {
+		dfwork_free(dfw);
+		return NULL;
+	}
+
+	stnode_t *st_root = dfw->st_root;
+	dfw->st_root = NULL;
+	dfwork_free(dfw);
+
+	return st_root;
+}
 
 bool
 dfilter_apply(dfilter_t *df, proto_tree *tree)
@@ -656,6 +696,11 @@ dfilter_apply_edt(dfilter_t *df, epan_dissect_t* edt)
 	return dfvm_apply(df, edt->tree);
 }
 
+bool
+dfilter_apply_full(dfilter_t *df, proto_tree *tree, GPtrArray **fvals)
+{
+	return dfvm_apply_full(df, tree, fvals);
+}
 
 void
 dfilter_prime_proto_tree(const dfilter_t *df, proto_tree *tree)
@@ -718,11 +763,11 @@ dfilter_requires_columns(const dfilter_t *df)
 	}
 
 	/* XXX: Could cache this like packet_cache_proto_handles */
-	static int proto_cols = -1;
-	if (proto_cols == -1) {
+	static int proto_cols;
+	if (proto_cols <= 0) {
 		proto_cols = proto_get_id_by_filter_name("_ws.col");
 	}
-	ws_assert(proto_cols != -1);
+	ws_assert(proto_cols > 0);
 
 	return dfilter_interested_in_proto(df, proto_cols);
 }
@@ -782,7 +827,7 @@ dfilter_log_full(const char *domain, enum ws_log_level level,
 }
 
 static int
-compare_ref_layer(gconstpointer _a, gconstpointer _b)
+compare_ref_layer(const void *_a, const void *_b)
 {
 	const df_reference_t *a = *(const df_reference_t **)_a;
 	const df_reference_t *b = *(const df_reference_t **)_b;

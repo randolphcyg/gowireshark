@@ -1,7 +1,7 @@
 /* packet-xnap.c
  * Routines for dissecting NG-RAN Xn application protocol (XnAP)
  * 3GPP TS 38.423 packet dissection
- * Copyright 2018-2023, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2018-2024, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Ref:
- * 3GPP TS 38.423 V17.5.0 (2023-06)
+ * 3GPP TS 38.423 V18.2.0 (2024-06)
  */
 
 #include "config.h"
@@ -21,7 +21,10 @@
 #include <epan/sctpppids.h>
 #include <epan/proto_data.h>
 #include <epan/conversation.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
 
+#include <wsutil/array.h>
 #include "packet-xnap.h"
 #include "packet-per.h"
 #include "packet-lte-rrc.h"
@@ -32,6 +35,7 @@
 #include "packet-ranap.h"
 #include "packet-ntp.h"
 #include "packet-f1ap.h"
+#include "packet-nrppa.h"
 
 #ifdef _MSC_VER
 /* disable: "warning C4146: unary minus operator applied to unsigned type, result still unsigned" */
@@ -48,92 +52,125 @@
 #include "packet-xnap-val.h"
 
 /* Initialize the protocol and registered fields */
-static int proto_xnap = -1;
-static int hf_xnap_transportLayerAddressIPv4 = -1;
-static int hf_xnap_transportLayerAddressIPv6 = -1;
-static int hf_xnap_NG_RANTraceID_TraceID = -1;
-static int hf_xnap_NG_RANTraceID_TraceRecordingSessionReference = -1;
-static int hf_xnap_primaryRATRestriction_e_UTRA = -1;
-static int hf_xnap_primaryRATRestriction_nR = -1;
-static int hf_xnap_primaryRATRestriction_nR_unlicensed = -1;
-static int hf_xnap_primaryRATRestriction_nR_LEO = -1;
-static int hf_xnap_primaryRATRestriction_nR_MEO = -1;
-static int hf_xnap_primaryRATRestriction_nR_GEO = -1;
-static int hf_xnap_primaryRATRestriction_nR_OTHERSAT = -1;
-static int hf_xnap_primaryRATRestriction_reserved = -1;
-static int hf_xnap_secondaryRATRestriction_e_UTRA = -1;
-static int hf_xnap_secondaryRATRestriction_nR = -1;
-static int hf_xnap_secondaryRATRestriction_e_UTRA_unlicensed = -1;
-static int hf_xnap_secondaryRATRestriction_nR_unlicensed = -1;
-static int hf_xnap_secondaryRATRestriction_reserved = -1;
-static int hf_xnap_MDT_Location_Info_GNSS = -1;
-static int hf_xnap_MDT_Location_Info_reserved = -1;
-static int hf_xnap_MeasurementsToActivate_M1 = -1;
-static int hf_xnap_MeasurementsToActivate_M2 = -1;
-static int hf_xnap_MeasurementsToActivate_M3 = -1;
-static int hf_xnap_MeasurementsToActivate_M4 = -1;
-static int hf_xnap_MeasurementsToActivate_M5 = -1;
-static int hf_xnap_MeasurementsToActivate_LoggingM1FromEventTriggered = -1;
-static int hf_xnap_MeasurementsToActivate_M6 = -1;
-static int hf_xnap_MeasurementsToActivate_M7 = -1;
-static int hf_xnap_ReportCharacteristics_PRBPeriodic = -1;
-static int hf_xnap_ReportCharacteristics_TNLCapacityIndPeriodic = -1;
-static int hf_xnap_ReportCharacteristics_CompositeAvailableCapacityPeriodic = -1;
-static int hf_xnap_ReportCharacteristics_NumberOfActiveUEs = -1;
-static int hf_xnap_ReportCharacteristics_Reserved = -1;
+static int proto_xnap;
+static int hf_xnap_transportLayerAddressIPv4;
+static int hf_xnap_transportLayerAddressIPv6;
+static int hf_xnap_NG_RANTraceID_TraceID;
+static int hf_xnap_NG_RANTraceID_TraceRecordingSessionReference;
+static int hf_xnap_primaryRATRestriction_e_UTRA;
+static int hf_xnap_primaryRATRestriction_nR;
+static int hf_xnap_primaryRATRestriction_nR_unlicensed;
+static int hf_xnap_primaryRATRestriction_nR_LEO;
+static int hf_xnap_primaryRATRestriction_nR_MEO;
+static int hf_xnap_primaryRATRestriction_nR_GEO;
+static int hf_xnap_primaryRATRestriction_nR_OTHERSAT;
+static int hf_xnap_primaryRATRestriction_e_UTRA_LEO;
+static int hf_xnap_primaryRATRestriction_e_UTRA_MEO;
+static int hf_xnap_primaryRATRestriction_e_UTRA_GEO;
+static int hf_xnap_primaryRATRestriction_e_UTRA_OTHERSAT;
+static int hf_xnap_primaryRATRestriction_reserved;
+static int hf_xnap_secondaryRATRestriction_e_UTRA;
+static int hf_xnap_secondaryRATRestriction_nR;
+static int hf_xnap_secondaryRATRestriction_e_UTRA_unlicensed;
+static int hf_xnap_secondaryRATRestriction_nR_unlicensed;
+static int hf_xnap_secondaryRATRestriction_reserved;
+static int hf_xnap_MDT_Location_Info_GNSS;
+static int hf_xnap_MDT_Location_Info_reserved;
+static int hf_xnap_MeasurementsToActivate_M1;
+static int hf_xnap_MeasurementsToActivate_M2;
+static int hf_xnap_MeasurementsToActivate_M3;
+static int hf_xnap_MeasurementsToActivate_M4;
+static int hf_xnap_MeasurementsToActivate_M5;
+static int hf_xnap_MeasurementsToActivate_LoggingM1FromEventTriggered;
+static int hf_xnap_MeasurementsToActivate_M6;
+static int hf_xnap_MeasurementsToActivate_M7;
+static int hf_xnap_ReportCharacteristics_PRBPeriodic;
+static int hf_xnap_ReportCharacteristics_TNLCapacityIndPeriodic;
+static int hf_xnap_ReportCharacteristics_CompositeAvailableCapacityPeriodic;
+static int hf_xnap_ReportCharacteristics_NumberOfActiveUEsPeriodic;
+static int hf_xnap_ReportCharacteristics_RRCconnectionsPeriodic;
+static int hf_xnap_ReportCharacteristics_NR_UChannelListPeriodic;
+static int hf_xnap_ReportCharacteristics_Reserved;
+static int hf_xnap_ReportCharacteristicsForDataCollection_PredictedRadioResourceStatus;
+static int hf_xnap_ReportCharacteristicsForDataCollection_PredictedNumberofActiveUEs;
+static int hf_xnap_ReportCharacteristicsForDataCollection_PredictedRRCConnections;
+static int hf_xnap_ReportCharacteristicsForDataCollection_AverageUEThroughputDL;
+static int hf_xnap_ReportCharacteristicsForDataCollection_AverageUEThroughputUL;
+static int hf_xnap_ReportCharacteristicsForDataCollection_AveragePacketDelay;
+static int hf_xnap_ReportCharacteristicsForDataCollection_AveragePacketLossDL;
+static int hf_xnap_ReportCharacteristicsForDataCollection_EnergyCost;
+static int hf_xnap_ReportCharacteristicsForDataCollection_MeasuredUETrajectory;
+static int hf_xnap_ReportCharacteristicsForDataCollection_Reserved;
+static int hf_xnap_cellmeasurementFailedReportCharacteristics_PredictedRadioResourceStatus;
+static int hf_xnap_cellmeasurementFailedReportCharacteristics_PredictedNumberofActiveUEs;
+static int hf_xnap_cellmeasurementFailedReportCharacteristics_PredictedRRCConnections;
+static int hf_xnap_cellmeasurementFailedReportCharacteristics_Reserved;
+static int hf_xnap_nodemeasurementFailedReportCharacteristics_EnergyCost;
+static int hf_xnap_nodemeasurementFailedReportCharacteristics_AverageUEThroughputDL;
+static int hf_xnap_nodemeasurementFailedReportCharacteristics_AverageUEThroughputUL;
+static int hf_xnap_nodemeasurementFailedReportCharacteristics_AveragePacketDelay;
+static int hf_xnap_nodemeasurementFailedReportCharacteristics_AveragePacketLossDL;
+static int hf_xnap_nodemeasurementFailedReportCharacteristics_MeasuredUETrajectory;
+static int hf_xnap_nodemeasurementFailedReportCharacteristics_Reserved;
 #include "packet-xnap-hf.c"
 
 /* Initialize the subtree pointers */
-static gint ett_xnap = -1;
-static gint ett_xnap_RRC_Context = -1;
-static gint ett_nxap_container = -1;
-static gint ett_xnap_PLMN_Identity = -1;
-static gint ett_xnap_measurementTimingConfiguration = -1;
-static gint ett_xnap_TransportLayerAddress = -1;
-static gint ett_xnap_NG_RANTraceID = -1;
-static gint ett_xnap_LastVisitedEUTRANCellInformation = -1;
-static gint ett_xnap_LastVisitedNGRANCellInformation = -1;
-static gint ett_xnap_LastVisitedUTRANCellInformation = -1;
-static gint ett_xnap_LastVisitedGERANCellInformation = -1;
-static gint ett_xnap_UERadioCapabilityForPagingOfNR = -1;
-static gint ett_xnap_UERadioCapabilityForPagingOfEUTRA = -1;
-static gint ett_xnap_FiveGCMobilityRestrictionListContainer = -1;
-static gint ett_xnap_primaryRATRestriction = -1;
-static gint ett_xnap_secondaryRATRestriction = -1;
-static gint ett_xnap_ImmediateMDT_EUTRA = -1;
-static gint ett_xnap_MDT_Location_Info = -1;
-static gint ett_xnap_MeasurementsToActivate = -1;
-static gint ett_xnap_NRMobilityHistoryReport = -1;
-static gint ett_xnap_RACHReportContainer = -1;
-static gint ett_xnap_TargetCellinEUTRAN = -1;
-static gint ett_xnap_TDDULDLConfigurationCommonNR = -1;
-static gint ett_xnap_UERLFReportContainerLTE = -1;
-static gint ett_xnap_UERLFReportContainerNR = -1;
-static gint ett_xnap_burstArrivalTime = -1;
-static gint ett_xnap_ReportCharacteristics = -1;
-static gint ett_xnap_NRCellPRACHConfig = -1;
-static gint ett_xnap_anchorCarrier_NPRACHConfig = -1;
-static gint ett_xnap_anchorCarrier_EDT_NPRACHConfig = -1;
-static gint ett_xnap_anchorCarrier_Format2_NPRACHConfig = -1;
-static gint ett_xnap_anchorCarrier_Format2_EDT_NPRACHConfig = -1;
-static gint ett_xnap_non_anchorCarrier_NPRACHConfig = -1;
-static gint ett_xnap_non_anchorCarrier_Format2_NPRACHConfig = -1;
-static gint ett_xnap_anchorCarrier_NPRACHConfigTDD = -1;
-static gint ett_xnap_non_anchorCarrier_NPRACHConfigTDD = -1;
-static gint ett_xnap_non_anchorCarrierFrequency = -1;
-static gint ett_xnap_cSI_RS_Configuration = -1;
-static gint ett_xnap_sR_Configuration = -1;
-static gint ett_xnap_pDCCH_ConfigSIB1 = -1;
-static gint ett_xnap_sCS_Common = -1;
-static gint ett_xnap_LastVisitedPSCellInformation = -1;
-static gint ett_xnap_MeasObjectContainer = -1;
-static gint ett_xnap_RACH_Config_Common = -1;
-static gint ett_xnap_RACH_Config_Common_IAB = -1;
-static gint ett_xnap_ReportConfigContainer = -1;
-static gint ett_xnap_RLC_Bearer_Configuration = -1;
-static gint ett_xnap_SuccessfulHOReportContainer = -1;
-static gint ett_xnap_UERLFReportContainerLTEExtendBand = -1;
-static gint ett_xnap_MDTMode_EUTRA = -1;
+static int ett_xnap;
+static int ett_xnap_RRC_Context;
+static int ett_xnap_container;
+static int ett_xnap_PLMN_Identity;
+static int ett_xnap_measurementTimingConfiguration;
+static int ett_xnap_TransportLayerAddress;
+static int ett_xnap_NG_RANTraceID;
+static int ett_xnap_LastVisitedEUTRANCellInformation;
+static int ett_xnap_LastVisitedNGRANCellInformation;
+static int ett_xnap_LastVisitedUTRANCellInformation;
+static int ett_xnap_LastVisitedGERANCellInformation;
+static int ett_xnap_UERadioCapabilityForPagingOfNR;
+static int ett_xnap_UERadioCapabilityForPagingOfEUTRA;
+static int ett_xnap_FiveGCMobilityRestrictionListContainer;
+static int ett_xnap_primaryRATRestriction;
+static int ett_xnap_secondaryRATRestriction;
+static int ett_xnap_ImmediateMDT_EUTRA;
+static int ett_xnap_MDT_Location_Info;
+static int ett_xnap_MeasurementsToActivate;
+static int ett_xnap_NRMobilityHistoryReport;
+static int ett_xnap_RAReportContainer;
+static int ett_xnap_TargetCellinEUTRAN;
+static int ett_xnap_TDDULDLConfigurationCommonNR;
+static int ett_xnap_UERLFReportContainerLTE;
+static int ett_xnap_UERLFReportContainerNR;
+static int ett_xnap_burstArrivalTime;
+static int ett_xnap_ReportCharacteristics;
+static int ett_xnap_NRCellPRACHConfig;
+static int ett_xnap_anchorCarrier_NPRACHConfig;
+static int ett_xnap_anchorCarrier_EDT_NPRACHConfig;
+static int ett_xnap_anchorCarrier_Format2_NPRACHConfig;
+static int ett_xnap_anchorCarrier_Format2_EDT_NPRACHConfig;
+static int ett_xnap_non_anchorCarrier_NPRACHConfig;
+static int ett_xnap_non_anchorCarrier_Format2_NPRACHConfig;
+static int ett_xnap_anchorCarrier_NPRACHConfigTDD;
+static int ett_xnap_non_anchorCarrier_NPRACHConfigTDD;
+static int ett_xnap_non_anchorCarrierFrequency;
+static int ett_xnap_cSI_RS_Configuration;
+static int ett_xnap_sR_Configuration;
+static int ett_xnap_pDCCH_ConfigSIB1;
+static int ett_xnap_sCS_Common;
+static int ett_xnap_LastVisitedPSCellInformation;
+static int ett_xnap_MeasObjectContainer;
+static int ett_xnap_RACH_Config_Common;
+static int ett_xnap_RACH_Config_Common_IAB;
+static int ett_xnap_ReportConfigContainer;
+static int ett_xnap_RLC_Bearer_Configuration;
+static int ett_xnap_SuccessfulHOReportContainer;
+static int ett_xnap_UERLFReportContainerLTEExtendBand;
+static int ett_xnap_MDTMode_EUTRA;
+static int ett_xnap_cellmeasurementFailedReportCharacteristics;
+static int ett_xnap_nodemeasurementFailedReportCharacteristics;
+static int ett_xnap_ReportCharacteristicsForDataCollection;
+static int ett_xnap_SRSConfiguration;
+static int ett_xnap_PSCellListContainer;
+static int ett_xnap_SuccessfulPSCellChangeReportContainer;
 #include "packet-xnap-ett.c"
 
 enum {
@@ -161,8 +198,8 @@ static const enum_val_t xnap_lte_rrc_context_vals[] = {
 };
 
 /* Global variables */
-static gint xnap_dissect_target_ng_ran_container_as = XNAP_NG_RAN_CONTAINER_AUTOMATIC;
-static gint xnap_dissect_lte_rrc_context_as = XNAP_LTE_RRC_CONTEXT_LTE;
+static int xnap_dissect_target_ng_ran_container_as = XNAP_NG_RAN_CONTAINER_AUTOMATIC;
+static int xnap_dissect_lte_rrc_context_as = XNAP_LTE_RRC_CONTEXT_LTE;
 
 /* Dissector tables */
 static dissector_table_t xnap_ies_dissector_table;
@@ -183,51 +220,58 @@ static int dissect_XnAP_PDU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto
 static dissector_handle_t xnap_handle;
 
 static void
-xnap_PacketLossRate_fmt(gchar *s, guint32 v)
+xnap_PacketLossRate_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1f%% (%u)", (float)v/10, v);
 }
 
 static void
-xnap_PacketDelayBudget_fmt(gchar *s, guint32 v)
+xnap_PacketDelayBudget_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fms (%u)", (float)v/2, v);
 }
 
 static void
-xnap_ExtendedPacketDelayBudget_fmt(gchar *s, guint32 v)
+xnap_ExtendedPacketDelayBudget_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.2fms (%u)", (float)v/100, v);
 }
 
 static void
-xnap_handoverTriggerChange_fmt(gchar *s, guint32 v)
+xnap_handoverTriggerChange_fmt(char *s, uint32_t v)
 {
-  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%d)", ((float)v)/2, (gint32)v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%d)", ((float)v)/2, (int32_t)v);
 }
 
 static void
-xnap_Threshold_RSRP_fmt(gchar *s, guint32 v)
+xnap_Threshold_RSRP_fmt(char *s, uint32_t v)
 {
-  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (gint32)v-156, v);
+  snprintf(s, ITEM_LABEL_LENGTH, "%ddBm (%u)", (int32_t)v-156, v);
 }
 
 static void
-xnap_Threshold_RSRQ_fmt(gchar *s, guint32 v)
+xnap_Threshold_RSRQ_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-43, v);
 }
 
 static void
-xnap_Threshold_SINR_fmt(gchar *s, guint32 v)
+xnap_Threshold_SINR_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fdB (%u)", ((float)v/2)-23, v);
 }
 
-static const true_false_string xnap_tfs_activate_do_not_activate = {
-  "Activate",
-  "Do not activate"
-};
+static void
+xnap_AveragePacketDelayValue_fmt(char *s, uint32_t v)
+{
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fms (%u)", (float)v/10, v);
+}
+
+static void
+xnap_N6Jitter_fmt(char *s, uint32_t v)
+{
+  snprintf(s, ITEM_LABEL_LENGTH, "%.1fms (%d)", (float)v/2, (int32_t)v);
+}
 
 typedef enum {
   INITIATING_MESSAGE,
@@ -237,18 +281,18 @@ typedef enum {
 
 struct xnap_conv_info {
   address addr_a;
-  guint32 port_a;
+  uint32_t port_a;
   GlobalNG_RANNode_ID_enum ranmode_id_a;
   address addr_b;
-  guint32 port_b;
+  uint32_t port_b;
   GlobalNG_RANNode_ID_enum ranmode_id_b;
 };
 
 struct xnap_private_data {
   struct xnap_conv_info *xnap_conv;
   xnap_message_type message_type;
-  guint32 procedure_code;
-  guint32 protocol_ie_id;
+  uint32_t procedure_code;
+  uint32_t protocol_ie_id;
   e212_number_type_t number_type;
 };
 
@@ -264,7 +308,7 @@ xnap_get_private_data(packet_info *pinfo)
 }
 
 static GlobalNG_RANNode_ID_enum
-xnap_get_ranmode_id(address *addr, guint32 port, packet_info *pinfo)
+xnap_get_ranmode_id(address *addr, uint32_t port, packet_info *pinfo)
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
   GlobalNG_RANNode_ID_enum ranmode_id = (GlobalNG_RANNode_ID_enum)-1;
@@ -285,35 +329,35 @@ static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(xnap_ies_dissector_table, xnap_data->protocol_ie_id, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(xnap_ies_dissector_table, xnap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(xnap_extension_dissector_table, xnap_data->protocol_ie_id, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(xnap_extension_dissector_table, xnap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(xnap_proc_imsg_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(xnap_proc_imsg_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(xnap_proc_sout_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(xnap_proc_sout_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(xnap_proc_uout_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(xnap_proc_uout_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
@@ -394,12 +438,28 @@ void proto_register_xnap(void) {
         FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x04,
         NULL, HFILL }},
     { &hf_xnap_primaryRATRestriction_nR_OTHERSAT,
-      { "nR-unlicensed", "xnap.primaryRATRestriction.nR_unlicensed",
+      { "nR-unlicensed", "xnap.primaryRATRestriction.nR_OTHERSAT",
         FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x02,
+        NULL, HFILL }},
+    { &hf_xnap_primaryRATRestriction_e_UTRA_LEO,
+      { "e-UTRA-LEO", "xnap.primaryRATRestriction.e_UTRA_LEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x01,
+        NULL, HFILL }},
+    { &hf_xnap_primaryRATRestriction_e_UTRA_MEO,
+      { "e-UTRA-MEO", "xnap.primaryRATRestriction.e_UTRA_MEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x80,
+        NULL, HFILL }},
+    { &hf_xnap_primaryRATRestriction_e_UTRA_GEO,
+      { "e-UTRA-GEO", "xnap.primaryRATRestriction.e_UTRA_GEO",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x40,
+        NULL, HFILL }},
+    { &hf_xnap_primaryRATRestriction_e_UTRA_OTHERSAT,
+      { "e-UTRA-unlicensed", "xnap.primaryRATRestriction.e_UTRA_OTHERSAT",
+        FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x20,
         NULL, HFILL }},
     { &hf_xnap_primaryRATRestriction_reserved,
       { "reserved", "xnap.primaryRATRestriction.reserved",
-        FT_UINT8, BASE_HEX, NULL, 0x01,
+        FT_UINT8, BASE_HEX, NULL, 0x1f,
         NULL, HFILL }},
     { &hf_xnap_secondaryRATRestriction_e_UTRA,
       { "e-UTRA", "xnap.secondaryRATRestriction.e_UTRA",
@@ -431,35 +491,35 @@ void proto_register_xnap(void) {
         NULL, HFILL }},
     { &hf_xnap_MeasurementsToActivate_M1,
       { "M1", "xnap.MeasurementsToActivate.M1",
-        FT_BOOLEAN, 8, TFS(&xnap_tfs_activate_do_not_activate), 0x80,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x80,
         NULL, HFILL }},
     { &hf_xnap_MeasurementsToActivate_M2,
       { "M2", "xnap.MeasurementsToActivate.M2",
-        FT_BOOLEAN, 8, TFS(&xnap_tfs_activate_do_not_activate), 0x40,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x40,
         NULL, HFILL }},
     { &hf_xnap_MeasurementsToActivate_M3,
       { "M3", "xnap.MeasurementsToActivate.M3",
-        FT_BOOLEAN, 8, TFS(&xnap_tfs_activate_do_not_activate), 0x20,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x20,
         NULL, HFILL }},
     { &hf_xnap_MeasurementsToActivate_M4,
       { "M4", "xnap.MeasurementsToActivate.M4",
-        FT_BOOLEAN, 8, TFS(&xnap_tfs_activate_do_not_activate), 0x10,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x10,
         NULL, HFILL }},
     { &hf_xnap_MeasurementsToActivate_M5,
       { "M5", "xnap.MeasurementsToActivate.M5",
-        FT_BOOLEAN, 8, TFS(&xnap_tfs_activate_do_not_activate), 0x08,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x08,
         NULL, HFILL }},
     { &hf_xnap_MeasurementsToActivate_LoggingM1FromEventTriggered,
       { "LoggingOfM1FromEventTriggeredMeasurementReports", "xnap.MeasurementsToActivate.LoggingM1FromEventTriggered",
-        FT_BOOLEAN, 8, TFS(&xnap_tfs_activate_do_not_activate), 0x04,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x04,
         NULL, HFILL }},
     { &hf_xnap_MeasurementsToActivate_M6,
       { "M6", "xnap.MeasurementsToActivate.M6",
-        FT_BOOLEAN, 8, TFS(&xnap_tfs_activate_do_not_activate), 0x02,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x02,
         NULL, HFILL }},
     { &hf_xnap_MeasurementsToActivate_M7,
       { "M7", "xnap.MeasurementsToActivate.M7",
-        FT_BOOLEAN, 8, TFS(&xnap_tfs_activate_do_not_activate), 0x01,
+        FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x01,
         NULL, HFILL }},
     { &hf_xnap_ReportCharacteristics_PRBPeriodic,
       { "PRBPeriodic", "xnap.ReportCharacteristics.PRBPeriodic",
@@ -473,22 +533,114 @@ void proto_register_xnap(void) {
       { "CompositeAvailableCapacityPeriodic", "xnap.ReportCharacteristics.CompositeAvailableCapacityPeriodic",
         FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x20000000,
         NULL, HFILL }},
-    { &hf_xnap_ReportCharacteristics_NumberOfActiveUEs,
-      { "NumberOfActiveUEs", "xnap.ReportCharacteristics.NumberOfActiveUEs",
+    { &hf_xnap_ReportCharacteristics_NumberOfActiveUEsPeriodic,
+      { "NumberOfActiveUEsPeriodic", "xnap.ReportCharacteristics.NumberOfActiveUEsPeriodic",
         FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x10000000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristics_RRCconnectionsPeriodic,
+      { "RRCconnectionsPeriodic", "xnap.ReportCharacteristics.RRCconnectionsPeriodic",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x08000000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristics_NR_UChannelListPeriodic,
+      { "NR-UChannelListPeriodic", "xnap.ReportCharacteristics.NR_UChannelListPeriodic",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x04000000,
         NULL, HFILL }},
     { &hf_xnap_ReportCharacteristics_Reserved,
       { "Reserved", "xnap.ReportCharacteristics.Reserved",
-        FT_UINT32, BASE_HEX, NULL, 0x0fffffff,
+        FT_UINT32, BASE_HEX, NULL, 0x03ffffff,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristicsForDataCollection_PredictedRadioResourceStatus,
+      { "PredictedRadioResourceStatus", "xnap.ReportCharacteristicsForDataCollection.PredictedRadioResourceStatus",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x80000000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristicsForDataCollection_PredictedNumberofActiveUEs,
+      { "PredictedNumberofActiveUEs", "xnap.ReportCharacteristicsForDataCollection.PredictedNumberofActiveUEs",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x40000000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristicsForDataCollection_PredictedRRCConnections,
+      { "PredictedRRCConnections", "xnap.ReportCharacteristicsForDataCollection.PredictedRRCConnections",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x20000000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristicsForDataCollection_AverageUEThroughputDL,
+      { "AverageUEThroughputDL", "xnap.ReportCharacteristicsForDataCollection.AverageUEThroughputDL",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x10000000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristicsForDataCollection_AverageUEThroughputUL,
+      { "AverageUEThroughputUL", "xnap.ReportCharacteristicsForDataCollection.AverageUEThroughputUL",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x08000000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristicsForDataCollection_AveragePacketDelay,
+      { "AveragePacketDelay", "xnap.ReportCharacteristicsForDataCollection.AveragePacketDelay",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x04000000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristicsForDataCollection_AveragePacketLossDL,
+      { "AveragePacketLossDL", "xnap.ReportCharacteristicsForDataCollection.AveragePacketLossDL",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x02000000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristicsForDataCollection_EnergyCost,
+      { "EnergyCost", "xnap.ReportCharacteristicsForDataCollection.EnergyCost",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x01000000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristicsForDataCollection_MeasuredUETrajectory,
+      { "MeasuredUETrajectory", "xnap.ReportCharacteristicsForDataCollection.MeasuredUETrajectory",
+        FT_BOOLEAN, 32, TFS(&tfs_requested_not_requested), 0x00800000,
+        NULL, HFILL }},
+    { &hf_xnap_ReportCharacteristicsForDataCollection_Reserved,
+      { "Reserved", "xnap.ReportCharacteristicsForDataCollection.Reserved",
+        FT_UINT32, BASE_HEX, NULL, 0x007fffff,
+        NULL, HFILL }},
+    { &hf_xnap_cellmeasurementFailedReportCharacteristics_PredictedRadioResourceStatus,
+      { "PredictedRadioResourceStatus", "xnap.cellmeasurementFailedReportCharacteristics.PredictedRadioResourceStatus",
+        FT_BOOLEAN, 32, NULL, 0x80000000,
+        NULL, HFILL }},
+    { &hf_xnap_cellmeasurementFailedReportCharacteristics_PredictedNumberofActiveUEs,
+      { "PredictedNumberofActiveUEs", "xnap.cellmeasurementFailedReportCharacteristics.PredictedNumberofActiveUEs",
+        FT_BOOLEAN, 32, NULL, 0x40000000,
+        NULL, HFILL }},
+    { &hf_xnap_cellmeasurementFailedReportCharacteristics_PredictedRRCConnections,
+      { "PredictedRRCConnections", "xnap.cellmeasurementFailedReportCharacteristics.PredictedRRCConnections",
+        FT_BOOLEAN, 32, NULL, 0x20000000,
+        NULL, HFILL }},
+    { &hf_xnap_cellmeasurementFailedReportCharacteristics_Reserved,
+      { "Reserved", "xnap.cellmeasurementFailedReportCharacteristics.Reserved",
+        FT_UINT32, BASE_HEX, NULL, 0x1fffffff,
+        NULL, HFILL }},
+    { &hf_xnap_nodemeasurementFailedReportCharacteristics_EnergyCost,
+      { "EnergyCost", "xnap.nodemeasurementFailedReportCharacteristics.EnergyCost",
+        FT_BOOLEAN, 32, NULL, 0x80000000,
+        NULL, HFILL }},
+    { &hf_xnap_nodemeasurementFailedReportCharacteristics_AverageUEThroughputDL,
+      { "AverageUEThroughputDL", "xnap.nodemeasurementFailedReportCharacteristics.AverageUEThroughputDL",
+        FT_BOOLEAN, 32, NULL, 0x40000000,
+        NULL, HFILL }},
+    { &hf_xnap_nodemeasurementFailedReportCharacteristics_AverageUEThroughputUL,
+      { "AverageUEThroughputUL", "xnap.nodemeasurementFailedReportCharacteristics.AverageUEThroughputUL",
+        FT_BOOLEAN, 32, NULL, 0x20000000,
+        NULL, HFILL }},
+    { &hf_xnap_nodemeasurementFailedReportCharacteristics_AveragePacketDelay,
+      { "AveragePacketDelay", "xnap.nodemeasurementFailedReportCharacteristics.AveragePacketDelay",
+        FT_BOOLEAN, 32, NULL, 0x10000000,
+        NULL, HFILL }},
+    { &hf_xnap_nodemeasurementFailedReportCharacteristics_AveragePacketLossDL,
+      { "AveragePacketLossDL", "xnap.nodemeasurementFailedReportCharacteristics.AveragePacketLossDL",
+        FT_BOOLEAN, 32, NULL, 0x08000000,
+        NULL, HFILL }},
+    { &hf_xnap_nodemeasurementFailedReportCharacteristics_MeasuredUETrajectory,
+      { "MeasuredUETrajectory", "xnap.nodemeasurementFailedReportCharacteristics.MeasuredUETrajectory",
+        FT_BOOLEAN, 32, NULL, 0x04000000,
+        NULL, HFILL }},
+    { &hf_xnap_nodemeasurementFailedReportCharacteristics_Reserved,
+      { "Reserved", "xnap.nodemeasurementFailedReportCharacteristics.Reserved",
+        FT_UINT32, BASE_HEX, NULL, 0x03ffffff,
         NULL, HFILL }},
 #include "packet-xnap-hfarr.c"
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_xnap,
     &ett_xnap_RRC_Context,
-    &ett_nxap_container,
+    &ett_xnap_container,
     &ett_xnap_PLMN_Identity,
     &ett_xnap_measurementTimingConfiguration,
     &ett_xnap_TransportLayerAddress,
@@ -506,7 +658,7 @@ void proto_register_xnap(void) {
     &ett_xnap_MDT_Location_Info,
     &ett_xnap_MeasurementsToActivate,
     &ett_xnap_NRMobilityHistoryReport,
-    &ett_xnap_RACHReportContainer,
+    &ett_xnap_RAReportContainer,
     &ett_xnap_TargetCellinEUTRAN,
     &ett_xnap_TDDULDLConfigurationCommonNR,
     &ett_xnap_UERLFReportContainerLTE,
@@ -536,6 +688,12 @@ void proto_register_xnap(void) {
     &ett_xnap_SuccessfulHOReportContainer,
     &ett_xnap_UERLFReportContainerLTEExtendBand,
     &ett_xnap_MDTMode_EUTRA,
+    &ett_xnap_cellmeasurementFailedReportCharacteristics,
+    &ett_xnap_nodemeasurementFailedReportCharacteristics,
+    &ett_xnap_ReportCharacteristicsForDataCollection,
+    &ett_xnap_SRSConfiguration,
+    &ett_xnap_PSCellListContainer,
+    &ett_xnap_SuccessfulPSCellChangeReportContainer,
 #include "packet-xnap-ettarr.c"
   };
 
@@ -558,10 +716,10 @@ void proto_register_xnap(void) {
   prefs_register_enum_preference(xnap_module, "dissect_target_ng_ran_container_as", "Dissect target NG-RAN container as",
                                  "Select whether target NG-RAN container should be decoded automatically"
                                  " (based on Xn Setup procedure) or manually",
-                                 &xnap_dissect_target_ng_ran_container_as, xnap_target_ng_ran_container_vals, FALSE);
+                                 &xnap_dissect_target_ng_ran_container_as, xnap_target_ng_ran_container_vals, false);
   prefs_register_enum_preference(xnap_module, "dissect_lte_rrc_context_as", "Dissect LTE RRC Context as",
                                  "Select whether LTE RRC Context should be dissected as legacy LTE or NB-IOT",
-                                 &xnap_dissect_lte_rrc_context_as, xnap_lte_rrc_context_vals, FALSE);
+                                 &xnap_dissect_lte_rrc_context_as, xnap_lte_rrc_context_vals, false);
 }
 
 

@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-pres.c                                                              */
-/* asn2wrs.py -b -L -p pres -c ./pres.cnf -s ./packet-pres-template -D . -O ../.. ISO8823-PRESENTATION.asn ISO9576-PRESENTATION.asn */
+/* asn2wrs.py -b -q -L -p pres -c ./pres.cnf -s ./packet-pres-template -D . -O ../.. ISO8823-PRESENTATION.asn ISO9576-PRESENTATION.asn */
 
 /* packet-pres.c
  * Routine to dissect ISO 8823 OSI Presentation Protocol packets
@@ -23,6 +23,7 @@
 #include <epan/conversation.h>
 #include <epan/expert.h>
 #include <epan/uat.h>
+#include <wsutil/array.h>
 
 #include <epan/asn1.h>
 #include <epan/oids.h>
@@ -44,175 +45,175 @@ void proto_register_pres(void);
 void proto_reg_handoff_pres(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_pres = -1;
+static int proto_pres;
 
-/* Initialize the connectionles protocol */
-static int proto_clpres = -1;
+/* Initialize the connectionless protocol */
+static int proto_clpres;
 
 /*      pointers for acse dissector  */
-proto_tree *global_tree  = NULL;
-packet_info *global_pinfo = NULL;
+proto_tree *global_tree;
+packet_info *global_pinfo;
 
 static const char *abstract_syntax_name_oid;
-static guint32 presentation_context_identifier;
+static uint32_t presentation_context_identifier;
 
 /* to keep track of presentation context identifiers and protocol-oids */
 typedef struct _pres_ctx_oid_t {
-	guint32 ctx_id;
+	uint32_t ctx_id;
 	char *oid;
-	guint32 idx;
+	uint32_t idx;
 } pres_ctx_oid_t;
-static wmem_map_t *pres_ctx_oid_table = NULL;
+static wmem_map_t *pres_ctx_oid_table;
 
 typedef struct _pres_user_t {
-   guint ctx_id;
+   unsigned ctx_id;
    char *oid;
 } pres_user_t;
 
 static pres_user_t *pres_users;
-static guint num_pres_users;
+static unsigned num_pres_users;
 
-static int hf_pres_CP_type = -1;
-static int hf_pres_CPA_PPDU = -1;
-static int hf_pres_Abort_type = -1;
-static int hf_pres_CPR_PPDU = -1;
-static int hf_pres_Typed_data_type = -1;
+static int hf_pres_CP_type;
+static int hf_pres_CPA_PPDU;
+static int hf_pres_Abort_type;
+static int hf_pres_CPR_PPDU;
+static int hf_pres_Typed_data_type;
 
-static int hf_pres_UD_type_PDU = -1;              /* UD_type */
-static int hf_pres_mode_selector = -1;            /* Mode_selector */
-static int hf_pres_x410_mode_parameters = -1;     /* RTORQapdu */
-static int hf_pres_normal_mode_parameters = -1;   /* T_normal_mode_parameters */
-static int hf_pres_protocol_version = -1;         /* Protocol_version */
-static int hf_pres_calling_presentation_selector = -1;  /* Calling_presentation_selector */
-static int hf_pres_called_presentation_selector = -1;  /* Called_presentation_selector */
-static int hf_pres_presentation_context_definition_list = -1;  /* Presentation_context_definition_list */
-static int hf_pres_default_context_name = -1;     /* Default_context_name */
-static int hf_pres_presentation_requirements = -1;  /* Presentation_requirements */
-static int hf_pres_user_session_requirements = -1;  /* User_session_requirements */
-static int hf_pres_protocol_options = -1;         /* Protocol_options */
-static int hf_pres_initiators_nominated_context = -1;  /* Presentation_context_identifier */
-static int hf_pres_extensions = -1;               /* T_extensions */
-static int hf_pres_user_data = -1;                /* User_data */
-static int hf_pres_cPR_PPDU_x400_mode_parameters = -1;  /* RTOACapdu */
-static int hf_pres_cPU_PPDU_normal_mode_parameters = -1;  /* T_CPA_PPDU_normal_mode_parameters */
-static int hf_pres_responding_presentation_selector = -1;  /* Responding_presentation_selector */
-static int hf_pres_presentation_context_definition_result_list = -1;  /* Presentation_context_definition_result_list */
-static int hf_pres_responders_nominated_context = -1;  /* Presentation_context_identifier */
-static int hf_pres_cPU_PPDU_x400_mode_parameters = -1;  /* RTORJapdu */
-static int hf_pres_cPR_PPDU_normal_mode_parameters = -1;  /* T_CPR_PPDU_normal_mode_parameters */
-static int hf_pres_default_context_result = -1;   /* Default_context_result */
-static int hf_pres_cPR_PPDU__provider_reason = -1;  /* Provider_reason */
-static int hf_pres_aru_ppdu = -1;                 /* ARU_PPDU */
-static int hf_pres_arp_ppdu = -1;                 /* ARP_PPDU */
-static int hf_pres_aRU_PPDU_x400_mode_parameters = -1;  /* RTABapdu */
-static int hf_pres_aRU_PPDU_normal_mode_parameters = -1;  /* T_ARU_PPDU_normal_mode_parameters */
-static int hf_pres_presentation_context_identifier_list = -1;  /* Presentation_context_identifier_list */
-static int hf_pres_aRU_PPDU_provider_reason = -1;  /* Abort_reason */
-static int hf_pres_event_identifier = -1;         /* Event_identifier */
-static int hf_pres_acPPDU = -1;                   /* AC_PPDU */
-static int hf_pres_acaPPDU = -1;                  /* ACA_PPDU */
-static int hf_pres_ttdPPDU = -1;                  /* User_data */
-static int hf_pres_presentation_context_addition_list = -1;  /* Presentation_context_addition_list */
-static int hf_pres_presentation_context_deletion_list = -1;  /* Presentation_context_deletion_list */
-static int hf_pres_presentation_context_addition_result_list = -1;  /* Presentation_context_addition_result_list */
-static int hf_pres_presentation_context_deletion_result_list = -1;  /* Presentation_context_deletion_result_list */
-static int hf_pres_Context_list_item = -1;        /* Context_list_item */
-static int hf_pres_presentation_context_identifier = -1;  /* Presentation_context_identifier */
-static int hf_pres_abstract_syntax_name = -1;     /* Abstract_syntax_name */
-static int hf_pres_transfer_syntax_name_list = -1;  /* SEQUENCE_OF_Transfer_syntax_name */
-static int hf_pres_transfer_syntax_name_list_item = -1;  /* Transfer_syntax_name */
-static int hf_pres_transfer_syntax_name = -1;     /* Transfer_syntax_name */
-static int hf_pres_mode_value = -1;               /* T_mode_value */
-static int hf_pres_Presentation_context_deletion_list_item = -1;  /* Presentation_context_identifier */
-static int hf_pres_Presentation_context_deletion_result_list_item = -1;  /* Presentation_context_deletion_result_list_item */
-static int hf_pres_Presentation_context_identifier_list_item = -1;  /* Presentation_context_identifier_list_item */
-static int hf_pres_Result_list_item = -1;         /* Result_list_item */
-static int hf_pres_result = -1;                   /* Result */
-static int hf_pres_provider_reason = -1;          /* T_provider_reason */
-static int hf_pres_simply_encoded_data = -1;      /* Simply_encoded_data */
-static int hf_pres_fully_encoded_data = -1;       /* Fully_encoded_data */
-static int hf_pres_Fully_encoded_data_item = -1;  /* PDV_list */
-static int hf_pres_presentation_data_values = -1;  /* T_presentation_data_values */
-static int hf_pres_single_ASN1_type = -1;         /* T_single_ASN1_type */
-static int hf_pres_octet_aligned = -1;            /* T_octet_aligned */
-static int hf_pres_arbitrary = -1;                /* BIT_STRING */
+static int hf_pres_UD_type_PDU;                   /* UD_type */
+static int hf_pres_mode_selector;                 /* Mode_selector */
+static int hf_pres_x410_mode_parameters;          /* RTORQapdu */
+static int hf_pres_normal_mode_parameters;        /* T_normal_mode_parameters */
+static int hf_pres_protocol_version;              /* Protocol_version */
+static int hf_pres_calling_presentation_selector;  /* Calling_presentation_selector */
+static int hf_pres_called_presentation_selector;  /* Called_presentation_selector */
+static int hf_pres_presentation_context_definition_list;  /* Presentation_context_definition_list */
+static int hf_pres_default_context_name;          /* Default_context_name */
+static int hf_pres_presentation_requirements;     /* Presentation_requirements */
+static int hf_pres_user_session_requirements;     /* User_session_requirements */
+static int hf_pres_protocol_options;              /* Protocol_options */
+static int hf_pres_initiators_nominated_context;  /* Presentation_context_identifier */
+static int hf_pres_extensions;                    /* T_extensions */
+static int hf_pres_user_data;                     /* User_data */
+static int hf_pres_cPR_PPDU_x400_mode_parameters;  /* RTOACapdu */
+static int hf_pres_cPU_PPDU_normal_mode_parameters;  /* T_CPA_PPDU_normal_mode_parameters */
+static int hf_pres_responding_presentation_selector;  /* Responding_presentation_selector */
+static int hf_pres_presentation_context_definition_result_list;  /* Presentation_context_definition_result_list */
+static int hf_pres_responders_nominated_context;  /* Presentation_context_identifier */
+static int hf_pres_cPU_PPDU_x400_mode_parameters;  /* RTORJapdu */
+static int hf_pres_cPR_PPDU_normal_mode_parameters;  /* T_CPR_PPDU_normal_mode_parameters */
+static int hf_pres_default_context_result;        /* Default_context_result */
+static int hf_pres_cPR_PPDU__provider_reason;     /* Provider_reason */
+static int hf_pres_aru_ppdu;                      /* ARU_PPDU */
+static int hf_pres_arp_ppdu;                      /* ARP_PPDU */
+static int hf_pres_aRU_PPDU_x400_mode_parameters;  /* RTABapdu */
+static int hf_pres_aRU_PPDU_normal_mode_parameters;  /* T_ARU_PPDU_normal_mode_parameters */
+static int hf_pres_presentation_context_identifier_list;  /* Presentation_context_identifier_list */
+static int hf_pres_aRU_PPDU_provider_reason;      /* Abort_reason */
+static int hf_pres_event_identifier;              /* Event_identifier */
+static int hf_pres_acPPDU;                        /* AC_PPDU */
+static int hf_pres_acaPPDU;                       /* ACA_PPDU */
+static int hf_pres_ttdPPDU;                       /* User_data */
+static int hf_pres_presentation_context_addition_list;  /* Presentation_context_addition_list */
+static int hf_pres_presentation_context_deletion_list;  /* Presentation_context_deletion_list */
+static int hf_pres_presentation_context_addition_result_list;  /* Presentation_context_addition_result_list */
+static int hf_pres_presentation_context_deletion_result_list;  /* Presentation_context_deletion_result_list */
+static int hf_pres_Context_list_item;             /* Context_list_item */
+static int hf_pres_presentation_context_identifier;  /* Presentation_context_identifier */
+static int hf_pres_abstract_syntax_name;          /* Abstract_syntax_name */
+static int hf_pres_transfer_syntax_name_list;     /* SEQUENCE_OF_Transfer_syntax_name */
+static int hf_pres_transfer_syntax_name_list_item;  /* Transfer_syntax_name */
+static int hf_pres_transfer_syntax_name;          /* Transfer_syntax_name */
+static int hf_pres_mode_value;                    /* T_mode_value */
+static int hf_pres_Presentation_context_deletion_list_item;  /* Presentation_context_identifier */
+static int hf_pres_Presentation_context_deletion_result_list_item;  /* Presentation_context_deletion_result_list_item */
+static int hf_pres_Presentation_context_identifier_list_item;  /* Presentation_context_identifier_list_item */
+static int hf_pres_Result_list_item;              /* Result_list_item */
+static int hf_pres_result;                        /* Result */
+static int hf_pres_provider_reason;               /* T_provider_reason */
+static int hf_pres_simply_encoded_data;           /* Simply_encoded_data */
+static int hf_pres_fully_encoded_data;            /* Fully_encoded_data */
+static int hf_pres_Fully_encoded_data_item;       /* PDV_list */
+static int hf_pres_presentation_data_values;      /* T_presentation_data_values */
+static int hf_pres_single_ASN1_type;              /* T_single_ASN1_type */
+static int hf_pres_octet_aligned;                 /* T_octet_aligned */
+static int hf_pres_arbitrary;                     /* BIT_STRING */
 /* named bits */
-static int hf_pres_Presentation_requirements_context_management = -1;
-static int hf_pres_Presentation_requirements_restoration = -1;
-static int hf_pres_Protocol_options_nominated_context = -1;
-static int hf_pres_Protocol_options_short_encoding = -1;
-static int hf_pres_Protocol_options_packed_encoding_rules = -1;
-static int hf_pres_Protocol_version_version_1 = -1;
-static int hf_pres_User_session_requirements_half_duplex = -1;
-static int hf_pres_User_session_requirements_duplex = -1;
-static int hf_pres_User_session_requirements_expedited_data = -1;
-static int hf_pres_User_session_requirements_minor_synchronize = -1;
-static int hf_pres_User_session_requirements_major_synchronize = -1;
-static int hf_pres_User_session_requirements_resynchronize = -1;
-static int hf_pres_User_session_requirements_activity_management = -1;
-static int hf_pres_User_session_requirements_negotiated_release = -1;
-static int hf_pres_User_session_requirements_capability_data = -1;
-static int hf_pres_User_session_requirements_exceptions = -1;
-static int hf_pres_User_session_requirements_typed_data = -1;
-static int hf_pres_User_session_requirements_symmetric_synchronize = -1;
-static int hf_pres_User_session_requirements_data_separation = -1;
+static int hf_pres_Presentation_requirements_context_management;
+static int hf_pres_Presentation_requirements_restoration;
+static int hf_pres_Protocol_options_nominated_context;
+static int hf_pres_Protocol_options_short_encoding;
+static int hf_pres_Protocol_options_packed_encoding_rules;
+static int hf_pres_Protocol_version_version_1;
+static int hf_pres_User_session_requirements_half_duplex;
+static int hf_pres_User_session_requirements_duplex;
+static int hf_pres_User_session_requirements_expedited_data;
+static int hf_pres_User_session_requirements_minor_synchronize;
+static int hf_pres_User_session_requirements_major_synchronize;
+static int hf_pres_User_session_requirements_resynchronize;
+static int hf_pres_User_session_requirements_activity_management;
+static int hf_pres_User_session_requirements_negotiated_release;
+static int hf_pres_User_session_requirements_capability_data;
+static int hf_pres_User_session_requirements_exceptions;
+static int hf_pres_User_session_requirements_typed_data;
+static int hf_pres_User_session_requirements_symmetric_synchronize;
+static int hf_pres_User_session_requirements_data_separation;
 
 /* Initialize the subtree pointers */
-static gint ett_pres           = -1;
+static int ett_pres;
 
-static gint ett_pres_CP_type = -1;
-static gint ett_pres_T_normal_mode_parameters = -1;
-static gint ett_pres_T_extensions = -1;
-static gint ett_pres_CPA_PPDU = -1;
-static gint ett_pres_T_CPA_PPDU_normal_mode_parameters = -1;
-static gint ett_pres_CPR_PPDU = -1;
-static gint ett_pres_T_CPR_PPDU_normal_mode_parameters = -1;
-static gint ett_pres_Abort_type = -1;
-static gint ett_pres_ARU_PPDU = -1;
-static gint ett_pres_T_ARU_PPDU_normal_mode_parameters = -1;
-static gint ett_pres_ARP_PPDU = -1;
-static gint ett_pres_Typed_data_type = -1;
-static gint ett_pres_AC_PPDU = -1;
-static gint ett_pres_ACA_PPDU = -1;
-static gint ett_pres_RS_PPDU = -1;
-static gint ett_pres_RSA_PPDU = -1;
-static gint ett_pres_Context_list = -1;
-static gint ett_pres_Context_list_item = -1;
-static gint ett_pres_SEQUENCE_OF_Transfer_syntax_name = -1;
-static gint ett_pres_Default_context_name = -1;
-static gint ett_pres_Mode_selector = -1;
-static gint ett_pres_Presentation_context_deletion_list = -1;
-static gint ett_pres_Presentation_context_deletion_result_list = -1;
-static gint ett_pres_Presentation_context_identifier_list = -1;
-static gint ett_pres_Presentation_context_identifier_list_item = -1;
-static gint ett_pres_Presentation_requirements = -1;
-static gint ett_pres_Protocol_options = -1;
-static gint ett_pres_Protocol_version = -1;
-static gint ett_pres_Result_list = -1;
-static gint ett_pres_Result_list_item = -1;
-static gint ett_pres_User_data = -1;
-static gint ett_pres_Fully_encoded_data = -1;
-static gint ett_pres_PDV_list = -1;
-static gint ett_pres_T_presentation_data_values = -1;
-static gint ett_pres_User_session_requirements = -1;
-static gint ett_pres_UD_type = -1;
+static int ett_pres_CP_type;
+static int ett_pres_T_normal_mode_parameters;
+static int ett_pres_T_extensions;
+static int ett_pres_CPA_PPDU;
+static int ett_pres_T_CPA_PPDU_normal_mode_parameters;
+static int ett_pres_CPR_PPDU;
+static int ett_pres_T_CPR_PPDU_normal_mode_parameters;
+static int ett_pres_Abort_type;
+static int ett_pres_ARU_PPDU;
+static int ett_pres_T_ARU_PPDU_normal_mode_parameters;
+static int ett_pres_ARP_PPDU;
+static int ett_pres_Typed_data_type;
+static int ett_pres_AC_PPDU;
+static int ett_pres_ACA_PPDU;
+static int ett_pres_RS_PPDU;
+static int ett_pres_RSA_PPDU;
+static int ett_pres_Context_list;
+static int ett_pres_Context_list_item;
+static int ett_pres_SEQUENCE_OF_Transfer_syntax_name;
+static int ett_pres_Default_context_name;
+static int ett_pres_Mode_selector;
+static int ett_pres_Presentation_context_deletion_list;
+static int ett_pres_Presentation_context_deletion_result_list;
+static int ett_pres_Presentation_context_identifier_list;
+static int ett_pres_Presentation_context_identifier_list_item;
+static int ett_pres_Presentation_requirements;
+static int ett_pres_Protocol_options;
+static int ett_pres_Protocol_version;
+static int ett_pres_Result_list;
+static int ett_pres_Result_list_item;
+static int ett_pres_User_data;
+static int ett_pres_Fully_encoded_data;
+static int ett_pres_PDV_list;
+static int ett_pres_T_presentation_data_values;
+static int ett_pres_User_session_requirements;
+static int ett_pres_UD_type;
 
-static expert_field ei_pres_dissector_not_available = EI_INIT;
-static expert_field ei_pres_wrong_spdu_type = EI_INIT;
-static expert_field ei_pres_invalid_offset = EI_INIT;
+static expert_field ei_pres_dissector_not_available;
+static expert_field ei_pres_wrong_spdu_type;
+static expert_field ei_pres_invalid_offset;
 
 UAT_DEC_CB_DEF(pres_users, ctx_id, pres_user_t)
 UAT_CSTRING_CB_DEF(pres_users, oid, pres_user_t)
 
-static guint
-pres_ctx_oid_hash(gconstpointer k)
+static unsigned
+pres_ctx_oid_hash(const void *k)
 {
 	const pres_ctx_oid_t *pco=(const pres_ctx_oid_t *)k;
 	return pco->ctx_id;
 }
 
-static gint
-pres_ctx_oid_equal(gconstpointer k1, gconstpointer k2)
+static int
+pres_ctx_oid_equal(const void *k1, const void *k2)
 {
 	const pres_ctx_oid_t *pco1=(const pres_ctx_oid_t *)k1;
 	const pres_ctx_oid_t *pco2=(const pres_ctx_oid_t *)k2;
@@ -220,7 +221,7 @@ pres_ctx_oid_equal(gconstpointer k1, gconstpointer k2)
 }
 
 static void
-register_ctx_id_and_oid(packet_info *pinfo _U_, guint32 idx, const char *oid)
+register_ctx_id_and_oid(packet_info *pinfo _U_, uint32_t idx, const char *oid)
 {
 	pres_ctx_oid_t *pco, *tmppco;
 	conversation_t *conversation;
@@ -249,9 +250,9 @@ register_ctx_id_and_oid(packet_info *pinfo _U_, guint32 idx, const char *oid)
 }
 
 static char *
-find_oid_in_users_table(packet_info *pinfo, guint32 ctx_id)
+find_oid_in_users_table(packet_info *pinfo, uint32_t ctx_id)
 {
-	guint i;
+	unsigned i;
 
 	for (i = 0; i < num_pres_users; i++) {
 		pres_user_t *u = &(pres_users[i]);
@@ -267,7 +268,7 @@ find_oid_in_users_table(packet_info *pinfo, guint32 ctx_id)
 }
 
 char *
-find_oid_by_pres_ctx_id(packet_info *pinfo, guint32 idx)
+find_oid_by_pres_ctx_id(packet_info *pinfo, uint32_t idx)
 {
 	pres_ctx_oid_t pco, *tmppco;
 	conversation_t *conversation;
@@ -1028,7 +1029,7 @@ static const value_string pres_Abort_reason_vals[] = {
 
 static int
 dissect_pres_Abort_reason(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  guint32 reason;
+  uint32_t reason;
 
     offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &reason);
@@ -1294,8 +1295,8 @@ dissect_pres_UD_type(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, a
 static int dissect_UD_type_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_pres_UD_type(FALSE, tvb, offset, &asn1_ctx, tree, hf_pres_UD_type_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_pres_UD_type(false, tvb, offset, &asn1_ctx, tree, hf_pres_UD_type_PDU);
   return offset;
 }
 
@@ -1311,7 +1312,7 @@ dissect_ppdu(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, st
 	proto_tree *pres_tree;
 	struct SESSION_DATA_STRUCTURE* session;
 	asn1_ctx_t asn1_ctx;
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
 	/* do we have spdu type from the session dissector?  */
 	if (local_session == NULL) {
@@ -1337,32 +1338,32 @@ dissect_ppdu(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, st
 
 	switch (session->spdu_type) {
 		case SES_CONNECTION_REQUEST:
-			offset = dissect_pres_CP_type(FALSE, tvb, offset, &asn1_ctx, pres_tree, hf_pres_CP_type);
+			offset = dissect_pres_CP_type(false, tvb, offset, &asn1_ctx, pres_tree, hf_pres_CP_type);
 			break;
 		case SES_CONNECTION_ACCEPT:
-			offset = dissect_pres_CPA_PPDU(FALSE, tvb, offset, &asn1_ctx, pres_tree, hf_pres_CPA_PPDU);
+			offset = dissect_pres_CPA_PPDU(false, tvb, offset, &asn1_ctx, pres_tree, hf_pres_CPA_PPDU);
 			break;
 		case SES_ABORT:
 		case SES_ABORT_ACCEPT:
-			offset = dissect_pres_Abort_type(FALSE, tvb, offset, &asn1_ctx, pres_tree, hf_pres_Abort_type);
+			offset = dissect_pres_Abort_type(false, tvb, offset, &asn1_ctx, pres_tree, hf_pres_Abort_type);
 			break;
 		case SES_DATA_TRANSFER:
-			offset = dissect_pres_CPC_type(FALSE, tvb, offset, &asn1_ctx, pres_tree, hf_pres_user_data);
+			offset = dissect_pres_CPC_type(false, tvb, offset, &asn1_ctx, pres_tree, hf_pres_user_data);
 			break;
 		case SES_TYPED_DATA:
-			offset = dissect_pres_Typed_data_type(FALSE, tvb, offset, &asn1_ctx, pres_tree, hf_pres_Typed_data_type);
+			offset = dissect_pres_Typed_data_type(false, tvb, offset, &asn1_ctx, pres_tree, hf_pres_Typed_data_type);
 			break;
 		case SES_RESYNCHRONIZE:
-			offset = dissect_pres_RS_PPDU(FALSE, tvb, offset, &asn1_ctx, pres_tree, -1);
+			offset = dissect_pres_RS_PPDU(false, tvb, offset, &asn1_ctx, pres_tree, -1);
 			break;
 		case SES_RESYNCHRONIZE_ACK:
-			offset = dissect_pres_RSA_PPDU(FALSE, tvb, offset, &asn1_ctx, pres_tree, -1);
+			offset = dissect_pres_RSA_PPDU(false, tvb, offset, &asn1_ctx, pres_tree, -1);
 			break;
 		case SES_REFUSE:
-			offset = dissect_pres_CPR_PPDU(FALSE, tvb, offset, &asn1_ctx, pres_tree, hf_pres_CPR_PPDU);
+			offset = dissect_pres_CPR_PPDU(false, tvb, offset, &asn1_ctx, pres_tree, hf_pres_CPR_PPDU);
 			break;
 		default:
-			offset = dissect_pres_CPC_type(FALSE, tvb, offset, &asn1_ctx, pres_tree, hf_pres_user_data);
+			offset = dissect_pres_CPC_type(false, tvb, offset, &asn1_ctx, pres_tree, hf_pres_user_data);
 			break;
 	}
 
@@ -1778,7 +1779,7 @@ void proto_register_pres(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 		&ett_pres,
     &ett_pres_CP_type,
     &ett_pres_T_normal_mode_parameters,
@@ -1833,7 +1834,7 @@ void proto_register_pres(void) {
   uat_t* users_uat = uat_new("PRES Users Context List",
                              sizeof(pres_user_t),
                              "pres_context_list",
-                             TRUE,
+                             true,
                              &pres_users,
                              &num_pres_users,
                              UAT_AFFECTS_DISSECTION, /* affects dissection of packets, but not set of named fields */

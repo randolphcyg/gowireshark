@@ -28,12 +28,10 @@
 #include <epan/expert.h>
 #include <epan/conversation.h>
 #include <epan/arptypes.h>
+#include <epan/tfs.h>
 
 #include "packet-llc.h"
 #include "packet-chdlc.h"
-#include "packet-eth.h"
-#include "packet-ip.h"
-#include "packet-ppp.h"
 #include "packet-juniper.h"
 #include "packet-sflow.h"
 #include "packet-l2tp.h"
@@ -64,47 +62,47 @@ void proto_reg_handoff_fr(void);
 
 #define FROM_DCE                0x80    /* for direction setting */
 
-static gint proto_fr              = -1;
-static gint ett_fr                = -1;
-static gint ett_fr_address        = -1;
-static gint ett_fr_control        = -1;
-static gint hf_fr_ea              = -1;
-static gint hf_fr_upper_dlci      = -1;
-static gint hf_fr_cr              = -1;
-static gint hf_fr_second_dlci     = -1;
-static gint hf_fr_fecn            = -1;
-static gint hf_fr_becn            = -1;
-static gint hf_fr_de              = -1;
-static gint hf_fr_third_dlci      = -1;
-static gint hf_fr_dlcore_control  = -1;
-static gint hf_fr_lower_dlci      = -1;
-static gint hf_fr_dc              = -1;
-static gint hf_fr_dlci            = -1;
-static gint hf_fr_control         = -1;
-static gint hf_fr_n_r             = -1;
-static gint hf_fr_n_s             = -1;
-static gint hf_fr_p               = -1;
-static gint hf_fr_p_ext           = -1;
-static gint hf_fr_f               = -1;
-static gint hf_fr_f_ext           = -1;
-static gint hf_fr_s_ftype         = -1;
-static gint hf_fr_u_modifier_cmd  = -1;
-static gint hf_fr_u_modifier_resp = -1;
-static gint hf_fr_ftype_i         = -1;
-static gint hf_fr_ftype_s_u       = -1;
-static gint hf_fr_ftype_s_u_ext   = -1;
-static gint hf_fr_nlpid           = -1;
-static gint hf_fr_oui             = -1;
-static gint hf_fr_pid             = -1;
-static gint hf_fr_snaptype        = -1;
-static gint hf_fr_chdlctype       = -1;
-static gint hf_fr_first_addr_octet  = -1;
-static gint hf_fr_second_addr_octet  = -1;
-static gint hf_fr_third_addr_octet  = -1;
+static int proto_fr;
+static int ett_fr;
+static int ett_fr_address;
+static int ett_fr_control;
+static int hf_fr_ea;
+static int hf_fr_upper_dlci;
+static int hf_fr_cr;
+static int hf_fr_second_dlci;
+static int hf_fr_fecn;
+static int hf_fr_becn;
+static int hf_fr_de;
+static int hf_fr_third_dlci;
+static int hf_fr_dlcore_control;
+static int hf_fr_lower_dlci;
+static int hf_fr_dc;
+static int hf_fr_dlci;
+static int hf_fr_control;
+static int hf_fr_n_r;
+static int hf_fr_n_s;
+static int hf_fr_p;
+static int hf_fr_p_ext;
+static int hf_fr_f;
+static int hf_fr_f_ext;
+static int hf_fr_s_ftype;
+static int hf_fr_u_modifier_cmd;
+static int hf_fr_u_modifier_resp;
+static int hf_fr_ftype_i;
+static int hf_fr_ftype_s_u;
+static int hf_fr_ftype_s_u_ext;
+static int hf_fr_nlpid;
+static int hf_fr_oui;
+static int hf_fr_pid;
+static int hf_fr_snaptype;
+static int hf_fr_chdlctype;
+static int hf_fr_first_addr_octet;
+static int hf_fr_second_addr_octet;
+static int hf_fr_third_addr_octet;
 
-static expert_field ei_fr_bogus_address = EI_INIT;
-static expert_field ei_fr_frame_relay_lapf = EI_INIT;
-static expert_field ei_fr_frame_relay_xid = EI_INIT;
+static expert_field ei_fr_bogus_address;
+static expert_field ei_fr_frame_relay_lapf;
+static expert_field ei_fr_frame_relay_xid;
 
 static dissector_handle_t eth_withfcs_handle;
 static dissector_handle_t gprs_ns_handle;
@@ -128,7 +126,7 @@ static dissector_table_t ethertype_subdissector_table;
 #define RAW_ETHER       2       /* Raw Ethernet */
 #define LAPB            3       /* T.617a-1994 Annex G encapsuation of LAPB */
 
-static gint fr_encap = FRF_3_2;
+static int fr_encap = FRF_3_2;
 
 static const true_false_string ctrl_string = {
   "DLCI Address",
@@ -171,7 +169,7 @@ static dissector_table_t fr_osinl_subdissector_table;
 
 static void dissect_fr_nlpid(tvbuff_t *tvb, int offset, packet_info *pinfo,
                              proto_tree *tree, proto_item *ti,
-                             proto_tree *fr_tree, guint8 fr_ctrl);
+                             proto_tree *fr_tree, uint8_t fr_ctrl);
 static void dissect_lapf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree);
 static void dissect_fr_xid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree);
 
@@ -201,19 +199,19 @@ static const xdlc_cf_items fr_cf_items_ext = {
   &hf_fr_ftype_s_u_ext
 };
 
-static gboolean
-capture_fr(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header)
+static bool
+capture_fr(const unsigned char *pd, int offset, int len, capture_packet_info_t *cpinfo, const union wtap_pseudo_header *pseudo_header)
 {
-  guint8  fr_octet;
-  guint32 addr;
-  guint8  fr_ctrl;
-  guint8  fr_nlpid;
+  uint8_t fr_octet;
+  uint32_t addr;
+  uint8_t fr_ctrl;
+  uint8_t fr_nlpid;
 
   /*
    * OK, fetch the address field - keep going until we get an EA bit.
    */
   if (!BYTES_ARE_IN_FRAME(offset, len, 1))
-    return FALSE;
+    return false;
 
   fr_octet = pd[offset];
   if (fr_octet & FRELAY_EA) {
@@ -222,7 +220,7 @@ capture_fr(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo,
      * XXX - is this FRF.12 frame relay fragmentation?  If so, can
      * we handle that?
      */
-     return FALSE;
+     return false;
   }
   /*
    * The first octet contains the upper 6 bits of the DLCI, as well
@@ -236,7 +234,7 @@ capture_fr(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo,
    * BECN, and DE.
    */
   if (!BYTES_ARE_IN_FRAME(offset, len, 1))
-    return FALSE;
+    return false;
 
   fr_octet = pd[offset];
   addr = (addr << 4) | ((fr_octet & FRELAY_SECOND_DLCI) >> 4);
@@ -251,7 +249,7 @@ capture_fr(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo,
      * control indicator flag if EA is set.
      */
     if (!BYTES_ARE_IN_FRAME(offset, len, 1))
-      return FALSE;
+      return false;
 
     fr_octet = pd[offset];
     if (!(fr_octet & FRELAY_EA)) {
@@ -261,7 +259,7 @@ capture_fr(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo,
       addr = (addr << 7) | ((fr_octet & FRELAY_THIRD_DLCI) >> 1);
       offset++;
       if (!BYTES_ARE_IN_FRAME(offset, len, 1))
-        return FALSE;
+        return false;
 
       fr_octet = pd[offset];
       while (!(fr_octet & FRELAY_EA)) {
@@ -270,7 +268,7 @@ capture_fr(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo,
          */
         offset++;
         if (!BYTES_ARE_IN_FRAME(offset, len, 1))
-          return FALSE;
+          return false;
 
         fr_octet = pd[offset];
       }
@@ -296,7 +294,7 @@ capture_fr(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo,
 
   case FRF_3_2:
     if (!BYTES_ARE_IN_FRAME(offset, len, 1))
-      return FALSE;
+      return false;
 
     fr_ctrl = pd[offset];
     if (fr_ctrl == XDLC_U) {
@@ -309,13 +307,13 @@ capture_fr(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo,
        * have a SNAP encapsulation" stuff from RFC 2427.
        */
       if (!BYTES_ARE_IN_FRAME(offset, len, 1))
-        return FALSE;
+        return false;
 
       fr_nlpid = pd[offset];
       if (fr_nlpid == 0) {
         offset++;
         if (!BYTES_ARE_IN_FRAME(offset, len, 1))
-          return FALSE;
+          return false;
 
         fr_nlpid = pd[offset];
       }
@@ -333,13 +331,13 @@ capture_fr(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo,
          * XXX - but what is it?  Is Q.933 carried inside UI
          * frames or other types of frames or both?
          */
-        return FALSE;
+        return false;
       }
       if (fr_ctrl == (XDLC_U|XDLC_XID)) {
         /*
          * XID.
          */
-        return FALSE;
+        return false;
       }
 
       /*
@@ -351,34 +349,34 @@ capture_fr(const guchar *pd, int offset, int len, capture_packet_info_t *cpinfo,
     break;
 
   case GPRS_NS:
-    return FALSE;
+    return false;
 
   case RAW_ETHER:
     if (addr != 0)
       return call_capture_dissector(eth_cap_handle, pd, offset, len, cpinfo, pseudo_header);
 
-    return FALSE;
+    return false;
   }
 
-  return FALSE;
+  return false;
 }
 
 static void
 dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                  gboolean has_direction, gboolean decode_address )
+                  bool has_direction, bool decode_address )
 {
   int         offset      = 0;
   proto_item *ti          = NULL;
   proto_tree *fr_tree     = NULL;
   proto_tree *octet_tree  = NULL;
-  guint8      fr_octet;
-  int         is_response = FALSE;
-  guint32     addr        = 0;
-  gboolean    encap_is_frf_3_2;
-  guint8      fr_ctrl;
-  guint16     fr_type;
+  uint8_t     fr_octet;
+  bool        is_response = false;
+  uint32_t    addr        = 0;
+  bool        encap_is_frf_3_2;
+  uint8_t     fr_ctrl;
+  uint16_t    fr_type;
   int         nlpid_offset;
-  guint8      fr_nlpid;
+  uint8_t     fr_nlpid;
   int         control;
   dissector_handle_t sub_dissector;
   tvbuff_t   *next_tvb;
@@ -406,7 +404,7 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     /*
      * OK, fetch the address field - keep going until we get an EA bit.
      */
-    fr_octet = tvb_get_guint8(tvb, offset);
+    fr_octet = tvb_get_uint8(tvb, offset);
 
     if (fr_octet & FRELAY_EA) {
       /*
@@ -439,7 +437,7 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
        * The second octet contains 4 more bits of DLCI, as well as FECN,
        * BECN, and DE.
        */
-      fr_octet = tvb_get_guint8(tvb, offset);
+      fr_octet = tvb_get_uint8(tvb, offset);
       addr = (addr << 4) | ((fr_octet & FRELAY_SECOND_DLCI) >> 4);
       proto_tree_add_bitmask(fr_tree, tvb, offset, hf_fr_second_addr_octet,
                                          ett_fr_address, second_address_bits, ENC_NA);
@@ -453,7 +451,7 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
          * and lower DLCI or DL-CORE control plus the DLCI or DL-CORE
          * control indicator flag if EA is set.
          */
-        fr_octet = tvb_get_guint8(tvb, offset);
+        fr_octet = tvb_get_uint8(tvb, offset);
         if (!(fr_octet & FRELAY_EA)) {
           /*
            * 7 more bits of DLCI.
@@ -462,7 +460,7 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
           proto_tree_add_bitmask(fr_tree, tvb, offset, hf_fr_third_addr_octet,
                                          ett_fr_address, third_address_bits, ENC_NA);
           offset++;
-          fr_octet = tvb_get_guint8(tvb, offset);
+          fr_octet = tvb_get_uint8(tvb, offset);
           while (!(fr_octet & FRELAY_EA)) {
             /*
              * Bogus!  More than 4 octets of address.
@@ -470,7 +468,7 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             proto_tree_add_expert_format(fr_tree, pinfo, &ei_fr_bogus_address, tvb, offset, 1,
                                  "Bogus extra address octet");
             offset++;
-            fr_octet = tvb_get_guint8(tvb, offset);
+            fr_octet = tvb_get_uint8(tvb, offset);
           }
         }
 
@@ -512,14 +510,14 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
   switch (fr_encap) {
 
   case FRF_3_2:
-    encap_is_frf_3_2 = FALSE;
-    fr_ctrl = tvb_get_guint8(tvb, offset);
+    encap_is_frf_3_2 = false;
+    fr_ctrl = tvb_get_uint8(tvb, offset);
     if (fr_ctrl == XDLC_U) {
       /*
        * It looks like an RFC 2427-encapsulation frame, with the
        * default UI control field.
        */
-      encap_is_frf_3_2 = TRUE;
+      encap_is_frf_3_2 = true;
     } else {
       if (addr == 0) {
         /*
@@ -535,7 +533,7 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         dissect_xdlc_control(tvb, offset, pinfo, fr_tree,
                              hf_fr_control, ett_fr_control,
                              &fr_cf_items, &fr_cf_items_ext,
-                             NULL, NULL, is_response, TRUE, TRUE);
+                             NULL, NULL, is_response, true, true);
         dissect_lapf(tvb_new_subset_remaining(tvb,offset),pinfo,tree);
         return;
       }
@@ -547,7 +545,7 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         dissect_xdlc_control(tvb, offset, pinfo, fr_tree,
                              hf_fr_control, ett_fr_control,
                              &fr_cf_items, &fr_cf_items_ext,
-                             NULL, NULL, is_response, TRUE, TRUE);
+                             NULL, NULL, is_response, true, true);
         dissect_fr_xid(tvb_new_subset_remaining(tvb,offset),pinfo,tree);
         return;
       }
@@ -579,11 +577,11 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
          * See if we have a dissector for the putative NLPID.
          */
         nlpid_offset = offset;
-        control = tvb_get_guint8(tvb, nlpid_offset);
+        control = tvb_get_uint8(tvb, nlpid_offset);
         if (control == 0) {
           /* Presumably a padding octet; the NLPID would be in the next octet. */
           nlpid_offset++;
-          control = tvb_get_guint8(tvb, nlpid_offset);
+          control = tvb_get_uint8(tvb, nlpid_offset);
         }
         switch (control & 0x03) {
 
@@ -615,24 +613,24 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
           break;
         }
         if (tvb_bytes_exist(tvb, nlpid_offset, 1)) {
-          fr_nlpid = tvb_get_guint8(tvb, nlpid_offset);
+          fr_nlpid = tvb_get_uint8(tvb, nlpid_offset);
           sub_dissector = dissector_get_uint_handle(fr_osinl_subdissector_table,
                                                     fr_nlpid);
           if (sub_dissector != NULL)
-            encap_is_frf_3_2 = TRUE;
+            encap_is_frf_3_2 = true;
           else {
             sub_dissector = dissector_get_uint_handle(osinl_incl_subdissector_table,
                                                       fr_nlpid);
             if (sub_dissector != NULL)
-              encap_is_frf_3_2 = TRUE;
+              encap_is_frf_3_2 = true;
             else {
               if (fr_nlpid == NLPID_SNAP)
-                encap_is_frf_3_2 = TRUE;
+                encap_is_frf_3_2 = true;
               else {
                 sub_dissector = dissector_get_uint_handle(fr_subdissector_table,
                                                           fr_nlpid);
                 if (sub_dissector != NULL)
-                  encap_is_frf_3_2 = TRUE;
+                  encap_is_frf_3_2 = true;
               }
             }
           }
@@ -648,8 +646,8 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
       control = dissect_xdlc_control(tvb, offset, pinfo, fr_tree,
                                      hf_fr_control, ett_fr_control,
                                      &fr_cf_items, &fr_cf_items_ext,
-                                     NULL, NULL, is_response, TRUE, TRUE);
-      offset += XDLC_CONTROL_LEN(control, TRUE);
+                                     NULL, NULL, is_response, true, true);
+      offset += XDLC_CONTROL_LEN(control, true);
 
       /*
        * XXX - treat DLCI 0 specially?  On DLCI 0, an NLPID of 0x08
@@ -662,7 +660,7 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
       /*
        * See if it looks like raw Ethernet.
        */
-      guint16 type_length;
+      uint16_t type_length;
 
       if (tvb_bytes_exist(tvb, offset + 12, 2) &&
           ((type_length = tvb_get_ntohs(tvb, offset + 12)) <= IEEE_802_3_MAX_LEN ||
@@ -681,12 +679,12 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
   case GPRS_NS:
     if (addr == 0) {
-      fr_ctrl = tvb_get_guint8(tvb, offset);
+      fr_ctrl = tvb_get_uint8(tvb, offset);
       control = dissect_xdlc_control(tvb, offset, pinfo, fr_tree,
                                      hf_fr_control, ett_fr_control,
                                      &fr_cf_items, &fr_cf_items_ext,
-                                     NULL, NULL, is_response, TRUE, TRUE);
-      offset += XDLC_CONTROL_LEN(control, TRUE);
+                                     NULL, NULL, is_response, true, true);
+      offset += XDLC_CONTROL_LEN(control, true);
       dissect_fr_nlpid(tvb, offset, pinfo, tree, ti, fr_tree, fr_ctrl);
     } else {
       next_tvb = tvb_new_subset_remaining(tvb, offset);
@@ -715,21 +713,21 @@ dissect_fr_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 static int
 dissect_fr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  dissect_fr_common(tvb, pinfo, tree, FALSE, TRUE );
+  dissect_fr_common(tvb, pinfo, tree, false, true );
   return tvb_captured_length(tvb);
 }
 
 static int
 dissect_fr_phdr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  dissect_fr_common(tvb, pinfo, tree, TRUE, TRUE );
+  dissect_fr_common(tvb, pinfo, tree, true, true );
   return tvb_captured_length(tvb);
 }
 
 static int
 dissect_fr_stripped_address(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  dissect_fr_common(tvb, pinfo, tree, TRUE, FALSE );
+  dissect_fr_common(tvb, pinfo, tree, true, false );
   return tvb_captured_length(tvb);
 }
 
@@ -752,9 +750,9 @@ dissect_fr_uncompressed(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 static void
 dissect_fr_nlpid(tvbuff_t *tvb, int offset, packet_info *pinfo,
                              proto_tree *tree, proto_item *ti,
-                             proto_tree *fr_tree, guint8 fr_ctrl)
+                             proto_tree *fr_tree, uint8_t fr_ctrl)
 {
-  guint8    fr_nlpid;
+  uint8_t   fr_nlpid;
   tvbuff_t *next_tvb;
 
   /*
@@ -763,7 +761,7 @@ dissect_fr_nlpid(tvbuff_t *tvb, int offset, packet_info *pinfo,
    * the OSI PDU.
    */
   proto_item_set_end(ti, tvb, offset);
-  fr_nlpid = tvb_get_guint8 (tvb,offset);
+  fr_nlpid = tvb_get_uint8 (tvb,offset);
   if (fr_nlpid == 0) {
     proto_tree_add_uint_format(fr_tree, hf_fr_nlpid, tvb, offset, 1, fr_nlpid, "Padding");
     offset++;
@@ -771,7 +769,7 @@ dissect_fr_nlpid(tvbuff_t *tvb, int offset, packet_info *pinfo,
       /* Include the padding in the top-level protocol tree item. */
       proto_item_set_end(ti, tvb, offset);
     }
-    fr_nlpid=tvb_get_guint8( tvb,offset);
+    fr_nlpid=tvb_get_uint8( tvb,offset);
   }
 
   /*
@@ -937,7 +935,7 @@ proto_register_fr(void)
 
     { &hf_fr_dc,
       { "DC", "fr.dc",
-        FT_BOOLEAN, 16, TFS(&ctrl_string), FRELAY_CR,
+        FT_BOOLEAN, 8, TFS(&ctrl_string), FRELAY_DC,
         "Address/Control", HFILL }},
 
     { &hf_fr_dlci,
@@ -1053,7 +1051,7 @@ proto_register_fr(void)
   };
 
   /* Setup protocol subtree array */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_fr,
     &ett_fr_address,
     &ett_fr_control,
@@ -1100,7 +1098,7 @@ proto_register_fr(void)
    */
   prefs_register_enum_preference(frencap_module, "encap", "Encapsulation",
                                  "Encapsulation", &fr_encap,
-                                 fr_encap_options, FALSE);
+                                 fr_encap_options, false);
 
   register_capture_dissector_table("fr.nlpid", "Frame Relay NLPID");
 }

@@ -29,11 +29,13 @@
 #endif
 #endif
 
+#if !GLIB_CHECK_VERSION(2, 58, 2)
 #ifdef __linux__
 #define HAS_G_SPAWN_LINUX_THREAD_SAFETY_BUG
 #include <fcntl.h>
 #include <sys/syscall.h>        /* for syscall and SYS_getdents64 */
 #include <wsutil/file_util.h>   /* for ws_open -> open to pacify checkAPIs.pl */
+#endif
 #endif
 
 #include "wsutil/filesystem.h"
@@ -153,7 +155,7 @@ ws_pipe_create_overlapped_read(HANDLE *read_pipe_handle, HANDLE *write_pipe_hand
     *read_pipe_handle = read_pipe;
     *write_pipe_handle = write_pipe;
     g_free(wname);
-    return(true);
+    return true;
 }
 #endif
 
@@ -221,7 +223,7 @@ convert_to_command_line(char **argv)
         g_free(quoted_arg);
     }
 #endif
-    return g_string_free(command_line, false);
+    return g_string_free(command_line, FALSE);
 }
 
 bool ws_pipe_spawn_sync(const char *working_directory, const char *command, int argc, char **args, char **command_output)
@@ -455,7 +457,7 @@ bool ws_pipe_spawn_sync(const char *working_directory, const char *command, int 
             status = false;
         }
 
-        local_output = g_string_free(output_string, false);
+        local_output = g_string_free(output_string, FALSE);
 
         CloseHandle(child_stdout_rd);
         CloseHandle(child_stderr_rd);

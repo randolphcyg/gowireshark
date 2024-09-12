@@ -19,10 +19,12 @@
 #include <config.h>
 
 #include <epan/packet.h>
-#include <epan/prefs.h>
+#include <epan/exceptions.h>
+#include <epan/unit_strings.h>
 #include "packet-tcp.h"
 
 #include <wsutil/str_util.h>
+#include <wsutil/array.h>
 
 /* Known as SHARED_SECRET_MAX in the DRBD sources */
 #define DRBD_STRING_MAX 64
@@ -113,6 +115,11 @@ enum drbd_packet {
     P_OV_DAGTAG_REQ       = 0x4f,
     P_OV_DAGTAG_REPLY     = 0x50,
 
+    P_WRITE_ACK_IN_SYNC   = 0x51,
+    P_RS_NEG_ACK          = 0x52,
+    P_OV_RESULT_ID        = 0x53,
+    P_RS_DEALLOCATED_ID   = 0x54,
+
     P_INITIAL_META        = 0xfff1,
     P_INITIAL_DATA        = 0xfff2,
 
@@ -120,23 +127,23 @@ enum drbd_packet {
 };
 
 typedef struct {
-    guint32 tid;
-    gint32 initiator_node_id;
+    uint32_t tid;
+    int32_t initiator_node_id;
 } drbd_twopc_key;
 
 typedef struct {
-    guint32 prepare_frame;
+    uint32_t prepare_frame;
     enum drbd_packet command;
 } drbd_twopc_val;
 
-static guint drbd_twopc_key_hash(gconstpointer k)
+static unsigned drbd_twopc_key_hash(const void *k)
 {
   const drbd_twopc_key *key = (const drbd_twopc_key *) k;
 
   return key->tid;
 }
 
-static gint drbd_twopc_key_equal(gconstpointer k1, gconstpointer k2)
+static int drbd_twopc_key_equal(const void *k1, const void *k2)
 {
   const drbd_twopc_key *key1 = (const drbd_twopc_key*) k1;
   const drbd_twopc_key *key2 = (const drbd_twopc_key*) k2;
@@ -239,6 +246,11 @@ static const value_string packet_names[] = {
     { P_RS_THIN_DAGTAG_REQ, "P_RS_THIN_DAGTAG_REQ" },
     { P_OV_DAGTAG_REQ, "P_OV_DAGTAG_REQ" },
     { P_OV_DAGTAG_REPLY, "P_OV_DAGTAG_REPLY" },
+
+    { P_WRITE_ACK_IN_SYNC, "P_WRITE_ACK_IN_SYNC" },
+    { P_RS_NEG_ACK, "P_RS_NEG_ACK" },
+    { P_OV_RESULT_ID, "P_OV_RESULT_ID" },
+    { P_RS_DEALLOCATED_ID, "P_RS_DEALLOCATED_ID" },
 
     { P_INITIAL_META, "P_INITIAL_META" },
     { P_INITIAL_DATA, "P_INITIAL_DATA" },
@@ -387,6 +399,17 @@ static const value_string disk_state_names[] = {
 #define DP_WSAME            512
 #define DP_ZEROES          1024
 
+#define OV_RESULT_SKIP         4710
+#define OV_RESULT_IN_SYNC      4711
+#define OV_RESULT_OUT_OF_SYNC  4712
+
+static const val64_string ov_result_codes[] = {
+    { OV_RESULT_SKIP, "SKIP" },
+    { OV_RESULT_IN_SYNC, "IN_SYNC" },
+    { OV_RESULT_OUT_OF_SYNC, "OUT_OF_SYNC" },
+    { 0, NULL }
+};
+
 #define DRBD_STREAM_DATA 0
 #define DRBD_STREAM_CONTROL 1
 
@@ -429,6 +452,7 @@ static void decode_payload_data_wsame(tvbuff_t *tvb, proto_tree *tree, drbd_conv
 static void decode_payload_rs_deallocated(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data);
 
 static void decode_payload_block_ack(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data);
+static void decode_payload_ov_result(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data);
 static void decode_payload_barrier_ack(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data);
 static void decode_payload_confirm_stable(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data);
 static void decode_payload_rq_s_reply(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data);
@@ -476,6 +500,7 @@ static const value_payload_decoder payload_decoders[] = {
     { P_TRIM, NULL, decode_payload_data_size },
     { P_ZEROES, NULL, decode_payload_data_size },
     { P_RS_DEALLOCATED, NULL, decode_payload_rs_deallocated },
+    { P_RS_DEALLOCATED_ID, NULL, decode_payload_block_ack },
     { P_WSAME, NULL, decode_payload_data_wsame },
     { P_DISCONNECT, NULL, NULL },
     { P_RS_DAGTAG_REQ, NULL, decode_payload_dagtag_data_request },
@@ -488,12 +513,15 @@ static const value_payload_decoder payload_decoders[] = {
     { P_PING_ACK, NULL, NULL },
     { P_RECV_ACK, NULL, decode_payload_block_ack },
     { P_WRITE_ACK, NULL, decode_payload_block_ack },
-    { P_RS_WRITE_ACK, NULL, decode_payload_block_ack },
+    { P_WRITE_ACK_IN_SYNC, NULL, decode_payload_block_ack },
     { P_SUPERSEDED, NULL, decode_payload_block_ack },
     { P_NEG_ACK, NULL, decode_payload_block_ack },
     { P_NEG_DREPLY, NULL, decode_payload_block_ack },
     { P_NEG_RS_DREPLY, NULL, decode_payload_block_ack },
+    { P_RS_WRITE_ACK, NULL, decode_payload_block_ack },
+    { P_RS_NEG_ACK, NULL, decode_payload_block_ack },
     { P_OV_RESULT, NULL, decode_payload_block_ack },
+    { P_OV_RESULT_ID, NULL, decode_payload_ov_result },
     { P_BARRIER_ACK, NULL, decode_payload_barrier_ack },
     { P_CONFIRM_STABLE, NULL, decode_payload_confirm_stable },
     { P_STATE_CHG_REPLY, NULL, decode_payload_rq_s_reply },
@@ -515,133 +543,140 @@ void proto_register_drbd(void);
 void proto_reg_handoff_drbd(void);
 
 static dissector_handle_t drbd_handle;
+static dissector_handle_t drbd_lb_tcp_handle;
 
-static int proto_drbd = -1;
+static int proto_drbd;
+static int proto_drbd_lb_tcp;
 
-static int hf_drbd_command = -1;
-static int hf_drbd_length = -1;
-static int hf_drbd_volume = -1;
-static int hf_drbd_auth_challenge_nonce = -1;
-static int hf_drbd_auth_response_hash = -1;
-static int hf_drbd_sector = -1;
-static int hf_drbd_block_id = -1;
-static int hf_drbd_seq_num = -1;
-static int hf_drbd_dp_flags = -1;
-static int hf_drbd_data = -1;
-static int hf_drbd_size = -1;
-static int hf_drbd_protocol_min = -1;
-static int hf_drbd_feature_flags = -1;
-static int hf_drbd_protocol_max = -1;
-static int hf_drbd_sender_node_id = -1;
-static int hf_drbd_receiver_node_id = -1;
-static int hf_drbd_barrier = -1;
-static int hf_drbd_set_size = -1;
-static int hf_drbd_oldest_block_id = -1;
-static int hf_drbd_youngest_block_id = -1;
-static int hf_drbd_resync_rate = -1;
-static int hf_drbd_verify_alg = -1;
-static int hf_drbd_csums_alg = -1;
-static int hf_drbd_c_plan_ahead = -1;
-static int hf_drbd_c_delay_target = -1;
-static int hf_drbd_c_fill_target = -1;
-static int hf_drbd_c_max_rate = -1;
-static int hf_drbd_protocol = -1;
-static int hf_drbd_after_sb_0p = -1;
-static int hf_drbd_after_sb_1p = -1;
-static int hf_drbd_after_sb_2p = -1;
-static int hf_drbd_conn_flags = -1;
-static int hf_drbd_two_primaries = -1;
-static int hf_drbd_integrity_alg = -1;
-static int hf_drbd_current_uuid = -1;
-static int hf_drbd_bitmap_uuid = -1;
-static int hf_drbd_history_uuid_list = -1;
-static int hf_drbd_history_uuid = -1;
-static int hf_drbd_dirty_bits = -1;
-static int hf_drbd_uuid_flags = -1;
-static int hf_drbd_node_mask = -1;
-static int hf_drbd_bitmap_uuids_mask = -1;
-static int hf_drbd_uuid = -1;
-static int hf_drbd_weak_nodes = -1;
-static int hf_drbd_physical_block_size = -1;
-static int hf_drbd_logical_block_size = -1;
-static int hf_drbd_alignment_offset = -1;
-static int hf_drbd_io_min = -1;
-static int hf_drbd_io_opt = -1;
-static int hf_drbd_discard_enabled = -1;
-static int hf_drbd_discard_zeroes_data = -1;
-static int hf_drbd_write_same_capable = -1;
-static int hf_drbd_d_size = -1;
-static int hf_drbd_u_size = -1;
-static int hf_drbd_c_size = -1;
-static int hf_drbd_max_bio_size = -1;
-static int hf_drbd_queue_order_type = -1;
-static int hf_drbd_dds_flags = -1;
-static int hf_drbd_state = -1;
-static int hf_drbd_retcode = -1;
-static int hf_drbd_twopc_prepare_in = -1;
-static int hf_drbd_tid = -1;
-static int hf_drbd_twopc_flags = -1;
-static int hf_drbd_initiator_node_id = -1;
-static int hf_drbd_target_node_id = -1;
-static int hf_drbd_nodes_to_reach = -1;
-static int hf_drbd_primary_nodes = -1;
-static int hf_drbd_user_size = -1;
-static int hf_drbd_diskful_primary_nodes = -1;
-static int hf_drbd_exposed_size = -1;
-static int hf_drbd_reachable_nodes = -1;
-static int hf_drbd_max_possible_size = -1;
-static int hf_drbd_offset = -1;
-static int hf_drbd_dagtag = -1;
-static int hf_drbd_dagtag_node_id = -1;
-static int hf_drbd_new_rx_descs_data = -1;
-static int hf_drbd_new_rx_descs_control = -1;
-static int hf_drbd_rx_desc_stolen_from = -1;
+static int hf_drbd_command;
+static int hf_drbd_length;
+static int hf_drbd_volume;
+static int hf_drbd_auth_challenge_nonce;
+static int hf_drbd_auth_response_hash;
+static int hf_drbd_sector;
+static int hf_drbd_block_id;
+static int hf_drbd_seq_num;
+static int hf_drbd_ov_result;
+static int hf_drbd_dp_flags;
+static int hf_drbd_data;
+static int hf_drbd_size;
+static int hf_drbd_protocol_min;
+static int hf_drbd_feature_flags;
+static int hf_drbd_protocol_max;
+static int hf_drbd_sender_node_id;
+static int hf_drbd_receiver_node_id;
+static int hf_drbd_barrier;
+static int hf_drbd_set_size;
+static int hf_drbd_oldest_block_id;
+static int hf_drbd_youngest_block_id;
+static int hf_drbd_resync_rate;
+static int hf_drbd_verify_alg;
+static int hf_drbd_csums_alg;
+static int hf_drbd_c_plan_ahead;
+static int hf_drbd_c_delay_target;
+static int hf_drbd_c_fill_target;
+static int hf_drbd_c_max_rate;
+static int hf_drbd_protocol;
+static int hf_drbd_after_sb_0p;
+static int hf_drbd_after_sb_1p;
+static int hf_drbd_after_sb_2p;
+static int hf_drbd_conn_flags;
+static int hf_drbd_two_primaries;
+static int hf_drbd_integrity_alg;
+static int hf_drbd_current_uuid;
+static int hf_drbd_bitmap_uuid;
+static int hf_drbd_history_uuid_list;
+static int hf_drbd_history_uuid;
+static int hf_drbd_dirty_bits;
+static int hf_drbd_uuid_flags;
+static int hf_drbd_node_mask;
+static int hf_drbd_bitmap_uuids_mask;
+static int hf_drbd_uuid;
+static int hf_drbd_weak_nodes;
+static int hf_drbd_physical_block_size;
+static int hf_drbd_logical_block_size;
+static int hf_drbd_alignment_offset;
+static int hf_drbd_io_min;
+static int hf_drbd_io_opt;
+static int hf_drbd_discard_enabled;
+static int hf_drbd_discard_zeroes_data;
+static int hf_drbd_write_same_capable;
+static int hf_drbd_d_size;
+static int hf_drbd_u_size;
+static int hf_drbd_c_size;
+static int hf_drbd_max_bio_size;
+static int hf_drbd_queue_order_type;
+static int hf_drbd_dds_flags;
+static int hf_drbd_state;
+static int hf_drbd_retcode;
+static int hf_drbd_twopc_prepare_in;
+static int hf_drbd_tid;
+static int hf_drbd_twopc_flags;
+static int hf_drbd_initiator_node_id;
+static int hf_drbd_target_node_id;
+static int hf_drbd_nodes_to_reach;
+static int hf_drbd_primary_nodes;
+static int hf_drbd_user_size;
+static int hf_drbd_diskful_primary_nodes;
+static int hf_drbd_exposed_size;
+static int hf_drbd_reachable_nodes;
+static int hf_drbd_max_possible_size;
+static int hf_drbd_offset;
+static int hf_drbd_dagtag;
+static int hf_drbd_dagtag_node_id;
+static int hf_drbd_new_rx_descs_data;
+static int hf_drbd_new_rx_descs_control;
+static int hf_drbd_rx_desc_stolen_from;
 
-static int hf_drbd_state_role = -1;
-static int hf_drbd_state_peer = -1;
-static int hf_drbd_state_conn = -1;
-static int hf_drbd_state_disk = -1;
-static int hf_drbd_state_pdsk = -1;
-static int hf_drbd_state_susp = -1;
-static int hf_drbd_state_aftr_isp = -1;
-static int hf_drbd_state_peer_isp = -1;
-static int hf_drbd_state_user_isp = -1;
-static int hf_drbd_state_susp_nod = -1;
-static int hf_drbd_state_susp_fen = -1;
-static int hf_drbd_state_quorum = -1;
+static int hf_drbd_state_role;
+static int hf_drbd_state_peer;
+static int hf_drbd_state_conn;
+static int hf_drbd_state_disk;
+static int hf_drbd_state_pdsk;
+static int hf_drbd_state_susp;
+static int hf_drbd_state_aftr_isp;
+static int hf_drbd_state_peer_isp;
+static int hf_drbd_state_user_isp;
+static int hf_drbd_state_susp_nod;
+static int hf_drbd_state_susp_fen;
+static int hf_drbd_state_quorum;
 
-static int hf_drbd_twopc_flag_has_reachable = -1;
+static int hf_drbd_twopc_flag_has_reachable;
 
-static int hf_drbd_uuid_flag_discard_my_data = -1;
-static int hf_drbd_uuid_flag_crashed_primary = -1;
-static int hf_drbd_uuid_flag_inconsistent = -1;
-static int hf_drbd_uuid_flag_skip_initial_sync = -1;
-static int hf_drbd_uuid_flag_new_datagen = -1;
-static int hf_drbd_uuid_flag_stable = -1;
-static int hf_drbd_uuid_flag_got_stable = -1;
-static int hf_drbd_uuid_flag_resync = -1;
-static int hf_drbd_uuid_flag_reconnect = -1;
-static int hf_drbd_uuid_flag_diskless_primary = -1;
-static int hf_drbd_uuid_flag_primary_lost_quorum = -1;
+static int hf_drbd_uuid_flag_discard_my_data;
+static int hf_drbd_uuid_flag_crashed_primary;
+static int hf_drbd_uuid_flag_inconsistent;
+static int hf_drbd_uuid_flag_skip_initial_sync;
+static int hf_drbd_uuid_flag_new_datagen;
+static int hf_drbd_uuid_flag_stable;
+static int hf_drbd_uuid_flag_got_stable;
+static int hf_drbd_uuid_flag_resync;
+static int hf_drbd_uuid_flag_reconnect;
+static int hf_drbd_uuid_flag_diskless_primary;
+static int hf_drbd_uuid_flag_primary_lost_quorum;
 
-static int hf_drbd_dp_hardbarrier = -1;
-static int hf_drbd_dp_rw_sync = -1;
-static int hf_drbd_dp_may_set_in_sync = -1;
-static int hf_drbd_dp_unplug = -1;
-static int hf_drbd_dp_fua = -1;
-static int hf_drbd_dp_flush = -1;
-static int hf_drbd_dp_discard = -1;
-static int hf_drbd_dp_send_receive_ack = -1;
-static int hf_drbd_dp_send_write_ack = -1;
-static int hf_drbd_dp_wsame = -1;
-static int hf_drbd_dp_zeroes = -1;
+static int hf_drbd_dp_hardbarrier;
+static int hf_drbd_dp_rw_sync;
+static int hf_drbd_dp_may_set_in_sync;
+static int hf_drbd_dp_unplug;
+static int hf_drbd_dp_fua;
+static int hf_drbd_dp_flush;
+static int hf_drbd_dp_discard;
+static int hf_drbd_dp_send_receive_ack;
+static int hf_drbd_dp_send_write_ack;
+static int hf_drbd_dp_wsame;
+static int hf_drbd_dp_zeroes;
 
-static gint ett_drbd = -1;
-static gint ett_drbd_state = -1;
-static gint ett_drbd_twopc_flags = -1;
-static gint ett_drbd_uuid_flags = -1;
-static gint ett_drbd_history_uuids = -1;
-static gint ett_drbd_data_flags = -1;
+static int hf_drbd_lb_tcp_seq;
+static int hf_drbd_lb_tcp_length;
+
+static int ett_drbd;
+static int ett_drbd_lb_tcp;
+static int ett_drbd_state;
+static int ett_drbd_twopc_flags;
+static int ett_drbd_uuid_flags;
+static int ett_drbd_history_uuids;
+static int ett_drbd_data_flags;
 
 static int * const state_fields[] = {
     &hf_drbd_state_role,
@@ -696,8 +731,8 @@ static int * const data_flag_fields[] = {
 
 #define CHALLENGE_LEN 64
 
-static gboolean is_bit_set_64(guint64 value, int bit) {
-    return !!(value & (G_GUINT64_CONSTANT(1) << bit));
+static bool is_bit_set_64(uint64_t value, int bit) {
+    return !!(value & (UINT64_C(1) << bit));
 }
 
 /*
@@ -713,10 +748,10 @@ static gboolean is_bit_set_64(guint64 value, int bit) {
 #define DRBD_MAGIC_100 0x8620ec20
 #define DRBD_TRANSPORT_RDMA_MAGIC 0x5257494E
 
-static guint get_drbd_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
+static unsigned read_drbd_packet_len(tvbuff_t *tvb, int offset)
 {
-    guint32 magic32;
-    guint16 magic16;
+    uint32_t magic32;
+    uint16_t magic16;
 
     magic32 = tvb_get_ntohl(tvb, offset);
 
@@ -734,6 +769,27 @@ static guint get_drbd_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset,
     return 0;
 }
 
+static unsigned get_drbd_pdu_len(packet_info *pinfo, tvbuff_t *tvb, int offset, void *data _U_)
+{
+    unsigned drbd_len = read_drbd_packet_len(tvb, offset);
+
+    if (tvb_reported_length_remaining(tvb, offset) >= DRBD_FRAME_HEADER_100_LEN && !drbd_len) {
+        /* We have enough data to recognize any header, but none matched.
+         * Either there is data corruption or this is actually an lb-tcp
+         * stream. It is possible that the capture is missing the first lb-tcp
+         * header. In that case, the stream will be misidentified as normal
+         * DRBD on TCP.
+         *
+         * Reset the dissector and throw some exception so that a new dissector
+         * is chosen by the heuristic. */
+        conversation_t *conversation = find_or_create_conversation(pinfo);
+        conversation_set_dissector(conversation, NULL);
+        THROW(ReportedBoundsError);
+    }
+
+    return drbd_len;
+}
+
 static int dissect_drbd_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     dissect_drbd_message(tvb, pinfo, tree);
@@ -743,56 +799,123 @@ static int dissect_drbd_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 static int dissect_drbd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "DRBD");
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, DRBD_FRAME_HEADER_80_LEN,
+    tcp_dissect_pdus(tvb, pinfo, tree, true, DRBD_FRAME_HEADER_80_LEN,
             get_drbd_pdu_len, dissect_drbd_pdu, data);
     return tvb_reported_length(tvb);
 }
 
-static gboolean test_drbd_header(tvbuff_t *tvb)
+static unsigned get_drbd_lb_tcp_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    guint reported_length = tvb_reported_length(tvb);
-    if (reported_length < DRBD_FRAME_HEADER_80_LEN || tvb_captured_length(tvb) < 4) {
-        return FALSE;
-    }
-
-    gboolean match = FALSE;
-    guint32 magic32 = tvb_get_ntohl(tvb, 0);
-
-    if (magic32 == DRBD_MAGIC)
-        match = TRUE;
-    else if (reported_length >= DRBD_FRAME_HEADER_100_LEN && magic32 == DRBD_MAGIC_100)
-        match = TRUE;
-    else {
-        guint16 magic16 = tvb_get_ntohs(tvb, 0);
-        if (magic16 == DRBD_MAGIC_BIG)
-            match = TRUE;
-    }
-
-    return match;
+    return 8 + tvb_get_ntohl(tvb, offset + 4);
 }
 
-static gboolean test_drbd_rdma_control_header(tvbuff_t *tvb)
+static int dissect_drbd_lb_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint reported_length = tvb_reported_length(tvb);
-    if (reported_length < DRBD_TRANSPORT_RDMA_PACKET_LEN || tvb_captured_length(tvb) < 4) {
-        return FALSE;
+    proto_tree      *lb_tcp_tree;
+    proto_item      *lb_tcp_ti;
+
+    lb_tcp_ti = proto_tree_add_item(tree, proto_drbd_lb_tcp, tvb, 0, -1, ENC_NA);
+    proto_item_set_text(lb_tcp_ti, "DRBD [lb-tcp]");
+    lb_tcp_tree = proto_item_add_subtree(lb_tcp_ti, ett_drbd_lb_tcp);
+
+    proto_tree_add_item(lb_tcp_tree, hf_drbd_lb_tcp_seq, tvb, 0, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(lb_tcp_tree, hf_drbd_lb_tcp_length, tvb, 4, 4, ENC_BIG_ENDIAN);
+
+    unsigned offset = 8;
+    while (tvb_captured_length(tvb) >= offset + DRBD_FRAME_HEADER_80_LEN) {
+        unsigned length = read_drbd_packet_len(tvb, offset);
+
+        /* Was a header recognized? */
+        if (length == 0) {
+            const char *info_text = col_get_text(pinfo->cinfo, COL_INFO);
+
+            col_clear(pinfo->cinfo, COL_INFO);
+            if (!info_text || !info_text[0])
+                col_append_ports(pinfo->cinfo, COL_INFO, PT_TCP, pinfo->srcport, pinfo->destport);
+            col_append_str(pinfo->cinfo, COL_INFO, " [lb-tcp Payload]");
+            col_set_fence(pinfo->cinfo, COL_INFO);
+
+            break;
+        }
+
+        dissect_drbd_message(tvb_new_subset_length(tvb, offset, length), pinfo, tree);
+
+        offset += length;
     }
 
-    guint32 magic32 = tvb_get_ntohl(tvb, 0);
+    return tvb_reported_length(tvb);
+}
+
+static int dissect_drbd_lb_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
+{
+    col_set_str(pinfo->cinfo, COL_PROTOCOL, "DRBD lb-tcp");
+    tcp_dissect_pdus(tvb, pinfo, tree, true, 8,
+            get_drbd_lb_tcp_pdu_len, dissect_drbd_lb_tcp_pdu, data);
+    return tvb_reported_length(tvb);
+}
+
+static bool test_drbd_header(tvbuff_t *tvb, int offset)
+{
+    int reported_length = tvb_reported_length(tvb);
+    int captured_length = tvb_captured_length(tvb);
+
+    if (reported_length < offset + DRBD_FRAME_HEADER_80_LEN || captured_length < offset + 4)
+        return false;
+
+    uint32_t magic32 = tvb_get_ntohl(tvb, offset);
+
+    if (magic32 == DRBD_MAGIC)
+        return true;
+    else if (reported_length >= offset + DRBD_FRAME_HEADER_100_LEN && magic32 == DRBD_MAGIC_100)
+        return true;
+    else {
+        uint16_t magic16 = tvb_get_ntohs(tvb, offset);
+        if (magic16 == DRBD_MAGIC_BIG)
+            return true;
+    }
+
+    return false;
+}
+
+static bool test_drbd_rdma_control_header(tvbuff_t *tvb)
+{
+    unsigned reported_length = tvb_reported_length(tvb);
+    if (reported_length < DRBD_TRANSPORT_RDMA_PACKET_LEN || tvb_captured_length(tvb) < 4) {
+        return false;
+    }
+
+    uint32_t magic32 = tvb_get_ntohl(tvb, 0);
     return magic32 == DRBD_TRANSPORT_RDMA_MAGIC;
 }
 
-static gboolean test_drbd_protocol(tvbuff_t *tvb, packet_info *pinfo,
+static bool test_drbd_protocol(tvbuff_t *tvb, packet_info *pinfo,
         proto_tree *tree, void *data _U_)
 {
-    if (!test_drbd_header(tvb))
-        return FALSE;
+    if (!test_drbd_header(tvb, 0))
+        return false;
 
     conversation_t *conversation = find_or_create_conversation(pinfo);
     conversation_set_dissector(conversation, drbd_handle);
     dissect_drbd(tvb, pinfo, tree, data);
 
-    return TRUE;
+    return true;
+}
+
+static bool test_drbd_lb_tcp_protocol(tvbuff_t *tvb, packet_info *pinfo,
+        proto_tree *tree, void *data _U_)
+{
+    /* DRBD packets may be split between lb-tcp wrapper packets. As a result,
+     * there may be lb-tcp packets that do not contain any DRBD header.
+     * However, we have no other way to identify lb-tcp packets, so look for a
+     * DRBD header anyway. This is a best-effort solution. */
+    if (!test_drbd_header(tvb, 8))
+        return false;
+
+    conversation_t *conversation = find_or_create_conversation(pinfo);
+    conversation_set_dissector(conversation, drbd_lb_tcp_handle);
+    dissect_drbd_lb_tcp(tvb, pinfo, tree, data);
+
+    return true;
 }
 
 /*
@@ -816,7 +939,7 @@ static conversation_t *find_drbd_conversation(packet_info *pinfo)
 {
     address* addr_a;
     address* addr_b;
-    guint32 port_a = MIN(pinfo->srcport, pinfo->destport);
+    uint32_t port_a = MIN(pinfo->srcport, pinfo->destport);
 
     if (cmp_address(&pinfo->src, &pinfo->dst) < 0) {
         addr_a = &pinfo->src;
@@ -841,10 +964,10 @@ static conversation_t *find_drbd_conversation(packet_info *pinfo)
 /**
  * Returns buffer containing the payload.
  */
-static tvbuff_t *decode_header(tvbuff_t *tvb, proto_tree *pt, guint16 *command)
+static tvbuff_t *decode_header(tvbuff_t *tvb, proto_tree *pt, uint16_t *command)
 {
-    guint32 magic32;
-    guint16 magic16;
+    uint32_t magic32;
+    uint16_t magic16;
 
     magic32 = tvb_get_ntohl(tvb, 0);
 
@@ -881,7 +1004,7 @@ static tvbuff_t *decode_header(tvbuff_t *tvb, proto_tree *pt, guint16 *command)
     return NULL;
 }
 
-static const value_payload_decoder *find_payload_decoder(guint16 command)
+static const value_payload_decoder *find_payload_decoder(uint16_t command)
 {
     for (unsigned int i = 0; i < array_length(payload_decoders); i++) {
         if (payload_decoders[i].value == command) {
@@ -896,7 +1019,7 @@ static void dissect_drbd_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 {
     proto_tree      *drbd_tree;
     proto_item      *ti;
-    guint16         command = -1;
+    uint16_t        command = -1;
 
     col_clear(pinfo->cinfo, COL_INFO);
 
@@ -909,14 +1032,11 @@ static void dissect_drbd_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
         return;
 
     /* Indicate what kind of message this is. */
-    const gchar *packet_name = val_to_str(command, packet_names, "Unknown (0x%02x)");
-    const gchar *info_text = col_get_text(pinfo->cinfo, COL_INFO);
-    if (!info_text || !info_text[0]) {
+    const char *packet_name = val_to_str(command, packet_names, "Unknown (0x%02x)");
+    const char *info_text = col_get_text(pinfo->cinfo, COL_INFO);
+    if (!info_text || !info_text[0])
         col_append_ports(pinfo->cinfo, COL_INFO, PT_TCP, pinfo->srcport, pinfo->destport);
-        col_append_fstr(pinfo->cinfo, COL_INFO, " [%s]", packet_name);
-    } else {
-        col_append_fstr(pinfo->cinfo, COL_INFO, " [%s]", packet_name);
-    }
+    col_append_fstr(pinfo->cinfo, COL_INFO, " [%s]", packet_name);
     col_set_fence(pinfo->cinfo, COL_INFO);
 
     conversation_t *conv = find_drbd_conversation(pinfo);
@@ -941,9 +1061,9 @@ static void dissect_drbd_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
         (*payload_decoder->tree_fn) (payload_tvb, drbd_tree, conv_data);
 }
 
-static void drbd_ib_append_col_info(packet_info *pinfo, const gchar *packet_name)
+static void drbd_ib_append_col_info(packet_info *pinfo, const char *packet_name)
 {
-    const gchar *info_text;
+    const char *info_text;
 
     col_clear(pinfo->cinfo, COL_INFO);
     info_text = col_get_text(pinfo->cinfo, COL_INFO);
@@ -958,7 +1078,7 @@ static void dissect_drbd_ib_message(tvbuff_t *tvb, packet_info *pinfo, proto_tre
 {
     proto_tree      *drbd_tree;
     proto_item      *ti;
-    guint16         command = -1;
+    uint16_t        command = -1;
 
     ti = proto_tree_add_item(tree, proto_drbd, tvb, 0, -1, ENC_NA);
     drbd_tree = proto_item_add_subtree(ti, ett_drbd);
@@ -969,7 +1089,7 @@ static void dissect_drbd_ib_message(tvbuff_t *tvb, packet_info *pinfo, proto_tre
         return;
 
     /* Indicate what kind of message this is. */
-    const gchar *packet_name = val_to_str(command, packet_names, "Unknown (0x%02x)");
+    const char *packet_name = val_to_str(command, packet_names, "Unknown (0x%02x)");
     drbd_ib_append_col_info(pinfo, packet_name);
 
     if (tree == NULL)
@@ -1002,20 +1122,20 @@ static void dissect_drbd_ib_control_message(tvbuff_t *tvb, packet_info *pinfo, p
     proto_tree_add_item(drbd_tree, hf_drbd_rx_desc_stolen_from, tvb, 12, 4, ENC_BIG_ENDIAN);
 }
 
-static gboolean dissect_drbd_ib(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+static bool dissect_drbd_ib(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    if (!test_drbd_header(tvb) && !test_drbd_rdma_control_header(tvb))
-        return FALSE;
+    if (!test_drbd_header(tvb, 0) && !test_drbd_rdma_control_header(tvb))
+        return false;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "DRBD RDMA");
     while (1) {
-        guint length;
-        gboolean is_control_packet = test_drbd_rdma_control_header(tvb);
+        unsigned length;
+        bool is_control_packet = test_drbd_rdma_control_header(tvb);
 
         if (is_control_packet)
             length = DRBD_TRANSPORT_RDMA_PACKET_LEN;
         else
-            length = get_drbd_pdu_len(pinfo, tvb, 0, data);
+            length = read_drbd_packet_len(tvb, 0);
 
         /* Was a header recognized? */
         if (length == 0)
@@ -1036,17 +1156,17 @@ static gboolean dissect_drbd_ib(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
         tvb = tvb_new_subset_remaining(tvb, length);
     }
 
-    return TRUE;
+    return true;
 }
 
 static void insert_twopc(tvbuff_t *tvb, packet_info *pinfo, drbd_conv *conv_data, enum drbd_packet command)
 {
-    guint32 flags = tvb_get_ntohl(tvb, 4);
+    uint32_t flags = tvb_get_ntohl(tvb, 4);
 
     drbd_twopc_key *key = wmem_new0(wmem_file_scope(), drbd_twopc_key);
     key->tid = tvb_get_ntohl(tvb, 0);
     if (flags & TWOPC_HAS_FLAGS)
-        key->initiator_node_id = tvb_get_gint8(tvb, 10);
+        key->initiator_node_id = tvb_get_int8(tvb, 10);
     else
         key->initiator_node_id = tvb_get_ntohil(tvb, 4);
 
@@ -1098,7 +1218,7 @@ static void decode_payload_data(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv
 {
     decode_data_common(tvb, tree);
 
-    guint nbytes = tvb_reported_length_remaining(tvb, 24);
+    unsigned nbytes = tvb_reported_length_remaining(tvb, 24);
     proto_tree_add_uint(tree, hf_drbd_size, tvb, 0, 0, nbytes);
 
     /* For infiniband the data is not in this tvb, so we do not show the data field. */
@@ -1131,8 +1251,8 @@ static void decode_payload_dagtag_data_request(tvbuff_t *tvb, proto_tree *tree, 
 
 static void decode_payload_sync_param(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data _U_)
 {
-    guint length = tvb_reported_length(tvb);
-    guint offset = 0;
+    unsigned length = tvb_reported_length(tvb);
+    unsigned offset = 0;
 
     proto_tree_add_item(tree, hf_drbd_resync_rate, tvb, offset, 4, ENC_BIG_ENDIAN);
     offset += 4;
@@ -1197,7 +1317,7 @@ static void decode_payload_state(tvbuff_t *tvb, proto_tree *tree, drbd_conv *con
 }
 
 /* Filter fields leaving only those with bitmask overlapping with the given mask. */
-static void mask_fields(guint32 mask, int * const fields[], int * masked_fields[])
+static void mask_fields(uint32_t mask, int * const fields[], int * masked_fields[])
 {
         int masked_i = 0;
 
@@ -1213,9 +1333,9 @@ static void mask_fields(guint32 mask, int * const fields[], int * masked_fields[
         masked_fields[masked_i] = NULL;
 }
 
-static void decode_state_change(tvbuff_t *tvb, proto_tree *tree, gint offset)
+static void decode_state_change(tvbuff_t *tvb, proto_tree *tree, int offset)
 {
-        guint32 state_mask = tvb_get_ntohl(tvb, offset);
+        uint32_t state_mask = tvb_get_ntohl(tvb, offset);
         int * masked_state_fields[array_length(state_fields)];
         mask_fields(state_mask, state_fields, masked_state_fields);
 
@@ -1249,12 +1369,12 @@ static void decode_payload_out_of_sync(tvbuff_t *tvb, proto_tree *tree, drbd_con
 }
 
 /* Return the twopc flags, if present. */
-static guint32 decode_twopc_request_common(tvbuff_t *tvb, proto_tree *tree, drbd_twopc_key *key)
+static uint32_t decode_twopc_request_common(tvbuff_t *tvb, proto_tree *tree, drbd_twopc_key *key)
 {
     proto_tree_add_item_ret_uint(tree, hf_drbd_tid, tvb, 0, 4, ENC_BIG_ENDIAN,
             key ? &key->tid : NULL);
 
-    guint32 flags = tvb_get_ntohl(tvb, 4);
+    uint32_t flags = tvb_get_ntohl(tvb, 4);
     if (flags & TWOPC_HAS_FLAGS) {
         proto_tree_add_bitmask(tree, tvb, 4, hf_drbd_twopc_flags, ett_drbd_twopc_flags, twopc_flag_fields, ENC_BIG_ENDIAN);
         proto_tree_add_item_ret_int(tree, hf_drbd_initiator_node_id, tvb, 10, 1, ENC_BIG_ENDIAN,
@@ -1273,7 +1393,7 @@ static guint32 decode_twopc_request_common(tvbuff_t *tvb, proto_tree *tree, drbd
 
 static void decode_payload_twopc_prepare(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data _U_)
 {
-    guint32 flags = decode_twopc_request_common(tvb, tree, NULL);
+    uint32_t flags = decode_twopc_request_common(tvb, tree, NULL);
 
     if (!(flags & TWOPC_HAS_FLAGS))
         proto_tree_add_item(tree, hf_drbd_primary_nodes, tvb, 20, 8, ENC_BIG_ENDIAN);
@@ -1292,7 +1412,7 @@ static void decode_payload_twopc_prep_rsz(tvbuff_t *tvb, proto_tree *tree, drbd_
 static void decode_payload_twopc_commit(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data)
 {
     drbd_twopc_key key;
-    guint32 flags = decode_twopc_request_common(tvb, tree, &key);
+    uint32_t flags = decode_twopc_request_common(tvb, tree, &key);
 
     if (!conv_data)
         return;
@@ -1329,13 +1449,13 @@ static void decode_payload_uuids110(tvbuff_t *tvb, proto_tree *tree, drbd_conv *
     proto_tree_add_bitmask(tree, tvb, 16, hf_drbd_uuid_flags, ett_drbd_uuid_flags, uuid_flag_fields, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_drbd_node_mask, tvb, 24, 8, ENC_BIG_ENDIAN);
 
-    guint64 bitmap_uuids_mask;
+    uint64_t bitmap_uuids_mask;
     proto_tree_add_item_ret_uint64(tree, hf_drbd_bitmap_uuids_mask, tvb, 32, 8, ENC_BIG_ENDIAN, &bitmap_uuids_mask);
 
-    guint offset = 40;
+    unsigned offset = 40;
     for (int i = 0; i < 64; i++) {
         if (is_bit_set_64(bitmap_uuids_mask, i)) {
-            guint64 bitmap_uuid = tvb_get_ntoh64(tvb, offset);
+            uint64_t bitmap_uuid = tvb_get_ntoh64(tvb, offset);
             proto_tree_add_uint64_format(tree, hf_drbd_bitmap_uuid, tvb, offset, 8, bitmap_uuid,
                     "Bitmap UUID for node %d: 0x%016" PRIx64, i, bitmap_uuid);
             offset += 8;
@@ -1344,7 +1464,7 @@ static void decode_payload_uuids110(tvbuff_t *tvb, proto_tree *tree, drbd_conv *
 
     proto_item *history_uuids = proto_tree_add_item(tree, hf_drbd_history_uuid_list, tvb, offset, -1, ENC_NA);
     proto_tree *history_tree = proto_item_add_subtree(history_uuids, ett_drbd_history_uuids);
-    guint total_length = tvb_reported_length(tvb);
+    unsigned total_length = tvb_reported_length(tvb);
     while (offset < total_length) {
         proto_tree_add_item(history_tree, hf_drbd_history_uuid, tvb, offset, 8, ENC_BIG_ENDIAN);
         offset += 8;
@@ -1374,7 +1494,7 @@ static void decode_payload_data_wsame(tvbuff_t *tvb, proto_tree *tree, drbd_conv
     decode_data_common(tvb, tree);
     proto_tree_add_item(tree, hf_drbd_size, tvb, 24, 4, ENC_BIG_ENDIAN);
 
-    guint nbytes = tvb_reported_length_remaining(tvb, 28);
+    unsigned nbytes = tvb_reported_length_remaining(tvb, 28);
     /* For infiniband the data is not in this tvb, so we do not show the data field. */
     if (tvb_captured_length(tvb) >= 28 + nbytes) {
         proto_tree_add_bytes_format(tree, hf_drbd_data, tvb, 28,
@@ -1394,6 +1514,15 @@ static void decode_payload_block_ack(tvbuff_t *tvb, proto_tree *tree, drbd_conv 
     proto_tree_add_item(tree, hf_drbd_block_id, tvb, 8, 8, ENC_LITTLE_ENDIAN);
     proto_tree_add_item(tree, hf_drbd_size, tvb, 16, 4, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_drbd_seq_num, tvb, 20, 4, ENC_BIG_ENDIAN);
+}
+
+static void decode_payload_ov_result(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data _U_)
+{
+    proto_tree_add_item(tree, hf_drbd_sector, tvb, 0, 8, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_drbd_block_id, tvb, 8, 8, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_drbd_size, tvb, 16, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_drbd_seq_num, tvb, 20, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_drbd_ov_result, tvb, 24, 8, ENC_BIG_ENDIAN);
 }
 
 static void decode_payload_barrier_ack(tvbuff_t *tvb, proto_tree *tree, drbd_conv *conv_data _U_)
@@ -1457,7 +1586,7 @@ static void decode_payload_twopc_reply(tvbuff_t *tvb, proto_tree *tree, drbd_con
     }
 }
 
-static void format_node_mask(gchar *s, guint64 value)
+static void format_node_mask(char *s, uint64_t value)
 {
     if (!value) {
         (void) g_strlcpy(s, "<none>", ITEM_LABEL_LENGTH);
@@ -1467,7 +1596,7 @@ static void format_node_mask(gchar *s, guint64 value)
     int written = 0;
     int run_start = -1;
     for (int i = 0; i < 64 && written < ITEM_LABEL_LENGTH; i++) {
-        gboolean is_set = is_bit_set_64(value, i);
+        bool is_set = is_bit_set_64(value, i);
 
         int run_end;
         if (!is_set) {
@@ -1510,6 +1639,7 @@ void proto_register_drbd(void)
         { &hf_drbd_sector, { "Sector", "drbd.sector", FT_UINT64, BASE_DEC_HEX, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_block_id, { "Block ID", "drbd.block_id", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_seq_num, { "Sequence number", "drbd.seq_num", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_drbd_ov_result, { "Online verify result", "drbd.ov_result", FT_UINT64, BASE_DEC|BASE_VAL64_STRING, VALS64(ov_result_codes), 0x0, NULL, HFILL }},
         { &hf_drbd_dp_flags, { "Data flags", "drbd.dp_flags", FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_data, { "Data", "drbd.data", FT_BYTES, BASE_NO_DISPLAY_VALUE, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_size, { "Size", "drbd.size", FT_UINT32, BASE_DEC_HEX, NULL, 0x0, NULL, HFILL }},
@@ -1522,13 +1652,13 @@ void proto_register_drbd(void)
         { &hf_drbd_set_size, { "set_size", "drbd.set_size", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_oldest_block_id, { "oldest_block_id", "drbd.oldest_block_id", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_youngest_block_id, { "youngest_block_id", "drbd.youngest_block_id", FT_UINT64, BASE_HEX, NULL, 0x0, NULL, HFILL }},
-        { &hf_drbd_resync_rate, { "resync_rate", "drbd.resync_rate", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_kibps, 0x0, NULL, HFILL }},
+        { &hf_drbd_resync_rate, { "resync_rate", "drbd.resync_rate", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_kibps), 0x0, NULL, HFILL }},
         { &hf_drbd_verify_alg, { "verify_alg", "drbd.verify_alg", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_csums_alg, { "csums_alg", "drbd.csums_alg", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_c_plan_ahead, { "c_plan_ahead", "drbd.c_plan_ahead", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_c_delay_target, { "c_delay_target", "drbd.c_delay_target", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_c_fill_target, { "c_fill_target", "drbd.c_fill_target", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-        { &hf_drbd_c_max_rate, { "c_max_rate", "drbd.c_max_rate", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_kibps, 0x0, NULL, HFILL }},
+        { &hf_drbd_c_max_rate, { "c_max_rate", "drbd.c_max_rate", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_kibps), 0x0, NULL, HFILL }},
         { &hf_drbd_protocol, { "protocol", "drbd.protocol", FT_UINT32, BASE_HEX, VALS(protocol_names), 0x0, NULL, HFILL }},
         { &hf_drbd_after_sb_0p, { "after_sb_0p", "drbd.after_sb_0p", FT_UINT32, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_drbd_after_sb_1p, { "after_sb_1p", "drbd.after_sb_1p", FT_UINT32, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL }},
@@ -1621,8 +1751,14 @@ void proto_register_drbd(void)
         { &hf_drbd_dp_zeroes, { "zeroes", "drbd.dp_flag.zeroes", FT_BOOLEAN, 32, NULL, DP_ZEROES, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static hf_register_info hf_lb_tcp[] = {
+        { &hf_drbd_lb_tcp_seq, { "lb-tcp sequence number", "drbd_lb_tcp.seq", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_drbd_lb_tcp_length, { "lb-tcp length", "drbd_lb_tcp.length", FT_UINT32, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL }},
+    };
+
+    static int *ett[] = {
         &ett_drbd,
+        &ett_drbd_lb_tcp,
         &ett_drbd_state,
         &ett_drbd_twopc_flags,
         &ett_drbd_uuid_flags,
@@ -1632,15 +1768,21 @@ void proto_register_drbd(void)
 
     proto_drbd = proto_register_protocol("DRBD Protocol", "DRBD", "drbd");
     proto_register_field_array(proto_drbd, hf, array_length(hf));
+
+    proto_drbd_lb_tcp = proto_register_protocol("DRBD Load-Balanced Protocol", "DRBD lb-tcp", "drbd_lb_tcp");
+    proto_register_field_array(proto_drbd_lb_tcp, hf_lb_tcp, array_length(hf_lb_tcp));
+
     proto_register_subtree_array(ett, array_length(ett));
 
     drbd_handle = register_dissector("drbd", dissect_drbd, proto_drbd);
+    drbd_lb_tcp_handle = register_dissector("drbd_lb_tcp", dissect_drbd_lb_tcp, proto_drbd_lb_tcp);
 }
 
 void proto_reg_handoff_drbd(void)
 {
     heur_dissector_add("tcp", test_drbd_protocol, "DRBD over TCP", "drbd_tcp", proto_drbd, HEURISTIC_DISABLE);
     heur_dissector_add("infiniband.payload", dissect_drbd_ib, "DRBD over RDMA", "drbd_rdma", proto_drbd, HEURISTIC_DISABLE);
+    heur_dissector_add("tcp", test_drbd_lb_tcp_protocol, "DRBD Load-Balanced over TCP", "drbd_lb_tcp", proto_drbd_lb_tcp, HEURISTIC_DISABLE);
 }
 
 /*

@@ -20,6 +20,8 @@
 #include <epan/ipproto.h>
 #include <epan/sctpppids.h>
 #include <epan/stat_tap_ui.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 
 void proto_register_componentstatusprotocol(void);
@@ -28,32 +30,32 @@ void proto_reg_handoff_componentstatusprotocol(void);
 static dissector_handle_t componentstatusprotocol_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_componentstatusprotocol = -1;
+static int proto_componentstatusprotocol;
 static int tap_componentstatusprotocol   = -1;
 
 /* Initialize the subtree pointers */
-static gint ett_componentstatusprotocol           = -1;
-static gint ett_message_flags                     = -1;
-static gint ett_message_sender_id                 = -1;
-static gint ett_cspreport_association_receiver_id = -1;
-static gint ett_association                       = -1;
+static int ett_componentstatusprotocol;
+static int ett_message_flags;
+static int ett_message_sender_id;
+static int ett_cspreport_association_receiver_id;
+static int ett_association;
 
 
 #define COMPONENTSTATUSPROTOCOL_PORT    2960   /* Not IANA registered */
 #define COMPONENTSTATUSPROTOCOL_VERSION 0x0200
 
-static int hf_message_type             = -1;
-static int hf_message_flags            = -1;
-static int hf_message_flags_final_bit  = -1;
-static int hf_message_length           = -1;
-static int hf_message_version          = -1;
-static int hf_message_sender_id        = -1;
-static int hf_message_sender_id_group  = -1;
-static int hf_message_sender_id_object = -1;
-static int hf_message_sender_timestamp = -1;
+static int hf_message_type;
+static int hf_message_flags;
+static int hf_message_flags_final_bit;
+static int hf_message_length;
+static int hf_message_version;
+static int hf_message_sender_id;
+static int hf_message_sender_id_group;
+static int hf_message_sender_id_object;
+static int hf_message_sender_timestamp;
 
-static guint64 componentstatusprotocol_total_msgs     = 0;
-static guint64 componentstatusprotocol_total_bytes    = 0;
+static uint64_t componentstatusprotocol_total_msgs;
+static uint64_t componentstatusprotocol_total_bytes;
 
 
 #define COMPONENTSTATUS_REPORT 0x01
@@ -64,11 +66,11 @@ static const value_string message_type_values[] = {
 };
 
 
-static int hf_cspreport_report_interval = -1;
-static int hf_cspreport_location        = -1;
-static int hf_cspreport_status          = -1;
-static int hf_cspreport_workload        = -1;
-static int hf_cspreport_associations    = -1;
+static int hf_cspreport_report_interval;
+static int hf_cspreport_location;
+static int hf_cspreport_status;
+static int hf_cspreport_workload;
+static int hf_cspreport_associations;
 
 #define CSPF_FINAL (1 << 0)
 static const true_false_string message_flags_final_bit = {
@@ -92,13 +94,13 @@ static const value_string group_values[] = {
 
 #define CSR_GET_WORKLOAD(w) ((w == 0xffff) ? -1.0 : (float)(w / (float)0xfffe))
 
-static int hf_cspreport_association_receiver_id        = -1;
-static int hf_cspreport_association_receiver_id_group  = -1;
-static int hf_cspreport_association_receiver_id_object = -1;
-static int hf_cspreport_association_duration           = -1;
-static int hf_cspreport_association_flags              = -1;
-static int hf_cspreport_association_protocolid         = -1;
-static int hf_cspreport_association_ppid               = -1;
+static int hf_cspreport_association_receiver_id;
+static int hf_cspreport_association_receiver_id_group;
+static int hf_cspreport_association_receiver_id_object;
+static int hf_cspreport_association_duration;
+static int hf_cspreport_association_flags;
+static int hf_cspreport_association_protocolid;
+static int hf_cspreport_association_ppid;
 
 
 /* Setup list of header fields */
@@ -130,8 +132,8 @@ static hf_register_info hf[] = {
 
 
 typedef struct _tap_componentstatusprotocol_rec_t {
-  guint8      type;
-  guint16     size;
+  uint8_t     type;
+  uint16_t    size;
   const char* type_string;
 } tap_componentstatusprotocol_rec_t;
 
@@ -141,7 +143,7 @@ dissect_componentstatusprotocol_cspreport_association(tvbuff_t *message_tvb, pro
 {
   proto_item* receiver_id_item;
   proto_tree* receiver_id_tree;
-  guint64     timestamp;
+  uint64_t    timestamp;
   nstime_t    t;
 
   receiver_id_item = proto_tree_add_item(message_tree, hf_cspreport_association_receiver_id, message_tvb, 0, 8, ENC_BIG_ENDIAN);
@@ -171,9 +173,9 @@ dissect_componentstatusprotocol_cspreport_message(tvbuff_t *message_tvb, proto_t
   tvbuff_t   *association_tvb;
   proto_tree *association_tree;
   int         association;
-  gint        offset;
+  int         offset;
   float       workload;
-  guint64     interval;
+  uint64_t    interval;
   nstime_t    t;
 
   interval = tvb_get_ntohl(message_tvb, 24);
@@ -216,11 +218,11 @@ dissect_componentstatusprotocol_message(tvbuff_t *message_tvb, packet_info *pinf
   proto_tree* flags_tree;
   proto_item* sender_id_item;
   proto_tree* sender_id_tree;
-  guint64     timestamp;
+  uint64_t    timestamp;
   nstime_t    t;
 
   tap_componentstatusprotocol_rec_t* tap_rec = wmem_new0(pinfo->pool, tap_componentstatusprotocol_rec_t);
-  tap_rec->type        = tvb_get_guint8(message_tvb, 0);
+  tap_rec->type        = tvb_get_uint8(message_tvb, 0);
   tap_rec->size        = tvb_get_ntohs(message_tvb, 2);
   tap_rec->type_string = val_to_str_const(tap_rec->type, message_type_values, "Unknown ComponentStatusProtocol message type");
   tap_queue_packet(tap_componentstatusprotocol, pinfo, tap_rec);
@@ -255,20 +257,20 @@ dissect_componentstatusprotocol(tvbuff_t *message_tvb, packet_info *pinfo, proto
 {
   proto_item *componentstatusprotocol_item;
   proto_tree *componentstatusprotocol_tree;
-  gint8 type;
-  gint32 version;
+  int8_t type;
+  int32_t version;
 
   if (tvb_reported_length(message_tvb) < 4 + 4)
-    return(0);
+    return 0;
 
   /* Check, if this packet really contains a ComponentStatusProtocol message */
-  type = tvb_get_guint8(message_tvb, 0);
+  type = tvb_get_uint8(message_tvb, 0);
   if (type != COMPONENTSTATUS_REPORT) {
-    return(0);
+    return 0;
   }
   version = tvb_get_ntohl(message_tvb, 4);
   if (version != COMPONENTSTATUSPROTOCOL_VERSION) {
-    return(0);
+    return 0;
   }
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "ComponentStatusProtocol");
@@ -279,7 +281,7 @@ dissect_componentstatusprotocol(tvbuff_t *message_tvb, packet_info *pinfo, proto
 
   /* dissect the message */
   dissect_componentstatusprotocol_message(message_tvb, pinfo, componentstatusprotocol_tree);
-  return(tvb_reported_length(message_tvb));
+  return tvb_reported_length(message_tvb);
 }
 
 
@@ -314,10 +316,10 @@ static stat_tap_table_item componentstatusprotocol_stat_fields[] = {
 static void componentstatusprotocol_stat_init(stat_tap_table_ui* new_stat)
 {
   const char *table_name = "ComponentStatusProtocol Statistics";
-  int num_fields = sizeof(componentstatusprotocol_stat_fields)/sizeof(stat_tap_table_item);
+  int num_fields = array_length(componentstatusprotocol_stat_fields);
   stat_tap_table *table;
   int i = 0;
-  stat_tap_table_item_type items[sizeof(componentstatusprotocol_stat_fields)/sizeof(stat_tap_table_item)];
+  stat_tap_table_item_type items[array_length(componentstatusprotocol_stat_fields)];
 
   table = stat_tap_find_table(new_stat, table_name);
   if (table) {
@@ -365,9 +367,9 @@ componentstatusprotocol_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_
   const tap_componentstatusprotocol_rec_t*      tap_rec   = (const tap_componentstatusprotocol_rec_t*)data;
   stat_tap_table*           table;
   stat_tap_table_item_type* msg_data;
-  gint                      idx;
-  guint64                   messages;
-  guint64                   bytes;
+  int                       idx;
+  uint64_t                  messages;
+  uint64_t                  bytes;
   int                       i         = 0;
   double                    firstSeen = -1.0;
   double                    lastSeen  = -1.0;
@@ -395,9 +397,9 @@ componentstatusprotocol_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_
   /* Update messages and bytes share */
   while (message_type_values[i].strptr) {
     msg_data = stat_tap_get_field_data(table, i, MESSAGES_COLUMN);
-    const guint m = msg_data->value.uint_value;
+    const unsigned m = msg_data->value.uint_value;
     msg_data = stat_tap_get_field_data(table, i, BYTES_COLUMN);
-    const guint b = msg_data->value.uint_value;
+    const unsigned b = msg_data->value.uint_value;
 
     msg_data = stat_tap_get_field_data(table, i, MESSAGES_SHARE_COLUMN);
     msg_data->type = TABLE_ITEM_FLOAT;
@@ -455,7 +457,7 @@ componentstatusprotocol_stat_packet(void* tapdata, packet_info* pinfo _U_, epan_
 static void
 componentstatusprotocol_stat_reset(stat_tap_table* table)
 {
-  guint element;
+  unsigned element;
   stat_tap_table_item_type* item_data;
 
   for (element = 0; element < table->num_elements; element++) {
@@ -512,7 +514,7 @@ void
 proto_register_componentstatusprotocol(void)
 {
   /* Setup protocol subtree array */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_componentstatusprotocol,
     &ett_message_flags,
     &ett_message_sender_id,
@@ -521,7 +523,7 @@ proto_register_componentstatusprotocol(void)
   };
 
   static tap_param componentstatusprotocol_stat_params[] = {
-    { PARAM_FILTER, "filter", "Filter", NULL, TRUE }
+    { PARAM_FILTER, "filter", "Filter", NULL, true }
   };
 
   static stat_tap_table_ui componentstatusprotocol_stat_table = {
@@ -534,8 +536,8 @@ proto_register_componentstatusprotocol(void)
     componentstatusprotocol_stat_reset,
     NULL,
     NULL,
-    sizeof(componentstatusprotocol_stat_fields)/sizeof(stat_tap_table_item), componentstatusprotocol_stat_fields,
-    sizeof(componentstatusprotocol_stat_params)/sizeof(tap_param), componentstatusprotocol_stat_params,
+    array_length(componentstatusprotocol_stat_fields), componentstatusprotocol_stat_fields,
+    array_length(componentstatusprotocol_stat_params), componentstatusprotocol_stat_params,
     NULL,
     0
   };

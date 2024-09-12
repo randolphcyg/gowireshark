@@ -23,70 +23,70 @@ void proto_register_rtls(void);
 
 static dissector_handle_t rtls_handle;
 
-static int proto_rtls = -1;
-static int hf_rtls_message_type = -1;
-static int hf_rtls_message_id = -1;
-static int hf_rtls_version_major = -1;
-static int hf_rtls_version_minor = -1;
-static int hf_rtls_data_length = -1;
-static int hf_rtls_ap_mac = -1;
-static int hf_rtls_padding = -1;
-static int hf_rtls_reserved = -1;
-static int hf_rtls_signature = -1;
+static int proto_rtls;
+static int hf_rtls_message_type;
+static int hf_rtls_message_id;
+static int hf_rtls_version_major;
+static int hf_rtls_version_minor;
+static int hf_rtls_data_length;
+static int hf_rtls_ap_mac;
+static int hf_rtls_padding;
+static int hf_rtls_reserved;
+static int hf_rtls_signature;
 
-static int hf_rtls_as_tag_addr = -1;
-static int hf_rtls_sr_mac_address = -1;
-static int hf_rtls_nack_flags = -1;
-static int hf_rtls_nack_flags_internal_error = -1;
-static int hf_rtls_nack_flags_station_not_found = -1;
-static int hf_rtls_nack_flags_reserved = -1;
-static int hf_rtls_tr_bssid = -1;
-static int hf_rtls_tr_rssi = -1;
-static int hf_rtls_tr_rssi_calculated = -1;
-static int hf_rtls_tr_noise_floor = -1;
-static int hf_rtls_tr_timestamp = -1;
-static int hf_rtls_tr_tag_mac = -1;
-static int hf_rtls_tr_frame_control = -1;
-static int hf_rtls_tr_sequence = -1;
-static int hf_rtls_tr_data_rate = -1;
-static int hf_rtls_tr_tx_power = -1;
-static int hf_rtls_tr_channel = -1;
-static int hf_rtls_tr_battery = -1;
-static int hf_rtls_sr_mac = -1;
-static int hf_rtls_sr_noise_floor = -1;
-static int hf_rtls_sr_data_rate = -1;
-static int hf_rtls_sr_channel = -1;
-static int hf_rtls_sr_rssi = -1;
-static int hf_rtls_sr_rssi_calculated = -1;
-static int hf_rtls_sr_type = -1;
-static int hf_rtls_sr_associated = -1;
-static int hf_rtls_sr_radio_bssid = -1;
-static int hf_rtls_sr_mon_bssid = -1;
-static int hf_rtls_sr_age = -1;
-static int hf_rtls_ser_mac = -1;
-static int hf_rtls_ser_bssid = -1;
-static int hf_rtls_ser_essid = -1;
-static int hf_rtls_ser_channel = -1;
-static int hf_rtls_ser_phy_type = -1;
-static int hf_rtls_ser_rssi = -1;
-static int hf_rtls_ser_rssi_calculated = -1;
-static int hf_rtls_ser_duration = -1;
-static int hf_rtls_ser_num_packets = -1;
-static int hf_rtls_ser_noise_floor = -1;
-static int hf_rtls_ser_classification = -1;
-static int hf_rtls_aer_bssid = -1;
-static int hf_rtls_aer_essid = -1;
-static int hf_rtls_aer_channel = -1;
-static int hf_rtls_aer_phy_type = -1;
-static int hf_rtls_aer_rssi = -1;
-static int hf_rtls_aer_rssi_calculated = -1;
-static int hf_rtls_aer_duration = -1;
-static int hf_rtls_aer_num_packets = -1;
-static int hf_rtls_aer_noise_floor = -1;
-static int hf_rtls_aer_classification = -1;
-static int hf_rtls_aer_match_type = -1;
-static int hf_rtls_aer_match_method = -1;
-static int hf_rtls_cmr_messages = -1;
+static int hf_rtls_as_tag_addr;
+static int hf_rtls_sr_mac_address;
+static int hf_rtls_nack_flags;
+static int hf_rtls_nack_flags_internal_error;
+static int hf_rtls_nack_flags_station_not_found;
+static int hf_rtls_nack_flags_reserved;
+static int hf_rtls_tr_bssid;
+static int hf_rtls_tr_rssi;
+static int hf_rtls_tr_rssi_calculated;
+static int hf_rtls_tr_noise_floor;
+static int hf_rtls_tr_timestamp;
+static int hf_rtls_tr_tag_mac;
+static int hf_rtls_tr_frame_control;
+static int hf_rtls_tr_sequence;
+static int hf_rtls_tr_data_rate;
+static int hf_rtls_tr_tx_power;
+static int hf_rtls_tr_channel;
+static int hf_rtls_tr_battery;
+static int hf_rtls_sr_mac;
+static int hf_rtls_sr_noise_floor;
+static int hf_rtls_sr_data_rate;
+static int hf_rtls_sr_channel;
+static int hf_rtls_sr_rssi;
+static int hf_rtls_sr_rssi_calculated;
+static int hf_rtls_sr_type;
+static int hf_rtls_sr_associated;
+static int hf_rtls_sr_radio_bssid;
+static int hf_rtls_sr_mon_bssid;
+static int hf_rtls_sr_age;
+static int hf_rtls_ser_mac;
+static int hf_rtls_ser_bssid;
+static int hf_rtls_ser_essid;
+static int hf_rtls_ser_channel;
+static int hf_rtls_ser_phy_type;
+static int hf_rtls_ser_rssi;
+static int hf_rtls_ser_rssi_calculated;
+static int hf_rtls_ser_duration;
+static int hf_rtls_ser_num_packets;
+static int hf_rtls_ser_noise_floor;
+static int hf_rtls_ser_classification;
+static int hf_rtls_aer_bssid;
+static int hf_rtls_aer_essid;
+static int hf_rtls_aer_channel;
+static int hf_rtls_aer_phy_type;
+static int hf_rtls_aer_rssi;
+static int hf_rtls_aer_rssi_calculated;
+static int hf_rtls_aer_duration;
+static int hf_rtls_aer_num_packets;
+static int hf_rtls_aer_noise_floor;
+static int hf_rtls_aer_classification;
+static int hf_rtls_aer_match_type;
+static int hf_rtls_aer_match_method;
+static int hf_rtls_cmr_messages;
 
 static int * const rtls_nack_flags[] = {
     &hf_rtls_nack_flags_internal_error,
@@ -95,10 +95,10 @@ static int * const rtls_nack_flags[] = {
     NULL
 };
 
-static expert_field ei_rtls_undecoded = EI_INIT;
-static gint ett_rtls = -1;
-static gint ett_rtls_message = -1;
-static gint ett_rtls_nack_flags = -1;
+static expert_field ei_rtls_undecoded;
+static int ett_rtls;
+static int ett_rtls_message;
+static int ett_rtls_nack_flags;
 
 #define RTLS_MIN_LENGTH 16
 
@@ -173,7 +173,7 @@ static const value_string rtls_ex_classification_vals[] = {
 };
 
 static void
-rssi_base_custom(gchar *result, guint32 rssi)
+rssi_base_custom(char *result, uint32_t rssi)
 {
     /* Convert Hex to decimal and subtract 256 to get the signal value */
     snprintf(result, ITEM_LABEL_LENGTH, "%d", rssi - 256);
@@ -181,7 +181,7 @@ rssi_base_custom(gchar *result, guint32 rssi)
 }
 
 static int
-dissect_rtls_header(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *rtls_tree, guint offset, guint *data_length)
+dissect_rtls_header(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *rtls_tree, unsigned offset, unsigned *data_length)
 {
 
     proto_tree_add_item(rtls_tree, hf_rtls_message_type, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -213,7 +213,7 @@ dissect_rtls_header(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *rtls_tree
 
 static int
 // NOLINTNEXTLINE(misc-no-recursion)
-dissect_rtls_message_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *rtls_tree, guint offset, guint type)
+dissect_rtls_message_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *rtls_tree, unsigned offset, unsigned type)
 {
     proto_item *ti_rssi;
 
@@ -348,7 +348,7 @@ hf_rtls_nack_flags, ett_rtls_nack_flags, rtls_nack_flags, ENC_BIG_ENDIAN, BMT_NO
             offset += 2;
         break;
        case AR_COMPOUND_MESSAGE_REPORT:{
-            guint32 cmr_messages;
+            uint32_t cmr_messages;
             proto_tree *sub_tree;
 
             proto_tree_add_item_ret_uint(rtls_tree, hf_rtls_cmr_messages, tvb, offset, 2, ENC_BIG_ENDIAN, &cmr_messages);
@@ -356,7 +356,7 @@ hf_rtls_nack_flags, ett_rtls_nack_flags, rtls_nack_flags, ENC_BIG_ENDIAN, BMT_NO
             proto_tree_add_item(rtls_tree, hf_rtls_reserved, tvb, offset, 2, ENC_NA);
             offset += 2;
             while(cmr_messages){
-                guint32 data_length;
+                uint32_t data_length;
                 type = tvb_get_ntohs(tvb, offset);
                 sub_tree = proto_tree_add_subtree_format(rtls_tree, tvb, offset, -1, ett_rtls_message, NULL, "%s", val_to_str(type, rtls_message_type_vals, "(unknown %d)"));
 
@@ -371,7 +371,7 @@ hf_rtls_nack_flags, ett_rtls_nack_flags, rtls_nack_flags, ENC_BIG_ENDIAN, BMT_NO
             }
         break;
         default:{
-            guint32 remaining;
+            uint32_t remaining;
 
             remaining = tvb_reported_length_remaining(tvb, offset) - 20; /* Remove 20 of signature */
             proto_tree_add_expert(rtls_tree, pinfo, &ei_rtls_undecoded, tvb, offset, remaining);
@@ -388,8 +388,8 @@ dissect_rtls(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 {
     proto_item *ti;
     proto_tree *rtls_tree;
-    guint       offset = 0;
-    guint32     type;
+    unsigned    offset = 0;
+    uint32_t    type;
 
     if (tvb_reported_length(tvb) < RTLS_MIN_LENGTH)
         return 0;
@@ -747,7 +747,7 @@ proto_register_rtls(void)
 
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_rtls,
         &ett_rtls_message,
         &ett_rtls_nack_flags,

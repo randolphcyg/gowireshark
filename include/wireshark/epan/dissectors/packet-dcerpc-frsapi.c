@@ -19,11 +19,11 @@
 void proto_register_dcerpc_frsapi(void);
 void proto_reg_handoff_dcerpc_frsapi(void);
 
-static int proto_dcerpc_frsapi = -1;
+static int proto_dcerpc_frsapi;
 
-static int hf_frsapi_opnum = -1;
+static int hf_frsapi_opnum;
 
-static gint ett_dcerpc_frsapi = -1;
+static int ett_dcerpc_frsapi;
 
 /*
 IDL [ uuid(d049b186-814f-11d1-9a3c-00c04fc9b232),
@@ -37,10 +37,10 @@ static e_guid_t uuid_dcerpc_frsapi = {
 	{ 0x9a, 0x3c, 0x00, 0xc0, 0x4f, 0xc9, 0xb2, 0x32 }
 };
 
-static guint16 ver_dcerpc_frsapi = 1;
+static uint16_t ver_dcerpc_frsapi = 1;
 
 
-static dcerpc_sub_dissector dcerpc_frsapi_dissectors[] = {
+static const dcerpc_sub_dissector dcerpc_frsapi_dissectors[] = {
 	{  FRSAPI_VERIFY_PROMOTION,          "VerifyPromotion",        NULL, NULL },
 	{  FRSAPI_PROMOTION_STATUS,          "PromotionStatus",        NULL, NULL },
 	{  FRSAPI_START_DEMOTION,            "StartDemotion",          NULL, NULL },
@@ -66,7 +66,7 @@ proto_register_dcerpc_frsapi(void)
 	};
 
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_dcerpc_frsapi,
 	};
 

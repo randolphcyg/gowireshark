@@ -29,54 +29,54 @@ static dissector_handle_t ib_sdp_handle;
    this is SDP traffic */
 #define SERVICE_ID_MASK 0x0000000000010000
 
-static int proto_infiniband = -1;   /* we'll need the Infiniband protocol index for conversation data */
+static int proto_infiniband;   /* we'll need the Infiniband protocol index for conversation data */
 
 /* Initialize the protocol and registered fields... */
-static int proto_ib_sdp = -1;
+static int proto_ib_sdp;
 
 /* IB SDP BSDH Header */
-static int hf_ib_sdp_bsdh = -1;
-static int hf_ib_sdp_mid = -1;
-static int hf_ib_sdp_flags = -1;
-static int hf_ib_sdp_flags_oobpres  = -1;
-static int hf_ib_sdp_flags_oob_pend = -1;
-static int hf_ib_sdp_flags_reqpipe  = -1;
+static int hf_ib_sdp_bsdh;
+static int hf_ib_sdp_mid;
+static int hf_ib_sdp_flags;
+static int hf_ib_sdp_flags_oobpres;
+static int hf_ib_sdp_flags_oob_pend;
+static int hf_ib_sdp_flags_reqpipe;
 
-static int hf_ib_sdp_len = -1;
-static int hf_ib_sdp_bufs = -1;
-static int hf_ib_sdp_mseq = -1;
-static int hf_ib_sdp_mseqack = -1;
+static int hf_ib_sdp_len;
+static int hf_ib_sdp_bufs;
+static int hf_ib_sdp_mseq;
+static int hf_ib_sdp_mseqack;
 
 /* IB SDP Hello Header */
-static int hf_ib_sdp_hh = -1;
-static int hf_ib_sdp_majv = -1;
-static int hf_ib_sdp_minv = -1;
-static int hf_ib_sdp_ipv = -1;
-static int hf_ib_sdp_cap = -1;
-static int hf_ib_sdp_cap_invalidate = -1;
-static int hf_ib_sdp_cap_extmaxadverts = -1;
-static int hf_ib_sdp_maxadverts = -1;
-static int hf_ib_sdp_desremrcvsz = -1;
-static int hf_ib_sdp_localrcvsz = -1;
-static int hf_ib_sdp_localport = -1;
-static int hf_ib_sdp_src_ip = -1;
-static int hf_ib_sdp_dst_ip = -1;
-static int hf_ib_sdp_extmaxadverts = -1;
-static int hf_ib_sdp_hah = -1;
-static int hf_ib_sdp_rwch = -1;
-static int hf_ib_sdp_rrch = -1;
-static int hf_ib_sdp_mch = -1;
-static int hf_ib_sdp_crbh = -1;
-static int hf_ib_sdp_crbah = -1;
-static int hf_ib_sdp_suspch = -1;
-static int hf_ib_sdp_sinkah = -1;
-static int hf_ib_sdp_srcah = -1;
-static int hf_ib_sdp_data = -1;
+static int hf_ib_sdp_hh;
+static int hf_ib_sdp_majv;
+static int hf_ib_sdp_minv;
+static int hf_ib_sdp_ipv;
+static int hf_ib_sdp_cap;
+static int hf_ib_sdp_cap_invalidate;
+static int hf_ib_sdp_cap_extmaxadverts;
+static int hf_ib_sdp_maxadverts;
+static int hf_ib_sdp_desremrcvsz;
+static int hf_ib_sdp_localrcvsz;
+static int hf_ib_sdp_localport;
+static int hf_ib_sdp_src_ip;
+static int hf_ib_sdp_dst_ip;
+static int hf_ib_sdp_extmaxadverts;
+static int hf_ib_sdp_hah;
+static int hf_ib_sdp_rwch;
+static int hf_ib_sdp_rrch;
+static int hf_ib_sdp_mch;
+static int hf_ib_sdp_crbh;
+static int hf_ib_sdp_crbah;
+static int hf_ib_sdp_suspch;
+static int hf_ib_sdp_sinkah;
+static int hf_ib_sdp_srcah;
+static int hf_ib_sdp_data;
 
 /* Initialize the subtree pointers */
-static gint ett_ib_sdp = -1;
-static gint ett_ib_sdp_bsdh = -1;
-static gint ett_ib_sdp_hh = -1;
+static int ett_ib_sdp;
+static int ett_ib_sdp_bsdh;
+static int ett_ib_sdp_hh;
 
 typedef enum {
     Hello = 0x0,
@@ -135,7 +135,7 @@ dissect_ib_sdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
     proto_tree *SDP_BSDH_header_tree;
     proto_item *SDP_EH_header_item;
     proto_tree *SDP_EH_header_tree;
-    guint8 mid;
+    uint8_t mid;
 
     if (tvb_captured_length(tvb) < 16)   /* check this has at least enough bytes for the BSDH */
         return 0;
@@ -148,7 +148,7 @@ dissect_ib_sdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
     SDP_BSDH_header_item = proto_tree_add_item(SDP_header_tree, hf_ib_sdp_bsdh, tvb, local_offset, 16, ENC_NA);
     SDP_BSDH_header_tree = proto_item_add_subtree(SDP_BSDH_header_item, ett_ib_sdp_bsdh);
 
-    mid =  tvb_get_guint8(tvb, local_offset);
+    mid =  tvb_get_uint8(tvb, local_offset);
     proto_tree_add_item(SDP_BSDH_header_tree, hf_ib_sdp_mid, tvb, local_offset, 1, ENC_BIG_ENDIAN); local_offset += 1;
 
     col_append_fstr(pinfo->cinfo, COL_INFO, "(SDP %s)",
@@ -236,14 +236,14 @@ dissect_ib_sdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
     return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_ib_sdp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     conversation_t *conv;
     conversation_infiniband_data *convo_data = NULL;
 
     if (tvb_captured_length(tvb) < 16)   /* check this has at least enough bytes for the BSDH */
-        return FALSE;
+        return false;
 
     /* first try to find a conversation between the two current hosts. in most cases this
        will not work since we do not have the source QP. this WILL succeed when we're still
@@ -259,19 +259,19 @@ dissect_ib_sdp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
                                  CONVERSATION_IBQP, pinfo->destport, pinfo->destport, NO_ADDR_B|NO_PORT_B);
 
         if (!conv)
-            return FALSE;   /* nothing to do with no conversation context */
+            return false;   /* nothing to do with no conversation context */
     }
 
     convo_data = (conversation_infiniband_data *)conversation_get_proto_data(conv, proto_infiniband);
 
     if (!convo_data)
-        return FALSE;
+        return false;
 
     if (!(convo_data->service_id & SERVICE_ID_MASK))
-        return FALSE;   /* the service id doesn't match that of SDP - nothing for us to do here */
+        return false;   /* the service id doesn't match that of SDP - nothing for us to do here */
 
     dissect_ib_sdp(tvb, pinfo, tree, data);
-    return TRUE;
+    return true;
 }
 
 void
@@ -421,7 +421,7 @@ proto_register_ib_sdp(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_ib_sdp,
         &ett_ib_sdp_bsdh,
         &ett_ib_sdp_hh,

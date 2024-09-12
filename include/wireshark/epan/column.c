@@ -26,15 +26,15 @@
 #include <epan/packet.h>
 #include <wsutil/ws_assert.h>
 
-static int proto_cols = -1;
-static hf_register_info *hf_cols = NULL;
-static unsigned int hf_cols_cleanup = 0;
+static int proto_cols;
+static hf_register_info *hf_cols;
+static unsigned int hf_cols_cleanup;
 
 /* Given a format number (as defined in column-utils.h), returns its equivalent
    string */
-const gchar *
-col_format_to_string(const gint fmt) {
-  static const gchar *const slist[NUM_COL_FMTS] = {
+const char *
+col_format_to_string(const int fmt) {
+  static const char *const slist[NUM_COL_FMTS] = {
     "%Yt",                                      /* 0) COL_ABS_YMD_TIME */
     "%YDOYt",                                   /* 1) COL_ABS_YDOY_TIME */
     "%At",                                      /* 2) COL_ABS_TIME */
@@ -94,8 +94,8 @@ col_format_to_string(const gint fmt) {
 
 /* Given a format number (as defined in column-utils.h), returns its
   description */
-const gchar *
-col_format_desc(const gint fmt_num) {
+const char *
+col_format_desc(const int fmt_num) {
 
   /* This should be sorted alphabetically, e.g. `sort -t, -k2` */
   /*
@@ -154,15 +154,15 @@ col_format_desc(const gint fmt_num) {
     { 0, NULL }
   };
 
-  const gchar *val_str = try_val_to_str(fmt_num, dlist_vals);
+  const char *val_str = try_val_to_str(fmt_num, dlist_vals);
   ws_assert(val_str != NULL);
   return val_str;
 }
 
 /* Given a format number (as defined in column-utils.h), returns its
   filter abbreviation */
-const gchar *
-col_format_abbrev(const gint fmt_num) {
+const char *
+col_format_abbrev(const int fmt_num) {
 
   static const value_string alist_vals[] = {
 
@@ -216,14 +216,14 @@ col_format_abbrev(const gint fmt_num) {
     { 0, NULL }
   };
 
-  const gchar *val_str = try_val_to_str(fmt_num, alist_vals);
+  const char *val_str = try_val_to_str(fmt_num, alist_vals);
   ws_assert(val_str != NULL);
   return val_str;
 }
 /* Array of columns that have been migrated to custom columns */
 struct deprecated_columns {
-    const gchar *col_fmt;
-    const gchar *col_expr;
+    const char *col_fmt;
+    const char *col_expr;
 };
 
 static struct deprecated_columns migrated_columns[] = {
@@ -279,15 +279,15 @@ try_convert_to_column_field(const char *field)
 /*
  * Parse a column format, filling in the relevant fields of a fmt_data.
  */
-gboolean
+bool
 parse_column_format(fmt_data *cfmt, const char *fmt)
 {
-    const gchar *cust_format = col_format_to_string(COL_CUSTOM);
+    const char *cust_format = col_format_to_string(COL_CUSTOM);
     size_t cust_format_len = strlen(cust_format);
-    gchar **cust_format_info;
+    GPtrArray *cust_format_info;
     char *p;
     int col_fmt;
-    gchar *col_custom_fields = NULL;
+    char *col_custom_fields = NULL;
     long col_custom_occurrence = 0;
     bool col_resolved = true;
 
@@ -298,45 +298,65 @@ parse_column_format(fmt_data *cfmt, const char *fmt)
         strncmp(fmt, cust_format, cust_format_len) == 0) {
         /* Yes. */
         col_fmt = COL_CUSTOM;
-        cust_format_info = g_strsplit(&fmt[cust_format_len+1], ":", 3); /* add 1 for ':' */
-        col_custom_fields = g_strdup(cust_format_info[0]);
-        if (col_custom_fields && cust_format_info[1]) {
-            col_custom_occurrence = strtol(cust_format_info[1], &p, 10);
-            if (p == cust_format_info[1] || *p != '\0') {
+        cust_format_info = g_ptr_array_new();
+        char *fmt_copy = g_strdup(&fmt[cust_format_len + 1]);
+        p = strrchr(fmt_copy, ':');
+        /* Pull off the two right most tokens for occurrences and
+         * "show resolved". We do it this way because the filter might
+         * have a ':' in it, e.g. for slices.
+         */
+        for (int token = 2; token > 0 && p != NULL; token--) {
+            g_ptr_array_insert(cust_format_info, 0, &p[1]);
+            *p = '\0';
+            p = strrchr(fmt_copy, ':');
+        }
+        g_ptr_array_insert(cust_format_info, 0, fmt_copy);
+        /* XXX - The last two tokens have been written since at least 1.6.x
+         * (commit f5ab6c1930d588f9f0be453a7be279150922b347). We could
+         * just fail at this point if cust_format_info->len < 3
+         */
+        if (cust_format_info->len > 0) {
+            col_custom_fields = g_strdup(cust_format_info->pdata[0]);
+        }
+        if (cust_format_info->len > 1) {
+            col_custom_occurrence = strtol(cust_format_info->pdata[1], &p, 10);
+            if (p == cust_format_info->pdata[1] || *p != '\0') {
                 /* Not a valid number. */
-                g_free(col_custom_fields);
-                g_strfreev(cust_format_info);
-                return FALSE;
+                g_free(fmt_copy);
+                g_ptr_array_unref(cust_format_info);
+                return false;
             }
         }
-        if (col_custom_fields && cust_format_info[1] && cust_format_info[2]) {
-            col_resolved = (cust_format_info[2][0] == 'U') ? false : true;
+        if (cust_format_info->len > 2) {
+            p = cust_format_info->pdata[2];
+            col_resolved = (p[0] == 'U') ? false : true;
         }
-        g_strfreev(cust_format_info);
+        g_free(fmt_copy);
+        g_ptr_array_unref(cust_format_info);
     } else {
         col_fmt = get_column_format_from_str(fmt);
         if (col_fmt == -1)
-            return FALSE;
+            return false;
     }
 
     cfmt->fmt = col_fmt;
     cfmt->custom_fields = col_custom_fields;
     cfmt->custom_occurrence = (int)col_custom_occurrence;
     cfmt->resolved = col_resolved;
-    return TRUE;
+    return true;
 }
 
 void
 try_convert_to_custom_column(char **fmt)
 {
-    guint haystack_idx;
+    unsigned haystack_idx;
 
     for (haystack_idx = 0;
          haystack_idx < G_N_ELEMENTS(migrated_columns);
          ++haystack_idx) {
 
         if (strcmp(migrated_columns[haystack_idx].col_fmt, *fmt) == 0) {
-            gchar *cust_col = ws_strdup_printf("%%Cus:%s:0",
+            char *cust_col = ws_strdup_printf("%%Cus:%s:0",
                                 migrated_columns[haystack_idx].col_expr);
 
             g_free(*fmt);
@@ -348,7 +368,7 @@ try_convert_to_custom_column(char **fmt)
 void
 column_dump_column_formats(void)
 {
-  gint fmt;
+  int fmt;
 
   for (fmt = 0; fmt < NUM_COL_FMTS; fmt++) {
     printf("%s\t%s\n", col_format_to_string(fmt), col_format_desc(fmt));
@@ -379,55 +399,55 @@ column_dump_column_formats(void)
 /* Marks each array element true if it can be substituted for the given
    column format */
 void
-get_column_format_matches(gboolean *fmt_list, const gint format) {
+get_column_format_matches(bool *fmt_list, const int format) {
 
   /* Get the obvious: the format itself */
   if ((format >= 0) && (format < NUM_COL_FMTS))
-    fmt_list[format] = TRUE;
+    fmt_list[format] = true;
 
   /* Get any formats lower down on the chain */
   switch (format) {
     case COL_DEF_SRC:
-      fmt_list[COL_RES_DL_SRC] = TRUE;
-      fmt_list[COL_RES_NET_SRC] = TRUE;
+      fmt_list[COL_RES_DL_SRC] = true;
+      fmt_list[COL_RES_NET_SRC] = true;
       break;
     case COL_RES_SRC:
-      fmt_list[COL_RES_DL_SRC] = TRUE;
-      fmt_list[COL_RES_NET_SRC] = TRUE;
+      fmt_list[COL_RES_DL_SRC] = true;
+      fmt_list[COL_RES_NET_SRC] = true;
       break;
     case COL_UNRES_SRC:
-      fmt_list[COL_UNRES_DL_SRC] = TRUE;
-      fmt_list[COL_UNRES_NET_SRC] = TRUE;
+      fmt_list[COL_UNRES_DL_SRC] = true;
+      fmt_list[COL_UNRES_NET_SRC] = true;
       break;
     case COL_DEF_DST:
-      fmt_list[COL_RES_DL_DST] = TRUE;
-      fmt_list[COL_RES_NET_DST] = TRUE;
+      fmt_list[COL_RES_DL_DST] = true;
+      fmt_list[COL_RES_NET_DST] = true;
       break;
     case COL_RES_DST:
-      fmt_list[COL_RES_DL_DST] = TRUE;
-      fmt_list[COL_RES_NET_DST] = TRUE;
+      fmt_list[COL_RES_DL_DST] = true;
+      fmt_list[COL_RES_NET_DST] = true;
       break;
     case COL_UNRES_DST:
-      fmt_list[COL_UNRES_DL_DST] = TRUE;
-      fmt_list[COL_UNRES_NET_DST] = TRUE;
+      fmt_list[COL_UNRES_DL_DST] = true;
+      fmt_list[COL_UNRES_NET_DST] = true;
       break;
     case COL_DEF_DL_SRC:
-      fmt_list[COL_RES_DL_SRC] = TRUE;
+      fmt_list[COL_RES_DL_SRC] = true;
       break;
     case COL_DEF_DL_DST:
-      fmt_list[COL_RES_DL_DST] = TRUE;
+      fmt_list[COL_RES_DL_DST] = true;
       break;
     case COL_DEF_NET_SRC:
-      fmt_list[COL_RES_NET_SRC] = TRUE;
+      fmt_list[COL_RES_NET_SRC] = true;
       break;
     case COL_DEF_NET_DST:
-      fmt_list[COL_RES_NET_DST] = TRUE;
+      fmt_list[COL_RES_NET_DST] = true;
       break;
     case COL_DEF_SRC_PORT:
-      fmt_list[COL_RES_SRC_PORT] = TRUE;
+      fmt_list[COL_RES_SRC_PORT] = true;
       break;
     case COL_DEF_DST_PORT:
-      fmt_list[COL_RES_DST_PORT] = TRUE;
+      fmt_list[COL_RES_DST_PORT] = true;
       break;
     default:
       break;
@@ -528,7 +548,7 @@ static const char *ts_epoch_time[NUM_WS_TSPREC_VALS] = {
 /* Returns a string representing the longest possible value for
    a timestamp column type. */
 static const char *
-get_timestamp_column_longest_string(const gint type, const gint precision)
+get_timestamp_column_longest_string(const int type, const int precision)
 {
 
     switch(type) {
@@ -601,7 +621,6 @@ get_timestamp_column_longest_string(const gint type, const gint precision)
     case(TS_NOT_SET):
         /* This should not happen. */
         return "0000.000000";
-        break;
     default:
         ws_assert_not_reached();
     }
@@ -622,43 +641,32 @@ get_timestamp_column_longest_string(const gint type, const gint precision)
    is done, and given that the width for COL...SRC and COL...DST columns
    is somewhat arbitrary in any case.  We should probably clean
    that up eventually, though. */
-static const char *
-get_column_longest_string(const gint format)
+const char *
+get_column_longest_string(const int format)
 {
   switch (format) {
     case COL_NUMBER:
       return "0000000";
-      break;
     case COL_CLS_TIME:
       return get_timestamp_column_longest_string(timestamp_get_type(), timestamp_get_precision());
-      break;
     case COL_ABS_YMD_TIME:
       return get_timestamp_column_longest_string(TS_ABSOLUTE_WITH_YMD, timestamp_get_precision());
-      break;
     case COL_ABS_YDOY_TIME:
       return get_timestamp_column_longest_string(TS_ABSOLUTE_WITH_YDOY, timestamp_get_precision());
-      break;
     case COL_UTC_YMD_TIME:
       return get_timestamp_column_longest_string(TS_UTC_WITH_YMD, timestamp_get_precision());
-      break;
     case COL_UTC_YDOY_TIME:
       return get_timestamp_column_longest_string(TS_UTC_WITH_YDOY, timestamp_get_precision());
-      break;
     case COL_ABS_TIME:
       return get_timestamp_column_longest_string(TS_ABSOLUTE, timestamp_get_precision());
-      break;
     case COL_UTC_TIME:
       return get_timestamp_column_longest_string(TS_UTC, timestamp_get_precision());
-      break;
     case COL_REL_TIME:
       return get_timestamp_column_longest_string(TS_RELATIVE, timestamp_get_precision());
-      break;
     case COL_DELTA_TIME:
       return get_timestamp_column_longest_string(TS_DELTA, timestamp_get_precision());
-      break;
     case COL_DELTA_TIME_DIS:
       return get_timestamp_column_longest_string(TS_DELTA_DIS, timestamp_get_precision());
-      break;
     case COL_DEF_SRC:
     case COL_RES_SRC:
     case COL_UNRES_SRC:
@@ -678,7 +686,6 @@ get_column_longest_string(const gint format)
     case COL_RES_NET_DST:
     case COL_UNRES_NET_DST:
       return "00000000.000000000000"; /* IPX-style */
-      break;
     case COL_DEF_SRC_PORT:
     case COL_RES_SRC_PORT:
     case COL_UNRES_SRC_PORT:
@@ -686,47 +693,35 @@ get_column_longest_string(const gint format)
     case COL_RES_DST_PORT:
     case COL_UNRES_DST_PORT:
       return "000000";
-      break;
     case COL_PROTOCOL:
       return "Protocol";    /* not the longest, but the longest is too long */
-      break;
     case COL_PACKET_LENGTH:
       return "00000";
-      break;
     case COL_CUMULATIVE_BYTES:
       return "00000000";
-      break;
     case COL_IF_DIR:
       return "i 00000000 I";
-      break;
     case COL_TX_RATE:
       return "108.0";
-      break;
     case COL_RSSI:
       return "100";
-      break;
     case COL_DSCP_VALUE:
       return "AAA BBB";    /* not the longest, but the longest is too long */
-      break;
     case COL_EXPERT:
       return "ERROR";
-      break;
     case COL_FREQ_CHAN:
       return "9999 MHz [A 999]";
-      break;
     case COL_CUSTOM:
       return "0000000000";  /* not the longest, but the longest is too long */
-      break;
     default: /* COL_INFO */
       return "Source port: kerberos-master  Destination port: kerberos-master";
-      break;
   }
 }
 
 /* Returns the longer string of the column title or the hard-coded width of
  * its contents for building the packet list layout. */
-const gchar *
-get_column_width_string(const gint format, const gint col)
+const char *
+get_column_width_string(const int format, const int col)
 {
     if(strlen(get_column_longest_string(format)) >
        strlen(get_column_title(col)))
@@ -737,14 +732,14 @@ get_column_width_string(const gint format, const gint col)
 
 /* Returns the longest possible width, in characters, for a particular
    column type. */
-gint
-get_column_char_width(const gint format)
+int
+get_column_char_width(const int format)
 {
-  return (gint)strlen(get_column_longest_string(format));
+  return (int)strlen(get_column_longest_string(format));
 }
 
-gint
-get_column_format(const gint col)
+int
+get_column_format(const int col)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
@@ -758,7 +753,7 @@ get_column_format(const gint col)
 }
 
 void
-set_column_format(const gint col, const gint fmt)
+set_column_format(const int col, const int fmt)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
@@ -771,10 +766,10 @@ set_column_format(const gint col, const gint fmt)
   cfmt->fmt = fmt;
 }
 
-gint
-get_column_format_from_str(const gchar *str)
+int
+get_column_format_from_str(const char *str)
 {
-  gint i;
+  int i;
 
   for (i = 0; i < NUM_COL_FMTS; i++) {
     if (strcmp(str, col_format_to_string(i)) == 0)
@@ -783,8 +778,8 @@ get_column_format_from_str(const gchar *str)
   return -1;    /* illegal */
 }
 
-gchar *
-get_column_title(const gint col)
+char *
+get_column_title(const int col)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
@@ -798,7 +793,7 @@ get_column_title(const gint col)
 }
 
 void
-set_column_title(const gint col, const gchar *title)
+set_column_title(const int col, const char *title)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
@@ -812,14 +807,14 @@ set_column_title(const gint col, const gchar *title)
   cfmt->title = g_strdup (title);
 }
 
-gboolean
-get_column_visible(const gint col)
+bool
+get_column_visible(const int col)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
 
   if (!clp)  /* Invalid column requested */
-    return TRUE;
+    return true;
 
   cfmt = (fmt_data *) clp->data;
 
@@ -827,7 +822,7 @@ get_column_visible(const gint col)
 }
 
 void
-set_column_visible(const gint col, gboolean visible)
+set_column_visible(const int col, bool visible)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
@@ -840,14 +835,14 @@ set_column_visible(const gint col, gboolean visible)
   cfmt->visible = visible;
 }
 
-gboolean
-get_column_resolved(const gint col)
+bool
+get_column_resolved(const int col)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
 
   if (!clp)  /* Invalid column requested */
-    return TRUE;
+    return true;
 
   cfmt = (fmt_data *) clp->data;
 
@@ -855,7 +850,7 @@ get_column_resolved(const gint col)
 }
 
 void
-set_column_resolved(const gint col, gboolean resolved)
+set_column_resolved(const int col, bool resolved)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
@@ -868,8 +863,8 @@ set_column_resolved(const gint col, gboolean resolved)
   cfmt->resolved = resolved;
 }
 
-const gchar *
-get_column_custom_fields(const gint col)
+const char *
+get_column_custom_fields(const int col)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
@@ -883,7 +878,7 @@ get_column_custom_fields(const gint col)
 }
 
 void
-set_column_custom_fields(const gint col, const char *custom_fields)
+set_column_custom_fields(const int col, const char *custom_fields)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
@@ -897,8 +892,8 @@ set_column_custom_fields(const gint col, const char *custom_fields)
   cfmt->custom_fields = g_strdup (custom_fields);
 }
 
-gint
-get_column_custom_occurrence(const gint col)
+int
+get_column_custom_occurrence(const int col)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
@@ -912,7 +907,7 @@ get_column_custom_occurrence(const gint col)
 }
 
 void
-set_column_custom_occurrence(const gint col, const gint custom_occurrence)
+set_column_custom_occurrence(const int col, const int custom_occurrence)
 {
   GList    *clp = g_list_nth(prefs.col_list, col);
   fmt_data *cfmt;
@@ -925,12 +920,17 @@ set_column_custom_occurrence(const gint col, const gint custom_occurrence)
   cfmt->custom_occurrence = custom_occurrence;
 }
 
-static gchar *
-get_custom_field_tooltip (gchar *custom_field, gint occurrence)
+static char *
+get_custom_field_tooltip (char *custom_field, int occurrence)
 {
     header_field_info *hfi = proto_registrar_get_byname(custom_field);
     if (hfi == NULL) {
         /* Not a valid field */
+        dfilter_t *dfilter;
+        if (dfilter_compile(custom_field, &dfilter, NULL)) {
+            dfilter_free(dfilter);
+            return ws_strdup_printf("Expression: %s", custom_field);
+        }
         return ws_strdup_printf("Unknown Field: %s", custom_field);
     }
 
@@ -948,15 +948,15 @@ get_custom_field_tooltip (gchar *custom_field, gint occurrence)
     return ws_strdup_printf("%s\n%s (%s#%d)", proto_get_protocol_name(hfi->parent), hfi->name, hfi->abbrev, occurrence);
 }
 
-gchar *
-get_column_tooltip(const gint col)
+char *
+get_column_tooltip(const int col)
 {
     GList    *clp = g_list_nth(prefs.col_list, col);
     fmt_data *cfmt;
-    gchar   **fields;
-    gboolean  first = TRUE;
+    char    **fields;
+    bool      first = true;
     GString  *column_tooltip;
-    guint     i;
+    unsigned  i;
 
     if (!clp)  /* Invalid column requested */
         return NULL;
@@ -969,19 +969,19 @@ get_column_tooltip(const gint col)
     }
 
     fields = g_regex_split_simple(COL_CUSTOM_PRIME_REGEX, cfmt->custom_fields,
-                                  (GRegexCompileFlags) (G_REGEX_ANCHORED | G_REGEX_RAW),
-                                  G_REGEX_MATCH_ANCHORED);
+                                  (GRegexCompileFlags) (G_REGEX_RAW),
+                                  0);
     column_tooltip = g_string_new("");
 
     for (i = 0; i < g_strv_length(fields); i++) {
         if (fields[i] && *fields[i]) {
-            gchar *field_tooltip = get_custom_field_tooltip(fields[i], cfmt->custom_occurrence);
+            char *field_tooltip = get_custom_field_tooltip(fields[i], cfmt->custom_occurrence);
             if (!first) {
                 g_string_append(column_tooltip, "\n\nOR\n\n");
             }
             g_string_append(column_tooltip, field_tooltip);
             g_free (field_tooltip);
-            first = FALSE;
+            first = false;
         }
     }
 
@@ -990,8 +990,8 @@ get_column_tooltip(const gint col)
     return g_string_free (column_tooltip, FALSE);
 }
 
-const gchar*
-get_column_text(column_info *cinfo, const gint col)
+const char*
+get_column_text(column_info *cinfo, const int col)
 {
   ws_assert(cinfo);
   ws_assert(col < cinfo->num_cols);
@@ -1009,6 +1009,7 @@ col_finalize(column_info *cinfo)
 {
   int i;
   col_item_t* col_item;
+  dfilter_t *dfilter;
 
   for (i = 0; i < cinfo->num_cols; i++) {
     col_item = &cinfo->columns[i];
@@ -1022,17 +1023,21 @@ col_finalize(column_info *cinfo)
         col_item->col_custom_dfilter = NULL;
       }
       if (col_item->col_custom_fields) {
-        gchar **fields = g_regex_split(cinfo->prime_regex, col_item->col_custom_fields,
-                                       G_REGEX_MATCH_ANCHORED);
-        guint i_field;
+        char **fields = g_regex_split(cinfo->prime_regex, col_item->col_custom_fields,
+                                       0);
+        unsigned i_field;
 
         for (i_field = 0; i_field < g_strv_length(fields); i_field++) {
           if (fields[i_field] && *fields[i_field]) {
-            header_field_info *hfinfo = proto_registrar_get_byname(fields[i_field]);
-            if (hfinfo) {
-              int *idx = g_new(int, 1);
-              *idx = hfinfo->id;
-              col_item->col_custom_fields_ids = g_slist_append(col_item->col_custom_fields_ids, idx);
+            if (dfilter_compile_full(fields[i_field], &dfilter, NULL, DF_EXPAND_MACROS|DF_OPTIMIZE|DF_RETURN_VALUES, __func__)) {
+              col_custom_t *custom_info = g_new0(col_custom_t, 1);
+              custom_info->dftext = g_strdup(fields[i_field]);
+              custom_info->dfilter = dfilter;
+              header_field_info *hfinfo = proto_registrar_get_byname(fields[i_field]);
+              if (hfinfo) {
+                custom_info->field_id = hfinfo->id;
+              }
+              col_item->col_custom_fields_ids = g_slist_append(col_item->col_custom_fields_ids, custom_info);
             }
           }
         }
@@ -1044,16 +1049,16 @@ col_finalize(column_info *cinfo)
       col_item->col_custom_dfilter = NULL;
     }
 
-    col_item->fmt_matx = g_new0(gboolean, NUM_COL_FMTS);
+    col_item->fmt_matx = g_new0(bool, NUM_COL_FMTS);
     get_column_format_matches(col_item->fmt_matx, col_item->col_fmt);
     col_item->col_data = NULL;
 
     if (col_item->col_fmt == COL_INFO) {
-      col_item->col_buf = g_new(gchar, COL_MAX_INFO_LEN);
-      cinfo->col_expr.col_expr_val[i] = g_new(gchar, COL_MAX_INFO_LEN);
+      col_item->col_buf = g_new(char, COL_MAX_INFO_LEN);
+      cinfo->col_expr.col_expr_val[i] = g_new(char, COL_MAX_INFO_LEN);
     } else {
-      col_item->col_buf = g_new(gchar, COL_MAX_LEN);
-      cinfo->col_expr.col_expr_val[i] = g_new(gchar, COL_MAX_LEN);
+      col_item->col_buf = g_new(char, COL_MAX_LEN);
+      cinfo->col_expr.col_expr_val[i] = g_new(char, COL_MAX_LEN);
     }
 
     cinfo->col_expr.col_expr[i] = "";
@@ -1078,7 +1083,7 @@ col_finalize(column_info *cinfo)
 }
 
 void
-build_column_format_array(column_info *cinfo, const gint num_cols, const gboolean reset_fences)
+build_column_format_array(column_info *cinfo, const int num_cols, const bool reset_fences)
 {
   int i;
   col_item_t* col_item;
@@ -1125,18 +1130,18 @@ column_register_fields(void)
   GArray *hf_col_array;
   hf_register_info new_hf;
   fmt_data *cfmt;
-  gboolean *used_fmts;
-  if (proto_cols == -1) {
+  bool *used_fmts;
+  if (proto_cols <= 0) {
     proto_cols = proto_get_id_by_filter_name("_ws.col");
   }
-  if (proto_cols == -1) {
+  if (proto_cols <= 0) {
     proto_cols = proto_register_protocol("Wireshark Columns", "Columns", "_ws.col");
   }
   column_deregister_fields();
   if (prefs.col_list != NULL) {
     prefs.num_cols = g_list_length(prefs.col_list);
-    hf_col_array = g_array_new(FALSE, TRUE, sizeof(hf_register_info));
-    used_fmts = g_new0(gboolean, NUM_COL_FMTS);
+    hf_col_array = g_array_new(false, true, sizeof(hf_register_info));
+    used_fmts = g_new0(bool, NUM_COL_FMTS);
     /* Only register a field for each format type once, but don't register
      * these at all. The first two behave oddly (because they depend on
      * whether the current field and previous fields are displayed). We
@@ -1149,7 +1154,7 @@ column_register_fields(void)
     for (GList *elem = g_list_first(prefs.col_list); elem != NULL; elem = elem->next) {
       cfmt = (fmt_data*)elem->data;
       if (!used_fmts[cfmt->fmt]) {
-        used_fmts[cfmt->fmt] = TRUE;
+        used_fmts[cfmt->fmt] = true;
         hf_id = g_new(int, 1);
         *hf_id = -1;
         new_hf.p_id = hf_id;
@@ -1168,7 +1173,7 @@ column_register_fields(void)
     hf_cols_cleanup = hf_col_array->len;
 
     proto_register_field_array(proto_cols, (hf_register_info*)hf_col_array->data, hf_col_array->len);
-    hf_cols = (hf_register_info*)g_array_free(hf_col_array, FALSE);
+    hf_cols = (hf_register_info*)g_array_free(hf_col_array, false);
   }
 }
 

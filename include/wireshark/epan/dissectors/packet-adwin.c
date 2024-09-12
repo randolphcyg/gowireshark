@@ -428,67 +428,67 @@ static value_string_ext packet_type_mapping_ext = VALUE_STRING_EXT_INIT(packet_t
 
 
 /* Initialize the protocol and registered fields */
-static int proto_adwin                = -1;
+static int proto_adwin;
 
-static int global_adwin_dissect_data  = 1;
+static bool global_adwin_dissect_data = true;
 
-static int hf_adwin_address           = -1;
-static int hf_adwin_armVersion        = -1;
-static int hf_adwin_binfilesize       = -1;
-static int hf_adwin_blocksize         = -1;
-static int hf_adwin_count             = -1;
-static int hf_adwin_complete_packets  = -1;
-static int hf_adwin_data              = -1;
-static int hf_adwin_data_int          = -1;
-static int hf_adwin_data_float        = -1;
-static int hf_adwin_data_hex          = -1;
-static int hf_adwin_data_no16         = -1;
-static int hf_adwin_data_no32         = -1;
-static int hf_adwin_data_packet_index = -1;
-static int hf_adwin_data_type         = -1;
-static int hf_adwin_dll_version       = -1;
-static int hf_adwin_fifo_no16         = -1;
-static int hf_adwin_fifo_no32         = -1;
-static int hf_adwin_instruction       = -1;
-static int hf_adwin_is_range          = -1;
-static int hf_adwin_i3plus1           = -1;
-static int hf_adwin_link_addr         = -1;
-static int hf_adwin_mem_type          = -1;
-static int hf_adwin_memsize           = -1;
-static int hf_adwin_osys              = -1;
-static int hf_adwin_packet_index      = -1;
-static int hf_adwin_packet_no         = -1;
-static int hf_adwin_packet_start      = -1;
-static int hf_adwin_packet_end        = -1;
-static int hf_adwin_gdsh_status       = -1;
-static int hf_adwin_packet_type       = -1;
-static int hf_adwin_parameter         = -1;
-static int hf_adwin_password          = -1;
-static int hf_adwin_process_no        = -1;
-static int hf_adwin_processor         = -1;
-static int hf_adwin_response_in       = -1;
-static int hf_adwin_response_to       = -1;
-static int hf_adwin_response_time     = -1;
-static int hf_adwin_retry_packet_index= -1;
-static int hf_adwin_request_no        = -1;
-static int hf_adwin_start_index       = -1;
-static int hf_adwin_status            = -1;
-static int hf_adwin_timeout           = -1;
-static int hf_adwin_unused            = -1;
-static int hf_adwin_val1              = -1;
-static int hf_adwin_val1f             = -1;
-static int hf_adwin_val2              = -1;
-static int hf_adwin_val3              = -1;
-static int hf_adwin_val4              = -1;
+static int hf_adwin_address;
+static int hf_adwin_armVersion;
+static int hf_adwin_binfilesize;
+static int hf_adwin_blocksize;
+static int hf_adwin_count;
+static int hf_adwin_complete_packets;
+static int hf_adwin_data;
+static int hf_adwin_data_int;
+static int hf_adwin_data_float;
+static int hf_adwin_data_hex;
+static int hf_adwin_data_no16;
+static int hf_adwin_data_no32;
+static int hf_adwin_data_packet_index;
+static int hf_adwin_data_type;
+static int hf_adwin_dll_version;
+static int hf_adwin_fifo_no16;
+static int hf_adwin_fifo_no32;
+static int hf_adwin_instruction;
+static int hf_adwin_is_range;
+static int hf_adwin_i3plus1;
+static int hf_adwin_link_addr;
+static int hf_adwin_mem_type;
+static int hf_adwin_memsize;
+static int hf_adwin_osys;
+static int hf_adwin_packet_index;
+static int hf_adwin_packet_no;
+static int hf_adwin_packet_start;
+static int hf_adwin_packet_end;
+static int hf_adwin_gdsh_status;
+static int hf_adwin_packet_type;
+static int hf_adwin_parameter;
+static int hf_adwin_password;
+static int hf_adwin_process_no;
+static int hf_adwin_processor;
+static int hf_adwin_response_in;
+static int hf_adwin_response_to;
+static int hf_adwin_response_time;
+static int hf_adwin_retry_packet_index;
+static int hf_adwin_request_no;
+static int hf_adwin_start_index;
+static int hf_adwin_status;
+static int hf_adwin_timeout;
+static int hf_adwin_unused;
+static int hf_adwin_val1;
+static int hf_adwin_val1f;
+static int hf_adwin_val2;
+static int hf_adwin_val3;
+static int hf_adwin_val4;
 
 /* Initialize the subtree pointers */
-static gint ett_adwin                 = -1;
-static gint ett_adwin_debug           = -1;
+static int ett_adwin;
+static int ett_adwin_debug;
 
 /* response/request tracking */
 typedef struct _adwin_transaction_t {
-	guint32 req_frame;
-	guint32 rep_frame;
+	uint32_t req_frame;
+	uint32_t rep_frame;
 	nstime_t req_time;
 } adwin_transaction_t;
 
@@ -504,7 +504,7 @@ typedef enum {
 
 static void
 adwin_request_response_handling(tvbuff_t *tvb, packet_info *pinfo,
-				proto_tree *adwin_tree, guint32 seq_num, adwin_direction_t direction)
+				proto_tree *adwin_tree, uint32_t seq_num, adwin_direction_t direction)
 {
 	conversation_t *conversation;
 	adwin_conv_info_t *adwin_info;
@@ -583,16 +583,16 @@ adwin_request_response_handling(tvbuff_t *tvb, packet_info *pinfo,
 
 static void
 dissect_UDPH1_generic(tvbuff_t *tvb, packet_info *pinfo,
-		      proto_tree *adwin_tree, proto_tree *adwin_debug_tree, gchar** info_string, const gchar* packet_name)
+		      proto_tree *adwin_tree, proto_tree *adwin_debug_tree, char** info_string, const char* packet_name)
 {
-	guint32 i3plus1code =  0, instructionID, seq_num;
+	uint32_t i3plus1code =  0, instructionID, seq_num;
 
 	instructionID = tvb_get_letohl(tvb, 0);
 	*info_string = wmem_strdup_printf(pinfo->pool, "%s: %s", packet_name,
 				        val_to_str_ext(instructionID, &instruction_mapping_ext, "unknown instruction: %d"));
 
 	if (instructionID == I_3PLUS1) {
-		gchar *tmp = *info_string;
+		char *tmp = *info_string;
 
 		i3plus1code = tvb_get_letohl(tvb, 20);
 		*info_string = wmem_strdup_printf(pinfo->pool, "%s: %s", tmp, val_to_str_ext(i3plus1code, &instruction_3plus1_mapping_ext, "unknown 3+1 code: %d"));
@@ -748,7 +748,7 @@ dissect_UDPH1_generic(tvbuff_t *tvb, packet_info *pinfo,
 
 static void
 dissect_UDPH1_old(tvbuff_t *tvb, packet_info *pinfo,
-		  proto_tree *adwin_tree, proto_tree *adwin_debug_tree, gchar** info_string)
+		  proto_tree *adwin_tree, proto_tree *adwin_debug_tree, char** info_string)
 {
 	dissect_UDPH1_generic(tvb, pinfo, adwin_tree, adwin_debug_tree, info_string, "UDPH1 (old)");
 }
@@ -756,10 +756,10 @@ dissect_UDPH1_old(tvbuff_t *tvb, packet_info *pinfo,
 static void
 dissect_UDPH1_new(tvbuff_t *tvb, packet_info *pinfo,
 		  proto_tree *adwin_tree, proto_tree *adwin_debug_tree,
-		  gchar** info_string)
+		  char** info_string)
 {
-	gchar* dll_version_s;
-	gint32 dll_i;
+	char* dll_version_s;
+	int32_t dll_i;
 
 	dissect_UDPH1_generic(tvb, pinfo, adwin_tree, adwin_debug_tree, info_string, "UDPH1 (new)");
 
@@ -780,10 +780,10 @@ dissect_UDPH1_new(tvbuff_t *tvb, packet_info *pinfo,
 static void
 dissect_UDPR1(tvbuff_t *tvb, packet_info *pinfo,
 	      proto_tree *adwin_tree, proto_tree *adwin_debug_tree,
-	      gchar** info_string)
+	      char** info_string)
 {
-	const gchar *status_string;
-	guint32 seq_num, status;
+	const char *status_string;
+	uint32_t seq_num, status;
 
 	status = tvb_get_letohl(tvb, 0);
 	status_string = try_val_to_str_ext(status, &error_code_mapping_ext);
@@ -814,10 +814,10 @@ dissect_UDPR1(tvbuff_t *tvb, packet_info *pinfo,
 static void
 dissect_UDPR2(tvbuff_t *tvb, packet_info *pinfo,
 	      proto_tree *adwin_tree, proto_tree *adwin_debug_tree,
-	      gchar** info_string)
+	      char** info_string)
 {
-	const gchar *status_string;
-	guint32 i, status, seq_num;
+	const char *status_string;
+	uint32_t i, status, seq_num;
 
 	status = tvb_get_letohl(tvb, 0);
 	status_string = try_val_to_str_ext(status, &error_code_mapping_ext);
@@ -845,8 +845,8 @@ dissect_UDPR2(tvbuff_t *tvb, packet_info *pinfo,
 
 	for (i = 0; i < 250; i++) {
 		proto_item *item;
-		guint32 offset = 8 + i * (int)sizeof(guint32);
-		gint32 value = tvb_get_letohl(tvb, offset);
+		uint32_t offset = 8 + i * (int)sizeof(uint32_t);
+		int32_t value = tvb_get_letohl(tvb, offset);
 		void * fvalue = &value;
 		proto_tree_add_none_format(adwin_debug_tree, hf_adwin_data, tvb, offset, 4,
 				    "Data[%3d]: %10d - %10f - 0x%08x",
@@ -864,7 +864,7 @@ static void
 dissect_UDPR3(tvbuff_t *tvb, packet_info *pinfo,
 	      proto_tree *adwin_tree, proto_tree *adwin_debug_tree)
 {
-	guint32 i, seq_num;
+	uint32_t i, seq_num;
 
 	/* Get the transaction identifier */
 	seq_num = tvb_get_letohl(tvb, 0);
@@ -884,8 +884,8 @@ dissect_UDPR3(tvbuff_t *tvb, packet_info *pinfo,
 
 	for (i = 0; i < 350; i++) {
 		proto_item *item;
-		guint32 offset = 8 + i * (int)sizeof(guint32);
-		gint32 value = tvb_get_letohl(tvb, offset);
+		uint32_t offset = 8 + i * (int)sizeof(uint32_t);
+		int32_t value = tvb_get_letohl(tvb, offset);
 		void * fvalue = &value;
 		proto_tree_add_none_format(adwin_debug_tree, hf_adwin_data, tvb, offset, 4,
 				    "Data[%3d]: %10d - %10f - 0x%08x",
@@ -901,10 +901,10 @@ dissect_UDPR3(tvbuff_t *tvb, packet_info *pinfo,
 
 static void
 dissect_UDPR4(tvbuff_t *tvb, packet_info *pinfo,
-	      proto_tree *adwin_tree, proto_tree *adwin_debug_tree, gchar** info_string)
+	      proto_tree *adwin_tree, proto_tree *adwin_debug_tree, char** info_string)
 {
-	const gchar *status_string;
-	guint32 data_type, i, status, seq_num;
+	const char *status_string;
+	uint32_t data_type, i, status, seq_num;
 
 	status = tvb_get_letohl(tvb, 0);
 	status_string = try_val_to_str_ext(status, &error_code_mapping_ext);
@@ -936,8 +936,8 @@ dissect_UDPR4(tvbuff_t *tvb, packet_info *pinfo,
 
 	for (i = 0; i < 350; i++) {
 		proto_item *item;
-		guint32 offset = 8 + i * (int)sizeof(guint32);
-		gint32 value = tvb_get_letohl(tvb, offset);
+		uint32_t offset = 8 + i * (int)sizeof(uint32_t);
+		int32_t value = tvb_get_letohl(tvb, offset);
 		void * fvalue = &value;
 		switch (data_type) {
 		case 2:
@@ -974,7 +974,7 @@ static void
 dissect_GDSHP(tvbuff_t *tvb, packet_info *pinfo,
 	      proto_tree *adwin_tree, proto_tree *adwin_debug_tree)
 {
-	guint32 i, seq_num;
+	uint32_t i, seq_num;
 
 	/* Get the transaction identifier */
 	seq_num = tvb_get_ntohl(tvb, 0);
@@ -995,8 +995,8 @@ dissect_GDSHP(tvbuff_t *tvb, packet_info *pinfo,
 
 	for (i = 0; i < 336; i++) {
 		proto_item *item;
-		guint32 offset = 12 + i * (int)sizeof(guint32);
-		gint32 value = tvb_get_letohl(tvb, offset);
+		uint32_t offset = 12 + i * (int)sizeof(uint32_t);
+		int32_t value = tvb_get_letohl(tvb, offset);
 		void * fvalue = &value;
 		proto_tree_add_none_format(adwin_debug_tree, hf_adwin_data, tvb, offset, 4,
 				    "Data[%3d]: %10d - %10f - 0x%08x",
@@ -1014,7 +1014,7 @@ static void
 dissect_GDSHR(tvbuff_t *tvb, packet_info *pinfo,
 	      proto_tree *adwin_tree, proto_tree *adwin_debug_tree)
 {
-	guint32 is_range, packet_start, packet_end, seq_num;
+	uint32_t is_range, packet_start, packet_end, seq_num;
 	proto_item *ti;
 
 	/* Get the transaction identifier */
@@ -1070,8 +1070,8 @@ dissect_adwin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 {
 	proto_item *ti, *ti2;
 	proto_tree *adwin_tree, *adwin_debug_tree;
-	gchar *info_string;
-	guint32 length;
+	char *info_string;
+	uint32_t length;
 
 	length = tvb_reported_length(tvb);
 
@@ -1085,7 +1085,7 @@ dissect_adwin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 	      || length == UDPR4_LENGTH
 	      || length == GetDataSHPacket_LENGTH
 	      || length == GetDataSHRequest_LENGTH))
-		return(0);
+		return 0;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "ADwin");
 	col_clear(pinfo->cinfo, COL_INFO);
@@ -1108,7 +1108,7 @@ dissect_adwin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 		dissect_UDPR1(tvb, pinfo, adwin_tree, adwin_debug_tree, &info_string);
 		break;
 	case UDPH2_LENGTH: /* to the best of my knowledge, this struct
-			    * has never been used publically! */
+			    * has never been used publicly! */
 		/* dissect_UDPH2(tvb, pinfo, adwin_tree, adwin_debug_tree); */
 		info_string = wmem_strdup(pinfo->pool, "UDPH2 - UNUSED");
 		break;
@@ -1394,7 +1394,7 @@ proto_register_adwin(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_adwin,
 		&ett_adwin_debug,
 	};

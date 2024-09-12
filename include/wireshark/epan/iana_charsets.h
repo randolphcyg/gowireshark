@@ -19,7 +19,7 @@
 #define __IANA_CHARSETS_H__
 
 /* Map a MIBenum code for a charset to a Wireshark string encoding. */
-WS_DLL_PUBLIC guint mibenum_charset_to_encoding (guint charset);
+WS_DLL_PUBLIC unsigned mibenum_charset_to_encoding (unsigned charset);
 
 /* value_string_ext table of names for MIBenum codes */
 WS_DLL_PUBLIC value_string_ext mibenum_vals_character_sets_ext;
@@ -193,6 +193,7 @@ WS_DLL_PUBLIC value_string_ext mibenum_vals_character_sets_ext;
     ZZZ(0, YYY(XXX, IANA_CS_UTF_32BE,                  1018, "UTF-32BE",            ENC_NA|_DEFAULT_WS_ENC)) \
     ZZZ(0, YYY(XXX, IANA_CS_UTF_32LE,                  1019, "UTF-32LE",            ENC_NA|_DEFAULT_WS_ENC)) \
     ZZZ(0, YYY(XXX, IANA_CS_BOCU_1,                    1020, "BOCU-1",              ENC_NA|_DEFAULT_WS_ENC)) \
+    ZZZ(0, YYY(XXX, IANA_CS_UTF_7_IMAP,                1021, "UTF-7-IMAP",          ENC_NA|_DEFAULT_WS_ENC)) \
     ZZZ(0, YYY(XXX, IANA_CS_ISO_8859_1_WINDOWS_3_0_LATIN_1, 2000, "ISO-8859-1-Windows-3.0-Latin-1", ENC_NA|_DEFAULT_WS_ENC)) \
     ZZZ(0, YYY(XXX, IANA_CS_ISO_8859_1_WINDOWS_3_1_LATIN_1, 2001, "ISO-8859-1-Windows-3.1-Latin-1", ENC_NA|_DEFAULT_WS_ENC)) \
     ZZZ(0, YYY(XXX, IANA_CS_ISO_8859_2_WINDOWS_LATIN_2,2002, "ISO-8859-2-Windows-Latin-2", ENC_NA|_DEFAULT_WS_ENC)) \

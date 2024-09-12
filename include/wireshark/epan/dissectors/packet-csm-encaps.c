@@ -14,6 +14,7 @@
 
 #include <epan/packet.h>
 #include <epan/etypes.h>
+#include <epan/tfs.h>
 
 #define OPCODE_NOOP              0x0000
 #define OPCODE_CONTROL_PACKET    0x0001
@@ -65,73 +66,73 @@ static const value_string error_vals[] = {
 };
 
 /* Initialize the protocol and registered fields */
-static int proto_csm_encaps            = -1;
+static int proto_csm_encaps;
 
-static int hf_csm_encaps_opcode            = -1;
-static int hf_csm_encaps_seq               = -1;
-static int hf_csm_encaps_ctrl              = -1;
-static int hf_csm_encaps_ctrl_endian       = -1;
-static int hf_csm_encaps_ctrl_ack          = -1;
-static int hf_csm_encaps_ctrl_ack_suppress = -1;
-static int hf_csm_encaps_channel           = -1;
-static int hf_csm_encaps_index             = -1;
-static int hf_csm_encaps_length            = -1;
-static int hf_csm_encaps_class             = -1;
-static int hf_csm_encaps_type              = -1;
-static int hf_csm_encaps_function_code     = -1;
-static int hf_csm_encaps_reserved          = -1;
-static int hf_csm_encaps_param_error       = -1;
-static int hf_csm_encaps_param1            = -1;
-static int hf_csm_encaps_param2            = -1;
-static int hf_csm_encaps_param3            = -1;
-static int hf_csm_encaps_param4            = -1;
-static int hf_csm_encaps_param5            = -1;
-static int hf_csm_encaps_param6            = -1;
-static int hf_csm_encaps_param7            = -1;
-static int hf_csm_encaps_param8            = -1;
-static int hf_csm_encaps_param9            = -1;
-static int hf_csm_encaps_param10           = -1;
-static int hf_csm_encaps_param11           = -1;
-static int hf_csm_encaps_param12           = -1;
-static int hf_csm_encaps_param13           = -1;
-static int hf_csm_encaps_param14           = -1;
-static int hf_csm_encaps_param15           = -1;
-static int hf_csm_encaps_param16           = -1;
-static int hf_csm_encaps_param17           = -1;
-static int hf_csm_encaps_param18           = -1;
-static int hf_csm_encaps_param19           = -1;
-static int hf_csm_encaps_param20           = -1;
-static int hf_csm_encaps_param21           = -1;
-static int hf_csm_encaps_param22           = -1;
-static int hf_csm_encaps_param23           = -1;
-static int hf_csm_encaps_param24           = -1;
-static int hf_csm_encaps_param25           = -1;
-static int hf_csm_encaps_param26           = -1;
-static int hf_csm_encaps_param27           = -1;
-static int hf_csm_encaps_param28           = -1;
-static int hf_csm_encaps_param29           = -1;
-static int hf_csm_encaps_param30           = -1;
-static int hf_csm_encaps_param31           = -1;
-static int hf_csm_encaps_param32           = -1;
-static int hf_csm_encaps_param33           = -1;
-static int hf_csm_encaps_param34           = -1;
-static int hf_csm_encaps_param35           = -1;
-static int hf_csm_encaps_param36           = -1;
-static int hf_csm_encaps_param37           = -1;
-static int hf_csm_encaps_param38           = -1;
-static int hf_csm_encaps_param39           = -1;
-static int hf_csm_encaps_param40           = -1;
-static int hf_csm_encaps_param             = -1;
+static int hf_csm_encaps_opcode;
+static int hf_csm_encaps_seq;
+static int hf_csm_encaps_ctrl;
+static int hf_csm_encaps_ctrl_endian;
+static int hf_csm_encaps_ctrl_ack;
+static int hf_csm_encaps_ctrl_ack_suppress;
+static int hf_csm_encaps_channel;
+static int hf_csm_encaps_index;
+static int hf_csm_encaps_length;
+static int hf_csm_encaps_class;
+static int hf_csm_encaps_type;
+static int hf_csm_encaps_function_code;
+static int hf_csm_encaps_reserved;
+static int hf_csm_encaps_param_error;
+static int hf_csm_encaps_param1;
+static int hf_csm_encaps_param2;
+static int hf_csm_encaps_param3;
+static int hf_csm_encaps_param4;
+static int hf_csm_encaps_param5;
+static int hf_csm_encaps_param6;
+static int hf_csm_encaps_param7;
+static int hf_csm_encaps_param8;
+static int hf_csm_encaps_param9;
+static int hf_csm_encaps_param10;
+static int hf_csm_encaps_param11;
+static int hf_csm_encaps_param12;
+static int hf_csm_encaps_param13;
+static int hf_csm_encaps_param14;
+static int hf_csm_encaps_param15;
+static int hf_csm_encaps_param16;
+static int hf_csm_encaps_param17;
+static int hf_csm_encaps_param18;
+static int hf_csm_encaps_param19;
+static int hf_csm_encaps_param20;
+static int hf_csm_encaps_param21;
+static int hf_csm_encaps_param22;
+static int hf_csm_encaps_param23;
+static int hf_csm_encaps_param24;
+static int hf_csm_encaps_param25;
+static int hf_csm_encaps_param26;
+static int hf_csm_encaps_param27;
+static int hf_csm_encaps_param28;
+static int hf_csm_encaps_param29;
+static int hf_csm_encaps_param30;
+static int hf_csm_encaps_param31;
+static int hf_csm_encaps_param32;
+static int hf_csm_encaps_param33;
+static int hf_csm_encaps_param34;
+static int hf_csm_encaps_param35;
+static int hf_csm_encaps_param36;
+static int hf_csm_encaps_param37;
+static int hf_csm_encaps_param38;
+static int hf_csm_encaps_param39;
+static int hf_csm_encaps_param40;
+static int hf_csm_encaps_param;
 
 
 /* Initialize the subtree pointers */
-static gint ett_csm_encaps         = -1;
-static gint ett_csm_encaps_control = -1;
+static int ett_csm_encaps;
+static int ett_csm_encaps_control;
 
 
 /* returns the command name */
-static const gchar *
-csm_fc(guint16 fc, guint16 ct)
+static const char *
+csm_fc(uint16_t fc, uint16_t ct)
 {
     if (fc == 0x0000) {
         return val_to_str(ct, class_type_vals, "0x%04x");
@@ -143,8 +144,8 @@ csm_fc(guint16 fc, guint16 ct)
 
 
 /* check to see if the message is an exclusive message send to host */
-static gboolean
-csm_to_host(guint16 fc, guint16 ct)
+static bool
+csm_to_host(uint16_t fc, uint16_t ct)
 {
     if (fc == 0x0000) {
         return (try_val_to_str(ct, exclusive_to_host_ct_vals) != NULL);
@@ -161,36 +162,36 @@ dissect_csm_encaps(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 {
     proto_item  *ti;
     proto_tree  *csm_encaps_tree = NULL;
-    guint16      function_code, channel, class_type;
-    guint        control, type, sequence, length;
-    guint        i;
-    gboolean     show_error_param= FALSE;
-    const gchar *str_function_name;
+    uint16_t     function_code, channel, class_type;
+    unsigned     control, type, sequence, length;
+    unsigned     i;
+    bool         show_error_param= false;
+    const char *str_function_name;
 
 
     function_code = tvb_get_letohs(tvb, 10);
-    control = tvb_get_guint8(tvb, 3);
+    control = tvb_get_uint8(tvb, 3);
 
-    class_type = tvb_get_guint8(tvb, 9);
+    class_type = tvb_get_uint8(tvb, 9);
     class_type = class_type<<8;
-    class_type|= tvb_get_guint8(tvb, 8);
+    class_type|= tvb_get_uint8(tvb, 8);
 
-    type     = tvb_get_guint8(tvb, 8);
-    sequence = tvb_get_guint8(tvb, 2);
-    length   = tvb_get_guint8(tvb, 6);
+    type     = tvb_get_uint8(tvb, 8);
+    sequence = tvb_get_uint8(tvb, 2);
+    length   = tvb_get_uint8(tvb, 6);
     channel  = tvb_get_ntohs(tvb, 4);
 
 
     if (CSM_ENCAPS_CTRL_ACK&control)
-        show_error_param= FALSE;
+        show_error_param= false;
     else {
         if (csm_to_host(function_code, class_type)) /* exclusive messages to host */
-            show_error_param= FALSE;
+            show_error_param= false;
         else {
             if (type == CSM_ENCAPS_TYPE_RESPONSE)
-                show_error_param= TRUE;
+                show_error_param= true;
             else
-                show_error_param= FALSE;
+                show_error_param= false;
         }
     }
 
@@ -705,7 +706,7 @@ proto_register_csm_encaps(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_csm_encaps,
         &ett_csm_encaps_control
     };

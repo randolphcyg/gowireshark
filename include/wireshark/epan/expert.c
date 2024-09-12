@@ -30,19 +30,19 @@
 /* proto_expert cannot be static because it's referenced in the
  * print routines
  */
-int proto_expert              = -1;
+int proto_expert;
 
-static int proto_malformed    = -1;
+static int proto_malformed;
 
-static int expert_tap         = -1;
-static int highest_severity   =  0;
+static int expert_tap;
+static int highest_severity;
 
-static int ett_expert         = -1;
-static int ett_subexpert      = -1;
+static int ett_expert;
+static int ett_subexpert;
 
-static int hf_expert_msg      = -1;
-static int hf_expert_group    = -1;
-static int hf_expert_severity = -1;
+static int hf_expert_msg;
+static int hf_expert_group;
+static int hf_expert_severity;
 
 struct expert_module
 {
@@ -52,17 +52,17 @@ struct expert_module
 
 /* List which stores protocols and expert_info that have been registered */
 typedef struct _gpa_expertinfo_t {
-	guint32             len;
-	guint32             allocated_len;
+	uint32_t            len;
+	uint32_t            allocated_len;
 	expert_field_info **ei;
 } gpa_expertinfo_t;
 static gpa_expertinfo_t gpa_expertinfo;
 
 /* Hash table of abbreviations and IDs */
-static GHashTable *gpa_name_map = NULL;
+static GHashTable *gpa_name_map;
 
 /* Deregistered expert infos */
-static GPtrArray *deregistered_expertinfos = NULL;
+static GPtrArray *deregistered_expertinfos;
 
 const value_string expert_group_vals[] = {
 	{ PI_CHECKSUM,          "Checksum" },
@@ -79,6 +79,9 @@ const value_string expert_group_vals[] = {
 	{ PI_DECRYPTION,        "Decryption" },
 	{ PI_ASSUMPTION,        "Assumption" },
 	{ PI_DEPRECATED,        "Deprecated" },
+	{ PI_RECEIVE,           "Receive" },
+	{ PI_INTERFACE,         "Interface" },
+	{ PI_DISSECTOR_BUG,     "Dissector bug" },
 	{ 0, NULL }
 };
 
@@ -108,16 +111,16 @@ static expert_field_info *expert_registrar_get_byname(const char *field_name);
 typedef struct
 {
 	char    *field;
-	guint32  severity;
+	uint32_t severity;
 } expert_level_entry_t;
 
-static expert_level_entry_t *uat_expert_entries = NULL;
-static guint expert_level_entry_count = 0;
+static expert_level_entry_t *uat_expert_entries;
+static unsigned expert_level_entry_count;
 /* Array of field names currently in UAT */
-static GArray *uat_saved_fields = NULL;
+static GArray *uat_saved_fields;
 
 UAT_CSTRING_CB_DEF(uat_expert_entries, field, expert_level_entry_t)
-UAT_VS_DEF(uat_expert_entries, severity, expert_level_entry_t, guint32, PI_ERROR, "Error")
+UAT_VS_DEF(uat_expert_entries, severity, expert_level_entry_t, uint32_t, PI_ERROR, "Error")
 
 static bool uat_expert_update_cb(void *r, char **err)
 {
@@ -125,9 +128,9 @@ static bool uat_expert_update_cb(void *r, char **err)
 
 	if (expert_registrar_get_byname(rec->field) == NULL) {
 		*err = ws_strdup_printf("Expert Info field doesn't exist: %s", rec->field);
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }
 
 static void *uat_expert_copy_cb(void *n, const void *o, size_t siz _U_)
@@ -151,7 +154,7 @@ static void uat_expert_free_cb(void*r)
 
 static void uat_expert_post_update_cb(void)
 {
-	guint              i;
+	unsigned           i;
 	expert_field_info *field;
 
 	/* Reset any of the previous list of expert info fields to their original severity */
@@ -176,9 +179,9 @@ static void uat_expert_post_update_cb(void)
 }
 
 #define EXPERT_REGISTRAR_GET_NTH(eiindex, expinfo)                                               \
-	if((guint)eiindex >= gpa_expertinfo.len && wireshark_abort_on_dissector_bug)   \
+	if((unsigned)eiindex >= gpa_expertinfo.len && wireshark_abort_on_dissector_bug)   \
 		ws_error("Unregistered expert info! index=%d", eiindex);                          \
-	DISSECTOR_ASSERT_HINT((guint)eiindex < gpa_expertinfo.len, "Unregistered expert info!"); \
+	DISSECTOR_ASSERT_HINT((unsigned)eiindex < gpa_expertinfo.len, "Unregistered expert info!"); \
 	DISSECTOR_ASSERT_HINT(gpa_expertinfo.ei[eiindex] != NULL, "Unregistered expert info!");	\
 	expinfo = gpa_expertinfo.ei[eiindex];
 
@@ -199,7 +202,7 @@ expert_packet_init(void)
 			{ "Severity level", "_ws.expert.severity", FT_UINT32, BASE_NONE, VALS(expert_severity_vals), 0, "Wireshark expert severity level", HFILL }
 		}
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_expert,
 		&ett_subexpert
 	};
@@ -211,11 +214,11 @@ expert_packet_init(void)
 		UAT_END_FIELDS
 	};
 
-	if (expert_tap == -1) {
+	if (expert_tap == 0) {
 		expert_tap = register_tap("expert");
 	}
 
-	if (proto_expert == -1) {
+	if (proto_expert <= 0) {
 		proto_expert = proto_register_protocol("Expert Info", "Expert", "_ws.expert");
 		proto_register_field_array(proto_expert, hf, array_length(hf));
 		proto_register_subtree_array(ett, array_length(ett));
@@ -226,12 +229,12 @@ expert_packet_init(void)
 		//categorized with other "real" protocols when it comes to
 		//preferences.  Since it's just a UAT, don't bury it in
 		//with the other protocols
-		module_expert->use_gui = FALSE;
+		module_expert->use_gui = false;
 
 		expert_uat = uat_new("Expert Info Severity Level Configuration",
 			sizeof(expert_level_entry_t),
 			"expert_severity",
-			TRUE,
+			true,
 			(void **)&uat_expert_entries,
 			&expert_level_entry_count,
 			UAT_AFFECTS_DISSECTION,
@@ -263,7 +266,7 @@ expert_init(void)
 	gpa_expertinfo.allocated_len = 0;
 	gpa_expertinfo.ei            = NULL;
 	gpa_name_map                 = g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
-	uat_saved_fields             = g_array_new(FALSE, FALSE, sizeof(expert_field_info*));
+	uat_saved_fields             = g_array_new(false, false, sizeof(expert_field_info*));
 	deregistered_expertinfos     = g_ptr_array_new();
 }
 
@@ -290,12 +293,12 @@ expert_cleanup(void)
 
 	/* Free the UAT saved fields */
 	if (uat_saved_fields) {
-		g_array_free(uat_saved_fields, TRUE);
+		g_array_free(uat_saved_fields, true);
 		uat_saved_fields = NULL;
 	}
 
 	if (deregistered_expertinfos) {
-		g_ptr_array_free(deregistered_expertinfos, TRUE);
+		g_ptr_array_free(deregistered_expertinfos, true);
 		deregistered_expertinfos = NULL;
 	}
 }
@@ -308,7 +311,7 @@ expert_get_highest_severity(void)
 }
 
 void
-expert_update_comment_count(guint64 count)
+expert_update_comment_count(uint64_t count)
 {
 	if (count==0 && highest_severity==PI_COMMENT)
 		highest_severity = 0;
@@ -345,7 +348,7 @@ expert_deregister_protocol (expert_module_t *module)
 }
 
 static void
-free_deregistered_expertinfo (gpointer data, gpointer user_data _U_)
+free_deregistered_expertinfo (void *data, void *user_data _U_)
 {
 	expert_field_info *expinfo = (expert_field_info *) data;
 	gpa_expertinfo.ei[expinfo->id] = NULL; /* Invalidate this id */
@@ -355,7 +358,7 @@ void
 expert_free_deregistered_expertinfos (void)
 {
 	g_ptr_array_foreach(deregistered_expertinfos, free_deregistered_expertinfo, NULL);
-	g_ptr_array_free(deregistered_expertinfos, TRUE);
+	g_ptr_array_free(deregistered_expertinfos, true);
 	deregistered_expertinfos = g_ptr_array_new();
 }
 
@@ -378,6 +381,9 @@ expert_register_field_init(expert_field_info *expinfo, expert_module_t *module)
 		case PI_DECRYPTION:
 		case PI_ASSUMPTION:
 		case PI_DEPRECATED:
+		case PI_RECEIVE:
+		case PI_INTERFACE:
+		case PI_DISSECTOR_BUG:
 			break;
 		default:
 			REPORT_DISSECTOR_BUG("Expert info for %s has invalid group=0x%08x\n", expinfo->name, expinfo->group);
@@ -413,7 +419,7 @@ expert_register_field_init(expert_field_info *expinfo, expert_module_t *module)
 	expinfo->orig_severity = expinfo->severity;
 
 	/* save field name for lookup */
-	g_hash_table_insert(gpa_name_map, (gpointer) (expinfo->name), expinfo);
+	g_hash_table_insert(gpa_name_map, (void *) (expinfo->name), expinfo);
 
 	return expinfo->id;
 }
@@ -477,7 +483,7 @@ expert_registrar_get_byname(const char *field_name)
  * This is intended for use in expert_add_info_format or proto_tree_add_expert_format
  * to get the "base" string to then append additional information
  */
-const gchar* expert_get_summary(expert_field *eiindex)
+const char* expert_get_summary(expert_field *eiindex)
 {
 	expert_field_info *eiinfo;
 
@@ -496,7 +502,8 @@ const gchar* expert_get_summary(expert_field *eiindex)
 /* set's the PI_ flags to a protocol item
  * (and its parent items till the toplevel) */
 static void
-expert_set_item_flags(proto_item *pi, const int group, const guint severity)
+// NOLINTNEXTLINE(misc-no-recursion)
+expert_set_item_flags(proto_item *pi, const int group, const unsigned severity)
 {
 	if (pi != NULL && PITEM_FINFO(pi) != NULL && (severity >= FI_GET_FLAG(PITEM_FINFO(pi), PI_SEVERITY_MASK))) {
 		FI_REPLACE_FLAGS(PITEM_FINFO(pi), PI_GROUP_MASK, group);
@@ -504,6 +511,7 @@ expert_set_item_flags(proto_item *pi, const int group, const guint severity)
 
 		/* propagate till toplevel item */
 		pi = proto_item_get_parent(pi);
+		// We recurse here, but we're limited by our tree depth checks in proto.c
 		expert_set_item_flags(pi, group, severity);
 	}
 }
@@ -531,7 +539,7 @@ expert_create_tree(proto_item *pi, int group, int severity, const char *msg)
 }
 
 static proto_tree*
-expert_set_info_vformat(packet_info *pinfo, proto_item *pi, int group, int severity, int hf_index, gboolean use_vaformat,
+expert_set_info_vformat(packet_info *pinfo, proto_item *pi, int group, int severity, int hf_index, bool use_vaformat,
 			const char *format, va_list ap)
 {
 	char           formatted[ITEM_LABEL_LENGTH];
@@ -560,7 +568,7 @@ expert_set_info_vformat(packet_info *pinfo, proto_item *pi, int group, int sever
 	}
 
 	if ((pi == NULL) || (PITEM_FINFO(pi) == NULL) ||
-		((guint)severity >= FI_GET_FLAG(PITEM_FINFO(pi), PI_SEVERITY_MASK))) {
+		((unsigned)severity >= FI_GET_FLAG(PITEM_FINFO(pi), PI_SEVERITY_MASK))) {
 		col_add_str(pinfo->cinfo, COL_EXPERT, val_to_str(severity, expert_severity_vals, "Unknown (%u)"));
 	}
 
@@ -574,13 +582,13 @@ expert_set_info_vformat(packet_info *pinfo, proto_item *pi, int group, int sever
          * to write.
          */
         if (pos >= ITEM_LABEL_LENGTH) {
-		/* Truncation occured. It might have split a UTF-8 character. */
+		/* Truncation occurred. It might have split a UTF-8 character. */
 		ws_utf8_truncate(formatted, ITEM_LABEL_LENGTH - 1);
 	}
 
 	tree = expert_create_tree(pi, group, severity, formatted);
 
-	if (hf_index == -1) {
+	if (hf_index <= 0) {
 		/* If no filterable expert info, just add the message */
 		ti = proto_tree_add_string(tree, hf_expert_msg, NULL, 0, 0, formatted);
 		proto_item_set_generated(ti);
@@ -640,7 +648,7 @@ expert_add_info_internal(packet_info *pinfo, proto_item *pi, expert_field *expin
 	EXPERT_REGISTRAR_GET_NTH(expindex->ei, eiinfo);
 
 	va_start(unused, expindex);
-	tree = expert_set_info_vformat(pinfo, pi, eiinfo->group, eiinfo->severity, *eiinfo->hf_info.p_id, FALSE, eiinfo->summary, unused);
+	tree = expert_set_info_vformat(pinfo, pi, eiinfo->group, eiinfo->severity, *eiinfo->hf_info.p_id, false, eiinfo->summary, unused);
 	va_end(unused);
 	return tree;
 }
@@ -664,7 +672,7 @@ expert_add_info_format(packet_info *pinfo, proto_item *pi, expert_field *expinde
 	EXPERT_REGISTRAR_GET_NTH(expindex->ei, eiinfo);
 
 	va_start(ap, format);
-	tree = expert_set_info_vformat(pinfo, pi, eiinfo->group, eiinfo->severity, *eiinfo->hf_info.p_id, TRUE, format, ap);
+	tree = expert_set_info_vformat(pinfo, pi, eiinfo->group, eiinfo->severity, *eiinfo->hf_info.p_id, true, format, ap);
 	va_end(ap);
 	return (proto_item *)tree;
 }
@@ -672,11 +680,11 @@ expert_add_info_format(packet_info *pinfo, proto_item *pi, expert_field *expinde
 /* Helper function for expert_add_expert() to work around compiler's special needs on ARM */
 static inline proto_item *
 proto_tree_add_expert_internal(proto_tree *tree, packet_info *pinfo, expert_field *expindex,
-		tvbuff_t *tvb, gint start, gint length, ...)
+		tvbuff_t *tvb, int start, int length, ...)
 {
 	expert_field_info *eiinfo;
 	proto_item        *ti;
-	gint               item_length, captured_length;
+	int                item_length, captured_length;
 	va_list            unused;
 
 	/* Look up the item */
@@ -691,7 +699,7 @@ proto_tree_add_expert_internal(proto_tree *tree, packet_info *pinfo, expert_fiel
 		item_length = captured_length;
 	ti = proto_tree_add_text_internal(tree, tvb, start, item_length, "%s", eiinfo->summary);
 	va_start(unused, length);
-	expert_set_info_vformat(pinfo, ti, eiinfo->group, eiinfo->severity, *eiinfo->hf_info.p_id, FALSE, eiinfo->summary, unused);
+	expert_set_info_vformat(pinfo, ti, eiinfo->group, eiinfo->severity, *eiinfo->hf_info.p_id, false, eiinfo->summary, unused);
 	va_end(unused);
 
 	/* But make sure it throws an exception *after* adding the item */
@@ -703,18 +711,18 @@ proto_tree_add_expert_internal(proto_tree *tree, packet_info *pinfo, expert_fiel
 
 proto_item *
 proto_tree_add_expert(proto_tree *tree, packet_info *pinfo, expert_field *expindex,
-		tvbuff_t *tvb, gint start, gint length)
+		tvbuff_t *tvb, int start, int length)
 {
 	return proto_tree_add_expert_internal(tree, pinfo, expindex, tvb, start, length);
 }
 
 proto_item *
 proto_tree_add_expert_format(proto_tree *tree, packet_info *pinfo, expert_field *expindex,
-		tvbuff_t *tvb, gint start, gint length, const char *format, ...)
+		tvbuff_t *tvb, int start, int length, const char *format, ...)
 {
 	va_list            ap;
 	expert_field_info *eiinfo;
-	gint               item_length, captured_length;
+	int                item_length, captured_length;
 	proto_item        *ti;
 
 	/* Look up the item */
@@ -732,7 +740,7 @@ proto_tree_add_expert_format(proto_tree *tree, packet_info *pinfo, expert_field 
 	va_end(ap);
 
 	va_start(ap, format);
-	expert_set_info_vformat(pinfo, ti, eiinfo->group, eiinfo->severity, *eiinfo->hf_info.p_id, TRUE, format, ap);
+	expert_set_info_vformat(pinfo, ti, eiinfo->group, eiinfo->severity, *eiinfo->hf_info.p_id, true, format, ap);
 	va_end(ap);
 
 	/* But make sure it throws an exception *after* adding the item */

@@ -41,32 +41,32 @@ void proto_reg_handoff_omapi(void);
 
 static dissector_handle_t omapi_handle;
 
-static int proto_omapi = -1;
-static int hf_omapi_version = -1;
-static int hf_omapi_hlength = -1;
-static int hf_omapi_auth_id = -1;
-static int hf_omapi_auth_len = -1;
-static int hf_omapi_opcode = -1;
-static int hf_omapi_handle = -1;
-static int hf_omapi_id = -1;
-static int hf_omapi_rid = -1;
-static int hf_omapi_msg_name_len = -1; /* 16bit */
-static int hf_omapi_msg_name = -1;
-static int hf_omapi_msg_value_len = -1;
-static int hf_omapi_msg_value = -1;
-static int hf_omapi_obj_name_len = -1; /* 16bit */
-static int hf_omapi_obj_name = -1;
-static int hf_omapi_obj_value_len = -1;
-static int hf_omapi_obj_value = -1;
-static int hf_omapi_signature = -1;
+static int proto_omapi;
+static int hf_omapi_version;
+static int hf_omapi_hlength;
+static int hf_omapi_auth_id;
+static int hf_omapi_auth_len;
+static int hf_omapi_opcode;
+static int hf_omapi_handle;
+static int hf_omapi_id;
+static int hf_omapi_rid;
+static int hf_omapi_msg_name_len; /* 16bit */
+static int hf_omapi_msg_name;
+static int hf_omapi_msg_value_len;
+static int hf_omapi_msg_value;
+static int hf_omapi_obj_name_len; /* 16bit */
+static int hf_omapi_obj_name;
+static int hf_omapi_obj_value_len;
+static int hf_omapi_obj_value;
+static int hf_omapi_signature;
 
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_omapi_empty_string = -1;
-static int hf_omapi_object_end_tag = -1;
-static int hf_omapi_message_end_tag = -1;
-static int hf_omapi_no_value = -1;
+static int hf_omapi_empty_string;
+static int hf_omapi_object_end_tag;
+static int hf_omapi_message_end_tag;
+static int hf_omapi_no_value;
 
-static gint ett_omapi = -1;
+static int ett_omapi;
 
 #define OMAPI_PORT 7911 /* Not IANA registered */
 
@@ -98,9 +98,9 @@ dissect_omapi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
   proto_tree  *omapi_tree;
   ptvcursor_t *cursor;
 
-  guint32 authlength;
-  guint32 msglength;
-  guint32 objlength;
+  uint32_t authlength;
+  uint32_t msglength;
+  uint32_t objlength;
 
     /* Payload too small for OMAPI */
   if (tvb_reported_length_remaining(tvb, 0) < 8)
@@ -164,7 +164,7 @@ dissect_omapi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     {
       proto_tree_add_item(omapi_tree, hf_omapi_empty_string, tvb, 0, 0, ENC_NA);
     }
-    else if (msglength == (guint32)~0)
+    else if (msglength == (uint32_t)~0)
     {
       proto_tree_add_item(omapi_tree, hf_omapi_no_value, tvb, 0, 0, ENC_NA);
     }
@@ -190,7 +190,7 @@ dissect_omapi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     {
       proto_tree_add_item(omapi_tree, hf_omapi_empty_string, tvb, 0, 0, ENC_NA);
     }
-    else if (objlength == (guint32)~0)
+    else if (objlength == (uint32_t)~0)
     {
       proto_tree_add_item(omapi_tree, hf_omapi_no_value, tvb, 0, 0, ENC_NA);
     }
@@ -293,7 +293,7 @@ proto_register_omapi(void)
 
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_omapi
   };
 

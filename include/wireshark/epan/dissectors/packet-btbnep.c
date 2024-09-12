@@ -28,43 +28,43 @@
 #define BNEP_TYPE_COMPRESSED_ETHERNET_DESTINATION_ONLY                      0x04
 #define RESERVED_802                                                        0x7F
 
-static int proto_btbnep                                                    = -1;
-static int hf_btbnep_bnep_type                                             = -1;
-static int hf_btbnep_extension_flag                                        = -1;
-static int hf_btbnep_extension_type                                        = -1;
-static int hf_btbnep_extension_length                                      = -1;
-static int hf_btbnep_dst                                                   = -1;
-static int hf_btbnep_src                                                   = -1;
-static int hf_btbnep_len                                                   = -1;
-static int hf_btbnep_invalid_lentype                                       = -1;
-static int hf_btbnep_type                                                  = -1;
-static int hf_btbnep_addr                                                  = -1;
-static int hf_btbnep_lg                                                    = -1;
-static int hf_btbnep_ig                                                    = -1;
-static int hf_btbnep_control_type                                          = -1;
-static int hf_btbnep_unknown_control_type                                  = -1;
-static int hf_btbnep_uuid_size                                             = -1;
-static int hf_btbnep_destination_service_uuid                              = -1;
-static int hf_btbnep_source_service_uuid                                   = -1;
-static int hf_btbnep_setup_connection_response_message                     = -1;
-static int hf_btbnep_filter_net_type_response_message                      = -1;
-static int hf_btbnep_filter_multi_addr_response_message                    = -1;
-static int hf_btbnep_list_length                                           = -1;
-static int hf_btbnep_network_type_start                                    = -1;
-static int hf_btbnep_network_type_end                                      = -1;
-static int hf_btbnep_multicast_address_start                               = -1;
-static int hf_btbnep_multicast_address_end                                 = -1;
+static int proto_btbnep;
+static int hf_btbnep_bnep_type;
+static int hf_btbnep_extension_flag;
+static int hf_btbnep_extension_type;
+static int hf_btbnep_extension_length;
+static int hf_btbnep_dst;
+static int hf_btbnep_src;
+static int hf_btbnep_len;
+static int hf_btbnep_invalid_lentype;
+static int hf_btbnep_type;
+static int hf_btbnep_addr;
+static int hf_btbnep_lg;
+static int hf_btbnep_ig;
+static int hf_btbnep_control_type;
+static int hf_btbnep_unknown_control_type;
+static int hf_btbnep_uuid_size;
+static int hf_btbnep_destination_service_uuid;
+static int hf_btbnep_source_service_uuid;
+static int hf_btbnep_setup_connection_response_message;
+static int hf_btbnep_filter_net_type_response_message;
+static int hf_btbnep_filter_multi_addr_response_message;
+static int hf_btbnep_list_length;
+static int hf_btbnep_network_type_start;
+static int hf_btbnep_network_type_end;
+static int hf_btbnep_multicast_address_start;
+static int hf_btbnep_multicast_address_end;
 
-static gint ett_btbnep                                                     = -1;
-static gint ett_addr                                                       = -1;
+static int ett_btbnep;
+static int ett_addr;
 
-static expert_field ei_btbnep_src_not_group_address = EI_INIT;
-static expert_field ei_btbnep_invalid_lentype       = EI_INIT;
-static expert_field ei_btbnep_len_past_end          = EI_INIT;
+static expert_field ei_btbnep_src_not_group_address;
+static expert_field ei_btbnep_invalid_lentype;
+static expert_field ei_btbnep_len_past_end;
 
 static dissector_handle_t btbnep_handle;
 
-static gboolean top_dissect                                              = TRUE;
+static bool top_dissect                                              = true;
 
 static dissector_handle_t llc_handle;
 static dissector_handle_t ipx_handle;
@@ -140,17 +140,17 @@ static int
 dissect_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
     proto_item  *pitem = NULL;
-    guint        control_type;
-    guint8       unknown_control_type;
-    guint8       uuid_size;
-    guint16      uuid_dst;
-    guint16      uuid_src;
-    guint16      response_message;
-    guint16      list_length;
-    guint        i_item;
+    unsigned     control_type;
+    uint8_t      unknown_control_type;
+    uint8_t      uuid_size;
+    uint16_t     uuid_dst;
+    uint16_t     uuid_src;
+    uint16_t     response_message;
+    uint16_t     list_length;
+    unsigned     i_item;
 
     proto_tree_add_item(tree, hf_btbnep_control_type, tvb, offset, 1, ENC_BIG_ENDIAN);
-    control_type = tvb_get_guint8(tvb, offset);
+    control_type = tvb_get_uint8(tvb, offset);
     offset += 1;
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " - %s", val_to_str_const(control_type, control_type_vals,  "Unknown type"));
@@ -158,7 +158,7 @@ dissect_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
     switch(control_type) {
         case 0x00: /* Command Not Understood */
             proto_tree_add_item(tree, hf_btbnep_unknown_control_type, tvb, offset, 1, ENC_BIG_ENDIAN);
-            unknown_control_type = tvb_get_guint8(tvb, offset);
+            unknown_control_type = tvb_get_uint8(tvb, offset);
             offset += 1;
 
             col_append_fstr(pinfo->cinfo, COL_INFO, " - Unknown(%s)", val_to_str_const(unknown_control_type, control_type_vals,  "Unknown type"));
@@ -166,7 +166,7 @@ dissect_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
             break;
         case 0x01: /* Setup Connection Request */
             proto_tree_add_item(tree, hf_btbnep_uuid_size, tvb, offset, 1, ENC_BIG_ENDIAN);
-            uuid_size = tvb_get_guint8(tvb, offset);
+            uuid_size = tvb_get_uint8(tvb, offset);
             offset += 1;
 
             pitem = proto_tree_add_item(tree, hf_btbnep_destination_service_uuid, tvb, offset, uuid_size, ENC_NA);
@@ -240,14 +240,14 @@ static int
 // NOLINTNEXTLINE(misc-no-recursion)
 dissect_extension(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
-    guint8  extension_flag;
-    guint8  extension_type;
-    guint16 extension_length;
-    guint8  type;
+    uint8_t extension_flag;
+    uint8_t extension_type;
+    uint16_t extension_length;
+    uint8_t type;
 
     proto_tree_add_item(tree, hf_btbnep_extension_type, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_btbnep_extension_flag, tvb, offset, 1, ENC_BIG_ENDIAN);
-    type = tvb_get_guint8(tvb, offset);
+    type = tvb_get_uint8(tvb, offset);
     extension_flag = type & 0x01;
     extension_type = type >> 1;
     offset += 1;
@@ -270,15 +270,15 @@ dissect_extension(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offse
     return offset;
 }
 
-static gint
+static int
 dissect_btbnep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     proto_item   *pi;
     proto_tree   *btbnep_tree;
-    gint          offset = 0;
-    guint         bnep_type;
-    guint         extension_flag;
-    guint         len_type = 0;
+    int           offset = 0;
+    unsigned      bnep_type;
+    unsigned      extension_flag;
+    unsigned      len_type = 0;
     proto_item   *addr_item;
     proto_tree   *addr_tree = NULL;
     proto_item   *length_ti = NULL;
@@ -303,7 +303,7 @@ dissect_btbnep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
     proto_tree_add_item(btbnep_tree, hf_btbnep_extension_flag, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(btbnep_tree, hf_btbnep_bnep_type, tvb, offset, 1, ENC_BIG_ENDIAN);
-    bnep_type = tvb_get_guint8(tvb, offset);
+    bnep_type = tvb_get_uint8(tvb, offset);
     extension_flag = bnep_type & 0x80;
     bnep_type = bnep_type & 0x7F;
     offset += 1;
@@ -329,7 +329,7 @@ dissect_btbnep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
         addr_item = proto_tree_add_item(btbnep_tree, hf_btbnep_src, tvb, offset, FT_ETHER_LEN, ENC_NA);
         addr_tree = proto_item_add_subtree(addr_item, ett_addr);
-        if (tvb_get_guint8(tvb, offset) & 0x01) {
+        if (tvb_get_uint8(tvb, offset) & 0x01) {
             expert_add_info(pinfo, addr_item, &ei_btbnep_src_not_group_address);
         }
 
@@ -383,8 +383,8 @@ dissect_btbnep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
         /* dissect normal network */
         if (top_dissect) {
             if (len_type <= IEEE_802_3_MAX_LEN) {
-                gboolean is_802_2;
-                gint reported_length;
+                bool is_802_2;
+                int reported_length;
                 tvbuff_t  *next_tvb;
 
                 /*
@@ -405,12 +405,12 @@ dissect_btbnep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
                  * (Probably won't happen, but we might as well do this
                  * anyway.)
                  */
-                is_802_2 = TRUE;
+                is_802_2 = true;
 
                 /* Don't throw an exception for this check (even a BoundsError) */
                 if (tvb_bytes_exist(tvb, offset, 2)) {
                     if (tvb_get_ntohs(tvb, offset) == 0xffff) {
-                        is_802_2 = FALSE;
+                        is_802_2 = false;
                     }
                 }
 
@@ -420,7 +420,7 @@ dissect_btbnep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
                  * Make sure the length doesn't go past the end of the
                  * payload.
                  */
-                if (reported_length >= 0 && len_type > (guint)reported_length) {
+                if (reported_length >= 0 && len_type > (unsigned)reported_length) {
                     len_type = reported_length;
                     expert_add_info(pinfo, length_ti, &ei_btbnep_len_past_end);
                 }
@@ -603,7 +603,7 @@ proto_register_btbnep(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btbnep,
         &ett_addr
     };

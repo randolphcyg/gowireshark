@@ -478,177 +478,177 @@ static const value_string sapms_server_lst_status_vals[] = {
 #define SAPMS_MSG_TYPE_ATP	0x40
 #define SAPMS_MSG_TYPE_ICM	0x80
 
-static int proto_sapms = -1;
+static int proto_sapms;
 
-static int hf_sapms_eyecatcher = -1;
-static int hf_sapms_version = -1;
-static int hf_sapms_errorno = -1;
-static int hf_sapms_toname = -1;
-static int hf_sapms_msgtypes = -1;
-static int hf_sapms_msgtypes_dia = -1;
-static int hf_sapms_msgtypes_upd = -1;
-static int hf_sapms_msgtypes_enq = -1;
-static int hf_sapms_msgtypes_btc = -1;
-static int hf_sapms_msgtypes_spo = -1;
-static int hf_sapms_msgtypes_up2 = -1;
-static int hf_sapms_msgtypes_atp = -1;
-static int hf_sapms_msgtypes_icm = -1;
-static int hf_sapms_domain = -1;
-static int hf_sapms_reserved = -1;
-static int hf_sapms_key = -1;
-static int hf_sapms_flag = -1;
-static int hf_sapms_iflag = -1;
-static int hf_sapms_fromname = -1;
-static int hf_sapms_diagport = -1;
+static int hf_sapms_eyecatcher;
+static int hf_sapms_version;
+static int hf_sapms_errorno;
+static int hf_sapms_toname;
+static int hf_sapms_msgtypes;
+static int hf_sapms_msgtypes_dia;
+static int hf_sapms_msgtypes_upd;
+static int hf_sapms_msgtypes_enq;
+static int hf_sapms_msgtypes_btc;
+static int hf_sapms_msgtypes_spo;
+static int hf_sapms_msgtypes_up2;
+static int hf_sapms_msgtypes_atp;
+static int hf_sapms_msgtypes_icm;
+static int hf_sapms_domain;
+static int hf_sapms_reserved;
+static int hf_sapms_key;
+static int hf_sapms_flag;
+static int hf_sapms_iflag;
+static int hf_sapms_fromname;
+static int hf_sapms_diagport;
 
-static int hf_sapms_dp_adm_dp_version = -1;
+static int hf_sapms_dp_adm_dp_version;
 
-static int hf_sapms_adm_eyecatcher = -1;
-static int hf_sapms_adm_version = -1;
-static int hf_sapms_adm_msgtype = -1;
-static int hf_sapms_adm_recsize = -1;
-static int hf_sapms_adm_recno = -1;
+static int hf_sapms_adm_eyecatcher;
+static int hf_sapms_adm_version;
+static int hf_sapms_adm_msgtype;
+static int hf_sapms_adm_recsize;
+static int hf_sapms_adm_recno;
 
-static int hf_sapms_adm_record = -1;
-static int hf_sapms_adm_record_opcode = -1;
-static int hf_sapms_adm_record_serial_number = -1;
-static int hf_sapms_adm_record_executed = -1;
-static int hf_sapms_adm_record_errorno = -1;
-static int hf_sapms_adm_record_value = -1;
+static int hf_sapms_adm_record;
+static int hf_sapms_adm_record_opcode;
+static int hf_sapms_adm_record_serial_number;
+static int hf_sapms_adm_record_executed;
+static int hf_sapms_adm_record_errorno;
+static int hf_sapms_adm_record_value;
 
-static int hf_sapms_adm_parameter = -1;
+static int hf_sapms_adm_parameter;
 
-static int hf_sapms_adm_rzl_strg_type = -1;
-static int hf_sapms_adm_rzl_strg_name = -1;
-static int hf_sapms_adm_rzl_strg_value = -1;
-static int hf_sapms_adm_rzl_strg_value_integer = -1;
-static int hf_sapms_adm_rzl_strg_uptime = -1;
-static int hf_sapms_adm_rzl_strg_delay = -1;
-static int hf_sapms_adm_rzl_strg_users  = -1;
-static int hf_sapms_adm_rzl_strg_quality = -1;
+static int hf_sapms_adm_rzl_strg_type;
+static int hf_sapms_adm_rzl_strg_name;
+static int hf_sapms_adm_rzl_strg_value;
+static int hf_sapms_adm_rzl_strg_value_integer;
+static int hf_sapms_adm_rzl_strg_uptime;
+static int hf_sapms_adm_rzl_strg_delay;
+static int hf_sapms_adm_rzl_strg_users;
+static int hf_sapms_adm_rzl_strg_quality;
 
-static int hf_sapms_opcode = -1;
-static int hf_sapms_opcode_error = -1;
-static int hf_sapms_opcode_version = -1;
-static int hf_sapms_opcode_charset = -1;
-static int hf_sapms_opcode_value = -1;
+static int hf_sapms_opcode;
+static int hf_sapms_opcode_error;
+static int hf_sapms_opcode_version;
+static int hf_sapms_opcode_charset;
+static int hf_sapms_opcode_value;
 
-static int hf_sapms_property_client = -1;
-static int hf_sapms_property_id = -1;
-static int hf_sapms_property_value = -1;
+static int hf_sapms_property_client;
+static int hf_sapms_property_id;
+static int hf_sapms_property_value;
 
-static int hf_sapms_property_vhost_logon = -1;
-static int hf_sapms_property_vhost_length = -1;
-static int hf_sapms_property_vhost_value = -1;
+static int hf_sapms_property_vhost_logon;
+static int hf_sapms_property_vhost_length;
+static int hf_sapms_property_vhost_value;
 
-static int hf_sapms_property_ip_address = -1;
-static int hf_sapms_property_ip_address6 = -1;
+static int hf_sapms_property_ip_address;
+static int hf_sapms_property_ip_address6;
 
-static int hf_sapms_property_param_name_length = -1;
-static int hf_sapms_property_param_name_value = -1;
-static int hf_sapms_property_param_value_length = -1;
-static int hf_sapms_property_param_value_value = -1;
+static int hf_sapms_property_param_name_length;
+static int hf_sapms_property_param_name_value;
+static int hf_sapms_property_param_value_length;
+static int hf_sapms_property_param_value_value;
 
-static int hf_sapms_property_service_number = -1;
-static int hf_sapms_property_service_value = -1;
+static int hf_sapms_property_service_number;
+static int hf_sapms_property_service_value;
 
-static int hf_sapms_property_release = -1;
-static int hf_sapms_property_release_patchno = -1;
-static int hf_sapms_property_release_supplvl = -1;
-static int hf_sapms_property_release_platform = -1;
+static int hf_sapms_property_release;
+static int hf_sapms_property_release_patchno;
+static int hf_sapms_property_release_supplvl;
+static int hf_sapms_property_release_platform;
 
 
-static int hf_sapms_text_name = -1;
-static int hf_sapms_text_length = -1;
-static int hf_sapms_text_value = -1;
+static int hf_sapms_text_name;
+static int hf_sapms_text_length;
+static int hf_sapms_text_value;
 
-static int hf_sapms_counter_uuid = -1;
-static int hf_sapms_counter_count = -1;
-static int hf_sapms_counter_no = -1;
+static int hf_sapms_counter_uuid;
+static int hf_sapms_counter_count;
+static int hf_sapms_counter_no;
 
-static int hf_sapms_change_ip_address = -1;
-static int hf_sapms_change_ip_address6 = -1;
+static int hf_sapms_change_ip_address;
+static int hf_sapms_change_ip_address6;
 
-static int hf_sapms_security_name = -1;
-static int hf_sapms_security_key = -1;
-static int hf_sapms_security_port = -1;
-static int hf_sapms_security_address = -1;
-static int hf_sapms_security_address6 = -1;
+static int hf_sapms_security_name;
+static int hf_sapms_security_key;
+static int hf_sapms_security_port;
+static int hf_sapms_security_address;
+static int hf_sapms_security_address6;
 
-static int hf_sapms_file_reload = -1;
-static int hf_sapms_file_filler = -1;
+static int hf_sapms_file_reload;
+static int hf_sapms_file_filler;
 
-static int hf_sapms_logon_type = -1;
-static int hf_sapms_logon_port = -1;
-static int hf_sapms_logon_address = -1;
-static int hf_sapms_logon_name_length = -1;
-static int hf_sapms_logon_name = -1;
-static int hf_sapms_logon_prot_length = -1;
-static int hf_sapms_logon_prot = -1;
-static int hf_sapms_logon_host_length = -1;
-static int hf_sapms_logon_host = -1;
-static int hf_sapms_logon_misc_length = -1;
-static int hf_sapms_logon_misc = -1;
-static int hf_sapms_logon_address6_length = -1;
-static int hf_sapms_logon_address6 = -1;
-static int hf_sapms_logon_end = -1;
+static int hf_sapms_logon_type;
+static int hf_sapms_logon_port;
+static int hf_sapms_logon_address;
+static int hf_sapms_logon_name_length;
+static int hf_sapms_logon_name;
+static int hf_sapms_logon_prot_length;
+static int hf_sapms_logon_prot;
+static int hf_sapms_logon_host_length;
+static int hf_sapms_logon_host;
+static int hf_sapms_logon_misc_length;
+static int hf_sapms_logon_misc;
+static int hf_sapms_logon_address6_length;
+static int hf_sapms_logon_address6;
+static int hf_sapms_logon_end;
 
-static int hf_sapms_shutdown_reason_length = -1;
-static int hf_sapms_shutdown_reason = -1;
+static int hf_sapms_shutdown_reason_length;
+static int hf_sapms_shutdown_reason;
 
-static int hf_sapms_ip_to_name_address4 = -1;
-static int hf_sapms_ip_to_name_address6 = -1;
-static int hf_sapms_ip_to_name_port = -1;
-static int hf_sapms_ip_to_name_length = -1;
-static int hf_sapms_ip_to_name = -1;
+static int hf_sapms_ip_to_name_address4;
+static int hf_sapms_ip_to_name_address6;
+static int hf_sapms_ip_to_name_port;
+static int hf_sapms_ip_to_name_length;
+static int hf_sapms_ip_to_name;
 
-static int hf_sapms_check_acl_error_code = -1;
-static int hf_sapms_check_acl_acl = -1;
+static int hf_sapms_check_acl_error_code;
+static int hf_sapms_check_acl_acl;
 
-static int hf_sapms_codepage = -1;
+static int hf_sapms_codepage;
 
-static int hf_sapms_dump_dest = -1;
-static int hf_sapms_dump_filler = -1;
-static int hf_sapms_dump_index = -1;
-static int hf_sapms_dump_command = -1;
-static int hf_sapms_dump_name = -1;
+static int hf_sapms_dump_dest;
+static int hf_sapms_dump_filler;
+static int hf_sapms_dump_index;
+static int hf_sapms_dump_command;
+static int hf_sapms_dump_name;
 
-static int hf_sapms_server_lst_client = -1;
-static int hf_sapms_server_lst_name = -1;
-static int hf_sapms_server_lst_host = -1;
-static int hf_sapms_server_lst_service = -1;
-static int hf_sapms_server_lst_msgtypes = -1;
-static int hf_sapms_server_lst_msgtypes_dia = -1;
-static int hf_sapms_server_lst_msgtypes_upd = -1;
-static int hf_sapms_server_lst_msgtypes_enq = -1;
-static int hf_sapms_server_lst_msgtypes_btc = -1;
-static int hf_sapms_server_lst_msgtypes_spo = -1;
-static int hf_sapms_server_lst_msgtypes_up2 = -1;
-static int hf_sapms_server_lst_msgtypes_atp = -1;
-static int hf_sapms_server_lst_msgtypes_icm = -1;
-static int hf_sapms_server_lst_hostaddr = -1;
-static int hf_sapms_server_lst_hostaddrv4 = -1;
-static int hf_sapms_server_lst_servno = -1;
-static int hf_sapms_server_lst_status = -1;
-static int hf_sapms_server_lst_nitrc = -1;
-static int hf_sapms_server_lst_sys_service = -1;
+static int hf_sapms_server_lst_client;
+static int hf_sapms_server_lst_name;
+static int hf_sapms_server_lst_host;
+static int hf_sapms_server_lst_service;
+static int hf_sapms_server_lst_msgtypes;
+static int hf_sapms_server_lst_msgtypes_dia;
+static int hf_sapms_server_lst_msgtypes_upd;
+static int hf_sapms_server_lst_msgtypes_enq;
+static int hf_sapms_server_lst_msgtypes_btc;
+static int hf_sapms_server_lst_msgtypes_spo;
+static int hf_sapms_server_lst_msgtypes_up2;
+static int hf_sapms_server_lst_msgtypes_atp;
+static int hf_sapms_server_lst_msgtypes_icm;
+static int hf_sapms_server_lst_hostaddr;
+static int hf_sapms_server_lst_hostaddrv4;
+static int hf_sapms_server_lst_servno;
+static int hf_sapms_server_lst_status;
+static int hf_sapms_server_lst_nitrc;
+static int hf_sapms_server_lst_sys_service;
 
-static gint ett_sapms = -1;
+static int ett_sapms;
 
 /* Expert info */
-static expert_field ei_sapms_adm_opcode_partial = EI_INIT;
-static expert_field ei_sapms_opcode_partial = EI_INIT;
-static expert_field ei_sapms_unknown_version = EI_INIT;
-static expert_field ei_sapms_client_invalid_offset = EI_INIT;
-static expert_field ei_sapms_client_invalid_length = EI_INIT;
-static expert_field ei_sapms_text_invalid_length = EI_INIT;
-static expert_field ei_sapms_ip_invalid_length = EI_INIT;
+static expert_field ei_sapms_adm_opcode_partial;
+static expert_field ei_sapms_opcode_partial;
+static expert_field ei_sapms_unknown_version;
+static expert_field ei_sapms_client_invalid_offset;
+static expert_field ei_sapms_client_invalid_length;
+static expert_field ei_sapms_text_invalid_length;
+static expert_field ei_sapms_ip_invalid_length;
 
 /* Global port preference */
 static range_t *global_sapms_port_range;
 
 /* Global highlight preference */
-static gboolean global_sapms_highlight_items = TRUE;
+static bool global_sapms_highlight_items = true;
 
 /* Protocol handle */
 static dissector_handle_t sapms_handle;
@@ -658,18 +658,18 @@ void proto_register_sapms(void);
 
 
 static void
-dissect_sapms_adm_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint32 length){
+dissect_sapms_adm_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset, uint32_t length){
 
 	proto_item *record = NULL, *value = NULL;
 	proto_tree *record_tree = NULL, *value_tree = NULL;
-	guint8 adm_opcode;
+	uint8_t adm_opcode;
 
 	while (length>=104){
 
 		record = proto_tree_add_item(tree, hf_sapms_adm_record, tvb, offset, 104, ENC_NA);
 		record_tree = proto_item_add_subtree(record, ett_sapms);
 
-		adm_opcode = tvb_get_guint8(tvb, offset);
+		adm_opcode = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(record_tree, hf_sapms_adm_record_opcode, tvb, offset, 1, ENC_BIG_ENDIAN);
 		proto_item_append_text(record_tree, ", Adm Opcode=%s", val_to_str_const(adm_opcode, sapms_adm_record_opcode_vals, "Unknown"));
 		offset+=1;
@@ -695,8 +695,8 @@ dissect_sapms_adm_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
 				break;
 			}
 			case 0x15:{ 	/* AD_RZL_STRG */
-				guint8 strg_type = 0;
-				strg_type = tvb_get_guint8(tvb, offset);
+				uint8_t strg_type = 0;
+				strg_type = tvb_get_uint8(tvb, offset);
 				proto_tree_add_item(record_tree, hf_sapms_adm_rzl_strg_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 				offset+=1;
 				length-=1;
@@ -773,13 +773,13 @@ dissect_sapms_adm_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
 
 }
 
-static gint
-dissect_sapms_client(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint8 opcode_version){
+static int
+dissect_sapms_client(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset, uint8_t opcode_version){
 	proto_item *client = NULL, *msg_types = NULL;
 	proto_tree *client_tree = NULL, *msg_types_tree = NULL;
 	struct e_in6_addr address_ipv6;
-	guint32 address_ipv4 = 0;
-	gint client_length = 0, client_length_remaining = 0;
+	uint32_t address_ipv4 = 0;
+	int client_length = 0, client_length_remaining = 0;
 
 	/* Chose the client length according to the version number */
 	if (opcode_version == 0x01){			/* This version was seen in the older releases (6.40) */
@@ -800,7 +800,7 @@ dissect_sapms_client(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 	client_length_remaining = tvb_reported_length_remaining(tvb, offset);
 	if (client_length_remaining < 0){
 		expert_add_info(pinfo, tree, &ei_sapms_client_invalid_offset);
-		return (0);
+		return 0;
 	}
 	if (client_length_remaining < client_length){
 		expert_add_info_format(pinfo, tree, &ei_sapms_client_invalid_length, "Invalid client length (expected=%d, actual=%d)", client_length, client_length_remaining);
@@ -883,7 +883,7 @@ dissect_sapms_client(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 
 
 static void
-dissect_sapms_counter(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
+dissect_sapms_counter(tvbuff_t *tvb, proto_tree *tree, uint32_t offset){
 	proto_tree_add_item(tree, hf_sapms_counter_uuid, tvb, offset, 40, ENC_ASCII|ENC_NA);
 	offset+=40;
 	proto_tree_add_item(tree, hf_sapms_counter_count, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -892,15 +892,15 @@ dissect_sapms_counter(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
 }
 
 static void
-dissect_sapms_property(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
-	guint32 property_id = 0;
+dissect_sapms_property(tvbuff_t *tvb, proto_tree *tree, uint32_t offset){
+	uint32_t property_id = 0;
 	proto_item *value = NULL;
 	proto_tree *value_tree = NULL;
 
 	proto_tree_add_item(tree, hf_sapms_property_client, tvb, offset, 40, ENC_ASCII|ENC_NA);
 	offset+=40;
 
-	property_id = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+	property_id = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
 	proto_tree_add_item(tree, hf_sapms_property_id, tvb, offset, 4, ENC_BIG_ENDIAN);
 	offset+=4;
 
@@ -915,14 +915,14 @@ dissect_sapms_property(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
 	switch (property_id){
 
 		case 0x02:{			/* MS_PROPERTY_VHOST */
-			guint16 vhost_length = 0;
+			uint16_t vhost_length = 0;
 
 			proto_tree_add_item(value_tree, hf_sapms_property_vhost_logon, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset+=2;
 
 			offset += 12;  /* Padding */
 
-			vhost_length = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+			vhost_length = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(value_tree, hf_sapms_property_vhost_length, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset+=2;
 
@@ -938,10 +938,10 @@ dissect_sapms_property(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
 			break;
 		}
 		case 0x04:{			/* MS_PROPERTY_PARAM */
-			guint32 param_length = 0;
-			guint16 value_length = 0;
+			uint32_t param_length = 0;
+			uint16_t value_length = 0;
 
-			param_length = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+			param_length = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(value_tree, hf_sapms_property_param_name_length, tvb, offset, 4, ENC_BIG_ENDIAN);
 			offset+=4;
 			if (param_length > 0){
@@ -951,7 +951,7 @@ dissect_sapms_property(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
 			offset += 100 - param_length;  /* Padding */
 			offset += 2;  /* Padding */
 
-			value_length = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+			value_length = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(value_tree, hf_sapms_property_param_value_length, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset+=2;
 			if (param_length > 0){
@@ -979,12 +979,12 @@ dissect_sapms_property(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
 }
 
 static void
-dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint8 flag, guint8 opcode, guint8 opcode_version, guint32 length){
-	gint client_length = 0;
+dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset, uint8_t flag, uint8_t opcode, uint8_t opcode_version, uint32_t length){
+	int client_length = 0;
 
 	switch (opcode){
 		case 0x00:{     /* MS_DP_ADM */
-			tvb_get_guint8(tvb, offset);
+			tvb_get_uint8(tvb, offset);
 			proto_tree_add_item(tree, hf_sapms_dp_adm_dp_version, tvb, offset, 1, ENC_BIG_ENDIAN);
 			break;
 		}
@@ -1020,7 +1020,7 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 			break;
 		}
 		case 0x09:{			/* MS_GET_SECURITY_KEY2 */
-			guint32 address_ipv4;
+			uint32_t address_ipv4;
 			struct e_in6_addr address_ipv6;
 
 			address_ipv4 = tvb_get_ipv4(tvb, offset);
@@ -1064,11 +1064,11 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 				}
 
 			} else if (flag == 0x03) { /* If it's a reply (flag=MS_REPLY) */
-				guint32 string_length = 0;
+				uint32_t string_length = 0;
 				length = tvb_strsize(tvb, offset);
 				/* Add each string in a different item */
 				while (length>1) {
-					string_length = tvb_find_line_end(tvb, offset, -1, NULL, FALSE);
+					string_length = tvb_find_line_end(tvb, offset, -1, NULL, false);
 					if (string_length>0) {
 						proto_tree_add_none_format(tree, hf_sapms_opcode_value, tvb, offset, string_length, "%s", tvb_get_string_enc(pinfo->pool, tvb, offset, string_length, ENC_ASCII));
 						offset+=string_length; length-=string_length;
@@ -1087,12 +1087,12 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 		}
 		case 0x22:			/* MS_SET_TXT */
 		case 0x23:{			/* MS_GET_TXT */
-			guint32 text_length = 0;
+			uint32_t text_length = 0;
 
 			proto_tree_add_item(tree, hf_sapms_text_name, tvb, offset, 40, ENC_ASCII|ENC_NA);
 			offset+=40;
 			length-=40;
-			text_length = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+			text_length = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tree, hf_sapms_text_length, tvb, offset, 4, ENC_BIG_ENDIAN);
 			offset+=4;
 			length-=4;
@@ -1124,8 +1124,8 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 		case 0x2b:			/* MS_SET_LOGON */
 		case 0x2c:			/* MS_GET_LOGON */
 		case 0x2d:{			/* MS_DEL_LOGON */
-			guint16 name_length = 0, prot_length = 0, host_length = 0, misc_length = 0, address6_length = 0;
-			guint32 address_ipv4;
+			uint16_t name_length = 0, prot_length = 0, host_length = 0, misc_length = 0, address6_length = 0;
+			uint32_t address_ipv4;
 			struct e_in6_addr address_ipv6;
 
 			proto_tree_add_item(tree, hf_sapms_logon_type, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -1140,7 +1140,7 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 			offset+=4;
 			length-=4;
 
-			name_length = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+			name_length = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tree, hf_sapms_logon_name_length, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset+=2;
 			length-=2;
@@ -1150,7 +1150,7 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 				length-=name_length;
 			}
 
-			prot_length = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+			prot_length = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tree, hf_sapms_logon_prot_length, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset+=2;
 			length-=2;
@@ -1160,7 +1160,7 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 				length-=prot_length;
 			}
 
-			host_length = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+			host_length = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tree, hf_sapms_logon_host_length, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset+=2;
 			length-=2;
@@ -1170,7 +1170,7 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 				length-=host_length;
 			}
 
-			misc_length = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+			misc_length = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tree, hf_sapms_logon_misc_length, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset+=2;
 			length-=2;
@@ -1180,11 +1180,11 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 				length-=misc_length;
 			}
 
-			address6_length = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+			address6_length = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tree, hf_sapms_logon_address6_length, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset+=2;
 			length-=2;
-			if ((address6_length == 16) && (length >= (address6_length + (guint32)4))){
+			if ((address6_length == 16) && (length >= (address6_length + (uint32_t)4))){
 				tvb_get_ipv6(tvb, offset, &address_ipv6);
 				proto_tree_add_ipv6(tree, hf_sapms_logon_address6, tvb, offset, 16, &address_ipv6);
 				offset+=16;
@@ -1200,12 +1200,12 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 		case 0x2f:			/* MS_SERVER_SHUTDOWN */
 		case 0x30:			/* MS_SERVER_SOFT_SHUTDOWN */
 		case 0x4a:{			/* MS_SERVER_TEST_SOFT_SHUTDOWN */
-			guint16 reason_length = 0;
+			uint16_t reason_length = 0;
 
 			client_length = dissect_sapms_client(tvb, pinfo, tree, offset, opcode_version);
 			offset += client_length;
 			length -= client_length;
-			reason_length = tvb_get_guint16(tvb, offset, ENC_BIG_ENDIAN);
+			reason_length = tvb_get_uint16(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tree, hf_sapms_shutdown_reason_length, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset+=2;
 			length-=2;
@@ -1223,10 +1223,10 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 			break;
 		}
 		case 0x46:{			/* MS_IP_PORT_TO_NAME */
-			guint32 name_length = 0;
+			uint32_t name_length = 0;
 
 			if (opcode_version == 0x01){
-				guint32 address_ipv4 = tvb_get_ipv4(tvb, offset);
+				uint32_t address_ipv4 = tvb_get_ipv4(tvb, offset);
 				proto_tree_add_ipv4(tree, hf_sapms_ip_to_name_address4, tvb, offset, 4, address_ipv4);
 				offset+=4;
 				length-=4;
@@ -1242,7 +1242,7 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 			offset+=2;
 			length-=2;
 
-			name_length = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+			name_length = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
 			proto_tree_add_item(tree, hf_sapms_ip_to_name_length, tvb, offset, 4, ENC_BIG_ENDIAN);
 			offset+=4;
 			length-=4;
@@ -1253,7 +1253,7 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 			break;
 		}
 		case 0x47:{			/* MS_CHECK_ACL */
-			guint32 string_length = 0;
+			uint32_t string_length = 0;
 			proto_tree_add_item(tree, hf_sapms_check_acl_error_code, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset+=2;
 			length-=2;
@@ -1280,12 +1280,12 @@ dissect_sapms_opcode(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 static int
 dissect_sapms(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	guint32 offset = 0;
+	uint32_t offset = 0;
 	proto_item *ti = NULL, *oi = NULL, *msg_types = NULL;
 	proto_tree *sapms_tree = NULL, *sapms_opcode_tree = NULL, *msg_types_tree = NULL;
 
 	/* Add the protocol to the column */
-	col_add_str(pinfo->cinfo, COL_PROTOCOL, "SAPMS");
+	col_set_str(pinfo->cinfo, COL_PROTOCOL, "SAPMS");
 	/* Clear out stuff in the info column */
 	col_clear(pinfo->cinfo,COL_INFO);
 
@@ -1295,8 +1295,8 @@ dissect_sapms(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 
 	/* Check for the eye catcher string */
 	if (tvb_strneql(tvb, offset, "**MESSAGE**\00", 12) == 0){
-		gint remaining_length = 0;
-		guint8 flag=0, iflag = 0, opcode = 0, opcode_version = 0;
+		int remaining_length = 0;
+		uint8_t flag=0, iflag = 0, opcode = 0, opcode_version = 0;
 
 		proto_tree_add_item(sapms_tree, hf_sapms_eyecatcher, tvb, offset, 12, ENC_ASCII|ENC_NA);
 		offset+=12;
@@ -1326,12 +1326,12 @@ dissect_sapms(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 		proto_tree_add_item(sapms_tree, hf_sapms_key, tvb, offset, 8, ENC_NA);
 		offset+=8;
 
-		flag = tvb_get_guint8(tvb, offset);
+		flag = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(sapms_tree, hf_sapms_flag, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset+=1;
 		proto_item_append_text(sapms_tree, ", Flag=%s", val_to_str_const(flag, sapms_flag_vals, "Unknown"));
 
-		iflag = tvb_get_guint8(tvb, offset);
+		iflag = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(sapms_tree, hf_sapms_iflag, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset+=1;
 		proto_item_append_text(sapms_tree, ", IFlag=%s", val_to_str_const(iflag, sapms_iflag_vals, "Unknown"));
@@ -1360,12 +1360,12 @@ dissect_sapms(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 			case 0x01:	    /* MS_SEND_NAME */
 			case 0x02:	 	/* MS_SEND_TYPE */
 			case 0x07:{     /* MS_SEND_TYPE_ONCE */
-				opcode = tvb_get_guint8(tvb, offset);
+				opcode = tvb_get_uint8(tvb, offset);
 				proto_tree_add_item(sapms_tree, hf_sapms_opcode, tvb, offset, 1, ENC_BIG_ENDIAN);
 				offset+=1;
 				proto_tree_add_item(sapms_tree, hf_sapms_opcode_error, tvb, offset, 1, ENC_BIG_ENDIAN);
 				offset+=1;
-				opcode_version = tvb_get_guint8(tvb, offset);
+				opcode_version = tvb_get_uint8(tvb, offset);
 				proto_tree_add_item(sapms_tree, hf_sapms_opcode_version, tvb, offset, 1, ENC_BIG_ENDIAN);
 				offset+=1;
 				proto_tree_add_item(sapms_tree, hf_sapms_opcode_charset, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -1455,7 +1455,7 @@ proto_register_sapms(void)
 		{ &hf_sapms_diagport,
 			{ "Diag Port", "sapms.diag_port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
 
-		/* MS_DP_ADM fiels */
+		/* MS_DP_ADM fields */
 		{ &hf_sapms_dp_adm_dp_version,
 			{ "Dispatcher Version", "sapms.dp_adm.version", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
 
@@ -1710,7 +1710,7 @@ proto_register_sapms(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_sapms
 	};
 
@@ -1752,12 +1752,12 @@ proto_register_sapms(void)
 /**
  * Helpers for dealing with the port range
  */
-static void range_delete_callback (guint32 port, gpointer ptr _U_)
+static void range_delete_callback (uint32_t port, void *ptr _U_)
 {
 	dissector_delete_uint("sapni.port", port, sapms_handle);
 }
 
-static void range_add_callback (guint32 port, gpointer ptr _U_)
+static void range_add_callback (uint32_t port, void *ptr _U_)
 {
 	dissector_add_uint("sapni.port", port, sapms_handle);
 }
@@ -1769,11 +1769,11 @@ void
 proto_reg_handoff_sapms(void)
 {
 	static range_t *sapms_port_range;
-	static gboolean initialized = FALSE;
+	static bool initialized = false;
 
 	if (!initialized) {
 		sapms_handle = create_dissector_handle(dissect_sapms, proto_sapms);
-		initialized = TRUE;
+		initialized = true;
 	} else {
 		range_foreach(sapms_port_range, range_delete_callback, NULL);
 		wmem_free(wmem_epan_scope(), sapms_port_range);

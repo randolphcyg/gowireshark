@@ -76,17 +76,17 @@ static const value_string fcoe_sof_vals[] = {
     {0, NULL}
 };
 
-static int proto_fcoe          = -1;
-static int hf_fcoe_ver         = -1;
-static int hf_fcoe_len         = -1;
-static int hf_fcoe_sof         = -1;
-static int hf_fcoe_eof         = -1;
-static int hf_fcoe_crc         = -1;
-static int hf_fcoe_crc_status  = -1;
+static int proto_fcoe;
+static int hf_fcoe_ver;
+static int hf_fcoe_len;
+static int hf_fcoe_sof;
+static int hf_fcoe_eof;
+static int hf_fcoe_crc;
+static int hf_fcoe_crc_status;
 
-static int ett_fcoe            = -1;
+static int ett_fcoe;
 
-static expert_field ei_fcoe_crc = EI_INIT;
+static expert_field ei_fcoe_crc;
 
 static dissector_handle_t fc_handle;
 static dissector_handle_t fcoe_handle;
@@ -97,23 +97,23 @@ static dissector_handle_t fcoe_handle;
  * present, are not padding. Otherwise returns the entry from the EOF
  * value_string. Intended for use with the newer T11 version, where the frame
  * length is not explicitly set (and padding is used). */
-static const gchar *
-fcoe_get_eof(tvbuff_t *tvb, gint eof_offset)
+static const char *
+fcoe_get_eof(tvbuff_t *tvb, int eof_offset)
 {
-    guint8      eof          = 0;
-    const gchar *eof_str;
-    gint        padding_remaining;
+    uint8_t     eof          = 0;
+    const char *eof_str;
+    int         padding_remaining;
 
     if (!tvb_bytes_exist(tvb, eof_offset, 1)) {
         return NULL;
     }
 
     padding_remaining = MIN(tvb_captured_length_remaining(tvb, eof_offset+1),3);
-    if (tvb_memeql(tvb, eof_offset+1, (const guint8*)"\x00\x00\x00", padding_remaining)) {
+    if (tvb_memeql(tvb, eof_offset+1, (const uint8_t*)"\x00\x00\x00", padding_remaining)) {
         return NULL;
     }
 
-    eof = tvb_get_guint8(tvb, eof_offset);
+    eof = tvb_get_uint8(tvb, eof_offset);
     eof_str = try_val_to_str(eof, fcoe_eof_vals);
     return eof_str;
 }
@@ -121,25 +121,25 @@ fcoe_get_eof(tvbuff_t *tvb, gint eof_offset)
 static int
 dissect_fcoe(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    gint        crc_offset;
-    gint        eof_offset;
-    gint        frame_len    = 0;
-    gint        header_len   = FCOE_HEADER_LEN;
-    guint       version;
+    int         crc_offset;
+    int         eof_offset;
+    int         frame_len    = 0;
+    int         header_len   = FCOE_HEADER_LEN;
+    unsigned    version;
     const char *ver;
-    guint16     len_sof;
-    gint        bytes_remaining;
-    guint8      sof          = 0;
-    guint8      eof          = 0;
+    uint16_t    len_sof;
+    int         bytes_remaining;
+    uint8_t     sof          = 0;
+    uint8_t     eof          = 0;
     const char *eof_str;
     const char *crc_msg;
     const char *len_msg;
     proto_item *ti;
     proto_tree *fcoe_tree;
     tvbuff_t   *next_tvb;
-    gboolean    crc_exists;
-    guint32     crc_computed = 0;
-    guint32     crc          = 0;
+    bool        crc_exists;
+    uint32_t    crc_computed = 0;
+    uint32_t    crc          = 0;
     fc_data_t fc_data;
 
     /*
@@ -147,7 +147,7 @@ dissect_fcoe(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
      * In the newer version, byte 1 is reserved and always zero.  In the old
      * version, it'll never be zero.
      */
-    if (tvb_get_guint8(tvb, 1)) {
+    if (tvb_get_uint8(tvb, 1)) {
         header_len = 2;
         len_sof = tvb_get_ntohs(tvb, 0);
         frame_len = ((len_sof & 0x3ff0) >> 2) - 4;
@@ -160,7 +160,7 @@ dissect_fcoe(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
         eof_offset = header_len + frame_len + 4;
         eof_str = "none";
         if (tvb_bytes_exist(tvb, eof_offset, 1)) {
-            eof = tvb_get_guint8(tvb, eof_offset);
+            eof = tvb_get_uint8(tvb, eof_offset);
             eof_str = val_to_str(eof, fcoe_eof_vals, "0x%x");
         }
         /* Old format has a length field, so we can help the Ethernet dissector
@@ -169,14 +169,14 @@ dissect_fcoe(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     } else {
         frame_len = tvb_reported_length_remaining(tvb, 0) -
           FCOE_HEADER_LEN - FCOE_TRAILER_LEN;
-        sof = tvb_get_guint8(tvb, FCOE_HEADER_LEN - 1);
+        sof = tvb_get_uint8(tvb, FCOE_HEADER_LEN - 1);
 
         /*
          * Only version 0 is defined at this point.
          * Don't print the version in the short summary if it is zero.
          */
         ver = "";
-        version = tvb_get_guint8(tvb, 0) >> 4;
+        version = tvb_get_uint8(tvb, 0) >> 4;
         if (version != 0)
             ver = wmem_strdup_printf(pinfo->pool, ver, "ver %d ", version);
 
@@ -192,7 +192,7 @@ dissect_fcoe(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
                 if (tvb_bytes_exist(tvb, eof_offset, 1)) {
                     /* Hmm, we have enough bytes to look for the EOF
                      * but it's an unexpected value. */
-                    eof = tvb_get_guint8(tvb, eof_offset);
+                    eof = tvb_get_uint8(tvb, eof_offset);
                     eof_str = wmem_strdup_printf(pinfo->pool, "0x%x", eof);
                 } else {
                     /* We just didn't capture enough to get the EOF */
@@ -239,7 +239,7 @@ dissect_fcoe(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
     fcoe_tree = proto_item_add_subtree(ti, ett_fcoe);
     proto_tree_add_uint(fcoe_tree, hf_fcoe_ver, tvb, 0, 1, version);
-    if (tvb_get_guint8(tvb, 1)) {
+    if (tvb_get_uint8(tvb, 1)) {
         proto_tree_add_uint(fcoe_tree, hf_fcoe_len, tvb, 0, 2, frame_len);
     }
     proto_tree_add_uint(fcoe_tree, hf_fcoe_sof, tvb,
@@ -312,7 +312,7 @@ proto_register_fcoe(void)
           {"CRC Status", "fcoe.crc.status", FT_UINT8, BASE_NONE, VALS(proto_checksum_vals), 0x0,
             NULL, HFILL }}
     };
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_fcoe,
     };
 

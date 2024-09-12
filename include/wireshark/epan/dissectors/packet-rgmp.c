@@ -24,16 +24,16 @@
 void proto_register_rgmp(void);
 void proto_reg_handoff_rgmp(void);
 
-static int proto_rgmp      = -1;
-static int hf_type         = -1;
-static int hf_reserved     = -1;
-static int hf_checksum     = -1;
-static int hf_checksum_status = -1;
-static int hf_maddr        = -1;
+static int proto_rgmp;
+static int hf_type;
+static int hf_reserved;
+static int hf_checksum;
+static int hf_checksum_status;
+static int hf_maddr;
 
-static int ett_rgmp = -1;
+static int ett_rgmp;
 
-static expert_field ei_checksum = EI_INIT;
+static expert_field ei_checksum;
 
 static dissector_handle_t rgmp_handle;
 
@@ -53,9 +53,9 @@ dissect_rgmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* d
 {
     proto_tree *tree;
     proto_item *item;
-    guint8 type;
+    uint8_t type;
     int offset = 0;
-    guint32 dst = g_htonl(MC_RGMP);
+    uint32_t dst = g_htonl(MC_RGMP);
 
     /* Shouldn't be destined for us */
     if ((pinfo->dst.type != AT_IPv4) || memcmp(pinfo->dst.data, &dst, 4))
@@ -67,7 +67,7 @@ dissect_rgmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* d
     item = proto_tree_add_item(parent_tree, proto_rgmp, tvb, offset, -1, ENC_NA);
     tree = proto_item_add_subtree(item, ett_rgmp);
 
-    type = tvb_get_guint8(tvb, offset);
+    type = tvb_get_uint8(tvb, offset);
     col_add_str(pinfo->cinfo, COL_INFO,
                 val_to_str(type, rgmp_types, "Unknown Type: 0x%02x"));
     proto_tree_add_uint(tree, hf_type, tvb, offset, 1, type);
@@ -117,7 +117,7 @@ proto_register_rgmp(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_rgmp
     };
 

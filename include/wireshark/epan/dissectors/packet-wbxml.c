@@ -38,7 +38,7 @@
 #include <epan/proto_data.h>
 #include <epan/strutil.h>
 #include <epan/iana_charsets.h>
-/* We need the function tvb_get_guintvar() */
+/* We need the function tvb_get_uintvar() */
 #include "packet-wap.h"
 
 void proto_register_wbxml(void);
@@ -125,76 +125,76 @@ void proto_reg_handoff_wbxml(void);
 
 
 /* Initialize the protocol and registered fields */
-static int proto_wbxml = -1;
-static int hf_wbxml_version = -1;
-static int hf_wbxml_public_id_known = -1;
-static int hf_wbxml_public_id_literal = -1;
-static int hf_wbxml_charset = -1;
-static int hf_wbxml_string_table_item_offset = -1;
-static int hf_wbxml_string_table_item_string = -1;
-static int hf_wbxml_switch_page = -1;
-static int hf_wbxml_known_tag = -1;
-static int hf_wbxml_end_known_tag = -1;
-static int hf_wbxml_end_known_tag_uint = -1;
-static int hf_wbxml_str_i = -1;
-static int hf_wbxml_str_t = -1;
-static int hf_wbxml_opaque_data = -1;
-static int hf_wbxml_entity = -1;
-static int hf_wbxml_literal = -1;
-static int hf_wbxml_ext_i = -1;
-static int hf_wbxml_ext_t = -1;
-static int hf_wbxml_extension_token = -1;
-static int hf_wbxml_reserved_2 = -1;
-static int hf_wbxml_invalid_token = -1;
-static int hf_wbxml_known_attrvalue = -1;
-static int hf_wbxml_known_attrstart = -1;
-static int hf_wbxml_end_literal_tag = -1;
-static int hf_wbxml_literal_a = -1;
-static int hf_wbxml_literal_c = -1;
-static int hf_wbxml_literal_ac = -1;
-static int hf_wbxml_end_pi = -1;
-static int hf_wbxml_end_attribute_list = -1;
-static int hf_wbxml_pi_xml = -1;
+static int proto_wbxml;
+static int hf_wbxml_version;
+static int hf_wbxml_public_id_known;
+static int hf_wbxml_public_id_literal;
+static int hf_wbxml_charset;
+static int hf_wbxml_string_table_item_offset;
+static int hf_wbxml_string_table_item_string;
+static int hf_wbxml_switch_page;
+static int hf_wbxml_known_tag;
+static int hf_wbxml_end_known_tag;
+static int hf_wbxml_end_known_tag_uint;
+static int hf_wbxml_str_i;
+static int hf_wbxml_str_t;
+static int hf_wbxml_opaque_data;
+static int hf_wbxml_entity;
+static int hf_wbxml_literal;
+static int hf_wbxml_ext_i;
+static int hf_wbxml_ext_t;
+static int hf_wbxml_extension_token;
+static int hf_wbxml_reserved_2;
+static int hf_wbxml_invalid_token;
+static int hf_wbxml_known_attrvalue;
+static int hf_wbxml_known_attrstart;
+static int hf_wbxml_end_literal_tag;
+static int hf_wbxml_literal_a;
+static int hf_wbxml_literal_c;
+static int hf_wbxml_literal_ac;
+static int hf_wbxml_end_pi;
+static int hf_wbxml_end_attribute_list;
+static int hf_wbxml_pi_xml;
 
 /* Initialize the subtree pointers */
-static gint ett_wbxml = -1;
-static gint ett_wbxml_str_tbl = -1;
-static gint ett_wbxml_content = -1;
-static gint ett_wbxml_tags = -1;
-static gint ett_wbxml_string_table_item = -1;
+static int ett_wbxml;
+static int ett_wbxml_str_tbl;
+static int ett_wbxml_content;
+static int ett_wbxml_tags;
+static int ett_wbxml_string_table_item;
 
-static expert_field ei_wbxml_data_not_shown = EI_INIT;
-static expert_field ei_wbxml_content_type_not_supported = EI_INIT;
-static expert_field ei_wbxml_content_type_disabled = EI_INIT;
-static expert_field ei_wbxml_oversized_uintvar = EI_INIT;
-static expert_field ei_wbxml_too_much_recursion = EI_INIT;
+static expert_field ei_wbxml_data_not_shown;
+static expert_field ei_wbxml_content_type_not_supported;
+static expert_field ei_wbxml_content_type_disabled;
+static expert_field ei_wbxml_oversized_uintvar;
+static expert_field ei_wbxml_too_much_recursion;
 
 static dissector_handle_t wbxml_handle;
 
 /* WBXML Preferences */
-static gboolean skip_wbxml_token_mapping = FALSE;
-static gboolean disable_wbxml_token_parsing = FALSE;
+static bool skip_wbxml_token_mapping;
+static bool disable_wbxml_token_parsing;
 
 
 typedef struct _value_valuestring {
-	guint32 value;
+	uint32_t value;
 	const value_string *valstrptr;
 } value_valuestring;
 
 /* Tries to match val against each element in the value_value_string array vvs.
  * Returns the associated value_string ptr on a match, or NULL on failure. */
 static const value_string *
-val_to_valstr(guint32 val, const value_valuestring *vvs)
+val_to_valstr(uint32_t val, const value_valuestring *vvs)
 {
-	gint i = 0;
+	int i = 0;
 
 	while (vvs[i].valstrptr) {
 		if (vvs[i].value == val)
-			return(vvs[i].valstrptr);
+			return vvs[i].valstrptr;
 		i++;
 	}
 
-	return(NULL);
+	return NULL;
 }
 
 /* Note on Token mapping
@@ -222,9 +222,9 @@ val_to_valstr(guint32 val, const value_valuestring *vvs)
 
 /* ext_t_func_ptr is a pointer to a function handling the EXT_T_i tokens:
  *
- * char * ext_t_function(tvbuff_t *tvb, guint32 value, guint32 strtbl);
+ * char * ext_t_function(tvbuff_t *tvb, uint32_t value, uint32_t strtbl);
  */
-typedef char * (* ext_t_func_ptr)(tvbuff_t *, guint32, guint32);
+typedef char * (* ext_t_func_ptr)(tvbuff_t *, uint32_t, uint32_t);
 
 /* Note on parsing of OPAQUE data
  * ------------------------------
@@ -254,49 +254,49 @@ typedef char * (* ext_t_func_ptr)(tvbuff_t *, guint32, guint32);
  *
  * The length of the processed OPAQUE value is returned by reference.
  *
- * char * opaque_token_function(tvbuff_t *tvb, guint32 offset,
- * 		guint8 token, guint8 codepage, guint32 *length);
- * char * opaque_literal_function(tvbuff_t *tvb, guint32 offset,
- * 		const char *token, guint8 codepage, guint32 *length);
+ * char * opaque_token_function(tvbuff_t *tvb, uint32_t offset,
+ * 		uint8_t token, uint8_t codepage, uint32_t *length);
+ * char * opaque_literal_function(tvbuff_t *tvb, uint32_t offset,
+ * 		const char *token, uint8_t codepage, uint32_t *length);
  */
-typedef char * (* opaque_token_func_ptr)(tvbuff_t *, guint32, guint8, guint8, guint32 *, packet_info *);
-typedef char * (* opaque_literal_func_ptr)(tvbuff_t *, guint32, const char *, guint8, guint32 *, packet_info *);
+typedef char * (* opaque_token_func_ptr)(tvbuff_t *, uint32_t, uint8_t, uint8_t, uint32_t *, packet_info *);
+typedef char * (* opaque_literal_func_ptr)(tvbuff_t *, uint32_t, const char *, uint8_t, uint32_t *, packet_info *);
 
 static char *
-default_opaque_binary_tag(tvbuff_t *tvb, guint32 offset,
-			  guint8 token _U_, guint8 codepage _U_, guint32 *length, packet_info *pinfo)
+default_opaque_binary_tag(tvbuff_t *tvb, uint32_t offset,
+			  uint8_t token _U_, uint8_t codepage _U_, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = wmem_strdup_printf(pinfo->pool, "(%u bytes of opaque data)", data_len);
 	*length += data_len;
 	return str;
 }
 
 static char *
-default_opaque_literal_tag(tvbuff_t *tvb, guint32 offset,
-			   const char *token _U_, guint8 codepage _U_, guint32 *length, packet_info *pinfo)
+default_opaque_literal_tag(tvbuff_t *tvb, uint32_t offset,
+			   const char *token _U_, uint8_t codepage _U_, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = wmem_strdup_printf(pinfo->pool, "(%u bytes of opaque data)", data_len);
 	*length += data_len;
 	return str;
 }
 
 static char *
-default_opaque_binary_attr(tvbuff_t *tvb, guint32 offset,
-			   guint8 token _U_, guint8 codepage _U_, guint32 *length, packet_info *pinfo)
+default_opaque_binary_attr(tvbuff_t *tvb, uint32_t offset,
+			   uint8_t token _U_, uint8_t codepage _U_, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = wmem_strdup_printf(pinfo->pool, "(%u bytes of opaque data)", data_len);
 	*length += data_len;
 	return str;
 }
 
 static char *
-default_opaque_literal_attr(tvbuff_t *tvb, guint32 offset,
-			    const char *token _U_, guint8 codepage _U_, guint32 *length, packet_info *pinfo)
+default_opaque_literal_attr(tvbuff_t *tvb, uint32_t offset,
+			    const char *token _U_, uint8_t codepage _U_, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = wmem_strdup_printf(pinfo->pool, "(%u bytes of opaque data)", data_len);
 	*length += data_len;
 	return str;
@@ -305,7 +305,7 @@ default_opaque_literal_attr(tvbuff_t *tvb, guint32 offset,
 /* Render a hex %dateTime encoded timestamp as a string.
  * 0x20011231123456 becomes "2001-12-31T12:34:56Z" */
 static char *
-date_time_from_opaque(wmem_allocator_t *pool, tvbuff_t *tvb, guint32 offset, guint32 data_len)
+date_time_from_opaque(wmem_allocator_t *pool, tvbuff_t *tvb, uint32_t offset, uint32_t data_len)
 {
 	char *str;
 
@@ -313,40 +313,40 @@ date_time_from_opaque(wmem_allocator_t *pool, tvbuff_t *tvb, guint32 offset, gui
 	case 4: /* YYYY-MM-DD[T00:00:00Z] */
 		str = wmem_strdup_printf(pool, "%%DateTime: "
 				      "%02x%02x-%02x-%02xT00:00:00Z",
-				      tvb_get_guint8(tvb, offset),
-				      tvb_get_guint8(tvb, offset + 1),
-				      tvb_get_guint8(tvb, offset + 2),
-				      tvb_get_guint8(tvb, offset + 3));
+				      tvb_get_uint8(tvb, offset),
+				      tvb_get_uint8(tvb, offset + 1),
+				      tvb_get_uint8(tvb, offset + 2),
+				      tvb_get_uint8(tvb, offset + 3));
 		break;
 	case 5: /* YYYY-MM-DDThh[:00:00Z] */
 		str = wmem_strdup_printf(pool, "%%DateTime: "
 				      "%02x%02x-%02x-%02xT%02x:00:00Z",
-				      tvb_get_guint8(tvb, offset),
-				      tvb_get_guint8(tvb, offset + 1),
-				      tvb_get_guint8(tvb, offset + 2),
-				      tvb_get_guint8(tvb, offset + 3),
-				      tvb_get_guint8(tvb, offset + 4));
+				      tvb_get_uint8(tvb, offset),
+				      tvb_get_uint8(tvb, offset + 1),
+				      tvb_get_uint8(tvb, offset + 2),
+				      tvb_get_uint8(tvb, offset + 3),
+				      tvb_get_uint8(tvb, offset + 4));
 		break;
 	case 6: /* YYYY-MM-DDThh:mm[:00Z] */
 		str = wmem_strdup_printf(pool, "%%DateTime: "
 				      "%02x%02x-%02x-%02xT%02x:%02x:00Z",
-				      tvb_get_guint8(tvb, offset),
-				      tvb_get_guint8(tvb, offset + 1),
-				      tvb_get_guint8(tvb, offset + 2),
-				      tvb_get_guint8(tvb, offset + 3),
-				      tvb_get_guint8(tvb, offset + 4),
-				      tvb_get_guint8(tvb, offset + 5));
+				      tvb_get_uint8(tvb, offset),
+				      tvb_get_uint8(tvb, offset + 1),
+				      tvb_get_uint8(tvb, offset + 2),
+				      tvb_get_uint8(tvb, offset + 3),
+				      tvb_get_uint8(tvb, offset + 4),
+				      tvb_get_uint8(tvb, offset + 5));
 		break;
 	case 7: /* YYYY-MM-DDThh:mm[:00Z] */
 		str = wmem_strdup_printf(pool, "%%DateTime: "
 				      "%02x%02x-%02x-%02xT%02x:%02x:%02xZ",
-				      tvb_get_guint8(tvb, offset),
-				      tvb_get_guint8(tvb, offset + 1),
-				      tvb_get_guint8(tvb, offset + 2),
-				      tvb_get_guint8(tvb, offset + 3),
-				      tvb_get_guint8(tvb, offset + 4),
-				      tvb_get_guint8(tvb, offset + 5),
-				      tvb_get_guint8(tvb, offset + 6));
+				      tvb_get_uint8(tvb, offset),
+				      tvb_get_uint8(tvb, offset + 1),
+				      tvb_get_uint8(tvb, offset + 2),
+				      tvb_get_uint8(tvb, offset + 3),
+				      tvb_get_uint8(tvb, offset + 4),
+				      tvb_get_uint8(tvb, offset + 5),
+				      tvb_get_uint8(tvb, offset + 6));
 		break;
 	default:
 		str = wmem_strdup_printf(pool, "<Error: invalid binary %%DateTime "
@@ -360,37 +360,37 @@ date_time_from_opaque(wmem_allocator_t *pool, tvbuff_t *tvb, guint32 offset, gui
 /* Is ALWAYS 6 bytes long:
  * 00YY YYYY  YYYY YYMM  MMDD DDDh  hhhh mmmm  mmss ssss  ZZZZ ZZZZ */
 static char *
-wv_datetime_from_opaque(wmem_allocator_t *pool, tvbuff_t *tvb, guint32 offset, guint32 data_len)
+wv_datetime_from_opaque(wmem_allocator_t *pool, tvbuff_t *tvb, uint32_t offset, uint32_t data_len)
 {
 	char *str;
-	guint16 year;
-	guint8 month, day, hour, minute, second, time_zone;
-	guint8 peek;
+	uint16_t year;
+	uint8_t month, day, hour, minute, second, time_zone;
+	uint8_t peek;
 
 	if (data_len == 6) { /* Valid */
 
 		/* Octet 1: 00YY YYYY */
-		year = tvb_get_guint8(tvb, offset) & 0x3F; /* ..11 1111 */
+		year = tvb_get_uint8(tvb, offset) & 0x3F; /* ..11 1111 */
 		year <<=6;
 		/* Octet 2: YYYY YYMM */
-		peek = tvb_get_guint8(tvb, offset + 1);
+		peek = tvb_get_uint8(tvb, offset + 1);
 		year += (peek >> 2); /* 1111 11.. */
 		month = (peek & 0x03) << 2; /* .... ..11 */
 		/* Octet 3: MMDD DDDh */
-		peek = tvb_get_guint8(tvb, offset + 2);
+		peek = tvb_get_uint8(tvb, offset + 2);
 		month += (peek >> 6); /* 11.. .... */
 		day = (peek & 0x3E) >> 1; /* ..11 111. */
 		hour = (peek & 0x01) << 4; /* .... ...1 */
 		/* Octet 4: hhhh mmmm */
-		peek = tvb_get_guint8(tvb, offset + 3);
+		peek = tvb_get_uint8(tvb, offset + 3);
 		hour += (peek >> 4);
 		minute = (peek & 0x0F) << 2; /* .... 1111 */
 		/* Octet 5: mmss ssss */
-		peek = tvb_get_guint8(tvb, offset + 4);
+		peek = tvb_get_uint8(tvb, offset + 4);
 		minute += (peek >> 6); /* 11.. .... */
 		second = peek & 0x3F; /* ..11 1111 */
 		/* octet 6: ZZZZZZZZ */
-		time_zone = tvb_get_guint8(tvb, offset + 5);
+		time_zone = tvb_get_uint8(tvb, offset + 5);
 		/* Now construct the string */
 		str = wmem_strdup_printf(pool, "WV-CSP DateTime: "
 				      "%04d-%02d-%02dT%02d:%02d:%02d%s",
@@ -405,14 +405,14 @@ wv_datetime_from_opaque(wmem_allocator_t *pool, tvbuff_t *tvb, guint32 offset, g
 /* WV-CSP integer values for tag content is encoded in a fashion similar
  * to a Long-Integer in WSP */
 static char *
-wv_integer_from_opaque(wmem_allocator_t *pool, tvbuff_t *tvb, guint32 offset, guint32 data_len)
+wv_integer_from_opaque(wmem_allocator_t *pool, tvbuff_t *tvb, uint32_t offset, uint32_t data_len)
 {
 	char *str;
 
 	switch (data_len) {
 	case 1:
 		str = wmem_strdup_printf(pool, "WV-CSP Integer: %d",
-				      tvb_get_guint8(tvb, offset));
+				      tvb_get_uint8(tvb, offset));
 		break;
 	case 2:
 		str = wmem_strdup_printf(pool, "WV-CSP Integer: %d",
@@ -436,10 +436,10 @@ wv_integer_from_opaque(wmem_allocator_t *pool, tvbuff_t *tvb, guint32 offset, gu
 }
 
 static char *
-wv_csp10_opaque_binary_tag(tvbuff_t *tvb, guint32 offset,
-			   guint8 token, guint8 codepage, guint32 *length, packet_info *pinfo)
+wv_csp10_opaque_binary_tag(tvbuff_t *tvb, uint32_t offset,
+			   uint8_t token, uint8_t codepage, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	switch (codepage) {
@@ -499,10 +499,10 @@ wv_csp10_opaque_binary_tag(tvbuff_t *tvb, guint32 offset,
 }
 
 static char *
-wv_csp10_opaque_literal_tag(tvbuff_t *tvb, guint32 offset,
-			    const char *token, guint8 codepage _U_, guint32 *length, packet_info *pinfo)
+wv_csp10_opaque_literal_tag(tvbuff_t *tvb, uint32_t offset,
+			    const char *token, uint8_t codepage _U_, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	if ( token && ( (strcmp(token, "Code") == 0)
@@ -534,10 +534,10 @@ wv_csp10_opaque_literal_tag(tvbuff_t *tvb, guint32 offset,
 }
 
 static char *
-wv_csp11_opaque_binary_tag(tvbuff_t *tvb, guint32 offset,
-			   guint8 token, guint8 codepage, guint32 *length, packet_info *pinfo)
+wv_csp11_opaque_binary_tag(tvbuff_t *tvb, uint32_t offset,
+			   uint8_t token, uint8_t codepage, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	switch (codepage) {
@@ -606,10 +606,10 @@ wv_csp11_opaque_binary_tag(tvbuff_t *tvb, guint32 offset,
 }
 
 static char *
-wv_csp11_opaque_literal_tag(tvbuff_t *tvb, guint32 offset,
-			    const char *token, guint8 codepage _U_, guint32 *length, packet_info *pinfo)
+wv_csp11_opaque_literal_tag(tvbuff_t *tvb, uint32_t offset,
+			    const char *token, uint8_t codepage _U_, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	if ( token && ( (strcmp(token, "Code") == 0)
@@ -643,10 +643,10 @@ wv_csp11_opaque_literal_tag(tvbuff_t *tvb, guint32 offset,
 
 
 static char *
-wv_csp12_opaque_binary_tag(tvbuff_t *tvb, guint32 offset,
-			   guint8 token, guint8 codepage, guint32 *length, packet_info *pinfo)
+wv_csp12_opaque_binary_tag(tvbuff_t *tvb, uint32_t offset,
+			   uint8_t token, uint8_t codepage, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	switch (codepage) {
@@ -726,10 +726,10 @@ wv_csp12_opaque_binary_tag(tvbuff_t *tvb, guint32 offset,
 }
 
 static char *
-wv_csp12_opaque_literal_tag(tvbuff_t *tvb, guint32 offset,
-			    const char *token, guint8 codepage _U_, guint32 *length, packet_info *pinfo)
+wv_csp12_opaque_literal_tag(tvbuff_t *tvb, uint32_t offset,
+			    const char *token, uint8_t codepage _U_, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	if ( token && ( (strcmp(token, "Code") == 0)
@@ -764,10 +764,10 @@ wv_csp12_opaque_literal_tag(tvbuff_t *tvb, guint32 offset,
 }
 
 static char *
-wv_csp13_opaque_binary_tag(tvbuff_t *tvb, guint32 offset,
-			   guint8 token, guint8 codepage, guint32 *length, packet_info *pinfo)
+wv_csp13_opaque_binary_tag(tvbuff_t *tvb, uint32_t offset,
+			   uint8_t token, uint8_t codepage, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	switch (codepage)
@@ -903,10 +903,10 @@ wv_csp13_opaque_binary_tag(tvbuff_t *tvb, guint32 offset,
 
 
 static char *
-wv_csp13_opaque_literal_tag(tvbuff_t *tvb, guint32 offset,
-			    const char *token, guint8 codepage _U_, guint32 *length, packet_info *pinfo)
+wv_csp13_opaque_literal_tag(tvbuff_t *tvb, uint32_t offset,
+			    const char *token, uint8_t codepage _U_, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	if ( token && ( (strcmp(token, "Code") == 0)
@@ -961,10 +961,10 @@ wv_csp13_opaque_literal_tag(tvbuff_t *tvb, guint32 offset,
 }
 
 static char *
-sic10_opaque_literal_attr(tvbuff_t *tvb, guint32 offset,
-			  const char *token, guint8 codepage _U_, guint32 *length, packet_info *pinfo)
+sic10_opaque_literal_attr(tvbuff_t *tvb, uint32_t offset,
+			  const char *token, uint8_t codepage _U_, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	if ( token && ( (strcmp(token, "created") == 0)
@@ -981,10 +981,10 @@ sic10_opaque_literal_attr(tvbuff_t *tvb, guint32 offset,
 }
 
 static char *
-sic10_opaque_binary_attr(tvbuff_t *tvb, guint32 offset,
-			 guint8 token, guint8 codepage, guint32 *length, packet_info *pinfo)
+sic10_opaque_binary_attr(tvbuff_t *tvb, uint32_t offset,
+			 uint8_t token, uint8_t codepage, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	switch (codepage) {
@@ -1011,10 +1011,10 @@ sic10_opaque_binary_attr(tvbuff_t *tvb, guint32 offset,
 }
 
 static char *
-emnc10_opaque_literal_attr(tvbuff_t *tvb, guint32 offset,
-			   const char *token, guint8 codepage _U_, guint32 *length, packet_info *pinfo)
+emnc10_opaque_literal_attr(tvbuff_t *tvb, uint32_t offset,
+			   const char *token, uint8_t codepage _U_, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	if ( token && (strcmp(token, "timestamp") == 0) )
@@ -1030,10 +1030,10 @@ emnc10_opaque_literal_attr(tvbuff_t *tvb, guint32 offset,
 }
 
 static char *
-emnc10_opaque_binary_attr(tvbuff_t *tvb, guint32 offset,
-			  guint8 token, guint8 codepage, guint32 *length, packet_info *pinfo)
+emnc10_opaque_binary_attr(tvbuff_t *tvb, uint32_t offset,
+			  uint8_t token, uint8_t codepage, uint32_t *length, packet_info *pinfo)
 {
-	guint32 data_len = tvb_get_guintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
+	uint32_t data_len = tvb_get_uintvar(tvb, offset, length, pinfo, &ei_wbxml_oversized_uintvar);
 	char *str = NULL;
 
 	switch (codepage) {
@@ -1075,11 +1075,11 @@ typedef struct _wbxml_decoding {
 /* Define a pointer to a discriminator function taking a tvb and the start
  * offset of the WBXML tokens in the body as arguments.
  */
-typedef const wbxml_decoding * (* discriminator_func_ptr)(tvbuff_t *, guint32);
+typedef const wbxml_decoding * (* discriminator_func_ptr)(tvbuff_t *, uint32_t);
 
 /* For the decoding lists based on the known WBXML public ID */
 typedef struct _wbxml_integer_list {
-	guint32 public_id;
+	uint32_t public_id;
 	const wbxml_decoding *map;
 } wbxml_integer_list;
 
@@ -1215,7 +1215,7 @@ static value_string_ext vals_wbxml1x_global_tokens_ext = VALUE_STRING_EXT_INIT(v
  * Wireless Markup Language
  ***************************************/
 static char *
-ext_t_0_wml_10(tvbuff_t *tvb, guint32 value, guint32 str_tbl)
+ext_t_0_wml_10(tvbuff_t *tvb, uint32_t value, uint32_t str_tbl)
 {
 	char *str = wmem_strdup_printf(wmem_packet_scope(), "Variable substitution - escaped: '%s'",
 				    tvb_get_stringz_enc(wmem_packet_scope(), tvb, str_tbl + value, NULL, ENC_ASCII));
@@ -1223,7 +1223,7 @@ ext_t_0_wml_10(tvbuff_t *tvb, guint32 value, guint32 str_tbl)
 }
 
 static char *
-ext_t_1_wml_10(tvbuff_t *tvb, guint32 value, guint32 str_tbl)
+ext_t_1_wml_10(tvbuff_t *tvb, uint32_t value, uint32_t str_tbl)
 {
 	char *str = wmem_strdup_printf(wmem_packet_scope(), "Variable substitution - unescaped: '%s'",
 				    tvb_get_stringz_enc(wmem_packet_scope(), tvb, str_tbl + value, NULL, ENC_ASCII));
@@ -1231,7 +1231,7 @@ ext_t_1_wml_10(tvbuff_t *tvb, guint32 value, guint32 str_tbl)
 }
 
 static char *
-ext_t_2_wml_10(tvbuff_t *tvb, guint32 value, guint32 str_tbl)
+ext_t_2_wml_10(tvbuff_t *tvb, uint32_t value, uint32_t str_tbl)
 {
 	char *str = wmem_strdup_printf(wmem_packet_scope(), "Variable substitution - no transformation: '%s'",
 				    tvb_get_stringz_enc(wmem_packet_scope(), tvb, str_tbl + value, NULL, ENC_ASCII));
@@ -5224,7 +5224,7 @@ static value_string_ext vals_wv_csp_11_element_value_tokens_ext = VALUE_STRING_E
 /***** Token code page aggregation *****/
 
 static char *
-ext_t_0_wv_cspc_11(tvbuff_t *tvb _U_, guint32 value, guint32 str_tbl _U_)
+ext_t_0_wv_cspc_11(tvbuff_t *tvb _U_, uint32_t value, uint32_t str_tbl _U_)
 {
 	char *str = wmem_strdup_printf(wmem_packet_scope(), "Common Value: '%s'",
 				    val_to_str_ext(value, &vals_wv_csp_11_element_value_tokens_ext,
@@ -5835,7 +5835,7 @@ static const value_string vals_wv_csp_12_element_value_tokens[] = {
 /***** Token code page aggregation *****/
 
 static char *
-ext_t_0_wv_cspc_12(tvbuff_t *tvb _U_, guint32 value, guint32 str_tbl _U_)
+ext_t_0_wv_cspc_12(tvbuff_t *tvb _U_, uint32_t value, uint32_t str_tbl _U_)
 {
 	char *str = wmem_strdup_printf(wmem_packet_scope(), "Common Value: '%s'",
 				    val_to_str(value, vals_wv_csp_12_element_value_tokens,
@@ -6675,7 +6675,7 @@ static const value_string vals_wv_csp_13_element_value_tokens[] = {
 
 /***** Token code page aggregation *****/
 static char *
-ext_t_0_wv_cspc_13(tvbuff_t *tvb _U_, guint32 value, guint32 str_tbl _U_)
+ext_t_0_wv_cspc_13(tvbuff_t *tvb _U_, uint32_t value, uint32_t str_tbl _U_)
 {
 	char *str = wmem_strdup_printf(wmem_packet_scope(), "Common Value: '%s'",
 				    val_to_str(value, vals_wv_csp_13_element_value_tokens,
@@ -6729,10 +6729,10 @@ static const wbxml_decoding decode_wv_cspc_13 = {
  * of the start of the WBXML body.
  */
 static const wbxml_decoding *
-wv_csp_discriminator(tvbuff_t *tvb, guint32 offset)
+wv_csp_discriminator(tvbuff_t *tvb, uint32_t offset)
 {
-	guint32 magic_1 = tvb_get_ntohl(tvb, offset + 0);
-	guint16 magic_2 = tvb_get_ntohs(tvb, offset + 4);
+	uint32_t magic_1 = tvb_get_ntohl(tvb, offset + 0);
+	uint16_t magic_2 = tvb_get_ntohs(tvb, offset + 4);
 
 	if (magic_1 == 0xFE050331 && magic_2 == 0x2e30)
 		{
@@ -6762,14 +6762,14 @@ wv_csp_discriminator(tvbuff_t *tvb, guint32 offset)
 
 /********************** WBXML token mapping aggregation **********************/
 
-static const wbxml_decoding *get_wbxml_decoding_from_public_id (guint32 publicid);
+static const wbxml_decoding *get_wbxml_decoding_from_public_id (uint32_t publicid);
 static const wbxml_decoding *get_wbxml_decoding_from_content_type (
-								   const char *content_type, tvbuff_t *tvb, guint32 offset);
+								   const char *content_type, tvbuff_t *tvb, uint32_t offset);
 
 
 /**
  ** Aggregation of content type and aggregated code pages
- ** Content type map lookup will stop at the 1st entry with 3rd member = FALSE
+ ** Content type map lookup will stop at the 1st entry with 3rd member = false
  **/
 
 /*
@@ -6839,7 +6839,7 @@ static const wbxml_literal_list content_type_list[] = {
 
 /* Returns a pointer to the WBXML token map for the given WBXML public
  * identifier value (see WINA for a table with defined identifiers). */
-static const wbxml_decoding *get_wbxml_decoding_from_public_id (guint32 public_id)
+static const wbxml_decoding *get_wbxml_decoding_from_public_id (uint32_t public_id)
 {
 	const wbxml_decoding *map = NULL;
 
@@ -6860,7 +6860,7 @@ static const wbxml_decoding *get_wbxml_decoding_from_public_id (guint32 public_i
 }
 
 static const wbxml_decoding *get_wbxml_decoding_from_content_type (
-								   const char *content_type, tvbuff_t *tvb, guint32 offset)
+								   const char *content_type, tvbuff_t *tvb, uint32_t offset)
 {
 	const wbxml_decoding *map = NULL;
 
@@ -6888,7 +6888,7 @@ static const wbxml_decoding *get_wbxml_decoding_from_content_type (
 
 
 /* WBXML content token mapping depends on the following parameters:
- *   - Content type (guint32)
+ *   - Content type (uint32_t)
  *   - Token type (global, tags, attrStart, attrValue)
  *   - Code page for tag and attribute
  *
@@ -6907,7 +6907,7 @@ static const wbxml_decoding *get_wbxml_decoding_from_content_type (
 	"(Requested token map not defined for this content type)"
 /* Return token mapping for a given content mapping entry. */
 static const char *
-map_token (const value_valuestring *token_map, guint8 codepage, guint8 token) {
+map_token (const value_valuestring *token_map, uint8_t codepage, uint8_t token) {
 	const value_string *vs;
 	const char         *s;
 
@@ -6939,16 +6939,16 @@ map_token (const value_valuestring *token_map, guint8 codepage, guint8 token) {
 
 /* Parse and display the WBXML string table. */
 static void
-show_wbxml_string_table (proto_tree *tree, tvbuff_t *tvb, guint32 str_tbl,
-			 guint32 str_tbl_len, guint charset)
+show_wbxml_string_table (proto_tree *tree, tvbuff_t *tvb, uint32_t str_tbl,
+			 uint32_t str_tbl_len, unsigned charset)
 {
-	guint encoding = mibenum_charset_to_encoding(charset);
-	guint32 off = str_tbl;
-	guint32 end = str_tbl + str_tbl_len;
+	unsigned encoding = mibenum_charset_to_encoding(charset);
+	uint32_t off = str_tbl;
+	uint32_t end = str_tbl + str_tbl_len;
 	proto_tree *item_tree;
 	proto_item *ti;
-	const guint8 *str;
-	gint len;
+	const uint8_t *str;
+	int len;
 
 	while (off < end) {
 		/*
@@ -6985,7 +6985,7 @@ static const char indent_buffer[514] = " "
 	"                                                                "
 	; /* Generate XML indentation (length = 1 + 2 * 256 + 1 for '\0') */
 
-static const char * Indent (guint8 level) {
+static const char * Indent (uint8_t level) {
 	return indent_buffer + (512 - 2 * (level));
 }
 
@@ -7041,34 +7041,34 @@ static const char * Indent (guint8 level) {
  *
  * NOTE: See above for known token mappings.
  */
-static guint32
+static uint32_t
 parse_wbxml_attribute_list_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-				    guint32 offset, guint32 str_tbl, guint8 *codepage_attr,
+				    uint32_t offset, uint32_t str_tbl, uint8_t *codepage_attr,
 				    const wbxml_decoding *map)
 {
-	guint32      tvb_len = tvb_reported_length (tvb);
-	guint32      off     = offset;
-	guint32      len;
-	guint        str_len;
-	guint32      ent;
-	guint32      idx;
-	guint8       peek;
-	guint8       attr_save_known   = 0; /* Will contain peek & 0x3F (attr identity) */
+	uint32_t     tvb_len = tvb_reported_length (tvb);
+	uint32_t     off     = offset;
+	uint32_t     len;
+	unsigned     str_len;
+	uint32_t     ent;
+	uint32_t     idx;
+	uint8_t      peek;
+	uint8_t      attr_save_known   = 0; /* Will contain peek & 0x3F (attr identity) */
 	const char  *attr_save_literal = NULL; /* Will contain the LITERAL attr identity */
-	const gchar *str;
+	const char *str;
 	unsigned     recursion_level = p_get_proto_depth(pinfo, proto_wbxml);
 	unsigned     encoding = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_wbxml, 0));
 
 	DebugLog(("parse_wbxml_attr_defined (level = %u, offset = %u)\n", recursion_level, offset));
 	/* Parse attributes */
 	while (off < tvb_len) {
-		peek = tvb_get_guint8 (tvb, off);
+		peek = tvb_get_uint8 (tvb, off);
 		DebugLog(("ATTR: (top of while) level = %3u, peek = 0x%02X, "
 			  "off = %u, tvb_len = %u\n", recursion_level, peek, off, tvb_len));
 		if ((peek & 0x3F) < 5) switch (peek) { /* Global tokens
 							  in state = ATTR */
 		case 0x00: /* SWITCH_PAGE */
-			*codepage_attr = tvb_get_guint8 (tvb, off+1);
+			*codepage_attr = tvb_get_uint8 (tvb, off+1);
 			proto_tree_add_uint_format(tree, hf_wbxml_switch_page, tvb, off, 2, *codepage_attr,
                          "      |  Attr | A -->%3d | SWITCH_PAGE (Attr code page)    |",
 					     *codepage_attr);
@@ -7085,7 +7085,7 @@ parse_wbxml_attribute_list_defined (proto_tree *tree, tvbuff_t *tvb, packet_info
 				  recursion_level, off - offset));
 			return (off - offset);
 		case 0x02: /* ENTITY */
-			ent = tvb_get_guintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
+			ent = tvb_get_uintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
 			if (len <= tvb_len) {
 				proto_tree_add_uint_format(tree, hf_wbxml_entity, tvb, off, 1+len, ent,
 					         "  %3d |  Attr | A %3d    | ENTITY                          |     %s'&#%u;'",
@@ -7107,7 +7107,7 @@ parse_wbxml_attribute_list_defined (proto_tree *tree, tvbuff_t *tvb, packet_info
 			/* ALWAYS means the start of a new attribute,
 			 * and may only contain the NAME of the attribute.
 			 */
-			idx = tvb_get_guintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
+			idx = tvb_get_uintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
 			if (len <= tvb_len) {
 				attr_save_known = 0;
 				attr_save_literal = tvb_get_stringz_enc(pinfo->pool, tvb, str_tbl+idx, &str_len, encoding);
@@ -7137,7 +7137,7 @@ parse_wbxml_attribute_list_defined (proto_tree *tree, tvbuff_t *tvb, packet_info
 		case 0x81: /* EXT_T_1 */
 		case 0x82: /* EXT_T_2 */
 			/* Extension tokens */
-			idx = tvb_get_guintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
+			idx = tvb_get_uintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
 			{
 				char *s;
 				if (map != NULL) {
@@ -7163,7 +7163,7 @@ parse_wbxml_attribute_list_defined (proto_tree *tree, tvbuff_t *tvb, packet_info
 			}
 			break;
 		case 0x83: /* STR_T */
-			idx = tvb_get_guintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
+			idx = tvb_get_uintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
 			if (len <= tvb_len) {
 				str = tvb_get_stringz_enc(pinfo->pool, tvb, str_tbl+idx, &str_len, encoding);
 				proto_tree_add_string_format(tree, hf_wbxml_str_t, tvb, off, 1+len, str,
@@ -7187,7 +7187,7 @@ parse_wbxml_attribute_list_defined (proto_tree *tree, tvbuff_t *tvb, packet_info
 			off++;
 			break;
 		case 0xC3: /* OPAQUE - WBXML 1.1 and newer */
-			if (tvb_get_guint8 (tvb, 0)) { /* WBXML 1.x (x > 0) */
+			if (tvb_get_uint8 (tvb, 0)) { /* WBXML 1.x (x > 0) */
 				if (map != NULL) {
 					char *tmp_str;
 					if (attr_save_known) { /* Knwon attribute */
@@ -7218,7 +7218,7 @@ parse_wbxml_attribute_list_defined (proto_tree *tree, tvbuff_t *tvb, packet_info
 						off = tvb_len;
 					}
 				} else {
-					idx = tvb_get_guintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
+					idx = tvb_get_uintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
 					if ((len <= tvb_len) && (idx < tvb_len)) {
 						proto_tree_add_bytes_format(tree, hf_wbxml_opaque_data, tvb, off, 1 + len + idx, NULL,
 							     "  %3d |  Attr | A %3d    | OPAQUE (Opaque data)            |       %s(%u bytes of opaque data)",
@@ -7248,7 +7248,7 @@ parse_wbxml_attribute_list_defined (proto_tree *tree, tvbuff_t *tvb, packet_info
 			/* Move to end of buffer */
 			off = tvb_len;
 			break;
-		} else { /* Known atribute token */
+		} else { /* Known attribute token */
 			const char* s;
 			if (peek & 0x80) { /* attrValue */
 				if (map != NULL) {
@@ -7306,44 +7306,45 @@ parse_wbxml_attribute_list_defined (proto_tree *tree, tvbuff_t *tvb, packet_info
  *       the used code page.
  */
 #define WBXML_MAX_RECURSION_LEVEL 255
-static guint32
-parse_wbxml_tag_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint32 offset,
-			 guint32 str_tbl, guint8 *codepage_stag, guint8 *codepage_attr,
+static uint32_t
+// NOLINTNEXTLINE(misc-no-recursion)
+parse_wbxml_tag_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, uint32_t offset,
+			 uint32_t str_tbl, uint8_t *codepage_stag, uint8_t *codepage_attr,
 			 const wbxml_decoding *map)
 {
-	guint32      tvb_len  = tvb_reported_length (tvb);
-	guint32      off      = offset;
-	guint32      len;
-	guint        str_len;
-	guint32      ent;
-	guint32      idx;
-	guint8       peek;
-	guint32      tag_len;                     /* Length of the index (uintvar) from a LITERAL tag */
-	guint8       tag_save_known      = 0;     /* Will contain peek & 0x3F (tag identity) */
-	guint8       tag_new_known       = 0;     /* Will contain peek & 0x3F (tag identity) */
+	uint32_t     tvb_len  = tvb_reported_length (tvb);
+	uint32_t     off      = offset;
+	uint32_t     len;
+	unsigned     str_len;
+	uint32_t     ent;
+	uint32_t     idx;
+	uint8_t      peek;
+	uint32_t     tag_len;                     /* Length of the index (uintvar) from a LITERAL tag */
+	uint8_t      tag_save_known      = 0;     /* Will contain peek & 0x3F (tag identity) */
+	uint8_t      tag_new_known       = 0;     /* Will contain peek & 0x3F (tag identity) */
 	const char  *tag_save_literal    = NULL;  /* Will contain the LITERAL tag identity */
 	const char  *tag_new_literal;             /* Will contain the LITERAL tag identity */
-	const gchar *str;
-	guint8       parsing_tag_content = FALSE; /* Are we parsing content from a
+	const char *str;
+	uint8_t      parsing_tag_content = false; /* Are we parsing content from a
 						     tag with content: <x>Content</x>
 
-						     The initial state is FALSE.
+						     The initial state is false.
 						     This state will trigger recursion. */
 
 	unsigned     recursion_level = p_get_proto_depth(pinfo, proto_wbxml);
 	unsigned     encoding = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_wbxml, 0));
-	if (++recursion_level >= WBXML_MAX_RECURSION_LEVEL) {
+	if (recursion_level >= WBXML_MAX_RECURSION_LEVEL) {
 		proto_tree_add_expert(tree, pinfo, &ei_wbxml_too_much_recursion, tvb, offset, tvb_captured_length_remaining(tvb, offset));
 		return tvb_len;
 	}
 	DebugLog(("parse_wbxml_tag_defined (level = %u, offset = %u)\n", recursion_level, offset));
 	while (off < tvb_len) {
-		peek = tvb_get_guint8 (tvb, off);
+		peek = tvb_get_uint8 (tvb, off);
 		DebugLog(("STAG: (top of while) level = %3u, peek = 0x%02X, off = %u, tvb_len = %u\n", recursion_level, peek, off, tvb_len));
 		if ((peek & 0x3F) < 4) switch (peek) { /* Global tokens in state = STAG
 							  but not the LITERAL tokens */
 		case 0x00: /* SWITCH_PAGE */
-			*codepage_stag = tvb_get_guint8 (tvb, off+1);
+			*codepage_stag = tvb_get_uint8 (tvb, off+1);
 			proto_tree_add_uint_format(tree, hf_wbxml_switch_page, tvb, off, 2, *codepage_stag,
 					     "      | Tag   | T -->%3d | SWITCH_PAGE (Tag code page)     |",
 					     *codepage_stag);
@@ -7368,7 +7369,7 @@ parse_wbxml_tag_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, gu
 			DebugLog(("STAG: level = %u, Return: len = %u\n", recursion_level, off - offset));
 			return (off - offset);
 		case 0x02: /* ENTITY */
-			ent = tvb_get_guintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
+			ent = tvb_get_uintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
 			proto_tree_add_uint_format(tree, hf_wbxml_entity, tvb, off, 1+len, ent,
 					     "  %3d | Tag   | T %3d    | ENTITY                          | %s'&#%u;'",
 					     recursion_level, *codepage_stag, Indent (recursion_level), ent);
@@ -7416,7 +7417,7 @@ parse_wbxml_tag_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, gu
 		case 0x81: /* EXT_T_1 */
 		case 0x82: /* EXT_T_2 */
 			/* Extension tokens */
-			idx = tvb_get_guintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
+			idx = tvb_get_uintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
 			{
 				char *s;
 				if (map)
@@ -7438,7 +7439,7 @@ parse_wbxml_tag_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, gu
 			off += 1+len;
 			break;
 		case 0x83: /* STR_T */
-			idx = tvb_get_guintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
+			idx = tvb_get_uintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
 			str = tvb_get_stringz_enc(pinfo->pool, tvb, str_tbl+idx, &str_len, encoding);
 			proto_tree_add_string_format(tree, hf_wbxml_str_t, tvb, off, 1+len, str,
 					     "  %3d | Tag   | T %3d    | STR_T (Tableref string)         | %s\'%s\'",
@@ -7456,11 +7457,11 @@ parse_wbxml_tag_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, gu
 			off++;
 			break;
 		case 0xC3: /* OPAQUE - WBXML 1.1 and newer */
-			if (tvb_get_guint8 (tvb, 0)) { /* WBXML 1.x (x > 0) */
+			if (tvb_get_uint8 (tvb, 0)) { /* WBXML 1.x (x > 0) */
 				if (map != NULL)
 				{
 					char *tmp_str;
-					if (tag_save_known) { /* Knwon tag */
+					if (tag_save_known) { /* Known tag */
 						if (map->opaque_binary_tag) {
 							tmp_str = map->opaque_binary_tag(tvb, off + 1,
 										     tag_save_known, *codepage_stag, &len, pinfo);
@@ -7482,7 +7483,7 @@ parse_wbxml_tag_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, gu
 						     recursion_level, *codepage_stag, Indent (recursion_level), tmp_str);
 					off += 1 + len;
 				} else {
-					idx = tvb_get_guintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
+					idx = tvb_get_uintvar (tvb, off+1, &len, pinfo, &ei_wbxml_oversized_uintvar);
 					if ((len <= tvb_len) && (idx < tvb_len))
 					{
 						proto_tree_add_bytes_format(tree, hf_wbxml_opaque_data, tvb, off, 1 + len + idx, NULL,
@@ -7524,7 +7525,7 @@ parse_wbxml_tag_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, gu
 			tag_len = 0;
 			if ((peek & 0x3F) == 4) { /* LITERAL */
 				DebugLog(("STAG: LITERAL tag (peek = 0x%02X, off = %u) - TableRef follows!\n", peek, off));
-				idx = tvb_get_guintvar (tvb, off+1, &tag_len, pinfo, &ei_wbxml_oversized_uintvar);
+				idx = tvb_get_uintvar (tvb, off+1, &tag_len, pinfo, &ei_wbxml_oversized_uintvar);
 				tag_new_literal = tvb_get_stringz_enc(pinfo->pool, tvb, str_tbl+idx, &str_len, encoding);
 				tag_new_known = 0; /* invalidate known tag_new */
 			} else { /* Known tag */
@@ -7550,8 +7551,7 @@ parse_wbxml_tag_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, gu
 					DebugLog(("STAG: Tag in Tag - RECURSE! (off = %u)\n", off));
 					/* Do not process the attribute list:
 					 * recursion will take care of it */
-					recursion_level++;
-					p_set_proto_depth(pinfo, proto_wbxml, recursion_level);
+					p_set_proto_depth(pinfo, proto_wbxml, recursion_level + 1);
 					len = parse_wbxml_tag_defined (tree, tvb, pinfo, off, str_tbl,
 								       codepage_stag, codepage_attr, map);
 					off += len;
@@ -7612,7 +7612,7 @@ parse_wbxml_tag_defined (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, gu
 					 * we've just processed in the lines above.
 					 * Next time we encounter a tag with content: recurse
 					 */
-					parsing_tag_content = TRUE;
+					parsing_tag_content = true;
 					DebugLog(("Tag in Tag - No recursion this time! (off = %u)\n", off));
 				}
 			} else { /* No Content */
@@ -7694,22 +7694,22 @@ dissect_wbxml_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	proto_tree           *wbxml_str_tbl_tree;  /* String table subtree */
 	proto_tree           *wbxml_content_tree;  /* Content subtree */
 	proto_tree           *tag_tree;
-	guint8                version;
-	guint                 offset          = 0;
-	guint32               len;
-	guint32               charset         = 0;
-	guint32               charset_len     = 0;
-	guint                 encoding;
-	guint32               publicid;
-	guint32               publicid_index  = 0;
-	guint32               publicid_len;
-	guint32               str_tbl;
-	guint32               str_tbl_len;
-	guint32               str_tbl_len_len = 0;
+	uint8_t               version;
+	unsigned              offset          = 0;
+	uint32_t              len;
+	uint32_t              charset         = 0;
+	uint32_t              charset_len     = 0;
+	unsigned              encoding;
+	uint32_t              publicid;
+	uint32_t              publicid_index  = 0;
+	uint32_t              publicid_len;
+	uint32_t              str_tbl;
+	uint32_t              str_tbl_len;
+	uint32_t              str_tbl_len_len = 0;
 	const wbxml_decoding *content_map     = NULL;
-	gchar                *summary         = NULL;
-	guint8                codepage_stag   = 0;
-	guint8                codepage_attr   = 0;
+	char                 *summary         = NULL;
+	uint8_t               codepage_stag   = 0;
+	uint8_t               codepage_attr   = 0;
 
 	DebugLog(("dissect_wbxml: Dissecting packet %u\n", pinfo->num));
 	/* WBXML format
@@ -7719,7 +7719,7 @@ dissect_wbxml_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	 *
 	 * Last valid format: WBXML 1.3
 	 */
-	switch ( version = tvb_get_guint8 (tvb, 0) ) {
+	switch ( version = tvb_get_uint8 (tvb, 0) ) {
 	case 0x00: /* WBXML/1.0 */
 		break;
 
@@ -7744,10 +7744,10 @@ dissect_wbxml_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	 */
 
 	/* Public ID */
-	publicid = tvb_get_guintvar(tvb, 1, &publicid_len, pinfo, &ei_wbxml_oversized_uintvar);
+	publicid = tvb_get_uintvar(tvb, 1, &publicid_len, pinfo, &ei_wbxml_oversized_uintvar);
 	if (! publicid) {
 		/* Public identifier in string table */
-		publicid_index = tvb_get_guintvar (tvb, 1+publicid_len, &len, pinfo, &ei_wbxml_oversized_uintvar);
+		publicid_index = tvb_get_uintvar (tvb, 1+publicid_len, &len, pinfo, &ei_wbxml_oversized_uintvar);
 		publicid_len += len;
 	}
 	offset = 1 + publicid_len;
@@ -7762,7 +7762,7 @@ dissect_wbxml_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	case 0x02: /* WBXML/1.2 */
 	case 0x03: /* WBXML/1.3 */
 		/* Get charset */
-		charset = tvb_get_guintvar (tvb, offset, &charset_len, pinfo, &ei_wbxml_oversized_uintvar);
+		charset = tvb_get_uintvar (tvb, offset, &charset_len, pinfo, &ei_wbxml_oversized_uintvar);
 		offset += charset_len;
 		break;
 
@@ -7783,7 +7783,7 @@ dissect_wbxml_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	p_add_proto_data(pinfo->pool, pinfo, proto_wbxml, 0, GUINT_TO_POINTER(encoding));
 
 	/* String table: read string table length in bytes */
-	tvb_get_guintvar (tvb, offset, &str_tbl_len_len, pinfo, &ei_wbxml_oversized_uintvar);
+	tvb_get_uintvar (tvb, offset, &str_tbl_len_len, pinfo, &ei_wbxml_oversized_uintvar);
 	str_tbl = offset + str_tbl_len_len; /* Start of 1st string in string table */
 
 	/* Compose the summary line */
@@ -7830,7 +7830,7 @@ dissect_wbxml_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 		offset += charset_len;
 	}
 
-	str_tbl_len = tvb_get_guintvar (tvb, offset, &len, pinfo, &ei_wbxml_oversized_uintvar);
+	str_tbl_len = tvb_get_uintvar (tvb, offset, &len, pinfo, &ei_wbxml_oversized_uintvar);
 	str_tbl = offset + len; /* Start of 1st string in string table */
 
 	/* String Table */
@@ -8126,7 +8126,7 @@ proto_register_wbxml(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_wbxml,
 		&ett_wbxml_str_tbl,
 		&ett_wbxml_content,
@@ -8254,6 +8254,9 @@ proto_reg_handoff_wbxml(void)
 	/* Same as application/vnd.nokia.syncset+wbxml */
 	dissector_add_string("media_type",
 			     "application/x-prov.syncset+wbxml", wbxml_handle);
+
+	/* RFC 6839 */
+	dissector_add_string("media_type.suffix", "wbxml", wbxml_handle);
 }
 
 /*

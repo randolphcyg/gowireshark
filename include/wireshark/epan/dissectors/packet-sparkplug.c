@@ -30,26 +30,26 @@ void proto_reg_handoff_sparkplug(void);
 void proto_register_sparkplug(void);
 
 /* Initialize the protocol field */
-static int proto_sparkplugb = -1;
+static int proto_sparkplugb;
 
 /* Initialize the subtree pointers */
-static gint ett_sparkplugb = -1;
-static gint ett_sparkplugb_namespace = -1;
+static int ett_sparkplugb;
+static int ett_sparkplugb_namespace;
 
 /* The handle to the protobuf dissector */
-dissector_handle_t protobuf_handle = NULL;
+dissector_handle_t protobuf_handle;
 
 /* The hf items */
-static int hf_sparkplugb_namespace = -1;
-static int hf_sparkplugb_groupid = -1;
-static int hf_sparkplugb_messagetype = -1;
-static int hf_sparkplugb_edgenodeid = -1;
-static int hf_sparkplugb_deviceid = -1;
+static int hf_sparkplugb_namespace;
+static int hf_sparkplugb_groupid;
+static int hf_sparkplugb_messagetype;
+static int hf_sparkplugb_edgenodeid;
+static int hf_sparkplugb_deviceid;
 
 /* The expert info items */
-static expert_field ei_sparkplugb_missing_groupid = EI_INIT;
-static expert_field ei_sparkplugb_missing_messagetype = EI_INIT;
-static expert_field ei_sparkplugb_missing_edgenodeid = EI_INIT;
+static expert_field ei_sparkplugb_missing_groupid;
+static expert_field ei_sparkplugb_missing_messagetype;
+static expert_field ei_sparkplugb_missing_edgenodeid;
 
 static gboolean
 dissect_sparkplugb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
@@ -101,7 +101,7 @@ dissect_sparkplugb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
         return FALSE;
     }
 
-    /* Adjust the info colum text with the message type */
+    /* Adjust the info column text with the message type */
     current_element += 1;
     if (current_element[0]) {
         col_append_sep_str(pinfo->cinfo, COL_INFO, NULL, current_element[0]);
@@ -140,11 +140,16 @@ dissect_sparkplugb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     return TRUE;
 }
 
+static bool dissect_sparkplugb_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *data)
+{
+	return (bool)dissect_sparkplugb(tvb, pinfo, parent_tree, data);
+}
+
 void proto_register_sparkplug(void)
 {
     expert_module_t* expert_sparkplugb;
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_sparkplugb,
         &ett_sparkplugb_namespace
     };
@@ -179,6 +184,6 @@ void proto_reg_handoff_sparkplug(void)
     protobuf_handle = find_dissector_add_dependency("protobuf", proto_sparkplugb);
 
     /* register as heuristic dissector with MQTT */
-    heur_dissector_add("mqtt.topic", dissect_sparkplugb, "SparkplugB over MQTT",
+    heur_dissector_add("mqtt.topic", dissect_sparkplugb_heur, "SparkplugB over MQTT",
                        "sparkplugb_mqtt", proto_sparkplugb, HEURISTIC_ENABLE);
 }

@@ -55,30 +55,30 @@
 void proto_register_2dparityfec(void);
 void proto_reg_handoff_2dparityfec(void);
 
-static dissector_handle_t handle_2dparityfec = NULL;
+static dissector_handle_t handle_2dparityfec;
 
-static gboolean dissect_fec = FALSE;
+static bool dissect_fec;
 
 static int fec_rtp_payload_type = 96;
 
-static int proto_2dparityfec = -1;
+static int proto_2dparityfec;
 
-static int hf_2dparityfec_index = -1;
-static int hf_2dparityfec_length_recovery = -1;
-static int hf_2dparityfec_mask = -1;
-static int hf_2dparityfec_na = -1;
-static int hf_2dparityfec_offset = -1;
-static int hf_2dparityfec_payload = -1;
-static int hf_2dparityfec_pt_recovery = -1;
-static int hf_2dparityfec_rfc2733_ext = -1;
-static int hf_2dparityfec_row_flag = -1;
-static int hf_2dparityfec_snbase_ext = -1;
-static int hf_2dparityfec_snbase_low = -1;
-static int hf_2dparityfec_ts_pro_mpeg_ext = -1;
-static int hf_2dparityfec_ts_recovery = -1;
-static int hf_2dparityfec_type = -1;
+static int hf_2dparityfec_index;
+static int hf_2dparityfec_length_recovery;
+static int hf_2dparityfec_mask;
+static int hf_2dparityfec_na;
+static int hf_2dparityfec_offset;
+static int hf_2dparityfec_payload;
+static int hf_2dparityfec_pt_recovery;
+static int hf_2dparityfec_rfc2733_ext;
+static int hf_2dparityfec_row_flag;
+static int hf_2dparityfec_snbase_ext;
+static int hf_2dparityfec_snbase_low;
+static int hf_2dparityfec_ts_pro_mpeg_ext;
+static int hf_2dparityfec_ts_recovery;
+static int hf_2dparityfec_type;
 
-static gint ett_2dparityfec = -1;
+static int ett_2dparityfec;
 
 static const value_string fec_type_names[] = {
    {0, "XOR"},
@@ -89,22 +89,22 @@ static const value_string fec_type_names[] = {
 
 static int dissect_2dparityfec(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-   guint8   OffsetField;
-   guint8   NAField;
-   guint32  SNBase;
-   guint8   D;
+   uint8_t  OffsetField;
+   uint8_t  NAField;
+   uint32_t SNBase;
+   uint8_t  D;
 
    /* Extract SNBase */
-   SNBase  = (guint32)tvb_get_guint8(tvb, 0)<<8;
-   SNBase |= (guint32)tvb_get_guint8(tvb, 1);
-   SNBase |= (guint32)tvb_get_guint8(tvb, 15)<<16;
+   SNBase  = (uint32_t)tvb_get_uint8(tvb, 0)<<8;
+   SNBase |= (uint32_t)tvb_get_uint8(tvb, 1);
+   SNBase |= (uint32_t)tvb_get_uint8(tvb, 15)<<16;
 
    /* Extract D */
-   D = (tvb_get_guint8(tvb, 12)>>6) & 0x1;
+   D = (tvb_get_uint8(tvb, 12)>>6) & 0x1;
 
    /* Extract Offset and NA */
-   OffsetField    = tvb_get_guint8(tvb, 13);
-   NAField        = tvb_get_guint8(tvb, 14);
+   OffsetField    = tvb_get_uint8(tvb, 13);
+   NAField        = tvb_get_uint8(tvb, 14);
 
    col_set_str(pinfo->cinfo, COL_PROTOCOL, "2dFEC");
 
@@ -125,7 +125,7 @@ static int dissect_2dparityfec(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
       /* we are being asked for details */
       proto_item *ti;
       proto_tree *tree_2dparityfec;
-      gint offset = 0;
+      int offset = 0;
 
       ti = proto_tree_add_item(tree, proto_2dparityfec, tvb, 0, -1, ENC_NA);
       tree_2dparityfec = proto_item_add_subtree(ti, ett_2dparityfec);
@@ -225,7 +225,7 @@ void proto_register_2dparityfec(void)
    };
 
 /* Setup protocol subtree array */
-   static gint *ett[] = {
+   static int *ett[] = {
       &ett_2dparityfec,
    };
 

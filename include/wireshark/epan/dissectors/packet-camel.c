@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-camel.c                                                             */
-/* asn2wrs.py -b -L -p camel -c ./camel.cnf -s ./packet-camel-template -D . -O ../.. CAP-object-identifiers.asn CAP-classes.asn CAP-datatypes.asn CAP-errorcodes.asn CAP-errortypes.asn CAP-operationcodes.asn CAP-GPRS-ReferenceNumber.asn CAP-gsmSCF-gsmSRF-ops-args.asn CAP-gsmSSF-gsmSCF-ops-args.asn CAP-gprsSSF-gsmSCF-ops-args.asn CAP-SMS-ops-args.asn CAP-U-ABORT-Data.asn CamelV2diff.asn ../ros/Remote-Operations-Information-Objects.asn ../ros/Remote-Operations-Generic-ROS-PDUs.asn */
+/* asn2wrs.py -b -q -L -p camel -c ./camel.cnf -s ./packet-camel-template -D . -O ../.. CAP-object-identifiers.asn CAP-classes.asn CAP-datatypes.asn CAP-errorcodes.asn CAP-errortypes.asn CAP-operationcodes.asn CAP-GPRS-ReferenceNumber.asn CAP-gsmSCF-gsmSRF-ops-args.asn CAP-gsmSSF-gsmSCF-ops-args.asn CAP-gprsSSF-gsmSCF-ops-args.asn CAP-SMS-ops-args.asn CAP-U-ABORT-Data.asn CamelV2diff.asn ../ros/Remote-Operations-Information-Objects.asn ../ros/Remote-Operations-Generic-ROS-PDUs.asn */
 
 /* packet-camel-template.c
  * Routines for Camel
@@ -36,7 +36,9 @@
 #include <epan/stat_tap_ui.h>
 #include <epan/asn1.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 #include <wsutil/strtoi.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-camel.h"
@@ -53,13 +55,13 @@
 #define PFNAME "camel"
 
 /* Initialize the protocol and registered fields */
-static int proto_camel = -1;
-int date_format = 1; /*assume european date format */
-int camel_tap = -1;
+static int proto_camel;
+static int date_format = 1; /*assume european date format */
+static int camel_tap;
 /* Global variables */
-static guint32 opcode=0;
-static guint32 errorCode=0;
-static guint32 camel_ver = 0;
+static uint32_t opcode=0;
+static uint32_t errorCode=0;
+static uint32_t camel_ver;
 
 /* When several Camel components are received in a single TCAP message,
    we have to use several buffers for the stored parameters
@@ -71,527 +73,527 @@ static struct camelsrt_info_t camelsrt_global_info[MAX_CAMEL_INSTANCE];
 /* ROSE context */
 static rose_ctx_t camel_rose_ctx;
 
-static int hf_digit = -1;
-static int hf_camel_extension_code_local = -1;
-static int hf_camel_error_code_local = -1;
-static int hf_camel_cause_indicator = -1;
-static int hf_camel_PDPTypeNumber_etsi = -1;
-static int hf_camel_PDPTypeNumber_ietf = -1;
-static int hf_camel_PDPAddress_IPv4 = -1;
-static int hf_camel_PDPAddress_IPv6 = -1;
-static int hf_camel_cellGlobalIdOrServiceAreaIdFixedLength = -1;
-static int hf_camel_RP_Cause = -1;
-static int hf_camel_CAMEL_AChBillingChargingCharacteristics = -1;
-static int hf_camel_CAMEL_FCIBillingChargingCharacteristics = -1;
-static int hf_camel_CAMEL_FCIGPRSBillingChargingCharacteristics = -1;
-static int hf_camel_CAMEL_FCISMSBillingChargingCharacteristics = -1;
-static int hf_camel_CAMEL_SCIBillingChargingCharacteristics = -1;
-static int hf_camel_CAMEL_SCIGPRSBillingChargingCharacteristics = -1;
-static int hf_camel_CAMEL_CallResult = -1;
+static int hf_digit;
+static int hf_camel_extension_code_local;
+static int hf_camel_error_code_local;
+static int hf_camel_cause_indicator;
+static int hf_camel_PDPTypeNumber_etsi;
+static int hf_camel_PDPTypeNumber_ietf;
+static int hf_camel_PDPAddress_IPv4;
+static int hf_camel_PDPAddress_IPv6;
+static int hf_camel_cellGlobalIdOrServiceAreaIdFixedLength;
+static int hf_camel_RP_Cause;
+static int hf_camel_CAMEL_AChBillingChargingCharacteristics;
+static int hf_camel_CAMEL_FCIBillingChargingCharacteristics;
+static int hf_camel_CAMEL_FCIGPRSBillingChargingCharacteristics;
+static int hf_camel_CAMEL_FCISMSBillingChargingCharacteristics;
+static int hf_camel_CAMEL_SCIBillingChargingCharacteristics;
+static int hf_camel_CAMEL_SCIGPRSBillingChargingCharacteristics;
+static int hf_camel_CAMEL_CallResult;
 
 /* Used by persistent data */
-static int hf_camelsrt_SessionId=-1;
-//static int hf_camelsrt_RequestNumber=-1;
-static int hf_camelsrt_Duplicate=-1;
-static int hf_camelsrt_RequestFrame=-1;
-static int hf_camelsrt_ResponseFrame=-1;
-//static int hf_camelsrt_DeltaTime=-1;
-//static int hf_camelsrt_SessionTime=-1;
-static int hf_camelsrt_DeltaTime31=-1;
-static int hf_camelsrt_DeltaTime75=-1;
-static int hf_camelsrt_DeltaTime65=-1;
-static int hf_camelsrt_DeltaTime22=-1;
-static int hf_camelsrt_DeltaTime35=-1;
-static int hf_camelsrt_DeltaTime80=-1;
-static int hf_camel_timeandtimezone_time = -1;
-static int hf_camel_timeandtimezone_tz = -1;
+static int hf_camelsrt_SessionId;
+//static int hf_camelsrt_RequestNumber;
+static int hf_camelsrt_Duplicate;
+static int hf_camelsrt_RequestFrame;
+static int hf_camelsrt_ResponseFrame;
+//static int hf_camelsrt_DeltaTime;
+//static int hf_camelsrt_SessionTime;
+static int hf_camelsrt_DeltaTime31;
+static int hf_camelsrt_DeltaTime75;
+static int hf_camelsrt_DeltaTime65;
+static int hf_camelsrt_DeltaTime22;
+static int hf_camelsrt_DeltaTime35;
+static int hf_camelsrt_DeltaTime80;
+static int hf_camel_timeandtimezone_time;
+static int hf_camel_timeandtimezone_tz;
 
-static int hf_camel_PAR_cancelFailed_PDU = -1;    /* PAR_cancelFailed */
-static int hf_camel_PAR_requestedInfoError_PDU = -1;  /* PAR_requestedInfoError */
-static int hf_camel_UnavailableNetworkResource_PDU = -1;  /* UnavailableNetworkResource */
-static int hf_camel_PAR_taskRefused_PDU = -1;     /* PAR_taskRefused */
-static int hf_camel_CAP_GPRS_ReferenceNumber_PDU = -1;  /* CAP_GPRS_ReferenceNumber */
-static int hf_camel_PlayAnnouncementArg_PDU = -1;  /* PlayAnnouncementArg */
-static int hf_camel_PromptAndCollectUserInformationArg_PDU = -1;  /* PromptAndCollectUserInformationArg */
-static int hf_camel_ReceivedInformationArg_PDU = -1;  /* ReceivedInformationArg */
-static int hf_camel_SpecializedResourceReportArg_PDU = -1;  /* SpecializedResourceReportArg */
-static int hf_camel_ApplyChargingArg_PDU = -1;    /* ApplyChargingArg */
-static int hf_camel_ApplyChargingReportArg_PDU = -1;  /* ApplyChargingReportArg */
-static int hf_camel_AssistRequestInstructionsArg_PDU = -1;  /* AssistRequestInstructionsArg */
-static int hf_camel_CallGapArg_PDU = -1;          /* CallGapArg */
-static int hf_camel_CallInformationReportArg_PDU = -1;  /* CallInformationReportArg */
-static int hf_camel_CallInformationRequestArg_PDU = -1;  /* CallInformationRequestArg */
-static int hf_camel_CancelArg_PDU = -1;           /* CancelArg */
-static int hf_camel_CollectInformationArg_PDU = -1;  /* CollectInformationArg */
-static int hf_camel_ConnectArg_PDU = -1;          /* ConnectArg */
-static int hf_camel_ConnectToResourceArg_PDU = -1;  /* ConnectToResourceArg */
-static int hf_camel_ContinueWithArgumentArg_PDU = -1;  /* ContinueWithArgumentArg */
-static int hf_camel_DisconnectForwardConnectionWithArgumentArg_PDU = -1;  /* DisconnectForwardConnectionWithArgumentArg */
-static int hf_camel_DisconnectLegArg_PDU = -1;    /* DisconnectLegArg */
-static int hf_camel_EntityReleasedArg_PDU = -1;   /* EntityReleasedArg */
-static int hf_camel_EstablishTemporaryConnectionArg_PDU = -1;  /* EstablishTemporaryConnectionArg */
-static int hf_camel_EventReportBCSMArg_PDU = -1;  /* EventReportBCSMArg */
-static int hf_camel_FurnishChargingInformationArg_PDU = -1;  /* FurnishChargingInformationArg */
-static int hf_camel_InitialDPArg_PDU = -1;        /* InitialDPArg */
-static int hf_camel_InitiateCallAttemptArg_PDU = -1;  /* InitiateCallAttemptArg */
-static int hf_camel_InitiateCallAttemptRes_PDU = -1;  /* InitiateCallAttemptRes */
-static int hf_camel_MoveLegArg_PDU = -1;          /* MoveLegArg */
-static int hf_camel_PlayToneArg_PDU = -1;         /* PlayToneArg */
-static int hf_camel_ReleaseCallArg_PDU = -1;      /* ReleaseCallArg */
-static int hf_camel_RequestReportBCSMEventArg_PDU = -1;  /* RequestReportBCSMEventArg */
-static int hf_camel_ResetTimerArg_PDU = -1;       /* ResetTimerArg */
-static int hf_camel_SendChargingInformationArg_PDU = -1;  /* SendChargingInformationArg */
-static int hf_camel_SplitLegArg_PDU = -1;         /* SplitLegArg */
-static int hf_camel_ApplyChargingGPRSArg_PDU = -1;  /* ApplyChargingGPRSArg */
-static int hf_camel_ApplyChargingReportGPRSArg_PDU = -1;  /* ApplyChargingReportGPRSArg */
-static int hf_camel_CancelGPRSArg_PDU = -1;       /* CancelGPRSArg */
-static int hf_camel_ConnectGPRSArg_PDU = -1;      /* ConnectGPRSArg */
-static int hf_camel_ContinueGPRSArg_PDU = -1;     /* ContinueGPRSArg */
-static int hf_camel_EntityReleasedGPRSArg_PDU = -1;  /* EntityReleasedGPRSArg */
-static int hf_camel_EventReportGPRSArg_PDU = -1;  /* EventReportGPRSArg */
-static int hf_camel_FurnishChargingInformationGPRSArg_PDU = -1;  /* FurnishChargingInformationGPRSArg */
-static int hf_camel_InitialDPGPRSArg_PDU = -1;    /* InitialDPGPRSArg */
-static int hf_camel_ReleaseGPRSArg_PDU = -1;      /* ReleaseGPRSArg */
-static int hf_camel_RequestReportGPRSEventArg_PDU = -1;  /* RequestReportGPRSEventArg */
-static int hf_camel_ResetTimerGPRSArg_PDU = -1;   /* ResetTimerGPRSArg */
-static int hf_camel_SendChargingInformationGPRSArg_PDU = -1;  /* SendChargingInformationGPRSArg */
-static int hf_camel_ConnectSMSArg_PDU = -1;       /* ConnectSMSArg */
-static int hf_camel_EventReportSMSArg_PDU = -1;   /* EventReportSMSArg */
-static int hf_camel_FurnishChargingInformationSMSArg_PDU = -1;  /* FurnishChargingInformationSMSArg */
-static int hf_camel_InitialDPSMSArg_PDU = -1;     /* InitialDPSMSArg */
-static int hf_camel_ReleaseSMSArg_PDU = -1;       /* ReleaseSMSArg */
-static int hf_camel_RequestReportSMSEventArg_PDU = -1;  /* RequestReportSMSEventArg */
-static int hf_camel_ResetTimerSMSArg_PDU = -1;    /* ResetTimerSMSArg */
-static int hf_camel_CAP_U_ABORT_REASON_PDU = -1;  /* CAP_U_ABORT_REASON */
-static int hf_camel_legID = -1;                   /* LegID */
-static int hf_camel_srfConnection = -1;           /* CallSegmentID */
-static int hf_camel_aOCInitial = -1;              /* CAI_GSM0224 */
-static int hf_camel_aOCSubsequent = -1;           /* AOCSubsequent */
-static int hf_camel_cAI_GSM0224 = -1;             /* CAI_GSM0224 */
-static int hf_camel_aocSubsequent_tariffSwitchInterval = -1;  /* INTEGER_1_86400 */
-static int hf_camel_audibleIndicatorTone = -1;    /* BOOLEAN */
-static int hf_camel_burstList = -1;               /* BurstList */
-static int hf_camel_conferenceTreatmentIndicator = -1;  /* OCTET_STRING_SIZE_1 */
-static int hf_camel_callCompletionTreatmentIndicator = -1;  /* OCTET_STRING_SIZE_1 */
-static int hf_camel_calledAddressValue = -1;      /* Digits */
-static int hf_camel_gapOnService = -1;            /* GapOnService */
-static int hf_camel_calledAddressAndService = -1;  /* T_calledAddressAndService */
-static int hf_camel_serviceKey = -1;              /* ServiceKey */
-static int hf_camel_callingAddressAndService = -1;  /* T_callingAddressAndService */
-static int hf_camel_callingAddressValue = -1;     /* Digits */
-static int hf_camel_eventTypeBCSM = -1;           /* EventTypeBCSM */
-static int hf_camel_monitorMode = -1;             /* MonitorMode */
-static int hf_camel_dpSpecificCriteria = -1;      /* DpSpecificCriteria */
-static int hf_camel_automaticRearm = -1;          /* NULL */
-static int hf_camel_cause = -1;                   /* Cause */
-static int hf_camel_bearerCap = -1;               /* T_bearerCap */
-static int hf_camel_numberOfBursts = -1;          /* INTEGER_1_3 */
-static int hf_camel_burstInterval = -1;           /* INTEGER_1_1200 */
-static int hf_camel_numberOfTonesInBurst = -1;    /* INTEGER_1_3 */
-static int hf_camel_burstToneDuration = -1;       /* INTEGER_1_20 */
-static int hf_camel_toneInterval = -1;            /* INTEGER_1_20 */
-static int hf_camel_warningPeriod = -1;           /* INTEGER_1_1200 */
-static int hf_camel_bursts = -1;                  /* Burst */
-static int hf_camel_e1 = -1;                      /* INTEGER_0_8191 */
-static int hf_camel_e2 = -1;                      /* INTEGER_0_8191 */
-static int hf_camel_e3 = -1;                      /* INTEGER_0_8191 */
-static int hf_camel_e4 = -1;                      /* INTEGER_0_8191 */
-static int hf_camel_e5 = -1;                      /* INTEGER_0_8191 */
-static int hf_camel_e6 = -1;                      /* INTEGER_0_8191 */
-static int hf_camel_e7 = -1;                      /* INTEGER_0_8191 */
-static int hf_camel_callSegmentID = -1;           /* CallSegmentID */
-static int hf_camel_invokeID = -1;                /* InvokeID */
-static int hf_camel_timeDurationCharging = -1;    /* T_timeDurationCharging */
-static int hf_camel_maxCallPeriodDuration = -1;   /* INTEGER_1_864000 */
-static int hf_camel_releaseIfdurationExceeded = -1;  /* BOOLEAN */
-static int hf_camel_timeDurationCharging_tariffSwitchInterval = -1;  /* INTEGER_1_86400 */
-static int hf_camel_audibleIndicator = -1;        /* T_audibleIndicator */
-static int hf_camel_extensions = -1;              /* Extensions */
-static int hf_camel_timeDurationChargingResult = -1;  /* T_timeDurationChargingResult */
-static int hf_camel_timeDurationChargingResultpartyToCharge = -1;  /* ReceivingSideID */
-static int hf_camel_timeInformation = -1;         /* TimeInformation */
-static int hf_camel_legActive = -1;               /* BOOLEAN */
-static int hf_camel_callLegReleasedAtTcpExpiry = -1;  /* NULL */
-static int hf_camel_aChChargingAddress = -1;      /* AChChargingAddress */
-static int hf_camel_fci_fCIBCCCAMELsequence1 = -1;  /* T_fci_fCIBCCCAMELsequence1 */
-static int hf_camel_freeFormatData = -1;          /* OCTET_STRING_SIZE_bound__minFCIBillingChargingDataLength_bound__maxFCIBillingChargingDataLength */
-static int hf_camel_fCIBCCCAMELsequence1partyToCharge = -1;  /* SendingSideID */
-static int hf_camel_appendFreeFormatData = -1;    /* AppendFreeFormatData */
-static int hf_camel_fciGPRS_fCIBCCCAMELsequence1 = -1;  /* T_fciGPRS_fCIBCCCAMELsequence1 */
-static int hf_camel_pDPID = -1;                   /* PDPID */
-static int hf_camel_fciSMS_fCIBCCCAMELsequence1 = -1;  /* T_fciSMS_fCIBCCCAMELsequence1 */
-static int hf_camel_aOCBeforeAnswer = -1;         /* AOCBeforeAnswer */
-static int hf_camel_aOCAfterAnswer = -1;          /* AOCSubsequent */
-static int hf_camel_aOC_extension = -1;           /* CAMEL_SCIBillingChargingCharacteristicsAlt */
-static int hf_camel_aOCGPRS = -1;                 /* AOCGPRS */
-static int hf_camel_ChangeOfPositionControlInfo_item = -1;  /* ChangeOfLocation */
-static int hf_camel_cellGlobalId = -1;            /* CellGlobalIdOrServiceAreaIdFixedLength */
-static int hf_camel_serviceAreaId = -1;           /* CellGlobalIdOrServiceAreaIdFixedLength */
-static int hf_camel_locationAreaId = -1;          /* LAIFixedLength */
-static int hf_camel_inter_SystemHandOver = -1;    /* NULL */
-static int hf_camel_inter_PLMNHandOver = -1;      /* NULL */
-static int hf_camel_inter_MSCHandOver = -1;       /* NULL */
-static int hf_camel_changeOfLocationAlt = -1;     /* ChangeOfLocationAlt */
-static int hf_camel_maxTransferredVolume = -1;    /* INTEGER_1_4294967295 */
-static int hf_camel_maxElapsedTime = -1;          /* INTEGER_1_86400 */
-static int hf_camel_transferredVolume = -1;       /* TransferredVolume */
-static int hf_camel_elapsedTime = -1;             /* ElapsedTime */
-static int hf_camel_transferredVolumeRollOver = -1;  /* TransferredVolumeRollOver */
-static int hf_camel_elapsedTimeRollOver = -1;     /* ElapsedTimeRollOver */
-static int hf_camel_minimumNbOfDigits = -1;       /* INTEGER_1_30 */
-static int hf_camel_maximumNbOfDigits = -1;       /* INTEGER_1_30 */
-static int hf_camel_endOfReplyDigit = -1;         /* OCTET_STRING_SIZE_1_2 */
-static int hf_camel_cancelDigit = -1;             /* OCTET_STRING_SIZE_1_2 */
-static int hf_camel_startDigit = -1;              /* OCTET_STRING_SIZE_1_2 */
-static int hf_camel_firstDigitTimeOut = -1;       /* INTEGER_1_127 */
-static int hf_camel_interDigitTimeOut = -1;       /* INTEGER_1_127 */
-static int hf_camel_errorTreatment = -1;          /* ErrorTreatment */
-static int hf_camel_interruptableAnnInd = -1;     /* BOOLEAN */
-static int hf_camel_voiceInformation = -1;        /* BOOLEAN */
-static int hf_camel_voiceBack = -1;               /* BOOLEAN */
-static int hf_camel_collectedDigits = -1;         /* CollectedDigits */
-static int hf_camel_basicGapCriteria = -1;        /* BasicGapCriteria */
-static int hf_camel_scfID = -1;                   /* ScfID */
-static int hf_camel_DestinationRoutingAddress_item = -1;  /* CalledPartyNumber */
-static int hf_camel_applicationTimer = -1;        /* ApplicationTimer */
-static int hf_camel_midCallControlInfo = -1;      /* MidCallControlInfo */
-static int hf_camel_dpSpecificCriteriaAlt = -1;   /* DpSpecificCriteriaAlt */
-static int hf_camel_changeOfPositionControlInfo = -1;  /* ChangeOfPositionControlInfo */
-static int hf_camel_numberOfDigits = -1;          /* NumberOfDigits */
-static int hf_camel_interDigitTimeout = -1;       /* INTEGER_1_127 */
-static int hf_camel_oServiceChangeSpecificInfo = -1;  /* T_oServiceChangeSpecificInfo */
-static int hf_camel_ext_basicServiceCode = -1;    /* Ext_BasicServiceCode */
-static int hf_camel_initiatorOfServiceChange = -1;  /* InitiatorOfServiceChange */
-static int hf_camel_natureOfServiceChange = -1;   /* NatureOfServiceChange */
-static int hf_camel_tServiceChangeSpecificInfo = -1;  /* T_tServiceChangeSpecificInfo */
-static int hf_camel_collectedInfoSpecificInfo = -1;  /* T_collectedInfoSpecificInfo */
-static int hf_camel_calledPartyNumber = -1;       /* CalledPartyNumber */
-static int hf_camel_timeGPRSIfNoTariffSwitch = -1;  /* INTEGER_0_86400 */
-static int hf_camel_timeGPRSIfTariffSwitch = -1;  /* T_timeGPRSIfTariffSwitch */
-static int hf_camel_timeGPRSSinceLastTariffSwitch = -1;  /* INTEGER_0_86400 */
-static int hf_camel_timeGPRSTariffSwitchInterval = -1;  /* INTEGER_0_86400 */
-static int hf_camel_rO_TimeGPRSIfNoTariffSwitch = -1;  /* INTEGER_0_255 */
-static int hf_camel_rO_TimeGPRSIfTariffSwitch = -1;  /* T_rO_TimeGPRSIfTariffSwitch */
-static int hf_camel_rO_TimeGPRSSinceLastTariffSwitch = -1;  /* INTEGER_0_255 */
-static int hf_camel_rO_TimeGPRSTariffSwitchInterval = -1;  /* INTEGER_0_255 */
-static int hf_camel_pDPTypeOrganization = -1;     /* T_pDPTypeOrganization */
-static int hf_camel_pDPTypeNumber = -1;           /* T_pDPTypeNumber */
-static int hf_camel_pDPAddress = -1;              /* T_pDPAddress */
-static int hf_camel_routeSelectFailureSpecificInfo = -1;  /* T_routeSelectFailureSpecificInfo */
-static int hf_camel_routeSelectfailureCause = -1;  /* Cause */
-static int hf_camel_oCalledPartyBusySpecificInfo = -1;  /* T_oCalledPartyBusySpecificInfo */
-static int hf_camel_busyCause = -1;               /* Cause */
-static int hf_camel_oNoAnswerSpecificInfo = -1;   /* T_oNoAnswerSpecificInfo */
-static int hf_camel_oAnswerSpecificInfo = -1;     /* T_oAnswerSpecificInfo */
-static int hf_camel_destinationAddress = -1;      /* CalledPartyNumber */
-static int hf_camel_or_Call = -1;                 /* NULL */
-static int hf_camel_forwardedCall = -1;           /* NULL */
-static int hf_camel_chargeIndicator = -1;         /* ChargeIndicator */
-static int hf_camel_ext_basicServiceCode2 = -1;   /* Ext_BasicServiceCode */
-static int hf_camel_oMidCallSpecificInfo = -1;    /* T_oMidCallSpecificInfo */
-static int hf_camel_omidCallEvents = -1;          /* T_omidCallEvents */
-static int hf_camel_dTMFDigitsCompleted = -1;     /* Digits */
-static int hf_camel_dTMFDigitsTimeOut = -1;       /* Digits */
-static int hf_camel_oDisconnectSpecificInfo = -1;  /* T_oDisconnectSpecificInfo */
-static int hf_camel_releaseCause = -1;            /* Cause */
-static int hf_camel_tBusySpecificInfo = -1;       /* T_tBusySpecificInfo */
-static int hf_camel_callForwarded = -1;           /* NULL */
-static int hf_camel_routeNotPermitted = -1;       /* NULL */
-static int hf_camel_forwardingDestinationNumber = -1;  /* CalledPartyNumber */
-static int hf_camel_tNoAnswerSpecificInfo = -1;   /* T_tNoAnswerSpecificInfo */
-static int hf_camel_tAnswerSpecificInfo = -1;     /* T_tAnswerSpecificInfo */
-static int hf_camel_tMidCallSpecificInfo = -1;    /* T_tMidCallSpecificInfo */
-static int hf_camel_tmidCallEvents = -1;          /* T_tmidCallEvents */
-static int hf_camel_tDisconnectSpecificInfo = -1;  /* T_tDisconnectSpecificInfo */
-static int hf_camel_oTermSeizedSpecificInfo = -1;  /* T_oTermSeizedSpecificInfo */
-static int hf_camel_locationInformation = -1;     /* LocationInformation */
-static int hf_camel_callAcceptedSpecificInfo = -1;  /* T_callAcceptedSpecificInfo */
-static int hf_camel_oAbandonSpecificInfo = -1;    /* T_oAbandonSpecificInfo */
-static int hf_camel_oChangeOfPositionSpecificInfo = -1;  /* T_oChangeOfPositionSpecificInfo */
-static int hf_camel_metDPCriteriaList = -1;       /* MetDPCriteriaList */
-static int hf_camel_tChangeOfPositionSpecificInfo = -1;  /* T_tChangeOfPositionSpecificInfo */
-static int hf_camel_dpSpecificInfoAlt = -1;       /* DpSpecificInfoAlt */
-static int hf_camel_o_smsFailureSpecificInfo = -1;  /* T_o_smsFailureSpecificInfo */
-static int hf_camel_mo_smsfailureCause = -1;      /* MO_SMSCause */
-static int hf_camel_o_smsSubmissionSpecificInfo = -1;  /* T_o_smsSubmissionSpecificInfo */
-static int hf_camel_t_smsFailureSpecificInfo = -1;  /* T_t_smsFailureSpecificInfo */
-static int hf_camel_t_smsfailureCause = -1;       /* MT_SMSCause */
-static int hf_camel_t_smsDeliverySpecificInfo = -1;  /* T_t_smsDeliverySpecificInfo */
-static int hf_camel_Extensions_item = -1;         /* ExtensionField */
-static int hf_camel_type = -1;                    /* Code */
-static int hf_camel_criticality = -1;             /* CriticalityType */
-static int hf_camel_value = -1;                   /* T_value */
-static int hf_camel_callDiversionTreatmentIndicator = -1;  /* OCTET_STRING_SIZE_1 */
-static int hf_camel_callingPartyRestrictionIndicator = -1;  /* OCTET_STRING_SIZE_1 */
-static int hf_camel_compoundGapCriteria = -1;     /* CompoundCriteria */
-static int hf_camel_gapIndicatorsDuration = -1;   /* Duration */
-static int hf_camel_gapInterval = -1;             /* Interval */
-static int hf_camel_informationToSend = -1;       /* InformationToSend */
-static int hf_camel_GenericNumbers_item = -1;     /* GenericNumber */
-static int hf_camel_short_QoS_format = -1;        /* QoS_Subscribed */
-static int hf_camel_long_QoS_format = -1;         /* Ext_QoS_Subscribed */
-static int hf_camel_supplement_to_long_QoS_format = -1;  /* Ext2_QoS_Subscribed */
-static int hf_camel_additionalSupplement = -1;    /* Ext3_QoS_Subscribed */
-static int hf_camel_gPRSEventType = -1;           /* GPRSEventType */
-static int hf_camel_attachChangeOfPositionSpecificInformation = -1;  /* T_attachChangeOfPositionSpecificInformation */
-static int hf_camel_locationInformationGPRS = -1;  /* LocationInformationGPRS */
-static int hf_camel_pdp_ContextchangeOfPositionSpecificInformation = -1;  /* T_pdp_ContextchangeOfPositionSpecificInformation */
-static int hf_camel_accessPointName = -1;         /* AccessPointName */
-static int hf_camel_chargingID = -1;              /* GPRSChargingID */
-static int hf_camel_endUserAddress = -1;          /* EndUserAddress */
-static int hf_camel_qualityOfService = -1;        /* QualityOfService */
-static int hf_camel_timeAndTimeZone = -1;         /* TimeAndTimezone */
-static int hf_camel_gGSNAddress = -1;             /* GSN_Address */
-static int hf_camel_detachSpecificInformation = -1;  /* T_detachSpecificInformation */
-static int hf_camel_initiatingEntity = -1;        /* InitiatingEntity */
-static int hf_camel_routeingAreaUpdate = -1;      /* NULL */
-static int hf_camel_disconnectSpecificInformation = -1;  /* T_disconnectSpecificInformation */
-static int hf_camel_pDPContextEstablishmentSpecificInformation = -1;  /* T_pDPContextEstablishmentSpecificInformation */
-static int hf_camel_pDPInitiationType = -1;       /* PDPInitiationType */
-static int hf_camel_secondaryPDP_context = -1;    /* NULL */
-static int hf_camel_pDPContextEstablishmentAcknowledgementSpecificInformation = -1;  /* T_pDPContextEstablishmentAcknowledgementSpecificInformation */
-static int hf_camel_messageID = -1;               /* MessageID */
-static int hf_camel_numberOfRepetitions = -1;     /* INTEGER_1_127 */
-static int hf_camel_inbandInfoDuration = -1;      /* INTEGER_0_32767 */
-static int hf_camel_interval = -1;                /* INTEGER_0_32767 */
-static int hf_camel_inbandInfo = -1;              /* InbandInfo */
-static int hf_camel_tone = -1;                    /* Tone */
-static int hf_camel_cellGlobalIdOrServiceAreaIdOrLAI = -1;  /* T_cellGlobalIdOrServiceAreaIdOrLAI */
-static int hf_camel_routeingAreaIdentity = -1;    /* RAIdentity */
-static int hf_camel_geographicalInformation = -1;  /* GeographicalInformation */
-static int hf_camel_sgsn_Number = -1;             /* ISDN_AddressString */
-static int hf_camel_selectedLSAIdentity = -1;     /* LSAIdentity */
-static int hf_camel_extensionContainer = -1;      /* ExtensionContainer */
-static int hf_camel_sai_Present = -1;             /* NULL */
-static int hf_camel_userCSGInformation = -1;      /* UserCSGInformation */
-static int hf_camel_elementaryMessageID = -1;     /* Integer4 */
-static int hf_camel_text = -1;                    /* T_text */
-static int hf_camel_messageContent = -1;          /* IA5String_SIZE_bound__minMessageContentLength_bound__maxMessageContentLength */
-static int hf_camel_attributes = -1;              /* OCTET_STRING_SIZE_bound__minAttributesLength_bound__maxAttributesLength */
-static int hf_camel_elementaryMessageIDs = -1;    /* SEQUENCE_SIZE_1_bound__numOfMessageIDs_OF_Integer4 */
-static int hf_camel_elementaryMessageIDs_item = -1;  /* Integer4 */
-static int hf_camel_variableMessage = -1;         /* T_variableMessage */
-static int hf_camel_variableParts = -1;           /* SEQUENCE_SIZE_1_5_OF_VariablePart */
-static int hf_camel_variableParts_item = -1;      /* VariablePart */
-static int hf_camel_MetDPCriteriaList_item = -1;  /* MetDPCriterion */
-static int hf_camel_enteringCellGlobalId = -1;    /* CellGlobalIdOrServiceAreaIdFixedLength */
-static int hf_camel_leavingCellGlobalId = -1;     /* CellGlobalIdOrServiceAreaIdFixedLength */
-static int hf_camel_enteringServiceAreaId = -1;   /* CellGlobalIdOrServiceAreaIdFixedLength */
-static int hf_camel_leavingServiceAreaId = -1;    /* CellGlobalIdOrServiceAreaIdFixedLength */
-static int hf_camel_enteringLocationAreaId = -1;  /* LAIFixedLength */
-static int hf_camel_leavingLocationAreaId = -1;   /* LAIFixedLength */
-static int hf_camel_inter_SystemHandOverToUMTS = -1;  /* NULL */
-static int hf_camel_inter_SystemHandOverToGSM = -1;  /* NULL */
-static int hf_camel_metDPCriterionAlt = -1;       /* MetDPCriterionAlt */
-static int hf_camel_minimumNumberOfDigits = -1;   /* INTEGER_1_30 */
-static int hf_camel_maximumNumberOfDigits = -1;   /* INTEGER_1_30 */
-static int hf_camel_requested_QoS = -1;           /* GPRS_QoS */
-static int hf_camel_subscribed_QoS = -1;          /* GPRS_QoS */
-static int hf_camel_negotiated_QoS = -1;          /* GPRS_QoS */
-static int hf_camel_requested_QoS_Extension = -1;  /* GPRS_QoS_Extension */
-static int hf_camel_subscribed_QoS_Extension = -1;  /* GPRS_QoS_Extension */
-static int hf_camel_negotiated_QoS_Extension = -1;  /* GPRS_QoS_Extension */
-static int hf_camel_receivingSideID = -1;         /* LegType */
-static int hf_camel_RequestedInformationList_item = -1;  /* RequestedInformation */
-static int hf_camel_RequestedInformationTypeList_item = -1;  /* RequestedInformationType */
-static int hf_camel_requestedInformationType = -1;  /* RequestedInformationType */
-static int hf_camel_requestedInformationValue = -1;  /* RequestedInformationValue */
-static int hf_camel_callAttemptElapsedTimeValue = -1;  /* INTEGER_0_255 */
-static int hf_camel_callStopTimeValue = -1;       /* DateAndTime */
-static int hf_camel_callConnectedElapsedTimeValue = -1;  /* Integer4 */
-static int hf_camel_releaseCauseValue = -1;       /* Cause */
-static int hf_camel_sendingSideID = -1;           /* LegType */
-static int hf_camel_forwardServiceInteractionInd = -1;  /* ForwardServiceInteractionInd */
-static int hf_camel_backwardServiceInteractionInd = -1;  /* BackwardServiceInteractionInd */
-static int hf_camel_bothwayThroughConnectionInd = -1;  /* BothwayThroughConnectionInd */
-static int hf_camel_connectedNumberTreatmentInd = -1;  /* ConnectedNumberTreatmentInd */
-static int hf_camel_nonCUGCall = -1;              /* NULL */
-static int hf_camel_holdTreatmentIndicator = -1;  /* OCTET_STRING_SIZE_1 */
-static int hf_camel_cwTreatmentIndicator = -1;    /* OCTET_STRING_SIZE_1 */
-static int hf_camel_ectTreatmentIndicator = -1;   /* OCTET_STRING_SIZE_1 */
-static int hf_camel_eventTypeSMS = -1;            /* EventTypeSMS */
-static int hf_camel_timeSinceTariffSwitch = -1;   /* INTEGER_0_864000 */
-static int hf_camel_timeIfTariffSwitch_tariffSwitchInterval = -1;  /* INTEGER_1_864000 */
-static int hf_camel_timeIfNoTariffSwitch = -1;    /* TimeIfNoTariffSwitch */
-static int hf_camel_timeIfTariffSwitch = -1;      /* TimeIfTariffSwitch */
-static int hf_camel_toneID = -1;                  /* Integer4 */
-static int hf_camel_toneDuration = -1;            /* Integer4 */
-static int hf_camel_volumeIfNoTariffSwitch = -1;  /* INTEGER_0_4294967295 */
-static int hf_camel_volumeIfTariffSwitch = -1;    /* T_volumeIfTariffSwitch */
-static int hf_camel_volumeSinceLastTariffSwitch = -1;  /* INTEGER_0_4294967295 */
-static int hf_camel_volumeTariffSwitchInterval = -1;  /* INTEGER_0_4294967295 */
-static int hf_camel_rO_VolumeIfNoTariffSwitch = -1;  /* INTEGER_0_255 */
-static int hf_camel_rO_VolumeIfTariffSwitch = -1;  /* T_rO_VolumeIfTariffSwitch */
-static int hf_camel_rO_VolumeSinceLastTariffSwitch = -1;  /* INTEGER_0_255 */
-static int hf_camel_rO_VolumeTariffSwitchInterval = -1;  /* INTEGER_0_255 */
-static int hf_camel_integer = -1;                 /* Integer4 */
-static int hf_camel_number = -1;                  /* Digits */
-static int hf_camel_time = -1;                    /* OCTET_STRING_SIZE_2 */
-static int hf_camel_date = -1;                    /* OCTET_STRING_SIZE_4 */
-static int hf_camel_price = -1;                   /* OCTET_STRING_SIZE_4 */
-static int hf_camel_par_cancelFailedProblem = -1;  /* T_par_cancelFailedProblem */
-static int hf_camel_operation = -1;               /* InvokeID */
-static int hf_camel_destinationReference = -1;    /* Integer4 */
-static int hf_camel_originationReference = -1;    /* Integer4 */
-static int hf_camel_disconnectFromIPForbidden = -1;  /* BOOLEAN */
-static int hf_camel_requestAnnouncementCompleteNotification = -1;  /* BOOLEAN */
-static int hf_camel_requestAnnouncementStartedNotification = -1;  /* BOOLEAN */
-static int hf_camel_collectedInfo = -1;           /* CollectedInfo */
-static int hf_camel_digitsResponse = -1;          /* Digits */
-static int hf_camel_allAnnouncementsComplete = -1;  /* NULL */
-static int hf_camel_firstAnnouncementStarted = -1;  /* NULL */
-static int hf_camel_aChBillingChargingCharacteristics = -1;  /* AChBillingChargingCharacteristics */
-static int hf_camel_partyToCharge = -1;           /* SendingSideID */
-static int hf_camel_iTXcharging = -1;             /* BOOLEAN */
-static int hf_camel_correlationID = -1;           /* CorrelationID */
-static int hf_camel_iPSSPCapabilities = -1;       /* IPSSPCapabilities */
-static int hf_camel_gapCriteria = -1;             /* GapCriteria */
-static int hf_camel_gapIndicators = -1;           /* GapIndicators */
-static int hf_camel_controlType = -1;             /* ControlType */
-static int hf_camel_gapTreatment = -1;            /* GapTreatment */
-static int hf_camel_requestedInformationList = -1;  /* RequestedInformationList */
-static int hf_camel_legID_01 = -1;                /* ReceivingSideID */
-static int hf_camel_requestedInformationTypeList = -1;  /* RequestedInformationTypeList */
-static int hf_camel_legID_02 = -1;                /* SendingSideID */
-static int hf_camel_allRequests = -1;             /* NULL */
-static int hf_camel_callSegmentToCancel = -1;     /* CallSegmentToCancel */
-static int hf_camel_destinationRoutingAddress = -1;  /* DestinationRoutingAddress */
-static int hf_camel_alertingPattern = -1;         /* AlertingPattern */
-static int hf_camel_originalCalledPartyID = -1;   /* OriginalCalledPartyID */
-static int hf_camel_carrier = -1;                 /* Carrier */
-static int hf_camel_callingPartysCategory = -1;   /* CallingPartysCategory */
-static int hf_camel_redirectingPartyID = -1;      /* RedirectingPartyID */
-static int hf_camel_redirectionInformation = -1;  /* RedirectionInformation */
-static int hf_camel_genericNumbers = -1;          /* GenericNumbers */
-static int hf_camel_serviceInteractionIndicatorsTwo = -1;  /* ServiceInteractionIndicatorsTwo */
-static int hf_camel_chargeNumber = -1;            /* ChargeNumber */
-static int hf_camel_legToBeConnected = -1;        /* LegID */
-static int hf_camel_cug_Interlock = -1;           /* CUG_Interlock */
-static int hf_camel_cug_OutgoingAccess = -1;      /* NULL */
-static int hf_camel_suppressionOfAnnouncement = -1;  /* SuppressionOfAnnouncement */
-static int hf_camel_oCSIApplicable = -1;          /* OCSIApplicable */
-static int hf_camel_naOliInfo = -1;               /* NAOliInfo */
-static int hf_camel_bor_InterrogationRequested = -1;  /* NULL */
-static int hf_camel_suppress_N_CSI = -1;          /* NULL */
-static int hf_camel_resourceAddress = -1;         /* T_resourceAddress */
-static int hf_camel_ipRoutingAddress = -1;        /* IPRoutingAddress */
-static int hf_camel_none = -1;                    /* NULL */
-static int hf_camel_suppress_O_CSI = -1;          /* NULL */
-static int hf_camel_continueWithArgumentArgExtension = -1;  /* ContinueWithArgumentArgExtension */
-static int hf_camel_suppress_D_CSI = -1;          /* NULL */
-static int hf_camel_suppressOutgoingCallBarring = -1;  /* NULL */
-static int hf_camel_legOrCallSegment = -1;        /* LegOrCallSegment */
-static int hf_camel_legToBeReleased = -1;         /* LegID */
-static int hf_camel_callSegmentFailure = -1;      /* CallSegmentFailure */
-static int hf_camel_bCSM_Failure = -1;            /* BCSM_Failure */
-static int hf_camel_assistingSSPIPRoutingAddress = -1;  /* AssistingSSPIPRoutingAddress */
-static int hf_camel_callingPartyNumber = -1;      /* CallingPartyNumber */
-static int hf_camel_eventSpecificInformationBCSM = -1;  /* EventSpecificInformationBCSM */
-static int hf_camel_miscCallInfo = -1;            /* MiscCallInfo */
-static int hf_camel_cGEncountered = -1;           /* CGEncountered */
-static int hf_camel_locationNumber = -1;          /* LocationNumber */
-static int hf_camel_highLayerCompatibility = -1;  /* HighLayerCompatibility */
-static int hf_camel_additionalCallingPartyNumber = -1;  /* AdditionalCallingPartyNumber */
-static int hf_camel_bearerCapability = -1;        /* BearerCapability */
-static int hf_camel_cug_Index = -1;               /* CUG_Index */
-static int hf_camel_iMSI = -1;                    /* IMSI */
-static int hf_camel_subscriberState = -1;         /* SubscriberState */
-static int hf_camel_callReferenceNumber = -1;     /* CallReferenceNumber */
-static int hf_camel_mscAddress = -1;              /* ISDN_AddressString */
-static int hf_camel_calledPartyBCDNumber = -1;    /* CalledPartyBCDNumber */
-static int hf_camel_timeAndTimezone = -1;         /* TimeAndTimezone */
-static int hf_camel_callForwardingSS_Pending = -1;  /* NULL */
-static int hf_camel_initialDPArgExtension = -1;   /* InitialDPArgExtension */
-static int hf_camel_gmscAddress = -1;             /* ISDN_AddressString */
-static int hf_camel_ms_Classmark2 = -1;           /* MS_Classmark2 */
-static int hf_camel_iMEI = -1;                    /* IMEI */
-static int hf_camel_supportedCamelPhases = -1;    /* SupportedCamelPhases */
-static int hf_camel_offeredCamel4Functionalities = -1;  /* OfferedCamel4Functionalities */
-static int hf_camel_bearerCapability2 = -1;       /* BearerCapability */
-static int hf_camel_highLayerCompatibility2 = -1;  /* HighLayerCompatibility */
-static int hf_camel_lowLayerCompatibility = -1;   /* LowLayerCompatibility */
-static int hf_camel_lowLayerCompatibility2 = -1;  /* LowLayerCompatibility */
-static int hf_camel_enhancedDialledServicesAllowed = -1;  /* NULL */
-static int hf_camel_uu_Data = -1;                 /* UU_Data */
-static int hf_camel_collectInformationAllowed = -1;  /* NULL */
-static int hf_camel_releaseCallArgExtensionAllowed = -1;  /* NULL */
-static int hf_camel_legToBeCreated = -1;          /* LegID */
-static int hf_camel_newCallSegment = -1;          /* CallSegmentID */
-static int hf_camel_gsmSCFAddress = -1;           /* ISDN_AddressString */
-static int hf_camel_suppress_T_CSI = -1;          /* NULL */
-static int hf_camel_legIDToMove = -1;             /* LegID */
-static int hf_camel_allCallSegments = -1;         /* AllCallSegments */
-static int hf_camel_allCallSegmentsWithExtension = -1;  /* AllCallSegmentsWithExtension */
-static int hf_camel_bcsmEvents = -1;              /* SEQUENCE_SIZE_1_bound__numOfBCSMEvents_OF_BCSMEvent */
-static int hf_camel_bcsmEvents_item = -1;         /* BCSMEvent */
-static int hf_camel_timerID = -1;                 /* TimerID */
-static int hf_camel_timervalue = -1;              /* TimerValue */
-static int hf_camel_sCIBillingChargingCharacteristics = -1;  /* SCIBillingChargingCharacteristics */
-static int hf_camel_legToBeSplit = -1;            /* LegID */
-static int hf_camel_chargingCharacteristics = -1;  /* ChargingCharacteristics */
-static int hf_camel_applyChargingGPRS_tariffSwitchInterval = -1;  /* INTEGER_1_86400 */
-static int hf_camel_chargingResult = -1;          /* ChargingResult */
-static int hf_camel_active = -1;                  /* BOOLEAN */
-static int hf_camel_chargingRollOver = -1;        /* ChargingRollOver */
-static int hf_camel_pdpID = -1;                   /* PDPID */
-static int hf_camel_gPRSCause = -1;               /* GPRSCause */
-static int hf_camel_miscGPRSInfo = -1;            /* MiscCallInfo */
-static int hf_camel_gPRSEventSpecificInformation = -1;  /* GPRSEventSpecificInformation */
-static int hf_camel_mSISDN = -1;                  /* ISDN_AddressString */
-static int hf_camel_gPRSMSClass = -1;             /* GPRSMSClass */
-static int hf_camel_sGSNCapabilities = -1;        /* SGSNCapabilities */
-static int hf_camel_gprsCause = -1;               /* GPRSCause */
-static int hf_camel_gPRSEvent = -1;               /* SEQUENCE_SIZE_1_bound__numOfGPRSEvents_OF_GPRSEvent */
-static int hf_camel_gPRSEvent_item = -1;          /* GPRSEvent */
-static int hf_camel_sCIGPRSBillingChargingCharacteristics = -1;  /* SCIGPRSBillingChargingCharacteristics */
-static int hf_camel_callingPartysNumber = -1;     /* SMS_AddressString */
-static int hf_camel_destinationSubscriberNumber = -1;  /* CalledPartyBCDNumber */
-static int hf_camel_sMSCAddress = -1;             /* ISDN_AddressString */
-static int hf_camel_eventSpecificInformationSMS = -1;  /* EventSpecificInformationSMS */
-static int hf_camel_callingPartyNumber_01 = -1;   /* SMS_AddressString */
-static int hf_camel_locationInformationMSC = -1;  /* LocationInformation */
-static int hf_camel_tPShortMessageSpecificInfo = -1;  /* TPShortMessageSpecificInfo */
-static int hf_camel_tPProtocolIdentifier = -1;    /* TPProtocolIdentifier */
-static int hf_camel_tPDataCodingScheme = -1;      /* TPDataCodingScheme */
-static int hf_camel_tPValidityPeriod = -1;        /* TPValidityPeriod */
-static int hf_camel_smsReferenceNumber = -1;      /* CallReferenceNumber */
-static int hf_camel_calledPartyNumber_01 = -1;    /* ISDN_AddressString */
-static int hf_camel_sMSEvents = -1;               /* SEQUENCE_SIZE_1_bound__numOfSMSEvents_OF_SMSEvent */
-static int hf_camel_sMSEvents_item = -1;          /* SMSEvent */
-static int hf_camel_extensions_01 = -1;           /* SEQUENCE_SIZE_1_numOfExtensions_OF_ExtensionField */
-static int hf_camel_extensions_item = -1;         /* ExtensionField */
-static int hf_camel_na_info = -1;                 /* NA_Info */
-static int hf_camel_naCarrierInformation = -1;    /* NACarrierInformation */
-static int hf_camel_naCarrierId = -1;             /* NAEA_CIC */
-static int hf_camel_naCICSelectionType = -1;      /* NACarrierSelectionInfo */
-static int hf_camel_naChargeNumber = -1;          /* NAChargeNumber */
-static int hf_camel_timeDurationCharging_01 = -1;  /* T_timeDurationCharging_01 */
-static int hf_camel_releaseIfdurationExceeded_01 = -1;  /* ReleaseIfDurationExceeded */
-static int hf_camel_tariffSwitchInterval = -1;    /* INTEGER_1_86400 */
-static int hf_camel_tone_01 = -1;                 /* BOOLEAN */
-static int hf_camel_local = -1;                   /* T_local */
-static int hf_camel_global = -1;                  /* T_global */
-static int hf_camel_invoke = -1;                  /* Invoke */
-static int hf_camel_returnResult = -1;            /* ReturnResult */
-static int hf_camel_returnError = -1;             /* ReturnError */
-static int hf_camel_reject = -1;                  /* Reject */
-static int hf_camel_invokeId = -1;                /* InvokeId */
-static int hf_camel_linkedId = -1;                /* T_linkedId */
-static int hf_camel_linkedIdPresent = -1;         /* T_linkedIdPresent */
-static int hf_camel_absent = -1;                  /* NULL */
-static int hf_camel_opcode = -1;                  /* Code */
-static int hf_camel_argument = -1;                /* T_argument */
-static int hf_camel_result = -1;                  /* T_result */
-static int hf_camel_resultArgument = -1;          /* ResultArgument */
-static int hf_camel_errcode = -1;                 /* Code */
-static int hf_camel_parameter = -1;               /* T_parameter */
-static int hf_camel_problem = -1;                 /* T_problem */
-static int hf_camel_general = -1;                 /* GeneralProblem */
-static int hf_camel_invokeProblem = -1;           /* InvokeProblem */
-static int hf_camel_problemReturnResult = -1;     /* ReturnResultProblem */
-static int hf_camel_returnErrorProblem = -1;      /* ReturnErrorProblem */
-static int hf_camel_present = -1;                 /* INTEGER */
-static int hf_camel_InvokeId_present = -1;        /* InvokeId_present */
+static int hf_camel_PAR_cancelFailed_PDU;         /* PAR_cancelFailed */
+static int hf_camel_PAR_requestedInfoError_PDU;   /* PAR_requestedInfoError */
+static int hf_camel_UnavailableNetworkResource_PDU;  /* UnavailableNetworkResource */
+static int hf_camel_PAR_taskRefused_PDU;          /* PAR_taskRefused */
+static int hf_camel_CAP_GPRS_ReferenceNumber_PDU;  /* CAP_GPRS_ReferenceNumber */
+static int hf_camel_PlayAnnouncementArg_PDU;      /* PlayAnnouncementArg */
+static int hf_camel_PromptAndCollectUserInformationArg_PDU;  /* PromptAndCollectUserInformationArg */
+static int hf_camel_ReceivedInformationArg_PDU;   /* ReceivedInformationArg */
+static int hf_camel_SpecializedResourceReportArg_PDU;  /* SpecializedResourceReportArg */
+static int hf_camel_ApplyChargingArg_PDU;         /* ApplyChargingArg */
+static int hf_camel_ApplyChargingReportArg_PDU;   /* ApplyChargingReportArg */
+static int hf_camel_AssistRequestInstructionsArg_PDU;  /* AssistRequestInstructionsArg */
+static int hf_camel_CallGapArg_PDU;               /* CallGapArg */
+static int hf_camel_CallInformationReportArg_PDU;  /* CallInformationReportArg */
+static int hf_camel_CallInformationRequestArg_PDU;  /* CallInformationRequestArg */
+static int hf_camel_CancelArg_PDU;                /* CancelArg */
+static int hf_camel_CollectInformationArg_PDU;    /* CollectInformationArg */
+static int hf_camel_ConnectArg_PDU;               /* ConnectArg */
+static int hf_camel_ConnectToResourceArg_PDU;     /* ConnectToResourceArg */
+static int hf_camel_ContinueWithArgumentArg_PDU;  /* ContinueWithArgumentArg */
+static int hf_camel_DisconnectForwardConnectionWithArgumentArg_PDU;  /* DisconnectForwardConnectionWithArgumentArg */
+static int hf_camel_DisconnectLegArg_PDU;         /* DisconnectLegArg */
+static int hf_camel_EntityReleasedArg_PDU;        /* EntityReleasedArg */
+static int hf_camel_EstablishTemporaryConnectionArg_PDU;  /* EstablishTemporaryConnectionArg */
+static int hf_camel_EventReportBCSMArg_PDU;       /* EventReportBCSMArg */
+static int hf_camel_FurnishChargingInformationArg_PDU;  /* FurnishChargingInformationArg */
+static int hf_camel_InitialDPArg_PDU;             /* InitialDPArg */
+static int hf_camel_InitiateCallAttemptArg_PDU;   /* InitiateCallAttemptArg */
+static int hf_camel_InitiateCallAttemptRes_PDU;   /* InitiateCallAttemptRes */
+static int hf_camel_MoveLegArg_PDU;               /* MoveLegArg */
+static int hf_camel_PlayToneArg_PDU;              /* PlayToneArg */
+static int hf_camel_ReleaseCallArg_PDU;           /* ReleaseCallArg */
+static int hf_camel_RequestReportBCSMEventArg_PDU;  /* RequestReportBCSMEventArg */
+static int hf_camel_ResetTimerArg_PDU;            /* ResetTimerArg */
+static int hf_camel_SendChargingInformationArg_PDU;  /* SendChargingInformationArg */
+static int hf_camel_SplitLegArg_PDU;              /* SplitLegArg */
+static int hf_camel_ApplyChargingGPRSArg_PDU;     /* ApplyChargingGPRSArg */
+static int hf_camel_ApplyChargingReportGPRSArg_PDU;  /* ApplyChargingReportGPRSArg */
+static int hf_camel_CancelGPRSArg_PDU;            /* CancelGPRSArg */
+static int hf_camel_ConnectGPRSArg_PDU;           /* ConnectGPRSArg */
+static int hf_camel_ContinueGPRSArg_PDU;          /* ContinueGPRSArg */
+static int hf_camel_EntityReleasedGPRSArg_PDU;    /* EntityReleasedGPRSArg */
+static int hf_camel_EventReportGPRSArg_PDU;       /* EventReportGPRSArg */
+static int hf_camel_FurnishChargingInformationGPRSArg_PDU;  /* FurnishChargingInformationGPRSArg */
+static int hf_camel_InitialDPGPRSArg_PDU;         /* InitialDPGPRSArg */
+static int hf_camel_ReleaseGPRSArg_PDU;           /* ReleaseGPRSArg */
+static int hf_camel_RequestReportGPRSEventArg_PDU;  /* RequestReportGPRSEventArg */
+static int hf_camel_ResetTimerGPRSArg_PDU;        /* ResetTimerGPRSArg */
+static int hf_camel_SendChargingInformationGPRSArg_PDU;  /* SendChargingInformationGPRSArg */
+static int hf_camel_ConnectSMSArg_PDU;            /* ConnectSMSArg */
+static int hf_camel_EventReportSMSArg_PDU;        /* EventReportSMSArg */
+static int hf_camel_FurnishChargingInformationSMSArg_PDU;  /* FurnishChargingInformationSMSArg */
+static int hf_camel_InitialDPSMSArg_PDU;          /* InitialDPSMSArg */
+static int hf_camel_ReleaseSMSArg_PDU;            /* ReleaseSMSArg */
+static int hf_camel_RequestReportSMSEventArg_PDU;  /* RequestReportSMSEventArg */
+static int hf_camel_ResetTimerSMSArg_PDU;         /* ResetTimerSMSArg */
+static int hf_camel_CAP_U_ABORT_REASON_PDU;       /* CAP_U_ABORT_REASON */
+static int hf_camel_legID;                        /* LegID */
+static int hf_camel_srfConnection;                /* CallSegmentID */
+static int hf_camel_aOCInitial;                   /* CAI_GSM0224 */
+static int hf_camel_aOCSubsequent;                /* AOCSubsequent */
+static int hf_camel_cAI_GSM0224;                  /* CAI_GSM0224 */
+static int hf_camel_aocSubsequent_tariffSwitchInterval;  /* INTEGER_1_86400 */
+static int hf_camel_audibleIndicatorTone;         /* BOOLEAN */
+static int hf_camel_burstList;                    /* BurstList */
+static int hf_camel_conferenceTreatmentIndicator;  /* OCTET_STRING_SIZE_1 */
+static int hf_camel_callCompletionTreatmentIndicator;  /* OCTET_STRING_SIZE_1 */
+static int hf_camel_calledAddressValue;           /* Digits */
+static int hf_camel_gapOnService;                 /* GapOnService */
+static int hf_camel_calledAddressAndService;      /* T_calledAddressAndService */
+static int hf_camel_serviceKey;                   /* ServiceKey */
+static int hf_camel_callingAddressAndService;     /* T_callingAddressAndService */
+static int hf_camel_callingAddressValue;          /* Digits */
+static int hf_camel_eventTypeBCSM;                /* EventTypeBCSM */
+static int hf_camel_monitorMode;                  /* MonitorMode */
+static int hf_camel_dpSpecificCriteria;           /* DpSpecificCriteria */
+static int hf_camel_automaticRearm;               /* NULL */
+static int hf_camel_cause;                        /* Cause */
+static int hf_camel_bearerCap;                    /* T_bearerCap */
+static int hf_camel_numberOfBursts;               /* INTEGER_1_3 */
+static int hf_camel_burstInterval;                /* INTEGER_1_1200 */
+static int hf_camel_numberOfTonesInBurst;         /* INTEGER_1_3 */
+static int hf_camel_burstToneDuration;            /* INTEGER_1_20 */
+static int hf_camel_toneInterval;                 /* INTEGER_1_20 */
+static int hf_camel_warningPeriod;                /* INTEGER_1_1200 */
+static int hf_camel_bursts;                       /* Burst */
+static int hf_camel_e1;                           /* INTEGER_0_8191 */
+static int hf_camel_e2;                           /* INTEGER_0_8191 */
+static int hf_camel_e3;                           /* INTEGER_0_8191 */
+static int hf_camel_e4;                           /* INTEGER_0_8191 */
+static int hf_camel_e5;                           /* INTEGER_0_8191 */
+static int hf_camel_e6;                           /* INTEGER_0_8191 */
+static int hf_camel_e7;                           /* INTEGER_0_8191 */
+static int hf_camel_callSegmentID;                /* CallSegmentID */
+static int hf_camel_invokeID;                     /* InvokeID */
+static int hf_camel_timeDurationCharging;         /* T_timeDurationCharging */
+static int hf_camel_maxCallPeriodDuration;        /* INTEGER_1_864000 */
+static int hf_camel_releaseIfdurationExceeded;    /* BOOLEAN */
+static int hf_camel_timeDurationCharging_tariffSwitchInterval;  /* INTEGER_1_86400 */
+static int hf_camel_audibleIndicator;             /* T_audibleIndicator */
+static int hf_camel_extensions;                   /* Extensions */
+static int hf_camel_timeDurationChargingResult;   /* T_timeDurationChargingResult */
+static int hf_camel_timeDurationChargingResultpartyToCharge;  /* ReceivingSideID */
+static int hf_camel_timeInformation;              /* TimeInformation */
+static int hf_camel_legActive;                    /* BOOLEAN */
+static int hf_camel_callLegReleasedAtTcpExpiry;   /* NULL */
+static int hf_camel_aChChargingAddress;           /* AChChargingAddress */
+static int hf_camel_fci_fCIBCCCAMELsequence1;     /* T_fci_fCIBCCCAMELsequence1 */
+static int hf_camel_freeFormatData;               /* OCTET_STRING_SIZE_bound__minFCIBillingChargingDataLength_bound__maxFCIBillingChargingDataLength */
+static int hf_camel_fCIBCCCAMELsequence1partyToCharge;  /* SendingSideID */
+static int hf_camel_appendFreeFormatData;         /* AppendFreeFormatData */
+static int hf_camel_fciGPRS_fCIBCCCAMELsequence1;  /* T_fciGPRS_fCIBCCCAMELsequence1 */
+static int hf_camel_pDPID;                        /* PDPID */
+static int hf_camel_fciSMS_fCIBCCCAMELsequence1;  /* T_fciSMS_fCIBCCCAMELsequence1 */
+static int hf_camel_aOCBeforeAnswer;              /* AOCBeforeAnswer */
+static int hf_camel_aOCAfterAnswer;               /* AOCSubsequent */
+static int hf_camel_aOC_extension;                /* CAMEL_SCIBillingChargingCharacteristicsAlt */
+static int hf_camel_aOCGPRS;                      /* AOCGPRS */
+static int hf_camel_ChangeOfPositionControlInfo_item;  /* ChangeOfLocation */
+static int hf_camel_cellGlobalId;                 /* CellGlobalIdOrServiceAreaIdFixedLength */
+static int hf_camel_serviceAreaId;                /* CellGlobalIdOrServiceAreaIdFixedLength */
+static int hf_camel_locationAreaId;               /* LAIFixedLength */
+static int hf_camel_inter_SystemHandOver;         /* NULL */
+static int hf_camel_inter_PLMNHandOver;           /* NULL */
+static int hf_camel_inter_MSCHandOver;            /* NULL */
+static int hf_camel_changeOfLocationAlt;          /* ChangeOfLocationAlt */
+static int hf_camel_maxTransferredVolume;         /* INTEGER_1_4294967295 */
+static int hf_camel_maxElapsedTime;               /* INTEGER_1_86400 */
+static int hf_camel_transferredVolume;            /* TransferredVolume */
+static int hf_camel_elapsedTime;                  /* ElapsedTime */
+static int hf_camel_transferredVolumeRollOver;    /* TransferredVolumeRollOver */
+static int hf_camel_elapsedTimeRollOver;          /* ElapsedTimeRollOver */
+static int hf_camel_minimumNbOfDigits;            /* INTEGER_1_30 */
+static int hf_camel_maximumNbOfDigits;            /* INTEGER_1_30 */
+static int hf_camel_endOfReplyDigit;              /* OCTET_STRING_SIZE_1_2 */
+static int hf_camel_cancelDigit;                  /* OCTET_STRING_SIZE_1_2 */
+static int hf_camel_startDigit;                   /* OCTET_STRING_SIZE_1_2 */
+static int hf_camel_firstDigitTimeOut;            /* INTEGER_1_127 */
+static int hf_camel_interDigitTimeOut;            /* INTEGER_1_127 */
+static int hf_camel_errorTreatment;               /* ErrorTreatment */
+static int hf_camel_interruptableAnnInd;          /* BOOLEAN */
+static int hf_camel_voiceInformation;             /* BOOLEAN */
+static int hf_camel_voiceBack;                    /* BOOLEAN */
+static int hf_camel_collectedDigits;              /* CollectedDigits */
+static int hf_camel_basicGapCriteria;             /* BasicGapCriteria */
+static int hf_camel_scfID;                        /* ScfID */
+static int hf_camel_DestinationRoutingAddress_item;  /* CalledPartyNumber */
+static int hf_camel_applicationTimer;             /* ApplicationTimer */
+static int hf_camel_midCallControlInfo;           /* MidCallControlInfo */
+static int hf_camel_dpSpecificCriteriaAlt;        /* DpSpecificCriteriaAlt */
+static int hf_camel_changeOfPositionControlInfo;  /* ChangeOfPositionControlInfo */
+static int hf_camel_numberOfDigits;               /* NumberOfDigits */
+static int hf_camel_interDigitTimeout;            /* INTEGER_1_127 */
+static int hf_camel_oServiceChangeSpecificInfo;   /* T_oServiceChangeSpecificInfo */
+static int hf_camel_ext_basicServiceCode;         /* Ext_BasicServiceCode */
+static int hf_camel_initiatorOfServiceChange;     /* InitiatorOfServiceChange */
+static int hf_camel_natureOfServiceChange;        /* NatureOfServiceChange */
+static int hf_camel_tServiceChangeSpecificInfo;   /* T_tServiceChangeSpecificInfo */
+static int hf_camel_collectedInfoSpecificInfo;    /* T_collectedInfoSpecificInfo */
+static int hf_camel_calledPartyNumber;            /* CalledPartyNumber */
+static int hf_camel_timeGPRSIfNoTariffSwitch;     /* INTEGER_0_86400 */
+static int hf_camel_timeGPRSIfTariffSwitch;       /* T_timeGPRSIfTariffSwitch */
+static int hf_camel_timeGPRSSinceLastTariffSwitch;  /* INTEGER_0_86400 */
+static int hf_camel_timeGPRSTariffSwitchInterval;  /* INTEGER_0_86400 */
+static int hf_camel_rO_TimeGPRSIfNoTariffSwitch;  /* INTEGER_0_255 */
+static int hf_camel_rO_TimeGPRSIfTariffSwitch;    /* T_rO_TimeGPRSIfTariffSwitch */
+static int hf_camel_rO_TimeGPRSSinceLastTariffSwitch;  /* INTEGER_0_255 */
+static int hf_camel_rO_TimeGPRSTariffSwitchInterval;  /* INTEGER_0_255 */
+static int hf_camel_pDPTypeOrganization;          /* T_pDPTypeOrganization */
+static int hf_camel_pDPTypeNumber;                /* T_pDPTypeNumber */
+static int hf_camel_pDPAddress;                   /* T_pDPAddress */
+static int hf_camel_routeSelectFailureSpecificInfo;  /* T_routeSelectFailureSpecificInfo */
+static int hf_camel_routeSelectfailureCause;      /* Cause */
+static int hf_camel_oCalledPartyBusySpecificInfo;  /* T_oCalledPartyBusySpecificInfo */
+static int hf_camel_busyCause;                    /* Cause */
+static int hf_camel_oNoAnswerSpecificInfo;        /* T_oNoAnswerSpecificInfo */
+static int hf_camel_oAnswerSpecificInfo;          /* T_oAnswerSpecificInfo */
+static int hf_camel_destinationAddress;           /* CalledPartyNumber */
+static int hf_camel_or_Call;                      /* NULL */
+static int hf_camel_forwardedCall;                /* NULL */
+static int hf_camel_chargeIndicator;              /* ChargeIndicator */
+static int hf_camel_ext_basicServiceCode2;        /* Ext_BasicServiceCode */
+static int hf_camel_oMidCallSpecificInfo;         /* T_oMidCallSpecificInfo */
+static int hf_camel_omidCallEvents;               /* T_omidCallEvents */
+static int hf_camel_dTMFDigitsCompleted;          /* Digits */
+static int hf_camel_dTMFDigitsTimeOut;            /* Digits */
+static int hf_camel_oDisconnectSpecificInfo;      /* T_oDisconnectSpecificInfo */
+static int hf_camel_releaseCause;                 /* Cause */
+static int hf_camel_tBusySpecificInfo;            /* T_tBusySpecificInfo */
+static int hf_camel_callForwarded;                /* NULL */
+static int hf_camel_routeNotPermitted;            /* NULL */
+static int hf_camel_forwardingDestinationNumber;  /* CalledPartyNumber */
+static int hf_camel_tNoAnswerSpecificInfo;        /* T_tNoAnswerSpecificInfo */
+static int hf_camel_tAnswerSpecificInfo;          /* T_tAnswerSpecificInfo */
+static int hf_camel_tMidCallSpecificInfo;         /* T_tMidCallSpecificInfo */
+static int hf_camel_tmidCallEvents;               /* T_tmidCallEvents */
+static int hf_camel_tDisconnectSpecificInfo;      /* T_tDisconnectSpecificInfo */
+static int hf_camel_oTermSeizedSpecificInfo;      /* T_oTermSeizedSpecificInfo */
+static int hf_camel_locationInformation;          /* LocationInformation */
+static int hf_camel_callAcceptedSpecificInfo;     /* T_callAcceptedSpecificInfo */
+static int hf_camel_oAbandonSpecificInfo;         /* T_oAbandonSpecificInfo */
+static int hf_camel_oChangeOfPositionSpecificInfo;  /* T_oChangeOfPositionSpecificInfo */
+static int hf_camel_metDPCriteriaList;            /* MetDPCriteriaList */
+static int hf_camel_tChangeOfPositionSpecificInfo;  /* T_tChangeOfPositionSpecificInfo */
+static int hf_camel_dpSpecificInfoAlt;            /* DpSpecificInfoAlt */
+static int hf_camel_o_smsFailureSpecificInfo;     /* T_o_smsFailureSpecificInfo */
+static int hf_camel_mo_smsfailureCause;           /* MO_SMSCause */
+static int hf_camel_o_smsSubmissionSpecificInfo;  /* T_o_smsSubmissionSpecificInfo */
+static int hf_camel_t_smsFailureSpecificInfo;     /* T_t_smsFailureSpecificInfo */
+static int hf_camel_t_smsfailureCause;            /* MT_SMSCause */
+static int hf_camel_t_smsDeliverySpecificInfo;    /* T_t_smsDeliverySpecificInfo */
+static int hf_camel_Extensions_item;              /* ExtensionField */
+static int hf_camel_type;                         /* Code */
+static int hf_camel_criticality;                  /* CriticalityType */
+static int hf_camel_value;                        /* T_value */
+static int hf_camel_callDiversionTreatmentIndicator;  /* OCTET_STRING_SIZE_1 */
+static int hf_camel_callingPartyRestrictionIndicator;  /* OCTET_STRING_SIZE_1 */
+static int hf_camel_compoundGapCriteria;          /* CompoundCriteria */
+static int hf_camel_gapIndicatorsDuration;        /* Duration */
+static int hf_camel_gapInterval;                  /* Interval */
+static int hf_camel_informationToSend;            /* InformationToSend */
+static int hf_camel_GenericNumbers_item;          /* GenericNumber */
+static int hf_camel_short_QoS_format;             /* QoS_Subscribed */
+static int hf_camel_long_QoS_format;              /* Ext_QoS_Subscribed */
+static int hf_camel_supplement_to_long_QoS_format;  /* Ext2_QoS_Subscribed */
+static int hf_camel_additionalSupplement;         /* Ext3_QoS_Subscribed */
+static int hf_camel_gPRSEventType;                /* GPRSEventType */
+static int hf_camel_attachChangeOfPositionSpecificInformation;  /* T_attachChangeOfPositionSpecificInformation */
+static int hf_camel_locationInformationGPRS;      /* LocationInformationGPRS */
+static int hf_camel_pdp_ContextchangeOfPositionSpecificInformation;  /* T_pdp_ContextchangeOfPositionSpecificInformation */
+static int hf_camel_accessPointName;              /* AccessPointName */
+static int hf_camel_chargingID;                   /* GPRSChargingID */
+static int hf_camel_endUserAddress;               /* EndUserAddress */
+static int hf_camel_qualityOfService;             /* QualityOfService */
+static int hf_camel_timeAndTimeZone;              /* TimeAndTimezone */
+static int hf_camel_gGSNAddress;                  /* GSN_Address */
+static int hf_camel_detachSpecificInformation;    /* T_detachSpecificInformation */
+static int hf_camel_initiatingEntity;             /* InitiatingEntity */
+static int hf_camel_routeingAreaUpdate;           /* NULL */
+static int hf_camel_disconnectSpecificInformation;  /* T_disconnectSpecificInformation */
+static int hf_camel_pDPContextEstablishmentSpecificInformation;  /* T_pDPContextEstablishmentSpecificInformation */
+static int hf_camel_pDPInitiationType;            /* PDPInitiationType */
+static int hf_camel_secondaryPDP_context;         /* NULL */
+static int hf_camel_pDPContextEstablishmentAcknowledgementSpecificInformation;  /* T_pDPContextEstablishmentAcknowledgementSpecificInformation */
+static int hf_camel_messageID;                    /* MessageID */
+static int hf_camel_numberOfRepetitions;          /* INTEGER_1_127 */
+static int hf_camel_inbandInfoDuration;           /* INTEGER_0_32767 */
+static int hf_camel_interval;                     /* INTEGER_0_32767 */
+static int hf_camel_inbandInfo;                   /* InbandInfo */
+static int hf_camel_tone;                         /* Tone */
+static int hf_camel_cellGlobalIdOrServiceAreaIdOrLAI;  /* T_cellGlobalIdOrServiceAreaIdOrLAI */
+static int hf_camel_routeingAreaIdentity;         /* RAIdentity */
+static int hf_camel_geographicalInformation;      /* GeographicalInformation */
+static int hf_camel_sgsn_Number;                  /* ISDN_AddressString */
+static int hf_camel_selectedLSAIdentity;          /* LSAIdentity */
+static int hf_camel_extensionContainer;           /* ExtensionContainer */
+static int hf_camel_sai_Present;                  /* NULL */
+static int hf_camel_userCSGInformation;           /* UserCSGInformation */
+static int hf_camel_elementaryMessageID;          /* Integer4 */
+static int hf_camel_text;                         /* T_text */
+static int hf_camel_messageContent;               /* IA5String_SIZE_bound__minMessageContentLength_bound__maxMessageContentLength */
+static int hf_camel_attributes;                   /* OCTET_STRING_SIZE_bound__minAttributesLength_bound__maxAttributesLength */
+static int hf_camel_elementaryMessageIDs;         /* SEQUENCE_SIZE_1_bound__numOfMessageIDs_OF_Integer4 */
+static int hf_camel_elementaryMessageIDs_item;    /* Integer4 */
+static int hf_camel_variableMessage;              /* T_variableMessage */
+static int hf_camel_variableParts;                /* SEQUENCE_SIZE_1_5_OF_VariablePart */
+static int hf_camel_variableParts_item;           /* VariablePart */
+static int hf_camel_MetDPCriteriaList_item;       /* MetDPCriterion */
+static int hf_camel_enteringCellGlobalId;         /* CellGlobalIdOrServiceAreaIdFixedLength */
+static int hf_camel_leavingCellGlobalId;          /* CellGlobalIdOrServiceAreaIdFixedLength */
+static int hf_camel_enteringServiceAreaId;        /* CellGlobalIdOrServiceAreaIdFixedLength */
+static int hf_camel_leavingServiceAreaId;         /* CellGlobalIdOrServiceAreaIdFixedLength */
+static int hf_camel_enteringLocationAreaId;       /* LAIFixedLength */
+static int hf_camel_leavingLocationAreaId;        /* LAIFixedLength */
+static int hf_camel_inter_SystemHandOverToUMTS;   /* NULL */
+static int hf_camel_inter_SystemHandOverToGSM;    /* NULL */
+static int hf_camel_metDPCriterionAlt;            /* MetDPCriterionAlt */
+static int hf_camel_minimumNumberOfDigits;        /* INTEGER_1_30 */
+static int hf_camel_maximumNumberOfDigits;        /* INTEGER_1_30 */
+static int hf_camel_requested_QoS;                /* GPRS_QoS */
+static int hf_camel_subscribed_QoS;               /* GPRS_QoS */
+static int hf_camel_negotiated_QoS;               /* GPRS_QoS */
+static int hf_camel_requested_QoS_Extension;      /* GPRS_QoS_Extension */
+static int hf_camel_subscribed_QoS_Extension;     /* GPRS_QoS_Extension */
+static int hf_camel_negotiated_QoS_Extension;     /* GPRS_QoS_Extension */
+static int hf_camel_receivingSideID;              /* LegType */
+static int hf_camel_RequestedInformationList_item;  /* RequestedInformation */
+static int hf_camel_RequestedInformationTypeList_item;  /* RequestedInformationType */
+static int hf_camel_requestedInformationType;     /* RequestedInformationType */
+static int hf_camel_requestedInformationValue;    /* RequestedInformationValue */
+static int hf_camel_callAttemptElapsedTimeValue;  /* INTEGER_0_255 */
+static int hf_camel_callStopTimeValue;            /* DateAndTime */
+static int hf_camel_callConnectedElapsedTimeValue;  /* Integer4 */
+static int hf_camel_releaseCauseValue;            /* Cause */
+static int hf_camel_sendingSideID;                /* LegType */
+static int hf_camel_forwardServiceInteractionInd;  /* ForwardServiceInteractionInd */
+static int hf_camel_backwardServiceInteractionInd;  /* BackwardServiceInteractionInd */
+static int hf_camel_bothwayThroughConnectionInd;  /* BothwayThroughConnectionInd */
+static int hf_camel_connectedNumberTreatmentInd;  /* ConnectedNumberTreatmentInd */
+static int hf_camel_nonCUGCall;                   /* NULL */
+static int hf_camel_holdTreatmentIndicator;       /* OCTET_STRING_SIZE_1 */
+static int hf_camel_cwTreatmentIndicator;         /* OCTET_STRING_SIZE_1 */
+static int hf_camel_ectTreatmentIndicator;        /* OCTET_STRING_SIZE_1 */
+static int hf_camel_eventTypeSMS;                 /* EventTypeSMS */
+static int hf_camel_timeSinceTariffSwitch;        /* INTEGER_0_864000 */
+static int hf_camel_timeIfTariffSwitch_tariffSwitchInterval;  /* INTEGER_1_864000 */
+static int hf_camel_timeIfNoTariffSwitch;         /* TimeIfNoTariffSwitch */
+static int hf_camel_timeIfTariffSwitch;           /* TimeIfTariffSwitch */
+static int hf_camel_toneID;                       /* Integer4 */
+static int hf_camel_toneDuration;                 /* Integer4 */
+static int hf_camel_volumeIfNoTariffSwitch;       /* INTEGER_0_4294967295 */
+static int hf_camel_volumeIfTariffSwitch;         /* T_volumeIfTariffSwitch */
+static int hf_camel_volumeSinceLastTariffSwitch;  /* INTEGER_0_4294967295 */
+static int hf_camel_volumeTariffSwitchInterval;   /* INTEGER_0_4294967295 */
+static int hf_camel_rO_VolumeIfNoTariffSwitch;    /* INTEGER_0_255 */
+static int hf_camel_rO_VolumeIfTariffSwitch;      /* T_rO_VolumeIfTariffSwitch */
+static int hf_camel_rO_VolumeSinceLastTariffSwitch;  /* INTEGER_0_255 */
+static int hf_camel_rO_VolumeTariffSwitchInterval;  /* INTEGER_0_255 */
+static int hf_camel_integer;                      /* Integer4 */
+static int hf_camel_number;                       /* Digits */
+static int hf_camel_time;                         /* OCTET_STRING_SIZE_2 */
+static int hf_camel_date;                         /* OCTET_STRING_SIZE_4 */
+static int hf_camel_price;                        /* OCTET_STRING_SIZE_4 */
+static int hf_camel_par_cancelFailedProblem;      /* T_par_cancelFailedProblem */
+static int hf_camel_operation;                    /* InvokeID */
+static int hf_camel_destinationReference;         /* Integer4 */
+static int hf_camel_originationReference;         /* Integer4 */
+static int hf_camel_disconnectFromIPForbidden;    /* BOOLEAN */
+static int hf_camel_requestAnnouncementCompleteNotification;  /* BOOLEAN */
+static int hf_camel_requestAnnouncementStartedNotification;  /* BOOLEAN */
+static int hf_camel_collectedInfo;                /* CollectedInfo */
+static int hf_camel_digitsResponse;               /* Digits */
+static int hf_camel_allAnnouncementsComplete;     /* NULL */
+static int hf_camel_firstAnnouncementStarted;     /* NULL */
+static int hf_camel_aChBillingChargingCharacteristics;  /* AChBillingChargingCharacteristics */
+static int hf_camel_partyToCharge;                /* SendingSideID */
+static int hf_camel_iTXcharging;                  /* BOOLEAN */
+static int hf_camel_correlationID;                /* CorrelationID */
+static int hf_camel_iPSSPCapabilities;            /* IPSSPCapabilities */
+static int hf_camel_gapCriteria;                  /* GapCriteria */
+static int hf_camel_gapIndicators;                /* GapIndicators */
+static int hf_camel_controlType;                  /* ControlType */
+static int hf_camel_gapTreatment;                 /* GapTreatment */
+static int hf_camel_requestedInformationList;     /* RequestedInformationList */
+static int hf_camel_legID_01;                     /* ReceivingSideID */
+static int hf_camel_requestedInformationTypeList;  /* RequestedInformationTypeList */
+static int hf_camel_legID_02;                     /* SendingSideID */
+static int hf_camel_allRequests;                  /* NULL */
+static int hf_camel_callSegmentToCancel;          /* CallSegmentToCancel */
+static int hf_camel_destinationRoutingAddress;    /* DestinationRoutingAddress */
+static int hf_camel_alertingPattern;              /* AlertingPattern */
+static int hf_camel_originalCalledPartyID;        /* OriginalCalledPartyID */
+static int hf_camel_carrier;                      /* Carrier */
+static int hf_camel_callingPartysCategory;        /* CallingPartysCategory */
+static int hf_camel_redirectingPartyID;           /* RedirectingPartyID */
+static int hf_camel_redirectionInformation;       /* RedirectionInformation */
+static int hf_camel_genericNumbers;               /* GenericNumbers */
+static int hf_camel_serviceInteractionIndicatorsTwo;  /* ServiceInteractionIndicatorsTwo */
+static int hf_camel_chargeNumber;                 /* ChargeNumber */
+static int hf_camel_legToBeConnected;             /* LegID */
+static int hf_camel_cug_Interlock;                /* CUG_Interlock */
+static int hf_camel_cug_OutgoingAccess;           /* NULL */
+static int hf_camel_suppressionOfAnnouncement;    /* SuppressionOfAnnouncement */
+static int hf_camel_oCSIApplicable;               /* OCSIApplicable */
+static int hf_camel_naOliInfo;                    /* NAOliInfo */
+static int hf_camel_bor_InterrogationRequested;   /* NULL */
+static int hf_camel_suppress_N_CSI;               /* NULL */
+static int hf_camel_resourceAddress;              /* T_resourceAddress */
+static int hf_camel_ipRoutingAddress;             /* IPRoutingAddress */
+static int hf_camel_none;                         /* NULL */
+static int hf_camel_suppress_O_CSI;               /* NULL */
+static int hf_camel_continueWithArgumentArgExtension;  /* ContinueWithArgumentArgExtension */
+static int hf_camel_suppress_D_CSI;               /* NULL */
+static int hf_camel_suppressOutgoingCallBarring;  /* NULL */
+static int hf_camel_legOrCallSegment;             /* LegOrCallSegment */
+static int hf_camel_legToBeReleased;              /* LegID */
+static int hf_camel_callSegmentFailure;           /* CallSegmentFailure */
+static int hf_camel_bCSM_Failure;                 /* BCSM_Failure */
+static int hf_camel_assistingSSPIPRoutingAddress;  /* AssistingSSPIPRoutingAddress */
+static int hf_camel_callingPartyNumber;           /* CallingPartyNumber */
+static int hf_camel_eventSpecificInformationBCSM;  /* EventSpecificInformationBCSM */
+static int hf_camel_miscCallInfo;                 /* MiscCallInfo */
+static int hf_camel_cGEncountered;                /* CGEncountered */
+static int hf_camel_locationNumber;               /* LocationNumber */
+static int hf_camel_highLayerCompatibility;       /* HighLayerCompatibility */
+static int hf_camel_additionalCallingPartyNumber;  /* AdditionalCallingPartyNumber */
+static int hf_camel_bearerCapability;             /* BearerCapability */
+static int hf_camel_cug_Index;                    /* CUG_Index */
+static int hf_camel_iMSI;                         /* IMSI */
+static int hf_camel_subscriberState;              /* SubscriberState */
+static int hf_camel_callReferenceNumber;          /* CallReferenceNumber */
+static int hf_camel_mscAddress;                   /* ISDN_AddressString */
+static int hf_camel_calledPartyBCDNumber;         /* CalledPartyBCDNumber */
+static int hf_camel_timeAndTimezone;              /* TimeAndTimezone */
+static int hf_camel_callForwardingSS_Pending;     /* NULL */
+static int hf_camel_initialDPArgExtension;        /* InitialDPArgExtension */
+static int hf_camel_gmscAddress;                  /* ISDN_AddressString */
+static int hf_camel_ms_Classmark2;                /* MS_Classmark2 */
+static int hf_camel_iMEI;                         /* IMEI */
+static int hf_camel_supportedCamelPhases;         /* SupportedCamelPhases */
+static int hf_camel_offeredCamel4Functionalities;  /* OfferedCamel4Functionalities */
+static int hf_camel_bearerCapability2;            /* BearerCapability */
+static int hf_camel_highLayerCompatibility2;      /* HighLayerCompatibility */
+static int hf_camel_lowLayerCompatibility;        /* LowLayerCompatibility */
+static int hf_camel_lowLayerCompatibility2;       /* LowLayerCompatibility */
+static int hf_camel_enhancedDialledServicesAllowed;  /* NULL */
+static int hf_camel_uu_Data;                      /* UU_Data */
+static int hf_camel_collectInformationAllowed;    /* NULL */
+static int hf_camel_releaseCallArgExtensionAllowed;  /* NULL */
+static int hf_camel_legToBeCreated;               /* LegID */
+static int hf_camel_newCallSegment;               /* CallSegmentID */
+static int hf_camel_gsmSCFAddress;                /* ISDN_AddressString */
+static int hf_camel_suppress_T_CSI;               /* NULL */
+static int hf_camel_legIDToMove;                  /* LegID */
+static int hf_camel_allCallSegments;              /* AllCallSegments */
+static int hf_camel_allCallSegmentsWithExtension;  /* AllCallSegmentsWithExtension */
+static int hf_camel_bcsmEvents;                   /* SEQUENCE_SIZE_1_bound__numOfBCSMEvents_OF_BCSMEvent */
+static int hf_camel_bcsmEvents_item;              /* BCSMEvent */
+static int hf_camel_timerID;                      /* TimerID */
+static int hf_camel_timervalue;                   /* TimerValue */
+static int hf_camel_sCIBillingChargingCharacteristics;  /* SCIBillingChargingCharacteristics */
+static int hf_camel_legToBeSplit;                 /* LegID */
+static int hf_camel_chargingCharacteristics;      /* ChargingCharacteristics */
+static int hf_camel_applyChargingGPRS_tariffSwitchInterval;  /* INTEGER_1_86400 */
+static int hf_camel_chargingResult;               /* ChargingResult */
+static int hf_camel_active;                       /* BOOLEAN */
+static int hf_camel_chargingRollOver;             /* ChargingRollOver */
+static int hf_camel_pdpID;                        /* PDPID */
+static int hf_camel_gPRSCause;                    /* GPRSCause */
+static int hf_camel_miscGPRSInfo;                 /* MiscCallInfo */
+static int hf_camel_gPRSEventSpecificInformation;  /* GPRSEventSpecificInformation */
+static int hf_camel_mSISDN;                       /* ISDN_AddressString */
+static int hf_camel_gPRSMSClass;                  /* GPRSMSClass */
+static int hf_camel_sGSNCapabilities;             /* SGSNCapabilities */
+static int hf_camel_gprsCause;                    /* GPRSCause */
+static int hf_camel_gPRSEvent;                    /* SEQUENCE_SIZE_1_bound__numOfGPRSEvents_OF_GPRSEvent */
+static int hf_camel_gPRSEvent_item;               /* GPRSEvent */
+static int hf_camel_sCIGPRSBillingChargingCharacteristics;  /* SCIGPRSBillingChargingCharacteristics */
+static int hf_camel_callingPartysNumber;          /* SMS_AddressString */
+static int hf_camel_destinationSubscriberNumber;  /* CalledPartyBCDNumber */
+static int hf_camel_sMSCAddress;                  /* ISDN_AddressString */
+static int hf_camel_eventSpecificInformationSMS;  /* EventSpecificInformationSMS */
+static int hf_camel_callingPartyNumber_01;        /* SMS_AddressString */
+static int hf_camel_locationInformationMSC;       /* LocationInformation */
+static int hf_camel_tPShortMessageSpecificInfo;   /* TPShortMessageSpecificInfo */
+static int hf_camel_tPProtocolIdentifier;         /* TPProtocolIdentifier */
+static int hf_camel_tPDataCodingScheme;           /* TPDataCodingScheme */
+static int hf_camel_tPValidityPeriod;             /* TPValidityPeriod */
+static int hf_camel_smsReferenceNumber;           /* CallReferenceNumber */
+static int hf_camel_calledPartyNumber_01;         /* ISDN_AddressString */
+static int hf_camel_sMSEvents;                    /* SEQUENCE_SIZE_1_bound__numOfSMSEvents_OF_SMSEvent */
+static int hf_camel_sMSEvents_item;               /* SMSEvent */
+static int hf_camel_extensions_01;                /* SEQUENCE_SIZE_1_numOfExtensions_OF_ExtensionField */
+static int hf_camel_extensions_item;              /* ExtensionField */
+static int hf_camel_na_info;                      /* NA_Info */
+static int hf_camel_naCarrierInformation;         /* NACarrierInformation */
+static int hf_camel_naCarrierId;                  /* NAEA_CIC */
+static int hf_camel_naCICSelectionType;           /* NACarrierSelectionInfo */
+static int hf_camel_naChargeNumber;               /* NAChargeNumber */
+static int hf_camel_timeDurationCharging_01;      /* T_timeDurationCharging_01 */
+static int hf_camel_releaseIfdurationExceeded_01;  /* ReleaseIfDurationExceeded */
+static int hf_camel_tariffSwitchInterval;         /* INTEGER_1_86400 */
+static int hf_camel_tone_01;                      /* BOOLEAN */
+static int hf_camel_local;                        /* T_local */
+static int hf_camel_global;                       /* T_global */
+static int hf_camel_invoke;                       /* Invoke */
+static int hf_camel_returnResult;                 /* ReturnResult */
+static int hf_camel_returnError;                  /* ReturnError */
+static int hf_camel_reject;                       /* Reject */
+static int hf_camel_invokeId;                     /* InvokeId */
+static int hf_camel_linkedId;                     /* T_linkedId */
+static int hf_camel_linkedIdPresent;              /* T_linkedIdPresent */
+static int hf_camel_absent;                       /* NULL */
+static int hf_camel_opcode;                       /* Code */
+static int hf_camel_argument;                     /* T_argument */
+static int hf_camel_result;                       /* T_result */
+static int hf_camel_resultArgument;               /* ResultArgument */
+static int hf_camel_errcode;                      /* Code */
+static int hf_camel_parameter;                    /* T_parameter */
+static int hf_camel_problem;                      /* T_problem */
+static int hf_camel_general;                      /* GeneralProblem */
+static int hf_camel_invokeProblem;                /* InvokeProblem */
+static int hf_camel_problemReturnResult;          /* ReturnResultProblem */
+static int hf_camel_returnErrorProblem;           /* ReturnErrorProblem */
+static int hf_camel_present;                      /* INTEGER */
+static int hf_camel_InvokeId_present;             /* InvokeId_present */
 
 static struct camelsrt_info_t * gp_camelsrt_info;
 
@@ -606,236 +608,236 @@ static int dissect_camel_EstablishTemporaryConnectionArgV2(bool implicit_tag _U_
 static int dissect_camel_SpecializedResourceReportArgV23(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
 
 /* XXX - can we get rid of these and always do the SRT work? */
-static gboolean gcamel_PersistentSRT=FALSE;
-static gboolean gcamel_DisplaySRT=FALSE;
-gboolean gcamel_StatSRT=FALSE;
+static bool gcamel_PersistentSRT=false;
+static bool gcamel_DisplaySRT=false;
+bool gcamel_StatSRT=false;
 
 /* Initialize the subtree pointers */
-static gint ett_camel = -1;
-static gint ett_camelisup_parameter = -1;
-static gint ett_camel_AccessPointName = -1;
-static gint ett_camel_pdptypenumber = -1;
-static gint ett_camel_cause = -1;
-static gint ett_camel_RPcause = -1;
-static gint ett_camel_stat = -1;
-static gint ett_camel_calledpartybcdnumber = -1;
-static gint ett_camel_callingpartynumber = -1;
-static gint ett_camel_originalcalledpartyid = -1;
-static gint ett_camel_redirectingpartyid = -1;
-static gint ett_camel_locationnumber = -1;
-static gint ett_camel_additionalcallingpartynumber = -1;
-static gint ett_camel_calledAddressValue = -1;
-static gint ett_camel_callingAddressValue = -1;
-static gint ett_camel_assistingSSPIPRoutingAddress = -1;
-static gint ett_camel_correlationID = -1;
-static gint ett_camel_dTMFDigitsCompleted = -1;
-static gint ett_camel_dTMFDigitsTimeOut = -1;
-static gint ett_camel_number = -1;
-static gint ett_camel_digitsResponse = -1;
-static gint ett_camel_timeandtimezone = -1;
+static int ett_camel;
+static int ett_camelisup_parameter;
+static int ett_camel_AccessPointName;
+static int ett_camel_pdptypenumber;
+static int ett_camel_cause;
+static int ett_camel_RPcause;
+static int ett_camel_stat;
+static int ett_camel_calledpartybcdnumber;
+static int ett_camel_callingpartynumber;
+static int ett_camel_originalcalledpartyid;
+static int ett_camel_redirectingpartyid;
+static int ett_camel_locationnumber;
+static int ett_camel_additionalcallingpartynumber;
+static int ett_camel_calledAddressValue;
+static int ett_camel_callingAddressValue;
+static int ett_camel_assistingSSPIPRoutingAddress;
+static int ett_camel_correlationID;
+static int ett_camel_dTMFDigitsCompleted;
+static int ett_camel_dTMFDigitsTimeOut;
+static int ett_camel_number;
+static int ett_camel_digitsResponse;
+static int ett_camel_timeandtimezone;
 
-static gint ett_camel_AChChargingAddress = -1;
-static gint ett_camel_AOCBeforeAnswer = -1;
-static gint ett_camel_AOCGPRS = -1;
-static gint ett_camel_AOCSubsequent = -1;
-static gint ett_camel_AudibleIndicator = -1;
-static gint ett_camel_BackwardServiceInteractionInd = -1;
-static gint ett_camel_BasicGapCriteria = -1;
-static gint ett_camel_T_calledAddressAndService = -1;
-static gint ett_camel_T_callingAddressAndService = -1;
-static gint ett_camel_BCSMEvent = -1;
-static gint ett_camel_BCSM_Failure = -1;
-static gint ett_camel_BearerCapability = -1;
-static gint ett_camel_Burst = -1;
-static gint ett_camel_BurstList = -1;
-static gint ett_camel_CAI_GSM0224 = -1;
-static gint ett_camel_CallSegmentFailure = -1;
-static gint ett_camel_CallSegmentToCancel = -1;
-static gint ett_camel_CAMEL_AChBillingChargingCharacteristics = -1;
-static gint ett_camel_T_timeDurationCharging = -1;
-static gint ett_camel_CAMEL_CallResult = -1;
-static gint ett_camel_T_timeDurationChargingResult = -1;
-static gint ett_camel_CAMEL_FCIBillingChargingCharacteristics = -1;
-static gint ett_camel_T_fci_fCIBCCCAMELsequence1 = -1;
-static gint ett_camel_CAMEL_FCIGPRSBillingChargingCharacteristics = -1;
-static gint ett_camel_T_fciGPRS_fCIBCCCAMELsequence1 = -1;
-static gint ett_camel_CAMEL_FCISMSBillingChargingCharacteristics = -1;
-static gint ett_camel_T_fciSMS_fCIBCCCAMELsequence1 = -1;
-static gint ett_camel_CAMEL_SCIBillingChargingCharacteristics = -1;
-static gint ett_camel_CAMEL_SCIBillingChargingCharacteristicsAlt = -1;
-static gint ett_camel_CAMEL_SCIGPRSBillingChargingCharacteristics = -1;
-static gint ett_camel_ChangeOfPositionControlInfo = -1;
-static gint ett_camel_ChangeOfLocation = -1;
-static gint ett_camel_ChangeOfLocationAlt = -1;
-static gint ett_camel_ChargingCharacteristics = -1;
-static gint ett_camel_ChargingResult = -1;
-static gint ett_camel_ChargingRollOver = -1;
-static gint ett_camel_CollectedDigits = -1;
-static gint ett_camel_CollectedInfo = -1;
-static gint ett_camel_CompoundCriteria = -1;
-static gint ett_camel_DestinationRoutingAddress = -1;
-static gint ett_camel_DpSpecificCriteria = -1;
-static gint ett_camel_DpSpecificCriteriaAlt = -1;
-static gint ett_camel_DpSpecificInfoAlt = -1;
-static gint ett_camel_T_oServiceChangeSpecificInfo = -1;
-static gint ett_camel_T_tServiceChangeSpecificInfo = -1;
-static gint ett_camel_T_collectedInfoSpecificInfo = -1;
-static gint ett_camel_ElapsedTime = -1;
-static gint ett_camel_T_timeGPRSIfTariffSwitch = -1;
-static gint ett_camel_ElapsedTimeRollOver = -1;
-static gint ett_camel_T_rO_TimeGPRSIfTariffSwitch = -1;
-static gint ett_camel_EndUserAddress = -1;
-static gint ett_camel_EventSpecificInformationBCSM = -1;
-static gint ett_camel_T_routeSelectFailureSpecificInfo = -1;
-static gint ett_camel_T_oCalledPartyBusySpecificInfo = -1;
-static gint ett_camel_T_oNoAnswerSpecificInfo = -1;
-static gint ett_camel_T_oAnswerSpecificInfo = -1;
-static gint ett_camel_T_oMidCallSpecificInfo = -1;
-static gint ett_camel_T_omidCallEvents = -1;
-static gint ett_camel_T_oDisconnectSpecificInfo = -1;
-static gint ett_camel_T_tBusySpecificInfo = -1;
-static gint ett_camel_T_tNoAnswerSpecificInfo = -1;
-static gint ett_camel_T_tAnswerSpecificInfo = -1;
-static gint ett_camel_T_tMidCallSpecificInfo = -1;
-static gint ett_camel_T_tmidCallEvents = -1;
-static gint ett_camel_T_tDisconnectSpecificInfo = -1;
-static gint ett_camel_T_oTermSeizedSpecificInfo = -1;
-static gint ett_camel_T_callAcceptedSpecificInfo = -1;
-static gint ett_camel_T_oAbandonSpecificInfo = -1;
-static gint ett_camel_T_oChangeOfPositionSpecificInfo = -1;
-static gint ett_camel_T_tChangeOfPositionSpecificInfo = -1;
-static gint ett_camel_EventSpecificInformationSMS = -1;
-static gint ett_camel_T_o_smsFailureSpecificInfo = -1;
-static gint ett_camel_T_o_smsSubmissionSpecificInfo = -1;
-static gint ett_camel_T_t_smsFailureSpecificInfo = -1;
-static gint ett_camel_T_t_smsDeliverySpecificInfo = -1;
-static gint ett_camel_Extensions = -1;
-static gint ett_camel_ExtensionField = -1;
-static gint ett_camel_ForwardServiceInteractionInd = -1;
-static gint ett_camel_GapCriteria = -1;
-static gint ett_camel_GapIndicators = -1;
-static gint ett_camel_GapOnService = -1;
-static gint ett_camel_GapTreatment = -1;
-static gint ett_camel_GenericNumbers = -1;
-static gint ett_camel_GPRS_QoS = -1;
-static gint ett_camel_GPRS_QoS_Extension = -1;
-static gint ett_camel_GPRSEvent = -1;
-static gint ett_camel_GPRSEventSpecificInformation = -1;
-static gint ett_camel_T_attachChangeOfPositionSpecificInformation = -1;
-static gint ett_camel_T_pdp_ContextchangeOfPositionSpecificInformation = -1;
-static gint ett_camel_T_detachSpecificInformation = -1;
-static gint ett_camel_T_disconnectSpecificInformation = -1;
-static gint ett_camel_T_pDPContextEstablishmentSpecificInformation = -1;
-static gint ett_camel_T_pDPContextEstablishmentAcknowledgementSpecificInformation = -1;
-static gint ett_camel_InbandInfo = -1;
-static gint ett_camel_InformationToSend = -1;
-static gint ett_camel_LegOrCallSegment = -1;
-static gint ett_camel_LocationInformationGPRS = -1;
-static gint ett_camel_MessageID = -1;
-static gint ett_camel_T_text = -1;
-static gint ett_camel_SEQUENCE_SIZE_1_bound__numOfMessageIDs_OF_Integer4 = -1;
-static gint ett_camel_T_variableMessage = -1;
-static gint ett_camel_SEQUENCE_SIZE_1_5_OF_VariablePart = -1;
-static gint ett_camel_MetDPCriteriaList = -1;
-static gint ett_camel_MetDPCriterion = -1;
-static gint ett_camel_MetDPCriterionAlt = -1;
-static gint ett_camel_MidCallControlInfo = -1;
-static gint ett_camel_QualityOfService = -1;
-static gint ett_camel_ReceivingSideID = -1;
-static gint ett_camel_RequestedInformationList = -1;
-static gint ett_camel_RequestedInformationTypeList = -1;
-static gint ett_camel_RequestedInformation = -1;
-static gint ett_camel_RequestedInformationValue = -1;
-static gint ett_camel_SendingSideID = -1;
-static gint ett_camel_ServiceInteractionIndicatorsTwo = -1;
-static gint ett_camel_SMSEvent = -1;
-static gint ett_camel_TimeIfTariffSwitch = -1;
-static gint ett_camel_TimeInformation = -1;
-static gint ett_camel_Tone = -1;
-static gint ett_camel_TransferredVolume = -1;
-static gint ett_camel_T_volumeIfTariffSwitch = -1;
-static gint ett_camel_TransferredVolumeRollOver = -1;
-static gint ett_camel_T_rO_VolumeIfTariffSwitch = -1;
-static gint ett_camel_VariablePart = -1;
-static gint ett_camel_PAR_cancelFailed = -1;
-static gint ett_camel_CAP_GPRS_ReferenceNumber = -1;
-static gint ett_camel_PlayAnnouncementArg = -1;
-static gint ett_camel_PromptAndCollectUserInformationArg = -1;
-static gint ett_camel_ReceivedInformationArg = -1;
-static gint ett_camel_SpecializedResourceReportArg = -1;
-static gint ett_camel_ApplyChargingArg = -1;
-static gint ett_camel_AssistRequestInstructionsArg = -1;
-static gint ett_camel_CallGapArg = -1;
-static gint ett_camel_CallInformationReportArg = -1;
-static gint ett_camel_CallInformationRequestArg = -1;
-static gint ett_camel_CancelArg = -1;
-static gint ett_camel_CollectInformationArg = -1;
-static gint ett_camel_ConnectArg = -1;
-static gint ett_camel_ConnectToResourceArg = -1;
-static gint ett_camel_T_resourceAddress = -1;
-static gint ett_camel_ContinueWithArgumentArg = -1;
-static gint ett_camel_ContinueWithArgumentArgExtension = -1;
-static gint ett_camel_DisconnectForwardConnectionWithArgumentArg = -1;
-static gint ett_camel_DisconnectLegArg = -1;
-static gint ett_camel_EntityReleasedArg = -1;
-static gint ett_camel_EstablishTemporaryConnectionArg = -1;
-static gint ett_camel_EventReportBCSMArg = -1;
-static gint ett_camel_InitialDPArg = -1;
-static gint ett_camel_InitialDPArgExtension = -1;
-static gint ett_camel_InitiateCallAttemptArg = -1;
-static gint ett_camel_InitiateCallAttemptRes = -1;
-static gint ett_camel_MoveLegArg = -1;
-static gint ett_camel_PlayToneArg = -1;
-static gint ett_camel_ReleaseCallArg = -1;
-static gint ett_camel_AllCallSegmentsWithExtension = -1;
-static gint ett_camel_RequestReportBCSMEventArg = -1;
-static gint ett_camel_SEQUENCE_SIZE_1_bound__numOfBCSMEvents_OF_BCSMEvent = -1;
-static gint ett_camel_ResetTimerArg = -1;
-static gint ett_camel_SendChargingInformationArg = -1;
-static gint ett_camel_SplitLegArg = -1;
-static gint ett_camel_ApplyChargingGPRSArg = -1;
-static gint ett_camel_ApplyChargingReportGPRSArg = -1;
-static gint ett_camel_CancelGPRSArg = -1;
-static gint ett_camel_ConnectGPRSArg = -1;
-static gint ett_camel_ContinueGPRSArg = -1;
-static gint ett_camel_EntityReleasedGPRSArg = -1;
-static gint ett_camel_EventReportGPRSArg = -1;
-static gint ett_camel_InitialDPGPRSArg = -1;
-static gint ett_camel_ReleaseGPRSArg = -1;
-static gint ett_camel_RequestReportGPRSEventArg = -1;
-static gint ett_camel_SEQUENCE_SIZE_1_bound__numOfGPRSEvents_OF_GPRSEvent = -1;
-static gint ett_camel_ResetTimerGPRSArg = -1;
-static gint ett_camel_SendChargingInformationGPRSArg = -1;
-static gint ett_camel_ConnectSMSArg = -1;
-static gint ett_camel_EventReportSMSArg = -1;
-static gint ett_camel_InitialDPSMSArg = -1;
-static gint ett_camel_RequestReportSMSEventArg = -1;
-static gint ett_camel_SEQUENCE_SIZE_1_bound__numOfSMSEvents_OF_SMSEvent = -1;
-static gint ett_camel_ResetTimerSMSArg = -1;
-static gint ett_camel_EstablishTemporaryConnectionArgV2 = -1;
-static gint ett_camel_SEQUENCE_SIZE_1_numOfExtensions_OF_ExtensionField = -1;
-static gint ett_camel_InitialDPArgExtensionV2 = -1;
-static gint ett_camel_NACarrierInformation = -1;
-static gint ett_camel_NA_Info = -1;
-static gint ett_camel_CAMEL_AChBillingChargingCharacteristicsV2 = -1;
-static gint ett_camel_T_timeDurationCharging_01 = -1;
-static gint ett_camel_ReleaseIfDurationExceeded = -1;
-static gint ett_camel_Code = -1;
-static gint ett_camel_ROS = -1;
-static gint ett_camel_Invoke = -1;
-static gint ett_camel_T_linkedId = -1;
-static gint ett_camel_ReturnResult = -1;
-static gint ett_camel_T_result = -1;
-static gint ett_camel_ReturnError = -1;
-static gint ett_camel_Reject = -1;
-static gint ett_camel_T_problem = -1;
-static gint ett_camel_InvokeId = -1;
+static int ett_camel_AChChargingAddress;
+static int ett_camel_AOCBeforeAnswer;
+static int ett_camel_AOCGPRS;
+static int ett_camel_AOCSubsequent;
+static int ett_camel_AudibleIndicator;
+static int ett_camel_BackwardServiceInteractionInd;
+static int ett_camel_BasicGapCriteria;
+static int ett_camel_T_calledAddressAndService;
+static int ett_camel_T_callingAddressAndService;
+static int ett_camel_BCSMEvent;
+static int ett_camel_BCSM_Failure;
+static int ett_camel_BearerCapability;
+static int ett_camel_Burst;
+static int ett_camel_BurstList;
+static int ett_camel_CAI_GSM0224;
+static int ett_camel_CallSegmentFailure;
+static int ett_camel_CallSegmentToCancel;
+static int ett_camel_CAMEL_AChBillingChargingCharacteristics;
+static int ett_camel_T_timeDurationCharging;
+static int ett_camel_CAMEL_CallResult;
+static int ett_camel_T_timeDurationChargingResult;
+static int ett_camel_CAMEL_FCIBillingChargingCharacteristics;
+static int ett_camel_T_fci_fCIBCCCAMELsequence1;
+static int ett_camel_CAMEL_FCIGPRSBillingChargingCharacteristics;
+static int ett_camel_T_fciGPRS_fCIBCCCAMELsequence1;
+static int ett_camel_CAMEL_FCISMSBillingChargingCharacteristics;
+static int ett_camel_T_fciSMS_fCIBCCCAMELsequence1;
+static int ett_camel_CAMEL_SCIBillingChargingCharacteristics;
+static int ett_camel_CAMEL_SCIBillingChargingCharacteristicsAlt;
+static int ett_camel_CAMEL_SCIGPRSBillingChargingCharacteristics;
+static int ett_camel_ChangeOfPositionControlInfo;
+static int ett_camel_ChangeOfLocation;
+static int ett_camel_ChangeOfLocationAlt;
+static int ett_camel_ChargingCharacteristics;
+static int ett_camel_ChargingResult;
+static int ett_camel_ChargingRollOver;
+static int ett_camel_CollectedDigits;
+static int ett_camel_CollectedInfo;
+static int ett_camel_CompoundCriteria;
+static int ett_camel_DestinationRoutingAddress;
+static int ett_camel_DpSpecificCriteria;
+static int ett_camel_DpSpecificCriteriaAlt;
+static int ett_camel_DpSpecificInfoAlt;
+static int ett_camel_T_oServiceChangeSpecificInfo;
+static int ett_camel_T_tServiceChangeSpecificInfo;
+static int ett_camel_T_collectedInfoSpecificInfo;
+static int ett_camel_ElapsedTime;
+static int ett_camel_T_timeGPRSIfTariffSwitch;
+static int ett_camel_ElapsedTimeRollOver;
+static int ett_camel_T_rO_TimeGPRSIfTariffSwitch;
+static int ett_camel_EndUserAddress;
+static int ett_camel_EventSpecificInformationBCSM;
+static int ett_camel_T_routeSelectFailureSpecificInfo;
+static int ett_camel_T_oCalledPartyBusySpecificInfo;
+static int ett_camel_T_oNoAnswerSpecificInfo;
+static int ett_camel_T_oAnswerSpecificInfo;
+static int ett_camel_T_oMidCallSpecificInfo;
+static int ett_camel_T_omidCallEvents;
+static int ett_camel_T_oDisconnectSpecificInfo;
+static int ett_camel_T_tBusySpecificInfo;
+static int ett_camel_T_tNoAnswerSpecificInfo;
+static int ett_camel_T_tAnswerSpecificInfo;
+static int ett_camel_T_tMidCallSpecificInfo;
+static int ett_camel_T_tmidCallEvents;
+static int ett_camel_T_tDisconnectSpecificInfo;
+static int ett_camel_T_oTermSeizedSpecificInfo;
+static int ett_camel_T_callAcceptedSpecificInfo;
+static int ett_camel_T_oAbandonSpecificInfo;
+static int ett_camel_T_oChangeOfPositionSpecificInfo;
+static int ett_camel_T_tChangeOfPositionSpecificInfo;
+static int ett_camel_EventSpecificInformationSMS;
+static int ett_camel_T_o_smsFailureSpecificInfo;
+static int ett_camel_T_o_smsSubmissionSpecificInfo;
+static int ett_camel_T_t_smsFailureSpecificInfo;
+static int ett_camel_T_t_smsDeliverySpecificInfo;
+static int ett_camel_Extensions;
+static int ett_camel_ExtensionField;
+static int ett_camel_ForwardServiceInteractionInd;
+static int ett_camel_GapCriteria;
+static int ett_camel_GapIndicators;
+static int ett_camel_GapOnService;
+static int ett_camel_GapTreatment;
+static int ett_camel_GenericNumbers;
+static int ett_camel_GPRS_QoS;
+static int ett_camel_GPRS_QoS_Extension;
+static int ett_camel_GPRSEvent;
+static int ett_camel_GPRSEventSpecificInformation;
+static int ett_camel_T_attachChangeOfPositionSpecificInformation;
+static int ett_camel_T_pdp_ContextchangeOfPositionSpecificInformation;
+static int ett_camel_T_detachSpecificInformation;
+static int ett_camel_T_disconnectSpecificInformation;
+static int ett_camel_T_pDPContextEstablishmentSpecificInformation;
+static int ett_camel_T_pDPContextEstablishmentAcknowledgementSpecificInformation;
+static int ett_camel_InbandInfo;
+static int ett_camel_InformationToSend;
+static int ett_camel_LegOrCallSegment;
+static int ett_camel_LocationInformationGPRS;
+static int ett_camel_MessageID;
+static int ett_camel_T_text;
+static int ett_camel_SEQUENCE_SIZE_1_bound__numOfMessageIDs_OF_Integer4;
+static int ett_camel_T_variableMessage;
+static int ett_camel_SEQUENCE_SIZE_1_5_OF_VariablePart;
+static int ett_camel_MetDPCriteriaList;
+static int ett_camel_MetDPCriterion;
+static int ett_camel_MetDPCriterionAlt;
+static int ett_camel_MidCallControlInfo;
+static int ett_camel_QualityOfService;
+static int ett_camel_ReceivingSideID;
+static int ett_camel_RequestedInformationList;
+static int ett_camel_RequestedInformationTypeList;
+static int ett_camel_RequestedInformation;
+static int ett_camel_RequestedInformationValue;
+static int ett_camel_SendingSideID;
+static int ett_camel_ServiceInteractionIndicatorsTwo;
+static int ett_camel_SMSEvent;
+static int ett_camel_TimeIfTariffSwitch;
+static int ett_camel_TimeInformation;
+static int ett_camel_Tone;
+static int ett_camel_TransferredVolume;
+static int ett_camel_T_volumeIfTariffSwitch;
+static int ett_camel_TransferredVolumeRollOver;
+static int ett_camel_T_rO_VolumeIfTariffSwitch;
+static int ett_camel_VariablePart;
+static int ett_camel_PAR_cancelFailed;
+static int ett_camel_CAP_GPRS_ReferenceNumber;
+static int ett_camel_PlayAnnouncementArg;
+static int ett_camel_PromptAndCollectUserInformationArg;
+static int ett_camel_ReceivedInformationArg;
+static int ett_camel_SpecializedResourceReportArg;
+static int ett_camel_ApplyChargingArg;
+static int ett_camel_AssistRequestInstructionsArg;
+static int ett_camel_CallGapArg;
+static int ett_camel_CallInformationReportArg;
+static int ett_camel_CallInformationRequestArg;
+static int ett_camel_CancelArg;
+static int ett_camel_CollectInformationArg;
+static int ett_camel_ConnectArg;
+static int ett_camel_ConnectToResourceArg;
+static int ett_camel_T_resourceAddress;
+static int ett_camel_ContinueWithArgumentArg;
+static int ett_camel_ContinueWithArgumentArgExtension;
+static int ett_camel_DisconnectForwardConnectionWithArgumentArg;
+static int ett_camel_DisconnectLegArg;
+static int ett_camel_EntityReleasedArg;
+static int ett_camel_EstablishTemporaryConnectionArg;
+static int ett_camel_EventReportBCSMArg;
+static int ett_camel_InitialDPArg;
+static int ett_camel_InitialDPArgExtension;
+static int ett_camel_InitiateCallAttemptArg;
+static int ett_camel_InitiateCallAttemptRes;
+static int ett_camel_MoveLegArg;
+static int ett_camel_PlayToneArg;
+static int ett_camel_ReleaseCallArg;
+static int ett_camel_AllCallSegmentsWithExtension;
+static int ett_camel_RequestReportBCSMEventArg;
+static int ett_camel_SEQUENCE_SIZE_1_bound__numOfBCSMEvents_OF_BCSMEvent;
+static int ett_camel_ResetTimerArg;
+static int ett_camel_SendChargingInformationArg;
+static int ett_camel_SplitLegArg;
+static int ett_camel_ApplyChargingGPRSArg;
+static int ett_camel_ApplyChargingReportGPRSArg;
+static int ett_camel_CancelGPRSArg;
+static int ett_camel_ConnectGPRSArg;
+static int ett_camel_ContinueGPRSArg;
+static int ett_camel_EntityReleasedGPRSArg;
+static int ett_camel_EventReportGPRSArg;
+static int ett_camel_InitialDPGPRSArg;
+static int ett_camel_ReleaseGPRSArg;
+static int ett_camel_RequestReportGPRSEventArg;
+static int ett_camel_SEQUENCE_SIZE_1_bound__numOfGPRSEvents_OF_GPRSEvent;
+static int ett_camel_ResetTimerGPRSArg;
+static int ett_camel_SendChargingInformationGPRSArg;
+static int ett_camel_ConnectSMSArg;
+static int ett_camel_EventReportSMSArg;
+static int ett_camel_InitialDPSMSArg;
+static int ett_camel_RequestReportSMSEventArg;
+static int ett_camel_SEQUENCE_SIZE_1_bound__numOfSMSEvents_OF_SMSEvent;
+static int ett_camel_ResetTimerSMSArg;
+static int ett_camel_EstablishTemporaryConnectionArgV2;
+static int ett_camel_SEQUENCE_SIZE_1_numOfExtensions_OF_ExtensionField;
+static int ett_camel_InitialDPArgExtensionV2;
+static int ett_camel_NACarrierInformation;
+static int ett_camel_NA_Info;
+static int ett_camel_CAMEL_AChBillingChargingCharacteristicsV2;
+static int ett_camel_T_timeDurationCharging_01;
+static int ett_camel_ReleaseIfDurationExceeded;
+static int ett_camel_Code;
+static int ett_camel_ROS;
+static int ett_camel_Invoke;
+static int ett_camel_T_linkedId;
+static int ett_camel_ReturnResult;
+static int ett_camel_T_result;
+static int ett_camel_ReturnError;
+static int ett_camel_Reject;
+static int ett_camel_T_problem;
+static int ett_camel_InvokeId;
 
-static expert_field ei_camel_unknown_invokeData = EI_INIT;
-static expert_field ei_camel_unknown_returnResultData = EI_INIT;
-static expert_field ei_camel_unknown_returnErrorData = EI_INIT;
-static expert_field ei_camel_par_wrong_length = EI_INIT;
-static expert_field ei_camel_bcd_not_digit = EI_INIT;
+static expert_field ei_camel_unknown_invokeData;
+static expert_field ei_camel_unknown_returnResultData;
+static expert_field ei_camel_unknown_returnErrorData;
+static expert_field ei_camel_par_wrong_length;
+static expert_field ei_camel_bcd_not_digit;
 
 /* Preference settings default */
 #define MAX_SSN 254
@@ -848,14 +850,14 @@ static dissector_handle_t  camel_v4_handle;
 
 /* Global variables */
 
-static guint8 PDPTypeOrganization;
-static guint8 PDPTypeNumber;
-const char *camel_obj_id = NULL;
-gboolean is_ExtensionField =FALSE;
+static uint8_t PDPTypeOrganization;
+static uint8_t PDPTypeNumber;
+const char *camel_obj_id;
+bool is_ExtensionField;
 
 /* Global hash tables*/
-static wmem_map_t *srt_calls = NULL;
-static guint32 camelsrt_global_SessionId=1;
+static wmem_map_t *srt_calls;
+static uint32_t camelsrt_global_SessionId=1;
 
 static int camel_opcode_type;
 #define CAMEL_OPCODE_INVOKE        1
@@ -1263,9 +1265,9 @@ static const value_string camel_err_code_string_vals[] = {
 #ifdef DEBUG_CAMELSRT
 #include <stdio.h>
 #include <stdarg.h>
-static guint debug_level = 99;
+static unsigned debug_level = 99;
 
-static void dbg(guint level, char *fmt, ...) {
+static void dbg(unsigned level, char *fmt, ...) {
   va_list ap;
 
   if (level > debug_level) return;
@@ -1279,8 +1281,8 @@ static void
 camelstat_init(struct register_srt* srt _U_, GArray* srt_array)
 {
   srt_stat_table *camel_srt_table;
-  gchar* tmp_str;
-  guint32 i;
+  char* tmp_str;
+  uint32_t i;
 
   camel_srt_table = init_srt_table("CAMEL Commands", NULL, srt_array, NB_CAMELSRT_CATEGORY, NULL, NULL, NULL);
   for (i = 0; i < NB_CAMELSRT_CATEGORY; i++)
@@ -1294,7 +1296,7 @@ camelstat_init(struct register_srt* srt _U_, GArray* srt_array)
 static tap_packet_status
 camelstat_packet(void *pcamel, packet_info *pinfo, epan_dissect_t *edt _U_, const void *psi, tap_flags_t flags _U_)
 {
-  guint idx = 0;
+  unsigned idx = 0;
   srt_stat_table *camel_srt_table;
   const struct camelsrt_info_t * pi=(const struct camelsrt_info_t *)psi;
   srt_data_t *data = (srt_data_t *)pcamel;
@@ -1325,15 +1327,15 @@ static char camel_number_to_char(int number)
 /*
  * 24.011 8.2.5.4
  */
-static guint8
-dissect_RP_cause_ie(tvbuff_t *tvb, guint32 offset, _U_ guint len,
-                    proto_tree *tree, int hf_cause_value, guint8 *cause_value)
+static uint8_t
+dissect_RP_cause_ie(tvbuff_t *tvb, uint32_t offset, _U_ unsigned len,
+                    proto_tree *tree, int hf_cause_value, uint8_t *cause_value)
 {
-  guint8 oct;
-  guint32 curr_offset;
+  uint8_t oct;
+  uint32_t curr_offset;
 
   curr_offset = offset;
-  oct = tvb_get_guint8(tvb, curr_offset);
+  oct = tvb_get_uint8(tvb, curr_offset);
 
   *cause_value = oct & 0x7f;
 
@@ -1341,13 +1343,13 @@ dissect_RP_cause_ie(tvbuff_t *tvb, guint32 offset, _U_ guint len,
   curr_offset++;
 
   if ((oct & 0x80)) {
-    oct = tvb_get_guint8(tvb, curr_offset);
+    oct = tvb_get_uint8(tvb, curr_offset);
     proto_tree_add_uint_format(tree, hf_cause_value,
                                tvb, curr_offset, 1, oct,
                                "Diagnostic : %u", oct);
     curr_offset++;
   }
-  return(curr_offset - offset);
+  return curr_offset - offset;
 }
 
 static int dissect_camel_InitialDPArgExtensionV2(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
@@ -1386,9 +1388,9 @@ dissect_camel_AChBillingChargingCharacteristics(bool implicit_tag _U_, tvbuff_t 
 	return offset;
  subtree = proto_item_add_subtree(actx->created_item, ett_camel_CAMEL_AChBillingChargingCharacteristics);
  if((camel_ver == 2)||(camel_ver == 1)){
-	return  dissect_camel_CAMEL_AChBillingChargingCharacteristicsV2(FALSE, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_AChBillingChargingCharacteristics);
+	return  dissect_camel_CAMEL_AChBillingChargingCharacteristicsV2(false, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_AChBillingChargingCharacteristics);
  }
- dissect_camel_CAMEL_AChBillingChargingCharacteristics(FALSE, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_AChBillingChargingCharacteristics);
+ dissect_camel_CAMEL_AChBillingChargingCharacteristics(false, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_AChBillingChargingCharacteristics);
 
 
   return offset;
@@ -1467,8 +1469,8 @@ dissect_camel_Digits(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, a
 */
  tvbuff_t	*parameter_tvb;
  proto_tree *subtree;
- gint ett = -1;
- bool digits = FALSE;
+ int ett = -1;
+ bool digits = false;
 
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        &parameter_tvb);
@@ -1486,19 +1488,19 @@ dissect_camel_Digits(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, a
 	ett = ett_camel_assistingSSPIPRoutingAddress;
   } else if (hf_index == hf_camel_correlationID) {
 	ett = ett_camel_correlationID;
-	digits = (opcode == opcode_establishTemporaryConnection) ? TRUE : FALSE;
+	digits = (opcode == opcode_establishTemporaryConnection) ? true : false;
   } else if (hf_index == hf_camel_dTMFDigitsCompleted) {
 	ett = ett_camel_dTMFDigitsCompleted;
-	digits = TRUE;
+	digits = true;
   } else if (hf_index == hf_camel_dTMFDigitsTimeOut) {
 	ett = ett_camel_dTMFDigitsTimeOut;
-	digits = TRUE;
+	digits = true;
   } else if (hf_index == hf_camel_number) {
 	ett = ett_camel_number;
-	digits = TRUE;
+	digits = true;
   } else if (hf_index == hf_camel_digitsResponse) {
 	ett = ett_camel_digitsResponse;
-	digits = TRUE;
+	digits = true;
   }
 
   subtree = proto_item_add_subtree(actx->created_item, ett);
@@ -2083,7 +2085,7 @@ static int
 dissect_camel_Cause(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
 
 tvbuff_t *parameter_tvb;
-guint8 Cause_value;
+uint8_t Cause_value;
 proto_tree *subtree;
 
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
@@ -2240,7 +2242,7 @@ dissect_camel_CallResult(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U
  if (!parameter_tvb)
 	return offset;
  subtree = proto_item_add_subtree(actx->created_item, ett_camel_CAMEL_CallResult);
- dissect_camel_CAMEL_CallResult(FALSE, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_CallResult);
+ dissect_camel_CAMEL_CallResult(false, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_CallResult);
 
 
   return offset;
@@ -2301,7 +2303,7 @@ dissect_camel_INTEGER_1_864000(bool implicit_tag _U_, tvbuff_t *tvb _U_, int off
 static int
 dissect_camel_T_audibleIndicator(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   if (tvb_reported_length_remaining(tvb,offset) < 2)
-	offset = dissect_camel_BOOLEAN(TRUE, tvb, offset, actx , tree, hf_camel_audibleIndicatorTone);
+	offset = dissect_camel_BOOLEAN(true, tvb, offset, actx , tree, hf_camel_audibleIndicatorTone);
   else
   offset = dissect_camel_AudibleIndicator(implicit_tag, tvb, offset, actx, tree, hf_index);
 
@@ -2323,7 +2325,7 @@ dissect_camel_T_local(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, 
     offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 &opcode);
 
-  if (is_ExtensionField == FALSE){
+  if (is_ExtensionField == false){
 	if (camel_opcode_type == CAMEL_OPCODE_RETURN_ERROR){
 	  errorCode = opcode;
 	  col_append_str(actx->pinfo->cinfo, COL_INFO,
@@ -2381,7 +2383,7 @@ dissect_camel_T_value(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, 
   if(camel_obj_id){
     offset=call_ber_oid_callback(camel_obj_id, tvb, offset, actx->pinfo, tree, NULL);
   }
-  is_ExtensionField = FALSE;
+  is_ExtensionField = false;
 
 
   return offset;
@@ -2398,7 +2400,7 @@ static const ber_sequence_t ExtensionField_sequence[] = {
 static int
 dissect_camel_ExtensionField(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
 	camel_obj_id = NULL;
-	is_ExtensionField =TRUE;
+	is_ExtensionField =true;
 
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    ExtensionField_sequence, hf_index, ett_camel_ExtensionField);
@@ -3242,8 +3244,8 @@ dissect_camel_DateAndTime(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
 * otherwise.
 */
 
-  guint8 digit_pair;
-  guint8 i = 0, curr_offset;
+  uint8_t digit_pair;
+  uint8_t i = 0, curr_offset;
   char camel_time[CAMEL_DATE_AND_TIME_LEN];
   char c[CAMEL_DATE_AND_TIME_LEN]; /*temporary container*/
 
@@ -3252,7 +3254,7 @@ dissect_camel_DateAndTime(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
   for (curr_offset = 0; curr_offset < 7 ; curr_offset++)
   /*Loop to extract date*/
   {
-      digit_pair = tvb_get_guint8(tvb, curr_offset);
+      digit_pair = tvb_get_uint8(tvb, curr_offset);
 
       proto_tree_add_uint(tree,
                           hf_digit,
@@ -3276,7 +3278,7 @@ dissect_camel_DateAndTime(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
   }
 
   /* Pretty print date */
-  /* XXX - Should we use sprintf here instead of assembling the string by
+  /* XXX - Should we use snprintf here instead of assembling the string by
    * hand? */
 
   camel_time[0] = c[8];
@@ -3446,7 +3448,7 @@ dissect_camel_T_pDPTypeOrganization(bool implicit_tag _U_, tvbuff_t *tvb _U_, in
 
  if (!parameter_tvb)
 	return offset;
- PDPTypeOrganization  = (tvb_get_guint8(parameter_tvb,0) &0x0f);
+ PDPTypeOrganization  = (tvb_get_uint8(parameter_tvb,0) &0x0f);
 
   return offset;
 }
@@ -3465,7 +3467,7 @@ dissect_camel_T_pDPTypeNumber(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offs
 
  if (!parameter_tvb)
 	return offset;
- PDPTypeNumber = tvb_get_guint8(parameter_tvb,0);
+ PDPTypeNumber = tvb_get_uint8(parameter_tvb,0);
  subtree = proto_item_add_subtree(actx->created_item, ett_camel_pdptypenumber);
  switch (PDPTypeOrganization){
  case 0: /* ETSI */
@@ -4077,7 +4079,7 @@ dissect_camel_FCIBillingChargingCharacteristics(bool implicit_tag _U_, tvbuff_t 
  if (!parameter_tvb)
 	return offset;
  subtree = proto_item_add_subtree(actx->created_item, ett_camel_CAMEL_FCIBillingChargingCharacteristics);
- dissect_camel_CAMEL_FCIBillingChargingCharacteristics(FALSE, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_FCIBillingChargingCharacteristics);
+ dissect_camel_CAMEL_FCIBillingChargingCharacteristics(false, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_FCIBillingChargingCharacteristics);
 
 
   return offset;
@@ -4096,7 +4098,7 @@ dissect_camel_FCIGPRSBillingChargingCharacteristics(bool implicit_tag _U_, tvbuf
  if (!parameter_tvb)
 	return offset;
  subtree = proto_item_add_subtree(actx->created_item, ett_camel_CAMEL_FCIGPRSBillingChargingCharacteristics);
- dissect_camel_CAMEL_FCIGPRSBillingChargingCharacteristics(FALSE, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_FCIGPRSBillingChargingCharacteristics);
+ dissect_camel_CAMEL_FCIGPRSBillingChargingCharacteristics(false, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_FCIGPRSBillingChargingCharacteristics);
 
 
   return offset;
@@ -4115,7 +4117,7 @@ dissect_camel_FCISMSBillingChargingCharacteristics(bool implicit_tag _U_, tvbuff
  if (!parameter_tvb)
 	return offset;
  subtree = proto_item_add_subtree(actx->created_item, ett_camel_CAMEL_FCISMSBillingChargingCharacteristics);
- dissect_camel_CAMEL_FCISMSBillingChargingCharacteristics(FALSE, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_FCISMSBillingChargingCharacteristics);
+ dissect_camel_CAMEL_FCISMSBillingChargingCharacteristics(false, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_FCISMSBillingChargingCharacteristics);
 
 
   return offset;
@@ -4540,9 +4542,9 @@ dissect_camel_T_cellGlobalIdOrServiceAreaIdOrLAI(bool implicit_tag _U_, tvbuff_t
  subtree = proto_item_add_subtree(actx->created_item, ett_camel_pdptypenumber);
 
  if (tvb_reported_length_remaining(tvb,start_offset) == 7){
-	dissect_gsm_map_CellGlobalIdOrServiceAreaIdFixedLength(TRUE, tvb, start_offset, actx, subtree, hf_camel_cellGlobalIdOrServiceAreaIdFixedLength);
+	dissect_gsm_map_CellGlobalIdOrServiceAreaIdFixedLength(true, tvb, start_offset, actx, subtree, hf_camel_cellGlobalIdOrServiceAreaIdFixedLength);
  }else{
-	dissect_gsm_map_LAIFixedLength(TRUE, tvb, start_offset, actx, subtree, hf_camel_locationAreaId);
+	dissect_gsm_map_LAIFixedLength(true, tvb, start_offset, actx, subtree, hf_camel_locationAreaId);
  }
 
   return offset;
@@ -4619,16 +4621,16 @@ dissect_camel_TimeAndTimezone(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offs
  tvbuff_t  *parameter_tvb;
  proto_tree *subtree;
  proto_item *item;
- gchar *digit_str;
- guint length;
- gchar year[5];
- gchar month[3];
- gchar day[3];
- gchar hour[3];
- gchar minute[3];
- gchar second[3];
+ char *digit_str;
+ unsigned length;
+ char year[5];
+ char month[3];
+ char day[3];
+ char hour[3];
+ char minute[3];
+ char second[3];
 
- guint8 oct;
+ uint8_t oct;
  int8_t tz;
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
                                        &parameter_tvb);
@@ -4642,13 +4644,13 @@ dissect_camel_TimeAndTimezone(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offs
     return offset;
   }
   subtree = proto_item_add_subtree(actx->created_item, ett_camel_timeandtimezone);
-  item = proto_tree_add_item_ret_display_string(subtree, hf_camel_timeandtimezone_time, parameter_tvb, 0, 7, ENC_BCD_DIGITS_0_9, actx->pinfo->pool, &digit_str);
+  item = proto_tree_add_item_ret_display_string(subtree, hf_camel_timeandtimezone_time, parameter_tvb, 0, 7, ENC_BCD_DIGITS_0_9|ENC_LITTLE_ENDIAN, actx->pinfo->pool, &digit_str);
 
 /*
 The Time Zone indicates the difference, expressed in quarters of an hour, between the local time and GMT. In the first of the two semi octets,
 the first bit (bit 3 of the seventh octet of the TP Service Centre Time Stamp field) represents the algebraic sign of this difference (0: positive, 1: negative).
 */
-  oct = tvb_get_guint8(parameter_tvb,7);
+  oct = tvb_get_uint8(parameter_tvb,7);
 
   /* packet-gsm_sms.c time dis_field_scts_aux() */
   tz = (oct >> 4) + (oct & 0x07) * 10;
@@ -5030,7 +5032,7 @@ static int
 dissect_camel_RPCause(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
 
 tvbuff_t *parameter_tvb;
-guint8 Cause_value;
+uint8_t Cause_value;
 proto_tree *subtree;
 
   offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
@@ -5059,7 +5061,7 @@ dissect_camel_SCIBillingChargingCharacteristics(bool implicit_tag _U_, tvbuff_t 
  if (!parameter_tvb)
 	return offset;
  subtree = proto_item_add_subtree(actx->created_item, ett_camel_CAMEL_SCIBillingChargingCharacteristics);
- dissect_camel_CAMEL_SCIBillingChargingCharacteristics(FALSE, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_SCIBillingChargingCharacteristics);
+ dissect_camel_CAMEL_SCIBillingChargingCharacteristics(false, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_SCIBillingChargingCharacteristics);
 
 
   return offset;
@@ -5078,7 +5080,7 @@ dissect_camel_SCIGPRSBillingChargingCharacteristics(bool implicit_tag _U_, tvbuf
  if (!parameter_tvb)
 	return offset;
  subtree = proto_item_add_subtree(actx->created_item, ett_camel_CAMEL_SCIGPRSBillingChargingCharacteristics);
- dissect_camel_CAMEL_SCIGPRSBillingChargingCharacteristics(FALSE, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_SCIGPRSBillingChargingCharacteristics);
+ dissect_camel_CAMEL_SCIGPRSBillingChargingCharacteristics(false, parameter_tvb, 0, actx, subtree, hf_camel_CAMEL_SCIGPRSBillingChargingCharacteristics);
 
 
   return offset;
@@ -6855,400 +6857,400 @@ dissect_camel_ROS(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1
 static int dissect_PAR_cancelFailed_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_PAR_cancelFailed(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_PAR_cancelFailed_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_PAR_cancelFailed(false, tvb, offset, &asn1_ctx, tree, hf_camel_PAR_cancelFailed_PDU);
   return offset;
 }
 static int dissect_PAR_requestedInfoError_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_PAR_requestedInfoError(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_PAR_requestedInfoError_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_PAR_requestedInfoError(false, tvb, offset, &asn1_ctx, tree, hf_camel_PAR_requestedInfoError_PDU);
   return offset;
 }
 static int dissect_UnavailableNetworkResource_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_UnavailableNetworkResource(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_UnavailableNetworkResource_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_UnavailableNetworkResource(false, tvb, offset, &asn1_ctx, tree, hf_camel_UnavailableNetworkResource_PDU);
   return offset;
 }
 static int dissect_PAR_taskRefused_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_PAR_taskRefused(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_PAR_taskRefused_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_PAR_taskRefused(false, tvb, offset, &asn1_ctx, tree, hf_camel_PAR_taskRefused_PDU);
   return offset;
 }
 static int dissect_CAP_GPRS_ReferenceNumber_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_CAP_GPRS_ReferenceNumber(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_CAP_GPRS_ReferenceNumber_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_CAP_GPRS_ReferenceNumber(false, tvb, offset, &asn1_ctx, tree, hf_camel_CAP_GPRS_ReferenceNumber_PDU);
   return offset;
 }
 static int dissect_PlayAnnouncementArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_PlayAnnouncementArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_PlayAnnouncementArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_PlayAnnouncementArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_PlayAnnouncementArg_PDU);
   return offset;
 }
 static int dissect_PromptAndCollectUserInformationArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_PromptAndCollectUserInformationArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_PromptAndCollectUserInformationArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_PromptAndCollectUserInformationArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_PromptAndCollectUserInformationArg_PDU);
   return offset;
 }
 static int dissect_ReceivedInformationArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ReceivedInformationArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ReceivedInformationArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ReceivedInformationArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ReceivedInformationArg_PDU);
   return offset;
 }
 static int dissect_SpecializedResourceReportArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_SpecializedResourceReportArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_SpecializedResourceReportArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_SpecializedResourceReportArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_SpecializedResourceReportArg_PDU);
   return offset;
 }
 static int dissect_ApplyChargingArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ApplyChargingArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ApplyChargingArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ApplyChargingArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ApplyChargingArg_PDU);
   return offset;
 }
 static int dissect_ApplyChargingReportArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ApplyChargingReportArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ApplyChargingReportArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ApplyChargingReportArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ApplyChargingReportArg_PDU);
   return offset;
 }
 static int dissect_AssistRequestInstructionsArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_AssistRequestInstructionsArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_AssistRequestInstructionsArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_AssistRequestInstructionsArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_AssistRequestInstructionsArg_PDU);
   return offset;
 }
 static int dissect_CallGapArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_CallGapArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_CallGapArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_CallGapArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_CallGapArg_PDU);
   return offset;
 }
 static int dissect_CallInformationReportArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_CallInformationReportArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_CallInformationReportArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_CallInformationReportArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_CallInformationReportArg_PDU);
   return offset;
 }
 static int dissect_CallInformationRequestArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_CallInformationRequestArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_CallInformationRequestArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_CallInformationRequestArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_CallInformationRequestArg_PDU);
   return offset;
 }
 static int dissect_CancelArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_CancelArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_CancelArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_CancelArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_CancelArg_PDU);
   return offset;
 }
 static int dissect_CollectInformationArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_CollectInformationArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_CollectInformationArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_CollectInformationArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_CollectInformationArg_PDU);
   return offset;
 }
 static int dissect_ConnectArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ConnectArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ConnectArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ConnectArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ConnectArg_PDU);
   return offset;
 }
 static int dissect_ConnectToResourceArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ConnectToResourceArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ConnectToResourceArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ConnectToResourceArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ConnectToResourceArg_PDU);
   return offset;
 }
 static int dissect_ContinueWithArgumentArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ContinueWithArgumentArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ContinueWithArgumentArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ContinueWithArgumentArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ContinueWithArgumentArg_PDU);
   return offset;
 }
 static int dissect_DisconnectForwardConnectionWithArgumentArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_DisconnectForwardConnectionWithArgumentArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_DisconnectForwardConnectionWithArgumentArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_DisconnectForwardConnectionWithArgumentArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_DisconnectForwardConnectionWithArgumentArg_PDU);
   return offset;
 }
 static int dissect_DisconnectLegArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_DisconnectLegArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_DisconnectLegArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_DisconnectLegArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_DisconnectLegArg_PDU);
   return offset;
 }
 static int dissect_EntityReleasedArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_EntityReleasedArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_EntityReleasedArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_EntityReleasedArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_EntityReleasedArg_PDU);
   return offset;
 }
 static int dissect_EstablishTemporaryConnectionArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_EstablishTemporaryConnectionArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_EstablishTemporaryConnectionArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_EstablishTemporaryConnectionArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_EstablishTemporaryConnectionArg_PDU);
   return offset;
 }
 static int dissect_EventReportBCSMArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_EventReportBCSMArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_EventReportBCSMArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_EventReportBCSMArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_EventReportBCSMArg_PDU);
   return offset;
 }
 static int dissect_FurnishChargingInformationArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_FurnishChargingInformationArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_FurnishChargingInformationArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_FurnishChargingInformationArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_FurnishChargingInformationArg_PDU);
   return offset;
 }
 static int dissect_InitialDPArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_InitialDPArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_InitialDPArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_InitialDPArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_InitialDPArg_PDU);
   return offset;
 }
 static int dissect_InitiateCallAttemptArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_InitiateCallAttemptArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_InitiateCallAttemptArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_InitiateCallAttemptArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_InitiateCallAttemptArg_PDU);
   return offset;
 }
 static int dissect_InitiateCallAttemptRes_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_InitiateCallAttemptRes(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_InitiateCallAttemptRes_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_InitiateCallAttemptRes(false, tvb, offset, &asn1_ctx, tree, hf_camel_InitiateCallAttemptRes_PDU);
   return offset;
 }
 static int dissect_MoveLegArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_MoveLegArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_MoveLegArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_MoveLegArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_MoveLegArg_PDU);
   return offset;
 }
 static int dissect_PlayToneArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_PlayToneArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_PlayToneArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_PlayToneArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_PlayToneArg_PDU);
   return offset;
 }
 static int dissect_ReleaseCallArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ReleaseCallArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ReleaseCallArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ReleaseCallArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ReleaseCallArg_PDU);
   return offset;
 }
 static int dissect_RequestReportBCSMEventArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_RequestReportBCSMEventArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_RequestReportBCSMEventArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_RequestReportBCSMEventArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_RequestReportBCSMEventArg_PDU);
   return offset;
 }
 static int dissect_ResetTimerArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ResetTimerArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ResetTimerArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ResetTimerArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ResetTimerArg_PDU);
   return offset;
 }
 static int dissect_SendChargingInformationArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_SendChargingInformationArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_SendChargingInformationArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_SendChargingInformationArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_SendChargingInformationArg_PDU);
   return offset;
 }
 static int dissect_SplitLegArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_SplitLegArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_SplitLegArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_SplitLegArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_SplitLegArg_PDU);
   return offset;
 }
 static int dissect_ApplyChargingGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ApplyChargingGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ApplyChargingGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ApplyChargingGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ApplyChargingGPRSArg_PDU);
   return offset;
 }
 static int dissect_ApplyChargingReportGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ApplyChargingReportGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ApplyChargingReportGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ApplyChargingReportGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ApplyChargingReportGPRSArg_PDU);
   return offset;
 }
 static int dissect_CancelGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_CancelGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_CancelGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_CancelGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_CancelGPRSArg_PDU);
   return offset;
 }
 static int dissect_ConnectGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ConnectGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ConnectGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ConnectGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ConnectGPRSArg_PDU);
   return offset;
 }
 static int dissect_ContinueGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ContinueGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ContinueGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ContinueGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ContinueGPRSArg_PDU);
   return offset;
 }
 static int dissect_EntityReleasedGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_EntityReleasedGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_EntityReleasedGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_EntityReleasedGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_EntityReleasedGPRSArg_PDU);
   return offset;
 }
 static int dissect_EventReportGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_EventReportGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_EventReportGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_EventReportGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_EventReportGPRSArg_PDU);
   return offset;
 }
 static int dissect_FurnishChargingInformationGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_FurnishChargingInformationGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_FurnishChargingInformationGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_FurnishChargingInformationGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_FurnishChargingInformationGPRSArg_PDU);
   return offset;
 }
 static int dissect_InitialDPGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_InitialDPGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_InitialDPGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_InitialDPGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_InitialDPGPRSArg_PDU);
   return offset;
 }
 static int dissect_ReleaseGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ReleaseGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ReleaseGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ReleaseGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ReleaseGPRSArg_PDU);
   return offset;
 }
 static int dissect_RequestReportGPRSEventArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_RequestReportGPRSEventArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_RequestReportGPRSEventArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_RequestReportGPRSEventArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_RequestReportGPRSEventArg_PDU);
   return offset;
 }
 static int dissect_ResetTimerGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ResetTimerGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ResetTimerGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ResetTimerGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ResetTimerGPRSArg_PDU);
   return offset;
 }
 static int dissect_SendChargingInformationGPRSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_SendChargingInformationGPRSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_SendChargingInformationGPRSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_SendChargingInformationGPRSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_SendChargingInformationGPRSArg_PDU);
   return offset;
 }
 static int dissect_ConnectSMSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ConnectSMSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ConnectSMSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ConnectSMSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ConnectSMSArg_PDU);
   return offset;
 }
 static int dissect_EventReportSMSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_EventReportSMSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_EventReportSMSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_EventReportSMSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_EventReportSMSArg_PDU);
   return offset;
 }
 static int dissect_FurnishChargingInformationSMSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_FurnishChargingInformationSMSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_FurnishChargingInformationSMSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_FurnishChargingInformationSMSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_FurnishChargingInformationSMSArg_PDU);
   return offset;
 }
 static int dissect_InitialDPSMSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_InitialDPSMSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_InitialDPSMSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_InitialDPSMSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_InitialDPSMSArg_PDU);
   return offset;
 }
 static int dissect_ReleaseSMSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ReleaseSMSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ReleaseSMSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ReleaseSMSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ReleaseSMSArg_PDU);
   return offset;
 }
 static int dissect_RequestReportSMSEventArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_RequestReportSMSEventArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_RequestReportSMSEventArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_RequestReportSMSEventArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_RequestReportSMSEventArg_PDU);
   return offset;
 }
 static int dissect_ResetTimerSMSArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_ResetTimerSMSArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_ResetTimerSMSArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_ResetTimerSMSArg(false, tvb, offset, &asn1_ctx, tree, hf_camel_ResetTimerSMSArg_PDU);
   return offset;
 }
 static int dissect_CAP_U_ABORT_REASON_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_camel_CAP_U_ABORT_REASON(FALSE, tvb, offset, &asn1_ctx, tree, hf_camel_CAP_U_ABORT_REASON_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_camel_CAP_U_ABORT_REASON(false, tvb, offset, &asn1_ctx, tree, hf_camel_CAP_U_ABORT_REASON_PDU);
   return offset;
 }
 
@@ -7459,8 +7461,8 @@ static int dissect_returnErrorData(proto_tree *tree, tvbuff_t *tvb, int offset,a
  */
 
 /* compare 2 keys */
-static gint
-camelsrt_call_equal(gconstpointer k1, gconstpointer k2)
+static int
+camelsrt_call_equal(const void *k1, const void *k2)
 {
   const struct camelsrt_call_info_key_t *key1 = (const struct camelsrt_call_info_key_t *) k1;
   const struct camelsrt_call_info_key_t *key2 = (const struct camelsrt_call_info_key_t *) k2;
@@ -7469,8 +7471,8 @@ camelsrt_call_equal(gconstpointer k1, gconstpointer k2)
 }
 
 /* calculate a hash key */
-static guint
-camelsrt_call_hash(gconstpointer k)
+static unsigned
+camelsrt_call_hash(const void *k)
 {
   const struct camelsrt_call_info_key_t *key = (const struct camelsrt_call_info_key_t *) k;
   return key->SessionIdKey;
@@ -7555,11 +7557,11 @@ camelsrt_init_routine(void)
  */
 static void
 update_camelsrt_call(struct camelsrt_call_t *p_camelsrt_call, packet_info *pinfo,
-                     guint msg_category)
+                     unsigned msg_category)
 {
   p_camelsrt_call->category[msg_category].req_num = pinfo->num;
   p_camelsrt_call->category[msg_category].rsp_num = 0;
-  p_camelsrt_call->category[msg_category].responded = FALSE;
+  p_camelsrt_call->category[msg_category].responded = false;
   p_camelsrt_call->category[msg_category].req_time = pinfo->abs_ts;
 }
 
@@ -7575,7 +7577,7 @@ camelsrt_close_call_matching(packet_info *pinfo,
   struct camelsrt_call_info_key_t camelsrt_call_key;
   nstime_t delta;
 
-  p_camelsrt_info->bool_msginfo[CAMELSRT_SESSION]=TRUE;
+  p_camelsrt_info->bool_msginfo[CAMELSRT_SESSION]=true;
 #ifdef DEBUG_CAMELSRT
   dbg(10,"\n Session end #%u\n", pinfo->num);
 #endif
@@ -7592,9 +7594,9 @@ camelsrt_close_call_matching(packet_info *pinfo,
 #endif
     /* Calculate Service Response Time */
     nstime_delta(&delta, &pinfo->abs_ts, &p_camelsrt_call->category[CAMELSRT_SESSION].req_time);
-    p_camelsrt_call->category[CAMELSRT_SESSION].responded = TRUE;
-    p_camelsrt_info->msginfo[CAMELSRT_SESSION].request_available = TRUE;
-    p_camelsrt_info->msginfo[CAMELSRT_SESSION].is_delta_time = TRUE;
+    p_camelsrt_call->category[CAMELSRT_SESSION].responded = true;
+    p_camelsrt_info->msginfo[CAMELSRT_SESSION].request_available = true;
+    p_camelsrt_info->msginfo[CAMELSRT_SESSION].is_delta_time = true;
     p_camelsrt_info->msginfo[CAMELSRT_SESSION].delta_time = delta; /* give it to tap */
     p_camelsrt_info->msginfo[CAMELSRT_SESSION].req_time = p_camelsrt_call->category[CAMELSRT_SESSION].req_time;
 
@@ -7652,7 +7654,7 @@ camelsrt_begin_call_matching(packet_info *pinfo,
   struct camelsrt_call_t *p_camelsrt_call;
   struct camelsrt_call_info_key_t camelsrt_call_key;
 
-  p_camelsrt_info->bool_msginfo[CAMELSRT_SESSION]=TRUE;
+  p_camelsrt_info->bool_msginfo[CAMELSRT_SESSION]=true;
 
   /* prepare the key data */
   camelsrt_call_key.SessionIdKey = p_camelsrt_info->tcap_session_id;
@@ -7691,7 +7693,7 @@ static void
 camelsrt_request_call_matching(tvbuff_t *tvb, packet_info *pinfo,
                                proto_tree *tree,
                                struct camelsrt_info_t *p_camelsrt_info,
-                               guint srt_type )
+                               unsigned srt_type )
 {
   struct camelsrt_call_t *p_camelsrt_call;
   struct camelsrt_call_info_key_t camelsrt_call_key;
@@ -7746,7 +7748,7 @@ camelsrt_request_call_matching(tvbuff_t *tvb, packet_info *pinfo,
       dbg(70,"ACR3 %u %u",p_camelsrt_call->category[CAMELSRT_VOICE_ACR3].req_num, p_camelsrt_call->category[CAMELSRT_VOICE_ACR3].rsp_num);
 #endif
     } /* not ACR */
-    p_camelsrt_info->bool_msginfo[srt_type]=TRUE;
+    p_camelsrt_info->bool_msginfo[srt_type]=true;
 
 
     if (p_camelsrt_call->category[srt_type].req_num == 0) {
@@ -7765,7 +7767,7 @@ camelsrt_request_call_matching(tvbuff_t *tvb, packet_info *pinfo,
 #ifdef DEBUG_CAMELSRT
           dbg(21,"Display_duplicate with req %d ", p_camelsrt_call->category[srt_type].req_num);
 #endif
-          p_camelsrt_info->msginfo[srt_type].is_duplicate = TRUE;
+          p_camelsrt_info->msginfo[srt_type].is_duplicate = true;
           if (gcamel_DisplaySRT){
             hidden_item = proto_tree_add_uint(tree, hf_camelsrt_Duplicate, tvb, 0,0, 77);
                 proto_item_set_hidden(hidden_item);
@@ -7808,7 +7810,7 @@ camelsrt_request_call_matching(tvbuff_t *tvb, packet_info *pinfo,
  */
 static void
 camelsrt_display_DeltaTime(proto_tree *tree, tvbuff_t *tvb, nstime_t *value_ptr,
-                           guint category)
+                           unsigned category)
 {
   proto_item *ti;
 
@@ -7860,7 +7862,7 @@ static void
 camelsrt_report_call_matching(tvbuff_t *tvb, packet_info *pinfo,
                               proto_tree *tree,
                               struct camelsrt_info_t *p_camelsrt_info,
-                              guint srt_type)
+                              unsigned srt_type)
 {
   struct camelsrt_call_t *p_camelsrt_call;
   struct camelsrt_call_info_key_t camelsrt_call_key;
@@ -7899,7 +7901,7 @@ camelsrt_report_call_matching(tvbuff_t *tvb, packet_info *pinfo,
       dbg(70,"Report ACR %u ",srt_type);
 #endif
     } /* not ACR */
-    p_camelsrt_info->bool_msginfo[srt_type]=TRUE;
+    p_camelsrt_info->bool_msginfo[srt_type]=true;
 
     if (p_camelsrt_call->category[srt_type].rsp_num == 0) {
       if  ( (p_camelsrt_call->category[srt_type].req_num != 0)
@@ -7923,7 +7925,7 @@ camelsrt_report_call_matching(tvbuff_t *tvb, packet_info *pinfo,
 #ifdef DEBUG_CAMELSRT
         dbg(21,"Display_duplicate rsp=%d ", p_camelsrt_call->category[srt_type].rsp_num);
 #endif
-        p_camelsrt_info->msginfo[srt_type].is_duplicate = TRUE;
+        p_camelsrt_info->msginfo[srt_type].is_duplicate = true;
         if ( gcamel_DisplaySRT ){
           hidden_item = proto_tree_add_uint(tree, hf_camelsrt_Duplicate, tvb, 0,0, 77);
           proto_item_set_hidden(hidden_item);
@@ -7935,8 +7937,8 @@ camelsrt_report_call_matching(tvbuff_t *tvb, packet_info *pinfo,
          (p_camelsrt_call->category[srt_type].rsp_num != 0) &&
          (p_camelsrt_call->category[srt_type].rsp_num == pinfo->num) ) {
 
-      p_camelsrt_call->category[srt_type].responded = TRUE;
-      p_camelsrt_info->msginfo[srt_type].request_available = TRUE;
+      p_camelsrt_call->category[srt_type].responded = true;
+      p_camelsrt_info->msginfo[srt_type].request_available = true;
 #ifdef DEBUG_CAMELSRT
       dbg(20,"Display_frameReqlink %d ",p_camelsrt_call->category[srt_type].req_num);
 #endif
@@ -7952,7 +7954,7 @@ camelsrt_report_call_matching(tvbuff_t *tvb, packet_info *pinfo,
       /* Calculate Service Response Time */
       nstime_delta(&delta, &pinfo->abs_ts, &p_camelsrt_call->category[srt_type].req_time);
 
-      p_camelsrt_info->msginfo[srt_type].is_delta_time = TRUE;
+      p_camelsrt_info->msginfo[srt_type].is_delta_time = true;
       p_camelsrt_info->msginfo[srt_type].delta_time = delta; /* give it to tap */
       p_camelsrt_info->msginfo[srt_type].req_time = p_camelsrt_call->category[srt_type].req_time;
 
@@ -8011,7 +8013,7 @@ camelsrt_call_matching(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     break;
 
   case 64: /*EventReportSMS*/
-    /* Session has been explicity closed without TC_END */
+    /* Session has been explicitly closed without TC_END */
     camelsrt_close_call_matching(pinfo, p_camelsrt_info);
     tcapsrt_close((struct tcaphash_context_t *)p_camelsrt_info->tcap_context, pinfo);
     break;
@@ -8097,8 +8099,8 @@ camelsrt_razinfo(void)
 }
 
 
-static guint8 camel_pdu_type = 0;
-static guint8 camel_pdu_size = 0;
+static uint8_t camel_pdu_type;
+static uint8_t camel_pdu_size;
 
 
 static int
@@ -8112,16 +8114,16 @@ dissect_camel_camelPDU(bool implicit_tag _U_, tvbuff_t *tvb, int offset, asn1_ct
             gp_camelsrt_info->tcap_session_id = ( (struct tcaphash_context_t *) (p_private_tcap->context))->session_id;
     }
 
-    camel_pdu_type = tvb_get_guint8(tvb, offset)&0x0f;
+    camel_pdu_type = tvb_get_uint8(tvb, offset)&0x0f;
     /* Get the length and add 2 */
-    camel_pdu_size = tvb_get_guint8(tvb, offset+1)+2;
+    camel_pdu_size = tvb_get_uint8(tvb, offset+1)+2;
 
     /* Populate the info column with PDU type*/
     col_add_str(actx->pinfo->cinfo, COL_INFO, val_to_str(camel_pdu_type, camel_Component_vals, "Unknown Camel (%u)"));
     col_append_str(actx->pinfo->cinfo, COL_INFO, " ");
 
-    is_ExtensionField =FALSE;
-    offset = dissect_camel_ROS(TRUE, tvb, offset, actx, tree, hf_index);
+    is_ExtensionField =false;
+    offset = dissect_camel_ROS(true, tvb, offset, actx, tree, hf_index);
 
     return offset;
 }
@@ -8134,7 +8136,7 @@ dissect_camel_all(int version, const char* col_protocol, const char* suffix,
   proto_tree  *tree = NULL, *stat_tree = NULL;
   struct tcap_private_t * p_private_tcap = (struct tcap_private_t*)data;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, col_protocol);
 
@@ -8150,7 +8152,7 @@ dissect_camel_all(int version, const char* col_protocol, const char* suffix,
      to store service response time related data */
   gp_camelsrt_info=camelsrt_razinfo();
 
-  dissect_camel_camelPDU(FALSE, tvb, 0, &asn1_ctx , tree, -1, p_private_tcap);
+  dissect_camel_camelPDU(false, tvb, 0, &asn1_ctx , tree, -1, p_private_tcap);
 
   /* If a Tcap context is associated to this transaction */
   if (gp_camelsrt_info->tcap_context ) {
@@ -8206,10 +8208,10 @@ static stat_tap_table_item camel_stat_fields[] = {{TABLE_ITEM_STRING, TAP_ALIGN_
 static void camel_stat_init(stat_tap_table_ui* new_stat)
 {
   const char *table_name = "CAMEL Message Counters";
-  int num_fields = sizeof(camel_stat_fields)/sizeof(stat_tap_table_item);
+  int num_fields = array_length(camel_stat_fields);
   stat_tap_table *table;
   int i;
-  stat_tap_table_item_type items[sizeof(camel_stat_fields)/sizeof(stat_tap_table_item)];
+  stat_tap_table_item_type items[array_length(camel_stat_fields)];
 
   table = stat_tap_find_table(new_stat, table_name);
   if (table) {
@@ -8264,7 +8266,7 @@ camel_stat_packet(void *tapdata, packet_info *pinfo _U_, epan_dissect_t *edt _U_
 static void
 camel_stat_reset(stat_tap_table* table)
 {
-  guint element;
+  unsigned element;
   stat_tap_table_item_type* item_data;
 
   for (element = 0; element < table->num_elements; element++)
@@ -8276,21 +8278,21 @@ camel_stat_reset(stat_tap_table* table)
 }
 
 static void
-camel_stat_free_table_item(stat_tap_table* table _U_, guint row _U_, guint column, stat_tap_table_item_type* field_data)
+camel_stat_free_table_item(stat_tap_table* table _U_, unsigned row _U_, unsigned column, stat_tap_table_item_type* field_data)
 {
   if (column != MESSAGE_TYPE_COLUMN) return;
   g_free((char*)field_data->value.string_value);
 }
 
 /*--- proto_reg_handoff_camel ---------------------------------------*/
-static void range_delete_callback(guint32 ssn, gpointer ptr _U_)
+static void range_delete_callback(uint32_t ssn, void *ptr _U_)
 {
   if (ssn) {
     delete_itu_tcap_subdissector(ssn, camel_handle);
   }
 }
 
-static void range_add_callback(guint32 ssn, gpointer ptr _U_)
+static void range_add_callback(uint32_t ssn, void *ptr _U_)
 {
   if (ssn) {
     add_itu_tcap_subdissector(ssn, camel_handle);
@@ -8298,12 +8300,12 @@ static void range_add_callback(guint32 ssn, gpointer ptr _U_)
 }
 
 void proto_reg_handoff_camel(void) {
-  static gboolean camel_prefs_initialized = FALSE;
+  static bool camel_prefs_initialized = false;
   static range_t *ssn_range;
 
   if (!camel_prefs_initialized) {
 
-    camel_prefs_initialized = TRUE;
+    camel_prefs_initialized = true;
 
     register_ber_oid_dissector_handle("0.4.0.0.1.0.50.0",camel_v1_handle, proto_camel, "CAP-v1-gsmSSF-to-gsmSCF-AC" );
     register_ber_oid_dissector_handle("0.4.0.0.1.0.50.1",camel_v2_handle, proto_camel, "CAP-v2-gsmSSF-to-gsmSCF-AC" );
@@ -10459,7 +10461,7 @@ void proto_register_camel(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_camel,
     &ett_camelisup_parameter,
     &ett_camel_AccessPointName,
@@ -10692,11 +10694,11 @@ void proto_register_camel(void) {
   expert_module_t* expert_camel;
 
   static tap_param camel_stat_params[] = {
-    { PARAM_FILTER, "filter", "Filter", NULL, TRUE }
+    { PARAM_FILTER, "filter", "Filter", NULL, true }
   };
 
   static stat_tap_table_ui camel_stat_table = {
-    REGISTER_STAT_GROUP_TELEPHONY_GSM,
+    REGISTER_TELEPHONY_GROUP_GSM,
     "CAMEL Messages and Response Status",
     PSNAME,
     "camel,counter",
@@ -10705,8 +10707,8 @@ void proto_register_camel(void) {
     camel_stat_reset,
     camel_stat_free_table_item,
     NULL,
-    sizeof(camel_stat_fields)/sizeof(stat_tap_table_item), camel_stat_fields,
-    sizeof(camel_stat_params)/sizeof(tap_param), camel_stat_params,
+    array_length(camel_stat_fields), camel_stat_fields,
+    array_length(camel_stat_params), camel_stat_params,
     NULL,
     0
   };
@@ -10746,7 +10748,7 @@ void proto_register_camel(void) {
 
   prefs_register_enum_preference(camel_module, "date.format", "Date Format",
                                   "The date format: (DD/MM) or (MM/DD)",
-                                  &date_format, date_options, FALSE);
+                                  &date_format, date_options, false);
 
 
   prefs_register_range_preference(camel_module, "tcap.ssn",

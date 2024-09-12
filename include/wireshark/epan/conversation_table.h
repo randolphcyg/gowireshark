@@ -54,25 +54,25 @@ typedef struct _conversation_hash_t {
     GHashTable  *hashtable;       /**< conversations hash table */
     GArray      *conv_array;      /**< array of conversation values */
     void        *user_data;       /**< "GUI" specifics (if necessary) */
-    guint       flags;            /**< flags given to the tap packet */
+    unsigned    flags;            /**< flags given to the tap packet */
 } conv_hash_t;
 
 /** Key for hash lookups */
 typedef struct _conversation_key_t {
     address     addr1;
     address     addr2;
-    guint32     port1;
-    guint32     port2;
+    uint32_t    port1;
+    uint32_t    port2;
     conv_id_t   conv_id;
 } conv_key_t;
 
 typedef struct {
     address  myaddress;
-    guint32  port;
+    uint32_t port;
 } endpoint_key_t;
 
 /*
- * For backwards source compatibiity.
+ * For backwards source compatibility.
  * Yes, G_DEPRECATED_FOR() has to be at the beginning, so that this
  * works with MSVC.
  */
@@ -112,31 +112,38 @@ typedef void (*endpoint_gui_init_cb)(struct register_ct* ct, const char *filter)
  */
 typedef struct register_ct register_ct_t;
 
+/** Conversation extension for TCP */
+typedef struct _conversation_extension_tcp_t {
+    uint64_t            flows;          /**< number of flows */
+} conv_extension_tcp_t;
+
 /** Conversation list information */
 typedef struct _conversation_item_t {
     ct_dissector_info_t *dissector_info; /**< conversation information provided by dissector */
     address             src_address;    /**< source address */
     address             dst_address;    /**< destination address */
     conversation_type   ctype;          /**< conversation key_type (e.g. CONVERSATION_TCP) */
-    guint32             src_port;       /**< source port */
-    guint32             dst_port;       /**< destination port */
+    uint32_t            src_port;       /**< source port */
+    uint32_t            dst_port;       /**< destination port */
     conv_id_t           conv_id;        /**< conversation id */
 
-    guint64             rx_frames;      /**< number of received packets */
-    guint64             tx_frames;      /**< number of transmitted packets */
-    guint64             rx_bytes;       /**< number of received bytes */
-    guint64             tx_bytes;       /**< number of transmitted bytes */
+    uint64_t            rx_frames;      /**< number of received packets */
+    uint64_t            tx_frames;      /**< number of transmitted packets */
+    uint64_t            rx_bytes;       /**< number of received bytes */
+    uint64_t            tx_bytes;       /**< number of transmitted bytes */
 
-    guint64             rx_frames_total;      /**< number of received packets total */
-    guint64             tx_frames_total;      /**< number of transmitted packets total */
-    guint64             rx_bytes_total;       /**< number of received bytes total */
-    guint64             tx_bytes_total;       /**< number of transmitted bytes total */
+    uint64_t            rx_frames_total;      /**< number of received packets total */
+    uint64_t            tx_frames_total;      /**< number of transmitted packets total */
+    uint64_t            rx_bytes_total;       /**< number of received bytes total */
+    uint64_t            tx_bytes_total;       /**< number of transmitted bytes total */
 
     nstime_t            start_time;     /**< relative start time for the conversation */
     nstime_t            stop_time;      /**< relative stop time for the conversation */
     nstime_t            start_abs_time; /**< absolute start time for the conversation */
 
-    gboolean filtered;                  /**< the entry contains only filtered data */
+    bool filtered;                  /**< the entry contains only filtered data */
+
+    conv_extension_tcp_t ext_tcp;      /**< extension for optional TCP counters */
 } conv_item_t;
 
 /** Endpoint information */
@@ -144,20 +151,20 @@ typedef struct _endpoint_item_t {
     et_dissector_info_t *dissector_info; /**< endpoint information provided by dissector */
     address myaddress;      /**< address */
     endpoint_type etype;    /**< endpoint_type (e.g. ENDPOINT_TCP) */
-    guint32 port;           /**< port */
+    uint32_t port;           /**< port */
 
-    guint64 rx_frames;      /**< number of received packets */
-    guint64 tx_frames;      /**< number of transmitted packets */
-    guint64 rx_bytes;       /**< number of received bytes */
-    guint64 tx_bytes;       /**< number of transmitted bytes */
+    uint64_t rx_frames;      /**< number of received packets */
+    uint64_t tx_frames;      /**< number of transmitted packets */
+    uint64_t rx_bytes;       /**< number of received bytes */
+    uint64_t tx_bytes;       /**< number of transmitted bytes */
 
-    guint64 rx_frames_total;      /**< number of received packets total */
-    guint64 tx_frames_total;      /**< number of transmitted packets total */
-    guint64 rx_bytes_total;       /**< number of received bytes total */
-    guint64 tx_bytes_total;       /**< number of transmitted bytes total */
+    uint64_t rx_frames_total;      /**< number of received packets total */
+    uint64_t tx_frames_total;      /**< number of transmitted packets total */
+    uint64_t rx_bytes_total;       /**< number of received bytes total */
+    uint64_t tx_bytes_total;       /**< number of transmitted bytes total */
 
-    gboolean modified;      /**< new to redraw the row */
-    gboolean filtered;      /**< the entry contains only filtered data */
+    bool modified;      /**< new to redraw the row */
+    bool filtered;      /**< the entry contains only filtered data */
 
 } endpoint_item_t;
 
@@ -174,14 +181,14 @@ typedef endpoint_item_t hostlist_talker_t;
  * @param conv_packet_func the registered conversation tap name
  * @param endpoint_packet_func the registered endpoint tap name
  */
-WS_DLL_PUBLIC void register_conversation_table(const int proto_id, gboolean hide_ports, tap_packet_cb conv_packet_func, tap_packet_cb endpoint_packet_func);
+WS_DLL_PUBLIC void register_conversation_table(const int proto_id, bool hide_ports, tap_packet_cb conv_packet_func, tap_packet_cb endpoint_packet_func);
 
 /** Should port columns be hidden?
  *
  * @param ct Registered conversation table
- * @return TRUE if port columns should be hidden for this conversation table.
+ * @return true if port columns should be hidden for this conversation table.
  */
-WS_DLL_PUBLIC gboolean get_conversation_hide_ports(register_ct_t* ct);
+WS_DLL_PUBLIC bool get_conversation_hide_ports(register_ct_t* ct);
 
 /** Get protocol ID of a conversation table
  *
@@ -219,7 +226,7 @@ WS_DLL_PUBLIC register_ct_t* get_conversation_by_proto_id(int proto_id);
 /** Register "initialization function" used by the GUI to create conversation
  * table display in GUI
  *
- * @param init_cb callback function that will be called when converation table "display
+ * @param init_cb callback function that will be called when conversation table "display
  * is instantiated in GUI
  */
 WS_DLL_PUBLIC void conversation_table_set_gui_info(conv_gui_init_cb init_cb);
@@ -236,16 +243,16 @@ WS_DLL_PUBLIC void endpoint_table_set_gui_info(endpoint_gui_init_cb init_cb);
 G_DEPRECATED_FOR(endpoint_table_set_gui_info)
 WS_DLL_PUBLIC void hostlist_table_set_gui_info(endpoint_gui_init_cb init_cb);
 
-/** Iterator to walk converation tables and execute func
+/** Iterator to walk conversation tables and execute func
  *
- * @param func action to be performed on all converation tables
+ * @param func action to be performed on all conversation tables
  * @param user_data any data needed to help perform function
  */
 WS_DLL_PUBLIC void conversation_table_iterate_tables(wmem_foreach_func func, void* user_data);
 
-/** Total number of converation tables
+/** Total number of conversation tables
  */
-WS_DLL_PUBLIC guint conversation_table_get_num(void);
+WS_DLL_PUBLIC unsigned conversation_table_get_num(void);
 
 /** Remove all entries from the conversation table.
  *
@@ -288,7 +295,7 @@ WS_DLL_PUBLIC void dissector_hostlist_init(const char *opt_arg, void* userdata);
  * @param resolve_names Enable name resolution.
  * @return A string representing the address.
  */
-WS_DLL_PUBLIC char *get_conversation_address(wmem_allocator_t *allocator, address *addr, gboolean resolve_names);
+WS_DLL_PUBLIC char *get_conversation_address(wmem_allocator_t *allocator, address *addr, bool resolve_names);
 
 /** Get the string representation of a port.
  *
@@ -300,7 +307,7 @@ WS_DLL_PUBLIC char *get_conversation_address(wmem_allocator_t *allocator, addres
  *
  * XXX - this should really be a *port* type, as we just supply a port.
  */
-WS_DLL_PUBLIC char *get_conversation_port(wmem_allocator_t *allocator, guint32 port, conversation_type ctype, gboolean resolve_names);
+WS_DLL_PUBLIC char *get_conversation_port(wmem_allocator_t *allocator, uint32_t port, conversation_type ctype, bool resolve_names);
 
 /** Get the string representation of the port for an endpoint_item_t.
  *
@@ -312,7 +319,7 @@ WS_DLL_PUBLIC char *get_conversation_port(wmem_allocator_t *allocator, guint32 p
  *
  * XXX - this should really be a *port* type, as we just supply a port.
  */
-WS_DLL_PUBLIC char *get_endpoint_port(wmem_allocator_t *allocator, endpoint_item_t *item, gboolean resolve_names);
+WS_DLL_PUBLIC char *get_endpoint_port(wmem_allocator_t *allocator, endpoint_item_t *item, bool resolve_names);
 
 /** Get a display filter for the given conversation and direction.
  *
@@ -349,7 +356,7 @@ WS_DLL_PUBLIC char *get_hostlist_filter(endpoint_item_t *endpoint_item);
  * @param ctype the conversation type (e.g. CONVERSATION_TCP)
  */
 WS_DLL_PUBLIC void add_conversation_table_data(conv_hash_t *ch, const address *src, const address *dst,
-    guint32 src_port, guint32 dst_port, int num_frames, int num_bytes, nstime_t *ts, nstime_t *abs_ts,
+    uint32_t src_port, uint32_t dst_port, int num_frames, int num_bytes, nstime_t *ts, nstime_t *abs_ts,
     ct_dissector_info_t *ct_info, conversation_type ctype);
 
 /** Add some data to the conversation table, passing a value to be used in
@@ -369,9 +376,29 @@ WS_DLL_PUBLIC void add_conversation_table_data(conv_hash_t *ch, const address *s
  * @param ctype the conversation type (e.g. CONVERSATION_TCP)
  * @param conv_id a value to help differentiate the conversation in case the address and port quadruple is not sufficiently unique
  */
+WS_DLL_PUBLIC conv_item_t *
+add_conversation_table_data_with_conv_id(conv_hash_t *ch, const address *src, const address *dst, uint32_t src_port,
+    uint32_t dst_port, conv_id_t conv_id, int num_frames, int num_bytes,
+    nstime_t *ts, nstime_t *abs_ts, ct_dissector_info_t *ct_info,
+    conversation_type ctype);
+
+/** Decorates add_conversation_table_data_with_conv_id() in order to be
+ *  able to add protocol dependent additional statistics.
+ *
+ */
 WS_DLL_PUBLIC void
-add_conversation_table_data_with_conv_id(conv_hash_t *ch, const address *src, const address *dst, guint32 src_port,
-    guint32 dst_port, conv_id_t conv_id, int num_frames, int num_bytes,
+add_conversation_table_data_extended(conv_hash_t *ch, const address *src, const address *dst, uint32_t src_port,
+    uint32_t dst_port, conv_id_t conv_id, int num_frames, int num_bytes,
+    nstime_t *ts, nstime_t *abs_ts, ct_dissector_info_t *ct_info,
+    conversation_type ctype, uint32_t frameid, int (*proto_conv_cb)(conversation_t *));
+
+/** Encapsulates add_conversation_table_data_with_conv_id() for the IPv4 specific case
+ *  when the subnet aggregation user preference is true.
+ *
+ */
+WS_DLL_PUBLIC void
+add_conversation_table_data_ipv4_subnet(conv_hash_t *ch, const address *src, const address *dst, uint32_t src_port,
+    uint32_t dst_port, conv_id_t conv_id, int num_frames, int num_bytes,
     nstime_t *ts, nstime_t *abs_ts, ct_dissector_info_t *ct_info,
     conversation_type ctype);
 
@@ -380,19 +407,26 @@ add_conversation_table_data_with_conv_id(conv_hash_t *ch, const address *src, co
  * @param ch the table hash to add the data to
  * @param addr address
  * @param port port
- * @param sender TRUE, if this is a sender
+ * @param sender true, if this is a sender
  * @param num_frames number of packets
  * @param num_bytes number of bytes
  * @param et_info endpoint information provided by dissector
  * @param etype the endpoint type (e.g. ENDPOINT_TCP)
  */
 WS_DLL_PUBLIC void add_endpoint_table_data(conv_hash_t *ch, const address *addr,
-    guint32 port, gboolean sender, int num_frames, int num_bytes, et_dissector_info_t *et_info, endpoint_type etype);
+    uint32_t port, bool sender, int num_frames, int num_bytes, et_dissector_info_t *et_info, endpoint_type etype);
+
+/** Encapsulates add_endpoint_table_data() for the IPv4 specific case
+ *  when the subnet aggregation user preference is true.
+ *
+ */
+WS_DLL_PUBLIC void add_endpoint_table_data_ipv4_subnet(conv_hash_t *ch, const address *addr,
+    uint32_t port, bool sender, int num_frames, int num_bytes, et_dissector_info_t *et_info, endpoint_type etype);
 
 /* For backwards source and binary compatibility */
 G_DEPRECATED_FOR(add_endpoint_table_data)
 WS_DLL_PUBLIC void add_hostlist_table_data(conv_hash_t *ch, const address *addr,
-    guint32 port, gboolean sender, int num_frames, int num_bytes, et_dissector_info_t *et_info, endpoint_type etype);
+    uint32_t port, bool sender, int num_frames, int num_bytes, et_dissector_info_t *et_info, endpoint_type etype);
 
 #ifdef __cplusplus
 }

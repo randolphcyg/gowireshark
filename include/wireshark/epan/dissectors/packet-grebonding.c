@@ -30,44 +30,44 @@ void proto_register_greb(void);
 
 static dissector_handle_t greb_handle;
 
-static int proto_greb = -1;
+static int proto_greb;
 
-static int hf_greb_message_type = -1;
-static int hf_greb_tunnel_type = -1;
+static int hf_greb_message_type;
+static int hf_greb_tunnel_type;
 
-static int hf_greb_attr = -1;
-static int hf_greb_attr_type = -1;
-static int hf_greb_attr_length = -1;
-static int hf_greb_attr_val_uint64 = -1;
-static int hf_greb_attr_val_none = -1;
-static int hf_greb_attr_val_ipv6 = -1;
-static int hf_greb_attr_val_ipv4 = -1;
-static int hf_greb_attr_val_time = -1;
-static int hf_greb_attr_val_string = -1;
-static int hf_greb_attr_DSL_prot = -1;
-static int hf_greb_attr_dt_bras_name = -1;
+static int hf_greb_attr;
+static int hf_greb_attr_type;
+static int hf_greb_attr_length;
+static int hf_greb_attr_val_uint64;
+static int hf_greb_attr_val_none;
+static int hf_greb_attr_val_ipv6;
+static int hf_greb_attr_val_ipv4;
+static int hf_greb_attr_val_time;
+static int hf_greb_attr_val_string;
+static int hf_greb_attr_DSL_prot;
+static int hf_greb_attr_dt_bras_name;
 
-static int hf_greb_attr_filter_commit = -1;
-static int hf_greb_attr_filter_ack = -1;
-static int hf_greb_attr_filter_packetsum = -1;
-static int hf_greb_attr_filter_packetid = -1;
-static int hf_greb_attr_filter_item_type = -1;
-static int hf_greb_attr_filter_item_length = -1;
-static int hf_greb_attr_filter_item_enabled = -1;
-static int hf_greb_attr_filter_item_desc_length = -1;
-static int hf_greb_attr_filter_item_desc_val = -1;
-static int hf_greb_attr_filter_item_val = -1;
+static int hf_greb_attr_filter_commit;
+static int hf_greb_attr_filter_ack;
+static int hf_greb_attr_filter_packetsum;
+static int hf_greb_attr_filter_packetid;
+static int hf_greb_attr_filter_item_type;
+static int hf_greb_attr_filter_item_length;
+static int hf_greb_attr_filter_item_enabled;
+static int hf_greb_attr_filter_item_desc_length;
+static int hf_greb_attr_filter_item_desc_val;
+static int hf_greb_attr_filter_item_val;
 
-static int hf_greb_attr_error = -1;
+static int hf_greb_attr_error;
 
 /* Initialize the subtree pointers */
-static gint ett_grebonding = -1;
-static gint ett_grebonding_attrb = -1;
-static gint ett_grebonding_filter_list = -1;
-static gint ett_grebonding_filter_item = -1;
-static gint ett_grebonding_ipv6_prefix = -1;
+static int ett_grebonding;
+static int ett_grebonding_attrb;
+static int ett_grebonding_filter_list;
+static int ett_grebonding_filter_item;
+static int ett_grebonding_ipv6_prefix;
 
-static gint *ett[] = {
+static int *ett[] = {
     &ett_grebonding,
     &ett_grebonding_attrb,
     &ett_grebonding_filter_list,
@@ -297,7 +297,7 @@ static const value_string greb_filter_ack_codes[] = {
 };
 
 static void
-dissect_greb_h_gateway_ip_address(tvbuff_t *tvb, proto_tree *attrb_tree, guint offset, guint attrb_length)
+dissect_greb_h_gateway_ip_address(tvbuff_t *tvb, proto_tree *attrb_tree, unsigned offset, unsigned attrb_length)
 {
     if (attrb_length == 16)
         proto_tree_add_item(attrb_tree, hf_greb_attr_val_ipv6, tvb, offset, attrb_length, ENC_NA);
@@ -308,11 +308,11 @@ dissect_greb_h_gateway_ip_address(tvbuff_t *tvb, proto_tree *attrb_tree, guint o
 }
 
 static void
-dissect_greb_filter_list_ack(tvbuff_t *tvb, proto_tree *attrb_tree, guint offset, guint attrb_length)
+dissect_greb_filter_list_ack(tvbuff_t *tvb, proto_tree *attrb_tree, unsigned offset, unsigned attrb_length)
 {
     proto_item *it_filter;
     proto_tree *filter_tree;
-    guint filter_commit_count = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
+    unsigned filter_commit_count = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
 
     it_filter = proto_tree_add_none_format(attrb_tree, hf_greb_attr_val_none, tvb, offset, attrb_length,
         "Filter list ACK - Commit %d", filter_commit_count);
@@ -323,13 +323,13 @@ dissect_greb_filter_list_ack(tvbuff_t *tvb, proto_tree *attrb_tree, guint offset
 
 
 static void
-dissect_greb_filter_list(tvbuff_t *tvb, proto_tree *attrb_tree, guint offset, guint attrb_length)
+dissect_greb_filter_list(packet_info *pinfo, tvbuff_t *tvb, proto_tree *attrb_tree, unsigned offset, unsigned attrb_length)
 {
     proto_item *it_filter;
     proto_tree *filter_tree;
-    guint filter_commit_count = tvb_get_guint32(tvb, offset, ENC_BIG_ENDIAN);
-    guint filter_packet_sum = tvb_get_guint16(tvb, offset + 4, ENC_BIG_ENDIAN);
-    guint filter_packet_id = tvb_get_guint16(tvb, offset + 6, ENC_BIG_ENDIAN);
+    unsigned filter_commit_count = tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN);
+    unsigned filter_packet_sum = tvb_get_uint16(tvb, offset + 4, ENC_BIG_ENDIAN);
+    unsigned filter_packet_id = tvb_get_uint16(tvb, offset + 6, ENC_BIG_ENDIAN);
     it_filter = proto_tree_add_none_format(attrb_tree, hf_greb_attr_val_none, tvb, offset, attrb_length,
         "Filter list - Commit %d, Packet %d/%d", filter_commit_count, filter_packet_id, filter_packet_sum);
     filter_tree = proto_item_add_subtree(it_filter, ett_grebonding_filter_list);
@@ -342,16 +342,16 @@ dissect_greb_filter_list(tvbuff_t *tvb, proto_tree *attrb_tree, guint offset, gu
     while (offset < attrb_length) {
         proto_item *it_filter_item;
         proto_tree *filter_item_tree;
-        guint filter_item_length = tvb_get_guint16(tvb, offset + 2, ENC_BIG_ENDIAN);
-        guint filter_item_desc_length = tvb_get_guint16(tvb, offset + 6, ENC_BIG_ENDIAN);
+        unsigned filter_item_length = tvb_get_uint16(tvb, offset + 2, ENC_BIG_ENDIAN);
+        unsigned filter_item_desc_length = tvb_get_uint16(tvb, offset + 6, ENC_BIG_ENDIAN);
         // bound lengths to not exceed packet
-        if (filter_item_length > (guint) tvb_reported_length_remaining(tvb, offset + 2))
+        if (filter_item_length > (unsigned) tvb_reported_length_remaining(tvb, offset + 2))
             filter_item_length = tvb_reported_length_remaining(tvb, offset + 2);
         if (filter_item_desc_length > filter_item_length)
             filter_item_length = filter_item_desc_length;
 
         it_filter_item = proto_tree_add_none_format(filter_tree, hf_greb_attr_val_none, tvb, offset,
-            filter_item_length + 4, "Filter item - %s", tvb_get_string_enc(wmem_packet_scope(), tvb, offset + 8,
+            filter_item_length + 4, "Filter item - %s", tvb_get_string_enc(pinfo->pool, tvb, offset + 8,
             filter_item_desc_length, ENC_UTF_8));
         filter_item_tree = proto_item_add_subtree(it_filter_item, ett_grebonding_filter_item);
         proto_tree_add_item(filter_item_tree, hf_greb_attr_filter_item_type, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -369,15 +369,15 @@ dissect_greb_filter_list(tvbuff_t *tvb, proto_tree *attrb_tree, guint offset, gu
 }
 
 static void
-dissect_greb_ipv6_prefix(packet_info *pinfo, tvbuff_t *tvb, proto_tree *attrb_tree, guint offset, guint attrb_length)
+dissect_greb_ipv6_prefix(packet_info *pinfo, tvbuff_t *tvb, proto_tree *attrb_tree, unsigned offset, unsigned attrb_length)
 {
     proto_item *item_ipv6_prefix;
     proto_tree *ipv6_prefix_tree;
-    guint addr_length = attrb_length - 1;
+    unsigned addr_length = attrb_length - 1;
 
     ipv6_prefix_tree = proto_tree_add_subtree_format(attrb_tree, tvb, offset, attrb_length,
         ett_grebonding_ipv6_prefix, &item_ipv6_prefix, "IPv6 prefix - %s/%d",
-        tvb_ip6_to_str(pinfo->pool, tvb, offset), tvb_get_guint8(tvb, offset + addr_length));
+        tvb_ip6_to_str(pinfo->pool, tvb, offset), tvb_get_uint8(tvb, offset + addr_length));
     proto_tree_add_item(ipv6_prefix_tree, hf_greb_attr_val_ipv6, tvb, offset, addr_length, ENC_NA);
     proto_tree_add_item(ipv6_prefix_tree, hf_greb_attr_val_uint64, tvb, offset + addr_length, 1, ENC_BIG_ENDIAN);
 }
@@ -387,8 +387,8 @@ dissect_greb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 {
     proto_item *ti, *it_attrb;
     proto_tree *greb_tree, *attrb_tree = NULL;
-    guint offset = 0;
-    guint message_type = tvb_get_guint8(tvb, offset) >> 4;
+    unsigned offset = 0;
+    unsigned message_type = tvb_get_uint8(tvb, offset) >> 4;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "GREbond");
     ti = proto_tree_add_protocol_format(tree, proto_greb, tvb, offset, -1, "Huawei GRE bonding control message (%s)",
@@ -402,8 +402,8 @@ dissect_greb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
     // going through the attributes, off by one to assure length field exists
     while (offset + 1 < tvb_captured_length(tvb)) {
-        guint attrb_type = tvb_get_guint8(tvb, offset);
-        guint attrb_length = tvb_get_guint16(tvb, offset + 1, ENC_BIG_ENDIAN);
+        unsigned attrb_type = tvb_get_uint8(tvb, offset);
+        unsigned attrb_length = tvb_get_uint16(tvb, offset + 1, ENC_BIG_ENDIAN);
 
         it_attrb = proto_tree_add_none_format(greb_tree, hf_greb_attr, tvb, offset, attrb_length + 3, "Attribute - %s",
             val_to_str(attrb_type, greb_attribute_types, "unknown (%d)"));
@@ -414,7 +414,7 @@ dissect_greb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
         offset += 3;
 
         // bound attrb_length to not exced packet
-        if (attrb_length > (guint) tvb_reported_length_remaining(tvb, offset))
+        if (attrb_length > (unsigned) tvb_reported_length_remaining(tvb, offset))
             attrb_length = tvb_reported_length_remaining(tvb, offset);
 
         if (attrb_length > 0) {
@@ -435,7 +435,7 @@ dissect_greb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
                     break;
 
                 case GREB_ATTRB_FILTER_LIST:
-                    dissect_greb_filter_list(tvb, attrb_tree, offset, attrb_length);
+                    dissect_greb_filter_list(pinfo, tvb, attrb_tree, offset, attrb_length);
                     break;
 
                 case GREB_ATTRB_FILTER_LIST_ACK:

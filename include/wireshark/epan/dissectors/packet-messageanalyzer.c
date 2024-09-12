@@ -13,169 +13,171 @@
 #include <epan/packet.h>
 #include <epan/addr_resolv.h>
 #include <epan/ipproto.h>
-#include <epan/expert.h>
-#include <wsutil/inet_ipv6.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
 #include <wsutil/utf8_entities.h>
 
 #include "packet-netmon.h"
 #include "packet-windows-common.h"
+#include "packet-ipv6.h"
 
 void proto_register_message_analyzer(void);
 void proto_reg_handoff_message_analyzer(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_ma_wfp_capture_v4 = -1;
-static int proto_ma_wfp_capture2_v4 = -1;
-static int proto_ma_wfp_capture_v6 = -1;
-static int proto_ma_wfp_capture2_v6 = -1;
-static int proto_ma_wfp_capture_auth_v4 = -1;
-static int proto_ma_wfp_capture_auth_v6 = -1;
-static int proto_etw_wfp_capture = -1;
-static int proto_etw_ndis = -1;
+static int proto_ma_wfp_capture_v4;
+static int proto_ma_wfp_capture2_v4;
+static int proto_ma_wfp_capture_v6;
+static int proto_ma_wfp_capture2_v6;
+static int proto_ma_wfp_capture_auth_v4;
+static int proto_ma_wfp_capture_auth_v6;
+static int proto_etw_wfp_capture;
+static int proto_etw_ndis;
 
-static int hf_ma_wfp_capture_flow_context = -1;
-static int hf_ma_wfp_capture_payload_length = -1;
-static int hf_ma_wfp_capture_auth_src_port = -1;
-static int hf_ma_wfp_capture_auth_dst_port = -1;
-static int hf_ma_wfp_capture_auth_interface_id = -1;
-static int hf_ma_wfp_capture_auth_direction = -1;
-static int hf_ma_wfp_capture_auth_process_id = -1;
-static int hf_ma_wfp_capture_auth_process_path = -1;
+static int hf_ma_wfp_capture_flow_context;
+static int hf_ma_wfp_capture_payload_length;
+static int hf_ma_wfp_capture_auth_src_port;
+static int hf_ma_wfp_capture_auth_dst_port;
+static int hf_ma_wfp_capture_auth_interface_id;
+static int hf_ma_wfp_capture_auth_direction;
+static int hf_ma_wfp_capture_auth_process_id;
+static int hf_ma_wfp_capture_auth_process_path;
 
-static int hf_etw_wfp_capture_event_id = -1;
-static int hf_etw_wfp_capture_driver_name = -1;
-static int hf_etw_wfp_capture_major_version = -1;
-static int hf_etw_wfp_capture_minor_version = -1;
-static int hf_etw_wfp_capture_callout = -1;
-static int hf_etw_wfp_capture_filter_id = -1;
-static int hf_etw_wfp_capture_filter_weight = -1;
-static int hf_etw_wfp_capture_driver_error_message = -1;
-static int hf_etw_wfp_capture_nt_status = -1;
-static int hf_etw_wfp_capture_callout_error_message = -1;
+static int hf_etw_wfp_capture_event_id;
+static int hf_etw_wfp_capture_driver_name;
+static int hf_etw_wfp_capture_major_version;
+static int hf_etw_wfp_capture_minor_version;
+static int hf_etw_wfp_capture_callout;
+static int hf_etw_wfp_capture_filter_id;
+static int hf_etw_wfp_capture_filter_weight;
+static int hf_etw_wfp_capture_driver_error_message;
+static int hf_etw_wfp_capture_nt_status;
+static int hf_etw_wfp_capture_callout_error_message;
 
-static int hf_etw_ndis_event_id = -1;
-static int hf_etw_ndis_miniport_if_index = -1;
-static int hf_etw_ndis_lower_if_index = -1;
-static int hf_etw_ndis_fragment_size = -1;
-static int hf_etw_ndis_fragment = -1;
-static int hf_etw_ndis_metadata_size = -1;
-static int hf_etw_ndis_metadata = -1;
-static int hf_etw_ndis_source_port_id = -1;
-static int hf_etw_ndis_source_port_name = -1;
-static int hf_etw_ndis_source_nic_name = -1;
-static int hf_etw_ndis_source_nic_type = -1;
-static int hf_etw_ndis_destination_count = -1;
-static int hf_etw_ndis_destination_port_id = -1;
-static int hf_etw_ndis_destination_port_name = -1;
-static int hf_etw_ndis_destination_nic_name = -1;
-static int hf_etw_ndis_destination_nic_type = -1;
-static int hf_etw_ndis_oob_data_size = -1;
-static int hf_etw_ndis_oob_data = -1;
-static int hf_etw_ndis_rules_count = -1;
-static int hf_etw_ndis_friendly_name = -1;
-static int hf_etw_ndis_unique_name = -1;
-static int hf_etw_ndis_service_name = -1;
-static int hf_etw_ndis_version = -1;
-static int hf_etw_ndis_media_type = -1;
-static int hf_etw_ndis_reference_context = -1;
-static int hf_etw_ndis_rule_id = -1;
-static int hf_etw_ndis_directive = -1;
-static int hf_etw_ndis_value_length = -1;
-static int hf_etw_ndis_value = -1;
-static int hf_etw_ndis_error_code = -1;
-static int hf_etw_ndis_location = -1;
-static int hf_etw_ndis_context = -1;
-static int hf_etw_ndis_previous_state = -1;
-static int hf_etw_ndis_next_state = -1;
-static int hf_etw_ndis_source_id = -1;
-static int hf_etw_ndis_rundown_id = -1;
-static int hf_etw_ndis_param1 = -1;
-static int hf_etw_ndis_param2 = -1;
-static int hf_etw_ndis_param_str = -1;
-static int hf_etw_ndis_description = -1;
-static int hf_etw_ndis_source_name = -1;
-static int hf_etw_ndis_if_index = -1;
-static int hf_etw_ndis_layer_count = -1;
-static int hf_etw_ndis_layer_id = -1;
-static int hf_etw_ndis_layer_name = -1;
-static int hf_etw_ndis_keyword = -1;
-static int hf_etw_ndis_keyword_ethernet8023 = -1;
-static int hf_etw_ndis_keyword_reserved1 = -1;
-static int hf_etw_ndis_keyword_wireless_wan = -1;
-static int hf_etw_ndis_keyword_reserved2 = -1;
-static int hf_etw_ndis_keyword_tunnel = -1;
-static int hf_etw_ndis_keyword_native80211 = -1;
-static int hf_etw_ndis_keyword_reserved3 = -1;
-static int hf_etw_ndis_keyword_vmswitch = -1;
-static int hf_etw_ndis_keyword_reserved4 = -1;
-static int hf_etw_ndis_keyword_packet_start = -1;
-static int hf_etw_ndis_keyword_packet_end = -1;
-static int hf_etw_ndis_keyword_send_path = -1;
-static int hf_etw_ndis_keyword_receive_path = -1;
-static int hf_etw_ndis_keyword_l3_connect_path = -1;
-static int hf_etw_ndis_keyword_l2_connect_path = -1;
-static int hf_etw_ndis_keyword_close_path = -1;
-static int hf_etw_ndis_keyword_authentication = -1;
-static int hf_etw_ndis_keyword_configuration = -1;
-static int hf_etw_ndis_keyword_global = -1;
-static int hf_etw_ndis_keyword_dropped = -1;
-static int hf_etw_ndis_keyword_pii_present = -1;
-static int hf_etw_ndis_keyword_packet = -1;
-static int hf_etw_ndis_keyword_address = -1;
-static int hf_etw_ndis_keyword_std_template_hint = -1;
-static int hf_etw_ndis_keyword_state_transition = -1;
-static int hf_etw_ndis_keyword_reserved5 = -1;
-static int hf_etw_ndis_packet_metadata_type = -1;
-static int hf_etw_ndis_packet_metadata_revision = -1;
-static int hf_etw_ndis_packet_metadata_size = -1;
-static int hf_etw_ndis_packet_metadata_wifi_flags = -1;
-static int hf_etw_ndis_packet_metadata_wifi_phytype = -1;
-static int hf_etw_ndis_packet_metadata_wifi_channel = -1;
-static int hf_etw_ndis_packet_metadata_wifi_mpdus_received = -1;
-static int hf_etw_ndis_packet_metadata_wifi_mpdu_padding = -1;
-static int hf_etw_ndis_packet_metadata_wifi_rssi = -1;
-static int hf_etw_ndis_packet_metadata_wifi_datarate = -1;
-static int hf_etw_ndis_packet_metadata_data = -1;
-static int hf_etw_ndis_tcp_ip_checksum_net_buffer_list = -1;
-static int hf_etw_ndis_ipsec_offload_v1_net_buffer_list_info = -1;
-static int hf_etw_ndis_tcp_large_send_net_buffer_list_info = -1;
-static int hf_etw_ndis_classification_handle_net_buffer_list_info = -1;
-static int hf_etw_ndis_ieee8021q_net_buffer_list_info = -1;
-static int hf_etw_ndis_net_buffer_cancel_id = -1;
-static int hf_etw_ndis_media_specific_information = -1;
-static int hf_etw_ndis_net_buffer_list_frame_type = -1;
-static int hf_etw_ndis_net_buffer_list_hash_value = -1;
-static int hf_etw_ndis_net_buffer_list_hash_info = -1;
-static int hf_etw_ndis_wpf_net_buffer_list_info = -1;
-static int hf_etw_ndis_max_net_buffer_list_info = -1;
+static int hf_etw_ndis_event_id;
+static int hf_etw_ndis_miniport_if_index;
+static int hf_etw_ndis_lower_if_index;
+static int hf_etw_ndis_fragment_size;
+static int hf_etw_ndis_fragment;
+static int hf_etw_ndis_metadata_size;
+static int hf_etw_ndis_metadata;
+static int hf_etw_ndis_source_port_id;
+static int hf_etw_ndis_source_port_name;
+static int hf_etw_ndis_source_nic_name;
+static int hf_etw_ndis_source_nic_type;
+static int hf_etw_ndis_destination_count;
+static int hf_etw_ndis_destination_port_id;
+static int hf_etw_ndis_destination_port_name;
+static int hf_etw_ndis_destination_nic_name;
+static int hf_etw_ndis_destination_nic_type;
+static int hf_etw_ndis_oob_data_size;
+static int hf_etw_ndis_oob_data;
+static int hf_etw_ndis_rules_count;
+static int hf_etw_ndis_friendly_name;
+static int hf_etw_ndis_unique_name;
+static int hf_etw_ndis_service_name;
+static int hf_etw_ndis_version;
+static int hf_etw_ndis_media_type;
+static int hf_etw_ndis_reference_context;
+static int hf_etw_ndis_rule_id;
+static int hf_etw_ndis_directive;
+static int hf_etw_ndis_value_length;
+static int hf_etw_ndis_value;
+static int hf_etw_ndis_error_code;
+static int hf_etw_ndis_location;
+static int hf_etw_ndis_context;
+static int hf_etw_ndis_previous_state;
+static int hf_etw_ndis_next_state;
+static int hf_etw_ndis_source_id;
+static int hf_etw_ndis_rundown_id;
+static int hf_etw_ndis_param1;
+static int hf_etw_ndis_param2;
+static int hf_etw_ndis_param_str;
+static int hf_etw_ndis_description;
+static int hf_etw_ndis_source_name;
+static int hf_etw_ndis_if_index;
+static int hf_etw_ndis_layer_count;
+static int hf_etw_ndis_layer_id;
+static int hf_etw_ndis_layer_name;
+static int hf_etw_ndis_keyword;
+static int hf_etw_ndis_keyword_ethernet8023;
+static int hf_etw_ndis_keyword_reserved1;
+static int hf_etw_ndis_keyword_wireless_wan;
+static int hf_etw_ndis_keyword_reserved2;
+static int hf_etw_ndis_keyword_tunnel;
+static int hf_etw_ndis_keyword_native80211;
+static int hf_etw_ndis_keyword_reserved3;
+static int hf_etw_ndis_keyword_vmswitch;
+static int hf_etw_ndis_keyword_reserved4;
+static int hf_etw_ndis_keyword_packet_start;
+static int hf_etw_ndis_keyword_packet_end;
+static int hf_etw_ndis_keyword_send_path;
+static int hf_etw_ndis_keyword_receive_path;
+static int hf_etw_ndis_keyword_l3_connect_path;
+static int hf_etw_ndis_keyword_l2_connect_path;
+static int hf_etw_ndis_keyword_close_path;
+static int hf_etw_ndis_keyword_authentication;
+static int hf_etw_ndis_keyword_configuration;
+static int hf_etw_ndis_keyword_global;
+static int hf_etw_ndis_keyword_dropped;
+static int hf_etw_ndis_keyword_pii_present;
+static int hf_etw_ndis_keyword_packet;
+static int hf_etw_ndis_keyword_address;
+static int hf_etw_ndis_keyword_std_template_hint;
+static int hf_etw_ndis_keyword_state_transition;
+static int hf_etw_ndis_keyword_reserved5;
+static int hf_etw_ndis_packet_metadata_type;
+static int hf_etw_ndis_packet_metadata_revision;
+static int hf_etw_ndis_packet_metadata_size;
+static int hf_etw_ndis_packet_metadata_wifi_flags;
+static int hf_etw_ndis_packet_metadata_wifi_phytype;
+static int hf_etw_ndis_packet_metadata_wifi_channel;
+static int hf_etw_ndis_packet_metadata_wifi_mpdus_received;
+static int hf_etw_ndis_packet_metadata_wifi_mpdu_padding;
+static int hf_etw_ndis_packet_metadata_wifi_rssi;
+static int hf_etw_ndis_packet_metadata_wifi_datarate;
+static int hf_etw_ndis_packet_metadata_data;
+static int hf_etw_ndis_tcp_ip_checksum_net_buffer_list;
+static int hf_etw_ndis_ipsec_offload_v1_net_buffer_list_info;
+static int hf_etw_ndis_tcp_large_send_net_buffer_list_info;
+static int hf_etw_ndis_classification_handle_net_buffer_list_info;
+static int hf_etw_ndis_ieee8021q_net_buffer_list_info;
+static int hf_etw_ndis_net_buffer_cancel_id;
+static int hf_etw_ndis_media_specific_information;
+static int hf_etw_ndis_net_buffer_list_frame_type;
+static int hf_etw_ndis_net_buffer_list_hash_value;
+static int hf_etw_ndis_net_buffer_list_hash_info;
+static int hf_etw_ndis_wpf_net_buffer_list_info;
+static int hf_etw_ndis_max_net_buffer_list_info;
 
 /* Fields used from other common dissectors */
-static int hf_ip_src = -1;
-static int hf_ip_addr = -1;
-static int hf_ip_src_host = -1;
-static int hf_ip_host = -1;
-static int hf_ip_dst = -1;
-static int hf_ip_dst_host = -1;
-static int hf_ip_proto = -1;
-static int hf_ipv6_src = -1;
-static int hf_ipv6_addr = -1;
-static int hf_ipv6_src_host = -1;
-static int hf_ipv6_host = -1;
-static int hf_ipv6_dst = -1;
-static int hf_ipv6_dst_host = -1;
+static int hf_ip_src;
+static int hf_ip_addr;
+static int hf_ip_src_host;
+static int hf_ip_host;
+static int hf_ip_dst;
+static int hf_ip_dst_host;
+static int hf_ip_proto;
+static int hf_ipv6_src;
+static int hf_ipv6_addr;
+static int hf_ipv6_src_host;
+static int hf_ipv6_host;
+static int hf_ipv6_dst;
+static int hf_ipv6_dst_host;
 
 
 /* Initialize the subtree pointers */
-static gint ett_ma_wfp_capture_v4 = -1;
-static gint ett_ma_wfp_capture_v6 = -1;
-static gint ett_ma_wfp_capture_auth = -1;
-static gint ett_etw_wfp_capture = -1;
-static gint ett_etw_ndis = -1;
-static gint ett_etw_ndis_dest = -1;
-static gint ett_etw_ndis_layer = -1;
-static gint ett_etw_ndis_keyword = -1;
-static gint ett_etw_ndis_packet_metadata = -1;
-static gint ett_etw_ndis_oob_data = -1;
+static int ett_ma_wfp_capture_v4;
+static int ett_ma_wfp_capture_v6;
+static int ett_ma_wfp_capture_auth;
+static int ett_etw_wfp_capture;
+static int ett_etw_ndis;
+static int ett_etw_ndis_dest;
+static int ett_etw_ndis_layer;
+static int ett_etw_ndis_keyword;
+static int ett_etw_ndis_packet_metadata;
+static int ett_etw_ndis_oob_data;
 
 static dissector_handle_t ma_wfp_capture_v4_handle;
 static dissector_handle_t ma_wfp_capture2_v4_handle;
@@ -193,7 +195,7 @@ static void
 add_ipv4_src_address(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset, proto_item* parent_item)
 {
 	proto_item *item;
-	guint32 addr;
+	uint32_t addr;
 
 	set_address_tvb(&pinfo->net_src, AT_IPv4, 4, tvb, offset);
 	copy_address_shallow(&pinfo->src, &pinfo->net_src);
@@ -223,7 +225,7 @@ static void
 add_ipv4_dst_address(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset, proto_item* parent_item)
 {
 	proto_item *item;
-	guint32 addr;
+	uint32_t addr;
 
 	set_address_tvb(&pinfo->net_dst, AT_IPv4, 4, tvb, offset);
 	copy_address_shallow(&pinfo->dst, &pinfo->net_dst);
@@ -309,7 +311,7 @@ dissect_ma_wfp_capture_v4_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 	proto_item *ti;
 	proto_tree *wfp_tree;
 	int offset = 0;
-	guint32 ip_proto, payload_length;
+	uint32_t ip_proto, payload_length;
 	tvbuff_t *next_tvb;
 
 	ti = proto_tree_add_item(tree, proto, tvb, 0, -1, ENC_NA);
@@ -338,7 +340,7 @@ dissect_ma_wfp_capture_v4_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 
 	next_tvb = tvb_new_subset_remaining(tvb, offset);
 
-	if (!dissector_try_uint_new(ip_dissector_table, ip_proto, next_tvb, pinfo, tree, TRUE, NULL)) {
+	if (!dissector_try_uint_new(ip_dissector_table, ip_proto, next_tvb, pinfo, tree, true, NULL)) {
 		call_data_dissector(next_tvb, pinfo, tree);
 	}
 
@@ -369,7 +371,7 @@ dissect_ma_wfp_capture_v6_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 	proto_item *ti;
 	proto_tree *wfp_tree;
 	int offset = 0;
-	guint32 ip_proto, payload_length;
+	uint32_t ip_proto, payload_length;
 	tvbuff_t *next_tvb;
 
 	ti = proto_tree_add_item(tree, proto, tvb, 0, -1, ENC_NA);
@@ -398,7 +400,7 @@ dissect_ma_wfp_capture_v6_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 
 	proto_item_set_len(ti, offset);
 
-	if (!dissector_try_uint_new(ip_dissector_table, ip_proto, next_tvb, pinfo, tree, TRUE, NULL)) {
+	if (!dissector_try_uint_new(ip_dissector_table, ip_proto, next_tvb, pinfo, tree, true, NULL)) {
 		call_data_dissector(next_tvb, pinfo, tree);
 	}
 
@@ -429,7 +431,7 @@ dissect_ma_wfp_capture_auth_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree
 	proto_item *ti;
 	proto_tree *wfp_tree;
 	int offset = 0;
-	guint32 length, ip_proto;
+	uint32_t length, ip_proto;
 
 	ti = proto_tree_add_item(tree, proto, tvb, 0, -1, ENC_NA);
 	wfp_tree = proto_item_add_subtree(ti, ett_ma_wfp_capture_auth);
@@ -566,7 +568,7 @@ dissect_etw_wfp_capture(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	proto_tree *etw_tree;
 	int offset = 0;
 	struct netmon_provider_id_data *provider_id_data = (struct netmon_provider_id_data*)data;
-	guint length;
+	unsigned length;
 
 	DISSECTOR_ASSERT(provider_id_data != NULL);
 
@@ -749,32 +751,32 @@ static const value_string etw_ndis_wifi_phytype_vals[] = {
 };
 
 
-#define ETW_NDIS_KEYWORD_ETHERNET8023       G_GUINT64_CONSTANT(0x0000000000000001)
-#define ETW_NDIS_KEYWORD_RESERVED1          G_GUINT64_CONSTANT(0x00000000000001FE)
-#define ETW_NDIS_KEYWORD_WIRELESS_WAN       G_GUINT64_CONSTANT(0x0000000000000200)
-#define ETW_NDIS_KEYWORD_RESERVED2          G_GUINT64_CONSTANT(0x0000000000007C00)
-#define ETW_NDIS_KEYWORD_TUNNEL             G_GUINT64_CONSTANT(0x0000000000008000)
-#define ETW_NDIS_KEYWORD_NATIVE_80211       G_GUINT64_CONSTANT(0x0000000000010000)
-#define ETW_NDIS_KEYWORD_RESERVED3          G_GUINT64_CONSTANT(0x0000000000FE0000)
-#define ETW_NDIS_KEYWORD_VM_SWITCH          G_GUINT64_CONSTANT(0x0000000001000000)
-#define ETW_NDIS_KEYWORD_RESERVED4          G_GUINT64_CONSTANT(0x000000003E000000)
-#define ETW_NDIS_KEYWORD_PACKET_START       G_GUINT64_CONSTANT(0x0000000040000000)
-#define ETW_NDIS_KEYWORD_PACKET_END         G_GUINT64_CONSTANT(0x0000000080000000)
-#define ETW_NDIS_KEYWORD_SEND_PATH          G_GUINT64_CONSTANT(0x0000000100000000)
-#define ETW_NDIS_KEYWORD_RECV_PATH          G_GUINT64_CONSTANT(0x0000000200000000)
-#define ETW_NDIS_KEYWORD_L3_CONN_PATH       G_GUINT64_CONSTANT(0x0000000400000000)
-#define ETW_NDIS_KEYWORD_L2_CONN_PATH       G_GUINT64_CONSTANT(0x0000000800000000)
-#define ETW_NDIS_KEYWORD_CLOSE_PATH         G_GUINT64_CONSTANT(0x0000001000000000)
-#define ETW_NDIS_KEYWORD_AUTHENTICATION     G_GUINT64_CONSTANT(0x0000002000000000)
-#define ETW_NDIS_KEYWORD_CONFIGURATION      G_GUINT64_CONSTANT(0x0000004000000000)
-#define ETW_NDIS_KEYWORD_GLOBAL             G_GUINT64_CONSTANT(0x0000008000000000)
-#define ETW_NDIS_KEYWORD_DROPPED            G_GUINT64_CONSTANT(0x0000010000000000)
-#define ETW_NDIS_KEYWORD_PII_PRESENT        G_GUINT64_CONSTANT(0x0000020000000000)
-#define ETW_NDIS_KEYWORD_PACKET             G_GUINT64_CONSTANT(0x0000040000000000)
-#define ETW_NDIS_KEYWORD_ADDRESS            G_GUINT64_CONSTANT(0x0000080000000000)
-#define ETW_NDIS_KEYWORD_STD_TEMPLATE_HINT  G_GUINT64_CONSTANT(0x0000100000000000)
-#define ETW_NDIS_KEYWORD_STATE_TRANSITION   G_GUINT64_CONSTANT(0x0000200000000000)
-#define ETW_NDIS_KEYWORD_RESERVED5          G_GUINT64_CONSTANT(0xFFFFC00000000000)
+#define ETW_NDIS_KEYWORD_ETHERNET8023       UINT64_C(0x0000000000000001)
+#define ETW_NDIS_KEYWORD_RESERVED1          UINT64_C(0x00000000000001FE)
+#define ETW_NDIS_KEYWORD_WIRELESS_WAN       UINT64_C(0x0000000000000200)
+#define ETW_NDIS_KEYWORD_RESERVED2          UINT64_C(0x0000000000007C00)
+#define ETW_NDIS_KEYWORD_TUNNEL             UINT64_C(0x0000000000008000)
+#define ETW_NDIS_KEYWORD_NATIVE_80211       UINT64_C(0x0000000000010000)
+#define ETW_NDIS_KEYWORD_RESERVED3          UINT64_C(0x0000000000FE0000)
+#define ETW_NDIS_KEYWORD_VM_SWITCH          UINT64_C(0x0000000001000000)
+#define ETW_NDIS_KEYWORD_RESERVED4          UINT64_C(0x000000003E000000)
+#define ETW_NDIS_KEYWORD_PACKET_START       UINT64_C(0x0000000040000000)
+#define ETW_NDIS_KEYWORD_PACKET_END         UINT64_C(0x0000000080000000)
+#define ETW_NDIS_KEYWORD_SEND_PATH          UINT64_C(0x0000000100000000)
+#define ETW_NDIS_KEYWORD_RECV_PATH          UINT64_C(0x0000000200000000)
+#define ETW_NDIS_KEYWORD_L3_CONN_PATH       UINT64_C(0x0000000400000000)
+#define ETW_NDIS_KEYWORD_L2_CONN_PATH       UINT64_C(0x0000000800000000)
+#define ETW_NDIS_KEYWORD_CLOSE_PATH         UINT64_C(0x0000001000000000)
+#define ETW_NDIS_KEYWORD_AUTHENTICATION     UINT64_C(0x0000002000000000)
+#define ETW_NDIS_KEYWORD_CONFIGURATION      UINT64_C(0x0000004000000000)
+#define ETW_NDIS_KEYWORD_GLOBAL             UINT64_C(0x0000008000000000)
+#define ETW_NDIS_KEYWORD_DROPPED            UINT64_C(0x0000010000000000)
+#define ETW_NDIS_KEYWORD_PII_PRESENT        UINT64_C(0x0000020000000000)
+#define ETW_NDIS_KEYWORD_PACKET             UINT64_C(0x0000040000000000)
+#define ETW_NDIS_KEYWORD_ADDRESS            UINT64_C(0x0000080000000000)
+#define ETW_NDIS_KEYWORD_STD_TEMPLATE_HINT  UINT64_C(0x0000100000000000)
+#define ETW_NDIS_KEYWORD_STATE_TRANSITION   UINT64_C(0x0000200000000000)
+#define ETW_NDIS_KEYWORD_RESERVED5          UINT64_C(0xFFFFC00000000000)
 
 static void
 etw_ndis_packet_metadata(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, int offset)
@@ -782,7 +784,7 @@ etw_ndis_packet_metadata(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, in
 	int start_offset = offset;
 	proto_tree* metadata_tree;
 	proto_item* metadata_item;
-	guint32 revision, length;
+	uint32_t revision, length;
 
 	metadata_tree = proto_tree_add_subtree(tree, tvb, offset, 4, ett_etw_ndis_packet_metadata, &metadata_item, "WiFiMetadata");
 
@@ -795,8 +797,8 @@ etw_ndis_packet_metadata(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, in
 
 	if (revision == 1)
 	{
-		guint32 phytype, channel, rate;
-		gint32 rssi;
+		uint32_t phytype, channel, rate;
+		int32_t rssi;
 
 		proto_tree_add_item(metadata_tree, hf_etw_ndis_packet_metadata_wifi_flags, tvb, offset, 4, ENC_LITTLE_ENDIAN);
 		offset += 4;
@@ -822,7 +824,7 @@ etw_ndis_packet_metadata(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, in
 		offset += 2;
 		proto_tree_add_item_ret_int(metadata_tree, hf_etw_ndis_packet_metadata_wifi_rssi, tvb, offset, 4, ENC_LITTLE_ENDIAN, &rssi);
 		offset += 4;
-		rate = tvb_get_guint8(tvb, offset);
+		rate = tvb_get_uint8(tvb, offset);
 		proto_tree_add_uint_format_value(metadata_tree, hf_etw_ndis_packet_metadata_wifi_datarate, tvb, offset, 1, rate, "%u.%u Mbps", rate / 2, rate % 2 > 0 ? 5 : 0);
 		offset += 1;
 		col_append_fstr(pinfo->cinfo, COL_INFO, ": RSSI = %d dBm, Rate = %u.%u Mbps", rssi, rate / 2, rate % 2 > 0 ? 5 : 0);
@@ -844,7 +846,7 @@ dissect_etw_ndis(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
 	proto_tree *etw_tree, *dest_tree, *layer_tree, *oob_tree;
 	int offset = 0, dest_start, layer_start;
 	struct netmon_provider_id_data *provider_id_data = (struct netmon_provider_id_data*)data;
-	guint i, length;
+	unsigned i, length;
 	tvbuff_t *next_tvb;
 
 	static int * const keyword_fields[] = {
@@ -1011,7 +1013,7 @@ dissect_etw_ndis(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
 		proto_tree_add_item_ret_uint(etw_tree, hf_etw_ndis_oob_data_size, tvb, offset, 4, ENC_LITTLE_ENDIAN, &length);
 		offset += 4;
 
-		if ((gint)length == tvb_reported_length_remaining(tvb, offset))
+		if ((int)length == tvb_reported_length_remaining(tvb, offset))
 		{
 			oob_tree = proto_tree_add_subtree(etw_tree, tvb, offset, length, ett_etw_ndis_oob_data, NULL, "OOB Data");
 
@@ -1603,7 +1605,7 @@ void proto_register_message_analyzer(void)
 		},
 		{ &hf_etw_ndis_packet_metadata_wifi_rssi,
 			{ "RSSI", "etw.ndis.packet_metadata.wifi_rssi",
-			FT_INT32, BASE_DEC|BASE_UNIT_STRING, &units_dbm, 0x0, NULL, HFILL }
+			FT_INT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_dbm), 0x0, NULL, HFILL }
 		},
 		{ &hf_etw_ndis_packet_metadata_wifi_datarate,
 			{ "Datarate", "etw.ndis.packet_metadata.wifi_datarate",
@@ -1663,7 +1665,7 @@ void proto_register_message_analyzer(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_ma_wfp_capture_v4,
 		&ett_ma_wfp_capture_v6,
 		&ett_ma_wfp_capture_auth,

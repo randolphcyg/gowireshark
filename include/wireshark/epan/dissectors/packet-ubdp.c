@@ -12,57 +12,77 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 
-#define UB_TLV_TYPE      0
-#define UB_TLV_LENGTH    1
+#define UB_TLV_TYPE          0
+#define UB_TLV_LENGTH        1
 
-#define UB_HW_ADDR       1
-#define UB_HW_IP_ADDR    2
-#define UB_FIRMWARE_FULL 3
-#define UB_USERNAME      6
-#define UB_UPTIME        10
-#define UB_HOSTNAME      11
-#define UB_PRODUCT       12
-#define UB_ESSID         13
-#define UB_WLAN_MODE     14
-#define UB_SYSTEM_ID     16
-#define UB_SEQ_NUM       18
-#define UB_HW_ADDR_2     19
-#define UB_TYPE          20
-#define UB_MODEL         21
-#define UB_FIRMWARE      22
-#define UB_PLATFORM_VERS 27
+#define UB_HW_ADDR           1
+#define UB_HW_IP_ADDR        2
+#define UB_FIRMWARE_FULL     3
+#define UB_HW_IP_ADDR_2      4
+#define UB_HW_ADDR_2         5
+#define UB_USERNAME          6
+#define UB_SALT              7
+#define UB_RND_CHALLENGE     8
+#define UB_CHALLENGE         9
+#define UB_UPTIME            10
+#define UB_HOSTNAME          11
+#define UB_PRODUCT           12
+#define UB_ESSID             13
+#define UB_WLAN_MODE         14
+#define UB_WEBUI             15
+#define UB_SYSTEM_ID         16
+#define UB_SEQ_NUM           18
+#define UB_HW_ADDR_3         19
+#define UB_TYPE              20
+#define UB_MODEL             21
+#define UB_FIRMWARE          22
+#define UB_DEFAULT           23
+#define UB_LOCATING          24
+#define UB_DHCP_CLIENT       25
+#define UB_DHCP_CLIENT_BOUND 26
+#define UB_PLATFORM_VERS     27
+#define UB_SSHD_PORT         28
 
 void proto_register_ubdp(void);
 void proto_reg_handoff_ubdp(void);
 
-static int proto_ubdp = -1;
+static int proto_ubdp;
 
-static int hf_ubdp_version = -1;
-static int hf_ubdp_command = -1;
-static int hf_ubdp_size = -1;
-static int hf_ubdp_type = -1;
-static int hf_ubdp_len = -1;
-static int hf_ubdp_mac = -1;
-static int hf_ubdp_ip = -1;
-static int hf_ubdp_firmware_full = -1;
-static int hf_ubdp_username = -1;
-static int hf_ubdp_uptime = -1;
-static int hf_ubdp_hostname = -1;
-static int hf_ubdp_product = -1;
-static int hf_ubdp_ssid = -1;
-static int hf_ubdp_wlan_mode = -1;
-static int hf_ubdp_system_id = -1;
-static int hf_ubdp_seq_num = -1;
-static int hf_ubdp_model = -1;
-static int hf_ubdp_firmware = -1;
-static int hf_ubdp_platform_vers = -1;
-static int hf_ubdp_generic = -1;
+static int hf_ubdp_version;
+static int hf_ubdp_command;
+static int hf_ubdp_size;
+static int hf_ubdp_type;
+static int hf_ubdp_len;
+static int hf_ubdp_mac;
+static int hf_ubdp_ip;
+static int hf_ubdp_firmware_full;
+static int hf_ubdp_username;
+static int hf_ubdp_salt;
+static int hf_ubdp_rnd_challenge;
+static int hf_ubdp_challenge;
+static int hf_ubdp_uptime;
+static int hf_ubdp_hostname;
+static int hf_ubdp_product;
+static int hf_ubdp_ssid;
+static int hf_ubdp_wlan_mode;
+static int hf_ubdp_webui;
+static int hf_ubdp_system_id;
+static int hf_ubdp_seq_num;
+static int hf_ubdp_model;
+static int hf_ubdp_firmware;
+static int hf_ubdp_default;
+static int hf_ubdp_locating;
+static int hf_ubdp_dhcp_client;
+static int hf_ubdp_dhcp_client_bound;
+static int hf_ubdp_platform_vers;
+static int hf_ubdp_sshd_port;
+static int hf_ubdp_generic;
 
-static gint ett_ubdp = -1;
-static gint ett_ubdp_tlv = -1;
+static int ett_ubdp;
+static int ett_ubdp_tlv;
 
-static expert_field ei_ubdp_bad_version = EI_INIT;
-static expert_field ei_ubdp_unexpected_len = EI_INIT;
+static expert_field ei_ubdp_bad_version;
+static expert_field ei_ubdp_unexpected_len;
 
 static dissector_handle_t ubdp_handle;
 
@@ -71,19 +91,30 @@ static const value_string type_vals[] = {
     { UB_HW_ADDR, "MAC Address" },
     { UB_HW_IP_ADDR, "MAC and IP Address" },
     { UB_FIRMWARE_FULL, "Firmware Detailed" },
+    { UB_HW_IP_ADDR_2, "IP Address" },
+    { UB_HW_ADDR_2, "MAC Address" },
     { UB_USERNAME, "Username" },
+    { UB_SALT, "Salt" },
+    { UB_RND_CHALLENGE, "Random Challenge" },
+    { UB_CHALLENGE, "Challenge" },
     { UB_UPTIME, "Uptime" },
     { UB_HOSTNAME, "Hostname" },
     { UB_PRODUCT, "Product" },
     { UB_ESSID, "ESSID" },
     { UB_WLAN_MODE, "WLAN Mode" },
+    { UB_WEBUI, "Web-UI" },
     { UB_SYSTEM_ID, "System ID" },
     { UB_SEQ_NUM, "Counter" },
-    { UB_HW_ADDR_2, "MAC Address" },
+    { UB_HW_ADDR_3, "MAC Address" },
     { UB_TYPE, "Model Type" },
     { UB_MODEL, "Model" },
     { UB_FIRMWARE, "Firmware" },
+    { UB_DEFAULT, "Default" },
+    { UB_LOCATING, "Locating" },
+    { UB_DHCP_CLIENT, "DHCP-Client" },
+    { UB_DHCP_CLIENT_BOUND, "DHCP-Client Bound" },
     { UB_PLATFORM_VERS, "Platform Version"},
+    { UB_SSHD_PORT, "SSHD Port"},
     { 0, NULL }
 };
 
@@ -134,16 +165,15 @@ dissect_ubdp(tvbuff_t *ubdp_tvb, packet_info *pinfo, proto_tree *tree, void *dat
 {
     proto_tree  *ubdp_tree, *tlv_tree;
     proto_item  *ubdp_item, *tlv_item;
-    guint32     ubdp_length;
-    guint32     ubdp_type;
-    guint32     version;
-    gint offset = 0;
-    gchar *uValue;
-    const gchar *uModel;
+    uint32_t    ubdp_length;
+    uint32_t    ubdp_type;
+    uint32_t    version;
+    int offset = 0;
+    char *uValue;
+    const char *uModel;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "UBDP");
-    col_clear(pinfo->cinfo, COL_INFO);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "UBDP");
+    col_set_str(pinfo->cinfo, COL_INFO, "UBDP");
 
     ubdp_item = proto_tree_add_item(tree, proto_ubdp, ubdp_tvb, 0, -1, ENC_NA);
     ubdp_tree = proto_item_add_subtree(ubdp_item, ett_ubdp);
@@ -168,6 +198,7 @@ dissect_ubdp(tvbuff_t *ubdp_tvb, packet_info *pinfo, proto_tree *tree, void *dat
         switch(ubdp_type){
           case UB_HW_ADDR:
           case UB_HW_ADDR_2:
+          case UB_HW_ADDR_3:
             if(ubdp_length == 6){
                 proto_tree_add_item(tlv_tree, hf_ubdp_mac, ubdp_tvb, offset, ubdp_length, ENC_NA);
             }else{
@@ -176,9 +207,12 @@ dissect_ubdp(tvbuff_t *ubdp_tvb, packet_info *pinfo, proto_tree *tree, void *dat
             }
             break;
           case UB_HW_IP_ADDR:
-            if(ubdp_length == 10){
+          case UB_HW_IP_ADDR_2:
+            if(ubdp_length == 10){ // UB_HW_IP_ADDR
               proto_tree_add_item(tlv_tree, hf_ubdp_mac, ubdp_tvb, offset, 6, ENC_NA);
               proto_tree_add_item(tlv_tree, hf_ubdp_ip, ubdp_tvb, offset + 6, 4, ENC_NA);
+            }else if(ubdp_length == 4){ // UB_HW_IP_ADDR_2
+              proto_tree_add_item(tlv_tree, hf_ubdp_ip, ubdp_tvb, offset, 4, ENC_NA);
             }else{
               expert_add_info(pinfo, tlv_item, &ei_ubdp_unexpected_len);
               proto_tree_add_item(tlv_tree, hf_ubdp_generic, ubdp_tvb, offset, ubdp_length, ENC_NA);
@@ -190,6 +224,15 @@ dissect_ubdp(tvbuff_t *ubdp_tvb, packet_info *pinfo, proto_tree *tree, void *dat
           case UB_USERNAME:
             proto_tree_add_item(tlv_tree, hf_ubdp_username, ubdp_tvb, offset, ubdp_length, ENC_ASCII);
             break;
+          case UB_SALT:
+            proto_tree_add_item(tlv_tree, hf_ubdp_salt, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            break;
+          case UB_RND_CHALLENGE:
+            proto_tree_add_item(tlv_tree, hf_ubdp_rnd_challenge, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            break;
+          case UB_CHALLENGE:
+            proto_tree_add_item(tlv_tree, hf_ubdp_challenge, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            break;
           case UB_UPTIME:
             if(ubdp_length == 4){
               proto_tree_add_item(tlv_tree, hf_ubdp_uptime, ubdp_tvb, offset, ubdp_length, ENC_NA);
@@ -199,7 +242,7 @@ dissect_ubdp(tvbuff_t *ubdp_tvb, packet_info *pinfo, proto_tree *tree, void *dat
             }
             break;
           case UB_HOSTNAME:
-            proto_tree_add_item(tlv_tree, hf_ubdp_hostname, ubdp_tvb, offset, ubdp_length, ENC_ASCII);
+            proto_tree_add_item(tlv_tree, hf_ubdp_hostname, ubdp_tvb, offset, ubdp_length, ENC_UTF_8);
             break;
           case UB_PRODUCT:
             uValue = tvb_get_string_enc(pinfo->pool, ubdp_tvb, offset, ubdp_length, ENC_ASCII);
@@ -216,6 +259,9 @@ dissect_ubdp(tvbuff_t *ubdp_tvb, packet_info *pinfo, proto_tree *tree, void *dat
               expert_add_info(pinfo, tlv_item, &ei_ubdp_unexpected_len);
               proto_tree_add_item(tlv_tree, hf_ubdp_generic, ubdp_tvb, offset, ubdp_length, ENC_NA);
             }
+            break;
+          case UB_WEBUI:
+            proto_tree_add_item(tlv_tree, hf_ubdp_webui, ubdp_tvb, offset, ubdp_length, ENC_UTF_8);
             break;
           case UB_SYSTEM_ID:
             if(ubdp_length == 2){
@@ -246,8 +292,48 @@ dissect_ubdp(tvbuff_t *ubdp_tvb, packet_info *pinfo, proto_tree *tree, void *dat
           case UB_FIRMWARE:
             proto_tree_add_item(tlv_tree, hf_ubdp_firmware, ubdp_tvb, offset, ubdp_length, ENC_ASCII);
             break;
+          case UB_DEFAULT:
+            if(ubdp_length == 1 || ubdp_length == 4){
+              proto_tree_add_item(tlv_tree, hf_ubdp_default, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            }else{
+              expert_add_info(pinfo, tlv_item, &ei_ubdp_unexpected_len);
+              proto_tree_add_item(tlv_tree, hf_ubdp_generic, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            }
+            break;
+          case UB_LOCATING:
+            if(ubdp_length == 1 || ubdp_length == 4){
+              proto_tree_add_item(tlv_tree, hf_ubdp_locating, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            }else{
+              expert_add_info(pinfo, tlv_item, &ei_ubdp_unexpected_len);
+              proto_tree_add_item(tlv_tree, hf_ubdp_generic, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            }
+            break;
+          case UB_DHCP_CLIENT:
+            if(ubdp_length == 1){
+              proto_tree_add_item(tlv_tree, hf_ubdp_dhcp_client, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            }else{
+              expert_add_info(pinfo, tlv_item, &ei_ubdp_unexpected_len);
+              proto_tree_add_item(tlv_tree, hf_ubdp_generic, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            }
+            break;
+          case UB_DHCP_CLIENT_BOUND:
+            if(ubdp_length == 1){
+              proto_tree_add_item(tlv_tree, hf_ubdp_dhcp_client_bound, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            }else{
+              expert_add_info(pinfo, tlv_item, &ei_ubdp_unexpected_len);
+              proto_tree_add_item(tlv_tree, hf_ubdp_generic, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            }
+            break;
           case UB_PLATFORM_VERS:
             proto_tree_add_item(tlv_tree, hf_ubdp_platform_vers, ubdp_tvb, offset, ubdp_length, ENC_ASCII);
+            break;
+          case UB_SSHD_PORT:
+            if(ubdp_length == 2){
+              proto_tree_add_item(tlv_tree, hf_ubdp_dhcp_client_bound, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            }else{
+              expert_add_info(pinfo, tlv_item, &ei_ubdp_unexpected_len);
+              proto_tree_add_item(tlv_tree, hf_ubdp_generic, ubdp_tvb, offset, ubdp_length, ENC_NA);
+            }
             break;
           default:
             proto_tree_add_item(tlv_tree, hf_ubdp_generic, ubdp_tvb, offset, ubdp_length, ENC_NA);
@@ -272,28 +358,37 @@ proto_register_ubdp(void)
         { &hf_ubdp_ip, {"IP","ubdp.ip",FT_IPv4, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_firmware_full, {"Firmware Path","ubdp.firmware_full",FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_username, {"Username", "ubdp.username", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_ubdp_salt, {"Salt", "ubdp.salt", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_ubdp_rnd_challenge, {"Random Challenge", "ubdp.rnd_challenge", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_ubdp_challenge, {"Challenge", "ubdp.challenge", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_uptime, {"Uptime","ubdp.uptime",FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_hostname, {"Hostname","ubdp.hostname",FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_product, {"Product","ubdp.product",FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_ssid, {"SSID","ubdp.ssid",FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_wlan_mode, {"Wireless Mode","ubdp.wlan_mode",FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_ubdp_webui, {"Web-UI", "ubdp.web_ui", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_seq_num, {"Counter","ubdp.seq_num",FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_model, {"Model","ubdp.model",FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_system_id, {"System ID","ubdp.system_id",FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_firmware, {"Version","ubdp.firmware",FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_ubdp_default, {"Default", "ubdp.default", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_ubdp_locating, {"Locating", "ubdp.locating", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_ubdp_dhcp_client, {"DHCP-Client", "ubdp.dhcp_client", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_ubdp_dhcp_client_bound, {"DHCP-Client Bound", "ubdp.dhcp_client_bound", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_platform_vers, {"Platform Version","ubdp.platform_vers",FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_ubdp_sshd_port, {"SSHD Port","ubdp.sshd_port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ubdp_generic, {"Unknown Field","ubdp.unk",FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }}
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
       &ett_ubdp,
       &ett_ubdp_tlv
     };
 
-  static ei_register_info ei[] = {
-	 { &ei_ubdp_bad_version, { "ubdp.bad-version-detected", PI_PROTOCOL, PI_WARN, "Bad Version Detected", EXPFILL }},
-     { &ei_ubdp_unexpected_len, { "ubdp.bad-field-length-detected", PI_PROTOCOL, PI_WARN, "Bad Length Field Detected", EXPFILL }},
-  };
+    static ei_register_info ei[] = {
+      { &ei_ubdp_bad_version, { "ubdp.bad-version-detected", PI_PROTOCOL, PI_WARN, "Bad Version Detected", EXPFILL }},
+      { &ei_ubdp_unexpected_len, { "ubdp.bad-field-length-detected", PI_PROTOCOL, PI_WARN, "Bad Length Field Detected", EXPFILL }},
+    };
 
     expert_module_t* expert_ubdp;
 

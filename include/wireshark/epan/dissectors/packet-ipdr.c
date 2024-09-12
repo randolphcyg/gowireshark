@@ -23,90 +23,90 @@
 void proto_register_ipdr(void);
 void proto_reg_handoff_ipdr(void);
 
-static int proto_ipdr = -1;
-static int proto_ipdr_samis_type_1 = -1;
+static int proto_ipdr;
+static int proto_ipdr_samis_type_1;
 
 static dissector_handle_t ipdr_handle;
 static dissector_handle_t ipdr_samis_type_1_handle;
 
 static dissector_table_t ipdr_sessions_dissector_table;
 
-static int hf_ipdr_version = -1;
-static int hf_ipdr_message_id = -1;
-static int hf_ipdr_session_id = -1;
-static int hf_ipdr_message_flags = -1;
-static int hf_ipdr_message_len = -1;
-static int hf_ipdr_initiator_id = -1;
-static int hf_ipdr_initiator_port = -1;
-static int hf_ipdr_capabilities = -1;
-static int hf_ipdr_keepalive_interval = -1;
-static int hf_ipdr_vendor_id = -1;
-static int hf_ipdr_timestamp = -1;
-static int hf_ipdr_error_code = -1;
-static int hf_ipdr_description = -1;
-static int hf_ipdr_exporter_boot_time = -1;
-static int hf_ipdr_first_record_sequence_number = -1;
-static int hf_ipdr_dropped_record_count = -1;
-static int hf_ipdr_reason_code = -1;
-static int hf_ipdr_reason_info = -1;
-static int hf_ipdr_request_id = -1;
-static int hf_ipdr_config_id = -1;
-static int hf_ipdr_flags = -1;
-static int hf_ipdr_primary = -1;
-static int hf_ipdr_ack_time_interval = -1;
-static int hf_ipdr_ack_sequence_interval = -1;
-static int hf_ipdr_template_id = -1;
-static int hf_ipdr_document_id = -1;
-static int hf_ipdr_sequence_num = -1;
-static int hf_ipdr_request_number = -1;
-static int hf_ipdr_data_record = -1;
+static int hf_ipdr_version;
+static int hf_ipdr_message_id;
+static int hf_ipdr_session_id;
+static int hf_ipdr_message_flags;
+static int hf_ipdr_message_len;
+static int hf_ipdr_initiator_id;
+static int hf_ipdr_initiator_port;
+static int hf_ipdr_capabilities;
+static int hf_ipdr_keepalive_interval;
+static int hf_ipdr_vendor_id;
+static int hf_ipdr_timestamp;
+static int hf_ipdr_error_code;
+static int hf_ipdr_description;
+static int hf_ipdr_exporter_boot_time;
+static int hf_ipdr_first_record_sequence_number;
+static int hf_ipdr_dropped_record_count;
+static int hf_ipdr_reason_code;
+static int hf_ipdr_reason_info;
+static int hf_ipdr_request_id;
+static int hf_ipdr_config_id;
+static int hf_ipdr_flags;
+static int hf_ipdr_primary;
+static int hf_ipdr_ack_time_interval;
+static int hf_ipdr_ack_sequence_interval;
+static int hf_ipdr_template_id;
+static int hf_ipdr_document_id;
+static int hf_ipdr_sequence_num;
+static int hf_ipdr_request_number;
+static int hf_ipdr_data_record;
 
 /* Header fields for SAMIS-TYPE-1 IPDR DATA Records */
-static int hf_ipdr_samis_record_length = -1;
-static int hf_ipdr_cmts_host_name_len = -1;
-static int hf_ipdr_cmts_host_name = -1;
-static int hf_ipdr_cmts_sys_up_time = -1;
-static int hf_ipdr_cmts_ipv4_addr = -1;
-static int hf_ipdr_cmts_ipv6_addr_len = -1;
-static int hf_ipdr_cmts_ipv6_addr = -1;
-static int hf_ipdr_cmts_md_if_name_len = -1;
-static int hf_ipdr_cmts_md_if_name = -1;
-static int hf_ipdr_cmts_md_if_index = -1;
-static int hf_ipdr_cm_mac_addr = -1;
-static int hf_ipdr_cm_ipv4_addr = -1;
-static int hf_ipdr_cm_ipv6_addr = -1;
-static int hf_ipdr_cm_ipv6_addr_string_len = -1;
-static int hf_ipdr_cm_ipv6_addr_string = -1;
-static int hf_ipdr_cm_ipv6_ll_addr = -1;
-static int hf_ipdr_cm_ipv6_ll_addr_string_len = -1;
-static int hf_ipdr_cm_ipv6_ll_addr_string = -1;
-static int hf_ipdr_cm_qos_version = -1;
-static int hf_ipdr_cm_reg_status = -1;
-static int hf_ipdr_cm_last_reg_time = -1;
-static int hf_ipdr_rec_type = -1;
-static int hf_ipdr_rec_creation_time = -1;
-static int hf_ipdr_sf_ch_set = -1;
-static int hf_ipdr_channel_id = -1;
-static int hf_ipdr_service_app_id = -1;
-static int hf_ipdr_service_ds_multicast = -1;
-static int hf_ipdr_service_identifier = -1;
-static int hf_ipdr_service_gate_id = -1;
-static int hf_ipdr_service_class_name_len = -1;
-static int hf_ipdr_service_class_name = -1;
-static int hf_ipdr_service_direction = -1;
-static int hf_ipdr_service_octets_passed = -1;
-static int hf_ipdr_service_pkts_passed = -1;
-static int hf_ipdr_service_sla_drop_pkts = -1;
-static int hf_ipdr_service_sla_delay_pkts = -1;
-static int hf_ipdr_service_time_created = -1;
-static int hf_ipdr_service_time_active = -1;
+static int hf_ipdr_samis_record_length;
+static int hf_ipdr_cmts_host_name_len;
+static int hf_ipdr_cmts_host_name;
+static int hf_ipdr_cmts_sys_up_time;
+static int hf_ipdr_cmts_ipv4_addr;
+static int hf_ipdr_cmts_ipv6_addr_len;
+static int hf_ipdr_cmts_ipv6_addr;
+static int hf_ipdr_cmts_md_if_name_len;
+static int hf_ipdr_cmts_md_if_name;
+static int hf_ipdr_cmts_md_if_index;
+static int hf_ipdr_cm_mac_addr;
+static int hf_ipdr_cm_ipv4_addr;
+static int hf_ipdr_cm_ipv6_addr;
+static int hf_ipdr_cm_ipv6_addr_string_len;
+static int hf_ipdr_cm_ipv6_addr_string;
+static int hf_ipdr_cm_ipv6_ll_addr;
+static int hf_ipdr_cm_ipv6_ll_addr_string_len;
+static int hf_ipdr_cm_ipv6_ll_addr_string;
+static int hf_ipdr_cm_qos_version;
+static int hf_ipdr_cm_reg_status;
+static int hf_ipdr_cm_last_reg_time;
+static int hf_ipdr_rec_type;
+static int hf_ipdr_rec_creation_time;
+static int hf_ipdr_sf_ch_set;
+static int hf_ipdr_channel_id;
+static int hf_ipdr_service_app_id;
+static int hf_ipdr_service_ds_multicast;
+static int hf_ipdr_service_identifier;
+static int hf_ipdr_service_gate_id;
+static int hf_ipdr_service_class_name_len;
+static int hf_ipdr_service_class_name;
+static int hf_ipdr_service_direction;
+static int hf_ipdr_service_octets_passed;
+static int hf_ipdr_service_pkts_passed;
+static int hf_ipdr_service_sla_drop_pkts;
+static int hf_ipdr_service_sla_delay_pkts;
+static int hf_ipdr_service_time_created;
+static int hf_ipdr_service_time_active;
 
-static gint ett_ipdr = -1;
-static gint ett_ipdr_samis_type_1 = -1;
-static gint ett_ipdr_sf_ch_set = -1;
+static int ett_ipdr;
+static int ett_ipdr_samis_type_1;
+static int ett_ipdr_sf_ch_set;
 
-static expert_field ei_ipdr_message_id = EI_INIT;
-static expert_field ei_ipdr_sf_ch_set = EI_INIT;
+static expert_field ei_ipdr_message_id;
+static expert_field ei_ipdr_sf_ch_set;
 
 static range_t *global_sessions_samis_type_1;
 
@@ -213,12 +213,12 @@ dissect_ipdr_samis_type_1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     int offset = 0;
     proto_item *ti;
     proto_tree *samis_type_1_tree, *sf_ch_set_tree;
-    guint len, cmts_sys_up_time, channel_id;
+    unsigned len, cmts_sys_up_time, channel_id;
 
     //col_clear(pinfo->cinfo, COL_INFO);
     ti = proto_tree_add_item(tree, proto_ipdr_samis_type_1, tvb, 0, -1, ENC_NA);
     samis_type_1_tree = proto_item_add_subtree(ti, ett_ipdr_samis_type_1);
-    col_add_str(pinfo->cinfo, COL_INFO, "SAMIS-TYPE-1");
+    col_set_str(pinfo->cinfo, COL_INFO, "SAMIS-TYPE-1");
 
     proto_tree_add_item(samis_type_1_tree, hf_ipdr_samis_record_length, tvb, offset, 4, ENC_BIG_ENDIAN);
     offset += 4;
@@ -369,7 +369,7 @@ dissect_ipdr_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     proto_item *ti, *type_item;
     proto_tree *ipdr_tree;
     int offset = 0;
-    guint32 session_id, message_len, message_type;
+    uint32_t session_id, message_len, message_type;
 
     ti = proto_tree_add_item(tree, proto_ipdr, tvb, 0, -1, ENC_NA);
     ipdr_tree = proto_item_add_subtree(ti, ett_ipdr);
@@ -527,10 +527,10 @@ dissect_ipdr_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     return tvb_captured_length(tvb);
 }
 
-static guint
+static unsigned
 get_ipdr_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    return (guint)tvb_get_ntohl(tvb, offset+4);
+    return (unsigned)tvb_get_ntohl(tvb, offset+4);
 }
 
 static int
@@ -539,13 +539,13 @@ dissect_ipdr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     if (tvb_reported_length(tvb) < 1)
         return 0;
 
-    if (tvb_get_guint8(tvb, 0) != 2) /* Only version 2 supported */
+    if (tvb_get_uint8(tvb, 0) != 2) /* Only version 2 supported */
         return 0;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "IPDR/SP");
     col_clear(pinfo->cinfo, COL_INFO);
 
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, IPDR_HEADER_LEN,
+    tcp_dissect_pdus(tvb, pinfo, tree, true, IPDR_HEADER_LEN,
                      get_ipdr_message_len, dissect_ipdr_message, data);
     return tvb_captured_length(tvb);
 }
@@ -575,7 +575,7 @@ proto_register_ipdr(void)
         { &hf_ipdr_request_id, { "Request id", "ipdr.request_id", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_ipdr_config_id, { "Config id", "ipdr.config_id", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_ipdr_flags, { "Flags", "ipdr.flags", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL } },
-        { &hf_ipdr_primary, { "Primary", "ipdr.primary", FT_BOOLEAN, 8, NULL, 0x0, NULL, HFILL } },
+        { &hf_ipdr_primary, { "Primary", "ipdr.primary", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_ipdr_ack_time_interval, { "ACK time interval", "ipdr.ack_time_interval", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_ipdr_ack_sequence_interval, { "ACK sequence interval", "ipdr.ack_sequence_interval", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_ipdr_template_id, { "Template id", "ipdr.template_id", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
@@ -625,7 +625,7 @@ proto_register_ipdr(void)
         { &hf_ipdr_service_time_active, { "SF Active", "ipdr.service_time_active", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL } },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_ipdr,
         &ett_ipdr_samis_type_1,
         &ett_ipdr_sf_ch_set
@@ -665,12 +665,12 @@ void
 proto_reg_handoff_ipdr(void)
 {
     static range_t *sessions_samis_type_1;
-    static gboolean ipdr_prefs_initialized = FALSE;
+    static bool ipdr_prefs_initialized = false;
 
     if (!ipdr_prefs_initialized) {
         dissector_add_uint_with_preference("tcp.port", IPDR_PORT, ipdr_handle);
 
-        ipdr_prefs_initialized = TRUE;
+        ipdr_prefs_initialized = true;
     } else {
         dissector_delete_uint_range("ipdr.session_type", sessions_samis_type_1, ipdr_samis_type_1_handle);
     }

@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-ns_cert_exts.c                                                      */
-/* asn2wrs.py -b -L -p ns_cert_exts -c ./ns_cert_exts.cnf -s ./packet-ns_cert_exts-template -D . -O ../.. NETSCAPE-CERT-EXTS.asn */
+/* asn2wrs.py -b -q -L -p ns_cert_exts -c ./ns_cert_exts.cnf -s ./packet-ns_cert_exts-template -D . -O ../.. NETSCAPE-CERT-EXTS.asn */
 
 /* packet-ns_cert_exts.c
  * Routines for NetScape Certificate Extensions packet dissection
@@ -17,6 +17,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 
@@ -28,27 +29,27 @@ void proto_register_ns_cert_exts(void);
 void proto_reg_handoff_ns_cert_exts(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_ns_cert_exts = -1;
-static int hf_ns_cert_exts_BaseUrl_PDU = -1;      /* BaseUrl */
-static int hf_ns_cert_exts_RevocationUrl_PDU = -1;  /* RevocationUrl */
-static int hf_ns_cert_exts_CaRevocationUrl_PDU = -1;  /* CaRevocationUrl */
-static int hf_ns_cert_exts_CaPolicyUrl_PDU = -1;  /* CaPolicyUrl */
-static int hf_ns_cert_exts_Comment_PDU = -1;      /* Comment */
-static int hf_ns_cert_exts_SslServerName_PDU = -1;  /* SslServerName */
-static int hf_ns_cert_exts_CertRenewalUrl_PDU = -1;  /* CertRenewalUrl */
-static int hf_ns_cert_exts_CertType_PDU = -1;     /* CertType */
+static int proto_ns_cert_exts;
+static int hf_ns_cert_exts_BaseUrl_PDU;           /* BaseUrl */
+static int hf_ns_cert_exts_RevocationUrl_PDU;     /* RevocationUrl */
+static int hf_ns_cert_exts_CaRevocationUrl_PDU;   /* CaRevocationUrl */
+static int hf_ns_cert_exts_CaPolicyUrl_PDU;       /* CaPolicyUrl */
+static int hf_ns_cert_exts_Comment_PDU;           /* Comment */
+static int hf_ns_cert_exts_SslServerName_PDU;     /* SslServerName */
+static int hf_ns_cert_exts_CertRenewalUrl_PDU;    /* CertRenewalUrl */
+static int hf_ns_cert_exts_CertType_PDU;          /* CertType */
 /* named bits */
-static int hf_ns_cert_exts_CertType_ssl_client = -1;
-static int hf_ns_cert_exts_CertType_ssl_server = -1;
-static int hf_ns_cert_exts_CertType_smime = -1;
-static int hf_ns_cert_exts_CertType_object_signing = -1;
-static int hf_ns_cert_exts_CertType_reserved_for_future_use = -1;
-static int hf_ns_cert_exts_CertType_ssl_ca = -1;
-static int hf_ns_cert_exts_CertType_smime_ca = -1;
-static int hf_ns_cert_exts_CertType_object_signing_ca = -1;
+static int hf_ns_cert_exts_CertType_ssl_client;
+static int hf_ns_cert_exts_CertType_ssl_server;
+static int hf_ns_cert_exts_CertType_smime;
+static int hf_ns_cert_exts_CertType_object_signing;
+static int hf_ns_cert_exts_CertType_reserved_for_future_use;
+static int hf_ns_cert_exts_CertType_ssl_ca;
+static int hf_ns_cert_exts_CertType_smime_ca;
+static int hf_ns_cert_exts_CertType_object_signing_ca;
 
 /* Initialize the subtree pointers */
-static gint ett_ns_cert_exts_CertType = -1;
+static int ett_ns_cert_exts_CertType;
 
 
 
@@ -154,57 +155,57 @@ dissect_ns_cert_exts_CertType(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offs
 static int dissect_BaseUrl_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ns_cert_exts_BaseUrl(FALSE, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_BaseUrl_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ns_cert_exts_BaseUrl(false, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_BaseUrl_PDU);
   return offset;
 }
 static int dissect_RevocationUrl_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ns_cert_exts_RevocationUrl(FALSE, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_RevocationUrl_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ns_cert_exts_RevocationUrl(false, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_RevocationUrl_PDU);
   return offset;
 }
 static int dissect_CaRevocationUrl_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ns_cert_exts_CaRevocationUrl(FALSE, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_CaRevocationUrl_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ns_cert_exts_CaRevocationUrl(false, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_CaRevocationUrl_PDU);
   return offset;
 }
 static int dissect_CaPolicyUrl_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ns_cert_exts_CaPolicyUrl(FALSE, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_CaPolicyUrl_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ns_cert_exts_CaPolicyUrl(false, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_CaPolicyUrl_PDU);
   return offset;
 }
 static int dissect_Comment_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ns_cert_exts_Comment(FALSE, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_Comment_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ns_cert_exts_Comment(false, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_Comment_PDU);
   return offset;
 }
 static int dissect_SslServerName_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ns_cert_exts_SslServerName(FALSE, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_SslServerName_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ns_cert_exts_SslServerName(false, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_SslServerName_PDU);
   return offset;
 }
 static int dissect_CertRenewalUrl_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ns_cert_exts_CertRenewalUrl(FALSE, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_CertRenewalUrl_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ns_cert_exts_CertRenewalUrl(false, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_CertRenewalUrl_PDU);
   return offset;
 }
 static int dissect_CertType_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_ns_cert_exts_CertType(FALSE, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_CertType_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_ns_cert_exts_CertType(false, tvb, offset, &asn1_ctx, tree, hf_ns_cert_exts_CertType_PDU);
   return offset;
 }
 
@@ -282,7 +283,7 @@ void proto_register_ns_cert_exts(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_ns_cert_exts_CertType,
   };
 

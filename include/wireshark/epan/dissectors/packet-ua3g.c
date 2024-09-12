@@ -14,7 +14,10 @@
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
 
+#include <wsutil/array.h>
 #include "packet-rtp.h"
 #include "packet-rtcp.h"
 
@@ -30,392 +33,392 @@ void proto_reg_handoff_ua3g(void);
 static dissector_table_t ua3g_opcode_dissector_table;
 #endif
 
-static int  proto_ua3g          = -1;
-static gint ett_ua3g            = -1;
-static gint ett_ua3g_body       = -1;
-static gint ett_ua3g_param      = -1;
-static gint ett_ua3g_param_sub  = -1;
-static gint ett_ua3g_option     = -1;
-static gint ett_ua3g_beep_beep_destination = -1;
-static gint ett_ua3g_note       = -1;
+static int  proto_ua3g;
+static int ett_ua3g;
+static int ett_ua3g_body;
+static int ett_ua3g_param;
+static int ett_ua3g_param_sub;
+static int ett_ua3g_option;
+static int ett_ua3g_beep_beep_destination;
+static int ett_ua3g_note;
 
-static gboolean setup_conversations_enabled = TRUE;
+static bool setup_conversations_enabled = true;
 
-static int  hf_ua3g_length                  = -1;
-static int  hf_ua3g_opcode_sys              = -1;
-static int  hf_ua3g_opcode_term             = -1;
-static int  hf_ua3g_opcode_production_test  = -1;
-static int  hf_ua3g_opcode_subservice_reset = -1;
-static int  hf_ua3g_opcode_are_you_there    = -1;
-static int  hf_ua3g_opcode_set_speaker_vol  = -1;
-static int  hf_ua3g_opcode_trace_on         = -1;
-static int  hf_ua3g_ip                      = -1;
-static int  hf_ua3g_ip_cs                   = -1;
-static int  hf_ua3g_command_led             = -1;
-static int  hf_ua3g_command_lcd_line        = -1;
-static int  hf_ua3g_main_voice_mode         = -1;
-static int  hf_ua3g_command_set_clck        = -1;
-static int  hf_ua3g_external_ringing_command= -1;
-static int  hf_ua3g_lcd_cursor              = -1;
-static int  hf_ua3g_command_beep            = -1;
-static int  hf_ua3g_command_sidetone        = -1;
-static int  hf_ua3g_command_mute            = -1;
-static int  hf_ua3g_command_feedback        = -1;
-static int  hf_ua3g_command_audio_config    = -1;
-static int  hf_ua3g_command_key_release     = -1;
-static int  hf_ua3g_command_amplified_handset = -1;
-static int  hf_ua3g_command_loudspeaker     = -1;
-static int  hf_ua3g_command_announce        = -1;
-static int  hf_ua3g_command_ring            = -1;
-static int  hf_ua3g_command_ua_dwl_protocol = -1;
-static int  hf_ua3g_command_unsolicited_msg = -1;
-static int  hf_ua3g_ip_device_routing_stop_rtp_parameter = -1;
-static int  hf_ua3g_ip_device_routing_stop_rtp_parameter_length = -1;
-static int  hf_ua3g_ip_device_routing_stop_rtp_parameter_value_num = -1;
-static int  hf_ua3g_ip_device_routing_stop_rtp_parameter_value_bytes = -1;
+static int  hf_ua3g_length;
+static int  hf_ua3g_opcode_sys;
+static int  hf_ua3g_opcode_term;
+static int  hf_ua3g_opcode_production_test;
+static int  hf_ua3g_opcode_subservice_reset;
+static int  hf_ua3g_opcode_are_you_there;
+static int  hf_ua3g_opcode_set_speaker_vol;
+static int  hf_ua3g_opcode_trace_on;
+static int  hf_ua3g_ip;
+static int  hf_ua3g_ip_cs;
+static int  hf_ua3g_command_led;
+static int  hf_ua3g_command_lcd_line;
+static int  hf_ua3g_main_voice_mode;
+static int  hf_ua3g_command_set_clck;
+static int  hf_ua3g_external_ringing_command;
+static int  hf_ua3g_lcd_cursor;
+static int  hf_ua3g_command_beep;
+static int  hf_ua3g_command_sidetone;
+static int  hf_ua3g_command_mute;
+static int  hf_ua3g_command_feedback;
+static int  hf_ua3g_command_audio_config;
+static int  hf_ua3g_command_key_release;
+static int  hf_ua3g_command_amplified_handset;
+static int  hf_ua3g_command_loudspeaker;
+static int  hf_ua3g_command_announce;
+static int  hf_ua3g_command_ring;
+static int  hf_ua3g_command_ua_dwl_protocol;
+static int  hf_ua3g_command_unsolicited_msg;
+static int  hf_ua3g_ip_device_routing_stop_rtp_parameter;
+static int  hf_ua3g_ip_device_routing_stop_rtp_parameter_length;
+static int  hf_ua3g_ip_device_routing_stop_rtp_parameter_value_num;
+static int  hf_ua3g_ip_device_routing_stop_rtp_parameter_value_bytes;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_ua3g_ip_device_routing_start_tone_direction = -1;
-static int hf_ua3g_ip_device_routing_start_tone_num_entries = -1;
-static int hf_ua3g_ip_device_routing_def_tones_num_entries = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd00_characteristic_number = -1;
-static int hf_ua3g_subdevice_msg_subdev_type = -1;
-static int hf_ua3g_unsolicited_msg_next_byte_of_bad_segment = -1;
-static int hf_ua3g_ip_device_routing_start_tone_identification = -1;
-static int hf_ua3g_ip_device_routing_def_tones_level_2 = -1;
-static int hf_ua3g_r_w_peripheral_content = -1;
-static int hf_ua3g_subdevice_metastate_subchannel_address = -1;
-static int hf_ua3g_subdevice_parameter_bytes = -1;
-static int hf_ua3g_subdevice_msg_parameter_bytes = -1;
-static int hf_ua3g_set_clck_timer_pos_call_timer_column_number = -1;
-static int hf_ua3g_unsolicited_msg_segment_failure_s = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter = -1;
-static int hf_ua3g_ip_device_routing_get_param_req_parameter = -1;
-static int hf_ua3g_set_lcd_contrast_driver_number = -1;
-static int hf_ua3g_dwl_special_char_character_number = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd00_vta_type = -1;
-static int hf_ua3g_ua_dwl_protocol_cause = -1;
-static int hf_ua3g_audio_padded_path_emission_padded_level = -1;
-static int hf_ua3g_set_clck_timer_pos_clock_column_number = -1;
-static int hf_ua3g_segment_msg_num_remaining = -1;
-static int hf_ua3g_ip_device_routing_digit_value = -1;
-static int hf_ua3g_super_msg_data = -1;
-static int hf_ua3g_unsolicited_msg_hardware_version = -1;
-static int hf_ua3g_voice_channel_announce = -1;
-static int hf_ua3g_ring_silent = -1;
-static int hf_ua3g_audio_config_handsfree_return = -1;
-static int hf_ua3g_dwl_dtmf_clck_format_inter_digit_pause_time = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_length = -1;
-static int hf_ua3g_unsolicited_msg_opcode_bad_segment = -1;
-static int hf_ua3g_unsolicited_msg_firmware_version_loader = -1;
-static int hf_ua3g_debug_in_line = -1;
-static int hf_ua3g_voice_channel_b_microphones = -1;
-static int hf_ua3g_beep_beep_number = -1;
-static int hf_ua3g_main_voice_mode_tune = -1;
-static int hf_ua3g_super_msg_length = -1;
-static int hf_ua3g_ip_device_routing_redirect_parameter = -1;
-static int hf_ua3g_unsolicited_msg_next_byte_of_bad_command = -1;
-static int hf_ua3g_unsolicited_msg_self_test_result = -1;
-static int hf_ua3g_beep_on_off = -1;
-static int hf_ua3g_ua_dwl_protocol_binary_length = -1;
-static int hf_ua3g_ring_speaker_level = -1;
-static int hf_ua3g_voice_channel_channel_mode = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_length = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter = -1;
-static int hf_ua3g_subdevice_metastate_new_metastate = -1;
-static int hf_ua3g_unsolicited_msg_other_information_2 = -1;
-static int hf_ua3g_set_lcd_contrast_contrast_value = -1;
-static int hf_ua3g_unsolicited_msg_vta_type = -1;
-static int hf_ua3g_ua_dwl_protocol_packet_number = -1;
-static int hf_ua3g_unsolicited_msg_segment_failure_l = -1;
-static int hf_ua3g_voice_channel_b_ear_piece = -1;
-static int hf_ua3g_subdevice_msg_subdev_address = -1;
-static int hf_ua3g_ring_progressive = -1;
-static int hf_ua3g_ua_dwl_protocol_item_version = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_length = -1;
-static int hf_ua3g_dwl_dtmf_clck_format_minimum_on_time = -1;
-static int hf_ua3g_ring_melody = -1;
-static int hf_ua3g_ua_dwl_protocol_item_identifier = -1;
-static int hf_ua3g_main_voice_mode_speaker_volume = -1;
-static int hf_ua3g_ip_device_routing_listen_rtp_parameter_length = -1;
-static int hf_ua3g_ringing_cadence_length = -1;
-static int hf_ua3g_software_reset = -1;
-static int hf_ua3g_feedback_level = -1;
-static int hf_ua3g_ip_phone_warmstart = -1;
-static int hf_ua3g_subdevice_opcode = -1;
-static int hf_ua3g_unsolicited_msg_device_event = -1;
-static int hf_ua3g_segment_message_data = -1;
-static int hf_ua3g_main_voice_mode_sending_level = -1;
-static int hf_ua3g_subdevice_msg_subdevice_opcode = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter = -1;
-static int hf_ua3g_audio_padded_path_reception_padded_level = -1;
-static int hf_ua3g_ua_dwl_protocol_force_mode = -1;
-static int hf_ua3g_lcd_line_cmd_starting_column = -1;
-static int hf_ua3g_subdevice_address = -1;
-static int hf_ua3g_ip_device_routing_pause_restart_rtp_parameter = -1;
-static int hf_ua3g_audio_config_ignored = -1;
-static int hf_ua3g_lcd_line_cmd_lcd_options = -1;
-static int hf_ua3g_main_voice_mode_cadence = -1;
-static int hf_ua3g_segment_msg_length = -1;
-static int hf_ua3g_ua_dwl_protocol_acknowledge = -1;
-static int hf_ua3g_command_led_number = -1;
-static int hf_ua3g_set_clck_timer_pos_call_timer_line_number = -1;
-static int hf_ua3g_unsolicited_msg_segment_failure_t = -1;
-static int hf_ua3g_ip_device_routing_start_tone_duration = -1;
-static int hf_ua3g_unsolicited_msg_other_information_1 = -1;
-static int hf_ua3g_unsolicited_msg_firmware_datas_patch_version = -1;
-static int hf_ua3g_ring_beep_number = -1;
-static int hf_ua3g_feedback_duration = -1;
-static int hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter_length = -1;
-static int hf_ua3g_audio_config_law = -1;
-static int hf_ua3g_ua_dwl_protocol_checksum = -1;
-static int hf_ua3g_ip_device_routing_pause_restart_rtp_parameter_value = -1;
-static int hf_ua3g_audio_config_handsfree_handsfree = -1;
-static int hf_ua3g_ringing_cadence_cadence = -1;
-static int hf_ua3g_lcd_cursor_line_number = -1;
-static int hf_ua3g_ip_device_routing_def_tones_level_1 = -1;
-static int hf_ua3g_unsolicited_msg_opcode_of_bad_command = -1;
-static int hf_ua3g_ua_dwl_protocol_download_ack_status = -1;
-static int hf_ua3g_voice_channel_main_voice = -1;
-static int hf_ua3g_ip_device_routing_pause_restart_rtp_parameter_length = -1;
-static int hf_ua3g_icon_cmd_segment = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd01_incident_0 = -1;
-static int hf_ua3g_beep_destination = -1;
-static int hf_ua3g_ip_device_routing_def_tones_frequency_1 = -1;
-static int hf_ua3g_unsolicited_msg_datas_version = -1;
-static int hf_ua3g_dwl_dtmf_clck_format_dtmf_country_adaptation = -1;
-static int hf_ua3g_ringing_cadence_on_off = -1;
-static int hf_ua3g_audio_config_volume_level = -1;
-static int hf_ua3g_voice_channel_b_general = -1;
-static int hf_ua3g_beep_terminator = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter = -1;
-static int hf_ua3g_unsolicited_msg_firmware_version_bootloader = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_direction = -1;
-static int hf_ua3g_set_clck_timer_pos_clock_line_number = -1;
-static int hf_ua3g_voice_channel_b_loud_speaker = -1;
-static int hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter = -1;
-static int hf_ua3g_on_off_level_level_on_loudspeaker = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_length = -1;
-static int hf_ua3g_main_voice_mode_microphone_volume = -1;
-static int hf_ua3g_sidetone_level = -1;
-static int hf_ua3g_beep_number_of_notes = -1;
-static int hf_ua3g_unsolicited_msg_segment_failure_num = -1;
-static int hf_ua3g_dwl_special_char_byte = -1;
-static int hf_ua3g_ring_cadence = -1;
-static int hf_ua3g_unsolicited_msg_device_type = -1;
-static int hf_ua3g_voice_channel_codec = -1;
-static int hf_ua3g_ip_device_routing_redirect_parameter_length = -1;
-static int hf_ua3g_ip_device_routing_listen_rtp_parameter = -1;
-static int hf_ua3g_beep_cadence = -1;
-static int hf_ua3g_voice_channel_voice_channel = -1;
-static int hf_ua3g_unsolicited_msg_other_information = -1;
-static int hf_ua3g_ip_device_routing_def_tones_frequency_2 = -1;
-static int hf_ua3g_digit_dialed_digit_value = -1;
-static int hf_ua3g_unsolicited_msg_subdevice_address = -1;
-static int hf_ua3g_ua_dwl_protocol_packet_download_end_ack_ok_status = -1;
-static int hf_ua3g_r_w_peripheral_address = -1;
-static int hf_ua3g_icon_cmd_icon_number = -1;
-static int hf_ua3g_dwl_dtmf_clck_format_clock_time_format = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter_length = -1;
-static int hf_ua3g_i_m_here_id_code = -1;
-static int hf_ua3g_ua_dwl_protocol_item_version_nc = -1;
-static int hf_ua3g_unsolicited_msg_firmware_version = -1;
-static int hf_ua3g_segment_msg_segment = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_noe_update = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_bootloader = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_data = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_customization = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_localization = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_code = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_sip = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_value = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_bad_sec_mode = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_cust_name = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_l10n_name = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_appl_mode = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_sip_name = -1;
-static int hf_ua3g_ip_device_routing_reset_parameter_reset_mac = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter_ip = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter_compressor = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter_value = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter_enabler = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter_send_qos = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter_dtmf_sending = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter_rfc2198 = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter_srtp_encryption = -1;
-static int hf_ua3g_ip_device_routing_start_rtp_parameter_uint = -1;
-static int hf_ua3g_ip_device_routing_redirect_parameter_ip = -1;
-static int hf_ua3g_ip_device_routing_redirect_parameter_uint = -1;
-static int hf_ua3g_ip_device_routing_redirect_parameter_value = -1;
-static int hf_ua3g_ip_device_routing_listen_rtp_parameter_ip = -1;
-static int hf_ua3g_ip_device_routing_listen_rtp_parameter_port = -1;
-static int hf_ua3g_ip_device_routing_listen_rtp_parameter_value = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_compressor = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_err_string = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_tftp_backup_ip = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_set_pc_port_status = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_record_rtp_auth = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_security_flag_filter = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_stable_mode = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_skin_id = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_language_id = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_usb_boost = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_als_device = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_busy_light = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_audio_env = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_uint = -1;
-static int hf_ua3g_ip_device_routing_set_param_req_parameter_value = -1;
-static int hf_ua3g_ip_device_routing_pause_restart_rtp_parameter_uint = -1;
-static int hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter_remote_ip = -1;
-static int hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter_uint = -1;
-static int hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter_value = -1;
-static int hf_ua3g_ip_device_routing_freeseating_parameter = -1;
-static int hf_ua3g_ip_device_routing_freeseating_parameter_length = -1;
-static int hf_ua3g_ip_device_routing_freeseating_parameter_mac = -1;
-static int hf_ua3g_ip_device_routing_freeseating_parameter_ip = -1;
-static int hf_ua3g_ip_device_routing_freeseating_parameter_ipv6 = -1;
-static int hf_ua3g_ip_device_routing_freeseating_parameter_do_reset = -1;
-static int hf_ua3g_ip_device_routing_freeseating_parameter_uint = -1;
-static int hf_ua3g_ip_device_routing_freeseating_parameter_value = -1;
-static int hf_ua3g_ip_device_routing_appl_parameter = -1;
-static int hf_ua3g_ip_device_routing_appl_parameter_length = -1;
-static int hf_ua3g_ip_device_routing_appl_parameter_id = -1;
-static int hf_ua3g_ip_device_routing_appl_parameter_enable = -1;
-static int hf_ua3g_ip_device_routing_appl_parameter_url = -1;
-static int hf_ua3g_ip_device_routing_appl_parameter_uint = -1;
-static int hf_ua3g_ip_device_routing_appl_parameter_value = -1;
-static int hf_ua3g_main_voice_mode_handset_level = -1;
-static int hf_ua3g_main_voice_mode_headset_level = -1;
-static int hf_ua3g_main_voice_mode_handsfree_level = -1;
-static int hf_ua3g_audio_config_dpi_chan_ua_tx1 = -1;
-static int hf_ua3g_audio_config_dpi_chan_ua_tx2 = -1;
-static int hf_ua3g_audio_config_dpi_chan_gci_tx1 = -1;
-static int hf_ua3g_audio_config_dpi_chan_gci_tx2 = -1;
-static int hf_ua3g_audio_config_dpi_chan_cod_tx = -1;
-static int hf_ua3g_audio_config_audio_circuit_dth = -1;
-static int hf_ua3g_audio_config_audio_circuit_dtr = -1;
-static int hf_ua3g_audio_config_audio_circuit_dtf = -1;
-static int hf_ua3g_audio_config_audio_circuit_str = -1;
-static int hf_ua3g_audio_config_audio_circuit_ahp1 = -1;
-static int hf_ua3g_audio_config_audio_circuit_ahp2 = -1;
-static int hf_ua3g_audio_config_audio_circuit_ath = -1;
-static int hf_ua3g_audio_config_audio_circuit_atr = -1;
-static int hf_ua3g_audio_config_audio_circuit_atf = -1;
-static int hf_ua3g_audio_config_audio_circuit_alm = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_group_listen = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_attenuation = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_stay_in_send = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_shift_right_mtx = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_shift_right_mrc = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_idle_trans_threshold = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_low_trans_threshold = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_idle_recv_threshold = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_low_recv_threshold = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_med_recv_threshold = -1;
-static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_high_recv_threshold = -1;
-static int hf_ua3g_ua_dwl_protocol_files_inc_boot_binary = -1;
-static int hf_ua3g_ua_dwl_protocol_files_inc_loader_binary = -1;
-static int hf_ua3g_ua_dwl_protocol_files_inc_appli_binary = -1;
-static int hf_ua3g_ua_dwl_protocol_files_inc_data_binary = -1;
-static int hf_ua3g_ua_dwl_protocol_model_selection_a = -1;
-static int hf_ua3g_ua_dwl_protocol_model_selection_b = -1;
-static int hf_ua3g_ua_dwl_protocol_model_selection_c = -1;
-static int hf_ua3g_ua_dwl_protocol_model_selection_country_ver = -1;
-static int hf_ua3g_ua_dwl_protocol_hardware_selection_ivanoe1 = -1;
-static int hf_ua3g_ua_dwl_protocol_hardware_selection_ivanoe2 = -1;
-static int hf_ua3g_ua_dwl_protocol_memory_sizes_flash = -1;
-static int hf_ua3g_ua_dwl_protocol_memory_sizes_ext_ram = -1;
-static int hf_ua3g_unsolicited_msg_char_num_vta_subtype = -1;
-static int hf_ua3g_unsolicited_msg_char_num_generation = -1;
-static int hf_ua3g_unsolicited_msg_char_num_design = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_vta_type = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_design = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_subtype = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_hard_config_chip = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_hard_config_flash = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_config_ram = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_export_full = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_ethernet_hardware = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_extended_edition = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_wideband = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_3g_set = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_8082_set = -1;
-static int hf_ua3g_unsolicited_msg_hardware_config_super_wideband = -1;
-static int hf_ua3g_unsolicited_msg_hook_status = -1;
-static int hf_ua3g_unsolicited_msg_additional_vta_type = -1;
-static int hf_ua3g_unsolicited_msg_capability_info_bluetooth_supported = -1;
-static int hf_ua3g_unsolicited_msg_capability_info_vpn_encryption_status = -1;
-static int hf_ua3g_unsolicited_msg_capability_info_vpn = -1;
-static int hf_ua3g_unsolicited_msg_capability_info_ipsec = -1;
-static int hf_ua3g_unsolicited_msg_capability_info_dtls = -1;
-static int hf_ua3g_unsolicited_msg_capability_info_wlan_status = -1;
-static int hf_ua3g_unsolicited_msg_capability_info_reserved = -1;
-static int hf_ua3g_special_key_shift = -1;
-static int hf_ua3g_special_key_ctrl = -1;
-static int hf_ua3g_special_key_alt = -1;
-static int hf_ua3g_special_key_cmd = -1;
-static int hf_ua3g_special_key_shift_prime = -1;
-static int hf_ua3g_special_key_ctrl_prime = -1;
-static int hf_ua3g_special_key_alt_prime = -1;
-static int hf_ua3g_special_key_cmd_prime = -1;
-static int hf_ua3g_lcd_line_cmd_lcd_options_call_timer = -1;
-static int hf_ua3g_lcd_line_cmd_lcd_options_blink = -1;
-static int hf_ua3g_lcd_line_cmd_lcd_options_call_timer_control = -1;
-static int hf_ua3g_lcd_line_cmd_lcd_options_call_timer_display = -1;
-static int hf_ua3g_lcd_line_cmd_lcd_options_time_of_day_display = -1;
-static int hf_ua3g_lcd_line_cmd_lcd_options_suspend_display_refresh = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_firmware_version = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_tscip_version = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_ip = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_default_codec_uint = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_default_codec_bytes = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_mac_address = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_uint = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_value = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_eth_driver_config_port_lan_speed = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_eth_driver_config_port_lan_duplex = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_eth_driver_config_port_pc_speed = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_eth_driver_config_port_pc_duplex = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_type_of_equip = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_firmware_version = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_ip = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_string = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_codec = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_vad = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_ece = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_voice_mode = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_delay_distribution = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_consecutive_bfi = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_bfi_distribution = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_8021Q_used = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_8021P_priority = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_vlan_id = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_diffserv = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_bfi_distribution_200ms = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_consecutive_rtp_lost = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_uint = -1;
-static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_jitter_depth_distribution = -1;
-static int hf_ua3g_special_key_param_dtmf = -1;
-static int hf_ua3g_special_key_hookswitch_status = -1;
-static int hf_ua3g_subdevice_state = -1;
-static int hf_ua3g_cs_ip_device_routing_param_identifier = -1;
-static int hf_ua3g_key_number = -1;
-static int hf_ua3g_ua_dwl_protocol_binary_info = -1;
-static int hf_ua3g_lcd_line_cmd_unused = -1;
-static int hf_ua3g_lcd_line_cmd_ascii_char = -1;
-static int hf_ua3g_call_timer = -1;
-static int hf_ua3g_current_time = -1;
-static int hf_ua3g_beep_beep_destination_handset = -1;
-static int hf_ua3g_beep_beep_destination_headset = -1;
-static int hf_ua3g_beep_beep_destination_loudspeaker = -1;
-static int hf_ua3g_beep_beep_destination_announce_loudspeaker = -1;
-static int hf_ua3g_beep_beep_destination_handsfree = -1;
-static int hf_ua3g_beep_beep_destination = -1;
-static int hf_ua3g_beep_freq_sample = -1;
-static int hf_ua3g_beep_level = -1;
-static int hf_ua3g_beep_duration = -1;
-static int hf_ua3g_device_configuration = -1;
+static int hf_ua3g_ip_device_routing_start_tone_direction;
+static int hf_ua3g_ip_device_routing_start_tone_num_entries;
+static int hf_ua3g_ip_device_routing_def_tones_num_entries;
+static int hf_ua3g_cs_ip_device_routing_cmd00_characteristic_number;
+static int hf_ua3g_subdevice_msg_subdev_type;
+static int hf_ua3g_unsolicited_msg_next_byte_of_bad_segment;
+static int hf_ua3g_ip_device_routing_start_tone_identification;
+static int hf_ua3g_ip_device_routing_def_tones_level_2;
+static int hf_ua3g_r_w_peripheral_content;
+static int hf_ua3g_subdevice_metastate_subchannel_address;
+static int hf_ua3g_subdevice_parameter_bytes;
+static int hf_ua3g_subdevice_msg_parameter_bytes;
+static int hf_ua3g_set_clck_timer_pos_call_timer_column_number;
+static int hf_ua3g_unsolicited_msg_segment_failure_s;
+static int hf_ua3g_ip_device_routing_reset_parameter;
+static int hf_ua3g_ip_device_routing_get_param_req_parameter;
+static int hf_ua3g_set_lcd_contrast_driver_number;
+static int hf_ua3g_dwl_special_char_character_number;
+static int hf_ua3g_cs_ip_device_routing_cmd00_vta_type;
+static int hf_ua3g_ua_dwl_protocol_cause;
+static int hf_ua3g_audio_padded_path_emission_padded_level;
+static int hf_ua3g_set_clck_timer_pos_clock_column_number;
+static int hf_ua3g_segment_msg_num_remaining;
+static int hf_ua3g_ip_device_routing_digit_value;
+static int hf_ua3g_super_msg_data;
+static int hf_ua3g_unsolicited_msg_hardware_version;
+static int hf_ua3g_voice_channel_announce;
+static int hf_ua3g_ring_silent;
+static int hf_ua3g_audio_config_handsfree_return;
+static int hf_ua3g_dwl_dtmf_clck_format_inter_digit_pause_time;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_length;
+static int hf_ua3g_unsolicited_msg_opcode_bad_segment;
+static int hf_ua3g_unsolicited_msg_firmware_version_loader;
+static int hf_ua3g_debug_in_line;
+static int hf_ua3g_voice_channel_b_microphones;
+static int hf_ua3g_beep_beep_number;
+static int hf_ua3g_main_voice_mode_tune;
+static int hf_ua3g_super_msg_length;
+static int hf_ua3g_ip_device_routing_redirect_parameter;
+static int hf_ua3g_unsolicited_msg_next_byte_of_bad_command;
+static int hf_ua3g_unsolicited_msg_self_test_result;
+static int hf_ua3g_beep_on_off;
+static int hf_ua3g_ua_dwl_protocol_binary_length;
+static int hf_ua3g_ring_speaker_level;
+static int hf_ua3g_voice_channel_channel_mode;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_length;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter;
+static int hf_ua3g_subdevice_metastate_new_metastate;
+static int hf_ua3g_unsolicited_msg_other_information_2;
+static int hf_ua3g_set_lcd_contrast_contrast_value;
+static int hf_ua3g_unsolicited_msg_vta_type;
+static int hf_ua3g_ua_dwl_protocol_packet_number;
+static int hf_ua3g_unsolicited_msg_segment_failure_l;
+static int hf_ua3g_voice_channel_b_ear_piece;
+static int hf_ua3g_subdevice_msg_subdev_address;
+static int hf_ua3g_ring_progressive;
+static int hf_ua3g_ua_dwl_protocol_item_version;
+static int hf_ua3g_ip_device_routing_reset_parameter_length;
+static int hf_ua3g_dwl_dtmf_clck_format_minimum_on_time;
+static int hf_ua3g_ring_melody;
+static int hf_ua3g_ua_dwl_protocol_item_identifier;
+static int hf_ua3g_main_voice_mode_speaker_volume;
+static int hf_ua3g_ip_device_routing_listen_rtp_parameter_length;
+static int hf_ua3g_ringing_cadence_length;
+static int hf_ua3g_software_reset;
+static int hf_ua3g_feedback_level;
+static int hf_ua3g_ip_phone_warmstart;
+static int hf_ua3g_subdevice_opcode;
+static int hf_ua3g_unsolicited_msg_device_event;
+static int hf_ua3g_segment_message_data;
+static int hf_ua3g_main_voice_mode_sending_level;
+static int hf_ua3g_subdevice_msg_subdevice_opcode;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter;
+static int hf_ua3g_audio_padded_path_reception_padded_level;
+static int hf_ua3g_ua_dwl_protocol_force_mode;
+static int hf_ua3g_lcd_line_cmd_starting_column;
+static int hf_ua3g_subdevice_address;
+static int hf_ua3g_ip_device_routing_pause_restart_rtp_parameter;
+static int hf_ua3g_audio_config_ignored;
+static int hf_ua3g_lcd_line_cmd_lcd_options;
+static int hf_ua3g_main_voice_mode_cadence;
+static int hf_ua3g_segment_msg_length;
+static int hf_ua3g_ua_dwl_protocol_acknowledge;
+static int hf_ua3g_command_led_number;
+static int hf_ua3g_set_clck_timer_pos_call_timer_line_number;
+static int hf_ua3g_unsolicited_msg_segment_failure_t;
+static int hf_ua3g_ip_device_routing_start_tone_duration;
+static int hf_ua3g_unsolicited_msg_other_information_1;
+static int hf_ua3g_unsolicited_msg_firmware_datas_patch_version;
+static int hf_ua3g_ring_beep_number;
+static int hf_ua3g_feedback_duration;
+static int hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter_length;
+static int hf_ua3g_audio_config_law;
+static int hf_ua3g_ua_dwl_protocol_checksum;
+static int hf_ua3g_ip_device_routing_pause_restart_rtp_parameter_value;
+static int hf_ua3g_audio_config_handsfree_handsfree;
+static int hf_ua3g_ringing_cadence_cadence;
+static int hf_ua3g_lcd_cursor_line_number;
+static int hf_ua3g_ip_device_routing_def_tones_level_1;
+static int hf_ua3g_unsolicited_msg_opcode_of_bad_command;
+static int hf_ua3g_ua_dwl_protocol_download_ack_status;
+static int hf_ua3g_voice_channel_main_voice;
+static int hf_ua3g_ip_device_routing_pause_restart_rtp_parameter_length;
+static int hf_ua3g_icon_cmd_segment;
+static int hf_ua3g_cs_ip_device_routing_cmd01_incident_0;
+static int hf_ua3g_beep_destination;
+static int hf_ua3g_ip_device_routing_def_tones_frequency_1;
+static int hf_ua3g_unsolicited_msg_datas_version;
+static int hf_ua3g_dwl_dtmf_clck_format_dtmf_country_adaptation;
+static int hf_ua3g_ringing_cadence_on_off;
+static int hf_ua3g_audio_config_volume_level;
+static int hf_ua3g_voice_channel_b_general;
+static int hf_ua3g_beep_terminator;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter;
+static int hf_ua3g_unsolicited_msg_firmware_version_bootloader;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter;
+static int hf_ua3g_ip_device_routing_start_rtp_direction;
+static int hf_ua3g_set_clck_timer_pos_clock_line_number;
+static int hf_ua3g_voice_channel_b_loud_speaker;
+static int hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter;
+static int hf_ua3g_on_off_level_level_on_loudspeaker;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_length;
+static int hf_ua3g_main_voice_mode_microphone_volume;
+static int hf_ua3g_sidetone_level;
+static int hf_ua3g_beep_number_of_notes;
+static int hf_ua3g_unsolicited_msg_segment_failure_num;
+static int hf_ua3g_dwl_special_char_byte;
+static int hf_ua3g_ring_cadence;
+static int hf_ua3g_unsolicited_msg_device_type;
+static int hf_ua3g_voice_channel_codec;
+static int hf_ua3g_ip_device_routing_redirect_parameter_length;
+static int hf_ua3g_ip_device_routing_listen_rtp_parameter;
+static int hf_ua3g_beep_cadence;
+static int hf_ua3g_voice_channel_voice_channel;
+static int hf_ua3g_unsolicited_msg_other_information;
+static int hf_ua3g_ip_device_routing_def_tones_frequency_2;
+static int hf_ua3g_digit_dialed_digit_value;
+static int hf_ua3g_unsolicited_msg_subdevice_address;
+static int hf_ua3g_ua_dwl_protocol_packet_download_end_ack_ok_status;
+static int hf_ua3g_r_w_peripheral_address;
+static int hf_ua3g_icon_cmd_icon_number;
+static int hf_ua3g_dwl_dtmf_clck_format_clock_time_format;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter_length;
+static int hf_ua3g_i_m_here_id_code;
+static int hf_ua3g_ua_dwl_protocol_item_version_nc;
+static int hf_ua3g_unsolicited_msg_firmware_version;
+static int hf_ua3g_segment_msg_segment;
+static int hf_ua3g_ip_device_routing_reset_parameter_noe_update;
+static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_bootloader;
+static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_data;
+static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_customization;
+static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_localization;
+static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_code;
+static int hf_ua3g_ip_device_routing_reset_parameter_noe_update_sip;
+static int hf_ua3g_ip_device_routing_reset_parameter_value;
+static int hf_ua3g_ip_device_routing_reset_parameter_bad_sec_mode;
+static int hf_ua3g_ip_device_routing_reset_parameter_cust_name;
+static int hf_ua3g_ip_device_routing_reset_parameter_l10n_name;
+static int hf_ua3g_ip_device_routing_reset_parameter_appl_mode;
+static int hf_ua3g_ip_device_routing_reset_parameter_sip_name;
+static int hf_ua3g_ip_device_routing_reset_parameter_reset_mac;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter_ip;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter_compressor;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter_value;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter_enabler;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter_send_qos;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter_dtmf_sending;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter_rfc2198;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter_srtp_encryption;
+static int hf_ua3g_ip_device_routing_start_rtp_parameter_uint;
+static int hf_ua3g_ip_device_routing_redirect_parameter_ip;
+static int hf_ua3g_ip_device_routing_redirect_parameter_uint;
+static int hf_ua3g_ip_device_routing_redirect_parameter_value;
+static int hf_ua3g_ip_device_routing_listen_rtp_parameter_ip;
+static int hf_ua3g_ip_device_routing_listen_rtp_parameter_port;
+static int hf_ua3g_ip_device_routing_listen_rtp_parameter_value;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_compressor;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_err_string;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_tftp_backup_ip;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_set_pc_port_status;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_record_rtp_auth;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_security_flag_filter;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_stable_mode;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_skin_id;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_language_id;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_usb_boost;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_als_device;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_busy_light;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_audio_env;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_uint;
+static int hf_ua3g_ip_device_routing_set_param_req_parameter_value;
+static int hf_ua3g_ip_device_routing_pause_restart_rtp_parameter_uint;
+static int hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter_remote_ip;
+static int hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter_uint;
+static int hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter_value;
+static int hf_ua3g_ip_device_routing_freeseating_parameter;
+static int hf_ua3g_ip_device_routing_freeseating_parameter_length;
+static int hf_ua3g_ip_device_routing_freeseating_parameter_mac;
+static int hf_ua3g_ip_device_routing_freeseating_parameter_ip;
+static int hf_ua3g_ip_device_routing_freeseating_parameter_ipv6;
+static int hf_ua3g_ip_device_routing_freeseating_parameter_do_reset;
+static int hf_ua3g_ip_device_routing_freeseating_parameter_uint;
+static int hf_ua3g_ip_device_routing_freeseating_parameter_value;
+static int hf_ua3g_ip_device_routing_appl_parameter;
+static int hf_ua3g_ip_device_routing_appl_parameter_length;
+static int hf_ua3g_ip_device_routing_appl_parameter_id;
+static int hf_ua3g_ip_device_routing_appl_parameter_enable;
+static int hf_ua3g_ip_device_routing_appl_parameter_url;
+static int hf_ua3g_ip_device_routing_appl_parameter_uint;
+static int hf_ua3g_ip_device_routing_appl_parameter_value;
+static int hf_ua3g_main_voice_mode_handset_level;
+static int hf_ua3g_main_voice_mode_headset_level;
+static int hf_ua3g_main_voice_mode_handsfree_level;
+static int hf_ua3g_audio_config_dpi_chan_ua_tx1;
+static int hf_ua3g_audio_config_dpi_chan_ua_tx2;
+static int hf_ua3g_audio_config_dpi_chan_gci_tx1;
+static int hf_ua3g_audio_config_dpi_chan_gci_tx2;
+static int hf_ua3g_audio_config_dpi_chan_cod_tx;
+static int hf_ua3g_audio_config_audio_circuit_dth;
+static int hf_ua3g_audio_config_audio_circuit_dtr;
+static int hf_ua3g_audio_config_audio_circuit_dtf;
+static int hf_ua3g_audio_config_audio_circuit_str;
+static int hf_ua3g_audio_config_audio_circuit_ahp1;
+static int hf_ua3g_audio_config_audio_circuit_ahp2;
+static int hf_ua3g_audio_config_audio_circuit_ath;
+static int hf_ua3g_audio_config_audio_circuit_atr;
+static int hf_ua3g_audio_config_audio_circuit_atf;
+static int hf_ua3g_audio_config_audio_circuit_alm;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_group_listen;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_attenuation;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_stay_in_send;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_shift_right_mtx;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_shift_right_mrc;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_idle_trans_threshold;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_low_trans_threshold;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_idle_recv_threshold;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_low_recv_threshold;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_med_recv_threshold;
+static int hf_ua3g_audio_config_loudspeaker_aco_param_handsfree_high_recv_threshold;
+static int hf_ua3g_ua_dwl_protocol_files_inc_boot_binary;
+static int hf_ua3g_ua_dwl_protocol_files_inc_loader_binary;
+static int hf_ua3g_ua_dwl_protocol_files_inc_appli_binary;
+static int hf_ua3g_ua_dwl_protocol_files_inc_data_binary;
+static int hf_ua3g_ua_dwl_protocol_model_selection_a;
+static int hf_ua3g_ua_dwl_protocol_model_selection_b;
+static int hf_ua3g_ua_dwl_protocol_model_selection_c;
+static int hf_ua3g_ua_dwl_protocol_model_selection_country_ver;
+static int hf_ua3g_ua_dwl_protocol_hardware_selection_ivanoe1;
+static int hf_ua3g_ua_dwl_protocol_hardware_selection_ivanoe2;
+static int hf_ua3g_ua_dwl_protocol_memory_sizes_flash;
+static int hf_ua3g_ua_dwl_protocol_memory_sizes_ext_ram;
+static int hf_ua3g_unsolicited_msg_char_num_vta_subtype;
+static int hf_ua3g_unsolicited_msg_char_num_generation;
+static int hf_ua3g_unsolicited_msg_char_num_design;
+static int hf_ua3g_unsolicited_msg_hardware_config_vta_type;
+static int hf_ua3g_unsolicited_msg_hardware_config_design;
+static int hf_ua3g_unsolicited_msg_hardware_config_subtype;
+static int hf_ua3g_unsolicited_msg_hardware_config_hard_config_chip;
+static int hf_ua3g_unsolicited_msg_hardware_config_hard_config_flash;
+static int hf_ua3g_unsolicited_msg_hardware_config_config_ram;
+static int hf_ua3g_unsolicited_msg_hardware_config;
+static int hf_ua3g_unsolicited_msg_hardware_config_export_full;
+static int hf_ua3g_unsolicited_msg_hardware_config_ethernet_hardware;
+static int hf_ua3g_unsolicited_msg_hardware_config_extended_edition;
+static int hf_ua3g_unsolicited_msg_hardware_config_wideband;
+static int hf_ua3g_unsolicited_msg_hardware_config_3g_set;
+static int hf_ua3g_unsolicited_msg_hardware_config_8082_set;
+static int hf_ua3g_unsolicited_msg_hardware_config_super_wideband;
+static int hf_ua3g_unsolicited_msg_hook_status;
+static int hf_ua3g_unsolicited_msg_additional_vta_type;
+static int hf_ua3g_unsolicited_msg_capability_info_bluetooth_supported;
+static int hf_ua3g_unsolicited_msg_capability_info_vpn_encryption_status;
+static int hf_ua3g_unsolicited_msg_capability_info_vpn;
+static int hf_ua3g_unsolicited_msg_capability_info_ipsec;
+static int hf_ua3g_unsolicited_msg_capability_info_dtls;
+static int hf_ua3g_unsolicited_msg_capability_info_wlan_status;
+static int hf_ua3g_unsolicited_msg_capability_info_reserved;
+static int hf_ua3g_special_key_shift;
+static int hf_ua3g_special_key_ctrl;
+static int hf_ua3g_special_key_alt;
+static int hf_ua3g_special_key_cmd;
+static int hf_ua3g_special_key_shift_prime;
+static int hf_ua3g_special_key_ctrl_prime;
+static int hf_ua3g_special_key_alt_prime;
+static int hf_ua3g_special_key_cmd_prime;
+static int hf_ua3g_lcd_line_cmd_lcd_options_call_timer;
+static int hf_ua3g_lcd_line_cmd_lcd_options_blink;
+static int hf_ua3g_lcd_line_cmd_lcd_options_call_timer_control;
+static int hf_ua3g_lcd_line_cmd_lcd_options_call_timer_display;
+static int hf_ua3g_lcd_line_cmd_lcd_options_time_of_day_display;
+static int hf_ua3g_lcd_line_cmd_lcd_options_suspend_display_refresh;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_firmware_version;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_tscip_version;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_ip;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_default_codec_uint;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_default_codec_bytes;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_mac_address;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_uint;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_value;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_eth_driver_config_port_lan_speed;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_eth_driver_config_port_lan_duplex;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_eth_driver_config_port_pc_speed;
+static int hf_ua3g_cs_ip_device_routing_cmd02_parameter_eth_driver_config_port_pc_duplex;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_type_of_equip;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_firmware_version;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_ip;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_string;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_codec;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_vad;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_ece;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_voice_mode;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_delay_distribution;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_consecutive_bfi;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_bfi_distribution;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_8021Q_used;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_8021P_priority;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_vlan_id;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_diffserv;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_bfi_distribution_200ms;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_consecutive_rtp_lost;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_uint;
+static int hf_ua3g_cs_ip_device_routing_cmd03_parameter_jitter_depth_distribution;
+static int hf_ua3g_special_key_param_dtmf;
+static int hf_ua3g_special_key_hookswitch_status;
+static int hf_ua3g_subdevice_state;
+static int hf_ua3g_cs_ip_device_routing_param_identifier;
+static int hf_ua3g_key_number;
+static int hf_ua3g_ua_dwl_protocol_binary_info;
+static int hf_ua3g_lcd_line_cmd_unused;
+static int hf_ua3g_lcd_line_cmd_ascii_char;
+static int hf_ua3g_call_timer;
+static int hf_ua3g_current_time;
+static int hf_ua3g_beep_beep_destination_handset;
+static int hf_ua3g_beep_beep_destination_headset;
+static int hf_ua3g_beep_beep_destination_loudspeaker;
+static int hf_ua3g_beep_beep_destination_announce_loudspeaker;
+static int hf_ua3g_beep_beep_destination_handsfree;
+static int hf_ua3g_beep_beep_destination;
+static int hf_ua3g_beep_freq_sample;
+static int hf_ua3g_beep_level;
+static int hf_ua3g_beep_duration;
+static int hf_ua3g_device_configuration;
 
 
 /* Definition of opcodes */
@@ -692,7 +695,7 @@ static const value_string str_device_type[] = {
     VERSION NUMBER COMPUTER - This function computes a version number (S.SZ.AB) from a 16 bits number
     ---------------------------------------------------------------------------*/
 static void
-version_number_computer( gchar *result, guint32 hexa_version )
+version_number_computer( char *result, uint32_t hexa_version )
 {
     int   release, vers, fix;
 
@@ -703,13 +706,13 @@ version_number_computer( gchar *result, guint32 hexa_version )
 }
 
 static void
-version_3bytes_computer(gchar *result, guint32 hexa_version)
+version_3bytes_computer(char *result, uint32_t hexa_version)
 {
     int release, vers, fix;
 
     release = (hexa_version >> 16);
     vers    = ((hexa_version >> 8) & 0xff);
-    fix     = (hexa_version & 0xff);;
+    fix     = (hexa_version & 0xff);
     snprintf(result, ITEM_LABEL_LENGTH, "%d.%02d.%02d", release, vers, fix);
 }
 
@@ -725,7 +728,7 @@ version_3bytes_computer(gchar *result, guint32 hexa_version)
     ---------------------------------------------------------------------------*/
 static void
 decode_with_one_parameter(proto_tree *tree, tvbuff_t *tvb,
-              packet_info *pinfo _U_, guint offset, guint length,
+              packet_info *pinfo _U_, unsigned offset, unsigned length,
               int hf_opcode)
 {
     if (length == 0)
@@ -740,7 +743,7 @@ decode_with_one_parameter(proto_tree *tree, tvbuff_t *tvb,
     ---------------------------------------------------------------------------*/
 static void
 decode_subdevice_escape(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
-            guint offset, guint length)
+            unsigned offset, unsigned length)
 {
     proto_tree_add_item(tree, hf_ua3g_subdevice_address, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_ua3g_subdevice_opcode, tvb, offset+1, 1, ENC_BIG_ENDIAN);
@@ -761,7 +764,7 @@ static const value_string software_reset_verswitch_vals[] = {
 
 static void
 decode_software_reset(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
-                      guint offset, guint length)
+                      unsigned offset, unsigned length)
 {
     if (length == 0)
         return;
@@ -781,7 +784,7 @@ static const value_string str_command_ip_phone_warmstart[] = {
 
 static void
 decode_ip_phone_warmstart(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
-              guint offset, guint length)
+              unsigned offset, unsigned length)
 {
     if (length == 0)
         return;
@@ -796,7 +799,7 @@ decode_ip_phone_warmstart(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U
     ---------------------------------------------------------------------------*/
 static void
 decode_super_msg(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
-         guint offset, guint length, guint8 opcode)
+         unsigned offset, unsigned length, uint8_t opcode)
 {
     proto_tree *ua3g_body_tree = tree;
     int         j = 0, parameter_length;
@@ -812,7 +815,7 @@ decode_super_msg(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
             offset += 2;
             length -= 2;
         } else {
-            parameter_length = tvb_get_guint8(tvb, offset);
+            parameter_length = tvb_get_uint8(tvb, offset);
             proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_super_msg_length, tvb, offset, 1,
                 parameter_length, "Length %d: %d", j++, parameter_length);
             offset++;
@@ -835,14 +838,14 @@ static const true_false_string tfs_segment_msg_segment = { "First Segment", "Sub
 
 static void
 decode_segment_msg(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
-           guint offset, guint length)
+           unsigned offset, unsigned length)
 {
-    guint8      val;
+    uint8_t     val;
 
     if (!tree)
         return;
 
-    val = tvb_get_guint8(tvb, offset);
+    val = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(tree, hf_ua3g_segment_msg_segment, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(tree, hf_ua3g_segment_msg_num_remaining, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
@@ -1156,14 +1159,14 @@ static const value_string str_wlan_status[] = {
 
 static void
 decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-             guint offset, guint length)
+             unsigned offset, unsigned length)
 {
-    guint8         command;
+    uint8_t        command;
     proto_tree    *ua3g_body_tree = tree, *ua3g_param_tree, *ua3g_param_subtree;
     proto_item    *ua3g_param_item;
     int parameter_length, parameter_id;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(command, str_command_ip_device_routing, "Unknown"));
@@ -1179,8 +1182,8 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     case 0x00: /* RESET */
         {
             if (length > 0) {
-                parameter_id     = tvb_get_guint8(tvb, offset);
-                parameter_length = tvb_get_guint8(tvb, offset + 1);
+                parameter_id     = tvb_get_uint8(tvb, offset);
+                parameter_length = tvb_get_uint8(tvb, offset + 1);
 
                 ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ip_device_routing_stop_rtp_parameter, tvb, offset,
                     parameter_length + 2, parameter_id, "%s",
@@ -1196,11 +1199,11 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
                 length--;
 
                 if (parameter_length > 0) {
-                    guint8 param;
+                    uint8_t param;
                     switch (parameter_id) {
                     case 0x00: /* Update Mode */
 
-                        param = tvb_get_guint8(tvb, offset);
+                        param = tvb_get_uint8(tvb, offset);
                         if ((param & 0x80) == 0x00) {
                             proto_tree_add_item(ua3g_param_tree, hf_ua3g_ip_device_routing_reset_parameter_noe_update, tvb, offset, 1, ENC_BIG_ENDIAN);
                             ua3g_param_subtree = proto_item_add_subtree(ua3g_param_item, ett_ua3g_param_sub);
@@ -1249,15 +1252,15 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     case 0x01: /* START RTP */
         {
             address remote_rtp_addr = ADDRESS_INIT_NONE;
-            guint32 remote_rtp_port = 0;
+            uint32_t remote_rtp_port = 0;
 
             proto_tree_add_item(ua3g_body_tree, hf_ua3g_ip_device_routing_start_rtp_direction, tvb, offset, 1, ENC_BIG_ENDIAN);
             offset++;
             length--;
 
             while (length > 0) {
-                parameter_id     = tvb_get_guint8(tvb, offset);
-                parameter_length = tvb_get_guint8(tvb, offset + 1);
+                parameter_id     = tvb_get_uint8(tvb, offset);
+                parameter_length = tvb_get_uint8(tvb, offset + 1);
 
                 ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ip_device_routing_start_rtp_parameter, tvb, offset,
                         parameter_length + 2, parameter_id, "%s",
@@ -1378,8 +1381,8 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
         }
     case 0x02: /* STOP_RTP */
         while (length > 0) {
-            parameter_id     = tvb_get_guint8(tvb, offset);
-            parameter_length = tvb_get_guint8(tvb, offset + 1);
+            parameter_id     = tvb_get_uint8(tvb, offset);
+            parameter_length = tvb_get_uint8(tvb, offset + 1);
 
             ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ip_device_routing_stop_rtp_parameter, tvb, offset,
                 parameter_length + 2, parameter_id, "%s",
@@ -1408,8 +1411,8 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
         break;
     case 0x03: /* REDIRECT */
         while (length > 0) {
-            parameter_id = tvb_get_guint8(tvb, offset);
-            parameter_length = tvb_get_guint8(tvb, offset + 1);
+            parameter_id = tvb_get_uint8(tvb, offset);
+            parameter_length = tvb_get_uint8(tvb, offset + 1);
 
             ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ip_device_routing_redirect_parameter,
                     tvb, offset, parameter_length + 2, parameter_id,
@@ -1449,10 +1452,10 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     case 0x04: /* DEF_TONES */
         {
             int         i, tone_nb_entries;
-            guint16     frequency_1, frequency_2;
+            uint16_t    frequency_1, frequency_2;
             signed char level_1, level_2;
 
-            tone_nb_entries = tvb_get_guint8(tvb, offset);
+            tone_nb_entries = tvb_get_uint8(tvb, offset);
 
             proto_tree_add_item(ua3g_body_tree, hf_ua3g_ip_device_routing_def_tones_num_entries, tvb, offset, 1, ENC_BIG_ENDIAN);
             offset++;
@@ -1461,9 +1464,9 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
             while (length > 0 && tone_nb_entries) {
                 for (i = 1; i <= tone_nb_entries; i++) {
                     frequency_1 = tvb_get_ntohs(tvb, offset);
-                    level_1 = (signed char)(tvb_get_guint8(tvb, offset + 2)) / 2;
+                    level_1 = (signed char)(tvb_get_uint8(tvb, offset + 2)) / 2;
                     frequency_2 = tvb_get_ntohs(tvb, offset + 3);
-                    level_2 = (signed char)(tvb_get_guint8(tvb, offset + 5)) / 2;
+                    level_2 = (signed char)(tvb_get_uint8(tvb, offset + 5)) / 2;
 
                     ua3g_param_tree = proto_tree_add_subtree_format(ua3g_body_tree, tvb, offset, 6,
                         ett_ua3g_param, NULL, "Tone Pair %d: %d Hz at %d dB / %d Hz at %d dB",
@@ -1490,8 +1493,8 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
         }
     case 0x05: /* START TONE */
         {
-            guint8 ii;
-            guint32 tone_nb_entries;
+            uint8_t ii;
+            uint32_t tone_nb_entries;
 
             proto_tree_add_item(ua3g_body_tree, hf_ua3g_ip_device_routing_start_tone_direction, tvb, offset, 1, ENC_BIG_ENDIAN);
             proto_tree_add_item_ret_uint(ua3g_body_tree, hf_ua3g_ip_device_routing_start_tone_num_entries, tvb, offset, 1, ENC_BIG_ENDIAN, &tone_nb_entries);
@@ -1499,8 +1502,8 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
             length--;
 
             for (ii = 0; ii < tone_nb_entries; ii++) {
-                guint8 tone_id = tvb_get_guint8(tvb, offset);
-                gint tone_duration = tvb_get_ntohs(tvb, offset + 1);
+                uint8_t tone_id = tvb_get_uint8(tvb, offset);
+                int tone_duration = tvb_get_ntohs(tvb, offset + 1);
 
                 ua3g_param_tree = proto_tree_add_subtree_format(ua3g_body_tree, tvb, offset, 3,
                     ett_ua3g_param, NULL, "Tone Pair %d: Id: %d, Duration: %d ms",
@@ -1519,8 +1522,8 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     case 0x07: /* START LISTEN RTP */
     case 0x08: /* STOP LISTEN RTP */
         while (length > 0) {
-            parameter_id     = tvb_get_guint8(tvb, offset);
-            parameter_length = tvb_get_guint8(tvb, offset + 1);
+            parameter_id     = tvb_get_uint8(tvb, offset);
+            parameter_length = tvb_get_uint8(tvb, offset + 1);
 
             ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ip_device_routing_listen_rtp_parameter, tvb, offset,
                 parameter_length + 2, parameter_id, "%s",
@@ -1569,8 +1572,8 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     case 0x0A: /* SET_PARAM_REQ */
         {
             while (length > 0) {
-                parameter_id     = tvb_get_guint8(tvb, offset);
-                parameter_length = tvb_get_guint8(tvb, offset + 1);
+                parameter_id     = tvb_get_uint8(tvb, offset);
+                parameter_length = tvb_get_uint8(tvb, offset + 1);
 
                 ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ip_device_routing_set_param_req_parameter, tvb, offset,
                     parameter_length + 2, parameter_id, "%s",
@@ -1675,8 +1678,8 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     case 0x0C: /* PAUSE_RTP */
     case 0x0D: /* RESTART_RTP */
         while (length > 0) {
-            parameter_id     = tvb_get_guint8(tvb, offset);
-            parameter_length = tvb_get_guint8(tvb, offset + 1);
+            parameter_id     = tvb_get_uint8(tvb, offset);
+            parameter_length = tvb_get_uint8(tvb, offset + 1);
 
             ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ip_device_routing_pause_restart_rtp_parameter, tvb, offset,
                 parameter_length + 2, parameter_id, "%s",
@@ -1707,13 +1710,13 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     case 0x0F: /* STOP RECORD RTP */
     {
         address remote_rtp_addr = ADDRESS_INIT_NONE;
-        guint32 remote_rtp_port_in = 0;
-        guint32 remote_rtp_port_out = 0;
+        uint32_t remote_rtp_port_in = 0;
+        uint32_t remote_rtp_port_out = 0;
 
         while (length > 0) {
 
-            parameter_id     = tvb_get_guint8(tvb, offset);
-            parameter_length = tvb_get_guint8(tvb, offset + 1);
+            parameter_id     = tvb_get_uint8(tvb, offset);
+            parameter_length = tvb_get_uint8(tvb, offset + 1);
 
             ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ip_device_routing_start_stop_record_rtp_parameter, tvb, offset,
                 parameter_length + 2, parameter_id, "%s",
@@ -1788,8 +1791,8 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
         break;
     case 0x11: /* Free Seating */
         while (length > 0) {
-            parameter_id     = tvb_get_guint8(tvb, offset);
-            parameter_length = tvb_get_guint8(tvb, offset + 1);
+            parameter_id     = tvb_get_uint8(tvb, offset);
+            parameter_length = tvb_get_uint8(tvb, offset + 1);
 
             ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ip_device_routing_freeseating_parameter, tvb, offset,
                 parameter_length + 2, parameter_id, "%s",
@@ -1846,8 +1849,8 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
         break;
     case 0x14: /* Set Appl Param */
         while (length > 0) {
-            parameter_id     = tvb_get_guint8(tvb, offset);
-            parameter_length = tvb_get_guint8(tvb, offset + 1);
+            parameter_id     = tvb_get_uint8(tvb, offset);
+            parameter_length = tvb_get_uint8(tvb, offset + 1);
 
             ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ip_device_routing_appl_parameter, tvb, offset,
                 parameter_length + 2, parameter_id, "%s", val_to_str_const(parameter_id, ip_device_routing_cmd_appl_vals, "Unknown"));
@@ -1901,7 +1904,7 @@ decode_ip_device_routing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     ---------------------------------------------------------------------------*/
 static void
 decode_debug_in_line(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
-             guint offset, guint length)
+             unsigned offset, unsigned length)
 {
     proto_tree_add_item(tree, hf_ua3g_debug_in_line, tvb, offset, length, ENC_NA|ENC_ASCII);
 }
@@ -1924,11 +1927,11 @@ static const value_string str_command_led[] = {
 
 static void
 decode_led_command(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-           guint offset)
+           unsigned offset)
 {
     int         command;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(command, str_command_led, "Unknown"));
@@ -1965,16 +1968,16 @@ static const value_string str_call_timer_ctrl[] = {
 
 static void
 decode_lcd_line_cmd(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-            guint offset, guint length)
+            unsigned offset, unsigned length)
 {
-    guint8         command, column_n;
-    const gchar*  command_str;
+    uint8_t        command, column_n;
+    const char*  command_str;
     proto_tree    *ua3g_body_tree = tree, *ua3g_param_tree, *ua3g_option_tree;
     proto_item    *ua3g_option_item;
     wmem_strbuf_t *strbuf;
 
-    command     = tvb_get_guint8(tvb, offset) & 0x03;
-    column_n    = tvb_get_guint8(tvb, offset + 1);
+    command     = tvb_get_uint8(tvb, offset) & 0x03;
+    column_n    = tvb_get_uint8(tvb, offset + 1);
     command_str = val_to_str_const(command, str_command_lcd_line, "Unknown");
 
     /* add text to the frame "INFO" column */
@@ -2048,12 +2051,12 @@ static const value_string str_cadence[] = {
 
 static void
 decode_main_voice_mode(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-               guint offset, guint length)
+               unsigned offset, unsigned length)
 {
-    guint8      mode;
+    uint8_t     mode;
     proto_tree *ua3g_body_tree = tree;
 
-    mode  = tvb_get_guint8(tvb, offset);
+    mode  = tvb_get_uint8(tvb, offset);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(mode, str_main_voice_mode, "Unknown"));
@@ -2095,10 +2098,10 @@ decode_main_voice_mode(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
         {
             signed char level;
 
-            level = (signed char)(tvb_get_guint8(tvb, offset)) / 2;
+            level = (signed char)(tvb_get_uint8(tvb, offset)) / 2;
             proto_tree_add_int(ua3g_body_tree, hf_ua3g_main_voice_mode_handset_level, tvb, offset, 1, level);
 
-            level = (signed char)(tvb_get_guint8(tvb, offset+1)) / 2;
+            level = (signed char)(tvb_get_uint8(tvb, offset+1)) / 2;
             proto_tree_add_int(ua3g_body_tree, hf_ua3g_main_voice_mode_sending_level, tvb, offset+1, 1, level);
             break;
         }
@@ -2106,10 +2109,10 @@ decode_main_voice_mode(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
         {
             signed char level;
 
-            level = (signed char)(tvb_get_guint8(tvb, offset)) / 2;
+            level = (signed char)(tvb_get_uint8(tvb, offset)) / 2;
             proto_tree_add_int(ua3g_body_tree, hf_ua3g_main_voice_mode_headset_level, tvb, offset, 1, level);
 
-            level = (signed char)(tvb_get_guint8(tvb, offset+1)) / 2;
+            level = (signed char)(tvb_get_uint8(tvb, offset+1)) / 2;
             proto_tree_add_int(ua3g_body_tree, hf_ua3g_main_voice_mode_sending_level, tvb, offset+1, 1, level);
             break;
         }
@@ -2117,10 +2120,10 @@ decode_main_voice_mode(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
         {
             signed char level;
 
-            level = (signed char)(tvb_get_guint8(tvb, offset)) / 2;
+            level = (signed char)(tvb_get_uint8(tvb, offset)) / 2;
             proto_tree_add_int(ua3g_body_tree, hf_ua3g_main_voice_mode_handsfree_level, tvb, offset, 1, level);
 
-            level = (signed char)(tvb_get_guint8(tvb, offset+1)) / 2;
+            level = (signed char)(tvb_get_uint8(tvb, offset+1)) / 2;
             proto_tree_add_int(ua3g_body_tree, hf_ua3g_main_voice_mode_sending_level, tvb, offset+1, 1, level);
             break;
         }
@@ -2147,7 +2150,7 @@ static const value_string str_new_metastate[] = {
 
 static void
 decode_subdevice_metastate(proto_tree *tree, tvbuff_t *tvb,
-               packet_info *pinfo _U_, guint offset)
+               packet_info *pinfo _U_, unsigned offset)
 {
     proto_tree_add_item(tree, hf_ua3g_subdevice_metastate_subchannel_address, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_ua3g_subdevice_metastate_new_metastate, tvb, offset+1, 1, ENC_BIG_ENDIAN);
@@ -2165,7 +2168,7 @@ static const value_string str_clock_format[] = {
 
 static void
 decode_dwl_dtmf_clck_format(proto_tree *tree, tvbuff_t *tvb,
-                packet_info *pinfo _U_, guint offset, guint length)
+                packet_info *pinfo _U_, unsigned offset, unsigned length)
 {
     proto_tree_add_item(tree, hf_ua3g_dwl_dtmf_clck_format_minimum_on_time, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_ua3g_dwl_dtmf_clck_format_inter_digit_pause_time, tvb, offset+1, 1, ENC_BIG_ENDIAN);
@@ -2188,12 +2191,12 @@ static const value_string str_command_set_clck[] = {
 
 static void
 decode_set_clck(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-        guint offset, guint length)
+        unsigned offset, unsigned length)
 {
-    guint8      command;
+    uint8_t     command;
     int         hour, minute, second, call_timer;
 
-    command  = tvb_get_guint8(tvb, offset);
+    command  = tvb_get_uint8(tvb, offset);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(command, str_command_set_clck, "Unknown"));
@@ -2213,9 +2216,9 @@ decode_set_clck(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     case 0x01: /* Set Current Time */
         {
             while (length > 0) {
-                hour   = tvb_get_guint8(tvb, offset);
-                minute = tvb_get_guint8(tvb, offset + 1);
-                second = tvb_get_guint8(tvb, offset + 2);
+                hour   = tvb_get_uint8(tvb, offset);
+                minute = tvb_get_uint8(tvb, offset + 1);
+                second = tvb_get_uint8(tvb, offset + 2);
 
                 proto_tree_add_uint_format_value(tree, (call_timer == 1) ? hf_ua3g_call_timer : hf_ua3g_current_time, tvb, offset, 3,
                     tvb_get_ntoh24(tvb, offset), "%d:%d:%d", hour, minute, second);
@@ -2251,7 +2254,7 @@ static const true_false_string tfs_voice_channel_voice_channel = { "Use B3 As Vo
 
 static void
 decode_voice_channel(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
-             guint offset, guint length)
+             unsigned offset, unsigned length)
 {
     if (length == 1) {
         proto_tree_add_item(tree, hf_ua3g_voice_channel_channel_mode, tvb, offset, 1, ENC_NA);
@@ -2281,11 +2284,11 @@ static const value_string str_ext_ring_cmd[] = {
 
 static void
 decode_external_ringing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-            guint offset)
+            unsigned offset)
 {
-    guint8      command;
+    uint8_t     command;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(command, str_ext_ring_cmd, "Unknown"));
@@ -2298,9 +2301,9 @@ decode_external_ringing(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     LCD CURSOR - 35h - (MESSAGE FROM THE SYSTEM)
     ---------------------------------------------------------------------------*/
 static void
-decode_lcd_cursor(proto_tree *tree _U_, tvbuff_t *tvb, packet_info *pinfo, guint offset)
+decode_lcd_cursor(proto_tree *tree _U_, tvbuff_t *tvb, packet_info *pinfo, unsigned offset)
 {
-    const gchar* str_on_off_val = STR_ON_OFF(tvb_get_guint8(tvb, offset + 1) & 0x02);
+    const char* str_on_off_val = STR_ON_OFF(tvb_get_uint8(tvb, offset + 1) & 0x02);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", str_on_off_val);
@@ -2315,7 +2318,7 @@ decode_lcd_cursor(proto_tree *tree _U_, tvbuff_t *tvb, packet_info *pinfo, guint
     ---------------------------------------------------------------------------*/
 static void
 decode_dwl_special_char(proto_tree *tree, tvbuff_t *tvb,
-            packet_info *pinfo _U_, guint offset, guint length)
+            packet_info *pinfo _U_, unsigned offset, unsigned length)
 {
     int            i;
 
@@ -2337,7 +2340,7 @@ decode_dwl_special_char(proto_tree *tree, tvbuff_t *tvb,
     ---------------------------------------------------------------------------*/
 static void
 decode_set_clck_timer_pos(proto_tree *tree, tvbuff_t *tvb,
-              packet_info *pinfo _U_, guint offset)
+              packet_info *pinfo _U_, unsigned offset)
 {
     if (!tree)
         return;
@@ -2360,7 +2363,7 @@ static const value_string str_driver_number[] = {
 
 static void
 decode_set_lcd_contrast(proto_tree *tree, tvbuff_t *tvb,
-            packet_info *pinfo _U_, guint offset)
+            packet_info *pinfo _U_, unsigned offset)
 {
     proto_tree_add_item(tree, hf_ua3g_set_lcd_contrast_driver_number, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_ua3g_set_lcd_contrast_contrast_value, tvb, offset+1, 1, ENC_BIG_ENDIAN);
@@ -2405,13 +2408,13 @@ static const value_string str_beep_terminator[] = {
 
 static void
 decode_beep(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-        guint offset, guint length)
+        unsigned offset, unsigned length)
 {
     if (length > 0) { /* All cases except classical beep */
-        guint8      command;
+        uint8_t     command;
         proto_tree *ua3g_body_tree = tree;
 
-        command = tvb_get_guint8(tvb, offset);
+        command = tvb_get_uint8(tvb, offset);
 
         /* add text to the frame "INFO" column */
         col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(command, str_command_beep, "Unknown"));
@@ -2431,10 +2434,10 @@ decode_beep(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
                 length--;
 
                 while (length > 0) {
-                    guint8 val;
+                    uint8_t val;
 
                     i++;
-                    val = (tvb_get_guint8(tvb, offset) & 0x7F) * 10;
+                    val = (tvb_get_uint8(tvb, offset) & 0x7F) * 10;
                     proto_tree_add_item(ua3g_body_tree, hf_ua3g_beep_on_off, tvb, offset, 1, ENC_NA);
                     proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_beep_cadence, tvb, offset, 1, val,
                         "Cadence T%d: %d ms", i, val);
@@ -2466,7 +2469,7 @@ decode_beep(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
                 int i, nb_of_notes, beep_number;
                 proto_tree* note_tree;
 
-                beep_number = tvb_get_guint8(tvb, offset);
+                beep_number = tvb_get_uint8(tvb, offset);
                 proto_tree_add_item(ua3g_body_tree, hf_ua3g_beep_beep_number, tvb, offset, 1, ENC_BIG_ENDIAN);
                 offset++;
                 length--;
@@ -2476,7 +2479,7 @@ decode_beep(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
                 else
                     beep_number = 0xFF;
 
-                nb_of_notes = tvb_get_guint8(tvb, offset);
+                nb_of_notes = tvb_get_uint8(tvb, offset);
                 proto_tree_add_item(ua3g_body_tree, hf_ua3g_beep_number_of_notes, tvb, offset, 1, ENC_BIG_ENDIAN);
                 offset++;
                 length--;
@@ -2485,17 +2488,17 @@ decode_beep(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
                     for (i = 1; i <= nb_of_notes; i++) {
                         note_tree = proto_tree_add_subtree_format(ua3g_body_tree, tvb, offset, 3,
                                         ett_ua3g_note, NULL, "Note %d", i);
-                        proto_tree_add_uint_format(note_tree, hf_ua3g_beep_freq_sample, tvb, offset, 1, tvb_get_guint8(tvb, offset),
+                        proto_tree_add_uint_format(note_tree, hf_ua3g_beep_freq_sample, tvb, offset, 1, tvb_get_uint8(tvb, offset),
                             "%s: %d", val_to_str_const(beep_number, str_beep_freq_sample_nb, "Unknown"),
-                            tvb_get_guint8(tvb, offset));
+                            tvb_get_uint8(tvb, offset));
                         offset++;
                         length--;
                         proto_tree_add_item(note_tree, hf_ua3g_beep_level, tvb, offset, 1, ENC_NA);
                         offset++;
                         length--;
-                        proto_tree_add_uint_format(note_tree, hf_ua3g_beep_duration, tvb, offset, 1, tvb_get_guint8(tvb, offset),
+                        proto_tree_add_uint_format(note_tree, hf_ua3g_beep_duration, tvb, offset, 1, tvb_get_uint8(tvb, offset),
                             "%s: %x", val_to_str_const(beep_number, str_beep_duration, "Unknown"),
-                            tvb_get_guint8(tvb, offset));
+                            tvb_get_uint8(tvb, offset));
                         offset++;
                         length--;
                     }
@@ -2522,12 +2525,12 @@ decode_beep(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     SIDETONE ON / OFF - 3Dh (MESSAGE FROM THE SYSTEM)
     ---------------------------------------------------------------------------*/
 static void
-decode_sidetone(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint offset)
+decode_sidetone(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, unsigned offset)
 {
-    guint8      command;
-    const gchar* command_str;
+    uint8_t     command;
+    const char* command_str;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
     command_str = STR_ON_OFF(command);
 
     /* add text to the frame "INFO" column */
@@ -2537,7 +2540,7 @@ decode_sidetone(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint offse
 
     if (command == 0x01) {
         proto_tree_add_int(tree, hf_ua3g_sidetone_level, tvb, offset+1, 1,
-            (signed char)(tvb_get_guint8(tvb, offset+1) / 2));
+            (signed char)(tvb_get_uint8(tvb, offset+1) / 2));
     }
 }
 
@@ -2547,10 +2550,10 @@ decode_sidetone(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint offse
     ---------------------------------------------------------------------------*/
 static void
 decode_ringing_cadence(proto_tree *tree, tvbuff_t *tvb,
-               packet_info *pinfo _U_, guint offset, guint length)
+               packet_info *pinfo _U_, unsigned offset, unsigned length)
 {
     int         i = 0;
-    guint16     cadence_length;
+    uint16_t    cadence_length;
 
     if (!tree)
         return;
@@ -2562,7 +2565,7 @@ decode_ringing_cadence(proto_tree *tree, tvbuff_t *tvb,
     while (length > 0) {
         i++;
         proto_tree_add_item(tree, hf_ua3g_ringing_cadence_on_off, tvb, offset, 1, ENC_NA);
-        cadence_length = ((tvb_get_guint8(tvb, offset) & 0x7F) * 10);
+        cadence_length = ((tvb_get_uint8(tvb, offset) & 0x7F) * 10);
         proto_tree_add_uint_format(tree, hf_ua3g_ringing_cadence_length, tvb, offset, 1, cadence_length,
             "Length %d : %d ms", i, cadence_length);
         offset++;
@@ -2581,11 +2584,11 @@ static const value_string str_mute[] = {
 };
 
 static void
-decode_mute(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint offset)
+decode_mute(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, unsigned offset)
 {
-    guint8      command;
+    uint8_t     command;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(command, str_mute, "Unknown"));
@@ -2599,12 +2602,12 @@ decode_mute(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint offset)
     ---------------------------------------------------------------------------*/
 static void
 decode_feedback(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-        guint offset, guint length)
+        unsigned offset, unsigned length)
 {
-    guint8      command;
-    const gchar* command_str;
+    uint8_t     command;
+    const char* command_str;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
     command_str = STR_ON_OFF(command);
 
     /* add text to the frame "INFO" column */
@@ -2619,13 +2622,13 @@ decode_feedback(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
 
     if (command == 0x01) {
         proto_tree_add_int(tree, hf_ua3g_feedback_level, tvb, offset, 1,
-            (signed char)(tvb_get_guint8(tvb, offset) / 2));
+            (signed char)(tvb_get_uint8(tvb, offset) / 2));
         offset++;
         length--;
 
         if (length > 0) {
             proto_tree_add_uint_format_value(tree, hf_ua3g_feedback_duration, tvb, offset, 1,
-                tvb_get_guint8(tvb, offset) * 10, "%d ms", tvb_get_guint8(tvb, offset) * 10);
+                tvb_get_uint8(tvb, offset) * 10, "%d ms", tvb_get_uint8(tvb, offset) * 10);
         }
     }
 }
@@ -2638,7 +2641,7 @@ decode_feedback(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     ---------------------------------------------------------------------------*/
 static void
 decode_r_w_peripheral(proto_tree *tree, tvbuff_t *tvb,
-              packet_info *pinfo _U_, guint offset, guint length)
+              packet_info *pinfo _U_, unsigned offset, unsigned length)
 {
     proto_tree_add_item(tree, hf_ua3g_r_w_peripheral_address, tvb, offset, 2, ENC_BIG_ENDIAN);
 
@@ -2660,9 +2663,9 @@ static const value_string str_icon_cmd_state[] = {
 };
 
 static void
-decode_icon_cmd(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_, guint offset)
+decode_icon_cmd(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_, unsigned offset)
 {
-    guint8 byte0, byte1, bytex;
+    uint8_t byte0, byte1, bytex;
     int i;
 
     if (!tree)
@@ -2670,8 +2673,8 @@ decode_icon_cmd(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_, guint o
 
     proto_tree_add_item(tree, hf_ua3g_icon_cmd_icon_number, tvb, offset, 1, ENC_BIG_ENDIAN);
 
-    byte0 = tvb_get_guint8(tvb, offset+1);
-    byte1 = tvb_get_guint8(tvb, offset+2);
+    byte0 = tvb_get_uint8(tvb, offset+1);
+    byte1 = tvb_get_uint8(tvb, offset+2);
 
     for (i = 0; i < 8; i++) {
         bytex =
@@ -2717,12 +2720,12 @@ static const true_false_string tfs_audio_config_handsfree_handsfree = { "More Fu
 
 static void
 decode_audio_config(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-            guint offset, guint length)
+            unsigned offset, unsigned length)
 {
-    guint8      command;
+    uint8_t     command;
     proto_tree *ua3g_body_tree = tree;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(command, str_command_audio_config, "Unknown"));
@@ -2752,8 +2755,8 @@ decode_audio_config(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
             int i;
             for (i = 1; i < 8; i++) {
                 proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_audio_config_volume_level, tvb, offset,
-                    1, tvb_get_guint8(tvb, offset), "Volume Level %d: %d",
-                    i, tvb_get_guint8(tvb, offset));
+                    1, tvb_get_uint8(tvb, offset), "Volume Level %d: %d",
+                    i, tvb_get_uint8(tvb, offset));
                 offset++;
                 length--;
             }
@@ -2791,7 +2794,7 @@ decode_audio_config(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
         break;
     case 0x06: /* Device Configuration */
         {
-            static const gchar *str_device_values[] = {
+            static const char *str_device_values[] = {
                 " Internal",
                 " Rj9 Plug",
                 " Jack Plug",
@@ -2799,7 +2802,7 @@ decode_audio_config(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
                 " USB Link"
             };
             wmem_strbuf_t *strbuf;
-            guint8 device_values;
+            uint8_t device_values;
             int j;
             int device_index = 0;
 
@@ -2807,7 +2810,7 @@ decode_audio_config(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
 
             while (length > 0) {
 
-                device_values = tvb_get_guint8(tvb, offset);
+                device_values = tvb_get_uint8(tvb, offset);
 
                 wmem_strbuf_truncate(strbuf, 0);
 
@@ -2844,7 +2847,7 @@ decode_audio_config(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     ---------------------------------------------------------------------------*/
 static void
 decode_audio_padded_path(proto_tree *tree, tvbuff_t *tvb,
-             packet_info *pinfo _U_, guint offset)
+             packet_info *pinfo _U_, unsigned offset)
 {
     proto_tree_add_item(tree, hf_ua3g_audio_padded_path_emission_padded_level, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_ua3g_audio_padded_path_reception_padded_level, tvb, offset+1, 1, ENC_BIG_ENDIAN);
@@ -2859,12 +2862,12 @@ decode_audio_padded_path(proto_tree *tree, tvbuff_t *tvb,
     ---------------------------------------------------------------------------*/
 static void
 decode_on_off_level(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-            guint offset, guint length, int hf_opcode)
+            unsigned offset, unsigned length, int hf_opcode)
 {
-    guint8      command;
-    const gchar* command_str;
+    uint8_t     command;
+    const char* command_str;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
     command_str = STR_ON_OFF(command);
 
     /* add text to the frame "INFO" column */
@@ -2884,12 +2887,12 @@ decode_on_off_level(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     RING ON / OFF - 4Fh (MESSAGE FROM THE SYSTEM)
     ---------------------------------------------------------------------------*/
 static void
-decode_ring(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, guint offset)
+decode_ring(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo, unsigned offset)
 {
-    guint8      command;
-    const gchar* command_str;
+    uint8_t     command;
+    const char* command_str;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
     command_str = STR_ON_OFF(command);
 
     /* add text to the frame "INFO" column */
@@ -3002,12 +3005,12 @@ static const true_false_string tfs_bin_info = { "LZO Compressed Binary", "Uncomp
 
 static void
 decode_ua_dwl_protocol(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-               guint offset, guint length)
+               unsigned offset, unsigned length)
 {
-    guint8      command;
+    uint8_t     command;
     proto_tree    *ua3g_body_tree = tree, *ua3g_param_tree;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(command, str_command_ua_dwl_protocol, "Unknown"));
@@ -3100,7 +3103,7 @@ decode_ua_dwl_protocol(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
 
             while (length > 0) {
                 proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_ua_dwl_protocol_packet_number, tvb, offset, 1,
-                    tvb_get_guint8(tvb, offset), "Packet Number %3d: %d", i, tvb_get_guint8(tvb, offset));
+                    tvb_get_uint8(tvb, offset), "Packet Number %3d: %d", i, tvb_get_uint8(tvb, offset));
                 offset++;
                 length--;
                 i++;
@@ -3127,7 +3130,7 @@ decode_ua_dwl_protocol(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     DIGIT DIALED - 03h (MESSAGE FROM THE SYSTEM)
     ---------------------------------------------------------------------------*/
 static void
-decode_digit_dialed(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_, guint offset)
+decode_digit_dialed(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_, unsigned offset)
 {
     proto_tree_add_item(tree, hf_ua3g_digit_dialed_digit_value, tvb, offset, 1, ENC_BIG_ENDIAN);
 }
@@ -3138,7 +3141,7 @@ decode_digit_dialed(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_, gui
     ---------------------------------------------------------------------------*/
 static void
 decode_subdevice_msg(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
-             guint offset, guint length)
+             unsigned offset, unsigned length)
 {
     if (!tree)
         return;
@@ -3332,14 +3335,14 @@ static const value_string cs_ip_device_routing_consecutive_rtp_lost_range_vals[]
 
 static void
 decode_cs_ip_device_routing(proto_tree *tree _U_, tvbuff_t *tvb,
-                packet_info *pinfo, guint offset, guint length)
+                packet_info *pinfo, unsigned offset, unsigned length)
 {
-    guint8 command;
+    uint8_t command;
     proto_tree *ua3g_body_tree = tree, *ua3g_param_tree;
     proto_item *ua3g_param_item;
     int i, parameter_id, parameter_length;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
 
     /* add text to the frame "INFO" column */
     col_append_fstr(pinfo->cinfo, COL_INFO, ": %s", val_to_str_const(command, str_command_cs_ip_device_routing, "Unknown"));
@@ -3365,8 +3368,8 @@ decode_cs_ip_device_routing(proto_tree *tree _U_, tvbuff_t *tvb,
                     while (length >0) {
                         j++;
                         proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_cs_ip_device_routing_param_identifier, tvb, offset, 1,
-                            tvb_get_guint8(tvb, offset), "Parameter %d Identifier: %d",
-                            j, tvb_get_guint8(tvb, offset));
+                            tvb_get_uint8(tvb, offset), "Parameter %d Identifier: %d",
+                            j, tvb_get_uint8(tvb, offset));
                         offset++;
                         length--;
                     }
@@ -3375,8 +3378,8 @@ decode_cs_ip_device_routing(proto_tree *tree _U_, tvbuff_t *tvb,
             }
         case 0x02:
             while (length > 0) {
-                parameter_id = tvb_get_guint8(tvb, offset);
-                parameter_length = tvb_get_guint8(tvb, offset + 1);
+                parameter_id = tvb_get_uint8(tvb, offset);
+                parameter_length = tvb_get_uint8(tvb, offset + 1);
 
                 ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_cs_ip_device_routing_cmd02_parameter, tvb, offset,
                     parameter_length + 2, parameter_id,
@@ -3452,7 +3455,7 @@ decode_cs_ip_device_routing(proto_tree *tree _U_, tvbuff_t *tvb,
         case 0x03:
             {
                 while (length > 0) {
-                    parameter_id     = tvb_get_guint8(tvb, offset);
+                    parameter_id     = tvb_get_uint8(tvb, offset);
                     parameter_length = tvb_get_ntohs(tvb, offset + 1);
 
                     ua3g_param_item = proto_tree_add_uint_format(ua3g_body_tree, hf_ua3g_cs_ip_device_routing_cmd03_parameter, tvb, offset,
@@ -3495,32 +3498,32 @@ decode_cs_ip_device_routing(proto_tree *tree _U_, tvbuff_t *tvb,
                             break;
                         case 0x1B: /* Delay Distribution */
                             for (i = 0; i < parameter_length/2; i++) {
-                                guint   off = (offset + (i*2));
-                                guint16 val = tvb_get_ntohs(tvb, off);
+                                unsigned   off = (offset + (i*2));
+                                uint16_t val = tvb_get_ntohs(tvb, off);
                                 proto_tree_add_uint_format_value(ua3g_param_tree, hf_ua3g_cs_ip_device_routing_cmd03_parameter_delay_distribution, tvb, off,
                                     2, val, "%s: %d", val_to_str_const(i, cs_ip_device_routing_delay_distribution_range_vals, "Unknown"), val);
                             }
                             break;
                         case 0x1E: /* Consecutive BFI */
                             for (i = 0; i < parameter_length/2; i++) {
-                                guint   off = (offset + (i*2));
-                                guint16 val = tvb_get_ntohs(tvb, off);
+                                unsigned   off = (offset + (i*2));
+                                uint16_t val = tvb_get_ntohs(tvb, off);
                                 proto_tree_add_uint_format_value(ua3g_param_tree, hf_ua3g_cs_ip_device_routing_cmd03_parameter_consecutive_bfi, tvb, off,
                                     2, val, "%s: %d", val_to_str_const(i, cs_ip_device_routing_0_9_range_vals, "Unknown"), val);
                             }
                             break;
                         case 0x1F: /* BFI Distribution */
                             for (i = 0; i < parameter_length/2; i++) {
-                                guint   off = (offset + (i*2));
-                                guint16 val = tvb_get_ntohs(tvb, off);
+                                unsigned   off = (offset + (i*2));
+                                uint16_t val = tvb_get_ntohs(tvb, off);
                                 proto_tree_add_uint_format_value(ua3g_param_tree, hf_ua3g_cs_ip_device_routing_cmd03_parameter_bfi_distribution, tvb, off,
                                     2, val, "%s: %d", val_to_str_const(i, cs_ip_device_routing_bfi_distribution_range_vals, "Unknown"), val);
                             }
                             break;
                         case 0x20: /* Jitter Depth Distribution */
                             for (i = 0; i < parameter_length/4; i++) {
-                                guint   off = (offset + (i*4));
-                                guint32 val = tvb_get_ntohs(tvb, off);
+                                unsigned   off = (offset + (i*4));
+                                uint32_t val = tvb_get_ntohs(tvb, off);
                                 proto_tree_add_uint_format_value(ua3g_param_tree, hf_ua3g_cs_ip_device_routing_cmd03_parameter_jitter_depth_distribution, tvb, off,
                                     2, val, "%s: %d", val_to_str_const(i, cs_ip_device_routing_0_9_range_vals, "Unknown"), val);
                             }
@@ -3542,16 +3545,16 @@ decode_cs_ip_device_routing(proto_tree *tree _U_, tvbuff_t *tvb,
                             break;
                         case 0x3D: /* 200 ms BFI Distribution */
                             for (i = 0; i < parameter_length/2; i++) {
-                                guint   off = (offset + (i*2));
-                                guint16 val = tvb_get_ntohs(tvb, off);
+                                unsigned   off = (offset + (i*2));
+                                uint16_t val = tvb_get_ntohs(tvb, off);
                                 proto_tree_add_uint_format_value(ua3g_param_tree, hf_ua3g_cs_ip_device_routing_cmd03_parameter_bfi_distribution_200ms, tvb, off,
                                     2, val, "%s: %d", val_to_str_const(i, cs_ip_device_routing_200ms_bfi_distribution_range_vals, "Unknown"), val);
                             }
                             break;
                         case 0x3E: /* Consecutive RTP Lost */
                             for (i = 0; i < parameter_length/2; i++) {
-                                guint   off = (offset + (i*2));
-                                guint16 val = tvb_get_ntohs(tvb, off);
+                                unsigned   off = (offset + (i*2));
+                                uint16_t val = tvb_get_ntohs(tvb, off);
                                 proto_tree_add_uint_format_value(ua3g_param_tree, hf_ua3g_cs_ip_device_routing_cmd03_parameter_consecutive_rtp_lost, tvb, off,
                                     2, val, "%s: %d", val_to_str_const(i, cs_ip_device_routing_consecutive_rtp_lost_range_vals, "Unknown"), val);
                             }
@@ -3658,6 +3661,7 @@ static const value_string str_unsolicited_msg_hard_config_ram[] = {
     {0, NULL}
 };
 
+/* TODO: these values are clearly wrong - needs to fit into 2 bits */
 static const value_string str_unsolicited_msg_subtype[] = {
     {0x03, "2x40"},
     {0x04, "1x20"},
@@ -3682,6 +3686,8 @@ static const value_string str_unsolicited_msg_hard_design[] = {
     {0x06, "Alpha"},
     {0, NULL}
 };
+
+/* TODO: these values are clearly wrong - needs to fit into 2 bits */
 static const value_string str_unsolicited_msg_hard_subtype[] = {
     {0x06, "2x40"},
     {0x07, "1x20"},
@@ -3691,12 +3697,12 @@ static const value_string str_unsolicited_msg_hard_subtype[] = {
 
 static void
 decode_unsolicited_msg(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
-               guint offset, guint length, guint8 opcode)
+               unsigned offset, unsigned length, uint8_t opcode)
 {
-    guint8      command;
+    uint8_t     command;
     proto_tree *ua3g_body_tree = tree, *ua3g_param_tree;
 
-    command = tvb_get_guint8(tvb, offset);
+    command = tvb_get_uint8(tvb, offset);
 
     if (opcode != 0x21) {
         /* add text to the frame "INFO" column */
@@ -3731,7 +3737,7 @@ decode_unsolicited_msg(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
                 length--;
             }
 
-            vta_type = tvb_get_guint8(tvb, offset);
+            vta_type = tvb_get_uint8(tvb, offset);
 
             proto_tree_add_item(ua3g_body_tree, hf_ua3g_unsolicited_msg_vta_type, tvb, offset, 1, ENC_BIG_ENDIAN);
             offset++;
@@ -3775,7 +3781,7 @@ decode_unsolicited_msg(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
                 }
             default:
                 {
-                    link = tvb_get_guint8(tvb, offset);
+                    link = tvb_get_uint8(tvb, offset);
                     proto_tree_add_item(ua3g_body_tree, hf_ua3g_unsolicited_msg_other_information_1, tvb, offset, 1, ENC_BIG_ENDIAN);
                     offset++;
                     length--;
@@ -3851,7 +3857,7 @@ decode_unsolicited_msg(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
                                 }
 
                                 if (length >= 1) {
-                                    int * const capability_info[] = {
+                                    static int * const capability_info[] = {
                                         &hf_ua3g_unsolicited_msg_capability_info_vpn,
                                         &hf_ua3g_unsolicited_msg_capability_info_ipsec,
                                         &hf_ua3g_unsolicited_msg_capability_info_dtls,
@@ -3926,7 +3932,7 @@ decode_unsolicited_msg(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo,
     ---------------------------------------------------------------------------*/
 static void
 decode_key_number(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
-          guint offset, guint length)
+          unsigned offset, unsigned length)
 {
 #if 0
     proto_tree *ua3g_body_tree;
@@ -3944,8 +3950,8 @@ decode_key_number(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
 
     if (length > 0) {
         proto_tree_add_uint_format_value(tree, hf_ua3g_key_number, tvb, offset, 1,
-            tvb_get_guint8(tvb, offset), "Row %d, Column %d",
-            (tvb_get_guint8(tvb, offset) & 0xF0), (tvb_get_guint8(tvb, offset) & 0x0F));
+            tvb_get_uint8(tvb, offset), "Row %d, Column %d",
+            (tvb_get_uint8(tvb, offset) & 0xF0), (tvb_get_uint8(tvb, offset) & 0x0F));
     }
 }
 
@@ -3954,7 +3960,7 @@ decode_key_number(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
     I'M HERE - 22h - Only for UA NOE (MESSAGE FROM THE TERMINAL)
     ---------------------------------------------------------------------------*/
 static void
-decode_i_m_here(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_, guint offset)
+decode_i_m_here(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_, unsigned offset)
 {
     proto_tree_add_item(tree, hf_ua3g_i_m_here_id_code, tvb, offset, 1, ENC_BIG_ENDIAN);
 }
@@ -3970,7 +3976,7 @@ static const true_false_string tfs_released_pressed = { "Released", "Pressed" };
 
 static void
 decode_special_key(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
-           guint offset, guint8 opcode)
+           unsigned offset, uint8_t opcode)
 {
     static int * const special_keys[] = {
         &hf_ua3g_special_key_shift,
@@ -3999,13 +4005,13 @@ decode_special_key(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo _U_,
     ---------------------------------------------------------------------------*/
 static void
 decode_subdevice_state(proto_tree *tree, tvbuff_t *tvb,
-               packet_info *pinfo _U_, guint offset)
+               packet_info *pinfo _U_, unsigned offset)
 {
-    guint8      info;
+    uint8_t     info;
     int         i;
 
     for (i = 0; i <= 7; i++) {
-        info = tvb_get_guint8(tvb, offset);
+        info = tvb_get_uint8(tvb, offset);
         proto_tree_add_uint_format(tree, hf_ua3g_subdevice_state, tvb, offset, 1,
             info & 0x0F, "Subdevice %d State: %d",
             i, info & 0x0F);
@@ -4024,12 +4030,12 @@ decode_subdevice_state(proto_tree *tree, tvbuff_t *tvb,
 static int
 dissect_ua3g(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    gint              offset         = 0;
+    int               offset         = 0;
     proto_item       *ua3g_item;
     proto_tree       *ua3g_tree, *ua3g_body_tree;
-    gint              length;
-    guint8            opcode;
-    const gchar*      opcode_str;
+    int               length;
+    uint8_t           opcode;
+    const char*      opcode_str;
     e_ua_direction   *message_direction;
 
     /* Reject the packet if data is NULL */
@@ -4050,7 +4056,7 @@ dissect_ua3g(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     offset += 2;
 
     /* Opcode of the UA Message */
-    opcode = tvb_get_guint8(tvb, offset);
+    opcode = tvb_get_uint8(tvb, offset);
     if (opcode != 0x9f)
         opcode = (opcode & 0x7f);
 
@@ -4499,7 +4505,7 @@ proto_register_ua3g(void)
         },
         { &hf_ua3g_command_sidetone,
             { "Sidetone", "ua3g.command.sidetone",
-            FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x00,
+            FT_BOOLEAN, BASE_NONE, TFS(&tfs_on_off), 0x00,
             NULL, HFILL }
         },
         { &hf_ua3g_command_mute,
@@ -4509,7 +4515,7 @@ proto_register_ua3g(void)
         },
         { &hf_ua3g_command_feedback,
             { "Feedback", "ua3g.command.feedback",
-            FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x00,
+            FT_BOOLEAN, BASE_NONE, TFS(&tfs_on_off), 0x00,
             NULL, HFILL }
         },
         { &hf_ua3g_command_audio_config,
@@ -4519,27 +4525,27 @@ proto_register_ua3g(void)
         },
         { &hf_ua3g_command_key_release,
             { "Key Release", "ua3g.command.key_release",
-            FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x00,
+            FT_BOOLEAN, BASE_NONE, TFS(&tfs_on_off), 0x00,
             NULL, HFILL }
         },
         { &hf_ua3g_command_amplified_handset,
             { "Amplified Handset (Boost)", "ua3g.command.amplified_handset",
-            FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x00,
+            FT_BOOLEAN, BASE_NONE, TFS(&tfs_on_off), 0x00,
             NULL, HFILL }
         },
         { &hf_ua3g_command_loudspeaker,
             { "Loudspeaker", "ua3g.command.loudspeaker",
-            FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x00,
+            FT_BOOLEAN, BASE_NONE, TFS(&tfs_on_off), 0x00,
             NULL, HFILL }
         },
         { &hf_ua3g_command_announce,
             { "Announce", "ua3g.command.announce",
-            FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x00,
+            FT_BOOLEAN, BASE_NONE, TFS(&tfs_on_off), 0x00,
             NULL, HFILL }
         },
         { &hf_ua3g_command_ring,
             { "Ring", "ua3g.command.ring",
-            FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x00,
+            FT_BOOLEAN, BASE_NONE, TFS(&tfs_on_off), 0x00,
             NULL, HFILL }
         },
         { &hf_ua3g_command_ua_dwl_protocol,
@@ -4657,7 +4663,7 @@ proto_register_ua3g(void)
         { &hf_ua3g_ringing_cadence_on_off, { "On / Off", "ua3g.ringing_cadence.on_off", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x80, NULL, HFILL }},
         { &hf_ua3g_ringing_cadence_length, { "Length (ms)", "ua3g.ringing_cadence.length", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_feedback_level, { "Level (dB)", "ua3g.command.feedback.level", FT_INT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-        { &hf_ua3g_feedback_duration, { "Duration", "ua3g.command.feedback.duration", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_milliseconds, 0x0, NULL, HFILL }},
+        { &hf_ua3g_feedback_duration, { "Duration", "ua3g.command.feedback.duration", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0, NULL, HFILL }},
         { &hf_ua3g_r_w_peripheral_address, { "Address", "ua3g.r_w_peripheral.address", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_r_w_peripheral_content, { "Content", "ua3g.r_w_peripheral.content", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_icon_cmd_icon_number, { "Icon Number", "ua3g.icon_cmd.icon_number", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
@@ -4714,10 +4720,10 @@ proto_register_ua3g(void)
         { &hf_ua3g_unsolicited_msg_opcode_of_bad_command, { "Opcode Of Bad Command", "ua3g.unsolicited_msg.opcode_of_bad_command", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_unsolicited_msg_next_byte_of_bad_command, { "Next Byte Of Bad Command", "ua3g.unsolicited_msg.next_byte_of_bad_command", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_unsolicited_msg_subdevice_address, { "Subdevice Address", "ua3g.unsolicited_msg.subdevice_address", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-        { &hf_ua3g_unsolicited_msg_segment_failure_t, { "T", "ua3g.unsolicited_msg.segment_failure.t", FT_BOOLEAN, 8, NULL, 0x0, NULL, HFILL }},
-        { &hf_ua3g_unsolicited_msg_segment_failure_num, { "Num", "ua3g.unsolicited_msg.segment_failurenum", FT_BOOLEAN, 8, NULL, 0x0, NULL, HFILL }},
-        { &hf_ua3g_unsolicited_msg_segment_failure_s, { "/S", "ua3g.unsolicited_msg.segment_failure.s", FT_BOOLEAN, 8, NULL, 0x0, NULL, HFILL }},
-        { &hf_ua3g_unsolicited_msg_segment_failure_l, { "L", "ua3g.unsolicited_msg.segment_failure.l", FT_BOOLEAN, 8, NULL, 0x0, NULL, HFILL }},
+        { &hf_ua3g_unsolicited_msg_segment_failure_t, { "T", "ua3g.unsolicited_msg.segment_failure.t", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_ua3g_unsolicited_msg_segment_failure_num, { "Num", "ua3g.unsolicited_msg.segment_failurenum", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_ua3g_unsolicited_msg_segment_failure_s, { "/S", "ua3g.unsolicited_msg.segment_failure.s", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_ua3g_unsolicited_msg_segment_failure_l, { "L", "ua3g.unsolicited_msg.segment_failure.l", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_unsolicited_msg_opcode_bad_segment, { "Opcode Bad Segment", "ua3g.unsolicited_msg.opcode_bad_segment", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_unsolicited_msg_next_byte_of_bad_segment, { "Next Byte Of Bad Segment", "ua3g.unsolicited_msg.next_byte_of_bad_segment", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_unsolicited_msg_device_event, { "Device Event", "ua3g.unsolicited_msg.device_event", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
@@ -4882,13 +4888,13 @@ proto_register_ua3g(void)
         { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_type_of_equip, { "Type Of Equipment", "ua3g.ip.cs.cmd03.parameter.type_of_equip", FT_UINT16, BASE_HEX, VALS(cs_ip_device_routing_cmd03_type_of_equip_vals), 0x0, NULL, HFILL }},
         { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_firmware_version, { "Firmware Version", "ua3g.ip.cs.cmd03.parameter.firmware_version", FT_UINT16, BASE_CUSTOM, CF_FUNC(version_number_computer), 0x0, NULL, HFILL }},
         { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_codec, { "Codec", "ua3g.ip.cs.cmd03.parameter.codec", FT_UINT8, BASE_HEX, VALS(str_cs_ip_device_routing_0F_compressor), 0x0, NULL, HFILL }},
-        { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_vad, { "VAD", "ua3g.ip.cs.cmd03.parameter.vad", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x0, NULL, HFILL }},
-        { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_ece, { "ECE", "ua3g.ip.cs.cmd03.parameter.ece", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x0, NULL, HFILL }},
+        { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_vad, { "VAD", "ua3g.ip.cs.cmd03.parameter.vad", FT_BOOLEAN, BASE_NONE, TFS(&tfs_on_off), 0x0, NULL, HFILL }},
+        { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_ece, { "ECE", "ua3g.ip.cs.cmd03.parameter.ece", FT_BOOLEAN, BASE_NONE, TFS(&tfs_on_off), 0x0, NULL, HFILL }},
         { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_voice_mode, { "Voice Mode", "ua3g.ip.cs.cmd03.parameter.voice_mode", FT_UINT8, BASE_HEX, VALS(cs_ip_device_routing_cmd03_voice_mode_vals), 0x0, NULL, HFILL }},
         { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_delay_distribution, { "Delay Distribution", "ua3g.ip.cs.cmd03.parameter.delay_distribution", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_consecutive_bfi, { "Consecutive BFI", "ua3g.ip.cs.cmd03.parameter.consecutive_bfi", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_bfi_distribution, { "BFI Distribution", "ua3g.ip.cs.cmd03.parameter.bfi_distribution", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-        { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_8021Q_used, { "802.1 Q Used", "ua3g.ip.cs.cmd03.parameter.8021Q_used", FT_BOOLEAN, 8, NULL, 0x0, NULL, HFILL }},
+        { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_8021Q_used, { "802.1 Q Used", "ua3g.ip.cs.cmd03.parameter.8021Q_used", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_8021P_priority, { "802.1p Priority", "ua3g.ip.cs.cmd03.parameter.8021P_priority", FT_UINT8, BASE_DEC, NULL, 0x07, NULL, HFILL }},
         { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_vlan_id, { "VLAN Id", "ua3g.ip.cs.cmd03.parameter.vlan_id", FT_UINT16, BASE_DEC, NULL, 0x0FFF, NULL, HFILL }},
         { &hf_ua3g_cs_ip_device_routing_cmd03_parameter_diffserv, { "DiffServ", "ua3g.ip.cs.cmd03.parameter.diffserv", FT_UINT8, BASE_DEC, NULL, 0xFC, NULL, HFILL }},
@@ -4918,7 +4924,7 @@ proto_register_ua3g(void)
         { &hf_ua3g_device_configuration, { "Device Configuration", "ua3g.device_configuration", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] =
+    static int *ett[] =
     {
         &ett_ua3g,
         &ett_ua3g_body,

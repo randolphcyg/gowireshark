@@ -14,8 +14,8 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/exceptions.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 
 #include "packet-tcp.h"
 
@@ -25,88 +25,88 @@ void proto_reg_handoff_dlsw(void);
 static dissector_handle_t dlsw_udp_handle;
 static dissector_handle_t dlsw_tcp_handle;
 
-static int proto_dlsw = -1;
-static int hf_dlsw_flow_control_indication = -1;
-static int hf_dlsw_flow_control_ack = -1;
-static int hf_dlsw_flow_control_operator = -1;
-static int hf_dlsw_flags_explorer_msg = -1;
+static int proto_dlsw;
+static int hf_dlsw_flow_control_indication;
+static int hf_dlsw_flow_control_ack;
+static int hf_dlsw_flow_control_operator;
+static int hf_dlsw_flags_explorer_msg;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_dlsw_vector_length = -1;
-static int hf_dlsw_dlc_header_sa = -1;
-static int hf_dlsw_dlc_header_fc_byte = -1;
-static int hf_dlsw_target_transport_id = -1;
-static int hf_dlsw_error_pointer = -1;
-static int hf_dlsw_capabilities_length = -1;
-static int hf_dlsw_multicast_version_number = -1;
-static int hf_dlsw_frame_direction = -1;
-static int hf_dlsw_circuit_priority = -1;
-static int hf_dlsw_origin_dlc_port_id = -1;
-static int hf_dlsw_protocol_id = -1;
-static int hf_dlsw_mac_address_list = -1;
-static int hf_dlsw_origin_link_sap = -1;
-static int hf_dlsw_header_length = -1;
-static int hf_dlsw_dlc_header_ctrl = -1;
-static int hf_dlsw_target_dlc_port_id = -1;
-static int hf_dlsw_vector_type = -1;
-static int hf_dlsw_largest_frame_size = -1;
-static int hf_dlsw_error_cause = -1;
-static int hf_dlsw_dlc_header_length = -1;
-static int hf_dlsw_oui = -1;
-static int hf_dlsw_target_dlc = -1;
-static int hf_dlsw_dlc_header_ac_byte = -1;
-static int hf_dlsw_tcp_connections = -1;
-static int hf_dlsw_initial_pacing_window = -1;
-static int hf_dlsw_old_message_type = -1;
-static int hf_dlsw_capex_type = -1;
-static int hf_dlsw_ssp_flags = -1;
-static int hf_dlsw_target_mac_address = -1;
-static int hf_dlsw_origin_mac_address = -1;
-static int hf_dlsw_dlc_header_rif = -1;
-static int hf_dlsw_message_type = -1;
-static int hf_dlsw_header_number = -1;
-static int hf_dlsw_message_length = -1;
-static int hf_dlsw_remote_dlc_pid = -1;
-static int hf_dlsw_vendor_oui = -1;
-static int hf_dlsw_flow_ctrl_byte = -1;
-static int hf_dlsw_version = -1;
-static int hf_dlsw_version_string = -1;
-static int hf_dlsw_dlsw_version = -1;
-static int hf_dlsw_remote_dlc = -1;
-static int hf_dlsw_origin_dlc = -1;
-static int hf_dlsw_origin_transport_id = -1;
-static int hf_dlsw_dlc_header_ssap = -1;
-static int hf_dlsw_target_link_sap = -1;
-static int hf_dlsw_dlc_header_da = -1;
-static int hf_dlsw_netbios_name = -1;
-static int hf_dlsw_dlc_header_dsap = -1;
-static int hf_dlsw_reserved = -1;
-static int hf_dlsw_data = -1;
-static int hf_dlsw_vector_data = -1;
-static int hf_dlsw_unknown_data = -1;
-static int hf_dlsw_mac_address_exclusivity = -1;
-static int hf_dlsw_netbios_name_exclusivity = -1;
-static int hf_dlsw_gds_id = -1;
-static int hf_dlsw_sap_list_support = -1;
-static int hf_dlsw_sap_list_support_x0 = -1;
-static int hf_dlsw_sap_list_support_x2 = -1;
-static int hf_dlsw_sap_list_support_x4 = -1;
-static int hf_dlsw_sap_list_support_x6 = -1;
-static int hf_dlsw_sap_list_support_x8 = -1;
-static int hf_dlsw_sap_list_support_xA = -1;
-static int hf_dlsw_sap_list_support_xC = -1;
-static int hf_dlsw_sap_list_support_xE = -1;
+static int hf_dlsw_vector_length;
+static int hf_dlsw_dlc_header_sa;
+static int hf_dlsw_dlc_header_fc_byte;
+static int hf_dlsw_target_transport_id;
+static int hf_dlsw_error_pointer;
+static int hf_dlsw_capabilities_length;
+static int hf_dlsw_multicast_version_number;
+static int hf_dlsw_frame_direction;
+static int hf_dlsw_circuit_priority;
+static int hf_dlsw_origin_dlc_port_id;
+static int hf_dlsw_protocol_id;
+static int hf_dlsw_mac_address_list;
+static int hf_dlsw_origin_link_sap;
+static int hf_dlsw_header_length;
+static int hf_dlsw_dlc_header_ctrl;
+static int hf_dlsw_target_dlc_port_id;
+static int hf_dlsw_vector_type;
+static int hf_dlsw_largest_frame_size;
+static int hf_dlsw_error_cause;
+static int hf_dlsw_dlc_header_length;
+static int hf_dlsw_oui;
+static int hf_dlsw_target_dlc;
+static int hf_dlsw_dlc_header_ac_byte;
+static int hf_dlsw_tcp_connections;
+static int hf_dlsw_initial_pacing_window;
+static int hf_dlsw_old_message_type;
+static int hf_dlsw_capex_type;
+static int hf_dlsw_ssp_flags;
+static int hf_dlsw_target_mac_address;
+static int hf_dlsw_origin_mac_address;
+static int hf_dlsw_dlc_header_rif;
+static int hf_dlsw_message_type;
+static int hf_dlsw_header_number;
+static int hf_dlsw_message_length;
+static int hf_dlsw_remote_dlc_pid;
+static int hf_dlsw_vendor_oui;
+static int hf_dlsw_flow_ctrl_byte;
+static int hf_dlsw_version;
+static int hf_dlsw_version_string;
+static int hf_dlsw_dlsw_version;
+static int hf_dlsw_remote_dlc;
+static int hf_dlsw_origin_dlc;
+static int hf_dlsw_origin_transport_id;
+static int hf_dlsw_dlc_header_ssap;
+static int hf_dlsw_target_link_sap;
+static int hf_dlsw_dlc_header_da;
+static int hf_dlsw_netbios_name;
+static int hf_dlsw_dlc_header_dsap;
+static int hf_dlsw_reserved;
+static int hf_dlsw_data;
+static int hf_dlsw_vector_data;
+static int hf_dlsw_unknown_data;
+static int hf_dlsw_mac_address_exclusivity;
+static int hf_dlsw_netbios_name_exclusivity;
+static int hf_dlsw_gds_id;
+static int hf_dlsw_sap_list_support;
+static int hf_dlsw_sap_list_support_x0;
+static int hf_dlsw_sap_list_support_x2;
+static int hf_dlsw_sap_list_support_x4;
+static int hf_dlsw_sap_list_support_x6;
+static int hf_dlsw_sap_list_support_x8;
+static int hf_dlsw_sap_list_support_xA;
+static int hf_dlsw_sap_list_support_xC;
+static int hf_dlsw_sap_list_support_xE;
 
-static gint ett_dlsw = -1;
-static gint ett_dlsw_header = -1;
-static gint ett_dlsw_fc = -1;
-static gint ett_dlsw_sspflags = -1;
-static gint ett_dlsw_data = -1;
-static gint ett_dlsw_vector = -1;
-static gint ett_dlsw_sap_list_support = -1;
+static int ett_dlsw;
+static int ett_dlsw_header;
+static int ett_dlsw_fc;
+static int ett_dlsw_sspflags;
+static int ett_dlsw_data;
+static int ett_dlsw_vector;
+static int ett_dlsw_sap_list_support;
 
-static expert_field ei_dlsw_dlc_header_length = EI_INIT;
-static expert_field ei_dlsw_not_used_for_capex = EI_INIT;
-static expert_field ei_dlsw_vec_len_invalid = EI_INIT;
+static expert_field ei_dlsw_dlc_header_length;
+static expert_field ei_dlsw_not_used_for_capex;
+static expert_field ei_dlsw_vec_len_invalid;
 
 #define  CANUREACH               0x03
 #define  ICANREACH               0x04
@@ -220,12 +220,12 @@ static const value_string dlsw_vector_vals[] = {
   { 0x8e        , "Reserved for future use" },
   { 0x8f        , "Reserved for future use" },
   { 0x90        , "Reserved for future use" },
-  { 0x91        , " Control Vector" },
-  { 0x92        , " Control Vector" },
-  { 0x93        , " Control Vector" },
-  { 0x94        , " Control Vector" },
-  { 0x95        , " Control Vector" },
-  { 0x96        , " Control Vector" },
+  { 0x91        , "Control Vector" },
+  { 0x92        , "Control Vector" },
+  { 0x93        , "Control Vector" },
+  { 0x94        , "Control Vector" },
+  { 0x95        , "Control Vector" },
+  { 0x96        , "Control Vector" },
   { 0x00        , NULL }
 };
 
@@ -283,21 +283,21 @@ dissect_dlsw_capex(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tr
 static int
 dissect_dlsw_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  guint version,hlen = 0,mlen = 0,mtype,dlchlen = 0,flags;
+  unsigned version,hlen = 0,mlen = 0,mtype,dlchlen = 0,flags;
   proto_tree      *dlsw_tree, *dlsw_header_tree = NULL;
   proto_item      *ti,*ti2;
   proto_tree      *dlsw_flags_tree,*dlsw_data_tree;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "DLSw");
 
-  version=tvb_get_guint8(tvb,0);
+  version=tvb_get_uint8(tvb,0);
 
   col_add_fstr(pinfo->cinfo, COL_INFO, "DLSw %s",val_to_str_const(version , dlsw_version_vals, "Unknown Version"));
 
   ti = proto_tree_add_item(tree, proto_dlsw, tvb, 0, -1, ENC_NA);
   dlsw_tree = proto_item_add_subtree(ti, ett_dlsw);
 
-  hlen=tvb_get_guint8(tvb,1);
+  hlen=tvb_get_uint8(tvb,1);
 
   dlsw_header_tree = proto_tree_add_subtree_format(dlsw_tree, tvb, 0, hlen, ett_dlsw_header, NULL,
       "DLSw header, %s",
@@ -311,7 +311,7 @@ dissect_dlsw_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
   proto_tree_add_item(dlsw_header_tree, hf_dlsw_remote_dlc_pid, tvb, 8, 4, ENC_BIG_ENDIAN);
   proto_tree_add_item(dlsw_header_tree, hf_dlsw_reserved, tvb, 12, 2, ENC_NA) ;
 
-  mtype=tvb_get_guint8(tvb,14);
+  mtype=tvb_get_uint8(tvb,14);
   col_append_fstr(pinfo->cinfo, COL_INFO, ", %s",val_to_str_const(mtype , dlsw_type_vals, "Unknown message Type"));
 
   proto_tree_add_item(dlsw_header_tree, hf_dlsw_message_type, tvb, 14, 1, ENC_BIG_ENDIAN);
@@ -321,7 +321,7 @@ dissect_dlsw_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
   }
   else
   {
-    flags = tvb_get_guint8(tvb,15);
+    flags = tvb_get_uint8(tvb,15);
     ti2 = proto_tree_add_item(dlsw_header_tree, hf_dlsw_flow_ctrl_byte, tvb, 15, 1, ENC_BIG_ENDIAN);
     dlsw_flags_tree = proto_item_add_subtree(ti2, ett_dlsw_fc);
     proto_tree_add_item(dlsw_flags_tree, hf_dlsw_flow_control_indication, tvb, 15, 1, ENC_BIG_ENDIAN);
@@ -412,17 +412,17 @@ dissect_dlsw_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 }
 
 static void
-dlsw_fmt_version( gchar *result, guint32 revision )
+dlsw_fmt_version( char *result, uint32_t revision )
 {
-   snprintf( result, ITEM_LABEL_LENGTH, "%d.%02d", (guint8)(( revision & 0xFF00 ) >> 8), (guint8)(revision & 0xFF) );
+   snprintf( result, ITEM_LABEL_LENGTH, "%d.%02d", (uint8_t)(( revision & 0xFF00 ) >> 8), (uint8_t)(revision & 0xFF) );
 }
 
 static void
 dissect_dlsw_capex(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tree *ti2)
 {
   int vlen,vtype,i=0;
-  guint8 tmp8;
-  guint32 gdsid, mlen,offset=4;
+  uint8_t tmp8;
+  uint32_t gdsid, mlen,offset=4;
   proto_tree *dlsw_vector_tree;
   proto_tree_add_item_ret_uint(tree, hf_dlsw_capabilities_length, tvb, 0, 2, ENC_BIG_ENDIAN, &mlen);
   proto_tree_add_item_ret_uint(tree, hf_dlsw_gds_id, tvb, 2, 2, ENC_BIG_ENDIAN, &gdsid);
@@ -436,12 +436,12 @@ dissect_dlsw_capex(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tr
       break;
     case DLSW_GDSID_SEND:
       while (offset < mlen){
-        vlen=tvb_get_guint8(tvb,offset);
+        vlen=tvb_get_uint8(tvb,offset);
         if (vlen < 3) {
           proto_tree_add_expert(tree, pinfo, &ei_dlsw_vec_len_invalid, tvb, offset, 1);
           return;
         }
-        vtype=tvb_get_guint8(tvb,offset+1);
+        vtype=tvb_get_uint8(tvb,offset+1);
         dlsw_vector_tree=proto_tree_add_subtree (tree,tvb,offset,vlen,ett_dlsw_vector,NULL,
                                 val_to_str_const(vtype,dlsw_vector_vals,"Unknown vector type"));
         proto_tree_add_item(dlsw_vector_tree, hf_dlsw_vector_length, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -460,7 +460,7 @@ dissect_dlsw_capex(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tr
             proto_tree_add_item(dlsw_vector_tree, hf_dlsw_version_string, tvb, offset+2, vlen-2, ENC_NA|ENC_ASCII);
             break;
           case 0x85:
-            tmp8 = tvb_get_guint8(tvb,offset+2);
+            tmp8 = tvb_get_uint8(tvb,offset+2);
             proto_tree_add_uint_format_value(dlsw_vector_tree, hf_dlsw_mac_address_exclusivity, tvb,offset+2, 1,
                                  tmp8, "%s",tmp8==1?"On":"Off");
             break;
@@ -487,7 +487,7 @@ dissect_dlsw_capex(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tr
             proto_tree_add_item(dlsw_vector_tree, hf_dlsw_tcp_connections, tvb, offset+2, vlen-2, ENC_BIG_ENDIAN);
             break;
           case 0x88:
-            tmp8 = tvb_get_guint8(tvb,offset+2);
+            tmp8 = tvb_get_uint8(tvb,offset+2);
             proto_tree_add_uint_format_value(dlsw_vector_tree, hf_dlsw_netbios_name_exclusivity, tvb,offset+2,1,
                                  tmp8, "%s", tmp8==1?"On":"Off");
             break;
@@ -519,7 +519,7 @@ dissect_dlsw_capex(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tr
 static int
 dissect_dlsw_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-  if (try_val_to_str(tvb_get_guint8(tvb, 0), dlsw_version_vals) == NULL)
+  if (try_val_to_str(tvb_get_uint8(tvb, 0), dlsw_version_vals) == NULL)
   {
     /* Probably not a DLSw packet. */
     return 0;
@@ -528,15 +528,15 @@ dissect_dlsw_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
   return dissect_dlsw_pdu(tvb, pinfo, tree, data);
 }
 
-static guint
+static unsigned
 get_dlsw_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-  guint hlen, mlen;
+  unsigned hlen, mlen;
 
   /*
    * Get the length of the DLSw header.
    */
-  hlen=tvb_get_guint8(tvb,offset+1);
+  hlen=tvb_get_uint8(tvb,offset+1);
 
   /*
    * Get the length of the DLSw message.
@@ -552,13 +552,13 @@ get_dlsw_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _
 static int
 dissect_dlsw_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-  if (try_val_to_str(tvb_get_guint8(tvb, 0), dlsw_version_vals) == NULL)
+  if (try_val_to_str(tvb_get_uint8(tvb, 0), dlsw_version_vals) == NULL)
   {
     /* Probably not a DLSw packet. */
     return 0;
   }
 
-  tcp_dissect_pdus(tvb, pinfo, tree, TRUE, 4, get_dlsw_pdu_len, dissect_dlsw_pdu, data);
+  tcp_dissect_pdus(tvb, pinfo, tree, true, 4, get_dlsw_pdu_len, dissect_dlsw_pdu, data);
   return tvb_captured_length(tvb);
 }
 
@@ -645,7 +645,7 @@ proto_register_dlsw(void)
     { &hf_dlsw_sap_list_support_xE, { "xE", "dlsw.sap_list_support.xE", FT_BOOLEAN, 8, TFS(&tfs_on_off), 0x01, NULL, HFILL }},
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_dlsw,
     &ett_dlsw_header,
     &ett_dlsw_fc,

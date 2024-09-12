@@ -23,49 +23,49 @@ void proto_register_v150fw(void);
 /* Initialize the protocol & registered fields
  * Look familiar?  This is in the same format as an NTE (named telephone event) from RFC 2833:
  */
-static int proto_v150fw =                   -1;
+static int proto_v150fw;
 
-static int hf_v150fw_event_id =             -1; /* 6 bits */
-static int hf_v150fw_force_response_bit =   -1;
-static int hf_v150fw_extension_bit =        -1;
+static int hf_v150fw_event_id; /* 6 bits */
+static int hf_v150fw_force_response_bit;
+static int hf_v150fw_extension_bit;
 
-static int hf_v150fw_reason_id_code =                       -1; /* value & string */
+static int hf_v150fw_reason_id_code; /* value & string */
 
-static int hf_v150fw_reason_id_code_info =                  -1; /* 16 bits */
+static int hf_v150fw_reason_id_code_info; /* 16 bits */
 
-static int hf_v150fw_ric_info_mod_avail =                   -1; /* ric = 1,2 */
-static int hf_v150fw_cm_jm_mod_avail_pcm_mode =             -1;
-static int hf_v150fw_cm_jm_mod_avail_v34_duplex =           -1;
-static int hf_v150fw_cm_jm_mod_avail_v34_half_duplex =      -1;
-static int hf_v150fw_cm_jm_mod_avail_v32_v32bis =           -1;
-static int hf_v150fw_cm_jm_mod_avail_v22_v22bis =           -1;
-static int hf_v150fw_cm_jm_mod_avail_v17 =                  -1;
-static int hf_v150fw_cm_jm_mod_avail_v29_half_duplex =      -1;
-static int hf_v150fw_cm_jm_mod_avail_v27ter =               -1;
-static int hf_v150fw_cm_jm_mod_avail_v26ter =               -1;
-static int hf_v150fw_cm_jm_mod_avail_v26bis =               -1;
-static int hf_v150fw_cm_jm_mod_avail_v23_duplex =           -1;
-static int hf_v150fw_cm_jm_mod_avail_v23_half_duplex =      -1;
-static int hf_v150fw_cm_jm_mod_avail_v21 =                  -1;
-static int hf_v150fw_cm_jm_mod_avail_v90_or_v92_analog =    -1;
-static int hf_v150fw_cm_jm_mod_avail_v90_or_v92_digital =   -1;
-static int hf_v150fw_cm_jm_mod_avail_v91 =                  -1;
+static int hf_v150fw_ric_info_mod_avail; /* ric = 1,2 */
+static int hf_v150fw_cm_jm_mod_avail_pcm_mode;
+static int hf_v150fw_cm_jm_mod_avail_v34_duplex;
+static int hf_v150fw_cm_jm_mod_avail_v34_half_duplex;
+static int hf_v150fw_cm_jm_mod_avail_v32_v32bis;
+static int hf_v150fw_cm_jm_mod_avail_v22_v22bis;
+static int hf_v150fw_cm_jm_mod_avail_v17;
+static int hf_v150fw_cm_jm_mod_avail_v29_half_duplex;
+static int hf_v150fw_cm_jm_mod_avail_v27ter;
+static int hf_v150fw_cm_jm_mod_avail_v26ter;
+static int hf_v150fw_cm_jm_mod_avail_v26bis;
+static int hf_v150fw_cm_jm_mod_avail_v23_duplex;
+static int hf_v150fw_cm_jm_mod_avail_v23_half_duplex;
+static int hf_v150fw_cm_jm_mod_avail_v21;
+static int hf_v150fw_cm_jm_mod_avail_v90_or_v92_analog;
+static int hf_v150fw_cm_jm_mod_avail_v90_or_v92_digital;
+static int hf_v150fw_cm_jm_mod_avail_v91;
 
-static int hf_v150fw_ric_info_timeout =                     -1; /* ric= 18 */
-static int hf_v150fw_ric_info_timeout_vendor =              -1;
+static int hf_v150fw_ric_info_timeout; /* ric= 18 */
+static int hf_v150fw_ric_info_timeout_vendor;
 
-static int hf_v150fw_ric_info_cleardown =                   -1; /* ric = 20 */
-static int hf_v150fw_ric_info_cleardown_reserved =          -1;
-static int hf_v150fw_ric_info_cleardown_vendor_tag =        -1; /* extension fields */
-static int hf_v150fw_ric_info_cleardown_vendor_info =       -1;
+static int hf_v150fw_ric_info_cleardown; /* ric = 20 */
+static int hf_v150fw_ric_info_cleardown_reserved;
+static int hf_v150fw_ric_info_cleardown_vendor_tag; /* extension fields */
+static int hf_v150fw_ric_info_cleardown_vendor_info;
 
-static int hf_v150fw_reserved =             -1; /* 5 bits */
-static int hf_v150fw_extension_len =        -1; /* 11 bits */
-static int hf_v150fw_remainder =            -1;
+static int hf_v150fw_reserved; /* 5 bits */
+static int hf_v150fw_extension_len; /* 11 bits */
+static int hf_v150fw_remainder;
 
 /* initialize the subtree pointers */
-static gint ett_v150fw = -1;
-static gint ett_available_modulations = -1;
+static int ett_v150fw;
+static int ett_available_modulations;
 
 /* for some "range_string"s, there's only one value in the range  */
 #define V150FW_VALUE_RANGE(a) a,a
@@ -236,56 +236,56 @@ static const value_string v150fw_ric_info_cleardown_type[] = {
 
 
 #if 0 /* XXX: The following doesn't actually dissect anything. Is dissect_v150fw() supposed to be called ? */
-static gboolean
+static bool
 dissect_v150fw_heur(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_)
 {
-    guint8 octet1;
-    guint8 extb, ric;
-    guint16 ric_info;
-    gint payload_length = tvb_captured_length(tvb);
+    uint8_t octet1;
+    uint8_t extb, ric;
+    uint16_t ric_info;
+    int payload_length = tvb_captured_length(tvb);
     unsigned int offset = 0;
 
     /* see appendix C (State Signalling Events) in ITU-T Rec. V.150.1 for details */
 
     /* Get the fields */
-    octet1 = tvb_get_guint8(tvb, offset);
+    octet1 = tvb_get_uint8(tvb, offset);
     extb = octet1 & 0x01;
-    ric = tvb_get_guint8(tvb, offset + 1) & 0xFF;
+    ric = tvb_get_uint8(tvb, offset + 1) & 0xFF;
 
     ric_info = tvb_get_ntohs(tvb, offset + 2);
 
     /* minimum lengths */
     if(!extb && payload_length <= 4) /* extb is not set, so minimum length is 4 bytes */
-        return FALSE;
+        return false;
     if(extb && payload_length <= 6) /* ext bit is set, but no extension found? */
-        return FALSE;
+        return false;
 
     if(ric == 0 || (ric >= 6 && ric <= 31)) /* values reserved for future use */
-        return FALSE;
+        return false;
 
     switch(ric)
     {
         case 0:
             if(ric_info != 0) /* ric_info must be NULL if ric is NULL */
-                return FALSE;
+                return false;
         case V150FW_RIC_CM:
         case V150FW_RIC_JM:
             if(!extb && payload_length > 4) /* payload too long */
-                return FALSE;
+                return false;
             break;
         case V150FW_RIC_TIMEOUT:
         case V150FW_RIC_CLEARDOWN:
             break;
         default:
             if(ric < 31 && ric_info != 0) /* ric_info is zero unless ric is CM, JM, TIMEOUT ro CLEARDOWN */
-                return FALSE;
+                return false;
             if(ric >= 31 && ric <= 127) /* 31 - 127 are reserved for future use */
-                return FALSE;
+                return false;
             /* 128 - 255 are vendor-specific */
             break;
     }
 
-    return TRUE;
+    return true;
 }
 #endif
 
@@ -295,8 +295,8 @@ dissect_v150fw(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *da
     /* Set up structures needed to add the protocol subtree and manage it */
     proto_item *ti;
     proto_tree *v150fw_tree, *field_tree;
-    guint8 extb, ric;
-    gint payload_length;
+    uint8_t extb, ric;
+    int payload_length;
     unsigned int offset = 0;
 
     if(tree)
@@ -308,8 +308,8 @@ dissect_v150fw(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *da
         payload_length = tvb_reported_length(tvb);
 
         /* Get fields needed for further dissection */
-        extb = tvb_get_guint8(tvb, offset) & 0x01; /* extension bit */
-        ric = tvb_get_guint8(tvb, offset + 1);
+        extb = tvb_get_uint8(tvb, offset) & 0x01; /* extension bit */
+        ric = tvb_get_uint8(tvb, offset + 1);
 
         proto_tree_add_item(v150fw_tree, hf_v150fw_event_id, tvb, offset, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(v150fw_tree, hf_v150fw_force_response_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -764,7 +764,7 @@ proto_register_v150fw(void)
     }; /* hf_register_info hf[] */
 
     /* setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_v150fw,
         &ett_available_modulations
     };

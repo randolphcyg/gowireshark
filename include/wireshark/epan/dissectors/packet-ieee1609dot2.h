@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-ieee1609dot2.h                                                      */
-/* asn2wrs.py -L -p ieee1609dot2 -c ./ieee1609dot2.cnf -s ./packet-ieee1609dot2-template -D . -O ../.. IEEE1609dot2BaseTypes.asn Ieee1609Dot2CrlBaseTypes.asn Ieee1609Dot2Crl.asn Ieee1609Dot2.asn IEEE1609dot12.asn */
+/* asn2wrs.py -q -L -p ieee1609dot2 -c ./ieee1609dot2.cnf -s ./packet-ieee1609dot2-template -D . -O ../.. IEEE1609dot2BaseTypes.asn Ieee1609Dot2CrlBaseTypes.asn Ieee1609Dot2Crl.asn Ieee1609Dot2.asn IEEE1609dot12.asn */
 
 /* packet-IEEE1609dot2.h
  * Routines for IEEE 1609.2
@@ -101,7 +101,7 @@ typedef enum _Psid_enum {
  * structure.
  */
 WS_DLL_PUBLIC
-void ieee1609dot2_set_next_default_psid(packet_info *pinfo, guint32 psid);
+void ieee1609dot2_set_next_default_psid(packet_info *pinfo, uint32_t psid);
 
 WS_DLL_PUBLIC const val64_string ieee1609dot2_Psid_vals[];
 

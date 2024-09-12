@@ -20,192 +20,192 @@
 
 void proto_register_scsi_mmc(void);
 
-static int proto_scsi_mmc = -1;
-int hf_scsi_mmc_opcode = -1;
-static int hf_scsi_mmc_setstreaming_type = -1;
-static int hf_scsi_mmc_setstreaming_param_len = -1;
-static int hf_scsi_mmc_setstreaming_wrc = -1;
-static int hf_scsi_mmc_setstreaming_rdd = -1;
-static int hf_scsi_mmc_setstreaming_exact = -1;
-static int hf_scsi_mmc_setstreaming_ra = -1;
-static int hf_scsi_mmc_setstreaming_start_lba = -1;
-static int hf_scsi_mmc_setstreaming_end_lba = -1;
-static int hf_scsi_mmc_setstreaming_read_size = -1;
-static int hf_scsi_mmc_setstreaming_read_time = -1;
-static int hf_scsi_mmc_setstreaming_write_size = -1;
-static int hf_scsi_mmc_setstreaming_write_time = -1;
-static int hf_scsi_mmc_setcdspeed_rc = -1;
-static int hf_scsi_mmc_rbc_block = -1;
-static int hf_scsi_mmc_rbc_lob_blocks = -1;
-static int hf_scsi_mmc_rbc_alob_blocks = -1;
-static int hf_scsi_mmc_rbc_lob_bytes = -1;
-static int hf_scsi_mmc_rbc_alob_bytes = -1;
-static int hf_scsi_mmc_rti_address_type = -1;
-static int hf_scsi_mmc_rti_damage = -1;
-static int hf_scsi_mmc_rti_copy = -1;
-static int hf_scsi_mmc_rti_track_mode = -1;
-static int hf_scsi_mmc_rti_rt = -1;
-static int hf_scsi_mmc_rti_blank = -1;
-static int hf_scsi_mmc_rti_packet = -1;
-static int hf_scsi_mmc_rti_fp = -1;
-static int hf_scsi_mmc_rti_data_mode = -1;
-static int hf_scsi_mmc_rti_lra_v = -1;
-static int hf_scsi_mmc_rti_nwa_v = -1;
-static int hf_scsi_mmc_report_key_type_code = -1;
-static int hf_scsi_mmc_report_key_vendor_resets = -1;
-static int hf_scsi_mmc_report_key_user_changes = -1;
-static int hf_scsi_mmc_report_key_region_mask = -1;
-static int hf_scsi_mmc_report_key_rpc_scheme = -1;
-static int hf_scsi_mmc_key_class = -1;
-static int hf_scsi_mmc_key_format = -1;
-static int hf_scsi_mmc_disc_info_erasable = -1;
-static int hf_scsi_mmc_disc_info_state_of_last_session = -1;
-static int hf_scsi_mmc_disc_info_disk_status = -1;
-static int hf_scsi_mmc_disc_info_number_of_sessions = -1;
-static int hf_scsi_mmc_disc_info_first_track_in_last_session = -1;
-static int hf_scsi_mmc_disc_info_last_track_in_last_session = -1;
-static int hf_scsi_mmc_disc_info_did_v = -1;
-static int hf_scsi_mmc_disc_info_dbc_v = -1;
-static int hf_scsi_mmc_disc_info_uru = -1;
-static int hf_scsi_mmc_disc_info_dac_v = -1;
-static int hf_scsi_mmc_disc_info_dbit = -1;
-static int hf_scsi_mmc_disc_info_bgfs = -1;
-static int hf_scsi_mmc_disc_info_disc_type = -1;
-static int hf_scsi_mmc_disc_info_disc_identification = -1;
-static int hf_scsi_mmc_disc_info_last_session_lead_in_start_address = -1;
-static int hf_scsi_mmc_disc_info_last_possible_lead_out_start_address = -1;
-static int hf_scsi_mmc_disc_info_disc_bar_code = -1;
-static int hf_scsi_mmc_readtoc_time = -1;
-static int hf_scsi_mmc_readtoc_format = -1;
-static int hf_scsi_mmc_readtoc_first_session = -1;
-static int hf_scsi_mmc_readtoc_last_track = -1;
-static int hf_scsi_mmc_readtoc_last_session = -1;
-static int hf_scsi_mmc_q_subchannel_adr = -1;
-static int hf_scsi_mmc_q_subchannel_control = -1;
-static int hf_scsi_mmc_agid = -1;
-static int hf_scsi_mmc_track = -1;
-static int hf_scsi_mmc_track_size = -1;
-static int hf_scsi_mmc_track_start_address = -1;
-static int hf_scsi_mmc_track_start_time = -1;
-static int hf_scsi_mmc_lba             = -1;
-static int hf_scsi_mmc_session = -1;
-static int hf_scsi_mmc_data_length           = -1;
-static int hf_scsi_mmc_getconf_rt = -1;
-static int hf_scsi_mmc_getconf_starting_feature = -1;
-static int hf_scsi_mmc_getconf_current_profile = -1;
-static int hf_scsi_mmc_feature = -1;
-static int hf_scsi_mmc_feature_version = -1;
-static int hf_scsi_mmc_feature_persistent = -1;
-static int hf_scsi_mmc_feature_current = -1;
-static int hf_scsi_mmc_feature_additional_length = -1;
-static int hf_scsi_mmc_feature_lun_sn = -1;
-static int hf_scsi_mmc_feature_cdread_dap = -1;
-static int hf_scsi_mmc_feature_cdread_c2flag = -1;
-static int hf_scsi_mmc_feature_cdread_cdtext = -1;
-static int hf_scsi_mmc_feature_dvdrw_write = -1;
-static int hf_scsi_mmc_feature_dvdrw_quickstart = -1;
-static int hf_scsi_mmc_feature_dvdrw_closeonly = -1;
-static int hf_scsi_mmc_feature_dvdr_write = -1;
-static int hf_scsi_mmc_feature_tao_buf = -1;
-static int hf_scsi_mmc_feature_tao_rwraw = -1;
-static int hf_scsi_mmc_feature_tao_rwpack = -1;
-static int hf_scsi_mmc_feature_tao_testwrite = -1;
-static int hf_scsi_mmc_feature_tao_cdrw = -1;
-static int hf_scsi_mmc_feature_tao_rwsubcode = -1;
-static int hf_scsi_mmc_feature_dts = -1;
-static int hf_scsi_mmc_feature_sao_buf = -1;
-static int hf_scsi_mmc_feature_sao_sao = -1;
-static int hf_scsi_mmc_feature_sao_rawms = -1;
-static int hf_scsi_mmc_feature_sao_raw = -1;
-static int hf_scsi_mmc_feature_sao_testwrite = -1;
-static int hf_scsi_mmc_feature_sao_cdrw = -1;
-static int hf_scsi_mmc_feature_sao_rw = -1;
-static int hf_scsi_mmc_feature_sao_mcsl = -1;
-static int hf_scsi_mmc_feature_dvdr_buf = -1;
-static int hf_scsi_mmc_feature_dvdr_testwrite = -1;
-static int hf_scsi_mmc_feature_dvdr_dvdrw = -1;
-static int hf_scsi_mmc_feature_profile = -1;
-static int hf_scsi_mmc_feature_profile_current = -1;
-static int hf_scsi_mmc_feature_isw_buf = -1;
-static int hf_scsi_mmc_feature_isw_num_linksize = -1;
-static int hf_scsi_mmc_feature_isw_linksize = -1;
-static int hf_scsi_mmc_read_compatibility_lba             = -1;
-static int hf_scsi_mmc_reservation_size = -1;
-static int hf_scsi_mmc_last_recorded_address = -1;
-static int hf_scsi_mmc_first_track = -1;
-static int hf_scsi_mmc_fixed_packet_size = -1;
-static int hf_scsi_mmc_closetrack_immed = -1;
-static int hf_scsi_mmc_closetrack_func = -1;
-static int hf_scsi_mmc_synccache_immed = -1;
-static int hf_scsi_mmc_synccache_reladr = -1;
-static int hf_scsi_mmc_num_blocks      = -1;
-static int hf_scsi_mmc_next_writable_address = -1;
-static int hf_scsi_mmc_free_blocks = -1;
-static int hf_scsi_mmc_read_dvd_format = -1;
-static int hf_scsi_mmc_disc_book_type = -1;
-static int hf_scsi_mmc_disc_book_version = -1;
-static int hf_scsi_mmc_disc_size_size = -1;
-static int hf_scsi_mmc_disc_size_rate = -1;
-static int hf_scsi_mmc_disc_num_layers = -1;
-static int hf_scsi_mmc_disc_track_path = -1;
-static int hf_scsi_mmc_disc_structure_layer = -1;
-static int hf_scsi_mmc_disc_density_length = -1;
-static int hf_scsi_mmc_disc_density_pitch = -1;
-static int hf_scsi_mmc_disc_first_physical = -1;
-static int hf_scsi_mmc_disc_last_physical = -1;
-static int hf_scsi_mmc_disc_last_physical_layer0 = -1;
-static int hf_scsi_mmc_disc_extended_format_info = -1;
-static int hf_scsi_mmc_disc_application_code = -1;
-static int hf_scsi_mmc_adip_eib0 = -1;
-static int hf_scsi_mmc_adip_eib1 = -1;
-static int hf_scsi_mmc_adip_eib2 = -1;
-static int hf_scsi_mmc_adip_eib3 = -1;
-static int hf_scsi_mmc_adip_eib4 = -1;
-static int hf_scsi_mmc_adip_eib5 = -1;
-static int hf_scsi_mmc_adip_device_manuf_id = -1;
-static int hf_scsi_mmc_adip_media_type_id = -1;
-static int hf_scsi_mmc_adip_product_revision_number = -1;
-static int hf_scsi_mmc_adip_number_of_physical_info = -1;
-static int hf_scsi_mmc_gesn_polled = -1;
-static int hf_scsi_mmc_notification_flags = -1;
-static int hf_scsi_mmc_gesn_device_busy = -1;
-static int hf_scsi_mmc_gesn_multi_initiator = -1;
-static int hf_scsi_mmc_gesn_media = -1;
-static int hf_scsi_mmc_gesn_external_request = -1;
-static int hf_scsi_mmc_gesn_power_mgmt = -1;
-static int hf_scsi_mmc_gesn_operational_change = -1;
-static int hf_scsi_mmc_prevent_allow_flags = -1;
-static int hf_scsi_mmc_prevent_allow_persistent = -1;
-static int hf_scsi_mmc_prevent_allow_prevent = -1;
-static int hf_scsi_mmc_disk_flags = -1;
-static int hf_scsi_mmc_format_flags = -1;
-static int hf_scsi_mmc_track_flags = -1;
-static int hf_scsi_mmc_data_flags = -1;
+static int proto_scsi_mmc;
+int hf_scsi_mmc_opcode;
+static int hf_scsi_mmc_setstreaming_type;
+static int hf_scsi_mmc_setstreaming_param_len;
+static int hf_scsi_mmc_setstreaming_wrc;
+static int hf_scsi_mmc_setstreaming_rdd;
+static int hf_scsi_mmc_setstreaming_exact;
+static int hf_scsi_mmc_setstreaming_ra;
+static int hf_scsi_mmc_setstreaming_start_lba;
+static int hf_scsi_mmc_setstreaming_end_lba;
+static int hf_scsi_mmc_setstreaming_read_size;
+static int hf_scsi_mmc_setstreaming_read_time;
+static int hf_scsi_mmc_setstreaming_write_size;
+static int hf_scsi_mmc_setstreaming_write_time;
+static int hf_scsi_mmc_setcdspeed_rc;
+static int hf_scsi_mmc_rbc_block;
+static int hf_scsi_mmc_rbc_lob_blocks;
+static int hf_scsi_mmc_rbc_alob_blocks;
+static int hf_scsi_mmc_rbc_lob_bytes;
+static int hf_scsi_mmc_rbc_alob_bytes;
+static int hf_scsi_mmc_rti_address_type;
+static int hf_scsi_mmc_rti_damage;
+static int hf_scsi_mmc_rti_copy;
+static int hf_scsi_mmc_rti_track_mode;
+static int hf_scsi_mmc_rti_rt;
+static int hf_scsi_mmc_rti_blank;
+static int hf_scsi_mmc_rti_packet;
+static int hf_scsi_mmc_rti_fp;
+static int hf_scsi_mmc_rti_data_mode;
+static int hf_scsi_mmc_rti_lra_v;
+static int hf_scsi_mmc_rti_nwa_v;
+static int hf_scsi_mmc_report_key_type_code;
+static int hf_scsi_mmc_report_key_vendor_resets;
+static int hf_scsi_mmc_report_key_user_changes;
+static int hf_scsi_mmc_report_key_region_mask;
+static int hf_scsi_mmc_report_key_rpc_scheme;
+static int hf_scsi_mmc_key_class;
+static int hf_scsi_mmc_key_format;
+static int hf_scsi_mmc_disc_info_erasable;
+static int hf_scsi_mmc_disc_info_state_of_last_session;
+static int hf_scsi_mmc_disc_info_disk_status;
+static int hf_scsi_mmc_disc_info_number_of_sessions;
+static int hf_scsi_mmc_disc_info_first_track_in_last_session;
+static int hf_scsi_mmc_disc_info_last_track_in_last_session;
+static int hf_scsi_mmc_disc_info_did_v;
+static int hf_scsi_mmc_disc_info_dbc_v;
+static int hf_scsi_mmc_disc_info_uru;
+static int hf_scsi_mmc_disc_info_dac_v;
+static int hf_scsi_mmc_disc_info_dbit;
+static int hf_scsi_mmc_disc_info_bgfs;
+static int hf_scsi_mmc_disc_info_disc_type;
+static int hf_scsi_mmc_disc_info_disc_identification;
+static int hf_scsi_mmc_disc_info_last_session_lead_in_start_address;
+static int hf_scsi_mmc_disc_info_last_possible_lead_out_start_address;
+static int hf_scsi_mmc_disc_info_disc_bar_code;
+static int hf_scsi_mmc_readtoc_time;
+static int hf_scsi_mmc_readtoc_format;
+static int hf_scsi_mmc_readtoc_first_session;
+static int hf_scsi_mmc_readtoc_last_track;
+static int hf_scsi_mmc_readtoc_last_session;
+static int hf_scsi_mmc_q_subchannel_adr;
+static int hf_scsi_mmc_q_subchannel_control;
+static int hf_scsi_mmc_agid;
+static int hf_scsi_mmc_track;
+static int hf_scsi_mmc_track_size;
+static int hf_scsi_mmc_track_start_address;
+static int hf_scsi_mmc_track_start_time;
+static int hf_scsi_mmc_lba;
+static int hf_scsi_mmc_session;
+static int hf_scsi_mmc_data_length;
+static int hf_scsi_mmc_getconf_rt;
+static int hf_scsi_mmc_getconf_starting_feature;
+static int hf_scsi_mmc_getconf_current_profile;
+static int hf_scsi_mmc_feature;
+static int hf_scsi_mmc_feature_version;
+static int hf_scsi_mmc_feature_persistent;
+static int hf_scsi_mmc_feature_current;
+static int hf_scsi_mmc_feature_additional_length;
+static int hf_scsi_mmc_feature_lun_sn;
+static int hf_scsi_mmc_feature_cdread_dap;
+static int hf_scsi_mmc_feature_cdread_c2flag;
+static int hf_scsi_mmc_feature_cdread_cdtext;
+static int hf_scsi_mmc_feature_dvdrw_write;
+static int hf_scsi_mmc_feature_dvdrw_quickstart;
+static int hf_scsi_mmc_feature_dvdrw_closeonly;
+static int hf_scsi_mmc_feature_dvdr_write;
+static int hf_scsi_mmc_feature_tao_buf;
+static int hf_scsi_mmc_feature_tao_rwraw;
+static int hf_scsi_mmc_feature_tao_rwpack;
+static int hf_scsi_mmc_feature_tao_testwrite;
+static int hf_scsi_mmc_feature_tao_cdrw;
+static int hf_scsi_mmc_feature_tao_rwsubcode;
+static int hf_scsi_mmc_feature_dts;
+static int hf_scsi_mmc_feature_sao_buf;
+static int hf_scsi_mmc_feature_sao_sao;
+static int hf_scsi_mmc_feature_sao_rawms;
+static int hf_scsi_mmc_feature_sao_raw;
+static int hf_scsi_mmc_feature_sao_testwrite;
+static int hf_scsi_mmc_feature_sao_cdrw;
+static int hf_scsi_mmc_feature_sao_rw;
+static int hf_scsi_mmc_feature_sao_mcsl;
+static int hf_scsi_mmc_feature_dvdr_buf;
+static int hf_scsi_mmc_feature_dvdr_testwrite;
+static int hf_scsi_mmc_feature_dvdr_dvdrw;
+static int hf_scsi_mmc_feature_profile;
+static int hf_scsi_mmc_feature_profile_current;
+static int hf_scsi_mmc_feature_isw_buf;
+static int hf_scsi_mmc_feature_isw_num_linksize;
+static int hf_scsi_mmc_feature_isw_linksize;
+static int hf_scsi_mmc_read_compatibility_lba;
+static int hf_scsi_mmc_reservation_size;
+static int hf_scsi_mmc_last_recorded_address;
+static int hf_scsi_mmc_first_track;
+static int hf_scsi_mmc_fixed_packet_size;
+static int hf_scsi_mmc_closetrack_immed;
+static int hf_scsi_mmc_closetrack_func;
+static int hf_scsi_mmc_synccache_immed;
+static int hf_scsi_mmc_synccache_reladr;
+static int hf_scsi_mmc_num_blocks;
+static int hf_scsi_mmc_next_writable_address;
+static int hf_scsi_mmc_free_blocks;
+static int hf_scsi_mmc_read_dvd_format;
+static int hf_scsi_mmc_disc_book_type;
+static int hf_scsi_mmc_disc_book_version;
+static int hf_scsi_mmc_disc_size_size;
+static int hf_scsi_mmc_disc_size_rate;
+static int hf_scsi_mmc_disc_num_layers;
+static int hf_scsi_mmc_disc_track_path;
+static int hf_scsi_mmc_disc_structure_layer;
+static int hf_scsi_mmc_disc_density_length;
+static int hf_scsi_mmc_disc_density_pitch;
+static int hf_scsi_mmc_disc_first_physical;
+static int hf_scsi_mmc_disc_last_physical;
+static int hf_scsi_mmc_disc_last_physical_layer0;
+static int hf_scsi_mmc_disc_extended_format_info;
+static int hf_scsi_mmc_disc_application_code;
+static int hf_scsi_mmc_adip_eib0;
+static int hf_scsi_mmc_adip_eib1;
+static int hf_scsi_mmc_adip_eib2;
+static int hf_scsi_mmc_adip_eib3;
+static int hf_scsi_mmc_adip_eib4;
+static int hf_scsi_mmc_adip_eib5;
+static int hf_scsi_mmc_adip_device_manuf_id;
+static int hf_scsi_mmc_adip_media_type_id;
+static int hf_scsi_mmc_adip_product_revision_number;
+static int hf_scsi_mmc_adip_number_of_physical_info;
+static int hf_scsi_mmc_gesn_polled;
+static int hf_scsi_mmc_notification_flags;
+static int hf_scsi_mmc_gesn_device_busy;
+static int hf_scsi_mmc_gesn_multi_initiator;
+static int hf_scsi_mmc_gesn_media;
+static int hf_scsi_mmc_gesn_external_request;
+static int hf_scsi_mmc_gesn_power_mgmt;
+static int hf_scsi_mmc_gesn_operational_change;
+static int hf_scsi_mmc_prevent_allow_flags;
+static int hf_scsi_mmc_prevent_allow_persistent;
+static int hf_scsi_mmc_prevent_allow_prevent;
+static int hf_scsi_mmc_disk_flags;
+static int hf_scsi_mmc_format_flags;
+static int hf_scsi_mmc_track_flags;
+static int hf_scsi_mmc_data_flags;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_scsi_mmc_getperformance_data_type = -1;
-static int hf_scsi_mmc_setcdspeed_logical_unit_read_speed = -1;
-static int hf_scsi_mmc_read_dvd_agid = -1;
-static int hf_scsi_mmc_read_dvd_layer_number = -1;
-static int hf_scsi_mmc_getperformance_starting_lba = -1;
-static int hf_scsi_mmc_getperformance_max_num_descriptors = -1;
-static int hf_scsi_mmc_getperformance_type = -1;
-static int hf_scsi_mmc_setcdspeed_logical_unit_write_speed = -1;
-static int hf_scsi_mmc_read_dvd_address = -1;
+static int hf_scsi_mmc_getperformance_data_type;
+static int hf_scsi_mmc_setcdspeed_logical_unit_read_speed;
+static int hf_scsi_mmc_read_dvd_agid;
+static int hf_scsi_mmc_read_dvd_layer_number;
+static int hf_scsi_mmc_getperformance_starting_lba;
+static int hf_scsi_mmc_getperformance_max_num_descriptors;
+static int hf_scsi_mmc_getperformance_type;
+static int hf_scsi_mmc_setcdspeed_logical_unit_write_speed;
+static int hf_scsi_mmc_read_dvd_address;
 
-static gint ett_scsi_mmc_profile   = -1;
-static gint ett_scsi_notifications = -1;
-static gint ett_scsi_prevent_allow = -1;
-static gint ett_scsi_disk_flags = -1;
-static gint ett_scsi_format_flags = -1;
-static gint ett_scsi_track_flags = -1;
-static gint ett_scsi_data_flags = -1;
+static int ett_scsi_mmc_profile;
+static int ett_scsi_notifications;
+static int ett_scsi_prevent_allow;
+static int ett_scsi_disk_flags;
+static int ett_scsi_format_flags;
+static int ett_scsi_track_flags;
+static int ett_scsi_data_flags;
 
 /* Generated from convert_proto_tree_add_text.pl */
-static expert_field ei_scsi_mmc_unknown_read_dvd_format = EI_INIT;
-static expert_field ei_scsi_mmc_unknown_setstreaming_type = EI_INIT;
-static expert_field ei_scsi_mmc_unknown_format_class = EI_INIT;
-static expert_field ei_scsi_mmc_unknown_read_toc_format = EI_INIT;
-static expert_field ei_scsi_mmc_unknown_feature_data = EI_INIT;
+static expert_field ei_scsi_mmc_unknown_read_dvd_format;
+static expert_field ei_scsi_mmc_unknown_setstreaming_type;
+static expert_field ei_scsi_mmc_unknown_format_class;
+static expert_field ei_scsi_mmc_unknown_read_toc_format;
+static expert_field ei_scsi_mmc_unknown_feature_data;
 
 static const true_false_string scsi_gesn_path = {
     "POLLED operation requested",
@@ -380,14 +380,14 @@ static value_string_ext scsi_feature_val_ext = VALUE_STRING_EXT_INIT(scsi_featur
 
 static void
 dissect_mmc4_getconfiguration (tvbuff_t *tvb_a, packet_info *pinfo,
-                               proto_tree *tree, guint offset_a,
-                               gboolean isreq, gboolean iscdb,
-                               guint payload_len _U_,
+                               proto_tree *tree, unsigned offset_a,
+                               bool isreq, bool iscdb,
+                               unsigned payload_len _U_,
                                scsi_task_data_t *cdata)
 
 {
-    gint32             len;
-    guint              old_offset;
+    int32_t            len;
+    unsigned           old_offset;
 
     if (tree && isreq && iscdb) {
         proto_tree_add_item (tree, hf_scsi_mmc_getconf_rt, tvb_a, offset_a+0, 1, ENC_BIG_ENDIAN);
@@ -413,9 +413,9 @@ dissect_mmc4_getconfiguration (tvbuff_t *tvb_a, packet_info *pinfo,
         try_offset+=8;
         len-=4;
         while(len>0){
-            guint16 feature;
-            guint8 additional_length;
-            guint8 num_linksize;
+            uint16_t feature;
+            uint8_t additional_length;
+            uint8_t num_linksize;
 
             feature=tvb_get_ntohs(try_tvb, try_offset);
             proto_tree_add_item (tree, hf_scsi_mmc_feature, try_tvb, try_offset, 2, ENC_BIG_ENDIAN);
@@ -424,7 +424,7 @@ dissect_mmc4_getconfiguration (tvbuff_t *tvb_a, packet_info *pinfo,
             proto_tree_add_item (tree, hf_scsi_mmc_feature_persistent, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
             proto_tree_add_item (tree, hf_scsi_mmc_feature_current, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
             try_offset+=1;
-            additional_length=tvb_get_guint8(try_tvb, try_offset);
+            additional_length=tvb_get_uint8(try_tvb, try_offset);
             proto_tree_add_item (tree, hf_scsi_mmc_feature_additional_length, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
             try_offset+=1;
             old_offset=try_offset;
@@ -433,8 +433,8 @@ dissect_mmc4_getconfiguration (tvbuff_t *tvb_a, packet_info *pinfo,
                 while(try_offset<(old_offset+additional_length)){
                     proto_item *it;
                     proto_tree *tr;
-                    guint16 profile;
-                    guint8  cur_profile;
+                    uint16_t profile;
+                    uint8_t cur_profile;
 
                     tr=proto_tree_add_subtree(tree, try_tvb, try_offset, 4, ett_scsi_mmc_profile, &it, "Profile:");
 
@@ -442,7 +442,7 @@ dissect_mmc4_getconfiguration (tvbuff_t *tvb_a, packet_info *pinfo,
                     proto_tree_add_item (tr, hf_scsi_mmc_feature_profile, try_tvb, try_offset, 2, ENC_BIG_ENDIAN);
                     proto_item_append_text(it, "%s", val_to_str_ext(profile, &scsi_getconf_current_profile_val_ext, "Unknown 0x%04x"));
 
-                    cur_profile=tvb_get_guint8(try_tvb, try_offset+2);
+                    cur_profile=tvb_get_uint8(try_tvb, try_offset+2);
                     proto_tree_add_item (tr, hf_scsi_mmc_feature_profile_current, try_tvb, try_offset+2, 1, ENC_BIG_ENDIAN);
                     if(cur_profile&0x01){
                         proto_item_append_text(it, "  [CURRENT PROFILE]");
@@ -465,7 +465,7 @@ dissect_mmc4_getconfiguration (tvbuff_t *tvb_a, packet_info *pinfo,
                 try_offset+=2;
                 proto_tree_add_item (tree, hf_scsi_mmc_feature_isw_buf, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
                 try_offset+=1;
-                num_linksize=tvb_get_guint8(try_tvb, try_offset);
+                num_linksize=tvb_get_uint8(try_tvb, try_offset);
                 proto_tree_add_item (tree, hf_scsi_mmc_feature_isw_num_linksize, try_tvb, try_offset, 1, ENC_BIG_ENDIAN);
                 try_offset+=1;
                 while(num_linksize--){
@@ -546,15 +546,15 @@ static value_string_ext scsi_q_subchannel_control_val_ext = VALUE_STRING_EXT_INI
 
 static void
 dissect_mmc4_readtocpmaatip (tvbuff_t *tvb_a, packet_info *pinfo, proto_tree *tree,
-                     guint offset_a, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata)
+                     unsigned offset_a, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata)
 
 {
-    guint8 format;
-    gint16 len;
+    uint8_t format;
+    int16_t len;
 
     if (isreq && iscdb) {
-        format=tvb_get_guint8(tvb_a, offset_a+1)&0x0f;
+        format=tvb_get_uint8(tvb_a, offset_a+1)&0x0f;
         /* save format so we can decode the response */
         cdata->itlq->flags=format;
 
@@ -563,7 +563,7 @@ dissect_mmc4_readtocpmaatip (tvbuff_t *tvb_a, packet_info *pinfo, proto_tree *tr
         case 0x01:
             proto_tree_add_item (tree, hf_scsi_mmc_readtoc_time, tvb_a, offset_a, 1, ENC_BIG_ENDIAN);
             /* save time so we can pick it up in the response */
-            if(tvb_get_guint8(tvb_a, offset_a)&0x02){
+            if(tvb_get_uint8(tvb_a, offset_a)&0x02){
                 cdata->itlq->flags|=0x0100;
             }
             break;
@@ -660,8 +660,8 @@ static const value_string scsi_disc_info_disc_type_val[] = {
 
 static void
 dissect_mmc4_readdiscinformation (tvbuff_t *tvb_a, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset_a, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata)
+                     unsigned offset_a, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata)
 {
     if (iscdb) {
         proto_tree_add_item (tree, hf_scsi_alloclen16, tvb_a, offset_a + 6, 2, ENC_BIG_ENDIAN);
@@ -697,13 +697,13 @@ dissect_mmc4_readdiscinformation (tvbuff_t *tvb_a, packet_info *pinfo _U_, proto
         proto_tree_add_item (tree, hf_scsi_mmc_first_track, try_tvb, try_offset+3, 1, ENC_BIG_ENDIAN);
 
        /* number of session  try_offset+4 and try_offset+9 */
-        proto_tree_add_uint (tree, hf_scsi_mmc_disc_info_number_of_sessions, try_tvb, 4, 1, (tvb_get_guint8(try_tvb, try_offset+9)<<8)|tvb_get_guint8(try_tvb, try_offset+4));
+        proto_tree_add_uint (tree, hf_scsi_mmc_disc_info_number_of_sessions, try_tvb, 4, 1, (tvb_get_uint8(try_tvb, try_offset+9)<<8)|tvb_get_uint8(try_tvb, try_offset+4));
 
         /* first track in last session  try_offset+5 and try_offset+10 */
-        proto_tree_add_uint (tree, hf_scsi_mmc_disc_info_first_track_in_last_session, try_tvb, 5, 1, (tvb_get_guint8(try_tvb, try_offset+10)<<8)|tvb_get_guint8(try_tvb, try_offset+5));
+        proto_tree_add_uint (tree, hf_scsi_mmc_disc_info_first_track_in_last_session, try_tvb, 5, 1, (tvb_get_uint8(try_tvb, try_offset+10)<<8)|tvb_get_uint8(try_tvb, try_offset+5));
 
         /*  last track in last session  try_offset+6 and try_offset+11 */
-        proto_tree_add_uint (tree, hf_scsi_mmc_disc_info_last_track_in_last_session, try_tvb, 6, 1, (tvb_get_guint8(try_tvb, try_offset+11)<<8)|tvb_get_guint8(try_tvb, try_offset+6));
+        proto_tree_add_uint (tree, hf_scsi_mmc_disc_info_last_track_in_last_session, try_tvb, 6, 1, (tvb_get_uint8(try_tvb, try_offset+11)<<8)|tvb_get_uint8(try_tvb, try_offset+6));
 
         proto_tree_add_bitmask(tree, try_tvb, try_offset + 7, hf_scsi_mmc_format_flags,
              ett_scsi_format_flags, format_fields, ENC_BIG_ENDIAN);
@@ -724,14 +724,14 @@ dissect_mmc4_readdiscinformation (tvbuff_t *tvb_a, packet_info *pinfo _U_, proto
 
 static void
 dissect_mmc4_readdiscstructure (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata)
 
 {    if (tree && isreq && iscdb) {
         proto_tree_add_item(tree, hf_scsi_mmc_read_dvd_address, tvb, offset+1, 4, ENC_BIG_ENDIAN);
         proto_tree_add_item(tree, hf_scsi_mmc_read_dvd_layer_number, tvb, offset+5, 1, ENC_BIG_ENDIAN);
 
-        cdata->itlq->flags=tvb_get_guint8 (tvb, offset+6);
+        cdata->itlq->flags=tvb_get_uint8 (tvb, offset+6);
         proto_tree_add_uint (tree, hf_scsi_mmc_read_dvd_format, tvb, offset+6, 1, cdata->itlq->flags);
 
         proto_tree_add_item (tree, hf_scsi_alloclen16, tvb, offset+7, 2, ENC_BIG_ENDIAN);
@@ -824,8 +824,8 @@ dissect_mmc4_readdiscstructure (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 static void
 dissect_mmc4_getperformance (tvbuff_t *tvb, packet_info *pinfo _U_,
 proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     if (tree && isreq && iscdb) {
@@ -842,8 +842,8 @@ proto_tree *tree,
 
 static void
 dissect_mmc4_synchronizecache (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     if (tree && isreq && iscdb) {
@@ -887,22 +887,22 @@ static const value_string scsi_report_key_rpc_scheme_val[] = {
 
 static void
 dissect_mmc4_reportkey (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata)
 
 {
-    guint8      agid, key_format, key_class;
+    uint8_t     agid, key_format, key_class;
 
     if (tree && isreq && iscdb) {
         proto_tree_add_item (tree, hf_scsi_mmc_lba, tvb, offset+1,
                              4, ENC_BIG_ENDIAN);
-        key_class=tvb_get_guint8(tvb, offset+6);
+        key_class=tvb_get_uint8(tvb, offset+6);
         proto_tree_add_item (tree, hf_scsi_mmc_key_class, tvb, offset+6,
                              1, ENC_BIG_ENDIAN);
         proto_tree_add_item (tree, hf_scsi_alloclen16, tvb, offset+7, 2, ENC_BIG_ENDIAN);
 
-        agid=tvb_get_guint8(tvb, offset+9)&0xc0;
-        key_format=tvb_get_guint8(tvb, offset+9)&0x3f;
+        agid=tvb_get_uint8(tvb, offset+9)&0xc0;
+        key_format=tvb_get_uint8(tvb, offset+9)&0x3f;
         switch(key_format){
         case 0x01:
         case 0x02:
@@ -947,14 +947,14 @@ static const value_string scsi_rti_address_type_val[] = {
 
 static void
 dissect_mmc4_readtrackinformation (tvbuff_t *tvb_a, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset_a, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata)
+                     unsigned offset_a, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata)
 
 {
-    guint8 addresstype;
+    uint8_t addresstype;
 
     if (isreq && iscdb) {
-        addresstype=tvb_get_guint8(tvb_a, offset_a)&0x03;
+        addresstype=tvb_get_uint8(tvb_a, offset_a)&0x03;
         proto_tree_add_item (tree, hf_scsi_mmc_rti_address_type, tvb_a, offset_a+0, 1, ENC_BIG_ENDIAN);
         switch(addresstype){
         case 0x00: /* logical block address */
@@ -1000,16 +1000,16 @@ dissect_mmc4_readtrackinformation (tvbuff_t *tvb_a, packet_info *pinfo _U_, prot
         proto_tree_add_item (tree, hf_scsi_mmc_data_length, try_tvb, 0, 2, ENC_BIG_ENDIAN);
         /* track  try_offset+2 and try_offset+32, only use the high byte if we have it */
         if (tvb_reported_length(try_tvb) < 33) {
-            proto_tree_add_uint (tree, hf_scsi_mmc_track, try_tvb, 2, 1, tvb_get_guint8(try_tvb, try_offset + 2));
+            proto_tree_add_uint (tree, hf_scsi_mmc_track, try_tvb, 2, 1, tvb_get_uint8(try_tvb, try_offset + 2));
         } else {
-            proto_tree_add_uint (tree, hf_scsi_mmc_track, try_tvb, 2, 1, (tvb_get_guint8(try_tvb, try_offset + 32) << 8) | tvb_get_guint8(try_tvb, try_offset + 2));
+            proto_tree_add_uint (tree, hf_scsi_mmc_track, try_tvb, 2, 1, (tvb_get_uint8(try_tvb, try_offset + 32) << 8) | tvb_get_uint8(try_tvb, try_offset + 2));
         }
 
         /* session  try_offset+3 and try_offset+33 */
         if (tvb_reported_length(try_tvb) < 34) {
-            proto_tree_add_uint (tree, hf_scsi_mmc_session, try_tvb, 3, 1, tvb_get_guint8(try_tvb, try_offset + 3));
+            proto_tree_add_uint (tree, hf_scsi_mmc_session, try_tvb, 3, 1, tvb_get_uint8(try_tvb, try_offset + 3));
         } else {
-            proto_tree_add_uint (tree, hf_scsi_mmc_session, try_tvb, 3, 1, (tvb_get_guint8(try_tvb, try_offset + 33) << 8) | tvb_get_guint8(try_tvb, try_offset + 3));
+            proto_tree_add_uint (tree, hf_scsi_mmc_session, try_tvb, 3, 1, (tvb_get_uint8(try_tvb, try_offset + 33) << 8) | tvb_get_uint8(try_tvb, try_offset + 3));
         }
 
         proto_tree_add_bitmask(tree, try_tvb, try_offset + 5, hf_scsi_mmc_track_flags,
@@ -1040,8 +1040,8 @@ dissect_mmc4_readtrackinformation (tvbuff_t *tvb_a, packet_info *pinfo _U_, prot
 
 static void
 dissect_mmc4_geteventstatusnotification (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     if (tree && isreq && iscdb) {
@@ -1070,8 +1070,8 @@ dissect_mmc4_geteventstatusnotification (tvbuff_t *tvb, packet_info *pinfo _U_, 
 
 static void
 dissect_mmc4_reservetrack (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     if (tree && isreq && iscdb) {
@@ -1094,8 +1094,8 @@ static const value_string scsi_closetrack_func_val[] = {
 
 static void
 dissect_mmc4_close_track (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     if (tree && isreq && iscdb) {
@@ -1125,14 +1125,14 @@ dissect_mmc4_close_track (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
 
 static void
 dissect_mmc4_readbuffercapacity (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata)
 
 {
     if (tree && isreq && iscdb) {
         cdata->itlq->flags=0;
         proto_tree_add_item (tree, hf_scsi_mmc_rbc_block, tvb, offset, 1, ENC_BIG_ENDIAN);
-        if(tvb_get_guint8(tvb, offset)&0x01){
+        if(tvb_get_uint8(tvb, offset)&0x01){
             cdata->itlq->flags=1;
         }
 
@@ -1163,8 +1163,8 @@ static const value_string scsi_setcdspeed_rc_val[] = {
 
 static void
 dissect_mmc4_setcdspeed (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 
 {
     if (tree && isreq && iscdb) {
@@ -1185,14 +1185,14 @@ static const value_string scsi_setstreaming_type_val[] = {
 
 static void
 dissect_mmc4_setstreaming (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
-                     guint offset, gboolean isreq, gboolean iscdb,
-                     guint payload_len _U_, scsi_task_data_t *cdata)
+                     unsigned offset, bool isreq, bool iscdb,
+                     unsigned payload_len _U_, scsi_task_data_t *cdata)
 
 {
-    guint8      type;
+    uint8_t     type;
 
     if (tree && isreq && iscdb) {
-        type=tvb_get_guint8(tvb, offset+7);
+        type=tvb_get_uint8(tvb, offset+7);
         cdata->itlq->flags=type;
         proto_tree_add_item (tree, hf_scsi_mmc_setstreaming_type, tvb, offset+7, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item (tree, hf_scsi_mmc_setstreaming_param_len, tvb, offset+8, 2, ENC_BIG_ENDIAN);
@@ -1223,11 +1223,11 @@ dissect_mmc4_setstreaming (tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 
 static void
 dissect_mmc_preventallowmediaremoval(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-                                     guint offset, gboolean isreq, gboolean iscdb,
-                                     guint payload_len _U_, scsi_task_data_t *cdata _U_)
+                                     unsigned offset, bool isreq, bool iscdb,
+                                     unsigned payload_len _U_, scsi_task_data_t *cdata _U_)
 {
     if (isreq && iscdb) {
-        guint8 flags;
+        uint8_t flags;
         static int * const prevent_allow_fields[] = {
             &hf_scsi_mmc_prevent_allow_persistent,
             &hf_scsi_mmc_prevent_allow_prevent,
@@ -1237,7 +1237,7 @@ dissect_mmc_preventallowmediaremoval(tvbuff_t *tvb, packet_info *pinfo, proto_tr
         proto_tree_add_bitmask(tree, tvb, offset + 3, hf_scsi_mmc_prevent_allow_flags,
             ett_scsi_prevent_allow, prevent_allow_fields, ENC_BIG_ENDIAN);
 
-        flags = tvb_get_guint8(tvb, offset + 3);
+        flags = tvb_get_uint8(tvb, offset + 3);
         if (flags & 0x01) {
             col_append_str(pinfo->cinfo, COL_INFO, " PREVENT");
         } else {
@@ -1324,7 +1324,7 @@ static const value_string scsi_track_mode_vals[] = {
 };
 static value_string_ext scsi_track_mode_vals_ext = VALUE_STRING_EXT_INIT(scsi_track_mode_vals);
 
-scsi_cdb_table_t scsi_mmc_table[256] = {
+const scsi_cdb_table_t scsi_mmc_table[256] = {
 /*SPC 0x00*/{dissect_spc_testunitready},
 /*MMC 0x01*/{NULL},
 /*MMC 0x02*/{NULL},
@@ -2081,7 +2081,7 @@ proto_register_scsi_mmc(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_scsi_mmc_profile,
         &ett_scsi_notifications,
         &ett_scsi_prevent_allow,

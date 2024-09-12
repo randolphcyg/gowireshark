@@ -65,7 +65,7 @@ void proto_reg_handoff_netlink_route(void);
  */
 struct netlink_route_info {
 	packet_info *pinfo;
-	gboolean legacy;
+	bool legacy;
 };
 
 enum {
@@ -383,98 +383,98 @@ static int proto_netlink_route;
 
 static dissector_handle_t netlink_route_handle;
 
-static int hf_netlink_route_ifa_addr4 = -1;
-static int hf_netlink_route_ifa_addr6 = -1;
-static int hf_netlink_route_ifa_attr_type = -1;
-static int hf_netlink_route_ifa_family = -1;
-static int hf_netlink_route_ifa_flags = -1;
-static int hf_netlink_route_ifa_flags32 = -1;
-static int hf_netlink_route_ifa_index = -1;
-static int hf_netlink_route_ifa_label = -1;
-static int hf_netlink_route_ifa_prefixlen = -1;
-static int hf_netlink_route_ifa_scope = -1;
-static int hf_netlink_route_ifi_change = -1;
-static int hf_netlink_route_ifi_family = -1;
-static int hf_netlink_route_ifi_flags = -1;
-static int hf_netlink_route_ifi_flags_iff_broadcast = -1;
-static int hf_netlink_route_ifi_flags_iff_up = -1;
-static int hf_netlink_route_ifi_index = -1;
-static int hf_netlink_route_ifi_type = -1;
-static int hf_netlink_route_ifla_attr_type = -1;
-static int hf_netlink_route_ifla_broadcast = -1;
-static int hf_netlink_route_ifla_carrier = -1;
-static int hf_netlink_route_ifla_carrier_changes = -1;
-static int hf_netlink_route_ifla_carrier_down_count = -1;
-static int hf_netlink_route_ifla_carrier_up_count = -1;
-static int hf_netlink_route_ifla_group = -1;
-static int hf_netlink_route_ifla_gso_maxsegs = -1;
-static int hf_netlink_route_ifla_gso_maxsize = -1;
-static int hf_netlink_route_ifla_hwaddr = -1;
-static int hf_netlink_route_ifla_ifname = -1;
-static int hf_netlink_route_ifla_linkstats_collisions = -1;
-static int hf_netlink_route_ifla_linkstats_multicast = -1;
-static int hf_netlink_route_ifla_linkstats_rx_crc_errs = -1;
-static int hf_netlink_route_ifla_linkstats_rx_fifo_errs = -1;
-static int hf_netlink_route_ifla_linkstats_rx_frame_errs = -1;
-static int hf_netlink_route_ifla_linkstats_rx_len_errs = -1;
-static int hf_netlink_route_ifla_linkstats_rx_miss_errs = -1;
-static int hf_netlink_route_ifla_linkstats_rx_over_errs = -1;
-static int hf_netlink_route_ifla_linkstats_rxbytes = -1;
-static int hf_netlink_route_ifla_linkstats_rxdropped = -1;
-static int hf_netlink_route_ifla_linkstats_rxerrors = -1;
-static int hf_netlink_route_ifla_linkstats_rxpackets = -1;
-static int hf_netlink_route_ifla_linkstats_tx_abort_errs = -1;
-static int hf_netlink_route_ifla_linkstats_tx_carrier_errs = -1;
-static int hf_netlink_route_ifla_linkstats_tx_fifo_errs = -1;
-static int hf_netlink_route_ifla_linkstats_tx_heartbeat_errs = -1;
-static int hf_netlink_route_ifla_linkstats_tx_window_errs = -1;
-static int hf_netlink_route_ifla_linkstats_txbytes = -1;
-static int hf_netlink_route_ifla_linkstats_txdropped = -1;
-static int hf_netlink_route_ifla_linkstats_txerrors = -1;
-static int hf_netlink_route_ifla_linkstats_txpackets = -1;
-static int hf_netlink_route_ifla_map_baseaddr = -1;
-static int hf_netlink_route_ifla_map_dma = -1;
-static int hf_netlink_route_ifla_map_irq = -1;
-static int hf_netlink_route_ifla_map_memend = -1;
-static int hf_netlink_route_ifla_map_memstart = -1;
-static int hf_netlink_route_ifla_map_port = -1;
-static int hf_netlink_route_ifla_max_mtu = -1;
-static int hf_netlink_route_ifla_min_mtu = -1;
-static int hf_netlink_route_ifla_mtu = -1;
-static int hf_netlink_route_ifla_operstate = -1;
-static int hf_netlink_route_ifla_promiscuity = -1;
-static int hf_netlink_route_ifla_qdisc = -1;
-static int hf_netlink_route_ifla_rxqnum = -1;
-static int hf_netlink_route_ifla_txqlen = -1;
-static int hf_netlink_route_ifla_txqnum = -1;
-static int hf_netlink_route_nd_family = -1;
-static int hf_netlink_route_nd_flags = -1;
-static int hf_netlink_route_nd_index = -1;
-static int hf_netlink_route_nd_state = -1;
-static int hf_netlink_route_nd_type = -1;
-static int hf_netlink_route_nltype = -1;
-static int hf_netlink_route_rt_dst_len = -1;
-static int hf_netlink_route_rt_family = -1;
-static int hf_netlink_route_rt_flags = -1;
-static int hf_netlink_route_rt_protocol = -1;
-static int hf_netlink_route_rt_scope = -1;
-static int hf_netlink_route_rt_src_len = -1;
-static int hf_netlink_route_rt_table = -1;
-static int hf_netlink_route_rt_tos = -1;
-static int hf_netlink_route_rt_type = -1;
-static int hf_netlink_route_rta_attr_type = -1;
-static int hf_netlink_route_rta_iif = -1;
-static int hf_netlink_route_rta_oif = -1;
+static int hf_netlink_route_ifa_addr4;
+static int hf_netlink_route_ifa_addr6;
+static int hf_netlink_route_ifa_attr_type;
+static int hf_netlink_route_ifa_family;
+static int hf_netlink_route_ifa_flags;
+static int hf_netlink_route_ifa_flags32;
+static int hf_netlink_route_ifa_index;
+static int hf_netlink_route_ifa_label;
+static int hf_netlink_route_ifa_prefixlen;
+static int hf_netlink_route_ifa_scope;
+static int hf_netlink_route_ifi_change;
+static int hf_netlink_route_ifi_family;
+static int hf_netlink_route_ifi_flags;
+static int hf_netlink_route_ifi_flags_iff_broadcast;
+static int hf_netlink_route_ifi_flags_iff_up;
+static int hf_netlink_route_ifi_index;
+static int hf_netlink_route_ifi_type;
+static int hf_netlink_route_ifla_attr_type;
+static int hf_netlink_route_ifla_broadcast;
+static int hf_netlink_route_ifla_carrier;
+static int hf_netlink_route_ifla_carrier_changes;
+static int hf_netlink_route_ifla_carrier_down_count;
+static int hf_netlink_route_ifla_carrier_up_count;
+static int hf_netlink_route_ifla_group;
+static int hf_netlink_route_ifla_gso_maxsegs;
+static int hf_netlink_route_ifla_gso_maxsize;
+static int hf_netlink_route_ifla_hwaddr;
+static int hf_netlink_route_ifla_ifname;
+static int hf_netlink_route_ifla_linkstats_collisions;
+static int hf_netlink_route_ifla_linkstats_multicast;
+static int hf_netlink_route_ifla_linkstats_rx_crc_errs;
+static int hf_netlink_route_ifla_linkstats_rx_fifo_errs;
+static int hf_netlink_route_ifla_linkstats_rx_frame_errs;
+static int hf_netlink_route_ifla_linkstats_rx_len_errs;
+static int hf_netlink_route_ifla_linkstats_rx_miss_errs;
+static int hf_netlink_route_ifla_linkstats_rx_over_errs;
+static int hf_netlink_route_ifla_linkstats_rxbytes;
+static int hf_netlink_route_ifla_linkstats_rxdropped;
+static int hf_netlink_route_ifla_linkstats_rxerrors;
+static int hf_netlink_route_ifla_linkstats_rxpackets;
+static int hf_netlink_route_ifla_linkstats_tx_abort_errs;
+static int hf_netlink_route_ifla_linkstats_tx_carrier_errs;
+static int hf_netlink_route_ifla_linkstats_tx_fifo_errs;
+static int hf_netlink_route_ifla_linkstats_tx_heartbeat_errs;
+static int hf_netlink_route_ifla_linkstats_tx_window_errs;
+static int hf_netlink_route_ifla_linkstats_txbytes;
+static int hf_netlink_route_ifla_linkstats_txdropped;
+static int hf_netlink_route_ifla_linkstats_txerrors;
+static int hf_netlink_route_ifla_linkstats_txpackets;
+static int hf_netlink_route_ifla_map_baseaddr;
+static int hf_netlink_route_ifla_map_dma;
+static int hf_netlink_route_ifla_map_irq;
+static int hf_netlink_route_ifla_map_memend;
+static int hf_netlink_route_ifla_map_memstart;
+static int hf_netlink_route_ifla_map_port;
+static int hf_netlink_route_ifla_max_mtu;
+static int hf_netlink_route_ifla_min_mtu;
+static int hf_netlink_route_ifla_mtu;
+static int hf_netlink_route_ifla_operstate;
+static int hf_netlink_route_ifla_promiscuity;
+static int hf_netlink_route_ifla_qdisc;
+static int hf_netlink_route_ifla_rxqnum;
+static int hf_netlink_route_ifla_txqlen;
+static int hf_netlink_route_ifla_txqnum;
+static int hf_netlink_route_nd_family;
+static int hf_netlink_route_nd_flags;
+static int hf_netlink_route_nd_index;
+static int hf_netlink_route_nd_state;
+static int hf_netlink_route_nd_type;
+static int hf_netlink_route_nltype;
+static int hf_netlink_route_rt_dst_len;
+static int hf_netlink_route_rt_family;
+static int hf_netlink_route_rt_flags;
+static int hf_netlink_route_rt_protocol;
+static int hf_netlink_route_rt_scope;
+static int hf_netlink_route_rt_src_len;
+static int hf_netlink_route_rt_table;
+static int hf_netlink_route_rt_tos;
+static int hf_netlink_route_rt_type;
+static int hf_netlink_route_rta_attr_type;
+static int hf_netlink_route_rta_iif;
+static int hf_netlink_route_rta_oif;
 
-static gint ett_netlink_route = -1;
-static gint ett_netlink_route_attr = -1;
-static gint ett_netlink_route_if_flags = -1;
-static gint ett_netlink_route_attr_linkstats = -1;
-static gint ett_netlink_route_attr_linkstats_rxerrs = -1;
-static gint ett_netlink_route_attr_linkstats_txerrs = -1;
+static int ett_netlink_route;
+static int ett_netlink_route_attr;
+static int ett_netlink_route_if_flags;
+static int ett_netlink_route_attr_linkstats;
+static int ett_netlink_route_attr_linkstats_rxerrs;
+static int ett_netlink_route_attr_linkstats_txerrs;
 
 static void
-_fill_label_value_string_bitmask(char *label, guint32 value, const value_string *vals)
+_fill_label_value_string_bitmask(char *label, uint32_t value, const value_string *vals)
 {
 	char tmp[16];
 
@@ -513,7 +513,7 @@ dissect_netlink_route_attributes(tvbuff_t *tvb, int hf_type, struct netlink_rout
 }
 
 static void
-hf_netlink_route_ifi_flags_label(char *label, guint32 value)
+hf_netlink_route_ifi_flags_label(char *label, uint32_t value)
 {
 	static const value_string iff_vals[] = {
 		{ WS_IFF_UP,          "UP" },
@@ -703,23 +703,23 @@ static int
 dissect_netlink_route_ifla_linkstats(tvbuff_t *tvb, struct netlink_route_info *info _U_, struct packet_netlink_data *nl_data, proto_tree *tree, int offset, int byte_size)
 {
 	proto_tree* rxerr_subtree;
-	const gint rxerr_hfs_len = (sizeof(linkstat_rxerr_hfs) / sizeof(int *));
+	const int rxerr_hfs_len = array_length(linkstat_rxerr_hfs);
 	proto_tree* txerr_subtree;
-	const gint txerr_hfs_len = (sizeof(linkstat_txerr_hfs) / sizeof(int *));
+	const int txerr_hfs_len = array_length(linkstat_txerr_hfs);
 
-	for (size_t i = 0; i < (sizeof(linkstat_root_hfs) / sizeof(int *)); i++) {
+	for (size_t i = 0; i < array_length(linkstat_root_hfs); i++) {
 		proto_tree_add_item(tree, *linkstat_root_hfs[i], tvb, offset, byte_size, nl_data->encoding);
 		offset += byte_size;
 	}
 
 	rxerr_subtree = proto_tree_add_subtree(tree, tvb, offset, byte_size * rxerr_hfs_len, ett_netlink_route_attr_linkstats_rxerrs, NULL, "Rx errors");
-	for (gint i = 0; i < rxerr_hfs_len; i++) {
+	for (int i = 0; i < rxerr_hfs_len; i++) {
 		proto_tree_add_item(rxerr_subtree, *linkstat_rxerr_hfs[i], tvb, offset, byte_size, nl_data->encoding);
 		offset += byte_size;
 	}
 
 	txerr_subtree = proto_tree_add_subtree(tree, tvb, offset, byte_size * txerr_hfs_len, ett_netlink_route_attr_linkstats_txerrs, NULL, "Tx errors");
-	for (gint i = 0; i < txerr_hfs_len; i++) {
+	for (int i = 0; i < txerr_hfs_len; i++) {
 		proto_tree_add_item(txerr_subtree, *linkstat_txerr_hfs[i], tvb, offset, byte_size, nl_data->encoding);
 		offset += byte_size;
 	}
@@ -733,9 +733,9 @@ dissect_netlink_route_ifla_attrs(tvbuff_t *tvb, void *data, struct packet_netlin
 {
 	struct netlink_route_info *info = (struct netlink_route_info *)data;
 	enum ws_ifla_attr_type type = (enum ws_ifla_attr_type) rta_type;
-	const guint8* str;
-	guint32 value;
-	gboolean flag;
+	const uint8_t* str;
+	uint32_t value;
+	bool flag;
 	proto_tree* subtree;
 	switch (type) {
 		case WS_IFLA_IFNAME:
@@ -836,7 +836,7 @@ dissect_netlink_route_ifla_attrs(tvbuff_t *tvb, void *data, struct packet_netlin
 /* IP address */
 
 static void
-netlink_route_ifa_flags_label(char *label, guint32 value)
+netlink_route_ifa_flags_label(char *label, uint32_t value)
 {
 	static const value_string iff_vals[] = {
 		{ WS_IFA_F_SECONDARY,       "secondary/temporary" },
@@ -914,7 +914,7 @@ static int
 dissect_netlink_route_ifa_attrs(tvbuff_t *tvb, void *data _U_, struct packet_netlink_data *nl_data, proto_tree *tree, int rta_type, int offset, int len)
 {
 	enum ws_ifa_attr_type type = (enum ws_ifa_attr_type) rta_type;
-	const guint8* str;
+	const uint8_t* str;
 
 	switch (type) {
 		case WS_IFA_LABEL:
@@ -1079,7 +1079,7 @@ static int
 dissect_netlink_route_route_attrs(tvbuff_t *tvb, void *data _U_, struct packet_netlink_data *nl_data, proto_tree *tree, int rta_type, int offset, int len)
 {
 	enum ws_rta_attr_type type = (enum ws_rta_attr_type) rta_type;
-	guint32 value;
+	uint32_t value;
 
 	switch (type) {
 		case WS_RTA_IIF:
@@ -1104,7 +1104,7 @@ dissect_netlink_route_route_attrs(tvbuff_t *tvb, void *data _U_, struct packet_n
 }
 
 static void
-netlink_route_nd_states_label(char *label, guint32 value)
+netlink_route_nd_states_label(char *label, uint32_t value)
 {
 	static const value_string flags_vals[] = {
 		{ WS_NUD_NONE,       "NONE" },
@@ -1763,7 +1763,7 @@ proto_register_netlink_route(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_netlink_route,
 		&ett_netlink_route_attr,
 		&ett_netlink_route_if_flags,

@@ -2,7 +2,7 @@
   *
   * Definitions for TECMP
   * By Dr. Lars Voelker <lars.voelker@technica-engineering.de>
-  * Copyright 2022-2022 Dr. Lars Voelker
+  * Copyright 2022-2024 Dr. Lars Voelker
   *
   * Wireshark - Network traffic analyzer
   * By Gerald Combs <gerald@wireshark.org>
@@ -15,12 +15,13 @@
 #define __PACKET_TECMP_H__
 
 #define TECMP_PAYLOAD_INTERFACE_ID "tecmp.payload.interface_id"
+#define TECMP_DATA_TYPE "tecmp.data_type"
 
 typedef struct tecmp_info {
-    guint32 interface_id;
-    guint16 device_id;
-    guint16 data_type;
-    guint8  msg_type;
+    uint32_t interface_id;
+    uint16_t device_id;
+    uint16_t data_type;
+    uint8_t msg_type;
 } tecmp_info_t;
 
 #endif /* __PACKET_TECMP_H__ */

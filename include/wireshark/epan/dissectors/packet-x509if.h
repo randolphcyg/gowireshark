@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-x509if.h                                                            */
-/* asn2wrs.py -b -L -p x509if -c ./x509if.cnf -s ./packet-x509if-template -D . -O ../.. InformationFramework.asn ServiceAdministration.asn */
+/* asn2wrs.py -b -q -L -p x509if -c ./x509if.cnf -s ./packet-x509if-template -D . -O ../.. InformationFramework.asn ServiceAdministration.asn */
 
 /* packet-x509if.h
  * Routines for X.509 Information Framework packet dissection
@@ -64,7 +64,7 @@ int dissect_x509if_MRSubstitution(bool implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 extern const char * x509if_get_last_dn(void);
 
-extern gboolean x509if_register_fmt(int hf_index, const gchar *fmt);
+extern bool x509if_register_fmt(int hf_index, const char *fmt);
 extern const char * x509if_get_last_ava(void);
 
 #endif  /* PACKET_X509IF_H */

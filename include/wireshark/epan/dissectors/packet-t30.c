@@ -25,120 +25,120 @@
 void proto_register_t30(void);
 
 /* T30 */
-static int proto_t30 = -1;
-static int hf_t30_Address = -1;
-static int hf_t30_Control = -1;
-static int hf_t30_Facsimile_Control = -1;
-static int hf_t30_fif_sm = -1;
-static int hf_t30_fif_rtif = -1;
-static int hf_t30_fif_3gmn = -1;
-static int hf_t30_fif_v8c = -1;
-static int hf_t30_fif_op = -1;
-static int hf_t30_fif_rtfc = -1;
-static int hf_t30_fif_rfo = -1;
-static int hf_t30_fif_dsr = -1;
-static int hf_t30_fif_dsr_dcs = -1;
-static int hf_t30_fif_res = -1;
-static int hf_t30_fif_tdcc = -1;
-static int hf_t30_fif_rwc = -1;
-static int hf_t30_fif_rw_dcs = -1;
-static int hf_t30_fif_rlc = -1;
-static int hf_t30_fif_rl_dcs = -1;
-static int hf_t30_fif_msltcr = -1;
-static int hf_t30_fif_mslt_dcs = -1;
-static int hf_t30_fif_ext = -1;
-static int hf_t30_fif_cm = -1;
-static int hf_t30_fif_ecm = -1;
-static int hf_t30_fif_fs_dcs = -1;
-static int hf_t30_fif_t6 = -1;
-static int hf_t30_fif_fvc = -1;
-static int hf_t30_fif_mspc = -1;
-static int hf_t30_fif_ps = -1;
-static int hf_t30_fif_t43 = -1;
-static int hf_t30_fif_pi = -1;
-static int hf_t30_fif_vc32k = -1;
-static int hf_t30_fif_r8x15 = -1;
-static int hf_t30_fif_300x300 = -1;
-static int hf_t30_fif_r16x15 = -1;
-static int hf_t30_fif_ibrp = -1;
-static int hf_t30_fif_mbrp = -1;
-static int hf_t30_fif_msltchr = -1;
-static int hf_t30_fif_rts = -1;
-static int hf_t30_fif_sp = -1;
-static int hf_t30_fif_sc = -1;
-static int hf_t30_fif_passw = -1;
-static int hf_t30_fif_sit = -1;
-static int hf_t30_fif_rttd = -1;
-static int hf_t30_fif_bft = -1;
-static int hf_t30_fif_dtm = -1;
-static int hf_t30_fif_edi = -1;
-static int hf_t30_fif_btm = -1;
-static int hf_t30_fif_rttcmmd = -1;
-static int hf_t30_fif_chrm = -1;
-static int hf_t30_fif_mm = -1;
-static int hf_t30_fif_pm26 = -1;
-static int hf_t30_fif_dnc = -1;
-static int hf_t30_fif_do = -1;
-static int hf_t30_fif_jpeg = -1;
-static int hf_t30_fif_fcm = -1;
-static int hf_t30_fif_pht = -1;
-static int hf_t30_fif_12c = -1;
-static int hf_t30_fif_ns = -1;
-static int hf_t30_fif_ci = -1;
-static int hf_t30_fif_cgr = -1;
-static int hf_t30_fif_nalet = -1;
-static int hf_t30_fif_naleg = -1;
-static int hf_t30_fif_spscb = -1;
-static int hf_t30_fif_spsco = -1;
-static int hf_t30_fif_hkm = -1;
-static int hf_t30_fif_rsa = -1;
-static int hf_t30_fif_oc = -1;
-static int hf_t30_fif_hfx40 = -1;
-static int hf_t30_fif_acn2c = -1;
-static int hf_t30_fif_acn3c = -1;
-static int hf_t30_fif_hfx40i = -1;
-static int hf_t30_fif_ahsn2 = -1;
-static int hf_t30_fif_ahsn3 = -1;
-static int hf_t30_fif_t441 = -1;
-static int hf_t30_fif_t442 = -1;
-static int hf_t30_fif_t443 = -1;
-static int hf_t30_fif_plmss = -1;
-static int hf_t30_fif_cg300 = -1;
-static int hf_t30_fif_100x100cg = -1;
-static int hf_t30_fif_spcbft = -1;
-static int hf_t30_fif_ebft = -1;
-static int hf_t30_fif_isp = -1;
-static int hf_t30_fif_ira = -1;
-static int hf_t30_fif_600x600 = -1;
-static int hf_t30_fif_1200x1200 = -1;
-static int hf_t30_fif_300x600 = -1;
-static int hf_t30_fif_400x800 = -1;
-static int hf_t30_fif_600x1200 = -1;
-static int hf_t30_fif_cg600x600 = -1;
-static int hf_t30_fif_cg1200x1200 = -1;
-static int hf_t30_fif_dspcam = -1;
-static int hf_t30_fif_dspccm = -1;
-static int hf_t30_fif_bwmrcp = -1;
-static int hf_t30_fif_t45 = -1;
-static int hf_t30_fif_sdmc = -1;
-static int hf_t30_fif_number = -1;
-static int hf_t30_fif_country_code = -1;
-static int hf_t30_fif_non_stand_bytes = -1;
-static int hf_t30_t4_frame_num = -1;
-static int hf_t30_t4_data = -1;
-static int hf_t30_partial_page_fcf2 = -1;
-static int hf_t30_partial_page_i1 = -1;
-static int hf_t30_partial_page_i2 = -1;
-static int hf_t30_partial_page_i3 = -1;
-static int hf_t30_partial_page_request_frame_count = -1;
-static int hf_t30_partial_page_request_frames = -1;
+static int proto_t30;
+static int hf_t30_Address;
+static int hf_t30_Control;
+static int hf_t30_Facsimile_Control;
+static int hf_t30_fif_sm;
+static int hf_t30_fif_rtif;
+static int hf_t30_fif_3gmn;
+static int hf_t30_fif_v8c;
+static int hf_t30_fif_op;
+static int hf_t30_fif_rtfc;
+static int hf_t30_fif_rfo;
+static int hf_t30_fif_dsr;
+static int hf_t30_fif_dsr_dcs;
+static int hf_t30_fif_res;
+static int hf_t30_fif_tdcc;
+static int hf_t30_fif_rwc;
+static int hf_t30_fif_rw_dcs;
+static int hf_t30_fif_rlc;
+static int hf_t30_fif_rl_dcs;
+static int hf_t30_fif_msltcr;
+static int hf_t30_fif_mslt_dcs;
+static int hf_t30_fif_ext;
+static int hf_t30_fif_cm;
+static int hf_t30_fif_ecm;
+static int hf_t30_fif_fs_dcs;
+static int hf_t30_fif_t6;
+static int hf_t30_fif_fvc;
+static int hf_t30_fif_mspc;
+static int hf_t30_fif_ps;
+static int hf_t30_fif_t43;
+static int hf_t30_fif_pi;
+static int hf_t30_fif_vc32k;
+static int hf_t30_fif_r8x15;
+static int hf_t30_fif_300x300;
+static int hf_t30_fif_r16x15;
+static int hf_t30_fif_ibrp;
+static int hf_t30_fif_mbrp;
+static int hf_t30_fif_msltchr;
+static int hf_t30_fif_rts;
+static int hf_t30_fif_sp;
+static int hf_t30_fif_sc;
+static int hf_t30_fif_passw;
+static int hf_t30_fif_sit;
+static int hf_t30_fif_rttd;
+static int hf_t30_fif_bft;
+static int hf_t30_fif_dtm;
+static int hf_t30_fif_edi;
+static int hf_t30_fif_btm;
+static int hf_t30_fif_rttcmmd;
+static int hf_t30_fif_chrm;
+static int hf_t30_fif_mm;
+static int hf_t30_fif_pm26;
+static int hf_t30_fif_dnc;
+static int hf_t30_fif_do;
+static int hf_t30_fif_jpeg;
+static int hf_t30_fif_fcm;
+static int hf_t30_fif_pht;
+static int hf_t30_fif_12c;
+static int hf_t30_fif_ns;
+static int hf_t30_fif_ci;
+static int hf_t30_fif_cgr;
+static int hf_t30_fif_nalet;
+static int hf_t30_fif_naleg;
+static int hf_t30_fif_spscb;
+static int hf_t30_fif_spsco;
+static int hf_t30_fif_hkm;
+static int hf_t30_fif_rsa;
+static int hf_t30_fif_oc;
+static int hf_t30_fif_hfx40;
+static int hf_t30_fif_acn2c;
+static int hf_t30_fif_acn3c;
+static int hf_t30_fif_hfx40i;
+static int hf_t30_fif_ahsn2;
+static int hf_t30_fif_ahsn3;
+static int hf_t30_fif_t441;
+static int hf_t30_fif_t442;
+static int hf_t30_fif_t443;
+static int hf_t30_fif_plmss;
+static int hf_t30_fif_cg300;
+static int hf_t30_fif_100x100cg;
+static int hf_t30_fif_spcbft;
+static int hf_t30_fif_ebft;
+static int hf_t30_fif_isp;
+static int hf_t30_fif_ira;
+static int hf_t30_fif_600x600;
+static int hf_t30_fif_1200x1200;
+static int hf_t30_fif_300x600;
+static int hf_t30_fif_400x800;
+static int hf_t30_fif_600x1200;
+static int hf_t30_fif_cg600x600;
+static int hf_t30_fif_cg1200x1200;
+static int hf_t30_fif_dspcam;
+static int hf_t30_fif_dspccm;
+static int hf_t30_fif_bwmrcp;
+static int hf_t30_fif_t45;
+static int hf_t30_fif_sdmc;
+static int hf_t30_fif_number;
+static int hf_t30_fif_country_code;
+static int hf_t30_fif_non_stand_bytes;
+static int hf_t30_t4_frame_num;
+static int hf_t30_t4_data;
+static int hf_t30_partial_page_fcf2;
+static int hf_t30_partial_page_i1;
+static int hf_t30_partial_page_i2;
+static int hf_t30_partial_page_i3;
+static int hf_t30_partial_page_request_frame_count;
+static int hf_t30_partial_page_request_frames;
 
-static gint ett_t30 = -1;
-static gint ett_t30_fif = -1;
+static int ett_t30;
+static int ett_t30_fif;
 
-static expert_field ei_t30_bad_length = EI_INIT;
-static expert_field ei_t30_Address_FF = EI_INIT;
-static expert_field ei_t30_Control_C0C8 = EI_INIT;
+static expert_field ei_t30_bad_length;
+static expert_field ei_t30_Address_FF;
+static expert_field ei_t30_Control_C0C8;
 
 static const value_string t30_control_vals[] = {
     { 0xC0, "non-final frames within the procedure" },
@@ -482,8 +482,8 @@ static const true_false_string t30_res_type_sel_value = {
     "metric based resolution",
 };
 
-static guint8
-reverse_byte(guint8 val)
+static uint8_t
+reverse_byte(uint8_t val)
 {
     return ( ((val & 0x80)>>7) | ((val & 0x40)>>5) |
         ((val & 0x20)>>3) | ((val & 0x10)>>1) |
@@ -492,10 +492,10 @@ reverse_byte(guint8 val)
 }
 
 #define LENGTH_T30_NUM  20
-static gchar *
+static char *
 t30_get_string_numbers(wmem_allocator_t *pool, tvbuff_t *tvb, int offset, int len)
 {
-    gchar buf[LENGTH_T30_NUM+1];
+    char buf[LENGTH_T30_NUM+1];
     int    i;
 
     /* the length must be 20 bytes per T30 rec*/
@@ -503,7 +503,7 @@ t30_get_string_numbers(wmem_allocator_t *pool, tvbuff_t *tvb, int offset, int le
         return NULL;
 
     for (i=0; i<LENGTH_T30_NUM; i++)
-        buf[LENGTH_T30_NUM-i-1] = reverse_byte(tvb_get_guint8(tvb, offset+i));
+        buf[LENGTH_T30_NUM-i-1] = reverse_byte(tvb_get_uint8(tvb, offset+i));
 
     /* add end of string */
     buf[LENGTH_T30_NUM] = '\0';
@@ -516,7 +516,7 @@ t30_get_string_numbers(wmem_allocator_t *pool, tvbuff_t *tvb, int offset, int le
 static void
 dissect_t30_numbers(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, proto_tree *tree, t38_packet_info* t38)
 {
-    gchar *str_num;
+    char *str_num;
 
     str_num = t30_get_string_numbers(pinfo->pool, tvb, offset, len);
     if (str_num) {
@@ -538,7 +538,7 @@ dissect_t30_numbers(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 static void
 dissect_t30_facsimile_coded_data(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, proto_tree *tree, t38_packet_info* t38)
 {
-    guint8 octet;
+    uint8_t octet;
 
     if (len < 2) {
         proto_tree_add_expert_format(tree, pinfo, &ei_t30_bad_length, tvb,
@@ -547,7 +547,7 @@ dissect_t30_facsimile_coded_data(tvbuff_t *tvb, int offset, packet_info *pinfo, 
         return;
     }
 
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
     proto_tree_add_uint(tree, hf_t30_t4_frame_num, tvb, offset, 1, reverse_byte(octet));
     offset++;
 
@@ -579,7 +579,7 @@ dissect_t30_non_standard_cap(tvbuff_t *tvb, int offset, packet_info *pinfo, int 
 static void
 dissect_t30_partial_page_signal(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, proto_tree *tree, t38_packet_info* t38)
 {
-    guint8 octet, page_count, block_count, frame_count;
+    uint8_t octet, page_count, block_count, frame_count;
 
     if (len != 4) {
         proto_tree_add_expert_format(tree, pinfo, &ei_t30_bad_length, tvb,
@@ -591,17 +591,17 @@ dissect_t30_partial_page_signal(tvbuff_t *tvb, int offset, packet_info *pinfo, i
     proto_tree_add_item(tree, hf_t30_partial_page_fcf2, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset += 1;
 
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
     page_count = reverse_byte(octet);
     proto_tree_add_uint(tree, hf_t30_partial_page_i1, tvb, offset, 1, page_count);
     offset++;
 
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
     block_count = reverse_byte(octet);
     proto_tree_add_uint(tree, hf_t30_partial_page_i2, tvb, offset, 1, block_count);
     offset++;
 
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
     frame_count = reverse_byte(octet);
     proto_tree_add_uint(tree, hf_t30_partial_page_i3, tvb, offset, 1, frame_count);
     offset++;
@@ -621,8 +621,8 @@ dissect_t30_partial_page_request(tvbuff_t *tvb, int offset, packet_info *pinfo, 
     int frame_count = 0;
     int frame;
 #define BUF_SIZE  (10*1 + 90*2 + 156*3 + 256*2 + 1) /* 0..9 + 10..99 + 100..255 + 256*', ' + \0 */
-    gchar *buf = (gchar *)wmem_alloc(pinfo->pool, BUF_SIZE);
-    gchar *buf_top = buf;
+    char *buf = (char *)wmem_alloc(pinfo->pool, BUF_SIZE);
+    char *buf_top = buf;
 
     if (len != 32) {
         proto_tree_add_expert_format(tree, pinfo, &ei_t30_bad_length, tvb,
@@ -633,8 +633,8 @@ dissect_t30_partial_page_request(tvbuff_t *tvb, int offset, packet_info *pinfo, 
 
     start_offset = offset;
     for (frame=0; frame < 255; ) {
-        guint8 octet = tvb_get_guint8(tvb, offset);
-        guint8 bit = 1<<7;
+        uint8_t octet = tvb_get_uint8(tvb, offset);
+        uint8_t bit = 1<<7;
 
         for (;bit;) {
             if (octet & bit) {
@@ -658,9 +658,9 @@ dissect_t30_partial_page_request(tvbuff_t *tvb, int offset, packet_info *pinfo, 
 }
 
 static void
-dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, proto_tree *tree, gboolean dis_dtc, t38_packet_info* t38)
+dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, proto_tree *tree, bool dis_dtc, t38_packet_info* t38)
 {
-    guint8 octet;
+    uint8_t octet;
 
     if (len < 3) {
         proto_tree_add_expert_format(tree, pinfo, &ei_t30_bad_length, tvb,
@@ -679,7 +679,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
     }
     /* bits 9 to 16 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     if (dis_dtc)
         proto_tree_add_item(tree, hf_t30_fif_rtfc, tvb, offset, 1, ENC_NA);
@@ -711,7 +711,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 17 to 24 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     if (dis_dtc) {
         proto_tree_add_item(tree, hf_t30_fif_rwc, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -729,7 +729,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 25 to 32 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_cm, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(tree, hf_t30_fif_ecm, tvb, offset, 1, ENC_NA);
@@ -743,7 +743,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 33 to 40 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_fvc, tvb, offset, 1, ENC_NA);
     if (dis_dtc) {
@@ -760,7 +760,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 41 to 48 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_r8x15, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(tree, hf_t30_fif_300x300, tvb, offset, 1, ENC_NA);
@@ -780,7 +780,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 49 to 56 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_sc, tvb, offset, 1, ENC_NA);
     if (dis_dtc) {
@@ -799,7 +799,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 57 to 64 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_btm, tvb, offset, 1, ENC_NA);
     if (dis_dtc)
@@ -813,7 +813,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 65 to 72 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_pm26, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(tree, hf_t30_fif_dnc, tvb, offset, 1, ENC_NA);
@@ -830,7 +830,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 73 to 80 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_ns, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(tree, hf_t30_fif_ci, tvb, offset, 1, ENC_NA);
@@ -846,7 +846,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 81 to 88 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_hkm, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(tree, hf_t30_fif_rsa, tvb, offset, 1, ENC_NA);
@@ -862,7 +862,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 89 to 96 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_ahsn2, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(tree, hf_t30_fif_ahsn3, tvb, offset, 1, ENC_NA);
@@ -877,7 +877,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 97 to 104 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_cg300, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(tree, hf_t30_fif_100x100cg, tvb, offset, 1, ENC_NA);
@@ -894,7 +894,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 105 to 112 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_600x600, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(tree, hf_t30_fif_1200x1200, tvb, offset, 1, ENC_NA);
@@ -910,7 +910,7 @@ dissect_t30_dis_dtc(tvbuff_t *tvb, int offset, packet_info *pinfo, int len, prot
 
     /* bits 113 to 120 */
     offset += 1;
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
 
     proto_tree_add_item(tree, hf_t30_fif_dspcam, tvb, offset, 1, ENC_NA);
     proto_tree_add_item(tree, hf_t30_fif_dspccm, tvb, offset, 1, ENC_NA);
@@ -933,8 +933,8 @@ dissect_t30_hdlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
     proto_tree *tr;
     proto_tree *tr_fif;
     proto_item *it_fcf;
-    guint8      octet;
-    guint32     frag_len;
+    uint8_t     octet;
+    uint32_t    frag_len;
     proto_item *item;
     t38_packet_info *t38 = (t38_packet_info*)data;
 
@@ -951,19 +951,19 @@ dissect_t30_hdlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
                                       "ITU-T Recommendation T.30");
     tr=proto_item_add_subtree(it, ett_t30);
 
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
     item = proto_tree_add_item(tr, hf_t30_Address, tvb, offset, 1, ENC_BIG_ENDIAN);
     if (octet != 0xFF)
         expert_add_info(pinfo, item, &ei_t30_Address_FF);
     offset += 1;
 
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
     item = proto_tree_add_item(tr, hf_t30_Control, tvb, offset, 1, ENC_BIG_ENDIAN);
     if ((octet != 0xC0) && (octet != 0xC8))
         expert_add_info(pinfo, item, &ei_t30_Control_C0C8);
     offset += 1;
 
-    octet = tvb_get_guint8(tvb, offset);
+    octet = tvb_get_uint8(tvb, offset);
     it_fcf = proto_tree_add_item(tr, hf_t30_Facsimile_Control, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset += 1;
 
@@ -984,7 +984,7 @@ dissect_t30_hdlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 
     switch (octet) {
         case T30_FC_DTC:
-            dissect_t30_dis_dtc(tvb, offset, pinfo, frag_len, tr_fif, TRUE, t38);
+            dissect_t30_dis_dtc(tvb, offset, pinfo, frag_len, tr_fif, true, t38);
             break;
         case T30_FC_CIG:
         case T30_FC_PWD:
@@ -998,10 +998,10 @@ dissect_t30_hdlc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
         default:
             switch (octet & 0x7F) {
             case T30_FC_DIS:
-                dissect_t30_dis_dtc(tvb, offset, pinfo, frag_len, tr_fif, TRUE, t38);
+                dissect_t30_dis_dtc(tvb, offset, pinfo, frag_len, tr_fif, true, t38);
                 break;
             case T30_FC_DCS:
-                dissect_t30_dis_dtc(tvb, offset, pinfo, frag_len, tr_fif, FALSE, t38);
+                dissect_t30_dis_dtc(tvb, offset, pinfo, frag_len, tr_fif, false, t38);
                 break;
             case T30_FC_CSI:
             case T30_FC_TSI:
@@ -1375,7 +1375,7 @@ proto_register_t30(void)
 
     };
 
-    static gint *t30_ett[] =
+    static int *t30_ett[] =
     {
         &ett_t30,
         &ett_t30_fif,

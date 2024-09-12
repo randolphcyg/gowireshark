@@ -18,42 +18,42 @@
 
 void proto_register_nmas(void);
 
-static gint ett_nmas = -1;
+static int ett_nmas;
 
-static int proto_nmas = -1;
-/* static int hf_func = -1; */
-/* static int hf_subfunc = -1; */
-static int hf_ping_version = -1;
-static int hf_ping_flags = -1;
-static int hf_frag_handle = -1;
-static int hf_length = -1;
-static int hf_subverb = -1;
-static int hf_tree = -1;
-static int hf_user = -1;
-static int hf_nmas_version = -1;
-static int hf_msg_version = -1;
-static int hf_session_ident = -1;
-static int hf_verb = -1;
-static int hf_msg_verb = -1;
-/* static int hf_attribute = -1; */
-static int hf_clearance = -1;
-static int hf_login_sequence = -1;
-static int hf_opaque = -1;
-static int hf_data = -1;
-static int hf_return_code = -1;
-static int hf_lsm_verb = -1;
-static int hf_squeue_bytes = -1;
-static int hf_cqueue_bytes = -1;
-static int hf_num_creds = -1;
-static int hf_cred_type = -1;
-static int hf_login_state = -1;
-static int hf_enc_cred = -1;
-static int hf_enc_data = -1;
-static int hf_reply_buffer_size = -1;
-static int hf_encrypt_error = -1;
+static int proto_nmas;
+/* static int hf_func; */
+/* static int hf_subfunc; */
+static int hf_ping_version;
+static int hf_ping_flags;
+static int hf_frag_handle;
+static int hf_length;
+static int hf_subverb;
+static int hf_tree;
+static int hf_user;
+static int hf_nmas_version;
+static int hf_msg_version;
+static int hf_session_ident;
+static int hf_verb;
+static int hf_msg_verb;
+/* static int hf_attribute; */
+static int hf_clearance;
+static int hf_login_sequence;
+static int hf_opaque;
+static int hf_data;
+static int hf_return_code;
+static int hf_lsm_verb;
+static int hf_squeue_bytes;
+static int hf_cqueue_bytes;
+static int hf_num_creds;
+static int hf_cred_type;
+static int hf_login_state;
+static int hf_enc_cred;
+static int hf_enc_data;
+static int hf_reply_buffer_size;
+static int hf_encrypt_error;
 
-static expert_field ei_encrypt_error = EI_INIT;
-static expert_field ei_return_error = EI_INIT;
+static expert_field ei_encrypt_error;
+static expert_field ei_return_error;
 
 static const value_string nmas_func_enum[] = {
     { 0x01, "Ping" },
@@ -175,14 +175,14 @@ align_4(tvbuff_t *tvb, int aoffset)
 #endif
 
 static int
-nmas_string(packet_info *pinfo, tvbuff_t* tvb, int hfinfo, proto_tree *nmas_tree, int offset, gboolean little)
+nmas_string(packet_info *pinfo, tvbuff_t* tvb, int hfinfo, proto_tree *nmas_tree, int offset, bool little)
 {
     int     foffset = offset;
-    guint32 str_length;
+    uint32_t str_length;
     char    *buffer;
-    guint32 i;
-    guint16 c_char;
-    guint32 length_remaining = 0;
+    uint32_t i;
+    uint16_t c_char;
+    uint32_t length_remaining = 0;
 
     buffer = (char *)wmem_alloc(pinfo->pool, ITEM_LABEL_LENGTH+1);
     if (little) {
@@ -211,7 +211,7 @@ nmas_string(packet_info *pinfo, tvbuff_t* tvb, int hfinfo, proto_tree *nmas_tree
      * characters.
      */
     for ( i = 0; i < str_length; i++ ) {
-        c_char = tvb_get_guint8(tvb, foffset );
+        c_char = tvb_get_uint8(tvb, foffset );
         if (c_char<0x20 || c_char>0x7e) {
             if (c_char != 0x00) {
                 c_char = 0x2e;
@@ -245,18 +245,18 @@ nmas_string(packet_info *pinfo, tvbuff_t* tvb, int hfinfo, proto_tree *nmas_tree
 void
 dissect_nmas_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ncp_tree, ncp_req_hash_value *request_value)
 {
-    guint8              /*func,*/ subfunc;
-    guint32             msg_length=0, cur_string_len=0;
-    guint32             foffset;
-    guint32             subverb=0;
-    guint32             attribute=0;
-    guint8              msgverb=0;
+    uint8_t             /*func,*/ subfunc;
+    uint32_t            msg_length=0, cur_string_len=0;
+    uint32_t            foffset;
+    uint32_t            subverb=0;
+    uint32_t            attribute=0;
+    uint8_t             msgverb=0;
     proto_tree          *atree;
 
     foffset = 6;
-    /*func = tvb_get_guint8(tvb, foffset);*/
+    /*func = tvb_get_uint8(tvb, foffset);*/
     foffset += 1;
-    subfunc = tvb_get_guint8(tvb, foffset);
+    subfunc = tvb_get_uint8(tvb, foffset);
     foffset += 1;
 
     /* Fill in the INFO column. */
@@ -313,7 +313,7 @@ dissect_nmas_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ncp_tree, nc
         case 8:             /* Login Store Management */
             proto_tree_add_item(atree, hf_reply_buffer_size, tvb, foffset, 1, ENC_LITTLE_ENDIAN);
             foffset += 4;
-            msgverb = tvb_get_guint8(tvb, foffset);
+            msgverb = tvb_get_uint8(tvb, foffset);
             if (request_value) {
                 request_value->nds_request_verb=msgverb; /* Use nds_request_verb for passed subverb */
             }
@@ -342,8 +342,8 @@ dissect_nmas_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ncp_tree, nc
             foffset += 4;
             /* The next two GUINT32 values are reserved and always 0 */
             foffset += 8;
-            foffset = nmas_string(pinfo, tvb, hf_tree, atree, foffset, TRUE);
-            /*foffset = */nmas_string(pinfo, tvb, hf_user, atree, foffset, TRUE);
+            foffset = nmas_string(pinfo, tvb, hf_tree, atree, foffset, true);
+            /*foffset = */nmas_string(pinfo, tvb, hf_user, atree, foffset, true);
             break;
         case 1242:          /* Message Handler */
             foffset += 4;
@@ -352,7 +352,7 @@ dissect_nmas_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ncp_tree, nc
             proto_tree_add_item(atree, hf_session_ident, tvb, foffset, 4, ENC_BIG_ENDIAN);
             foffset += 4;
             foffset += 3;
-            msgverb = tvb_get_guint8(tvb, foffset);
+            msgverb = tvb_get_uint8(tvb, foffset);
             if (request_value) {
                 request_value->nds_request_verb=msgverb; /* Use nds_request_verb for passed verb */
             }
@@ -381,16 +381,16 @@ dissect_nmas_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ncp_tree, nc
                     cur_string_len=tvb_get_ntohl(tvb, foffset);
                     switch (attribute) {
                     case 1:
-                        foffset = nmas_string(pinfo, tvb, hf_user, atree, foffset, FALSE);
+                        foffset = nmas_string(pinfo, tvb, hf_user, atree, foffset, false);
                         break;
                     case 2:
-                        foffset = nmas_string(pinfo, tvb, hf_tree, atree, foffset, FALSE);
+                        foffset = nmas_string(pinfo, tvb, hf_tree, atree, foffset, false);
                         break;
                     case 4:
-                        foffset = nmas_string(pinfo, tvb, hf_clearance, atree, foffset, FALSE);
+                        foffset = nmas_string(pinfo, tvb, hf_clearance, atree, foffset, false);
                         break;
                     case 11:
-                        foffset = nmas_string(pinfo, tvb, hf_login_sequence, atree, foffset, FALSE);
+                        foffset = nmas_string(pinfo, tvb, hf_login_sequence, atree, foffset, false);
                         break;
                     default:
                         break;
@@ -427,16 +427,16 @@ dissect_nmas_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ncp_tree, nc
 }
 
 void
-dissect_nmas_reply(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ncp_tree, guint8 func _U_, guint8 subfunc, ncp_req_hash_value *request_value)
+dissect_nmas_reply(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ncp_tree, uint8_t func _U_, uint8_t subfunc, ncp_req_hash_value *request_value)
 {
-    guint32             foffset=0, roffset=0;
-    guint32             subverb=0;
-    guint8              msgverb=0;
-    guint32             msg_length=0;
-    guint32             return_code=0, encrypt_error=0;
+    uint32_t            foffset=0, roffset=0;
+    uint32_t            subverb=0;
+    uint8_t             msgverb=0;
+    uint32_t            msg_length=0;
+    uint32_t            return_code=0, encrypt_error=0;
     proto_tree          *atree;
     proto_item          *expert_item;
-    const gchar         *str;
+    const char          *str;
 
 
     foffset = 8;
@@ -720,7 +720,7 @@ proto_register_nmas(void)
             "Payload/Encryption Return Code", HFILL }}
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_nmas
     };
 

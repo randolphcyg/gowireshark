@@ -24,16 +24,16 @@ void proto_reg_handoff_dpnss_link(void);
 static dissector_handle_t dpnss_handle; /* DPNSS UI frame dissector */
 #define LINK_HEADER_SIZE 3
 
-static int proto_dpnss_link = -1;
+static int proto_dpnss_link;
 
-static int hf_dpnss_link_address_framegroup = -1;
-static int hf_dpnss_link_address_crbit = -1;
-static int hf_dpnss_link_address_extension = -1;
-static int hf_dpnss_link_address2_reserved = -1;
-static int hf_dpnss_link_address2_dlcId = -1;
-static int hf_dpnss_link_address2_dlcIdNr = -1;
-static int hf_dpnss_link_address2_extension = -1;
-static int hf_dpnss_link_control_frameType = -1;
+static int hf_dpnss_link_address_framegroup;
+static int hf_dpnss_link_address_crbit;
+static int hf_dpnss_link_address_extension;
+static int hf_dpnss_link_address2_reserved;
+static int hf_dpnss_link_address2_dlcId;
+static int hf_dpnss_link_address2_dlcIdNr;
+static int hf_dpnss_link_address2_extension;
+static int hf_dpnss_link_control_frameType;
 
 static const value_string dpnss_link_framegroup_vals[] = {
 	{ 0x11, "Information Frame" },
@@ -78,7 +78,7 @@ static const value_string dpnss_link_frameType_vals[] = {
 	{ 0, NULL }
 };
 
-static int ett_dpnss_link = -1;
+static int ett_dpnss_link;
 
 static dissector_handle_t dpnss_link_handle;
 
@@ -88,10 +88,10 @@ dissect_dpnss_link(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 {
 	proto_item *item;
 	proto_tree *dpnss_link_tree;
-	guint8      octet;
+	uint8_t     octet;
 	tvbuff_t   *protocol_data_tvb;
-	guint16     protocol_data_length;
-	gboolean    uton;
+	uint16_t    protocol_data_length;
+	bool        uton;
 
 	uton = pinfo->pseudo_header->l1event.uton;
 	/* Make entries in src and dst column */
@@ -125,7 +125,7 @@ dissect_dpnss_link(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 	 */
 	proto_tree_add_item(dpnss_link_tree, hf_dpnss_link_control_frameType,
 			    tvb, 2, 1, ENC_BIG_ENDIAN);
-	octet = tvb_get_guint8(tvb, 2);
+	octet = tvb_get_uint8(tvb, 2);
 	switch (octet){
 	case FRAME_TYPE_UI_EVEN:
 	case FRAME_TYPE_UI_ODD:
@@ -190,7 +190,7 @@ proto_register_dpnss_link(void)
 		}
 	};
 
-	static gint *ett[] = { &ett_dpnss_link };
+	static int *ett[] = { &ett_dpnss_link };
 
 
 	/* Register the protocol name and description */

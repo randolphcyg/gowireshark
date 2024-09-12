@@ -19,6 +19,7 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/unit_strings.h>
 
 #include "packet-cipmotion.h"
 
@@ -30,288 +31,288 @@ void proto_register_cipmotion(void);
 void proto_reg_handoff_cipmotion(void);
 
 /* Protocol handle for CIP Motion */
-static int proto_cipmotion = -1;
-static int proto_cipmotion3 = -1;
+static int proto_cipmotion;
+static int proto_cipmotion3;
 
 /* Header field identifiers, these are registered in the
  * proto_register_cipmotion function along with the bites/bytes
  * they represent */
-static int hf_cip_format                    = -1;
-static int hf_cip_revision                  = -1;
-static int hf_cip_class1_seqnum             = -1;
-static int hf_configuration_block_format_rev = -1;
-static int hf_configuration_block_drive_power_struct_id = -1;
-static int hf_cip_updateid                  = -1;
-static int hf_cip_instance_cnt              = -1;
-static int hf_cip_last_update               = -1;
-static int hf_cip_node_status               = -1;
-static int hf_cip_node_control              = -1;
-static int hf_cip_node_control_remote       = -1;
-static int hf_cip_node_control_sync         = -1;
-static int hf_cip_node_data_valid           = -1;
-static int hf_cip_node_fault_reset          = -1;
-static int hf_cip_node_device_faulted       = -1;
-static int hf_cip_time_data_set             = -1;
-static int hf_cip_time_data_stamp           = -1;
-static int hf_cip_time_data_offset          = -1;
-static int hf_cip_time_data_diag            = -1;
-static int hf_cip_time_data_time_diag       = -1;
-static int hf_cip_cont_time_stamp           = -1;
-static int hf_cip_cont_time_offset          = -1;
-static int hf_cip_devc_time_stamp           = -1;
-static int hf_cip_devc_time_offset          = -1;
-static int hf_cip_lost_update               = -1;
-static int hf_cip_late_update               = -1;
-static int hf_cip_data_rx_time_stamp        = -1;
-static int hf_cip_data_tx_time_stamp        = -1;
-static int hf_cip_node_fltalarms            = -1;
-static int hf_cip_motor_cntrl               = -1;
-static int hf_cip_feedback                  = -1;
-static int hf_cip_feedback_mode             = -1;
-static int hf_cip_feedback_data_type        = -1;
+static int hf_cip_format;
+static int hf_cip_revision;
+static int hf_cip_class1_seqnum;
+static int hf_configuration_block_format_rev;
+static int hf_configuration_block_drive_power_struct_id;
+static int hf_cip_updateid;
+static int hf_cip_instance_cnt;
+static int hf_cip_last_update;
+static int hf_cip_node_status;
+static int hf_cip_node_control;
+static int hf_cip_node_control_remote;
+static int hf_cip_node_control_sync;
+static int hf_cip_node_data_valid;
+static int hf_cip_node_fault_reset;
+static int hf_cip_node_device_faulted;
+static int hf_cip_time_data_set;
+static int hf_cip_time_data_stamp;
+static int hf_cip_time_data_offset;
+static int hf_cip_time_data_diag;
+static int hf_cip_time_data_time_diag;
+static int hf_cip_cont_time_stamp;
+static int hf_cip_cont_time_offset;
+static int hf_cip_devc_time_stamp;
+static int hf_cip_devc_time_offset;
+static int hf_cip_lost_update;
+static int hf_cip_late_update;
+static int hf_cip_data_rx_time_stamp;
+static int hf_cip_data_tx_time_stamp;
+static int hf_cip_node_fltalarms;
+static int hf_cip_motor_cntrl;
+static int hf_cip_feedback;
+static int hf_cip_feedback_mode;
+static int hf_cip_feedback_data_type;
 
-static int hf_connection_configuration_bits = -1;
-static int hf_connection_configuration_bits_power = -1;
-static int hf_connection_configuration_bits_safety_bit_valid = -1;
-static int hf_connection_configuration_bits_allow_network_safety = -1;
+static int hf_connection_configuration_bits;
+static int hf_connection_configuration_bits_power;
+static int hf_connection_configuration_bits_safety_bit_valid;
+static int hf_connection_configuration_bits_allow_network_safety;
 
-static int hf_cip_axis_control              = -1;
-static int hf_cip_control_status            = -1;
-static int hf_cip_control_status_complete   = -1;
-static int hf_cip_control_status_bus_up     = -1;
-static int hf_cip_control_status_bus_unload = -1;
-static int hf_cip_control_status_power_loss = -1;
-static int hf_cip_axis_response             = -1;
-static int hf_cip_axis_resp_stat            = -1;
-static int hf_cip_cmd_data_pos_cmd          = -1;
-static int hf_cip_cmd_data_vel_cmd          = -1;
-static int hf_cip_cmd_data_acc_cmd          = -1;
-static int hf_cip_cmd_data_trq_cmd          = -1;
-static int hf_cip_cmd_data_unwind_cycle_count = -1;
-static int hf_cip_cmd_data_pos_displacement = -1;
-static int hf_cip_act_data_pos              = -1;
-static int hf_cip_act_data_vel              = -1;
-static int hf_cip_act_data_acc              = -1;
-static int hf_cip_act_unwind_cycle_count    = -1;
-static int hf_cip_act_pos_displacement      = -1;
-static int hf_cip_sts_flt                   = -1;
-static int hf_cip_sts_alrm                  = -1;
-static int hf_cip_sts_sts                   = -1;
-static int hf_cip_sts_iosts                 = -1;
-static int hf_cip_sts_axis_safety           = -1;
-static int hf_cip_intrp                     = -1;
-static int hf_cip_position_data_type        = -1;
-static int hf_cip_axis_state                = -1;
-static int hf_cip_evnt_ctrl_reg1_pos        = -1;
-static int hf_cip_evnt_ctrl_reg1_neg        = -1;
-static int hf_cip_evnt_ctrl_reg2_pos        = -1;
-static int hf_cip_evnt_ctrl_reg2_neg        = -1;
-static int hf_cip_evnt_ctrl_reg1_posrearm   = -1;
-static int hf_cip_evnt_ctrl_reg1_negrearm   = -1;
-static int hf_cip_evnt_ctrl_reg2_posrearm   = -1;
-static int hf_cip_evnt_ctrl_reg2_negrearm   = -1;
-static int hf_cip_evnt_ctrl_marker_pos      = -1;
-static int hf_cip_evnt_ctrl_marker_neg      = -1;
-static int hf_cip_evnt_ctrl_home_pos        = -1;
-static int hf_cip_evnt_ctrl_home_neg        = -1;
-static int hf_cip_evnt_ctrl_home_pp         = -1;
-static int hf_cip_evnt_ctrl_home_pm         = -1;
-static int hf_cip_evnt_ctrl_home_mp         = -1;
-static int hf_cip_evnt_ctrl_home_mm         = -1;
-static int hf_cip_evnt_ctrl_acks            = -1;
-static int hf_cip_evnt_extend_format        = -1;
-static int hf_cip_evnt_sts_reg1_pos         = -1;
-static int hf_cip_evnt_sts_reg1_neg         = -1;
-static int hf_cip_evnt_sts_reg2_pos         = -1;
-static int hf_cip_evnt_sts_reg2_neg         = -1;
-static int hf_cip_evnt_sts_reg1_posrearm    = -1;
-static int hf_cip_evnt_sts_reg1_negrearm    = -1;
-static int hf_cip_evnt_sts_reg2_posrearm    = -1;
-static int hf_cip_evnt_sts_reg2_negrearm    = -1;
-static int hf_cip_evnt_sts_marker_pos       = -1;
-static int hf_cip_evnt_sts_marker_neg       = -1;
-static int hf_cip_evnt_sts_home_pos         = -1;
-static int hf_cip_evnt_sts_home_neg         = -1;
-static int hf_cip_evnt_sts_home_pp          = -1;
-static int hf_cip_evnt_sts_home_pm          = -1;
-static int hf_cip_evnt_sts_home_mp          = -1;
-static int hf_cip_evnt_sts_home_mm          = -1;
-static int hf_cip_evnt_sts_nfs              = -1;
-static int hf_cip_evnt_sts_stat             = -1;
-static int hf_cip_evnt_type                 = -1;
-static int hf_cip_svc_code                  = -1;
-static int hf_cip_svc_sts                   = -1;
-static int hf_cip_svc_set_axis_attr_sts     = -1;
-static int hf_cip_svc_get_axis_attr_sts     = -1;
-static int hf_cip_svc_transction            = -1;
-static int hf_cip_svc_ext_status            = -1;
-static int hf_cip_svc_data                  = -1;
-static int hf_cip_ptp_grandmaster           = -1;
-static int hf_cip_axis_alarm                = -1;
-static int hf_cip_axis_fault                = -1;
-static int hf_cip_axis_sts_local_ctrl       = -1;
-static int hf_cip_axis_sts_alarm            = -1;
-static int hf_cip_axis_sts_dc_bus           = -1;
-static int hf_cip_axis_sts_pwr_struct       = -1;
-static int hf_cip_axis_sts_flux_up          = -1;
-static int hf_cip_axis_sts_tracking         = -1;
-static int hf_cip_axis_sts_pos_lock         = -1;
-static int hf_cip_axis_sts_vel_lock         = -1;
-static int hf_cip_axis_sts_vel_standstill   = -1;
-static int hf_cip_axis_sts_vel_threshold    = -1;
-static int hf_cip_axis_sts_vel_limit        = -1;
-static int hf_cip_axis_sts_acc_limit        = -1;
-static int hf_cip_axis_sts_dec_limit        = -1;
-static int hf_cip_axis_sts_torque_threshold = -1;
-static int hf_cip_axis_sts_torque_limit     = -1;
-static int hf_cip_axis_sts_cur_limit        = -1;
-static int hf_cip_axis_sts_therm_limit      = -1;
-static int hf_cip_axis_sts_feedback_integ   = -1;
-static int hf_cip_axis_sts_shutdown         = -1;
-static int hf_cip_axis_sts_in_process       = -1;
-static int hf_cip_axis_sts_dc_bus_unload    = -1;
-static int hf_cip_axis_sts_ac_pwr_loss      = -1;
-static int hf_cip_axis_sts_pos_cntrl_mode   = -1;
-static int hf_cip_axis_sts_vel_cntrl_mode   = -1;
-static int hf_cip_axis_sts_trq_cntrl_mode   = -1;
+static int hf_cip_axis_control;
+static int hf_cip_control_status;
+static int hf_cip_control_status_complete;
+static int hf_cip_control_status_bus_up;
+static int hf_cip_control_status_bus_unload;
+static int hf_cip_control_status_power_loss;
+static int hf_cip_axis_response;
+static int hf_cip_axis_resp_stat;
+static int hf_cip_cmd_data_pos_cmd;
+static int hf_cip_cmd_data_vel_cmd;
+static int hf_cip_cmd_data_acc_cmd;
+static int hf_cip_cmd_data_trq_cmd;
+static int hf_cip_cmd_data_unwind_cycle_count;
+static int hf_cip_cmd_data_pos_displacement;
+static int hf_cip_act_data_pos;
+static int hf_cip_act_data_vel;
+static int hf_cip_act_data_acc;
+static int hf_cip_act_unwind_cycle_count;
+static int hf_cip_act_pos_displacement;
+static int hf_cip_sts_flt;
+static int hf_cip_sts_alrm;
+static int hf_cip_sts_sts;
+static int hf_cip_sts_iosts;
+static int hf_cip_sts_axis_safety;
+static int hf_cip_intrp;
+static int hf_cip_position_data_type;
+static int hf_cip_axis_state;
+static int hf_cip_evnt_ctrl_reg1_pos;
+static int hf_cip_evnt_ctrl_reg1_neg;
+static int hf_cip_evnt_ctrl_reg2_pos;
+static int hf_cip_evnt_ctrl_reg2_neg;
+static int hf_cip_evnt_ctrl_reg1_posrearm;
+static int hf_cip_evnt_ctrl_reg1_negrearm;
+static int hf_cip_evnt_ctrl_reg2_posrearm;
+static int hf_cip_evnt_ctrl_reg2_negrearm;
+static int hf_cip_evnt_ctrl_marker_pos;
+static int hf_cip_evnt_ctrl_marker_neg;
+static int hf_cip_evnt_ctrl_home_pos;
+static int hf_cip_evnt_ctrl_home_neg;
+static int hf_cip_evnt_ctrl_home_pp;
+static int hf_cip_evnt_ctrl_home_pm;
+static int hf_cip_evnt_ctrl_home_mp;
+static int hf_cip_evnt_ctrl_home_mm;
+static int hf_cip_evnt_ctrl_acks;
+static int hf_cip_evnt_extend_format;
+static int hf_cip_evnt_sts_reg1_pos;
+static int hf_cip_evnt_sts_reg1_neg;
+static int hf_cip_evnt_sts_reg2_pos;
+static int hf_cip_evnt_sts_reg2_neg;
+static int hf_cip_evnt_sts_reg1_posrearm;
+static int hf_cip_evnt_sts_reg1_negrearm;
+static int hf_cip_evnt_sts_reg2_posrearm;
+static int hf_cip_evnt_sts_reg2_negrearm;
+static int hf_cip_evnt_sts_marker_pos;
+static int hf_cip_evnt_sts_marker_neg;
+static int hf_cip_evnt_sts_home_pos;
+static int hf_cip_evnt_sts_home_neg;
+static int hf_cip_evnt_sts_home_pp;
+static int hf_cip_evnt_sts_home_pm;
+static int hf_cip_evnt_sts_home_mp;
+static int hf_cip_evnt_sts_home_mm;
+static int hf_cip_evnt_sts_nfs;
+static int hf_cip_evnt_sts_stat;
+static int hf_cip_evnt_type;
+static int hf_cip_svc_code;
+static int hf_cip_svc_sts;
+static int hf_cip_svc_set_axis_attr_sts;
+static int hf_cip_svc_get_axis_attr_sts;
+static int hf_cip_svc_transction;
+static int hf_cip_svc_ext_status;
+static int hf_cip_svc_data;
+static int hf_cip_ptp_grandmaster;
+static int hf_cip_axis_alarm;
+static int hf_cip_axis_fault;
+static int hf_cip_axis_sts_local_ctrl;
+static int hf_cip_axis_sts_alarm;
+static int hf_cip_axis_sts_dc_bus;
+static int hf_cip_axis_sts_pwr_struct;
+static int hf_cip_axis_sts_flux_up;
+static int hf_cip_axis_sts_tracking;
+static int hf_cip_axis_sts_pos_lock;
+static int hf_cip_axis_sts_vel_lock;
+static int hf_cip_axis_sts_vel_standstill;
+static int hf_cip_axis_sts_vel_threshold;
+static int hf_cip_axis_sts_vel_limit;
+static int hf_cip_axis_sts_acc_limit;
+static int hf_cip_axis_sts_dec_limit;
+static int hf_cip_axis_sts_torque_threshold;
+static int hf_cip_axis_sts_torque_limit;
+static int hf_cip_axis_sts_cur_limit;
+static int hf_cip_axis_sts_therm_limit;
+static int hf_cip_axis_sts_feedback_integ;
+static int hf_cip_axis_sts_shutdown;
+static int hf_cip_axis_sts_in_process;
+static int hf_cip_axis_sts_dc_bus_unload;
+static int hf_cip_axis_sts_ac_pwr_loss;
+static int hf_cip_axis_sts_pos_cntrl_mode;
+static int hf_cip_axis_sts_vel_cntrl_mode;
+static int hf_cip_axis_sts_trq_cntrl_mode;
 
-static int hf_cip_axis_status2              = -1;
-static int hf_cip_axis_sts2_motor           = -1;
-static int hf_cip_axis_sts2_regenerate      = -1;
-static int hf_cip_axis_sts2_ride_thru       = -1;
-static int hf_cip_axis_sts2_ac_line_sync    = -1;
-static int hf_cip_axis_sts2_bus_volt_lock   = -1;
-static int hf_cip_axis_sts2_react_pwr_only  = -1;
-static int hf_cip_axis_sts2_volt_ctrl_mode  = -1;
-static int hf_cip_axis_sts2_pwr_loss        = -1;
-static int hf_cip_axis_sts2_ac_volt_sag     = -1;
-static int hf_cip_axis_sts2_ac_phase_loss   = -1;
-static int hf_cip_axis_sts2_ac_freq_change  = -1;
-static int hf_cip_axis_sts2_ac_sync_loss    = -1;
-static int hf_cip_axis_sts2_single_phase    = -1;
-static int hf_cip_axis_sts2_bus_volt_limit  = -1;
-static int hf_cip_axis_sts2_bus_volt_rate_limit = -1;
-static int hf_cip_axis_sts2_active_current_rate_limit = -1;
-static int hf_cip_axis_sts2_reactive_current_rate_limit = -1;
-static int hf_cip_axis_sts2_reactive_pwr_limit = -1;
-static int hf_cip_axis_sts2_reactive_pwr_rate_limit = -1;
-static int hf_cip_axis_sts2_active_current_limit = -1;
-static int hf_cip_axis_sts2_reactive_current_limit = -1;
-static int hf_cip_axis_sts2_motor_pwr_limit = -1;
-static int hf_cip_axis_sts2_regen_pwr_limit = -1;
-static int hf_cip_axis_sts2_convert_therm_limit = -1;
+static int hf_cip_axis_status2;
+static int hf_cip_axis_sts2_motor;
+static int hf_cip_axis_sts2_regenerate;
+static int hf_cip_axis_sts2_ride_thru;
+static int hf_cip_axis_sts2_ac_line_sync;
+static int hf_cip_axis_sts2_bus_volt_lock;
+static int hf_cip_axis_sts2_react_pwr_only;
+static int hf_cip_axis_sts2_volt_ctrl_mode;
+static int hf_cip_axis_sts2_pwr_loss;
+static int hf_cip_axis_sts2_ac_volt_sag;
+static int hf_cip_axis_sts2_ac_phase_loss;
+static int hf_cip_axis_sts2_ac_freq_change;
+static int hf_cip_axis_sts2_ac_sync_loss;
+static int hf_cip_axis_sts2_single_phase;
+static int hf_cip_axis_sts2_bus_volt_limit;
+static int hf_cip_axis_sts2_bus_volt_rate_limit;
+static int hf_cip_axis_sts2_active_current_rate_limit;
+static int hf_cip_axis_sts2_reactive_current_rate_limit;
+static int hf_cip_axis_sts2_reactive_pwr_limit;
+static int hf_cip_axis_sts2_reactive_pwr_rate_limit;
+static int hf_cip_axis_sts2_active_current_limit;
+static int hf_cip_axis_sts2_reactive_current_limit;
+static int hf_cip_axis_sts2_motor_pwr_limit;
+static int hf_cip_axis_sts2_regen_pwr_limit;
+static int hf_cip_axis_sts2_convert_therm_limit;
 
-static int hf_cip_cyclic_wrt_data           = -1;
-static int hf_cip_cyclic_rd_data            = -1;
-static int hf_cip_cyclic_write_blk          = -1;
-static int hf_cip_cyclic_read_blk           = -1;
-static int hf_cip_cyclic_write_sts          = -1;
-static int hf_cip_cyclic_read_sts           = -1;
-static int hf_cip_attribute_data            = -1;
-static int hf_cip_event_checking            = -1;
-static int hf_cip_event_ack                 = -1;
-static int hf_cip_event_status              = -1;
-static int hf_cip_event_id                  = -1;
-static int hf_cip_event_pos                 = -1;
-static int hf_cip_event_ts                  = -1;
-static int hf_cip_pos_cmd                   = -1;
-static int hf_cip_pos_cmd_int               = -1;
-static int hf_cip_vel_cmd                   = -1;
-static int hf_cip_accel_cmd                 = -1;
-static int hf_cip_trq_cmd                   = -1;
-static int hf_cip_pos_trim                  = -1;
-static int hf_cip_vel_trim                  = -1;
-static int hf_cip_accel_trim                = -1;
-static int hf_cip_trq_trim                  = -1;
-static int hf_cip_act_pos                   = -1;
-static int hf_cip_act_pos_64                = -1;
-static int hf_cip_act_vel                   = -1;
-static int hf_cip_act_accel                 = -1;
-static int hf_cip_fault_type                = -1;
-static int hf_cip_fault_sub_code            = -1;
-static int hf_cip_fault_action              = -1;
-static int hf_cip_fault_time_stamp          = -1;
-static int hf_cip_alarm_type                = -1;
-static int hf_cip_alarm_sub_code            = -1;
-static int hf_cip_alarm_state               = -1;
-static int hf_cip_alarm_time_stamp          = -1;
-static int hf_cip_axis_status               = -1;
-static int hf_cip_axis_status_mfg           = -1;
-static int hf_cip_axis_io_status            = -1;
-static int hf_cip_axis_io_status_mfg        = -1;
-static int hf_cip_axis_safety_status        = -1;
-static int hf_cip_axis_safety_status_mfg    = -1;
-static int hf_cip_axis_safety_state         = -1;
-static int hf_cip_cmd_data_set              = -1;
-static int hf_cip_act_data_set              = -1;
-static int hf_cip_sts_data_set              = -1;
-static int hf_cip_group_sync                = -1;
-static int hf_cip_command_control           = -1;
+static int hf_cip_cyclic_wrt_data;
+static int hf_cip_cyclic_rd_data;
+static int hf_cip_cyclic_write_blk;
+static int hf_cip_cyclic_read_blk;
+static int hf_cip_cyclic_write_sts;
+static int hf_cip_cyclic_read_sts;
+static int hf_cip_attribute_data;
+static int hf_cip_event_checking;
+static int hf_cip_event_ack;
+static int hf_cip_event_status;
+static int hf_cip_event_id;
+static int hf_cip_event_pos;
+static int hf_cip_event_ts;
+static int hf_cip_pos_cmd;
+static int hf_cip_pos_cmd_int;
+static int hf_cip_vel_cmd;
+static int hf_cip_accel_cmd;
+static int hf_cip_trq_cmd;
+static int hf_cip_pos_trim;
+static int hf_cip_vel_trim;
+static int hf_cip_accel_trim;
+static int hf_cip_trq_trim;
+static int hf_cip_act_pos;
+static int hf_cip_act_pos_64;
+static int hf_cip_act_vel;
+static int hf_cip_act_accel;
+static int hf_cip_fault_type;
+static int hf_cip_fault_sub_code;
+static int hf_cip_fault_action;
+static int hf_cip_fault_time_stamp;
+static int hf_cip_alarm_type;
+static int hf_cip_alarm_sub_code;
+static int hf_cip_alarm_state;
+static int hf_cip_alarm_time_stamp;
+static int hf_cip_axis_status;
+static int hf_cip_axis_status_mfg;
+static int hf_cip_axis_io_status;
+static int hf_cip_axis_io_status_mfg;
+static int hf_cip_axis_safety_status;
+static int hf_cip_axis_safety_status_mfg;
+static int hf_cip_axis_safety_state;
+static int hf_cip_cmd_data_set;
+static int hf_cip_act_data_set;
+static int hf_cip_sts_data_set;
+static int hf_cip_group_sync;
+static int hf_cip_command_control;
 
-static int hf_get_axis_attr_list_attribute_cnt     = -1;
-static int hf_get_axis_attr_list_attribute_id      = -1;
-static int hf_get_axis_attr_list_dimension         = -1;
-static int hf_get_axis_attr_list_element_size      = -1;
-static int hf_get_axis_attr_list_start_index       = -1;
-static int hf_get_axis_attr_list_data_elements     = -1;
-static int hf_set_axis_attr_list_attribute_cnt     = -1;
-static int hf_set_axis_attr_list_attribute_id      = -1;
-static int hf_set_axis_attr_list_dimension         = -1;
-static int hf_set_axis_attr_list_element_size      = -1;
-static int hf_set_axis_attr_list_start_index       = -1;
-static int hf_set_axis_attr_list_data_elements     = -1;
-static int hf_set_cyclic_list_attribute_cnt        = -1;
-static int hf_set_cyclic_list_attribute_id         = -1;
-static int hf_set_cyclic_list_read_block_id        = -1;
-static int hf_set_cyclic_list_attr_sts             = -1;
-static int hf_var_devce_instance                   = -1;
-static int hf_var_devce_instance_block_size        = -1;
-static int hf_var_devce_cyclic_block_size          = -1;
-static int hf_var_devce_cyclic_data_block_size     = -1;
-static int hf_var_devce_cyclic_rw_block_size       = -1;
-static int hf_var_devce_event_block_size           = -1;
-static int hf_var_devce_service_block_size         = -1;
-static int hf_cip_data                             = -1;
+static int hf_get_axis_attr_list_attribute_cnt;
+static int hf_get_axis_attr_list_attribute_id;
+static int hf_get_axis_attr_list_dimension;
+static int hf_get_axis_attr_list_element_size;
+static int hf_get_axis_attr_list_start_index;
+static int hf_get_axis_attr_list_data_elements;
+static int hf_set_axis_attr_list_attribute_cnt;
+static int hf_set_axis_attr_list_attribute_id;
+static int hf_set_axis_attr_list_dimension;
+static int hf_set_axis_attr_list_element_size;
+static int hf_set_axis_attr_list_start_index;
+static int hf_set_axis_attr_list_data_elements;
+static int hf_set_cyclic_list_attribute_cnt;
+static int hf_set_cyclic_list_attribute_id;
+static int hf_set_cyclic_list_read_block_id;
+static int hf_set_cyclic_list_attr_sts;
+static int hf_var_devce_instance;
+static int hf_var_devce_instance_block_size;
+static int hf_var_devce_cyclic_block_size;
+static int hf_var_devce_cyclic_data_block_size;
+static int hf_var_devce_cyclic_rw_block_size;
+static int hf_var_devce_event_block_size;
+static int hf_var_devce_service_block_size;
+static int hf_cip_data;
 
 /* Subtree pointers for the dissection */
-static gint ett_cipmotion           = -1;
-static gint ett_cont_dev_header     = -1;
-static gint ett_control_status      = -1;
-static gint ett_node_control        = -1;
-static gint ett_node_status         = -1;
-static gint ett_time_data_set       = -1;
-static gint ett_inst_data_header    = -1;
-static gint ett_cyclic_data_block   = -1;
-static gint ett_cyclic_command_data = -1;
-static gint ett_feedback_mode       = -1;
-static gint ett_connection_configuration_bits = -1;
-static gint ett_control_mode        = -1;
-static gint ett_feedback_config     = -1;
-static gint ett_command_data_set    = -1;
-static gint ett_actual_data_set     = -1;
-static gint ett_status_data_set     = -1;
-static gint ett_interp_control      = -1;
-static gint ett_cyclic_rd_wt        = -1;
-static gint ett_event               = -1;
-static gint ett_event_check_ctrl    = -1;
-static gint ett_event_check_sts     = -1;
-static gint ett_service             = -1;
-static gint ett_get_axis_attribute  = -1;
-static gint ett_set_axis_attribute  = -1;
-static gint ett_get_axis_attr_list  = -1;
-static gint ett_set_axis_attr_list  = -1;
-static gint ett_set_cyclic_list     = -1;
-static gint ett_group_sync          = -1;
-static gint ett_axis_status_set     = -1;
-static gint ett_command_control     = -1;
-static gint ett_configuration_block = -1;
+static int ett_cipmotion;
+static int ett_cont_dev_header;
+static int ett_control_status;
+static int ett_node_control;
+static int ett_node_status;
+static int ett_time_data_set;
+static int ett_inst_data_header;
+static int ett_cyclic_data_block;
+static int ett_cyclic_command_data;
+static int ett_feedback_mode;
+static int ett_connection_configuration_bits;
+static int ett_control_mode;
+static int ett_feedback_config;
+static int ett_command_data_set;
+static int ett_actual_data_set;
+static int ett_status_data_set;
+static int ett_interp_control;
+static int ett_cyclic_rd_wt;
+static int ett_event;
+static int ett_event_check_ctrl;
+static int ett_event_check_sts;
+static int ett_service;
+static int ett_get_axis_attribute;
+static int ett_set_axis_attribute;
+static int ett_get_axis_attr_list;
+static int ett_set_axis_attr_list;
+static int ett_set_cyclic_list;
+static int ett_group_sync;
+static int ett_axis_status_set;
+static int ett_command_control;
+static int ett_configuration_block;
 
-static expert_field ei_format_rev_conn_pt = EI_INIT;
+static expert_field ei_format_rev_conn_pt;
 
 static dissector_handle_t cipmotion_handle;
 static dissector_handle_t cipmotion3_handle;
 
-static gboolean display_full_attribute_data = FALSE;
+static bool display_full_attribute_data;
 
 /* These are the BITMASKS for the Time Data Set header field */
 #define TIME_DATA_SET_TIME_STAMP                0x1
@@ -806,7 +807,7 @@ static int dissect_connection_configuration_bits(packet_info* pinfo _U_, proto_t
    return 1;
 }
 
-attribute_info_t cip_motion_attribute_vals[] = {
+const attribute_info_t cip_motion_attribute_vals[] = {
    { CI_CLS_MOTION, CIP_ATTR_CLASS, 14, -1, "Node Control", cip_dissector_func, NULL, dissect_node_control },
    { CI_CLS_MOTION, CIP_ATTR_CLASS, 15, -1, "Node Status", cip_dissector_func, NULL, dissect_node_status },
    { CI_CLS_MOTION, CIP_ATTR_CLASS, 31, -1, "Time Data Set", cip_dissector_func, NULL, dissect_time_data_set },
@@ -839,8 +840,8 @@ attribute_info_t cip_motion_attribute_vals[] = {
  *
  * Returns: The number of bytes in the cyclic data used
  */
-static guint32
-dissect_cmd_data_set(guint32 cmd_data_set, proto_tree* parent_tree, tvbuff_t* tvb, guint32 offset, gboolean lreal_pos)
+static uint32_t
+dissect_cmd_data_set(uint32_t cmd_data_set, proto_tree* parent_tree, tvbuff_t* tvb, uint32_t offset, bool lreal_pos)
 {
    // If no Command Data Set bits are set, then we don't need to display any additional data.
    if (cmd_data_set == 0)
@@ -848,7 +849,7 @@ dissect_cmd_data_set(guint32 cmd_data_set, proto_tree* parent_tree, tvbuff_t* tv
       return 0;
    }
 
-   guint32 bytes_used = 0;
+   uint32_t bytes_used = 0;
 
    proto_item* item;
    proto_tree* tree = proto_tree_add_subtree(parent_tree, tvb, offset, 0, ett_cyclic_command_data, &item, "Cyclic Command Data");
@@ -910,8 +911,8 @@ dissect_cmd_data_set(guint32 cmd_data_set, proto_tree* parent_tree, tvbuff_t* tv
  *
  * Returns: The number of bytes in the cyclic data used
  */
-static guint32
-dissect_act_data_set(guint32 act_data_set, proto_tree* parent_tree, tvbuff_t* tvb, guint32 offset, guint8 feedback_mode)
+static uint32_t
+dissect_act_data_set(uint32_t act_data_set, proto_tree* parent_tree, tvbuff_t* tvb, uint32_t offset, uint8_t feedback_mode)
 {
    // If no Actual Data Set bits are set, then we don't need to display any additional data.
    if (act_data_set == 0)
@@ -919,7 +920,7 @@ dissect_act_data_set(guint32 act_data_set, proto_tree* parent_tree, tvbuff_t* tv
       return 0;
    }
 
-   guint32 bytes_used = 0;
+   uint32_t bytes_used = 0;
 
    proto_item* item;
    proto_tree* tree = proto_tree_add_subtree(parent_tree, tvb, offset, 0, ett_cyclic_command_data, &item, "Cyclic Actual Data");
@@ -929,7 +930,7 @@ dissect_act_data_set(guint32 act_data_set, proto_tree* parent_tree, tvbuff_t* tv
    if ( (act_data_set & ACTUAL_DATA_SET_POSITION) == ACTUAL_DATA_SET_POSITION )
    {
       /* Display the actual data set position feedback value in either 32 or 64 bit */
-      gboolean is_64_bit_position = (feedback_mode & FEEDBACK_DATA_TYPE_BITS) == 0x10;
+      bool is_64_bit_position = (feedback_mode & FEEDBACK_DATA_TYPE_BITS) == 0x10;
       if (is_64_bit_position)
       {
          proto_tree_add_item(tree, hf_cip_act_pos_64, tvb, offset + bytes_used, 8, ENC_LITTLE_ENDIAN);
@@ -972,8 +973,8 @@ dissect_act_data_set(guint32 act_data_set, proto_tree* parent_tree, tvbuff_t* tv
  *
  * Returns: The number of bytes in the cyclic data used
  */
-static guint32
-dissect_status_data_set(guint32 status_data_set, proto_tree* parent_tree, tvbuff_t* tvb, guint32 offset)
+static uint32_t
+dissect_status_data_set(uint32_t status_data_set, proto_tree* parent_tree, tvbuff_t* tvb, uint32_t offset)
 {
    // If no Status Data Set bits are set, then we don't need to display any additional data.
    if (status_data_set == 0)
@@ -981,7 +982,7 @@ dissect_status_data_set(guint32 status_data_set, proto_tree* parent_tree, tvbuff
       return 0;
    }
 
-   guint32 bytes_used = 0;
+   uint32_t bytes_used = 0;
 
    proto_item* item;
    proto_tree* tree = proto_tree_add_subtree(parent_tree, tvb, offset, 0, ett_cyclic_command_data, &item, "Cyclic Status Data");
@@ -1067,8 +1068,8 @@ dissect_status_data_set(guint32 status_data_set, proto_tree* parent_tree, tvbuff
  * Returns: The new offset into the message that follow on dissections should use
  * as their starting offset
  */
-static guint32
-dissect_cntr_cyclic(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size)
+static uint32_t
+dissect_cntr_cyclic(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size)
 {
    /* Create the tree for the entire instance data header */
    proto_tree* header_tree = proto_tree_add_subtree(tree, tvb, offset, size, ett_cyclic_data_block, NULL, "Cyclic Command Data Block");
@@ -1083,16 +1084,16 @@ dissect_cntr_cyclic(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 siz
    dissect_status_data_set_bits(NULL, header_tree, NULL, tvb, offset + 6, 1);
    dissect_command_control(NULL, header_tree, NULL, tvb, offset + 7, 1);
 
-   guint32 bytes_used = 8;
+   uint32_t bytes_used = 8;
 
    /* Determine if the dissector should be using an LREAL or DINT for position */
-   guint8 command_control = tvb_get_guint8(tvb, offset + 7);
-   gboolean lreal_pos = ((command_control & COMMAND_CONTROL_POSITION_DATA_TYPE) == POSITION_DATA_LREAL);
+   uint8_t command_control = tvb_get_uint8(tvb, offset + 7);
+   bool lreal_pos = ((command_control & COMMAND_CONTROL_POSITION_DATA_TYPE) == POSITION_DATA_LREAL);
 
    /* Cyclic Command Data: Display the command data values from the cyclic data payload, the
     * cyclic data starts immediately after the interpolation control field in the controller to device
     * direction */
-   guint32 command_data_set = tvb_get_guint8(tvb, offset + 4);
+   uint32_t command_data_set = tvb_get_uint8(tvb, offset + 4);
    bytes_used += dissect_cmd_data_set(command_data_set, header_tree, tvb, offset + bytes_used, lreal_pos);
 
    /* Return the offset to the next byte in the message */
@@ -1107,8 +1108,8 @@ dissect_cntr_cyclic(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 siz
  * Returns: The new offset into the message that follow on dissections should use
  * as their starting offset
  */
-static guint32
-dissect_device_cyclic(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size)
+static uint32_t
+dissect_device_cyclic(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size)
 {
    /* Create the tree for the entire instance data header */
    proto_tree* header_tree = proto_tree_add_subtree(tree, tvb, offset, size, ett_cyclic_data_block, NULL, "Cyclic Actual Data Block");
@@ -1122,15 +1123,15 @@ dissect_device_cyclic(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 s
    dissect_status_data_set_bits(NULL, header_tree, NULL, tvb, offset + 6, 1);
    proto_tree_add_item(header_tree, hf_cip_axis_state, tvb, offset + 7, 1, ENC_LITTLE_ENDIAN);
 
-   guint32 bytes_used = 8;
+   uint32_t bytes_used = 8;
 
    /* Display the "Cyclic Actual Data" values from the cyclic data payload. */
-   guint8 feedback_mode = tvb_get_guint8(tvb, offset + 1);
-   guint8 actual_data_set = tvb_get_guint8(tvb, offset + 5);
+   uint8_t feedback_mode = tvb_get_uint8(tvb, offset + 1);
+   uint8_t actual_data_set = tvb_get_uint8(tvb, offset + 5);
    bytes_used += dissect_act_data_set(actual_data_set, header_tree, tvb, offset + bytes_used, feedback_mode);
 
    /* Display the "Cyclic Status Data" values from the cyclic data payload. */
-   guint8 status_data_set = tvb_get_guint8(tvb, offset + 6);
+   uint8_t status_data_set = tvb_get_uint8(tvb, offset + 6);
    bytes_used += dissect_status_data_set(status_data_set, header_tree, tvb, offset + bytes_used);
 
    /* Return the offset to the next byte in the message */
@@ -1145,8 +1146,8 @@ dissect_device_cyclic(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 s
  * Returns: The new offset into the message that follow on dissections should use
  * as their starting offset
  */
-static guint32
-dissect_cyclic_wt(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size)
+static uint32_t
+dissect_cyclic_wt(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size)
 {
    proto_tree *header_tree;
 
@@ -1176,8 +1177,8 @@ dissect_cyclic_wt(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size)
  * Returns: The new offset into the message that follow on dissections should use
  * as their starting offset
  */
-static guint32
-dissect_cyclic_rd(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size)
+static uint32_t
+dissect_cyclic_rd(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size)
 {
    proto_tree *header_tree;
 
@@ -1213,17 +1214,17 @@ dissect_cyclic_rd(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size)
  * Returns: The new offset into the message that follow on dissections should use
  * as their starting offset
  */
-static guint32
-dissect_cntr_event(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size)
+static uint32_t
+dissect_cntr_event(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size)
 {
    proto_tree *header_tree;
-   guint32 acks, cur_ack;
-   guint32 bytes_used = 0;
+   uint32_t acks, cur_ack;
+   uint32_t bytes_used = 0;
 
    /* Create the tree for the entire cyclic write data block */
    header_tree = proto_tree_add_subtree(tree, tvb, offset, size, ett_event, NULL, "Event Data Block");
 
-   guint32 event_checking_control = tvb_get_letohl(tvb, offset);
+   uint32_t event_checking_control = tvb_get_letohl(tvb, offset);
    dissect_event_checking_control(NULL, header_tree, NULL, tvb, offset, 4);
 
    /* The event checking control value is 4 bytes long */
@@ -1255,17 +1256,17 @@ dissect_cntr_event(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size
  * Returns: The new offset into the message that follow on dissections should use
  * as their starting offset
  */
-static guint32
-dissect_devce_event(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size)
+static uint32_t
+dissect_devce_event(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size)
 {
    proto_tree *header_tree;
-   guint64     nots, cur_not;
-   guint32     bytes_used = 0;
+   uint64_t    nots, cur_not;
+   uint32_t    bytes_used = 0;
 
    /* Create the tree for the entire cyclic write data block */
    header_tree = proto_tree_add_subtree(tree, tvb, offset, size, ett_event, NULL, "Event Data Block");
 
-   guint32 event_checking_status = tvb_get_letohl(tvb, offset);
+   uint32_t event_checking_status = tvb_get_letohl(tvb, offset);
    dissect_event_checking_status(NULL, header_tree, NULL, tvb, offset, 4);
 
    /* The event status control value is 4 bytes long */
@@ -1309,34 +1310,34 @@ dissect_devce_event(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 siz
  * Returns: None
  */
 static void
-dissect_get_axis_attr_list_request(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size, guint32 instance_id)
+dissect_get_axis_attr_list_request(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size, uint32_t instance_id)
 {
    proto_item *attr_item;
    proto_tree *header_tree, *attr_tree;
-   guint32     local_offset;
+   uint32_t    local_offset;
 
    /* Create the tree for the get axis attribute list request */
    header_tree = proto_tree_add_subtree(tree, tvb, offset, size, ett_get_axis_attribute, NULL, "Get Axis Attribute List Request");
 
    /* Read the number of attributes that are contained within the request */
-   guint32 attribute_cnt;
+   uint32_t attribute_cnt;
    proto_tree_add_item_ret_uint(header_tree, hf_get_axis_attr_list_attribute_cnt, tvb, offset, 2, ENC_LITTLE_ENDIAN, &attribute_cnt);
 
    /* Start the attribute loop at the beginning of the first attribute in the list */
    local_offset = offset + 4;
 
    /* For each attribute display the associated fields */
-   for (guint32 attribute = 0; attribute < attribute_cnt; attribute++)
+   for (uint32_t attribute = 0; attribute < attribute_cnt; attribute++)
    {
       /* At a minimum the local offset needs will need to be incremented by 4 bytes to reach the next attribute */
-      guint8 increment_size = 4;
+      uint8_t increment_size = 4;
 
       /* Create the tree for this attribute within the request */
-      guint32 attribute_id;
+      uint32_t attribute_id;
       attr_item = proto_tree_add_item_ret_uint(header_tree, hf_get_axis_attr_list_attribute_id, tvb, local_offset, 2, ENC_LITTLE_ENDIAN, &attribute_id);
       attr_tree = proto_item_add_subtree(attr_item, ett_get_axis_attr_list);
 
-      guint32 dimension;
+      uint32_t dimension;
       proto_tree_add_item_ret_uint(attr_tree, hf_get_axis_attr_list_dimension, tvb, local_offset + 2, 1, ENC_LITTLE_ENDIAN, &dimension);
       proto_tree_add_item(attr_tree, hf_get_axis_attr_list_element_size, tvb, local_offset + 3, 1, ENC_LITTLE_ENDIAN);
 
@@ -1350,7 +1351,7 @@ dissect_get_axis_attr_list_request(tvbuff_t* tvb, proto_tree* tree, guint32 offs
          increment_size += 4;
       }
 
-      attribute_info_t* pattribute = cip_get_attribute(CI_CLS_MOTION, instance_id, attribute_id);
+      const attribute_info_t* pattribute = cip_get_attribute(CI_CLS_MOTION, instance_id, attribute_id);
       if (pattribute != NULL)
       {
          proto_item_append_text(attr_item, " (%s)", pattribute->text);
@@ -1361,10 +1362,10 @@ dissect_get_axis_attr_list_request(tvbuff_t* tvb, proto_tree* tree, guint32 offs
    }
 }
 
-static int dissect_motion_attribute(packet_info *pinfo, tvbuff_t* tvb, int offset, guint32 attribute_id,
-   guint32 instance_id, proto_item* attr_item, proto_tree* attr_tree, guint8 dimension, guint32 attribute_size)
+static int dissect_motion_attribute(packet_info *pinfo, tvbuff_t* tvb, int offset, uint32_t attribute_id,
+   uint32_t instance_id, proto_item* attr_item, proto_tree* attr_tree, uint8_t dimension, uint32_t attribute_size)
 {
-   attribute_info_t* pattribute = cip_get_attribute(CI_CLS_MOTION, instance_id, attribute_id);
+   const attribute_info_t* pattribute = cip_get_attribute(CI_CLS_MOTION, instance_id, attribute_id);
    int parsed_len = 0;
 
    if (pattribute != NULL)
@@ -1389,46 +1390,46 @@ static int dissect_motion_attribute(packet_info *pinfo, tvbuff_t* tvb, int offse
  * Returns: None
  */
 static void
-dissect_set_axis_attr_list_request(packet_info *pinfo, tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size, guint32 instance_id)
+dissect_set_axis_attr_list_request(packet_info *pinfo, tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size, uint32_t instance_id)
 {
    proto_item *attr_item;
    proto_tree *header_tree, *attr_tree;
-   guint32     local_offset;
+   uint32_t    local_offset;
 
    /* Create the tree for the set axis attribute list request */
    header_tree = proto_tree_add_subtree(tree, tvb, offset, size, ett_set_axis_attribute, NULL, "Set Axis Attribute List Request");
 
    /* Read the number of attributes that are contained within the request */
-   guint32 attribute_cnt;
+   uint32_t attribute_cnt;
    proto_tree_add_item_ret_uint(header_tree, hf_set_axis_attr_list_attribute_cnt, tvb, offset, 2, ENC_LITTLE_ENDIAN, &attribute_cnt);
 
    /* Start the attribute loop at the beginning of the first attribute in the list */
    local_offset = offset + 4;
 
    /* For each attribute display the associated fields */
-   for (guint32 attribute = 0; attribute < attribute_cnt; attribute++)
+   for (uint32_t attribute = 0; attribute < attribute_cnt; attribute++)
    {
       /* At a minimum the local offset needs to be incremented by 4 bytes to reach the next attribute */
-      guint8 increment_size = 4;
+      uint8_t increment_size = 4;
 
       /* Pull the fields for this attribute from the payload, all fields are needed to make some calculations before
       *  properly displaying of the attribute is possible */
-      guint8 attribute_start = 4;
+      uint8_t attribute_start = 4;
 
       /* Create the tree for this attribute in the get axis attribute list request */
-      guint32 attribute_id;
+      uint32_t attribute_id;
       attr_item = proto_tree_add_item_ret_uint(header_tree, hf_set_axis_attr_list_attribute_id, tvb, local_offset, 2, ENC_LITTLE_ENDIAN, &attribute_id);
       attr_tree = proto_item_add_subtree(attr_item, ett_set_axis_attr_list);
 
-      guint32 dimension;
+      uint32_t dimension;
       proto_tree_add_item_ret_uint(attr_tree, hf_set_axis_attr_list_dimension, tvb, local_offset + 2, 1, ENC_LITTLE_ENDIAN, &dimension);
 
-      guint32 attribute_size;
+      uint32_t attribute_size;
       proto_tree_add_item_ret_uint(attr_tree, hf_set_axis_attr_list_element_size, tvb, local_offset + 3, 1, ENC_LITTLE_ENDIAN, &attribute_size);
 
       if (dimension == 1)
       {
-         guint32 data_elements;
+         uint32_t data_elements;
 
          /* Display the start index and start index from the request if the request is an array */
          proto_tree_add_item(attr_tree, hf_set_axis_attr_list_start_index, tvb, local_offset + 4, 2, ENC_LITTLE_ENDIAN);
@@ -1474,7 +1475,7 @@ dissect_set_axis_attr_list_request(packet_info *pinfo, tvbuff_t* tvb, proto_tree
  * Returns: None
  */
 static void
-dissect_group_sync_request (tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size)
+dissect_group_sync_request (tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size)
 {
    proto_tree *header_tree;
 
@@ -1485,22 +1486,22 @@ dissect_group_sync_request (tvbuff_t* tvb, proto_tree* tree, guint32 offset, gui
    proto_tree_add_item(header_tree, hf_cip_ptp_grandmaster, tvb, offset, 8, ENC_LITTLE_ENDIAN);
 }
 
-static void dissect_set_cyclic_list_request(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size, guint32 instance_id, const char* service_name)
+static void dissect_set_cyclic_list_request(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size, uint32_t instance_id, const char* service_name)
 {
    proto_tree* header_tree = proto_tree_add_subtree(tree, tvb, offset, size, ett_set_cyclic_list, NULL, service_name);
 
-   guint32 attribute_cnt;
+   uint32_t attribute_cnt;
    proto_tree_add_item_ret_uint(header_tree, hf_set_cyclic_list_attribute_cnt, tvb, offset, 2, ENC_LITTLE_ENDIAN, &attribute_cnt);
 
    // Skip Number of Attributes and Reserved field.
    offset += 4;
 
-   for (guint32 attribute = 0; attribute < attribute_cnt; attribute++)
+   for (uint32_t attribute = 0; attribute < attribute_cnt; attribute++)
    {
-      guint32 attribute_id;
+      uint32_t attribute_id;
       proto_item* attr_item = proto_tree_add_item_ret_uint(header_tree, hf_set_cyclic_list_attribute_id, tvb, offset, 2, ENC_LITTLE_ENDIAN, &attribute_id);
 
-      attribute_info_t* pattribute = cip_get_attribute(CI_CLS_MOTION, instance_id, attribute_id);
+      const attribute_info_t* pattribute = cip_get_attribute(CI_CLS_MOTION, instance_id, attribute_id);
       if (pattribute != NULL)
       {
          proto_item_append_text(attr_item, " (%s)", pattribute->text);
@@ -1510,11 +1511,11 @@ static void dissect_set_cyclic_list_request(tvbuff_t* tvb, proto_tree* tree, gui
    }
 }
 
-static void dissect_set_cyclic_list_respone(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size, guint32 instance_id, const char* service_name)
+static void dissect_set_cyclic_list_respone(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size, uint32_t instance_id, const char* service_name)
 {
    proto_tree* header_tree = proto_tree_add_subtree(tree, tvb, offset, size, ett_set_cyclic_list, NULL, service_name);
 
-   guint32 attribute_cnt;
+   uint32_t attribute_cnt;
    proto_tree_add_item_ret_uint(header_tree, hf_set_cyclic_list_attribute_cnt, tvb, offset, 2, ENC_LITTLE_ENDIAN, &attribute_cnt);
 
    proto_tree_add_item(header_tree, hf_set_cyclic_list_read_block_id, tvb, offset + 2, 2, ENC_LITTLE_ENDIAN);
@@ -1522,12 +1523,12 @@ static void dissect_set_cyclic_list_respone(tvbuff_t* tvb, proto_tree* tree, gui
    // Skip Number of Attributes and Cyclic Read Block ID field.
    offset += 4;
 
-   for (guint32 attribute = 0; attribute < attribute_cnt; attribute++)
+   for (uint32_t attribute = 0; attribute < attribute_cnt; attribute++)
    {
-      guint32 attribute_id;
+      uint32_t attribute_id;
       proto_item* attr_item = proto_tree_add_item_ret_uint(header_tree, hf_set_cyclic_list_attribute_id, tvb, offset, 2, ENC_LITTLE_ENDIAN, &attribute_id);
 
-      attribute_info_t* pattribute = cip_get_attribute(CI_CLS_MOTION, instance_id, attribute_id);
+      const attribute_info_t* pattribute = cip_get_attribute(CI_CLS_MOTION, instance_id, attribute_id);
       if (pattribute != NULL)
       {
          proto_item_append_text(attr_item, " (%s)", pattribute->text);
@@ -1550,11 +1551,11 @@ static void dissect_set_cyclic_list_respone(tvbuff_t* tvb, proto_tree* tree, gui
  * Returns: The new offset into the message that follow on dissections should use
  * as their starting offset
  */
-static guint32
-dissect_cntr_service(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, guint32 offset, guint32 size, guint32 instance_id)
+static uint32_t
+dissect_cntr_service(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, uint32_t offset, uint32_t size, uint32_t instance_id)
 {
    proto_tree *header_tree;
-   guint32      service;
+   uint32_t     service;
 
    /* Create the tree for the entire service data block */
    proto_item *item;
@@ -1621,34 +1622,34 @@ dissect_cntr_service(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, guint3
  * Returns: None
  */
 static void
-dissect_set_axis_attr_list_response(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size, guint32 instance_id)
+dissect_set_axis_attr_list_response(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size, uint32_t instance_id)
 {
    proto_item *attr_item;
    proto_tree *header_tree, *attr_tree;
-   guint32     local_offset;
+   uint32_t    local_offset;
 
    /* Create the tree for the set axis attribute list response */
    header_tree = proto_tree_add_subtree(tree, tvb, offset, size, ett_get_axis_attribute, NULL, "Set Axis Attribute List Response");
 
    /* Read the number of attributes that are contained within the response */
-   guint32 attribute_cnt;
+   uint32_t attribute_cnt;
    proto_tree_add_item_ret_uint(header_tree, hf_set_axis_attr_list_attribute_cnt, tvb, offset, 2, ENC_LITTLE_ENDIAN, &attribute_cnt);
 
    /* Start the attribute loop at the beginning of the first attribute in the list */
    local_offset = offset + 4;
 
    /* For each attribute display the associated fields */
-   for (guint32 attribute = 0; attribute < attribute_cnt; attribute++)
+   for (uint32_t attribute = 0; attribute < attribute_cnt; attribute++)
    {
       /* Create the tree for the current attribute in the set axis attribute list response */
-      guint32 attribute_id;
+      uint32_t attribute_id;
       attr_item = proto_tree_add_item_ret_uint(header_tree, hf_set_axis_attr_list_attribute_id, tvb, local_offset, 2, ENC_LITTLE_ENDIAN, &attribute_id);
       attr_tree = proto_item_add_subtree(attr_item, ett_get_axis_attr_list);
 
       /* Add the response status to the tree */
       proto_tree_add_item(attr_tree, hf_cip_svc_set_axis_attr_sts, tvb, local_offset + 2, 1, ENC_LITTLE_ENDIAN);
 
-      attribute_info_t* pattribute = cip_get_attribute(CI_CLS_MOTION, instance_id, attribute_id);
+      const attribute_info_t* pattribute = cip_get_attribute(CI_CLS_MOTION, instance_id, attribute_id);
       if (pattribute != NULL)
       {
          proto_item_append_text(attr_item, " (%s)", pattribute->text);
@@ -1667,37 +1668,37 @@ dissect_set_axis_attr_list_response(tvbuff_t* tvb, proto_tree* tree, guint32 off
  * Returns: None
  */
 static void
-dissect_get_axis_attr_list_response(packet_info* pinfo, tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint32 size, guint32 instance_id)
+dissect_get_axis_attr_list_response(packet_info* pinfo, tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint32_t size, uint32_t instance_id)
 {
    proto_item *attr_item;
    proto_tree *header_tree, *attr_tree;
-   guint32     local_offset;
+   uint32_t    local_offset;
 
    /* Create the tree for the get axis attribute list response */
    header_tree = proto_tree_add_subtree(tree, tvb, offset, size, ett_get_axis_attribute, NULL, "Get Axis Attribute List Response");
 
    /* Read the number of attributes that are contained within the request */
-   guint32 attribute_cnt;
+   uint32_t attribute_cnt;
    proto_tree_add_item_ret_uint(header_tree, hf_get_axis_attr_list_attribute_cnt, tvb, offset, 2, ENC_LITTLE_ENDIAN, &attribute_cnt);
 
    /* Start the attribute loop at the beginning of the first attribute in the list */
    local_offset = offset + 4;
 
    /* For each attribute display the associated fields */
-   for (guint32 attribute = 0; attribute < attribute_cnt; attribute++)
+   for (uint32_t attribute = 0; attribute < attribute_cnt; attribute++)
    {
       /* At a minimum the local offset needs to be incremented by 4 bytes to reach the next attribute */
-      guint8 increment_size = 4;
+      uint8_t increment_size = 4;
 
       /* Pull the fields for this attribute from the payload, all fields are needed to make some calculations before
       * properly displaying of the attribute is possible */
-      guint8 dimension = tvb_get_guint8(tvb, local_offset + 2);
-      guint32 attribute_size = tvb_get_guint8(tvb, local_offset + 3);
-      guint8 attribute_start = 4;
+      uint8_t dimension = tvb_get_uint8(tvb, local_offset + 2);
+      uint32_t attribute_size = tvb_get_uint8(tvb, local_offset + 3);
+      uint8_t attribute_start = 4;
 
       if (dimension == 1)
       {
-         guint16 data_elements = tvb_get_letohs(tvb, local_offset + 6);
+         uint16_t data_elements = tvb_get_letohs(tvb, local_offset + 6);
 
          /* Modify the size of the attribute data by the number of elements if the request is an array request */
          attribute_size *= data_elements;
@@ -1708,7 +1709,7 @@ dissect_get_axis_attr_list_response(packet_info* pinfo, tvbuff_t* tvb, proto_tre
       }
 
       /* Display the fields associated with the get axis attribute list response */
-      guint32 attribute_id;
+      uint32_t attribute_id;
       attr_item = proto_tree_add_item_ret_uint(header_tree, hf_get_axis_attr_list_attribute_id, tvb, local_offset, 2, ENC_LITTLE_ENDIAN, &attribute_id);
       attr_tree = proto_item_add_subtree(attr_item, ett_get_axis_attr_list);
 
@@ -1765,7 +1766,7 @@ dissect_get_axis_attr_list_response(packet_info* pinfo, tvbuff_t* tvb, proto_tre
  * Returns: None
  */
 static void
-dissect_group_sync_response (tvbuff_t* tvb, proto_tree* tree, guint32 offset)
+dissect_group_sync_response (tvbuff_t* tvb, proto_tree* tree, uint32_t offset)
 {
    proto_tree_add_item(tree, hf_cip_group_sync, tvb, offset, 1, ENC_LITTLE_ENDIAN);
 }
@@ -1778,8 +1779,8 @@ dissect_group_sync_response (tvbuff_t* tvb, proto_tree* tree, guint32 offset)
  * Returns: The new offset into the message that follow on dissections should use
  * as their starting offset
  */
-static guint32
-dissect_devce_service(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, guint32 offset, guint32 size, guint32 instance_id)
+static uint32_t
+dissect_devce_service(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, uint32_t offset, uint32_t size, uint32_t instance_id)
 {
    proto_tree *header_tree;
 
@@ -1791,7 +1792,7 @@ dissect_devce_service(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, guint
    proto_tree_add_item(header_tree, hf_cip_svc_transction, tvb, offset, 1, ENC_LITTLE_ENDIAN);
 
    /* Display the service code */
-   guint32 service_code;
+   uint32_t service_code;
    proto_tree_add_item_ret_uint(header_tree, hf_cip_svc_code, tvb, offset + 1, 1, ENC_LITTLE_ENDIAN, &service_code);
 
    /* Display the general status code */
@@ -1849,13 +1850,13 @@ dissect_devce_service(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, guint
  * Returns: void
  */
 static void
-dissect_var_inst_header(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint8* inst_number, guint32* cyc_size,
-                        guint32* cyc_blk_size, guint32* evnt_size, guint32* servc_size)
+dissect_var_inst_header(tvbuff_t* tvb, proto_tree* tree, uint32_t offset, uint8_t* inst_number, uint32_t* cyc_size,
+                        uint32_t* cyc_blk_size, uint32_t* evnt_size, uint32_t* servc_size)
 {
    proto_tree *header_tree;
 
    /* Create the tree for the entire instance data header */
-   *inst_number = tvb_get_guint8(tvb, offset);
+   *inst_number = tvb_get_uint8(tvb, offset);
 
    header_tree = proto_tree_add_subtree_format(tree, tvb, offset, 8, ett_inst_data_header, NULL,
                                                 "Instance Data Header - Instance: %d", *inst_number);
@@ -1873,19 +1874,19 @@ dissect_var_inst_header(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint8*
    proto_tree_add_item(header_tree, hf_var_devce_cyclic_block_size, tvb, offset + 3, 1, ENC_NA);
 
    /* Read the cyclic command block size field in bytes from the instance data header */
-   *cyc_size = (tvb_get_guint8(tvb, offset + 4) * 4);
+   *cyc_size = (tvb_get_uint8(tvb, offset + 4) * 4);
    proto_tree_add_item(header_tree, hf_var_devce_cyclic_data_block_size, tvb, offset + 4, 1, ENC_NA);
 
    /* Read the cyclic write block size field in bytes from the instance data header */
-   *cyc_blk_size = (tvb_get_guint8(tvb, offset + 5) * 4);
+   *cyc_blk_size = (tvb_get_uint8(tvb, offset + 5) * 4);
    proto_tree_add_item(header_tree, hf_var_devce_cyclic_rw_block_size, tvb, offset + 5, 1, ENC_NA);
 
    /* Read the event block size in bytes from the instance data header */
-   *evnt_size = (tvb_get_guint8(tvb, offset + 6) * 4);
+   *evnt_size = (tvb_get_uint8(tvb, offset + 6) * 4);
    proto_tree_add_item(header_tree, hf_var_devce_event_block_size, tvb, offset + 6, 1, ENC_NA);
 
    /* Read the service block size in bytes from the instance data header */
-   *servc_size = (tvb_get_guint8(tvb, offset + 7) * 4);
+   *servc_size = (tvb_get_uint8(tvb, offset + 7) * 4);
    proto_tree_add_item(header_tree, hf_var_devce_service_block_size, tvb, offset + 7, 1, ENC_NA);
 }
 
@@ -1896,16 +1897,16 @@ dissect_var_inst_header(tvbuff_t* tvb, proto_tree* tree, guint32 offset, guint8*
  *
  * Returns: Offset to the start of the instance data block
  */
-static guint32
-dissect_var_cont_conn_header(tvbuff_t* tvb, proto_tree* tree, guint32* inst_count, guint32 offset)
+static uint32_t
+dissect_var_cont_conn_header(tvbuff_t* tvb, proto_tree* tree, uint32_t* inst_count, uint32_t offset)
 {
-   guint32     header_size;
+   uint32_t    header_size;
    proto_tree *header_tree;
 
    /* Calculate the header size, start with the basic header size */
    header_size = 8;
 
-   guint32 time_data_set = tvb_get_guint8(tvb, offset + 7);
+   uint32_t time_data_set = tvb_get_uint8(tvb, offset + 7);
 
    /* Check the time data set field for enabled bits. If either update period or
    * update time stamp fields are set, bump the header size by the appropriate size */
@@ -1961,16 +1962,16 @@ dissect_var_cont_conn_header(tvbuff_t* tvb, proto_tree* tree, guint32* inst_coun
  *
  * Returns: Offset to the start of the instance data block
  */
-static guint32
-dissect_var_devce_conn_header(tvbuff_t* tvb, proto_tree* tree, guint32* inst_count, guint32 offset)
+static uint32_t
+dissect_var_devce_conn_header(tvbuff_t* tvb, proto_tree* tree, uint32_t* inst_count, uint32_t offset)
 {
-   guint32     header_size;
+   uint32_t    header_size;
    proto_tree *header_tree;
 
    /* Calculate the header size, start with the basic header size */
    header_size = 8;
 
-   guint32 time_data_set = tvb_get_guint8(tvb, offset + 7);
+   uint32_t time_data_set = tvb_get_uint8(tvb, offset + 7);
    if ( (time_data_set & TIME_DATA_SET_TIME_STAMP) == TIME_DATA_SET_TIME_STAMP )
    {
       header_size += 8;
@@ -2064,13 +2065,13 @@ dissect_cipmotion(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* dat
 {
    cip_io_data_input* io_data_input = (cip_io_data_input*)data;
 
-   guint32     con_format;
-   guint32     update_id;
+   uint32_t    con_format;
+   uint32_t    update_id;
    proto_item *proto_item_top;
    proto_tree *proto_tree_top;
-   guint32     offset = 0;
+   uint32_t    offset = 0;
 
-   guint8 ConnPoint = 2;
+   uint8_t ConnPoint = 2;
    if (io_data_input && io_data_input->conn_info)
    {
       ConnPoint = io_data_input->conn_info->connection_path.iConnPoint;
@@ -2094,8 +2095,8 @@ dissect_cipmotion(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* dat
 
    /* Pull the actual values for the connection format and update id from the
     * incoming message to be used in the column info */
-   con_format = tvb_get_guint8(tvb, offset);
-   update_id  = tvb_get_guint8(tvb, offset + 2);
+   con_format = tvb_get_uint8(tvb, offset);
+   update_id  = tvb_get_uint8(tvb, offset + 2);
 
    /* Make entries in Protocol column and Info column on summary display */
    col_set_str(pinfo->cinfo, COL_PROTOCOL, "CIP Motion");
@@ -2109,19 +2110,19 @@ dissect_cipmotion(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* dat
        ( con_format == FORMAT_VAR_DEVICE_TO_CONTROL ))
    {
       /* Sizes of the individual channels within the connection */
-      guint32 cyc_size, cyc_blk_size, evnt_size, servc_size;
-      guint32 inst_count = 0, inst;
-      guint32 format_rev = 0;
+      uint32_t cyc_size, cyc_blk_size, evnt_size, servc_size;
+      uint32_t inst_count = 0, inst;
+      uint32_t format_rev = 0;
 
       /* Dissect the header fields */
       switch(con_format)
       {
       case FORMAT_VAR_CONTROL_TO_DEVICE:
-         format_rev = tvb_get_guint8(tvb, offset + 1);
+         format_rev = tvb_get_uint8(tvb, offset + 1);
          offset = dissect_var_cont_conn_header(tvb, proto_tree_top, &inst_count, offset);
          break;
       case FORMAT_VAR_DEVICE_TO_CONTROL:
-         format_rev = tvb_get_guint8(tvb, offset + 1);
+         format_rev = tvb_get_uint8(tvb, offset + 1);
          offset = dissect_var_devce_conn_header(tvb, proto_tree_top, &inst_count, offset);
          break;
       }
@@ -2135,7 +2136,7 @@ dissect_cipmotion(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* dat
       for( inst = 0; inst < inst_count; inst++ )
       {
          /* Actual instance number from header field */
-         guint8 instance;
+         uint8_t instance;
 
          /* Dissect the instance data header */
          dissect_var_inst_header( tvb, proto_tree_top, offset, &instance,
@@ -2370,7 +2371,7 @@ proto_register_cipmotion(void)
       },
       { &hf_cip_devc_time_stamp,
         { "Device Time Stamp", "cipm.devctimestamp",
-          FT_UINT64, BASE_DEC|BASE_UNIT_STRING, &units_nanosecond_nanoseconds, 0,
+          FT_UINT64, BASE_DEC|BASE_UNIT_STRING, UNS(&units_nanosecond_nanoseconds), 0,
           "Time Data Set: Device Time Stamp", HFILL}
       },
       { &hf_cip_devc_time_offset,
@@ -2716,7 +2717,7 @@ proto_register_cipmotion(void)
           "Event Channel: Event Checking Status", HFILL}
       },
       { &hf_cip_event_id,
-        { "Event Id", "cipm.evntack",
+        { "Event Id", "cipm.evntid",
           FT_UINT8, BASE_DEC, NULL, 0,
           "Event Channel: Event Id", HFILL }
       },
@@ -2727,7 +2728,7 @@ proto_register_cipmotion(void)
       },
       { &hf_cip_event_ts,
         { "Event Time Stamp", "cipm.evntimestamp",
-          FT_UINT64, BASE_DEC|BASE_UNIT_STRING, &units_nanosecond_nanoseconds, 0,
+          FT_UINT64, BASE_DEC|BASE_UNIT_STRING, UNS(&units_nanosecond_nanoseconds), 0,
           "Event Channel: Time Stamp", HFILL}
       },
 
@@ -3054,32 +3055,32 @@ proto_register_cipmotion(void)
       },
       { &hf_var_devce_instance_block_size,
         { "Instance Block Size", "cipm.var_devce.header.instance_block_size",
-          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_word_words, 0,
+          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_word_words), 0,
           "Variable Device Header: Instance Block Size", HFILL}
       },
       { &hf_var_devce_cyclic_block_size,
         { "Cyclic Block Size", "cipm.var_devce.header.cyclic_block_size",
-          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_word_words, 0,
+          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_word_words), 0,
           "Variable Device Header: Cyclic Block Size", HFILL}
       },
       { &hf_var_devce_cyclic_data_block_size,
         { "Cyclic Data Block Size", "cipm.var_devce.header.cyclic_data_block_size",
-          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_word_words, 0,
+          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_word_words), 0,
           "Variable Device Header: Cyclic Data Block Size", HFILL}
       },
       { &hf_var_devce_cyclic_rw_block_size,
         { "Cyclic Read/Write Block Size", "cipm.var_devce.header.cyclic_rw_block_size",
-          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_word_words, 0,
+          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_word_words), 0,
           "Variable Device Header: Cyclic Read/Write Block Size", HFILL}
       },
       { &hf_var_devce_event_block_size,
         { "Event Block Size", "cipm.var_devce.header.event_block_size",
-          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_word_words, 0,
+          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_word_words), 0,
           "Variable Device Header: Event Block Size", HFILL}
       },
       { &hf_var_devce_service_block_size,
         { "Service Block Size", "cipm.var_devce.header.service_block_size",
-          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_word_words, 0,
+          FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_word_words), 0,
           "Variable Device Header: Service Block Size", HFILL}
       },
 
@@ -3416,7 +3417,7 @@ proto_register_cipmotion(void)
 
    /* Setup protocol subtree array, these will help Wireshark remember
    * if the subtree should be expanded as the user moves through packets */
-   static gint *cip_subtree[] = {
+   static int *cip_subtree[] = {
       &ett_cipmotion,
       &ett_cont_dev_header,
       &ett_control_status,

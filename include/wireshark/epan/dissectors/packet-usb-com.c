@@ -13,112 +13,122 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/follow.h>
+#include <epan/conversation.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
 #include "packet-usb.h"
 
-/* protocols and header fields */
-static int proto_usb_com = -1;
-static int hf_usb_com_descriptor_subtype = -1;
-static int hf_usb_com_descriptor_cdc = -1;
-static int hf_usb_com_descriptor_payload = -1;
-static int hf_usb_com_control_subclass = -1;
-static int hf_usb_com_control_request_code = -1;
-static int hf_usb_com_control_value = -1;
-static int hf_usb_com_control_index = -1;
-static int hf_usb_com_control_length = -1;
-static int hf_usb_com_control_response_code = -1;
-static int hf_usb_com_control_payload = -1;
-static int hf_usb_com_get_ntb_params_length = -1;
-static int hf_usb_com_get_ntb_params_ntb_formats_supported = -1;
-static int hf_usb_com_get_ntb_params_ntb_formats_supported_16bit = -1;
-static int hf_usb_com_get_ntb_params_ntb_formats_supported_32bit = -1;
-static int hf_usb_com_get_ntb_params_ntb_in_max_size = -1;
-static int hf_usb_com_get_ntb_params_ndp_in_divisor = -1;
-static int hf_usb_com_get_ntb_params_ndp_in_payload_remainder = -1;
-static int hf_usb_com_get_ntb_params_ndp_in_alignment = -1;
-static int hf_usb_com_get_ntb_params_reserved = -1;
-static int hf_usb_com_get_ntb_params_ntb_out_max_size = -1;
-static int hf_usb_com_get_ntb_params_ndp_out_divisor = -1;
-static int hf_usb_com_get_ntb_params_ndp_out_payload_remainder = -1;
-static int hf_usb_com_get_ntb_params_ndp_out_alignment = -1;
-static int hf_usb_com_get_ntb_params_ntb_out_max_datagrams = -1;
-static int hf_usb_com_get_net_address_eui48 = -1;
-static int hf_usb_com_set_net_address_eui48 = -1;
-static int hf_usb_com_get_ntb_format_ntb_format = -1;
-static int hf_usb_com_set_ntb_format_ntb_format = -1;
-static int hf_usb_com_get_ntb_input_size_ntb_in_max_size = -1;
-static int hf_usb_com_get_ntb_input_size_ntb_in_max_datagrams = -1;
-static int hf_usb_com_get_ntb_input_size_reserved = -1;
-static int hf_usb_com_set_ntb_input_size_ntb_in_max_size = -1;
-static int hf_usb_com_set_ntb_input_size_ntb_in_max_datagrams = -1;
-static int hf_usb_com_set_ntb_input_size_reserved = -1;
-static int hf_usb_com_get_max_datagram_size_size = -1;
-static int hf_usb_com_set_max_datagram_size_size = -1;
-static int hf_usb_com_get_crc_mode_crc_mode = -1;
-static int hf_usb_com_set_crc_mode_crc_mode = -1;
-static int hf_usb_com_capabilities = -1;
-static int hf_usb_com_descriptor_acm_capabilities_reserved = -1;
-static int hf_usb_com_descriptor_acm_capabilities_network_connection = -1;
-static int hf_usb_com_descriptor_acm_capabilities_send_break = -1;
-static int hf_usb_com_descriptor_acm_capabilities_line_and_state = -1;
-static int hf_usb_com_descriptor_acm_capabilities_comm_features = -1;
-static int hf_usb_com_descriptor_control_interface = -1;
-static int hf_usb_com_descriptor_subordinate_interface = -1;
-static int hf_usb_com_descriptor_cm_capabilities_reserved = -1;
-static int hf_usb_com_descriptor_cm_capabilities_call_management_over_data_class_interface = -1;
-static int hf_usb_com_descriptor_cm_capabilities_call_management = -1;
-static int hf_usb_com_descriptor_cm_data_interface = -1;
-static int hf_usb_com_descriptor_ecm_mac_address = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_reserved = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_xmit_late_collisions = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_xmit_times_crs_lost = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_xmit_heartbeat_failure = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_xmit_underrun = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_rcv_overrun = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_xmit_max_collisions = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_xmit_deferred = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_xmit_more_collisions = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_xmit_one_collision = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_rcv_error_alignment = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_transmit_queue_length = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_rcv_crc_error = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_broadcast_frames_rcv = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_broadcast_bytes_rcv = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_multicast_frames_rcv = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_multicast_bytes_rcv = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_directed_frames_rcv = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_directed_bytes_rcv = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_broadcast_frames_xmit = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_broadcast_bytes_xmit = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_multicast_frames_xmit = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_multicast_bytes_xmit = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_directed_frames_xmit = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_directed_bytes_xmit = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_rcv_no_buffer = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_rcv_error = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_xmit_error = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_rvc_ok = -1;
-static int hf_usb_com_descriptor_ecm_eth_stats_xmit_ok = -1;
-static int hf_usb_com_descriptor_ecm_max_segment_size = -1;
-static int hf_usb_com_descriptor_ecm_nb_mc_filters = -1;
-static int hf_usb_com_descriptor_ecm_nb_mc_filters_mc_address_filtering = -1;
-static int hf_usb_com_descriptor_ecm_nb_mc_filters_nb_filters_supported = -1;
-static int hf_usb_com_descriptor_ecm_nb_power_filters = -1;
-static int hf_usb_com_interrupt_request_type = -1;
-static int hf_usb_com_interrupt_notif_code = -1;
-static int hf_usb_com_interrupt_value = -1;
-static int hf_usb_com_interrupt_value_nw_conn = -1;
-static int hf_usb_com_interrupt_index = -1;
-static int hf_usb_com_interrupt_length = -1;
-static int hf_usb_com_interrupt_dl_bitrate = -1;
-static int hf_usb_com_interrupt_ul_bitrate = -1;
-static int hf_usb_com_interrupt_payload = -1;
+static int cdc_data_follow_tap;
+static int proto_usb;
 
-static gint ett_usb_com = -1;
-static gint ett_usb_com_capabilities = -1;
-static gint ett_usb_com_bitmap = -1;
-static gint ett_usb_com_descriptor_ecm_eth_stats = -1;
-static gint ett_usb_com_descriptor_ecm_nb_mc_filters = -1;
+/* protocols and header fields */
+static int proto_usb_com;
+static int hf_usb_com_descriptor_subtype;
+static int hf_usb_com_descriptor_cdc;
+static int hf_usb_com_descriptor_payload;
+static int hf_usb_com_control_subclass;
+static int hf_usb_com_control_request_code;
+static int hf_usb_com_control_value;
+static int hf_usb_com_control_index;
+static int hf_usb_com_control_length;
+static int hf_usb_com_control_response_code;
+static int hf_usb_com_control_payload;
+static int hf_usb_com_get_ntb_params_length;
+static int hf_usb_com_get_ntb_params_ntb_formats_supported;
+static int hf_usb_com_get_ntb_params_ntb_formats_supported_16bit;
+static int hf_usb_com_get_ntb_params_ntb_formats_supported_32bit;
+static int hf_usb_com_get_ntb_params_ntb_in_max_size;
+static int hf_usb_com_get_ntb_params_ndp_in_divisor;
+static int hf_usb_com_get_ntb_params_ndp_in_payload_remainder;
+static int hf_usb_com_get_ntb_params_ndp_in_alignment;
+static int hf_usb_com_get_ntb_params_reserved;
+static int hf_usb_com_get_ntb_params_ntb_out_max_size;
+static int hf_usb_com_get_ntb_params_ndp_out_divisor;
+static int hf_usb_com_get_ntb_params_ndp_out_payload_remainder;
+static int hf_usb_com_get_ntb_params_ndp_out_alignment;
+static int hf_usb_com_get_ntb_params_ntb_out_max_datagrams;
+static int hf_usb_com_get_net_address_eui48;
+static int hf_usb_com_set_net_address_eui48;
+static int hf_usb_com_get_ntb_format_ntb_format;
+static int hf_usb_com_set_ntb_format_ntb_format;
+static int hf_usb_com_get_ntb_input_size_ntb_in_max_size;
+static int hf_usb_com_get_ntb_input_size_ntb_in_max_datagrams;
+static int hf_usb_com_get_ntb_input_size_reserved;
+static int hf_usb_com_set_ntb_input_size_ntb_in_max_size;
+static int hf_usb_com_set_ntb_input_size_ntb_in_max_datagrams;
+static int hf_usb_com_set_ntb_input_size_reserved;
+static int hf_usb_com_get_max_datagram_size_size;
+static int hf_usb_com_set_max_datagram_size_size;
+static int hf_usb_com_get_crc_mode_crc_mode;
+static int hf_usb_com_set_crc_mode_crc_mode;
+static int hf_usb_com_capabilities;
+static int hf_usb_com_descriptor_acm_capabilities_reserved;
+static int hf_usb_com_descriptor_acm_capabilities_network_connection;
+static int hf_usb_com_descriptor_acm_capabilities_send_break;
+static int hf_usb_com_descriptor_acm_capabilities_line_and_state;
+static int hf_usb_com_descriptor_acm_capabilities_comm_features;
+static int hf_usb_com_descriptor_control_interface;
+static int hf_usb_com_descriptor_subordinate_interface;
+static int hf_usb_com_descriptor_cm_capabilities_reserved;
+static int hf_usb_com_descriptor_cm_capabilities_call_management_over_data_class_interface;
+static int hf_usb_com_descriptor_cm_capabilities_call_management;
+static int hf_usb_com_descriptor_cm_data_interface;
+static int hf_usb_com_descriptor_ecm_mac_address;
+static int hf_usb_com_descriptor_ecm_eth_stats;
+static int hf_usb_com_descriptor_ecm_eth_stats_reserved;
+static int hf_usb_com_descriptor_ecm_eth_stats_xmit_late_collisions;
+static int hf_usb_com_descriptor_ecm_eth_stats_xmit_times_crs_lost;
+static int hf_usb_com_descriptor_ecm_eth_stats_xmit_heartbeat_failure;
+static int hf_usb_com_descriptor_ecm_eth_stats_xmit_underrun;
+static int hf_usb_com_descriptor_ecm_eth_stats_rcv_overrun;
+static int hf_usb_com_descriptor_ecm_eth_stats_xmit_max_collisions;
+static int hf_usb_com_descriptor_ecm_eth_stats_xmit_deferred;
+static int hf_usb_com_descriptor_ecm_eth_stats_xmit_more_collisions;
+static int hf_usb_com_descriptor_ecm_eth_stats_xmit_one_collision;
+static int hf_usb_com_descriptor_ecm_eth_stats_rcv_error_alignment;
+static int hf_usb_com_descriptor_ecm_eth_stats_transmit_queue_length;
+static int hf_usb_com_descriptor_ecm_eth_stats_rcv_crc_error;
+static int hf_usb_com_descriptor_ecm_eth_stats_broadcast_frames_rcv;
+static int hf_usb_com_descriptor_ecm_eth_stats_broadcast_bytes_rcv;
+static int hf_usb_com_descriptor_ecm_eth_stats_multicast_frames_rcv;
+static int hf_usb_com_descriptor_ecm_eth_stats_multicast_bytes_rcv;
+static int hf_usb_com_descriptor_ecm_eth_stats_directed_frames_rcv;
+static int hf_usb_com_descriptor_ecm_eth_stats_directed_bytes_rcv;
+static int hf_usb_com_descriptor_ecm_eth_stats_broadcast_frames_xmit;
+static int hf_usb_com_descriptor_ecm_eth_stats_broadcast_bytes_xmit;
+static int hf_usb_com_descriptor_ecm_eth_stats_multicast_frames_xmit;
+static int hf_usb_com_descriptor_ecm_eth_stats_multicast_bytes_xmit;
+static int hf_usb_com_descriptor_ecm_eth_stats_directed_frames_xmit;
+static int hf_usb_com_descriptor_ecm_eth_stats_directed_bytes_xmit;
+static int hf_usb_com_descriptor_ecm_eth_stats_rcv_no_buffer;
+static int hf_usb_com_descriptor_ecm_eth_stats_rcv_error;
+static int hf_usb_com_descriptor_ecm_eth_stats_xmit_error;
+static int hf_usb_com_descriptor_ecm_eth_stats_rvc_ok;
+static int hf_usb_com_descriptor_ecm_eth_stats_xmit_ok;
+static int hf_usb_com_descriptor_ecm_max_segment_size;
+static int hf_usb_com_descriptor_ecm_nb_mc_filters;
+static int hf_usb_com_descriptor_ecm_nb_mc_filters_mc_address_filtering;
+static int hf_usb_com_descriptor_ecm_nb_mc_filters_nb_filters_supported;
+static int hf_usb_com_descriptor_ecm_nb_power_filters;
+static int hf_usb_com_interrupt_request_type;
+static int hf_usb_com_interrupt_notif_code;
+static int hf_usb_com_interrupt_value;
+static int hf_usb_com_interrupt_value_nw_conn;
+static int hf_usb_com_interrupt_index;
+static int hf_usb_com_interrupt_length;
+static int hf_usb_com_interrupt_dl_bitrate;
+static int hf_usb_com_interrupt_ul_bitrate;
+static int hf_usb_com_interrupt_payload;
+static int hf_usb_com_data_stream;
+static int hf_usb_com_data_in_payload;
+static int hf_usb_com_data_out_payload;
+
+static int ett_usb_com;
+static int ett_usb_com_capabilities;
+static int ett_usb_com_bitmap;
+static int ett_usb_com_descriptor_ecm_eth_stats;
+static int ett_usb_com_descriptor_ecm_nb_mc_filters;
 
 static dissector_handle_t usb_com_descriptor_handle;
 static dissector_handle_t usb_com_control_handle;
@@ -130,15 +140,21 @@ static dissector_handle_t mbim_descriptor_handle;
 static dissector_handle_t mbim_bulk_handle;
 static dissector_handle_t eth_withoutfcs_handle;
 
-static expert_field ei_unexpected_controlling_iface = EI_INIT;
+static expert_field ei_unexpected_controlling_iface;
 
-static wmem_tree_t* controlling_ifaces = NULL;
+static wmem_tree_t* controlling_ifaces;
 
 typedef struct _controlling_iface {
-    guint16 interfaceClass;
-    guint16 interfaceSubclass;
-    guint16 interfaceProtocol;
+    uint16_t interfaceClass;
+    uint16_t interfaceSubclass;
+    uint16_t interfaceProtocol;
 } controlling_iface_t;
+
+static uint32_t cdc_data_stream_count;
+
+typedef struct _cdc_data_conv {
+    uint32_t stream;
+} cdc_data_conv_t;
 
 #define CS_INTERFACE 0x24
 #define CS_ENDPOINT  0x25
@@ -416,13 +432,14 @@ void proto_reg_handoff_usb_com(void);
 static int
 dissect_usb_com_descriptor(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    usb_conv_info_t *usb_conv_info = (usb_conv_info_t *)data;
-    guint8 offset = 0, type, subtype;
+    urb_info_t *urb = (urb_info_t *)data;
+    int offset = 0;
+    uint8_t type, subtype;
     proto_tree *subtree;
     proto_tree *subtree_capabilities;
     proto_item *subitem_capabilities;
 
-    if (!usb_conv_info) {
+    if (!urb) {
         return 0;
     }
 
@@ -431,10 +448,10 @@ dissect_usb_com_descriptor(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
     dissect_usb_descriptor_header(subtree, tvb, offset, &usb_com_descriptor_type_vals_ext);
     offset += 2;
 
-    type = tvb_get_guint8(tvb, 1);
+    type = tvb_get_uint8(tvb, 1);
     switch (type) {
         case CS_INTERFACE:
-            subtype = tvb_get_guint8(tvb, offset);
+            subtype = tvb_get_uint8(tvb, offset);
             proto_tree_add_uint(subtree, hf_usb_com_descriptor_subtype, tvb, offset, 1, subtype);
             offset++;
             switch (subtype) {
@@ -466,10 +483,10 @@ dissect_usb_com_descriptor(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
                     break;
                 case 0x06: {
                     proto_item *control_item;
-                    guint32 k_bus_id;
-                    guint32 k_device_address;
-                    guint32 k_subordinate_id;
-                    guint32 k_frame_number;
+                    uint32_t k_bus_id;
+                    uint32_t k_device_address;
+                    uint32_t k_subordinate_id;
+                    uint32_t k_frame_number;
                     wmem_tree_key_t key[] = {
                         { .length = 1, .key = &k_bus_id },
                         { .length = 1, .key = &k_device_address },
@@ -478,21 +495,21 @@ dissect_usb_com_descriptor(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
                         { .length = 0, .key = NULL },
                     };
                     controlling_iface_t *master_info = NULL;
-                    guint32  master;
+                    uint32_t master;
 
-                    k_bus_id = usb_conv_info->bus_id;
-                    k_device_address = usb_conv_info->device_address;
+                    k_bus_id = urb->bus_id;
+                    k_device_address = urb->device_address;
                     k_frame_number = pinfo->num;
 
                     control_item = proto_tree_add_item_ret_uint(subtree, hf_usb_com_descriptor_control_interface, tvb, offset, 1, ENC_LITTLE_ENDIAN, &master);
 
-                    if (master != usb_conv_info->interfaceNum) {
+                    if (master != urb->conv->interfaceNum) {
                         expert_add_info(pinfo, control_item, &ei_unexpected_controlling_iface);
                     } else if (!PINFO_FD_VISITED(pinfo)) {
                         master_info = wmem_new(wmem_file_scope(), controlling_iface_t);
-                        master_info->interfaceClass = usb_conv_info->interfaceClass;
-                        master_info->interfaceSubclass = usb_conv_info->interfaceSubclass;
-                        master_info->interfaceProtocol = usb_conv_info->interfaceProtocol;
+                        master_info->interfaceClass = urb->conv->interfaceClass;
+                        master_info->interfaceSubclass = urb->conv->interfaceSubclass;
+                        master_info->interfaceProtocol = urb->conv->interfaceProtocol;
                     }
 
                     offset += 1;
@@ -542,9 +559,9 @@ dissect_usb_com_descriptor(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 }
 
 static int
-dissect_usb_com_get_ntb_params(tvbuff_t *tvb, proto_tree *tree, gint base_offset)
+dissect_usb_com_get_ntb_params(tvbuff_t *tvb, proto_tree *tree, int base_offset)
 {
-    gint offset = base_offset;
+    int offset = base_offset;
 
     proto_tree_add_item(tree, hf_usb_com_get_ntb_params_length, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
@@ -576,9 +593,9 @@ dissect_usb_com_get_ntb_params(tvbuff_t *tvb, proto_tree *tree, gint base_offset
 }
 
 static int
-dissect_usb_com_ntb_input_size(tvbuff_t *tvb, proto_tree *tree, gint base_offset, gboolean is_set)
+dissect_usb_com_ntb_input_size(tvbuff_t *tvb, proto_tree *tree, int base_offset, bool is_set)
 {
-    gint offset = base_offset;
+    int offset = base_offset;
 
     proto_tree_add_item(tree, is_set ? hf_usb_com_set_ntb_input_size_ntb_in_max_size :
                         hf_usb_com_get_ntb_input_size_ntb_in_max_size, tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -598,12 +615,12 @@ dissect_usb_com_ntb_input_size(tvbuff_t *tvb, proto_tree *tree, gint base_offset
 static int
 dissect_usb_com_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    usb_conv_info_t *usb_conv_info = (usb_conv_info_t *)data;
+    urb_info_t *urb = (urb_info_t *)data;
     usb_trans_info_t *usb_trans_info;
     proto_tree *subtree;
     proto_item *ti;
-    gint offset = 0;
-    gboolean is_request;
+    int offset = 0;
+    bool is_request;
 
     if (tvb_reported_length(tvb) == 0) {
         return 0;
@@ -614,11 +631,11 @@ dissect_usb_com_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     ti = proto_tree_add_item(tree, proto_usb_com, tvb, 0, -1, ENC_NA);
     subtree = proto_item_add_subtree(ti, ett_usb_com);
 
-    if (usb_conv_info) {
-        usb_trans_info = usb_conv_info->usb_trans_info;
+    if (urb) {
+        usb_trans_info = urb->usb_trans_info;
 
         ti = proto_tree_add_uint(subtree, hf_usb_com_control_subclass, tvb, 0, 0,
-                                 usb_conv_info->interfaceSubclass);
+                                 urb->conv->interfaceSubclass);
         proto_item_set_generated(ti);
 
         is_request = (pinfo->srcport==NO_ENDPOINT);
@@ -644,14 +661,14 @@ dissect_usb_com_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
         switch (usb_trans_info->setup.request)
         {
             case SEND_ENCAPSULATED_COMMAND:
-                if ((usb_conv_info->interfaceSubclass == COM_SUBCLASS_MBIM) && is_request) {
+                if ((urb->conv->interfaceSubclass == COM_SUBCLASS_MBIM) && is_request) {
                     tvbuff_t *mbim_tvb = tvb_new_subset_remaining(tvb, offset);
-                    offset += call_dissector_only(mbim_control_handle, mbim_tvb, pinfo, tree, usb_conv_info);
+                    offset += call_dissector_only(mbim_control_handle, mbim_tvb, pinfo, tree, urb);
                 }
                 break;
             case GET_ENCAPSULATED_RESPONSE:
-                if ((usb_conv_info->interfaceSubclass == COM_SUBCLASS_MBIM) && !is_request) {
-                    offset += call_dissector_only(mbim_control_handle, tvb, pinfo, tree, usb_conv_info);
+                if ((urb->conv->interfaceSubclass == COM_SUBCLASS_MBIM) && !is_request) {
+                    offset += call_dissector_only(mbim_control_handle, tvb, pinfo, tree, urb);
                 }
                 break;
             case GET_NTB_PARAMETERS:
@@ -684,12 +701,12 @@ dissect_usb_com_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
                 break;
             case GET_NTB_INPUT_SIZE:
                 if (!is_request) {
-                    offset = dissect_usb_com_ntb_input_size(tvb, subtree, offset, FALSE);
+                    offset = dissect_usb_com_ntb_input_size(tvb, subtree, offset, false);
                 }
                 break;
             case SET_NTB_INPUT_SIZE:
                 if (!is_request) {
-                    offset = dissect_usb_com_ntb_input_size(tvb, subtree, offset, TRUE);
+                    offset = dissect_usb_com_ntb_input_size(tvb, subtree, offset, true);
                 }
                 break;
             case GET_MAX_DATAGRAM_SIZE:
@@ -729,10 +746,12 @@ dissect_usb_com_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 static int
 dissect_usb_com_bulk(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    usb_conv_info_t *usb_conv_info = (usb_conv_info_t *)data;
-    guint32 k_bus_id;
-    guint32 k_device_address;
-    guint32 k_subordinate_id;
+    urb_info_t *urb = (urb_info_t *)data;
+    usb_conv_info_t *usb_conv_info;
+    cdc_data_conv_t *cdc_data_info;
+    uint32_t k_bus_id;
+    uint32_t k_device_address;
+    uint32_t k_subordinate_id;
     wmem_tree_key_t key[] = {
         { .length = 1, .key = &k_bus_id },
         { .length = 1, .key = &k_device_address },
@@ -741,10 +760,14 @@ dissect_usb_com_bulk(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
     };
     wmem_tree_t *wmem_tree;
     controlling_iface_t *master_iface = NULL;
+    proto_tree *subtree;
+    proto_item *item;
 
-    if (!usb_conv_info) {
+    if (!urb || !urb->conv) {
         return 0;
     }
+
+    usb_conv_info = urb->conv;
 
     if ((usb_conv_info->interfaceClass != IF_CLASS_CDC_DATA) || (usb_conv_info->interfaceSubclass != 0)) {
         /* As per Communications Device Class Revision 1.2 subclass is currently unused for CDC Data and should be zero
@@ -753,8 +776,40 @@ dissect_usb_com_bulk(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
         return 0;
     }
 
-    k_bus_id = usb_conv_info->bus_id;
-    k_device_address = usb_conv_info->device_address;
+    /* Generic handling to allow follow stream functionality regardless if data
+     * is passed to higher layer dissector or not.
+     */
+    cdc_data_info = (cdc_data_conv_t *)usb_conv_info->class_data;
+    if (!cdc_data_info) {
+        cdc_data_info = wmem_new(wmem_file_scope(), cdc_data_conv_t);
+        cdc_data_info->stream = cdc_data_stream_count++;
+        usb_conv_info->class_data = cdc_data_info;
+        usb_conv_info->class_data_type = USB_CONV_CDC_DATA;
+    } else if (usb_conv_info->class_data_type != USB_CONV_CDC_DATA) {
+        /* Don't dissect if another USB type is in the conversation */
+        return 0;
+    }
+
+    col_set_str(pinfo->cinfo, COL_PROTOCOL, "USBCOM");
+
+    item = proto_tree_add_item(tree, proto_usb_com, tvb, 0, -1, ENC_NA);
+    subtree = proto_item_add_subtree(item, ett_usb_com);
+
+    item = proto_tree_add_uint(subtree, hf_usb_com_data_stream, tvb, 0, 0, cdc_data_info->stream);
+    proto_item_set_generated(item);
+
+    if (pinfo->p2p_dir == P2P_DIR_RECV) {
+        proto_tree_add_item(subtree, hf_usb_com_data_in_payload, tvb, 0, -1, ENC_NA);
+    } else {
+        proto_tree_add_item(subtree, hf_usb_com_data_out_payload, tvb, 0, -1, ENC_NA);
+    }
+
+    if (have_tap_listener(cdc_data_follow_tap)) {
+        tap_queue_packet(cdc_data_follow_tap, pinfo, tvb);
+    }
+
+    k_bus_id = urb->bus_id;
+    k_device_address = urb->device_address;
     k_subordinate_id = usb_conv_info->interfaceNum;
 
     wmem_tree = (wmem_tree_t*)wmem_tree_lookup32_array(controlling_ifaces, key);
@@ -782,8 +837,8 @@ dissect_usb_com_bulk(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
             break;
     }
 
-    /* Unknown (class, subclass, protocol) tuple. Do not attempt dissection. */
-    return 0;
+    /* Unknown (class, subclass, protocol) tuple. No further dissection. */
+    return tvb_captured_length(tvb);
 }
 
 static int
@@ -791,8 +846,8 @@ dissect_usb_com_interrupt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
 {
     proto_tree *subtree;
     proto_item *it;
-    guint32 notif_code;
-    gint offset = 0;
+    uint32_t notif_code;
+    int offset = 0;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "USBCOM");
 
@@ -841,6 +896,115 @@ dissect_usb_com_interrupt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
         proto_tree_add_item(subtree, hf_usb_com_interrupt_payload, tvb, offset, -1, ENC_NA);
     }
     return tvb_captured_length(tvb);
+}
+
+static cdc_data_conv_t *get_cdc_data_conv(packet_info *pinfo)
+{
+    conversation_t *conversation;
+    usb_conv_info_t *usb_conv_info;
+
+    if (pinfo->ptype != PT_USB) {
+        return NULL;
+    }
+
+    conversation = find_conversation(pinfo->num, &pinfo->src, &pinfo->dst, CONVERSATION_USB,
+                                     pinfo->srcport, pinfo->destport, 0);
+    if (!conversation) {
+        return NULL;
+    }
+
+    usb_conv_info = (usb_conv_info_t *)conversation_get_proto_data(conversation, proto_usb);
+    if (!usb_conv_info || (usb_conv_info->class_data_type != USB_CONV_CDC_DATA)) {
+        return NULL;
+    }
+
+    return (cdc_data_conv_t *)usb_conv_info->class_data;
+}
+
+static char *cdc_data_follow_conv_filter(epan_dissect_t *edt _U_, packet_info *pinfo, unsigned *stream, unsigned *sub_stream _U_)
+{
+    cdc_data_conv_t *cdc_data_info;
+
+    cdc_data_info = get_cdc_data_conv(pinfo);
+    if (cdc_data_info) {
+        *stream = cdc_data_info->stream;
+        return ws_strdup_printf("usbcom.data.stream eq %u", cdc_data_info->stream);
+    }
+
+    return NULL;
+}
+
+static char *cdc_data_follow_index_filter(unsigned stream, unsigned sub_stream _U_)
+{
+    return ws_strdup_printf("usbcom.data.stream eq %u", stream);
+}
+
+static char *cdc_data_follow_address_filter(address *src_addr _U_, address *dst_addr _U_, int src_port _U_, int dst_port _U_)
+{
+    /* We always just filter stream based on an arbitrarily generated index. */
+    return NULL;
+}
+
+static char *cdc_data_port_to_display(wmem_allocator_t *allocator, unsigned port)
+{
+    return wmem_strdup(allocator, port == NO_ENDPOINT ? "host" : "device");
+}
+
+static tap_packet_status
+follow_cdc_data_tap_listener(void *tapdata, packet_info *pinfo, epan_dissect_t *edt _U_,
+                             const void *data, tap_flags_t flags _U_)
+{
+    follow_record_t *follow_record;
+    follow_info_t *follow_info = (follow_info_t *)tapdata;
+    tvbuff_t *tvb = (tvbuff_t *)data;
+    uint32_t data_length = tvb_captured_length(tvb);
+    bool is_server;
+
+    if (follow_info->client_port == 0) {
+        /* XXX: Client/Server does not quite match how USB works. Simply assume
+         * that host is "server" but it is important to note that client port
+         * will be set to either IN or OUT endpoint (whichever transmits data
+         * first). Client "receive" is OUT endpoint while client "transmit" is
+         * IN endpoint. The "other end" is always host.
+         */
+        if (pinfo->srcport == NO_ENDPOINT) {
+            follow_info->client_port = pinfo->destport;
+            copy_address(&follow_info->client_ip, &pinfo->dst);
+            follow_info->server_port = pinfo->srcport;
+            copy_address(&follow_info->server_ip, &pinfo->src);
+        } else {
+            follow_info->client_port = pinfo->srcport;
+            copy_address(&follow_info->client_ip, &pinfo->src);
+            follow_info->server_port = pinfo->destport;
+            copy_address(&follow_info->server_ip, &pinfo->dst);
+        }
+    }
+
+    is_server = pinfo->srcport == NO_ENDPOINT;
+
+    follow_record = g_new0(follow_record_t, 1);
+    follow_record->is_server = is_server;
+    follow_record->packet_num = pinfo->fd->num;
+    follow_record->abs_ts = pinfo->fd->abs_ts;
+    follow_record->data = g_byte_array_append(g_byte_array_new(),
+                                              tvb_get_ptr(tvb, 0, data_length),
+                                              data_length);
+
+    follow_info->bytes_written[is_server] += follow_record->data->len;
+    follow_info->payload = g_list_prepend(follow_info->payload, follow_record);
+
+    return TAP_PACKET_DONT_REDRAW;
+}
+
+static uint32_t get_cdc_data_stream_count(void)
+{
+    return cdc_data_stream_count;
+}
+
+static void
+usb_com_cleanup_data(void)
+{
+    cdc_data_stream_count = 0;
 }
 
 void
@@ -1128,16 +1292,25 @@ proto_register_usb_com(void)
               NULL, 0, NULL, HFILL }},
         { &hf_usb_com_interrupt_dl_bitrate,
             { "DL Bitrate", "usbcom.interrupt.conn_speed_change.dl_bitrate", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-              &units_bit_sec, 0, NULL, HFILL }},
+              UNS(&units_bit_sec), 0, NULL, HFILL }},
         { &hf_usb_com_interrupt_ul_bitrate,
             { "UL Bitrate", "usbcom.interrupt.conn_speed_change.ul_bitrate", FT_UINT32, BASE_DEC|BASE_UNIT_STRING,
-              &units_bit_sec, 0, NULL, HFILL }},
+              UNS(&units_bit_sec), 0, NULL, HFILL }},
         { &hf_usb_com_interrupt_payload,
             { "Payload", "usbcom.interrupt.payload", FT_BYTES, BASE_NONE,
-              NULL, 0, NULL, HFILL }}
+              NULL, 0, NULL, HFILL }},
+        { &hf_usb_com_data_stream,
+            { "Stream index", "usbcom.data.stream", FT_UINT32, BASE_DEC,
+              NULL, 0, NULL, HFILL }},
+        { &hf_usb_com_data_in_payload,
+            { "IN payload", "usbcom.data.in_payload", FT_BYTES, BASE_NONE,
+              NULL, 0, NULL, HFILL }},
+        { &hf_usb_com_data_out_payload,
+            { "OUT payload", "usbcom.data.out_payload", FT_BYTES, BASE_NONE,
+              NULL, 0, NULL, HFILL }},
     };
 
-    static gint *usb_com_subtrees[] = {
+    static int *usb_com_subtrees[] = {
         &ett_usb_com,
         &ett_usb_com_capabilities,
         &ett_usb_com_bitmap,
@@ -1164,6 +1337,13 @@ proto_register_usb_com(void)
 
     expert_usb_com = expert_register_protocol(proto_usb_com);
     expert_register_field_array(expert_usb_com, ei, array_length(ei));
+
+    register_cleanup_routine(usb_com_cleanup_data);
+
+    cdc_data_follow_tap = register_tap("cdc_data_follow");
+    register_follow_stream(proto_usb_com, "cdc_data_follow", cdc_data_follow_conv_filter, cdc_data_follow_index_filter,
+                           cdc_data_follow_address_filter, cdc_data_port_to_display, follow_cdc_data_tap_listener,
+                           get_cdc_data_stream_count, NULL);
 }
 
 void
@@ -1177,6 +1357,8 @@ proto_reg_handoff_usb_com(void)
     mbim_descriptor_handle = find_dissector_add_dependency("mbim.descriptor", proto_usb_com);
     mbim_bulk_handle = find_dissector_add_dependency("mbim.bulk", proto_usb_com);
     eth_withoutfcs_handle = find_dissector_add_dependency("eth_withoutfcs", proto_usb_com);
+
+    proto_usb = proto_get_id_by_filter_name("usb");
 }
 
 /*

@@ -158,195 +158,230 @@ id-MCBearerContextModification            ProcedureCode
 id-MCBearerContextModificationRequired    ProcedureCode
 id-MCBearerContextRelease                 ProcedureCode
 id-MCBearerContextReleaseRequest          ProcedureCode
+id-MCBearerNotification                   ProcedureCode
 
 # ProtocolIE-ID
-id-Cause                                        ProtocolIE-ID
-id-CriticalityDiagnostics                       ProtocolIE-ID
-id-gNB-CU-CP-UE-E1AP-ID                         ProtocolIE-ID
-id-gNB-CU-UP-UE-E1AP-ID                         ProtocolIE-ID
-id-ResetType                                    ProtocolIE-ID
-id-UE-associatedLogicalE1-ConnectionItem        ProtocolIE-ID
-id-UE-associatedLogicalE1-ConnectionListResAck  ProtocolIE-ID
-id-gNB-CU-UP-ID                                 ProtocolIE-ID
-id-gNB-CU-UP-Name                               ProtocolIE-ID
-id-gNB-CU-CP-Name                               ProtocolIE-ID
-id-CNSupport                                    ProtocolIE-ID
-id-SupportedPLMNs                               ProtocolIE-ID
-id-TimeToWait                                   ProtocolIE-ID
-id-SecurityInformation                          ProtocolIE-ID
-id-UEDLAggregateMaximumBitRate                  ProtocolIE-ID
-id-System-BearerContextSetupRequest             ProtocolIE-ID
-id-System-BearerContextSetupResponse            ProtocolIE-ID
-id-BearerContextStatusChange                    ProtocolIE-ID
-id-System-BearerContextModificationRequest      ProtocolIE-ID
-id-System-BearerContextModificationResponse     ProtocolIE-ID
-id-System-BearerContextModificationConfirm      ProtocolIE-ID
-id-System-BearerContextModificationRequired     ProtocolIE-ID
-id-DRB-Status-List                              ProtocolIE-ID
-id-ActivityNotificationLevel                    ProtocolIE-ID
-id-ActivityInformation                          ProtocolIE-ID
-id-Data-Usage-Report-List                       ProtocolIE-ID
-id-New-UL-TNL-Information-Required              ProtocolIE-ID
-id-GNB-CU-CP-TNLA-To-Add-List                   ProtocolIE-ID
-id-GNB-CU-CP-TNLA-To-Remove-List                ProtocolIE-ID
-id-GNB-CU-CP-TNLA-To-Update-List                ProtocolIE-ID
-id-GNB-CU-CP-TNLA-Setup-List                    ProtocolIE-ID
-id-GNB-CU-CP-TNLA-Failed-To-Setup-List          ProtocolIE-ID
-id-DRB-To-Setup-List-EUTRAN                     ProtocolIE-ID
-id-DRB-To-Modify-List-EUTRAN                    ProtocolIE-ID
-id-DRB-To-Remove-List-EUTRAN                    ProtocolIE-ID
-id-DRB-Required-To-Modify-List-EUTRAN           ProtocolIE-ID
-id-DRB-Required-To-Remove-List-EUTRAN           ProtocolIE-ID
-id-DRB-Setup-List-EUTRAN                        ProtocolIE-ID
-id-DRB-Failed-List-EUTRAN                       ProtocolIE-ID
-id-DRB-Modified-List-EUTRAN                     ProtocolIE-ID
-id-DRB-Failed-To-Modify-List-EUTRAN             ProtocolIE-ID
-id-DRB-Confirm-Modified-List-EUTRAN             ProtocolIE-ID
-id-PDU-Session-Resource-To-Setup-List           ProtocolIE-ID
-id-PDU-Session-Resource-To-Modify-List          ProtocolIE-ID
-id-PDU-Session-Resource-To-Remove-List          ProtocolIE-ID
-id-PDU-Session-Resource-Required-To-Modify-List ProtocolIE-ID
-id-PDU-Session-Resource-Setup-List              ProtocolIE-ID
-id-PDU-Session-Resource-Failed-List             ProtocolIE-ID
-id-PDU-Session-Resource-Modified-List           ProtocolIE-ID
-id-PDU-Session-Resource-Failed-To-Modify-List   ProtocolIE-ID
-id-PDU-Session-Resource-Confirm-Modified-List   ProtocolIE-ID
-id-DRB-To-Setup-Mod-List-EUTRAN                 ProtocolIE-ID
-id-DRB-Setup-Mod-List-EUTRAN                    ProtocolIE-ID
-id-DRB-Failed-Mod-List-EUTRAN                   ProtocolIE-ID
-id-PDU-Session-Resource-Setup-Mod-List          ProtocolIE-ID
-id-PDU-Session-Resource-Failed-Mod-List         ProtocolIE-ID
-id-PDU-Session-Resource-To-Setup-Mod-List       ProtocolIE-ID
-id-TransactionID                                ProtocolIE-ID
-id-Serving-PLMN                                 ProtocolIE-ID
-id-UE-Inactivity-Timer                          ProtocolIE-ID
-id-System-GNB-CU-UP-CounterCheckRequest         ProtocolIE-ID
-id-DRBs-Subject-To-Counter-Check-List-EUTRAN    ProtocolIE-ID
-id-DRBs-Subject-To-Counter-Check-List-NG-RAN    ProtocolIE-ID
-id-PPI                                          ProtocolIE-ID
-id-gNB-CU-UP-Capacity                           ProtocolIE-ID
-id-GNB-CU-UP-OverloadInformation                ProtocolIE-ID
-id-UEDLMaximumIntegrityProtectedDataRate        ProtocolIE-ID
-id-PDU-Session-To-Notify-List                   ProtocolIE-ID
-id-PDU-Session-Resource-Data-Usage-List         ProtocolIE-ID
-id-SNSSAI                                       ProtocolIE-ID
-id-DataDiscardRequired                          ProtocolIE-ID
-id-OldQoSFlowMap-ULendmarkerexpected            ProtocolIE-ID
-id-DRB-QoS                                      ProtocolIE-ID
-id-GNB-CU-UP-TNLA-To-Remove-List                ProtocolIE-ID
-id-endpoint-IP-Address-and-Port                 ProtocolIE-ID
-id-TNLAssociationTransportLayerAddressgNBCUUP   ProtocolIE-ID
-id-RANUEID                                      ProtocolIE-ID
-id-GNB-DU-ID                                    ProtocolIE-ID
-id-CommonNetworkInstance                        ProtocolIE-ID
-id-NetworkInstance                              ProtocolIE-ID
-id-QoSFlowMappingIndication                     ProtocolIE-ID
-id-TraceActivation                              ProtocolIE-ID
-id-TraceID                                      ProtocolIE-ID
-id-SubscriberProfileIDforRFP                    ProtocolIE-ID
-id-AdditionalRRMPriorityIndex                   ProtocolIE-ID
-id-RetainabilityMeasurementsInfo                ProtocolIE-ID
-id-Transport-Layer-Address-Info                 ProtocolIE-ID
-id-QoSMonitoringRequest                         ProtocolIE-ID
-id-PDCP-StatusReportIndication                  ProtocolIE-ID
-id-gNB-CU-CP-Measurement-ID                     ProtocolIE-ID
-id-gNB-CU-UP-Measurement-ID                     ProtocolIE-ID
-id-RegistrationRequest                          ProtocolIE-ID
-id-ReportCharacteristics                        ProtocolIE-ID
-id-ReportingPeriodicity                         ProtocolIE-ID
-id-TNL-AvailableCapacityIndicator               ProtocolIE-ID
-id-HW-CapacityIndicator                         ProtocolIE-ID
-id-RedundantCommonNetworkInstance               ProtocolIE-ID
-id-redundant-nG-UL-UP-TNL-Information           ProtocolIE-ID
-id-redundant-nG-DL-UP-TNL-Information           ProtocolIE-ID
-id-RedundantQosFlowIndicator                    ProtocolIE-ID
-id-TSCTrafficCharacteristics                    ProtocolIE-ID
-id-CNPacketDelayBudgetDownlink                  ProtocolIE-ID
-id-CNPacketDelayBudgetUplink                    ProtocolIE-ID
-id-ExtendedPacketDelayBudget                    ProtocolIE-ID
-id-AdditionalPDCPduplicationInformation         ProtocolIE-ID
-id-RedundantPDUSessionInformation               ProtocolIE-ID
-id-RedundantPDUSessionInformation-used          ProtocolIE-ID
-id-QoS-Mapping-Information                      ProtocolIE-ID
-id-DLUPTNLAddressToUpdateList                   ProtocolIE-ID
-id-ULUPTNLAddressToUpdateList                   ProtocolIE-ID
-id-NPNSupportInfo                               ProtocolIE-ID
-id-NPNContextInfo                               ProtocolIE-ID
-id-MDTConfiguration                             ProtocolIE-ID
-id-ManagementBasedMDTPLMNList                   ProtocolIE-ID
-id-TraceCollectionEntityIPAddress               ProtocolIE-ID
-id-PrivacyIndicator                             ProtocolIE-ID
-id-TraceCollectionEntityURI                     ProtocolIE-ID
-id-URIaddress                                   ProtocolIE-ID
-id-EHC-Parameters                               ProtocolIE-ID
-id-DRBs-Subject-To-Early-Forwarding-List        ProtocolIE-ID
-id-DAPSRequestInfo                              ProtocolIE-ID
-id-CHOInitiation                                ProtocolIE-ID
-id-EarlyForwardingCOUNTReq                      ProtocolIE-ID
-id-EarlyForwardingCOUNTInfo                     ProtocolIE-ID
-id-AlternativeQoSParaSetList                    ProtocolIE-ID
-id-ExtendedSliceSupportList                     ProtocolIE-ID
-id-MCG-OfferedGBRQoSFlowInfo                    ProtocolIE-ID
-id-Number-of-tunnels                            ProtocolIE-ID
-id-DRB-Measurement-Results-Information-List     ProtocolIE-ID
-id-Extended-GNB-CU-CP-Name                      ProtocolIE-ID
-id-Extended-GNB-CU-UP-Name                      ProtocolIE-ID
-id-DataForwardingtoE-UTRANInformationList       ProtocolIE-ID
-id-QosMonitoringReportingFrequency              ProtocolIE-ID
-id-QoSMonitoringDisabled                        ProtocolIE-ID
-id-AdditionalHandoverInfo                       ProtocolIE-ID
-id-Extended-NR-CGI-Support-List                 ProtocolIE-ID
-id-DataForwardingtoNG-RANQoSFlowInformationList ProtocolIE-ID
-id-MaxCIDEHCDL                                  ProtocolIE-ID
-id-ignoreMappingRuleIndication                  ProtocolIE-ID
-id-DirectForwardingPathAvailability             ProtocolIE-ID
-id-EarlyDataForwardingIndicator                 ProtocolIE-ID
-id-QoSFlowsDRBRemapping                         ProtocolIE-ID
-id-DataForwardingSourceIPAddress                ProtocolIE-ID
-id-SecurityIndicationModify                     ProtocolIE-ID
-id-IAB-Donor-CU-UPPSKInfo                       ProtocolIE-ID
-id-ECGI-Support-List                            ProtocolIE-ID
-id-MDTPollutedMeasurementIndicator              ProtocolIE-ID
-id-M4ReportAmount                               ProtocolIE-ID
-id-M6ReportAmount                               ProtocolIE-ID
-id-M7ReportAmount                               ProtocolIE-ID
-id-UESliceMaximumBitRateList                    ProtocolIE-ID
-id-PDUSession-PairID                            ProtocolIE-ID
-id-SurvivalTime                                 ProtocolIE-ID
-id-UDC-Parameters                               ProtocolIE-ID
-id-SCGActivationStatus                          ProtocolIE-ID
-id-GNB-CU-CP-MBS-E1AP-ID                        ProtocolIE-ID
-id-GNB-CU-UP-MBS-E1AP-ID                        ProtocolIE-ID
-id-GlobalMBSSessionID                           ProtocolIE-ID
-id-BCBearerContextToSetup                       ProtocolIE-ID
-id-BCBearerContextToSetupResponse               ProtocolIE-ID
-id-BCBearerContextToModify                      ProtocolIE-ID
-id-BCBearerContextToModifyResponse              ProtocolIE-ID
-id-BCBearerContextToModifyRequired              ProtocolIE-ID
-id-BCBearerContextToModifyConfirm               ProtocolIE-ID
-id-MCBearerContextToSetup                       ProtocolIE-ID
-id-MCBearerContextToSetupResponse               ProtocolIE-ID
-id-MCBearerContextToModify                      ProtocolIE-ID
-id-MCBearerContextToModifyResponse              ProtocolIE-ID
-id-MCBearerContextToModifyRequired              ProtocolIE-ID
-id-MCBearerContextToModifyConfirm               ProtocolIE-ID
-id-MBSMulticastF1UContextDescriptor             ProtocolIE-ID
-id-gNB-CU-UP-MBS-Support-Info                   ProtocolIE-ID
-id-SecurityIndication                           ProtocolIE-ID
-id-SecurityResult                               ProtocolIE-ID
-id-SDTContinueROHC                              ProtocolIE-ID
-id-SDTindicatorSetup                            ProtocolIE-ID
-id-SDTindicatorMod                              ProtocolIE-ID
-id-DiscardTimerExtended                         ProtocolIE-ID
-id-ManagementBasedMDTPLMNModificationList       ProtocolIE-ID
-id-MCForwardingResourceRequest                  ProtocolIE-ID
-id-MCForwardingResourceIndication               ProtocolIE-ID
-id-MCForwardingResourceResponse                 ProtocolIE-ID
-id-MCForwardingResourceRelease                  ProtocolIE-ID
-id-MCForwardingResourceReleaseIndication        ProtocolIE-ID
-id-PDCP-COUNT-Reset                             ProtocolIE-ID
-id-MBSSessionAssociatedInfoNonSupportToSupport  ProtocolIE-ID
-id-VersionID                                    ProtocolIE-ID
+id-Cause                                             ProtocolIE-ID
+id-CriticalityDiagnostics                            ProtocolIE-ID
+id-gNB-CU-CP-UE-E1AP-ID                              ProtocolIE-ID
+id-gNB-CU-UP-UE-E1AP-ID                              ProtocolIE-ID
+id-ResetType                                         ProtocolIE-ID
+id-UE-associatedLogicalE1-ConnectionItem             ProtocolIE-ID
+id-UE-associatedLogicalE1-ConnectionListResAck       ProtocolIE-ID
+id-gNB-CU-UP-ID                                      ProtocolIE-ID
+id-gNB-CU-UP-Name                                    ProtocolIE-ID
+id-gNB-CU-CP-Name                                    ProtocolIE-ID
+id-CNSupport                                         ProtocolIE-ID
+id-SupportedPLMNs                                    ProtocolIE-ID
+id-TimeToWait                                        ProtocolIE-ID
+id-SecurityInformation                               ProtocolIE-ID
+id-UEDLAggregateMaximumBitRate                       ProtocolIE-ID
+id-System-BearerContextSetupRequest                  ProtocolIE-ID
+id-System-BearerContextSetupResponse                 ProtocolIE-ID
+id-BearerContextStatusChange                         ProtocolIE-ID
+id-System-BearerContextModificationRequest           ProtocolIE-ID
+id-System-BearerContextModificationResponse          ProtocolIE-ID
+id-System-BearerContextModificationConfirm           ProtocolIE-ID
+id-System-BearerContextModificationRequired          ProtocolIE-ID
+id-DRB-Status-List                                   ProtocolIE-ID
+id-ActivityNotificationLevel                         ProtocolIE-ID
+id-ActivityInformation                               ProtocolIE-ID
+id-Data-Usage-Report-List                            ProtocolIE-ID
+id-New-UL-TNL-Information-Required                   ProtocolIE-ID
+id-GNB-CU-CP-TNLA-To-Add-List                        ProtocolIE-ID
+id-GNB-CU-CP-TNLA-To-Remove-List                     ProtocolIE-ID
+id-GNB-CU-CP-TNLA-To-Update-List                     ProtocolIE-ID
+id-GNB-CU-CP-TNLA-Setup-List                         ProtocolIE-ID
+id-GNB-CU-CP-TNLA-Failed-To-Setup-List               ProtocolIE-ID
+id-DRB-To-Setup-List-EUTRAN                          ProtocolIE-ID
+id-DRB-To-Modify-List-EUTRAN                         ProtocolIE-ID
+id-DRB-To-Remove-List-EUTRAN                         ProtocolIE-ID
+id-DRB-Required-To-Modify-List-EUTRAN                ProtocolIE-ID
+id-DRB-Required-To-Remove-List-EUTRAN                ProtocolIE-ID
+id-DRB-Setup-List-EUTRAN                             ProtocolIE-ID
+id-DRB-Failed-List-EUTRAN                            ProtocolIE-ID
+id-DRB-Modified-List-EUTRAN                          ProtocolIE-ID
+id-DRB-Failed-To-Modify-List-EUTRAN                  ProtocolIE-ID
+id-DRB-Confirm-Modified-List-EUTRAN                  ProtocolIE-ID
+id-PDU-Session-Resource-To-Setup-List                ProtocolIE-ID
+id-PDU-Session-Resource-To-Modify-List               ProtocolIE-ID
+id-PDU-Session-Resource-To-Remove-List               ProtocolIE-ID
+id-PDU-Session-Resource-Required-To-Modify-List      ProtocolIE-ID
+id-PDU-Session-Resource-Setup-List                   ProtocolIE-ID
+id-PDU-Session-Resource-Failed-List                  ProtocolIE-ID
+id-PDU-Session-Resource-Modified-List                ProtocolIE-ID
+id-PDU-Session-Resource-Failed-To-Modify-List        ProtocolIE-ID
+id-PDU-Session-Resource-Confirm-Modified-List        ProtocolIE-ID
+id-DRB-To-Setup-Mod-List-EUTRAN                      ProtocolIE-ID
+id-DRB-Setup-Mod-List-EUTRAN                         ProtocolIE-ID
+id-DRB-Failed-Mod-List-EUTRAN                        ProtocolIE-ID
+id-PDU-Session-Resource-Setup-Mod-List               ProtocolIE-ID
+id-PDU-Session-Resource-Failed-Mod-List              ProtocolIE-ID
+id-PDU-Session-Resource-To-Setup-Mod-List            ProtocolIE-ID
+id-TransactionID                                     ProtocolIE-ID
+id-Serving-PLMN                                      ProtocolIE-ID
+id-UE-Inactivity-Timer                               ProtocolIE-ID
+id-System-GNB-CU-UP-CounterCheckRequest              ProtocolIE-ID
+id-DRBs-Subject-To-Counter-Check-List-EUTRAN         ProtocolIE-ID
+id-DRBs-Subject-To-Counter-Check-List-NG-RAN         ProtocolIE-ID
+id-PPI                                               ProtocolIE-ID
+id-gNB-CU-UP-Capacity                                ProtocolIE-ID
+id-GNB-CU-UP-OverloadInformation                     ProtocolIE-ID
+id-UEDLMaximumIntegrityProtectedDataRate             ProtocolIE-ID
+id-PDU-Session-To-Notify-List                        ProtocolIE-ID
+id-PDU-Session-Resource-Data-Usage-List              ProtocolIE-ID
+id-SNSSAI                                            ProtocolIE-ID
+id-DataDiscardRequired                               ProtocolIE-ID
+id-OldQoSFlowMap-ULendmarkerexpected                 ProtocolIE-ID
+id-DRB-QoS                                           ProtocolIE-ID
+id-GNB-CU-UP-TNLA-To-Remove-List                     ProtocolIE-ID
+id-endpoint-IP-Address-and-Port                      ProtocolIE-ID
+id-TNLAssociationTransportLayerAddressgNBCUUP        ProtocolIE-ID
+id-RANUEID                                           ProtocolIE-ID
+id-GNB-DU-ID                                         ProtocolIE-ID
+id-CommonNetworkInstance                             ProtocolIE-ID
+id-NetworkInstance                                   ProtocolIE-ID
+id-QoSFlowMappingIndication                          ProtocolIE-ID
+id-TraceActivation                                   ProtocolIE-ID
+id-TraceID                                           ProtocolIE-ID
+id-SubscriberProfileIDforRFP                         ProtocolIE-ID
+id-AdditionalRRMPriorityIndex                        ProtocolIE-ID
+id-RetainabilityMeasurementsInfo                     ProtocolIE-ID
+id-Transport-Layer-Address-Info                      ProtocolIE-ID
+id-QoSMonitoringRequest                              ProtocolIE-ID
+id-PDCP-StatusReportIndication                       ProtocolIE-ID
+id-gNB-CU-CP-Measurement-ID                          ProtocolIE-ID
+id-gNB-CU-UP-Measurement-ID                          ProtocolIE-ID
+id-RegistrationRequest                               ProtocolIE-ID
+id-ReportCharacteristics                             ProtocolIE-ID
+id-ReportingPeriodicity                              ProtocolIE-ID
+id-TNL-AvailableCapacityIndicator                    ProtocolIE-ID
+id-HW-CapacityIndicator                              ProtocolIE-ID
+id-RedundantCommonNetworkInstance                    ProtocolIE-ID
+id-redundant-nG-UL-UP-TNL-Information                ProtocolIE-ID
+id-redundant-nG-DL-UP-TNL-Information                ProtocolIE-ID
+id-RedundantQosFlowIndicator                         ProtocolIE-ID
+id-TSCTrafficCharacteristics                         ProtocolIE-ID
+id-CNPacketDelayBudgetDownlink                       ProtocolIE-ID
+id-CNPacketDelayBudgetUplink                         ProtocolIE-ID
+id-ExtendedPacketDelayBudget                         ProtocolIE-ID
+id-AdditionalPDCPduplicationInformation              ProtocolIE-ID
+id-RedundantPDUSessionInformation                    ProtocolIE-ID
+id-RedundantPDUSessionInformation-used               ProtocolIE-ID
+id-QoS-Mapping-Information                           ProtocolIE-ID
+id-DLUPTNLAddressToUpdateList                        ProtocolIE-ID
+id-ULUPTNLAddressToUpdateList                        ProtocolIE-ID
+id-NPNSupportInfo                                    ProtocolIE-ID
+id-NPNContextInfo                                    ProtocolIE-ID
+id-MDTConfiguration                                  ProtocolIE-ID
+id-ManagementBasedMDTPLMNList                        ProtocolIE-ID
+id-TraceCollectionEntityIPAddress                    ProtocolIE-ID
+id-PrivacyIndicator                                  ProtocolIE-ID
+id-TraceCollectionEntityURI                          ProtocolIE-ID
+id-URIaddress                                        ProtocolIE-ID
+id-EHC-Parameters                                    ProtocolIE-ID
+id-DRBs-Subject-To-Early-Forwarding-List             ProtocolIE-ID
+id-DAPSRequestInfo                                   ProtocolIE-ID
+id-CHOInitiation                                     ProtocolIE-ID
+id-EarlyForwardingCOUNTReq                           ProtocolIE-ID
+id-EarlyForwardingCOUNTInfo                          ProtocolIE-ID
+id-AlternativeQoSParaSetList                         ProtocolIE-ID
+id-ExtendedSliceSupportList                          ProtocolIE-ID
+id-MCG-OfferedGBRQoSFlowInfo                         ProtocolIE-ID
+id-Number-of-tunnels                                 ProtocolIE-ID
+id-DRB-Measurement-Results-Information-List          ProtocolIE-ID
+id-Extended-GNB-CU-CP-Name                           ProtocolIE-ID
+id-Extended-GNB-CU-UP-Name                           ProtocolIE-ID
+id-DataForwardingtoE-UTRANInformationList            ProtocolIE-ID
+id-QosMonitoringReportingFrequency                   ProtocolIE-ID
+id-QoSMonitoringDisabled                             ProtocolIE-ID
+id-AdditionalHandoverInfo                            ProtocolIE-ID
+id-Extended-NR-CGI-Support-List                      ProtocolIE-ID
+id-DataForwardingtoNG-RANQoSFlowInformationList      ProtocolIE-ID
+id-MaxCIDEHCDL                                       ProtocolIE-ID
+id-ignoreMappingRuleIndication                       ProtocolIE-ID
+id-DirectForwardingPathAvailability                  ProtocolIE-ID
+id-EarlyDataForwardingIndicator                      ProtocolIE-ID
+id-QoSFlowsDRBRemapping                              ProtocolIE-ID
+id-DataForwardingSourceIPAddress                     ProtocolIE-ID
+id-SecurityIndicationModify                          ProtocolIE-ID
+id-IAB-Donor-CU-UPPSKInfo                            ProtocolIE-ID
+id-ECGI-Support-List                                 ProtocolIE-ID
+id-MDTPollutedMeasurementIndicator                   ProtocolIE-ID
+id-M4ReportAmount                                    ProtocolIE-ID
+id-M6ReportAmount                                    ProtocolIE-ID
+id-M7ReportAmount                                    ProtocolIE-ID
+id-UESliceMaximumBitRateList                         ProtocolIE-ID
+id-PDUSession-PairID                                 ProtocolIE-ID
+id-SurvivalTime                                      ProtocolIE-ID
+id-UDC-Parameters                                    ProtocolIE-ID
+id-SCGActivationStatus                               ProtocolIE-ID
+id-GNB-CU-CP-MBS-E1AP-ID                             ProtocolIE-ID
+id-GNB-CU-UP-MBS-E1AP-ID                             ProtocolIE-ID
+id-GlobalMBSSessionID                                ProtocolIE-ID
+id-BCBearerContextToSetup                            ProtocolIE-ID
+id-BCBearerContextToSetupResponse                    ProtocolIE-ID
+id-BCBearerContextToModify                           ProtocolIE-ID
+id-BCBearerContextToModifyResponse                   ProtocolIE-ID
+id-BCBearerContextToModifyRequired                   ProtocolIE-ID
+id-BCBearerContextToModifyConfirm                    ProtocolIE-ID
+id-MCBearerContextToSetup                            ProtocolIE-ID
+id-MCBearerContextToSetupResponse                    ProtocolIE-ID
+id-MCBearerContextToModify                           ProtocolIE-ID
+id-MCBearerContextToModifyResponse                   ProtocolIE-ID
+id-MCBearerContextToModifyRequired                   ProtocolIE-ID
+id-MCBearerContextToModifyConfirm                    ProtocolIE-ID
+id-MBSMulticastF1UContextDescriptor                  ProtocolIE-ID
+id-gNB-CU-UP-MBS-Support-Info                        ProtocolIE-ID
+id-SecurityIndication                                ProtocolIE-ID
+id-SecurityResult                                    ProtocolIE-ID
+id-SDTContinueROHC                                   ProtocolIE-ID
+id-SDTindicatorSetup                                 ProtocolIE-ID
+id-SDTindicatorMod                                   ProtocolIE-ID
+id-DiscardTimerExtended                              ProtocolIE-ID
+id-ManagementBasedMDTPLMNModificationList            ProtocolIE-ID
+id-MCForwardingResourceRequest                       ProtocolIE-ID
+id-MCForwardingResourceIndication                    ProtocolIE-ID
+id-MCForwardingResourceResponse                      ProtocolIE-ID
+id-MCForwardingResourceRelease                       ProtocolIE-ID
+id-MCForwardingResourceReleaseIndication             ProtocolIE-ID
+id-PDCP-COUNT-Reset                                  ProtocolIE-ID
+id-MBSSessionAssociatedInfoNonSupportToSupport       ProtocolIE-ID
+id-VersionID                                         ProtocolIE-ID
+id-InactivityInformationRequest                      ProtocolIE-ID
+id-UEInactivityInformation                           ProtocolIE-ID
+id-MBSAreaSessionID                                  ProtocolIE-ID
+id-Secondary-PDU-Session-Data-Forwarding-Information ProtocolIE-ID
+id-MBSSessionResourceNotification                    ProtocolIE-ID
+id-MCBearerContextInactivityTimer                    ProtocolIE-ID
+id-MCBearerContextStatusChange                       ProtocolIE-ID
+id-MT-SDT-Information                                ProtocolIE-ID
+id-MT-SDT-Information-Request                        ProtocolIE-ID
+id-SDT-data-size-threshold                           ProtocolIE-ID
+id-SDT-data-size-threshold-Crossed                   ProtocolIE-ID
+id-SpecialTriggeringPurpose                          ProtocolIE-ID
+id-AssociatedSessionID                               ProtocolIE-ID
+id-MBS-ServiceArea                                   ProtocolIE-ID
+id-PDUSetQoSParameters                               ProtocolIE-ID
+id-N6JitterInformation                               ProtocolIE-ID
+id-ECNMarkingorCongestionInformationReportingRequest ProtocolIE-ID
+id-ECNMarkingorCongestionInformationReportingStatus  ProtocolIE-ID
+id-PDUSetbasedHandlingIndicator                      ProtocolIE-ID
+id-IndirectPathIndication                            ProtocolIE-ID
+id-F1UTunnelNotEstablished                           ProtocolIE-ID
+id-F1U-TNL-InfoToAdd-List                            ProtocolIE-ID
+id-F1U-TNL-InfoAdded-List                            ProtocolIE-ID
+id-F1U-TNL-InfoToAddOrModify-List                    ProtocolIE-ID
+id-F1U-TNL-InfoAddedOrModified-List                  ProtocolIE-ID
+id-F1U-TNL-InfoToRelease-List                        ProtocolIE-ID
+id-BroadcastF1U-ContextReferenceE1                   ProtocolIE-ID
+id-PSIbasedDiscardTimer                              ProtocolIE-ID
+id-UserPlaneErrorIndicator                           ProtocolIE-ID
+id-MaximumDataBurstVolume                            ProtocolIE-ID
+id-BCBearerContextNGU-TNLInfoatNGRAN-Request         ProtocolIE-ID
+id-PDCPSNGapReport                                   ProtocolIE-ID
+id-UserPlaneFailureIndication                        ProtocolIE-ID
+
 
 #.END
 
@@ -477,71 +512,103 @@ MBSMulticastF1UContextDescriptor             N e1ap.ies id-MBSMulticastF1UContex
 GNB-CU-UP-MBS-Support-Info                   N e1ap.ies id-gNB-CU-UP-MBS-Support-Info
 SDTContinueROHC                              N e1ap.ies id-SDTContinueROHC
 MDTPLMNModificationList                      N e1ap.ies id-ManagementBasedMDTPLMNModificationList
+InactivityInformationRequest                 N e1ap.ies id-InactivityInformationRequest
+UEInactivityInformation                      N e1ap.ies id-UEInactivityInformation
+MBSSessionResourceNotification               N e1ap.ies id-MBSSessionResourceNotification
+MT-SDT-Information                           N e1ap.ies id-MT-SDT-Information
+MT-SDT-Information-Request                   N e1ap.ies id-MT-SDT-Information-Request
+SDT-data-size-threshold                      N e1ap.ies id-SDT-data-size-threshold
+SDT-data-size-threshold-Crossed              N e1ap.ies id-SDT-data-size-threshold-Crossed
+AssociatedSessionID                          N e1ap.ies id-AssociatedSessionID
+MBS-ServiceArea                              N e1ap.ies id-MBS-ServiceArea
 
 #E1AP-PROTOCOL-EXTENSION
-SNSSAI                                       N e1ap.extension id-SNSSAI
-QoS-Flow-List                                N e1ap.extension id-OldQoSFlowMap-ULendmarkerexpected
-QoSFlowLevelQoSParameters                    N e1ap.extension id-DRB-QoS
-CP-TNL-Information                           N e1ap.extension id-TNLAssociationTransportLayerAddressgNBCUUP
-CommonNetworkInstance                        N e1ap.extension id-CommonNetworkInstance
-NetworkInstance                              N e1ap.extension id-NetworkInstance
-QoS-Flow-Mapping-Indication                  N e1ap.extension id-QoSFlowMappingIndication
-QosMonitoringRequest                         N e1ap.extension id-QoSMonitoringRequest
-PDCP-StatusReportIndication                  N e1ap.extension id-PDCP-StatusReportIndication
-CommonNetworkInstance                        N e1ap.extension id-RedundantCommonNetworkInstance
-UP-TNL-Information                           N e1ap.extension id-redundant-nG-UL-UP-TNL-Information
-UP-TNL-Information                           N e1ap.extension id-redundant-nG-DL-UP-TNL-Information
-RedundantQoSFlowIndicator                    N e1ap.extension id-RedundantQosFlowIndicator
-TSCTrafficCharacteristics                    N e1ap.extension id-TSCTrafficCharacteristics
-ExtendedPacketDelayBudget                    N e1ap.extension id-CNPacketDelayBudgetDownlink
-ExtendedPacketDelayBudget                    N e1ap.extension id-CNPacketDelayBudgetUplink
-ExtendedPacketDelayBudget                    N e1ap.extension id-ExtendedPacketDelayBudget
-AdditionalPDCPduplicationInformation         N e1ap.extension id-AdditionalPDCPduplicationInformation
-RedundantPDUSessionInformation               N e1ap.extension id-RedundantPDUSessionInformation
-RedundantPDUSessionInformation               N e1ap.extension id-RedundantPDUSessionInformation-used
-QoS-Mapping-Information                      N e1ap.extension id-QoS-Mapping-Information
-NPNSupportInfo                               N e1ap.extension id-NPNSupportInfo
-MDT-Configuration                            N e1ap.extension id-MDTConfiguration
-URIaddress                                   N e1ap.extension id-TraceCollectionEntityURI
-EHC-Parameters                               N e1ap.extension id-EHC-Parameters
-DAPSRequestInfo                              N e1ap.extension id-DAPSRequestInfo
-EarlyForwardingCOUNTReq                      N e1ap.extension id-EarlyForwardingCOUNTReq
-EarlyForwardingCOUNTInfo                     N e1ap.extension id-EarlyForwardingCOUNTInfo
-AlternativeQoSParaSetList                    N e1ap.extension id-AlternativeQoSParaSetList
-ExtendedSliceSupportList                     N e1ap.extension id-ExtendedSliceSupportList
-GBR-QoSFlowInformation                       N e1ap.extension id-MCG-OfferedGBRQoSFlowInfo
-Number-of-tunnels                            N e1ap.extension id-Number-of-tunnels
-DataForwardingtoE-UTRANInformationList       N e1ap.extension id-DataForwardingtoE-UTRANInformationList
-QosMonitoringReportingFrequency              N e1ap.extension id-QosMonitoringReportingFrequency
-QosMonitoringDisabled                        N e1ap.extension id-QoSMonitoringDisabled
-Extended-NR-CGI-Support-List                 N e1ap.extension id-Extended-NR-CGI-Support-List
-DataForwardingtoNG-RANQoSFlowInformationList N e1ap.extension id-DataForwardingtoNG-RANQoSFlowInformationList
-MaxCIDEHCDL                                  N e1ap.extension id-MaxCIDEHCDL
-IgnoreMappingRuleIndication                  N e1ap.extension id-ignoreMappingRuleIndication
-EarlyDataForwardingIndicator                 N e1ap.extension id-EarlyDataForwardingIndicator
-QoS-Flows-DRB-Remapping                      N e1ap.extension id-QoSFlowsDRBRemapping
-TransportLayerAddress                        N e1ap.extension id-DataForwardingSourceIPAddress
-SecurityIndication                           N e1ap.extension id-SecurityIndicationModify
-ECGI-Support-List                            N e1ap.extension id-ECGI-Support-List
-M4ReportAmount                               N e1ap.extension id-M4ReportAmount
-M6ReportAmount                               N e1ap.extension id-M6ReportAmount
-M7ReportAmount                               N e1ap.extension id-M7ReportAmount
-PDUSession-PairID                            N e1ap.extension id-PDUSession-PairID
-SurvivalTime                                 N e1ap.extension id-SurvivalTime
-UDC-Parameters                               N e1ap.extension id-UDC-Parameters
-SecurityIndication                           N e1ap.extension id-SecurityIndication
-SecurityResult                               N e1ap.extension id-SecurityResult
-SDTindicatorSetup                            N e1ap.extension id-SDTindicatorSetup
-SDTindicatorMod                              N e1ap.extension id-SDTindicatorMod
-DiscardTimerExtended                         N e1ap.extension id-DiscardTimerExtended
-MCForwardingResourceRequest                  N e1ap.extension id-MCForwardingResourceRequest
-MCForwardingResourceIndication               N e1ap.extension id-MCForwardingResourceIndication
-MCForwardingResourceResponse                 N e1ap.extension id-MCForwardingResourceResponse
-MCForwardingResourceRelease                  N e1ap.extension id-MCForwardingResourceRelease
-MCForwardingResourceReleaseIndication        N e1ap.extension id-MCForwardingResourceReleaseIndication
-PDCP-COUNT-Reset                             N e1ap.extension id-PDCP-COUNT-Reset
-MBSSessionAssociatedInfoNonSupportToSupport  N e1ap.extension id-MBSSessionAssociatedInfoNonSupportToSupport
-VersionID                                    N e1ap.extension id-VersionID
+SNSSAI                                            N e1ap.extension id-SNSSAI
+QoS-Flow-List                                     N e1ap.extension id-OldQoSFlowMap-ULendmarkerexpected
+QoSFlowLevelQoSParameters                         N e1ap.extension id-DRB-QoS
+CP-TNL-Information                                N e1ap.extension id-TNLAssociationTransportLayerAddressgNBCUUP
+CommonNetworkInstance                             N e1ap.extension id-CommonNetworkInstance
+NetworkInstance                                   N e1ap.extension id-NetworkInstance
+QoS-Flow-Mapping-Indication                       N e1ap.extension id-QoSFlowMappingIndication
+QosMonitoringRequest                              N e1ap.extension id-QoSMonitoringRequest
+PDCP-StatusReportIndication                       N e1ap.extension id-PDCP-StatusReportIndication
+CommonNetworkInstance                             N e1ap.extension id-RedundantCommonNetworkInstance
+UP-TNL-Information                                N e1ap.extension id-redundant-nG-UL-UP-TNL-Information
+UP-TNL-Information                                N e1ap.extension id-redundant-nG-DL-UP-TNL-Information
+RedundantQoSFlowIndicator                         N e1ap.extension id-RedundantQosFlowIndicator
+TSCTrafficCharacteristics                         N e1ap.extension id-TSCTrafficCharacteristics
+ExtendedPacketDelayBudget                         N e1ap.extension id-CNPacketDelayBudgetDownlink
+ExtendedPacketDelayBudget                         N e1ap.extension id-CNPacketDelayBudgetUplink
+ExtendedPacketDelayBudget                         N e1ap.extension id-ExtendedPacketDelayBudget
+AdditionalPDCPduplicationInformation              N e1ap.extension id-AdditionalPDCPduplicationInformation
+RedundantPDUSessionInformation                    N e1ap.extension id-RedundantPDUSessionInformation
+RedundantPDUSessionInformation                    N e1ap.extension id-RedundantPDUSessionInformation-used
+QoS-Mapping-Information                           N e1ap.extension id-QoS-Mapping-Information
+NPNSupportInfo                                    N e1ap.extension id-NPNSupportInfo
+MDT-Configuration                                 N e1ap.extension id-MDTConfiguration
+URIaddress                                        N e1ap.extension id-TraceCollectionEntityURI
+EHC-Parameters                                    N e1ap.extension id-EHC-Parameters
+DAPSRequestInfo                                   N e1ap.extension id-DAPSRequestInfo
+EarlyForwardingCOUNTReq                           N e1ap.extension id-EarlyForwardingCOUNTReq
+EarlyForwardingCOUNTInfo                          N e1ap.extension id-EarlyForwardingCOUNTInfo
+AlternativeQoSParaSetList                         N e1ap.extension id-AlternativeQoSParaSetList
+ExtendedSliceSupportList                          N e1ap.extension id-ExtendedSliceSupportList
+GBR-QoSFlowInformation                            N e1ap.extension id-MCG-OfferedGBRQoSFlowInfo
+Number-of-tunnels                                 N e1ap.extension id-Number-of-tunnels
+DataForwardingtoE-UTRANInformationList            N e1ap.extension id-DataForwardingtoE-UTRANInformationList
+QosMonitoringReportingFrequency                   N e1ap.extension id-QosMonitoringReportingFrequency
+QosMonitoringDisabled                             N e1ap.extension id-QoSMonitoringDisabled
+Extended-NR-CGI-Support-List                      N e1ap.extension id-Extended-NR-CGI-Support-List
+DataForwardingtoNG-RANQoSFlowInformationList      N e1ap.extension id-DataForwardingtoNG-RANQoSFlowInformationList
+MaxCIDEHCDL                                       N e1ap.extension id-MaxCIDEHCDL
+IgnoreMappingRuleIndication                       N e1ap.extension id-ignoreMappingRuleIndication
+EarlyDataForwardingIndicator                      N e1ap.extension id-EarlyDataForwardingIndicator
+QoS-Flows-DRB-Remapping                           N e1ap.extension id-QoSFlowsDRBRemapping
+TransportLayerAddress                             N e1ap.extension id-DataForwardingSourceIPAddress
+SecurityIndication                                N e1ap.extension id-SecurityIndicationModify
+ECGI-Support-List                                 N e1ap.extension id-ECGI-Support-List
+M4ReportAmount                                    N e1ap.extension id-M4ReportAmount
+M6ReportAmount                                    N e1ap.extension id-M6ReportAmount
+M7ReportAmount                                    N e1ap.extension id-M7ReportAmount
+PDUSession-PairID                                 N e1ap.extension id-PDUSession-PairID
+SurvivalTime                                      N e1ap.extension id-SurvivalTime
+UDC-Parameters                                    N e1ap.extension id-UDC-Parameters
+SecurityIndication                                N e1ap.extension id-SecurityIndication
+SecurityResult                                    N e1ap.extension id-SecurityResult
+SDTindicatorSetup                                 N e1ap.extension id-SDTindicatorSetup
+SDTindicatorMod                                   N e1ap.extension id-SDTindicatorMod
+DiscardTimerExtended                              N e1ap.extension id-DiscardTimerExtended
+MCForwardingResourceRequest                       N e1ap.extension id-MCForwardingResourceRequest
+MCForwardingResourceIndication                    N e1ap.extension id-MCForwardingResourceIndication
+MCForwardingResourceResponse                      N e1ap.extension id-MCForwardingResourceResponse
+MCForwardingResourceRelease                       N e1ap.extension id-MCForwardingResourceRelease
+MCForwardingResourceReleaseIndication             N e1ap.extension id-MCForwardingResourceReleaseIndication
+PDCP-COUNT-Reset                                  N e1ap.extension id-PDCP-COUNT-Reset
+MBSSessionAssociatedInfoNonSupportToSupport       N e1ap.extension id-MBSSessionAssociatedInfoNonSupportToSupport
+VersionID                                         N e1ap.extension id-VersionID
+MBSAreaSessionID                                  N e1ap.extension id-MBSAreaSessionID
+Data-Forwarding-Information                       N e1ap.extension id-Secondary-PDU-Session-Data-Forwarding-Information
+Inactivity-Timer                                  N e1ap.extension id-MCBearerContextInactivityTimer
+MCBearerContextStatusChange                       N e1ap.extension id-MCBearerContextStatusChange
+SpecialTriggeringPurpose                          N e1ap.extension id-SpecialTriggeringPurpose
+PDUSetQoSParameters                               N e1ap.extension id-PDUSetQoSParameters
+N6JitterInformation                               N e1ap.extension id-N6JitterInformation
+ECNMarkingorCongestionInformationReportingRequest N e1ap.extension id-ECNMarkingorCongestionInformationReportingRequest
+ECNMarkingorCongestionInformationReportingStatus  N e1ap.extension id-ECNMarkingorCongestionInformationReportingStatus
+PDUSetbasedHandlingIndicator                      N e1ap.extension id-PDUSetbasedHandlingIndicator
+IndirectPathIndication                            N e1ap.extension id-IndirectPathIndication
+F1UTunnelNotEstablished                           N e1ap.extension id-F1UTunnelNotEstablished
+F1U-TNL-InfoToAdd-List                            N e1ap.extension id-F1U-TNL-InfoToAdd-List
+F1U-TNL-InfoAdded-List                            N e1ap.extension id-F1U-TNL-InfoAdded-List
+F1U-TNL-InfoToAddOrModify-List                    N e1ap.extension id-F1U-TNL-InfoToAddOrModify-List
+F1U-TNL-InfoAddedOrModified-List                  N e1ap.extension id-F1U-TNL-InfoAddedOrModified-List
+F1U-TNL-InfoToRelease-List                        N e1ap.extension id-F1U-TNL-InfoToRelease-List
+PSIbasedDiscardTimer                              N e1ap.extension id-PSIbasedDiscardTimer
+UserPlaneErrorIndicator                           N e1ap.extension id-UserPlaneErrorIndicator
+MaxDataBurstVolume                                N e1ap.extension id-MaximumDataBurstVolume
+BCBearerContextNGU-TNLInfoatNGRAN-Request         N e1ap.extension id-BCBearerContextNGU-TNLInfoatNGRAN-Request
+PDCPSNGapReport                                   N e1ap.extension id-PDCPSNGapReport
+UserPlaneFailureIndication                        N e1ap.extension id-UserPlaneFailureIndication
 
 #E1AP-ELEMENTARY-PROCEDURE
 Reset                                    N e1ap.proc.imsg id-reset
@@ -649,6 +716,8 @@ MCBearerContextModificationFailure       N e1ap.proc.uout id-MCBearerContextModi
 MCBearerContextModificationRequired      N e1ap.proc.imsg id-MCBearerContextModificationRequired
 MCBearerContextModificationConfirm       N e1ap.proc.sout id-MCBearerContextModificationRequired
 
+MCBearerNotification                     N e1ap.proc.imsg id-MCBearerNotification
+
 MCBearerContextReleaseCommand            N e1ap.proc.imsg id-MCBearerContextRelease
 MCBearerContextReleaseComplete           N e1ap.proc.sout id-MCBearerContextRelease
 
@@ -662,7 +731,7 @@ MCBearerContextReleaseRequest            N e1ap.proc.imsg id-MCBearerContextRele
 %(DEFAULT_BODY)s
   if (param_tvb) {
     proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_e1ap_PLMN_Identity);
-    dissect_e212_mcc_mnc(param_tvb, actx->pinfo, subtree, 0, number_type, FALSE);
+    dissect_e212_mcc_mnc(param_tvb, actx->pinfo, subtree, 0, number_type, false);
   }
 
 #.FN_BODY NR-CGI
@@ -681,7 +750,7 @@ PortNumber TYPE = FT_UINT16 DISPLAY = BASE_DEC
   }
 
 #.TYPE_ATTR
-BitRate DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_bit_sec
+BitRate DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_bit_sec)
 
 #.FN_BODY DRB-Usage-Report-Item/startTimeStamp VAL_PTR = &timestamp_tvb
   tvbuff_t *timestamp_tvb = NULL;
@@ -702,10 +771,10 @@ BitRate DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_bit_sec
   }
 
 #.TYPE_ATTR
-DRB-Usage-Report-Item/usageCountUL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_octet_octets
+DRB-Usage-Report-Item/usageCountUL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_octet_octets)
 
 #.TYPE_ATTR
-DRB-Usage-Report-Item/usageCountDL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_octet_octets
+DRB-Usage-Report-Item/usageCountDL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_octet_octets)
 
 #.TYPE_ATTR
 MaxPacketLossRate DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(e1ap_MaxPacketLossRate_fmt)
@@ -714,20 +783,20 @@ MaxPacketLossRate DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(e1ap_MaxPacketLossRate
 PacketDelayBudget DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(e1ap_PacketDelayBudget_uL_D1_Result_fmt)
 
 #.TYPE_ATTR
-AveragingWindow DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_milliseconds
+AveragingWindow DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_milliseconds)
 
 #.TYPE_ATTR
-MaxDataBurstVolume DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_byte_bytes
+MaxDataBurstVolume DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_byte_bytes)
 
 #.TYPE_ATTR
-Inactivity-Timer DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+Inactivity-Timer DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_BODY TransportLayerAddress VAL_PTR = &param_tvb
   tvbuff_t *param_tvb = NULL;
 %(DEFAULT_BODY)s
   if (param_tvb) {
     proto_tree *subtree;
-    gint tvb_len;
+    int tvb_len;
 
     tvb_len = tvb_reported_length(param_tvb);
     subtree = proto_item_add_subtree(actx->created_item, ett_e1ap_TransportLayerAddress);
@@ -764,16 +833,16 @@ Inactivity-Timer DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
   }
 
 #.TYPE_ATTR
-MRDC-Data-Usage-Report-Item/usageCountUL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_octet_octets
+MRDC-Data-Usage-Report-Item/usageCountUL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_octet_octets)
 
 #.TYPE_ATTR
-MRDC-Data-Usage-Report-Item/usageCountDL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_octet_octets
+MRDC-Data-Usage-Report-Item/usageCountDL DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_octet_octets)
 
 #.TYPE_ATTR
 ExtendedPacketDelayBudget DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(e1ap_ExtendedPacketDelayBudget_fmt)
 
 #.TYPE_ATTR
-HW-CapacityIndicator/offeredThroughput DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_kbps
+HW-CapacityIndicator/offeredThroughput DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_kbps)
 
 #.FN_BODY InterfacesToTrace VAL_PTR = &param_tvb
   tvbuff_t *param_tvb = NULL;
@@ -793,7 +862,7 @@ HW-CapacityIndicator/offeredThroughput DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS
   }
 
 #.TYPE_ATTR
-M7period DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_minutes
+M7period DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_minutes)
 
 #.FN_BODY MeasurementsToActivate VAL_PTR=&param_tvb
   tvbuff_t *param_tvb = NULL;
@@ -826,7 +895,7 @@ M7period DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_minutes
   }
 
 #.TYPE_ATTR
-Periodicity DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_microseconds
+Periodicity DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_microseconds)
 
 #.FN_BODY BurstArrivalTime VAL_PTR = &param_tvb
   tvbuff_t *param_tvb = NULL;
@@ -840,10 +909,25 @@ Periodicity DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_microseconds
 DRB-Measurement-Results-Information-Item/uL-D1-Result DISPLAY = BASE_CUSTOM STRINGS = CF_FUNC(e1ap_PacketDelayBudget_uL_D1_Result_fmt)
 
 #.TYPE_ATTR
-QosMonitoringReportingFrequency DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+QosMonitoringReportingFrequency DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-SurvivalTime DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_microseconds
+SurvivalTime DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_microseconds)
+
+#.TYPE_ATTR
+UEInactivityInformation DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
+
+#.TYPE_ATTR
+MT-SDT-Data-Size DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_byte_bytes)
+
+#.TYPE_ATTR
+N6JitterInformation/n6JitterLowerBound DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(e1ap_N6Jitter_fmt)
+
+#.TYPE_ATTR
+N6JitterInformation/n6JitterUpperBound DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(e1ap_N6Jitter_fmt)
+
+#.TYPE_ATTR
+SDT-data-size-threshold DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_byte_bytes)
 
 #.FN_HDR Reset
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "Reset");
@@ -981,6 +1065,8 @@ SurvivalTime DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_microseconds
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MCBearerContextModificationRequired");
 #.FN_HDR MCBearerContextModificationConfirm
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MCBearerContextModificationConfirm");
+#.FN_HDR MCBearerNotification
+  col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MCBearerNotification");
 #.FN_HDR MCBearerContextReleaseCommand
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MCBearerContextReleaseCommand");
 #.FN_HDR MCBearerContextReleaseComplete

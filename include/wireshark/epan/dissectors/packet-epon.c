@@ -19,6 +19,7 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 
 #include <epan/addr_resolv.h>
 #include <epan/crc8-tvb.h>
@@ -28,28 +29,28 @@ void proto_reg_handoff_epon(void);
 
 static dissector_handle_t epon_handle;
 
-static int proto_epon = -1;
-static int hf_epon_dpoe_security = -1;
-static int hf_epon_dpoe_encrypted = -1;
-static int hf_epon_dpoe_reserved = -1;
-static int hf_epon_dpoe_encrypted_data = -1;
-static int hf_epon_dpoe_keyid = -1;
-static int hf_epon_mode = -1;
-static int hf_epon_llid = -1;
-static int hf_epon_checksum = -1;
-static int hf_epon_checksum_status = -1;
+static int proto_epon;
+static int hf_epon_dpoe_security;
+static int hf_epon_dpoe_encrypted;
+static int hf_epon_dpoe_reserved;
+static int hf_epon_dpoe_encrypted_data;
+static int hf_epon_dpoe_keyid;
+static int hf_epon_mode;
+static int hf_epon_llid;
+static int hf_epon_checksum;
+static int hf_epon_checksum_status;
 
-static expert_field ei_epon_sld_bad = EI_INIT;
-static expert_field ei_epon_dpoe_reserved_bad = EI_INIT;
-static expert_field ei_epon_dpoe_bad = EI_INIT;
-static expert_field ei_epon_dpoe_encrypted_data = EI_INIT;
-static expert_field ei_epon_checksum_bad = EI_INIT;
+static expert_field ei_epon_sld_bad;
+static expert_field ei_epon_dpoe_reserved_bad;
+static expert_field ei_epon_dpoe_bad;
+static expert_field ei_epon_dpoe_encrypted_data;
+static expert_field ei_epon_checksum_bad;
 
 static dissector_handle_t eth_maybefcs_handle;
 
-static gint ett_epon = -1;
-static gint ett_epon_sec = -1;
-static gint ett_epon_checksum = -1;
+static int ett_epon;
+static int ett_epon_sec;
+static int ett_epon_checksum;
 
 static const true_false_string epon_mode_tfs = {
   "Broadcast/Multicast",
@@ -65,11 +66,11 @@ dissect_epon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
   proto_item  *item;
   proto_tree  *sec_tree;
   tvbuff_t    *next_tvb;
-  guint       checksum;
-  guint       sent_checksum;
-  guint       offset = 0;
-  guint       dpoe_sec_byte;
-  gboolean    dpoe_encrypted = FALSE;
+  unsigned    checksum;
+  unsigned    sent_checksum;
+  unsigned    offset = 0;
+  unsigned    dpoe_sec_byte;
+  bool        dpoe_encrypted = false;
 
   /* Start_of_Packet delimiter (/S/) can happen in byte 1, 2 or 3,
    * making the captured preamble 8, 7 or 6 bytes in length. If the
@@ -100,10 +101,10 @@ dissect_epon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
    * If security is disabled, the DPoE byte will remain 0x55 and no decoding
    * is necessary.
    */
-  dpoe_sec_byte = tvb_get_guint8(tvb, 2+offset);
+  dpoe_sec_byte = tvb_get_uint8(tvb, 2+offset);
   if (dpoe_sec_byte != 0x55) {
-    guint       dpoe_keyid;
-    guint       dpoe_reserved;
+    unsigned    dpoe_keyid;
+    unsigned    dpoe_reserved;
 
     item = proto_tree_add_item(epon_tree, hf_epon_dpoe_security,
                                tvb, 2+offset, 1, ENC_BIG_ENDIAN);
@@ -162,7 +163,7 @@ dissect_epon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
   /* Verify the CRC-8 checksum
    */
-  sent_checksum = tvb_get_guint8(tvb, 5+offset);
+  sent_checksum = tvb_get_uint8(tvb, 5+offset);
   checksum = get_crc8_ieee8023_epon(tvb, 5, 0+offset);
 
   proto_tree_add_checksum(epon_tree, tvb, 5+offset, hf_epon_checksum, hf_epon_checksum_status, &ei_epon_checksum_bad, pinfo, checksum, ENC_NA, PROTO_CHECKSUM_VERIFY);
@@ -235,7 +236,7 @@ proto_register_epon(void)
     },
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_epon,
     &ett_epon_sec,
     &ett_epon_checksum

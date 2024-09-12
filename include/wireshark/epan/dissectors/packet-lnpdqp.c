@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-lnpdqp.c                                                            */
-/* asn2wrs.py -b -L -p lnpdqp -c ./lnpdqp.cnf -s ./packet-lnpdqp-template -D . -O ../.. LNPDQP.asn */
+/* asn2wrs.py -b -q -L -p lnpdqp -c ./lnpdqp.cnf -s ./packet-lnpdqp-template -D . -O ../.. LNPDQP.asn */
 
 /* packet-lnpdqp-template.c
  * Routines for Local Number Portability Database Query Protocol dissection
@@ -16,6 +16,7 @@
 #include <epan/packet.h>
 
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 #include "packet-ber.h"
 
 #define PNAME  "Local Number Portability Database Query"
@@ -33,45 +34,45 @@
  * Operation Family = ProvideInstruction, Reply Required (131) 0x83
  * Operation Specifier = Start (1)
  */
-/* Exluding H bit */
+/* Excluding H bit */
 #define LNPDQP_ANSI_TCAP_OPCODE_PI 0x0301
 
 void proto_reg_handoff_lnpdqp(void);
 void proto_register_lnpdqp(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_lnpdqp = -1;
+static int proto_lnpdqp;
 
 
-static int hf_lnpdqp_type_of_digits = -1;
-static int hf_lnpdqp_nature_of_number = -1;
-static int hf_lnpdqp_digits_enc = -1;
-static int hf_lnpdqp_np = -1;
-static int hf_lnpdqp_nr_digits = -1;
-static int hf_lnpdqp_bcd_digits = -1;
-static int hf_lnpdqp_ia5_digits = -1;
+static int hf_lnpdqp_type_of_digits;
+static int hf_lnpdqp_nature_of_number;
+static int hf_lnpdqp_digits_enc;
+static int hf_lnpdqp_np;
+static int hf_lnpdqp_nr_digits;
+static int hf_lnpdqp_bcd_digits;
+static int hf_lnpdqp_ia5_digits;
 
 /* asn2wrs/the ber dissector does not handle the same tag used multiple times
  * in asn1 description, do some magic to handle.
  */
-static int hf_lnpdqp_networkRoutingNumber = -1;   /* Digits */
-static int hf_lnpdqp_callingPartyANI = -1;        /* Digits */
-static int hf_lnpdqp_originatingLATA = -1;        /* Digits */
-static int hf_lnpdqp_carrierID = -1;              /* Digits */
+static int hf_lnpdqp_networkRoutingNumber;   /* Digits */
+static int hf_lnpdqp_callingPartyANI;        /* Digits */
+static int hf_lnpdqp_originatingLATA;        /* Digits */
+static int hf_lnpdqp_carrierID;              /* Digits */
 
-static int hf_lnpdqp_ConnectionControlArg_PDU = -1;  /* ConnectionControlArg */
-static int hf_lnpdqp_ProvideInstructionArg_PDU = -1;  /* ProvideInstructionArg */
-static int hf_lnpdqp_digits = -1;                 /* Digits */
-static int hf_lnpdqp_billingIndicators = -1;      /* BillingIndicators */
-static int hf_lnpdqp_calledPartyNumber = -1;      /* ServiceKey */
-static int hf_lnpdqp_oli = -1;                    /* OriginatingStationType */
+static int hf_lnpdqp_ConnectionControlArg_PDU;    /* ConnectionControlArg */
+static int hf_lnpdqp_ProvideInstructionArg_PDU;   /* ProvideInstructionArg */
+static int hf_lnpdqp_digits;                      /* Digits */
+static int hf_lnpdqp_billingIndicators;           /* BillingIndicators */
+static int hf_lnpdqp_calledPartyNumber;           /* ServiceKey */
+static int hf_lnpdqp_oli;                         /* OriginatingStationType */
 
-static int ett_lnpdqp = -1;
-static int ett_lnpdqp_digitstype = -1;
-static int ett_lnpdqp_digits = -1;
-static gint ett_lnpdqp_ConnectionControlArg_U = -1;
-static gint ett_lnpdqp_ProvideInstructionArg_U = -1;
-static gint ett_lnpdqp_ServiceKey = -1;
+static int ett_lnpdqp;
+static int ett_lnpdqp_digitstype;
+static int ett_lnpdqp_digits;
+static int ett_lnpdqp_ConnectionControlArg_U;
+static int ett_lnpdqp_ProvideInstructionArg_U;
+static int ett_lnpdqp_ServiceKey;
 
 
 /* Type of Digits (octet 1, bits A-H) */
@@ -175,7 +176,7 @@ static const value_string lnpdqp_OriginatingStationType_vals[]  = {
 static void
 dissect_lnpdqp_digits_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, asn1_ctx_t *actx _U_){
 
-    guint8 octet , no_of_digits;
+    uint8_t octet , no_of_digits;
     int    offset = 0;
     char *digit_str;
 
@@ -191,7 +192,7 @@ dissect_lnpdqp_digits_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
     proto_tree_add_item(subtree, hf_lnpdqp_nature_of_number, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
     /* Octet 3 Numbering Plan |Encoding Scheme| */
-    octet = tvb_get_guint8(tvb,offset);
+    octet = tvb_get_uint8(tvb,offset);
     proto_tree_add_item(subtree, hf_lnpdqp_np, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(subtree, hf_lnpdqp_digits_enc, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
@@ -199,17 +200,17 @@ dissect_lnpdqp_digits_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
     switch ((octet&0xf)){
     case 1:
         /* BCD Coding */
-        no_of_digits = tvb_get_guint8(tvb,offset);
+        no_of_digits = tvb_get_uint8(tvb,offset);
         proto_tree_add_item(subtree, hf_lnpdqp_nr_digits, tvb, offset, 1, ENC_BIG_ENDIAN);
         if(no_of_digits == 0)
             return;
         offset++;
-        proto_tree_add_item_ret_display_string(subtree, hf_lnpdqp_bcd_digits, tvb, offset, -1, ENC_KEYPAD_BC_TBCD, pinfo->pool, &digit_str);
+        proto_tree_add_item_ret_display_string(subtree, hf_lnpdqp_bcd_digits, tvb, offset, -1, ENC_KEYPAD_BC_TBCD|ENC_LITTLE_ENDIAN, pinfo->pool, &digit_str);
         proto_item_append_text(actx->created_item, " - %s", digit_str);
         break;
     case 2:
         /* IA5 Coding */
-        no_of_digits = tvb_get_guint8(tvb,offset);
+        no_of_digits = tvb_get_uint8(tvb,offset);
         proto_tree_add_item(subtree, hf_lnpdqp_nr_digits, tvb, offset, 1, ENC_BIG_ENDIAN);
         if(no_of_digits == 0)
             return;
@@ -229,10 +230,10 @@ dissect_lnpdqp_digits_type(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 static int
 dissect_lnpdqp_Digits(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
     tvbuff_t *parameter_tvb = NULL;
-    guint8 type_of_dgt;
+    uint8_t type_of_dgt;
     proto_tree *subtree;
 
-    type_of_dgt = tvb_get_guint8(tvb,offset);
+    type_of_dgt = tvb_get_uint8(tvb,offset);
     switch(type_of_dgt){
         case 2:
             /* Calling Party Number */
@@ -295,7 +296,7 @@ dissect_lnpdqp_ConnectionControlArg_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, 
 static int
 dissect_lnpdqp_ConnectionControlArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
-                                      hf_index, BER_CLASS_PRI, 18, TRUE, dissect_lnpdqp_ConnectionControlArg_U);
+                                      hf_index, BER_CLASS_PRI, 18, true, dissect_lnpdqp_ConnectionControlArg_U);
 
   return offset;
 }
@@ -351,7 +352,7 @@ dissect_lnpdqp_ProvideInstructionArg_U(bool implicit_tag _U_, tvbuff_t *tvb _U_,
 static int
 dissect_lnpdqp_ProvideInstructionArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
-                                      hf_index, BER_CLASS_PRI, 18, TRUE, dissect_lnpdqp_ProvideInstructionArg_U);
+                                      hf_index, BER_CLASS_PRI, 18, true, dissect_lnpdqp_ProvideInstructionArg_U);
 
   return offset;
 }
@@ -361,15 +362,15 @@ dissect_lnpdqp_ProvideInstructionArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, i
 static int dissect_ConnectionControlArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_lnpdqp_ConnectionControlArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_lnpdqp_ConnectionControlArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_lnpdqp_ConnectionControlArg(false, tvb, offset, &asn1_ctx, tree, hf_lnpdqp_ConnectionControlArg_PDU);
   return offset;
 }
 static int dissect_ProvideInstructionArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_lnpdqp_ProvideInstructionArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_lnpdqp_ProvideInstructionArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_lnpdqp_ProvideInstructionArg(false, tvb, offset, &asn1_ctx, tree, hf_lnpdqp_ProvideInstructionArg_PDU);
   return offset;
 }
 
@@ -381,7 +382,7 @@ dissect_lnpdqp_cc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, vo
     proto_tree *tree=NULL;
     asn1_ctx_t asn1_ctx;
 
-    asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+    asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, PSNAME);
     col_set_str(pinfo->cinfo, COL_INFO, "ConnectionControl");
@@ -401,7 +402,7 @@ dissect_lnpdqp_pi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, vo
     proto_tree *tree=NULL;
     asn1_ctx_t asn1_ctx;
 
-    asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+    asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, PSNAME);
     col_set_str(pinfo->cinfo, COL_INFO, "ProvideInstruction");
@@ -497,7 +498,7 @@ void proto_register_lnpdqp(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_lnpdqp,
     &ett_lnpdqp_digitstype,
     &ett_lnpdqp_digits,

@@ -1,6 +1,6 @@
 /* packet-lppa.c
  * Routines for 3GPP LTE Positioning Protocol A (LLPa) packet dissection
- * Copyright 2011-2019, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2011-2024, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * Ref 3GPP TS 36.455 version 16.1.0 (2020-09)
+ * Ref 3GPP TS 36.455 version 18.1.0 (2024-06)
  * http://www.3gpp.org
  */
 
@@ -17,6 +17,7 @@
 #include <epan/packet.h>
 #include <epan/proto_data.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-per.h"
 #include "packet-lppa.h"
@@ -29,12 +30,12 @@ void proto_register_lppa(void);
 void proto_reg_handoff_lppa(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_lppa = -1;
+static int proto_lppa;
 
 #include "packet-lppa-hf.c"
 
 /* Initialize the subtree pointers */
-static gint ett_lppa = -1;
+static int ett_lppa;
 #include "packet-lppa-ett.c"
 
 enum {
@@ -60,10 +61,10 @@ static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, pro
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *);
 
 struct lppa_private_data {
-    guint32 procedure_code;
-    guint32 protocol_ie_id;
-    guint32 protocol_extension_id;
-    guint32 message_type;
+    uint32_t procedure_code;
+    uint32_t protocol_ie_id;
+    uint32_t protocol_extension_id;
+    uint32_t message_type;
 };
 
 static struct lppa_private_data*
@@ -91,7 +92,7 @@ static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto
     lppa_ctx.ProtocolIE_ID = lppa_data->protocol_ie_id;
     lppa_ctx.ProtocolExtensionID = lppa_data->protocol_extension_id;
 
-  return (dissector_try_uint_new(lppa_ies_dissector_table, lppa_ctx.ProtocolIE_ID, tvb, pinfo, tree, FALSE, &lppa_ctx)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(lppa_ies_dissector_table, lppa_ctx.ProtocolIE_ID, tvb, pinfo, tree, false, &lppa_ctx)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
@@ -104,26 +105,26 @@ static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_in
     lppa_ctx.ProtocolIE_ID = lppa_data->protocol_ie_id;
     lppa_ctx.ProtocolExtensionID = lppa_data->protocol_extension_id;
 
-  return (dissector_try_uint_new(lppa_extension_dissector_table, lppa_ctx.ProtocolExtensionID, tvb, pinfo, tree, FALSE, &lppa_ctx)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(lppa_extension_dissector_table, lppa_ctx.ProtocolExtensionID, tvb, pinfo, tree, false, &lppa_ctx)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     struct lppa_private_data* lppa_data = lppa_get_private_data(pinfo);
-    return (dissector_try_uint_new(lppa_proc_imsg_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, FALSE, data)) ? tvb_captured_length(tvb) : 0;
+    return (dissector_try_uint_new(lppa_proc_imsg_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     struct lppa_private_data* lppa_data = lppa_get_private_data(pinfo);
-    return (dissector_try_uint_new(lppa_proc_sout_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, FALSE, data)) ? tvb_captured_length(tvb) : 0;
+    return (dissector_try_uint_new(lppa_proc_sout_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     struct lppa_private_data* lppa_data = lppa_get_private_data(pinfo);
 
-    return (dissector_try_uint_new(lppa_proc_uout_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, FALSE, data)) ? tvb_captured_length(tvb) : 0;
+    return (dissector_try_uint_new(lppa_proc_uout_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 /*--- proto_register_lppa -------------------------------------------*/
@@ -136,7 +137,7 @@ void proto_register_lppa(void) {
     };
 
     /* List of subtrees */
-    static gint* ett[] = {
+    static int* ett[] = {
         &ett_lppa,
   #include "packet-lppa-ettarr.c"
     };

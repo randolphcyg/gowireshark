@@ -24,23 +24,23 @@ void proto_reg_handoff_j1939(void);
 
 static dissector_handle_t j1939_handle;
 
-static int proto_j1939 = -1;
+static int proto_j1939;
 
-static int hf_j1939_can_id = -1;
-static int hf_j1939_priority = -1;
-static int hf_j1939_pgn = -1;
-static int hf_j1939_data_page = -1;
-static int hf_j1939_extended_data_page = -1;
-static int hf_j1939_pdu_format = -1;
-static int hf_j1939_pdu_specific = -1;
-static int hf_j1939_src_addr = -1;
-static int hf_j1939_dst_addr = -1;
-static int hf_j1939_group_extension = -1;
-static int hf_j1939_data = -1;
+static int hf_j1939_can_id;
+static int hf_j1939_priority;
+static int hf_j1939_pgn;
+static int hf_j1939_data_page;
+static int hf_j1939_extended_data_page;
+static int hf_j1939_pdu_format;
+static int hf_j1939_pdu_specific;
+static int hf_j1939_src_addr;
+static int hf_j1939_dst_addr;
+static int hf_j1939_group_extension;
+static int hf_j1939_data;
 
-static gint ett_j1939 = -1;
-static gint ett_j1939_can = -1;
-static gint ett_j1939_message = -1;
+static int ett_j1939;
+static int ett_j1939_can;
+static int ett_j1939_message;
 
 static int j1939_address_type = -1;
 static dissector_table_t   subdissector_pgn_table;
@@ -150,7 +150,7 @@ static const value_string j1939_address_vals[] = {
 static value_string_ext j1939_address_vals_ext = VALUE_STRING_EXT_INIT(j1939_address_vals);
 
 static void
-j1939_fmt_address(gchar *result, guint32 addr )
+j1939_fmt_address(char *result, uint32_t addr )
 {
     if ((addr < 128) || (addr > 247))
         snprintf(result, ITEM_LABEL_LENGTH, "%d (%s)", addr, val_to_str_ext_const(addr, &j1939_address_vals_ext, "Reserved"));
@@ -163,11 +163,11 @@ static int dissect_j1939(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     proto_item *ti, *can_id_item;
     proto_tree *j1939_tree, *can_tree, *msg_tree;
 
-    gint offset = 0;
+    int offset = 0;
     struct can_info can_info;
-    guint32 data_length = tvb_reported_length(tvb);
-    guint32 pgn;
-    guint8 *src_addr, *dest_addr;
+    uint32_t data_length = tvb_reported_length(tvb);
+    uint32_t pgn;
+    uint8_t *src_addr, *dest_addr;
 
     DISSECTOR_ASSERT(data);
     can_info = *((struct can_info*)data);
@@ -203,8 +203,8 @@ static int dissect_j1939(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     proto_item_set_generated(ti);
 
     /* Set source address */
-    src_addr = (guint8*)wmem_alloc(pinfo->pool, 1);
-    *src_addr = (guint8)(can_info.id & 0xFF);
+    src_addr = (uint8_t*)wmem_alloc(pinfo->pool, 1);
+    *src_addr = (uint8_t)(can_info.id & 0xFF);
     set_address(&pinfo->src, j1939_address_type, 1, (const void*)src_addr);
 
     pgn = (can_info.id & 0x3FFFF00) >> 8;
@@ -224,8 +224,8 @@ static int dissect_j1939(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     }
 
     /* Fill in "destination" address even if its "broadcast" */
-    dest_addr = (guint8*)wmem_alloc(pinfo->pool, 1);
-    *dest_addr = (guint8)((can_info.id & 0xFF00) >> 8);
+    dest_addr = (uint8_t*)wmem_alloc(pinfo->pool, 1);
+    *dest_addr = (uint8_t)((can_info.id & 0xFF00) >> 8);
     set_address(&pinfo->dst, j1939_address_type, 1, (const void*)dest_addr);
 
     col_add_fstr(pinfo->cinfo, COL_INFO, "PGN: %-6"  PRIu32, pgn);
@@ -246,7 +246,7 @@ static int dissect_j1939(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     ti = proto_tree_add_uint(msg_tree, hf_j1939_pgn, tvb, 0, 0, pgn);
     proto_item_set_generated(ti);
 
-    if (!dissector_try_uint_new(subdissector_pgn_table, pgn, tvb, pinfo, msg_tree, TRUE, data))
+    if (!dissector_try_uint_new(subdissector_pgn_table, pgn, tvb, pinfo, msg_tree, true, data))
     {
         proto_tree_add_item(msg_tree, hf_j1939_data, tvb, 0, tvb_reported_length(tvb), ENC_NA);
     }
@@ -254,11 +254,11 @@ static int dissect_j1939(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     return tvb_captured_length(tvb);
 }
 
-static int J1939_addr_to_str(const address* addr, gchar *buf, int buf_len)
+static int J1939_addr_to_str(const address* addr, char *buf, int buf_len)
 {
-    const guint8 *addrdata = (const guint8 *)addr->data;
+    const uint8_t *addrdata = (const uint8_t *)addr->data;
 
-    guint32_to_str_buf(*addrdata, buf, buf_len);
+    uint32_to_str_buf(*addrdata, buf, buf_len);
     return (int)strlen(buf);
 }
 
@@ -267,7 +267,7 @@ static int J1939_addr_str_len(const address* addr _U_)
     return 11; /* Leaves required space (10 bytes) for uint_to_str_back() */
 }
 
-static const char* J1939_col_filter_str(const address* addr _U_, gboolean is_src)
+static const char* J1939_col_filter_str(const address* addr _U_, bool is_src)
 {
     if (is_src)
         return "j1939.src_addr";
@@ -329,7 +329,7 @@ void proto_register_j1939(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_j1939,
         &ett_j1939_can,
         &ett_j1939_message

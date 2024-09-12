@@ -17,6 +17,7 @@
 #include <epan/oids.h>
 #include <epan/osi-utils.h>
 #include <epan/to_str.h>
+#include <wsutil/array.h>
 
 static void
 bytes_fvalue_new(fvalue_t *fv)
@@ -251,66 +252,28 @@ bytes_from_charconst(fvalue_t *fv, unsigned long num, char **err_msg)
 }
 
 static bool
-ax25_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value, char **err_msg)
+bytes_from_uinteger64(fvalue_t *fv, const char *s _U_, uint64_t num, char **err_msg)
 {
-	/*
-	 * Don't request an error message if bytes_from_literal fails;
-	 * if it does, we'll report an error specific to this address
-	 * type.
-	 */
-	if (bytes_from_literal(fv, s, true, NULL)) {
-		if (g_bytes_get_size(fv->value.bytes) > FT_AX25_ADDR_LEN) {
-			if (err_msg != NULL) {
-				*err_msg = ws_strdup_printf("\"%s\" contains too many bytes to be a valid AX.25 address.",
-				    s);
-			}
-			return false;
+	if (num > UINT8_MAX) {
+		if (err_msg) {
+			*err_msg = ws_strdup_printf("%s is too large for a byte value", s);
 		}
-		else if (g_bytes_get_size(fv->value.bytes) < FT_AX25_ADDR_LEN && !allow_partial_value) {
-			if (err_msg != NULL) {
-				*err_msg = ws_strdup_printf("\"%s\" contains too few bytes to be a valid AX.25 address.",
-				    s);
-			}
-			return false;
-		}
-
-		return true;
+		return false;
 	}
 
-	/*
-	 * XXX - what needs to be done here is something such as:
-	 *
-	 * Look for a "-" in the string.
-	 *
-	 * If we find it, make sure that there are 1-6 alphanumeric
-	 * ASCII characters before it, and that there are 2 decimal
-	 * digits after it, from 00 to 15; if we don't find it, make
-	 * sure that there are 1-6 alphanumeric ASCII characters
-	 * in the string.
-	 *
-	 * If so, make the first 6 octets of the address the ASCII
-	 * characters, with lower-case letters mapped to upper-case
-	 * letters, shifted left by 1 bit, padded to 6 octets with
-	 * spaces, also shifted left by 1 bit, and, if we found a
-	 * "-", convert what's after it to a number and make the 7th
-	 * octet the number, shifted left by 1 bit, otherwise make the
-	 * 7th octet zero.
-	 *
-	 * We should also change all the comparison functions for
-	 * AX.25 addresses check the upper 7 bits of all but the last
-	 * octet of the address, ignoring the "end of address" bit,
-	 * and compare only the 4 bits above the low-order bit for
-	 * the last octet, ignoring the "end of address" bit and
-	 * various reserved bits and bits used for other purposes.
-	 *
-	 * See section 3.12 "Address-Field Encoding" of the AX.25
-	 * spec and
-	 *
-	 *	http://www.itu.int/ITU-R/terrestrial/docs/fixedmobile/fxm-art19-sec3.pdf
-	 */
-	if (err_msg != NULL)
-		*err_msg = ws_strdup_printf("\"%s\" is not a valid AX.25 address.", s);
-	return false;
+	return bytes_from_charconst(fv, (unsigned long)num, err_msg);
+}
+
+static bool
+bytes_from_sinteger64(fvalue_t *fv, const char *s, int64_t num, char **err_msg)
+{
+	if (num < 0) {
+		if (err_msg) {
+			*err_msg = ws_strdup_printf("Byte values cannot be negative");
+		}
+		return false;
+	}
+	return bytes_from_uinteger64(fv, s, (uint64_t)num, err_msg);
 }
 
 static bool
@@ -597,10 +560,8 @@ void
 ftype_register_bytes(void)
 {
 
-	static ftype_t bytes_type = {
+	static const ftype_t bytes_type = {
 		FT_BYTES,			/* ftype */
-		"FT_BYTES",			/* name */
-		"Byte sequence",		/* pretty_name */
 		0,				/* wire_size */
 		bytes_fvalue_new,		/* new_value */
 		bytes_fvalue_copy,		/* copy_value */
@@ -608,10 +569,14 @@ ftype_register_bytes(void)
 		bytes_from_literal,		/* val_from_literal */
 		bytes_from_string,		/* val_from_string */
 		bytes_from_charconst,		/* val_from_charconst */
+		bytes_from_uinteger64,		/* val_from_uinteger64 */
+		bytes_from_sinteger64,		/* val_from_sinteger64 */
+		NULL,				/* val_from_double */
 		bytes_to_repr,			/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_to_double */
 
 		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
@@ -634,10 +599,8 @@ ftype_register_bytes(void)
 		NULL,				/* modulo */
 	};
 
-	static ftype_t uint_bytes_type = {
+	static const ftype_t uint_bytes_type = {
 		FT_UINT_BYTES,		/* ftype */
-		"FT_UINT_BYTES",		/* name */
-		"Byte sequence",		/* pretty_name */
 		0,				/* wire_size */
 		bytes_fvalue_new,		/* new_value */
 		bytes_fvalue_copy,		/* copy_value */
@@ -645,10 +608,14 @@ ftype_register_bytes(void)
 		bytes_from_literal,		/* val_from_literal */
 		NULL,				/* val_from_string */
 		NULL,				/* val_from_charconst */
+		NULL,				/* val_from_uinteger64 */
+		NULL,				/* val_from_sinteger64 */
+		NULL,				/* val_from_double */
 		bytes_to_repr,			/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_to_double */
 
 		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
@@ -671,47 +638,8 @@ ftype_register_bytes(void)
 		NULL,				/* modulo */
 	};
 
-	static ftype_t ax25_type = {
-		FT_AX25,			/* ftype */
-		"FT_AX25",			/* name */
-		"AX.25 address",		/* pretty_name */
-		FT_AX25_ADDR_LEN,		/* wire_size */
-		bytes_fvalue_new,		/* new_value */
-		bytes_fvalue_copy,		/* copy_value */
-		bytes_fvalue_free,		/* free_value */
-		ax25_from_literal,		/* val_from_literal */
-		NULL,				/* val_from_string */
-		NULL,				/* val_from_charconst */
-		bytes_to_repr,			/* val_to_string_repr */
-
-		NULL,				/* val_to_uinteger64 */
-		NULL,				/* val_to_sinteger64 */
-
-		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
-		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
-
-		cmp_order,
-		cmp_contains,
-		cmp_matches,
-
-		bytes_hash,			/* hash */
-		bytes_is_zero,			/* is_zero */
-		NULL,				/* is_negative */
-		len,
-		(FvalueSlice)slice,
-		bytes_bitwise_and,		/* bitwise_and */
-		NULL,				/* unary_minus */
-		NULL,				/* add */
-		NULL,				/* subtract */
-		NULL,				/* multiply */
-		NULL,				/* divide */
-		NULL,				/* modulo */
-	};
-
-	static ftype_t vines_type = {
+	static const ftype_t vines_type = {
 		FT_VINES,			/* ftype */
-		"FT_VINES",			/* name */
-		"VINES address",		/* pretty_name */
 		FT_VINES_ADDR_LEN,		/* wire_size */
 		bytes_fvalue_new,		/* new_value */
 		bytes_fvalue_copy,		/* copy_value */
@@ -719,10 +647,14 @@ ftype_register_bytes(void)
 		vines_from_literal,		/* val_from_literal */
 		NULL,				/* val_from_string */
 		NULL,				/* val_from_charconst */
+		NULL,				/* val_from_uinteger64 */
+		NULL,				/* val_from_sinteger64 */
+		NULL,				/* val_from_double */
 		bytes_to_repr,			/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_to_double */
 
 		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
@@ -745,10 +677,8 @@ ftype_register_bytes(void)
 		NULL,				/* modulo */
 	};
 
-	static ftype_t ether_type = {
+	static const ftype_t ether_type = {
 		FT_ETHER,			/* ftype */
-		"FT_ETHER",			/* name */
-		"Ethernet or other MAC address",/* pretty_name */
 		FT_ETHER_LEN,			/* wire_size */
 		bytes_fvalue_new,		/* new_value */
 		bytes_fvalue_copy,		/* copy_value */
@@ -756,10 +686,14 @@ ftype_register_bytes(void)
 		ether_from_literal,		/* val_from_literal */
 		NULL,				/* val_from_string */
 		NULL,				/* val_from_charconst */
+		NULL,				/* val_from_uinteger64 */
+		NULL,				/* val_from_sinteger64 */
+		NULL,				/* val_from_double */
 		bytes_to_repr,			/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_to_double */
 
 		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
@@ -782,10 +716,8 @@ ftype_register_bytes(void)
 		NULL,				/* modulo */
 	};
 
-	static ftype_t oid_type = {
+	static const ftype_t oid_type = {
 		FT_OID,			/* ftype */
-		"FT_OID",			/* name */
-		"ASN.1 object identifier",	/* pretty_name */
 		0,			/* wire_size */
 		bytes_fvalue_new,		/* new_value */
 		bytes_fvalue_copy,		/* copy_value */
@@ -793,10 +725,14 @@ ftype_register_bytes(void)
 		oid_from_literal,		/* val_from_literal */
 		NULL,				/* val_from_string */
 		NULL,				/* val_from_charconst */
+		NULL,				/* val_from_uinteger64 */
+		NULL,				/* val_from_sinteger64 */
+		NULL,				/* val_from_double */
 		oid_to_repr,			/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_to_double */
 
 		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
@@ -819,10 +755,8 @@ ftype_register_bytes(void)
 		NULL,				/* modulo */
 	};
 
-	static ftype_t rel_oid_type = {
+	static const ftype_t rel_oid_type = {
 		FT_REL_OID,			/* ftype */
-		"FT_REL_OID",			/* name */
-		"ASN.1 relative object identifier",	/* pretty_name */
 		0,			/* wire_size */
 		bytes_fvalue_new,		/* new_value */
 		bytes_fvalue_copy,		/* copy_value */
@@ -830,10 +764,14 @@ ftype_register_bytes(void)
 		rel_oid_from_literal,		/* val_from_literal */
 		NULL,				/* val_from_string */
 		NULL,				/* val_from_charconst */
+		NULL,				/* val_from_uinteger64 */
+		NULL,				/* val_from_sinteger64 */
+		NULL,				/* val_from_double */
 		rel_oid_to_repr,		/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_to_double */
 
 		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
@@ -856,10 +794,8 @@ ftype_register_bytes(void)
 		NULL,				/* modulo */
 	};
 
-	static ftype_t system_id_type = {
+	static const ftype_t system_id_type = {
 		FT_SYSTEM_ID,			/* ftype */
-		"FT_SYSTEM_ID",			/* name */
-		"OSI System-ID",		/* pretty_name */
 		0,			/* wire_size */
 		bytes_fvalue_new,		/* new_value */
 		bytes_fvalue_copy,		/* copy_value */
@@ -867,10 +803,14 @@ ftype_register_bytes(void)
 		system_id_from_literal,		/* val_from_literal */
 		NULL,				/* val_from_string */
 		NULL,				/* val_from_charconst */
+		NULL,				/* val_from_uinteger64 */
+		NULL,				/* val_from_sinteger64 */
+		NULL,				/* val_from_double */
 		system_id_to_repr,		/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_to_double */
 
 		{ .set_value_bytes = bytes_fvalue_set }, /* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
@@ -893,10 +833,8 @@ ftype_register_bytes(void)
 		NULL,				/* modulo */
 	};
 
-	static ftype_t fcwwn_type = {
+	static const ftype_t fcwwn_type = {
 		FT_FCWWN,			/* ftype */
-		"FT_FCWWN",			/* name */
-		"Fibre Channel WWN",	/* pretty_name */
 		FT_FCWWN_LEN,			/* wire_size */
 		bytes_fvalue_new,		/* new_value */
 		bytes_fvalue_copy,		/* copy_value */
@@ -904,10 +842,14 @@ ftype_register_bytes(void)
 		fcwwn_from_literal,		/* val_from_literal */
 		NULL,				/* val_from_string */
 		NULL,				/* val_from_charconst */
+		NULL,				/* val_from_uinteger64 */
+		NULL,				/* val_from_sinteger64 */
+		NULL,				/* val_from_double */
 		bytes_to_repr,			/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_to_double */
 
 		{ .set_value_bytes = bytes_fvalue_set },	/* union set_value */
 		{ .get_value_bytes = bytes_fvalue_get },	/* union get_value */
@@ -932,7 +874,6 @@ ftype_register_bytes(void)
 
 	ftype_register(FT_BYTES, &bytes_type);
 	ftype_register(FT_UINT_BYTES, &uint_bytes_type);
-	ftype_register(FT_AX25, &ax25_type);
 	ftype_register(FT_VINES, &vines_type);
 	ftype_register(FT_ETHER, &ether_type);
 	ftype_register(FT_OID, &oid_type);
@@ -946,7 +887,6 @@ ftype_register_pseudofields_bytes(int proto)
 {
 	static int hf_ft_bytes;
 	static int hf_ft_uint_bytes;
-	static int hf_ft_ax25;
 	static int hf_ft_vines;
 	static int hf_ft_ether;
 	static int hf_ft_oid;
@@ -962,11 +902,6 @@ ftype_register_pseudofields_bytes(int proto)
 		{ &hf_ft_uint_bytes,
 		    { "FT_UINT_BYTES", "_ws.ftypes.uint_bytes",
 			FT_UINT_BYTES, BASE_NONE, NULL, 0x00,
-			NULL, HFILL }
-		},
-		{ &hf_ft_ax25,
-		    { "FT_AX25", "_ws.ftypes.ax25",
-			FT_AX25, BASE_NONE, NULL, 0x00,
 			NULL, HFILL }
 		},
 		{ &hf_ft_vines,

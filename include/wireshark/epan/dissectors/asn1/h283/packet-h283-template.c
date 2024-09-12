@@ -14,6 +14,7 @@
 #include <epan/packet.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-per.h"
 
@@ -25,11 +26,11 @@ void proto_register_h283(void);
 void proto_reg_handoff_h283(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_h283 = -1;
+static int proto_h283;
 #include "packet-h283-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_h283 = -1;
+static int ett_h283;
 #include "packet-h283-ett.c"
 
 /* Subdissectors */
@@ -39,7 +40,7 @@ static dissector_handle_t data_handle;
 static dissector_handle_t h283_udp_handle;
 
 
-static gboolean info_is_set;
+static bool info_is_set;
 
 #include "packet-h283-fn.c"
 
@@ -51,7 +52,7 @@ dissect_h283_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, PSNAME);
 
-  info_is_set = FALSE;
+  info_is_set = false;
 
   ti = proto_tree_add_item(tree, proto_h283, tvb, 0, -1, ENC_NA);
   h283_tree = proto_item_add_subtree(ti, ett_h283);
@@ -68,7 +69,7 @@ void proto_register_h283(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_h283,
 #include "packet-h283-ettarr.c"
   };

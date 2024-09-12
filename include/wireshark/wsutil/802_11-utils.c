@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "802_11-utils.h"
+#include <wsutil/array.h>
 
 typedef struct freq_cvt_s {
     unsigned fmin;         /* Minimum frequency in MHz */
@@ -41,7 +42,7 @@ static freq_cvt_t freq_cvt[] = {
     { 4910, 4980, 182, false },
 };
 
-#define NUM_FREQ_CVT (sizeof(freq_cvt) / sizeof(freq_cvt_t))
+#define NUM_FREQ_CVT array_length(freq_cvt)
 #define MAX_CHANNEL(fc) ( (int) ((fc.fmax - fc.fmin) / FREQ_STEP) + fc.cmin )
 
 /*
@@ -84,17 +85,44 @@ ieee80211_chan_to_mhz(int chan, bool is_bg) {
 }
 
 /*
+ * Get Frequency given a Channel number and band.
+ */
+unsigned
+ieee80211_chan_band_to_mhz(int chan, bool is_bg, bool is_6ghz) {
+    unsigned i;
+
+    int start_idx = 0;
+    if (is_6ghz) {
+        start_idx = 3;
+    }
+    for (i = start_idx; i < NUM_FREQ_CVT; i++) {
+        if (is_bg == freq_cvt[i].is_bg &&
+                chan >= freq_cvt[i].cmin && chan <= MAX_CHANNEL(freq_cvt[i])) {
+            return ((chan - freq_cvt[i].cmin) * FREQ_STEP) + freq_cvt[i].fmin;
+        }
+    }
+    return 0;
+}
+
+/*
  * Get channel representation string given a Frequency
  */
 char*
 ieee80211_mhz_to_str(unsigned freq){
     int chan = ieee80211_mhz_to_chan(freq);
-    bool is_bg = FREQ_IS_BG(freq);
+    const char* band;
+    if (FREQ_IS_BG(freq)) {
+        band = "2.4 GHz";
+    } else if (FREQ_IS_6G(freq)) {
+        band = "6 GHz";
+    } else {
+        band = "5 GHz";
+    }
 
     if (chan < 0) {
         return ws_strdup_printf("%u", freq);
     } else {
-        return ws_strdup_printf("%u [%s %u]", freq, is_bg ? "BG" : "A",
+        return ws_strdup_printf("%u [%s %u]", freq, band,
             chan);
     }
 }

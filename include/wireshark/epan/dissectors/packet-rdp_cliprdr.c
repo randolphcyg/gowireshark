@@ -31,13 +31,13 @@ void proto_register_rdp_cliprdr(void);
 void proto_reg_handoff_rdp_cliprdr(void);
 
 
-static int proto_rdp_cliprdr = -1;
+static int proto_rdp_cliprdr;
 
-static int hf_cliprdr_msgType = -1;
-static int hf_cliprdr_msgFlags = -1;
-static int hf_cliprdr_dataLen = -1;
+static int hf_cliprdr_msgType;
+static int hf_cliprdr_msgFlags;
+static int hf_cliprdr_dataLen;
 
-static int ett_rdp_cliprdr = -1;
+static int ett_rdp_cliprdr;
 
 
 enum {
@@ -84,16 +84,16 @@ static int
 dissect_rdp_cliprdr(tvbuff_t *tvb _U_, packet_info *pinfo, proto_tree *parent_tree _U_, void *data _U_)
 {
 	proto_item *item;
-	gint nextOffset, offset = 0;
-	guint32 cmdId = 0;
-	guint32 pduLength;
+	int nextOffset, offset = 0;
+	uint32_t cmdId = 0;
+	uint32_t pduLength;
 	proto_tree *tree;
 
 	parent_tree = proto_tree_get_root(parent_tree);
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "CLIPRDR");
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	pduLength = tvb_get_guint32(tvb, offset + 4, ENC_LITTLE_ENDIAN) + 8;
+	pduLength = tvb_get_uint32(tvb, offset + 4, ENC_LITTLE_ENDIAN) + 8;
 	nextOffset = offset + pduLength;
 
 	item = proto_tree_add_item(parent_tree, proto_rdp_cliprdr, tvb, offset, pduLength, ENC_NA);
@@ -108,7 +108,7 @@ dissect_rdp_cliprdr(tvbuff_t *tvb _U_, packet_info *pinfo, proto_tree *parent_tr
 	proto_tree_add_item(tree, hf_cliprdr_dataLen, tvb, offset, 4, ENC_LITTLE_ENDIAN);
 	//offset += 4;
 
-	col_add_fstr(pinfo->cinfo, COL_INFO, "%s", val_to_str_const(cmdId, rdp_cliprdr_order_vals, "Unknown clipboard command"));
+	col_set_str(pinfo->cinfo, COL_INFO, val_to_str_const(cmdId, rdp_cliprdr_order_vals, "Unknown clipboard command"));
 
 	switch (cmdId) {
 	case CB_MONITOR_READY:
@@ -150,7 +150,7 @@ void proto_register_rdp_cliprdr(void) {
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_rdp_cliprdr,
 	};
 

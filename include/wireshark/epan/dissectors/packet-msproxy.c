@@ -39,52 +39,52 @@ void proto_register_msproxy(void);
 void proto_reg_handoff_msproxy(void);
 
 
-static int proto_msproxy = -1;
+static int proto_msproxy;
 
-static int ett_msproxy = -1;
-static int ett_msproxy_name = -1;
+static int ett_msproxy;
+static int ett_msproxy_name;
 
-static int hf_msproxy_cmd = -1;
-static int hf_msproxy_clntport = -1;
+static int hf_msproxy_cmd;
+static int hf_msproxy_clntport;
 
-static int hf_msproxy_dstaddr = -1;
+static int hf_msproxy_dstaddr;
 
-/* static int hf_msproxy_srcport = -1; */
-static int hf_msproxy_dstport = -1;
-static int hf_msproxy_serverport = -1;
-static int hf_msproxy_serveraddr = -1;
-static int hf_msproxy_bindport = -1;
-static int hf_msproxy_bindaddr = -1;
-static int hf_msproxy_boundport = -1;
-static int hf_msproxy_bind_id = -1;
-static int hf_msproxy_resolvaddr = -1;
+/* static int hf_msproxy_srcport; */
+static int hf_msproxy_dstport;
+static int hf_msproxy_serverport;
+static int hf_msproxy_serveraddr;
+static int hf_msproxy_bindport;
+static int hf_msproxy_bindaddr;
+static int hf_msproxy_boundport;
+static int hf_msproxy_bind_id;
+static int hf_msproxy_resolvaddr;
 
-static int hf_msproxy_client_id = -1;
-static int hf_msproxy_version = -1;
-static int hf_msproxy_server_id = -1;
-static int hf_msproxy_server_ack = -1;
-static int hf_msproxy_client_ack = -1;
-static int hf_msproxy_seq_num = -1;
-static int hf_msproxy_rwsp_signature = -1;
-static int hf_msproxy_ntlmssp_signature = -1;
+static int hf_msproxy_client_id;
+static int hf_msproxy_version;
+static int hf_msproxy_server_id;
+static int hf_msproxy_server_ack;
+static int hf_msproxy_client_ack;
+static int hf_msproxy_seq_num;
+static int hf_msproxy_rwsp_signature;
+static int hf_msproxy_ntlmssp_signature;
 
-static int hf_msproxy_server_int_addr = -1;
-static int hf_msproxy_server_int_port = -1;
-static int hf_msproxy_server_ext_addr = -1;
-static int hf_msproxy_server_ext_port = -1;
+static int hf_msproxy_server_int_addr;
+static int hf_msproxy_server_int_port;
+static int hf_msproxy_server_ext_addr;
+static int hf_msproxy_server_ext_port;
 
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_msproxy_host_name = -1;
-static int hf_msproxy_address_offset = -1;
-static int hf_msproxy_client_computer_name = -1;
-static int hf_msproxy_nt_domain = -1;
-static int hf_msproxy_req_resolve_length = -1;
-static int hf_msproxy_application_name = -1;
-static int hf_msproxy_user_name = -1;
-static int hf_msproxy_application = -1;
+static int hf_msproxy_host_name;
+static int hf_msproxy_address_offset;
+static int hf_msproxy_client_computer_name;
+static int hf_msproxy_nt_domain;
+static int hf_msproxy_req_resolve_length;
+static int hf_msproxy_application_name;
+static int hf_msproxy_user_name;
+static int hf_msproxy_application;
 
-static expert_field ei_msproxy_unknown = EI_INIT;
-static expert_field ei_msproxy_unhandled = EI_INIT;
+static expert_field ei_msproxy_unknown;
+static expert_field ei_msproxy_unhandled;
 
 static dissector_handle_t msproxy_sub_handle;
 
@@ -157,10 +157,10 @@ static dissector_handle_t msproxy_sub_handle;
 /* from the same MSProxy conversation */
 
 typedef struct {
-	guint32	dst_addr;
-	guint32	clnt_port;
-	guint32	dst_port;
-	guint32	server_int_port;
+	uint32_t	dst_addr;
+	uint32_t	clnt_port;
+	uint32_t	dst_port;
+	uint32_t	server_int_port;
 	conversation_type ctype;
 }hash_entry_t;
 
@@ -168,10 +168,10 @@ typedef struct {
 /************** conversation hash stuff ***************/
 
 typedef struct {
-	guint32	remote_addr;
-	guint32	clnt_port;
-	guint32	server_int_port;
-	guint32	remote_port;
+	uint32_t	remote_addr;
+	uint32_t	clnt_port;
+	uint32_t	server_int_port;
+	uint32_t	remote_port;
 	conversation_type ctype;
 }redirect_entry_t;
 
@@ -186,7 +186,7 @@ static int msproxy_sub_dissector( tvbuff_t *tvb, packet_info *pinfo,
 /* display the msproxy header, the pass the rest of the data to the tcp	*/
 /* or udp port decode routine to  handle the payload.			*/
 
-	guint32 *ptr;
+	uint32_t *ptr;
 	redirect_entry_t *redirect_info;
 	conversation_t *conversation;
 	proto_tree      *msp_tree;
@@ -557,7 +557,7 @@ static void dissect_request_resolve(tvbuff_t *tvb, int offset,
 
 	proto_tree      *name_tree;
 
-	int length = tvb_get_guint8( tvb, offset);
+	int length = tvb_get_uint8( tvb, offset);
 
 	if ( tree){
 		name_tree = proto_tree_add_subtree_format(tree, tvb, offset, length + 1,
@@ -923,7 +923,7 @@ static void dissect_resolve(tvbuff_t *tvb, int offset, proto_tree *tree) {
 	if ( tree) {
 		int addr_offset;
 
-		addr_offset = tvb_get_guint8( tvb, offset);
+		addr_offset = tvb_get_uint8( tvb, offset);
 
 		proto_tree_add_item(tree, hf_msproxy_address_offset, tvb, offset, 1, ENC_NA);
 
@@ -1084,7 +1084,7 @@ proto_register_msproxy( void){
 
 /* Prep the msproxy protocol, for now, just register it	*/
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_msproxy,
 		&ett_msproxy_name
 	};

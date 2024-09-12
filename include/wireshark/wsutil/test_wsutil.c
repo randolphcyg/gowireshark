@@ -12,6 +12,7 @@
 #include <glib.h>
 #include <wsutil/utf8_entities.h>
 #include <wsutil/time_util.h>
+#include <wsutil/to_str.h>
 
 #include "inet_addr.h"
 
@@ -46,7 +47,7 @@ struct in6_test {
     ws_in6_addr addr;
 };
 
-static struct in6_test in6_test1 = {
+static const struct in6_test in6_test1 = {
     .str = "2001:db8:ffaa:ddbb:1199:2288:3377:1",
     .addr = { { 0x20, 0x01, 0x0d, 0xb8, 0xff, 0xaa, 0xdd, 0xbb,
                 0x11, 0x99, 0x22, 0x88, 0x33, 0x77, 0x00, 0x01 } }
@@ -70,6 +71,19 @@ static void test_inet_ntop6_test1(void)
     ptr = ws_inet_ntop6(&in6_test1.addr, result, sizeof(result));
     g_assert_true(ptr == result);
     g_assert_cmpstr(result, ==, in6_test1.str);
+}
+
+static void test_ip_addr_to_str_test1(void)
+{
+    char result[WS_INET_ADDRSTRLEN];
+    const char *expect;
+    ws_in4_addr addr;
+
+    addr = g_htonl(3325256904);
+    expect = "198.51.100.200";
+    ip_addr_to_str_buf(&addr, result, sizeof(result));
+
+    g_assert_cmpstr(result, ==, expect);
 }
 
 #include "str_util.h"
@@ -106,6 +120,15 @@ static void test_escape_string(void)
     const char s1[] = { 'a', 'b', 'c', '\0', 'e', 'f', 'g'};
     buf = ws_escape_null(NULL, s1, sizeof(s1), true);
     g_assert_cmpstr(buf, ==, "\"abc\\0efg\"");
+    wmem_free(NULL, buf);
+
+    const char s2[] = { 'a', 'b', 'c', '\0', '"', 'e', 'f', 'g'};
+    buf = ws_escape_null(NULL, s2, sizeof(s2), true);
+    g_assert_cmpstr(buf, ==, "\"abc\\0\\\"efg\"");
+    wmem_free(NULL, buf);
+
+    buf = ws_escape_csv(NULL, "CSV-style \" escape", true, '"', true, false);
+    g_assert_cmpstr(buf, ==, "\"CSV-style \"\" escape\"");
     wmem_free(NULL, buf);
 }
 
@@ -261,7 +284,7 @@ static void test_word_to_hex(void)
     static char buf[32];
     char *str;     /* String is not NULL terminated. */
 
-    str = guint8_to_hex(buf, 0x34);
+    str = uint8_to_hex(buf, 0x34);
     g_assert_true(str == buf + 2);
     g_assert_cmpint(str[-1], ==, '4');
     g_assert_cmpint(str[-2], ==, '3');
@@ -284,7 +307,7 @@ static void test_word_to_hex(void)
     g_assert_cmpint(str[-7], ==, '0');
     g_assert_cmpint(str[-8], ==, '0');
 
-    str = qword_to_hex(buf, G_GUINT64_CONSTANT(0xFEDCBA987654321));
+    str = qword_to_hex(buf, UINT64_C(0xFEDCBA987654321));
     g_assert_true(str == buf + 16);
     g_assert_cmpint(str[-1], ==, '1');
     g_assert_cmpint(str[-2], ==, '2');
@@ -448,13 +471,13 @@ static void test_oct64_to_str_back(void)
 {
     char *str;
 
-    str = oct64_to_str_back(BACK_PTR, G_GUINT64_CONSTANT(13873797580070999420));
+    str = oct64_to_str_back(BACK_PTR, UINT64_C(13873797580070999420));
     g_assert_cmpstr(str, ==, "01402115026217563452574");
 
-    str = oct64_to_str_back(BACK_PTR, G_GUINT64_CONSTANT(7072159458371400691));
+    str = oct64_to_str_back(BACK_PTR, UINT64_C(7072159458371400691));
     g_assert_cmpstr(str, ==, "0610452670726711271763");
 
-    str = oct64_to_str_back(BACK_PTR, G_GUINT64_CONSTANT(12453513102400590374));
+    str = oct64_to_str_back(BACK_PTR, UINT64_C(12453513102400590374));
     g_assert_cmpstr(str, ==, "01263236102754220511046");
 }
 
@@ -476,13 +499,13 @@ static void test_hex64_to_str_back_len(void)
 {
     char *str;
 
-    str = hex64_to_str_back_len(BACK_PTR, G_GUINT64_CONSTANT(1), 16);
+    str = hex64_to_str_back_len(BACK_PTR, UINT64_C(1), 16);
     g_assert_cmpstr(str, ==, "0x0000000000000001");
 
-    str = hex64_to_str_back_len(BACK_PTR, G_GUINT64_CONSTANT(4294967295), 16);
+    str = hex64_to_str_back_len(BACK_PTR, UINT64_C(4294967295), 16);
     g_assert_cmpstr(str, ==, "0x00000000ffffffff");
 
-    str = hex64_to_str_back_len(BACK_PTR, G_GUINT64_CONSTANT(18446744073709551615), 16);
+    str = hex64_to_str_back_len(BACK_PTR, UINT64_C(18446744073709551615), 16);
     g_assert_cmpstr(str, ==, "0xffffffffffffffff");
 }
 
@@ -504,13 +527,13 @@ static void test_uint64_to_str_back(void)
 {
     char *str;
 
-    str = uint64_to_str_back(BACK_PTR, G_GUINT64_CONSTANT(585143757104211265));
+    str = uint64_to_str_back(BACK_PTR, UINT64_C(585143757104211265));
     g_assert_cmpstr(str, ==, "585143757104211265");
 
-    str = uint64_to_str_back(BACK_PTR, G_GUINT64_CONSTANT(7191580247919484847));
+    str = uint64_to_str_back(BACK_PTR, UINT64_C(7191580247919484847));
     g_assert_cmpstr(str, ==, "7191580247919484847");
 
-    str = uint64_to_str_back(BACK_PTR, G_GUINT64_CONSTANT(95778573911934485));
+    str = uint64_to_str_back(BACK_PTR, UINT64_C(95778573911934485));
     g_assert_cmpstr(str, ==, "95778573911934485");
 }
 
@@ -532,13 +555,13 @@ static void test_uint64_to_str_back_len(void)
 {
     char *str;
 
-    str = uint64_to_str_back_len(BACK_PTR, G_GUINT64_CONSTANT(1), 16);
+    str = uint64_to_str_back_len(BACK_PTR, UINT64_C(1), 16);
     g_assert_cmpstr(str, ==, "0000000000000001");
 
-    str = uint64_to_str_back_len(BACK_PTR, G_GUINT64_CONSTANT(4294967295), 16);
+    str = uint64_to_str_back_len(BACK_PTR, UINT64_C(4294967295), 16);
     g_assert_cmpstr(str, ==, "0000004294967295");
 
-    str = uint64_to_str_back_len(BACK_PTR, G_GUINT64_CONSTANT(18446744073709551615), 16);
+    str = uint64_to_str_back_len(BACK_PTR, UINT64_C(18446744073709551615), 16);
     g_assert_cmpstr(str, ==, "18446744073709551615");
 }
 
@@ -560,13 +583,13 @@ static void test_int64_to_str_back(void)
 {
     char *str;
 
-    str = int64_to_str_back(BACK_PTR, G_GINT64_CONSTANT(-9223372036854775807));
+    str = int64_to_str_back(BACK_PTR, INT64_C(-9223372036854775807));
     g_assert_cmpstr(str, ==, "-9223372036854775807");
 
-    str = int64_to_str_back(BACK_PTR, G_GINT64_CONSTANT(1));
+    str = int64_to_str_back(BACK_PTR, INT64_C(1));
     g_assert_cmpstr(str, ==, "1");
 
-    str = int64_to_str_back(BACK_PTR, G_GINT64_CONSTANT(9223372036854775807));
+    str = int64_to_str_back(BACK_PTR, INT64_C(9223372036854775807));
     g_assert_cmpstr(str, ==, "9223372036854775807");
 }
 
@@ -854,6 +877,7 @@ int main(int argc, char **argv)
     g_test_add_func("/to_str/uint64_to_str_back_len", test_uint64_to_str_back_len);
     g_test_add_func("/to_str/int_to_str_back", test_int_to_str_back);
     g_test_add_func("/to_str/int64_to_str_back", test_int64_to_str_back);
+    g_test_add_func("/to_str/ip_addr_to_str_test1", test_ip_addr_to_str_test1);
 
     g_test_add_func("/nstime/from_iso8601", test_nstime_from_iso8601);
 

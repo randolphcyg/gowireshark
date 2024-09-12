@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-its.c                                                               */
-/* asn2wrs.py -L -o its -c ./its.cnf -s ./packet-its-template -D . -O ../.. ETSI-ITS-CDD.asn ITS-ContainerV1.asn ISO_TS_14816.asn ISO_TS_14906_Application.asn ISO_TS_19091.asn GDD.asn ISO19321IVIv2.asn ETSI_TS_103301.asn CAMv1.asn CAM-PDU-Descriptions.asn DENMv1.asn DENM-PDU-Descriptions.asn TIS_TPG_Transactions_Descriptions.asn EVCSN-PDU-Descriptions.asn EV-RSR-PDU-Descriptions.asn CPM-OriginatingStationContainers.asn CPM-PDU-Descriptions.asn CPM-PerceivedObjectContainer.asn CPM-PerceptionRegionContainer.asn CPM-SensorInformationContainer.asn VAM-PDU-Descriptions.asn IMZM-PDU-Descriptions.asn */
+/* asn2wrs.py -q -L -o its -c ./its.cnf -s ./packet-its-template -D . -O ../.. ETSI-ITS-CDD.asn ITS-ContainerV1.asn ISO_TS_14816.asn ISO_TS_14906_Application.asn ISO_TS_19091.asn GDD.asn ISO19321IVIv2.asn ETSI_TS_103301.asn CAMv1.asn CAM-PDU-Descriptions.asn DENMv1.asn DENM-PDU-Descriptions.asn TIS_TPG_Transactions_Descriptions.asn EVCSN-PDU-Descriptions.asn EV-RSR-PDU-Descriptions.asn CPM-OriginatingStationContainers.asn CPM-PDU-Descriptions.asn CPM-PerceivedObjectContainer.asn CPM-PerceptionRegionContainer.asn CPM-SensorInformationContainer.asn VAM-PDU-Descriptions.asn IMZM-PDU-Descriptions.asn */
 
 /* packet-its-template.c
  *
@@ -29,12 +29,14 @@
  * TPG (TRM, TCM, VDRM, VDPM, EOFM)   ETSI TS 101 556-2
  * Charging (EV-RSR, SRM, SCM)        ETSI TS 101 556-3
  * GPC (RTCMEM)                       ETSI TS 103 301
+ * VA (VAM)                           ETSI TS 103 300-3   V2.2.1 (2023-02)
  *
  * Not supported:
  * SA (SAEM)                          ETSI TS 102 890-1
  * CTL (CTLM)                         ETSI TS 102 941
  * CRL (CRLM)                         ETSI TS 102 941
  * Certificate request                ETSI TS 102 941
+ * MCD (MCDM)                         ETSI TS 103 152
  */
 #include "config.h"
 
@@ -47,6 +49,8 @@
 #include <epan/conversation.h>
 #include <epan/tap.h>
 #include <wsutil/utf8_entities.h>
+#include <wsutil/array.h>
+
 #include "packet-ber.h"
 #include "packet-per.h"
 
@@ -86,6 +90,8 @@
  * 2014       CTL (CTLM)              ETSI TS 102 941
  * 2015       CRL (CRLM)              ETSI TS 102 941
  * 2016       Certificate request     ETSI TS 102 941
+ * 2017       MCD (MCDM)              ETSI TS 103 152
+ * 2018       VA (VAM)                ETSI TS 103 300-3   V2.2.1 (2023-02)
  */
 
 // Applications Well Known Ports
@@ -105,6 +111,8 @@
 #define ITS_WKP_CTL        2014
 #define ITS_WKP_CRL        2015
 #define ITS_WKP_CERTIF_REQ 2016
+#define ITS_WKP_MCD        2017
+#define ITS_WKP_VA         2018
 
 /*
  * Prototypes
@@ -114,88 +122,88 @@ void proto_register_its(void);
 
 static dissector_handle_t its_handle;
 
-static expert_field ei_its_no_sub_dis = EI_INIT;
+static expert_field ei_its_no_sub_dis;
 
 // TAP
-static int its_tap = -1;
+static int its_tap;
 
 // Protocols
-static int proto_its = -1;
-static int proto_its_denm = -1;
-static int proto_its_denmv1 = -1;
-static int proto_its_cam = -1;
-static int proto_its_camv1 = -1;
-static int proto_its_evcsn = -1;
-static int proto_its_evrsr = -1;
-static int proto_its_ivimv1 = -1;
-static int proto_its_ivim = -1;
-static int proto_its_tistpg = -1;
-static int proto_its_ssem = -1;
-static int proto_its_srem = -1;
-static int proto_its_rtcmemv1 = -1;
-static int proto_its_rtcmem = -1;
-static int proto_its_mapemv1 = -1;
-static int proto_its_mapem = -1;
-static int proto_its_spatemv1 = -1;
-static int proto_its_spatem = -1;
-static int proto_its_cpm = -1;
-static int proto_its_imzm = -1;
-static int proto_its_vam = -1;
-static int proto_addgrpc = -1;
+static int proto_its;
+static int proto_its_denm;
+static int proto_its_denmv1;
+static int proto_its_cam;
+static int proto_its_camv1;
+static int proto_its_evcsn;
+static int proto_its_evrsr;
+static int proto_its_ivimv1;
+static int proto_its_ivim;
+static int proto_its_tistpg;
+static int proto_its_ssem;
+static int proto_its_srem;
+static int proto_its_rtcmemv1;
+static int proto_its_rtcmem;
+static int proto_its_mapemv1;
+static int proto_its_mapem;
+static int proto_its_spatemv1;
+static int proto_its_spatem;
+static int proto_its_cpm;
+static int proto_its_imzm;
+static int proto_its_vam;
+static int proto_addgrpc;
 
 /*
  * DENM SSP
  */
-static int hf_denmssp_version = -1;
-static int hf_denmssp_flags = -1;
-static int hf_denmssp_trafficCondition = -1;
-static int hf_denmssp_accident = -1;
-static int hf_denmssp_roadworks = -1;
-static int hf_denmssp_adverseWeatherConditionAdhesion = -1;
-static int hf_denmssp_hazardousLocationSurfaceCondition = -1;
-static int hf_denmssp_hazardousLocationObstacleOnTheRoad = -1;
-static int hf_denmssp_hazardousLocationAnimalOnTheRoad = -1;
-static int hf_denmssp_humanPresenceOnTheRoad = -1;
-static int hf_denmssp_wrongWayDriving = -1;
-static int hf_denmssp_rescueAndRecoveryWorkInProgress = -1;
-static int hf_denmssp_ExtremeWeatherCondition = -1;
-static int hf_denmssp_adverseWeatherConditionVisibility = -1;
-static int hf_denmssp_adverseWeatherConditionPrecipitation = -1;
-static int hf_denmssp_slowVehicle = -1;
-static int hf_denmssp_dangerousEndOfQueue = -1;
-static int hf_denmssp_vehicleBreakdown = -1;
-static int hf_denmssp_postCrash = -1;
-static int hf_denmssp_humanProblem = -1;
-static int hf_denmssp_stationaryVehicle = -1;
-static int hf_denmssp_emergencyVehicleApproaching = -1;
-static int hf_denmssp_hazardousLocationDangerousCurve = -1;
-static int hf_denmssp_collisionRisk = -1;
-static int hf_denmssp_signalViolation = -1;
-static int hf_denmssp_dangerousSituation = -1;
+static int hf_denmssp_version;
+static int hf_denmssp_flags;
+static int hf_denmssp_trafficCondition;
+static int hf_denmssp_accident;
+static int hf_denmssp_roadworks;
+static int hf_denmssp_adverseWeatherConditionAdhesion;
+static int hf_denmssp_hazardousLocationSurfaceCondition;
+static int hf_denmssp_hazardousLocationObstacleOnTheRoad;
+static int hf_denmssp_hazardousLocationAnimalOnTheRoad;
+static int hf_denmssp_humanPresenceOnTheRoad;
+static int hf_denmssp_wrongWayDriving;
+static int hf_denmssp_rescueAndRecoveryWorkInProgress;
+static int hf_denmssp_ExtremeWeatherCondition;
+static int hf_denmssp_adverseWeatherConditionVisibility;
+static int hf_denmssp_adverseWeatherConditionPrecipitation;
+static int hf_denmssp_slowVehicle;
+static int hf_denmssp_dangerousEndOfQueue;
+static int hf_denmssp_vehicleBreakdown;
+static int hf_denmssp_postCrash;
+static int hf_denmssp_humanProblem;
+static int hf_denmssp_stationaryVehicle;
+static int hf_denmssp_emergencyVehicleApproaching;
+static int hf_denmssp_hazardousLocationDangerousCurve;
+static int hf_denmssp_collisionRisk;
+static int hf_denmssp_signalViolation;
+static int hf_denmssp_dangerousSituation;
 
 /*
  * CAM SSP
  */
-static int hf_camssp_version = -1;
-static int hf_camssp_flags = -1;
-static int hf_camssp_cenDsrcTollingZone = -1;
-static int hf_camssp_publicTransport = -1;
-static int hf_camssp_specialTransport = -1;
-static int hf_camssp_dangerousGoods = -1;
-static int hf_camssp_roadwork = -1;
-static int hf_camssp_rescue = -1;
-static int hf_camssp_emergency = -1;
-static int hf_camssp_safetyCar = -1;
-static int hf_camssp_closedLanes = -1;
-static int hf_camssp_requestForRightOfWay = -1;
-static int hf_camssp_requestForFreeCrossingAtATrafficLight = -1;
-static int hf_camssp_noPassing = -1;
-static int hf_camssp_noPassingForTrucks = -1;
-static int hf_camssp_speedLimit = -1;
-static int hf_camssp_reserved = -1;
+static int hf_camssp_version;
+static int hf_camssp_flags;
+static int hf_camssp_cenDsrcTollingZone;
+static int hf_camssp_publicTransport;
+static int hf_camssp_specialTransport;
+static int hf_camssp_dangerousGoods;
+static int hf_camssp_roadwork;
+static int hf_camssp_rescue;
+static int hf_camssp_emergency;
+static int hf_camssp_safetyCar;
+static int hf_camssp_closedLanes;
+static int hf_camssp_requestForRightOfWay;
+static int hf_camssp_requestForFreeCrossingAtATrafficLight;
+static int hf_camssp_noPassing;
+static int hf_camssp_noPassingForTrucks;
+static int hf_camssp_speedLimit;
+static int hf_camssp_reserved;
 
-static gint ett_denmssp_flags = -1;
-static gint ett_camssp_flags = -1;
+static int ett_denmssp_flags;
+static int ett_camssp_flags;
 
 // Subdissectors
 static dissector_table_t its_version_subdissector_table;
@@ -206,21 +214,32 @@ static dissector_table_t cam_pt_activation_table;
 
 typedef struct its_private_data {
     enum regext_type_enum type;
-    guint32 region_id;
-    guint32 cause_code;
+    uint32_t region_id;
+    uint32_t cause_code;
 } its_private_data_t;
 
 typedef struct its_pt_activation_data {
-    guint32 type;
+    uint32_t type;
     tvbuff_t *data;
 } its_pt_activation_data_t;
+
+static its_header_t*
+its_get_private_data(packet_info* pinfo)
+{
+    its_header_t* its_hdr = (its_header_t*)p_get_proto_data(pinfo->pool, pinfo, proto_its, 0);
+    if (!its_hdr) {
+        its_hdr = wmem_new0(pinfo->pool, its_header_t);
+        p_add_proto_data(pinfo->pool, pinfo, proto_its, 0, its_hdr);
+    }
+    return its_hdr;
+}
 
 // Specific dissector for content of open type for regional extensions
 static int dissect_regextval_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     its_private_data_t *re = (its_private_data_t*)data;
     // XXX What to do when region_id = noRegion? Test length is zero?
-    if (!dissector_try_uint_new(regionid_subdissector_table, ((guint32) re->region_id<<16) + (guint32) re->type, tvb, pinfo, tree, FALSE, NULL))
+    if (!dissector_try_uint_new(regionid_subdissector_table, ((uint32_t) re->region_id<<16) + (uint32_t) re->type, tvb, pinfo, tree, false, NULL))
         call_data_dissector(tvb, pinfo, tree);
     return tvb_captured_length(tvb);
 }
@@ -228,12 +247,14 @@ static int dissect_regextval_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 // Specific dissector for content of open type for regional extensions
 static int dissect_cpmcontainers_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
 {
-    its_header_t* hdr = (its_header_t*)data;
     // XXX What to do when region_id = noRegion? Test length is zero?
-    if (!dissector_try_uint_new(cpmcontainer_subdissector_table, hdr->CpmContainerId, tvb, pinfo, tree, FALSE, NULL))
+    if (!dissector_try_uint_new(cpmcontainer_subdissector_table, its_get_private_data(pinfo)->CpmContainerId, tvb, pinfo, tree, false, NULL))
         call_data_dissector(tvb, pinfo, tree);
     return tvb_captured_length(tvb);
 }
+
+
+
 
 static int dissect_denmssp_pdu(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
 {
@@ -265,7 +286,7 @@ static int dissect_denmssp_pdu(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree
         NULL
     };
 
-    guint32 version;
+    uint32_t version;
 
     proto_tree_add_item_ret_uint(tree, hf_denmssp_version, tvb, 0, 1, ENC_BIG_ENDIAN, &version);
     if (version == 1) {
@@ -295,7 +316,7 @@ static int dissect_camssp_pdu(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree 
         NULL
     };
 
-    guint32 version;
+    uint32_t version;
 
     proto_tree_add_item_ret_uint(tree, hf_camssp_version, tvb, 0, 1, ENC_BIG_ENDIAN, &version);
     if (version == 1) {
@@ -308,2373 +329,2408 @@ static int dissect_camssp_pdu(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree 
 
 /* --- Module ETSI-ITS-CDD --- --- ---                                        */
 
-static int hf_its_its_ItsPduHeader_PDU = -1;      /* ItsPduHeader */
-static int hf_its_polarAcceleration = -1;         /* AccelerationPolarWithZ */
-static int hf_its_cartesianAcceleration = -1;     /* AccelerationCartesian */
-static int hf_its_accelerationMagnitude = -1;     /* AccelerationMagnitude */
-static int hf_its_accelerationDirection = -1;     /* CartesianAngle */
-static int hf_its_zAcceleration = -1;             /* AccelerationComponent */
-static int hf_its_xAcceleration = -1;             /* AccelerationComponent */
-static int hf_its_yAcceleration = -1;             /* AccelerationComponent */
-static int hf_its_value = -1;                     /* AccelerationValue */
-static int hf_its_confidence = -1;                /* AccelerationConfidence */
-static int hf_its_accelOrDecel = -1;              /* AccelerationChange */
-static int hf_its_actionDeltaTime = -1;           /* DeltaTimeTenthOfSecond */
-static int hf_its_accelerationMagnitudeValue = -1;  /* AccelerationMagnitudeValue */
-static int hf_its_accelerationConfidence = -1;    /* AccelerationConfidence */
-static int hf_its_originatingStationId = -1;      /* StationId */
-static int hf_its_sequenceNumber = -1;            /* SequenceNumber */
-static int hf_its_originatingStationId_01 = -1;   /* StationID */
-static int hf_its_ActionIdList_item = -1;         /* ActionId */
-static int hf_its_altitudeValue = -1;             /* AltitudeValue */
-static int hf_its_altitudeConfidence = -1;        /* AltitudeConfidence */
-static int hf_its_stationType = -1;               /* TrafficParticipantType */
-static int hf_its_referencePosition = -1;         /* ReferencePositionWithConfidence */
-static int hf_its_value_01 = -1;                  /* CartesianAngleValue */
-static int hf_its_confidence_01 = -1;             /* AngleConfidence */
-static int hf_its_value_02 = -1;                  /* CartesianAngularVelocityComponentValue */
-static int hf_its_confidence_02 = -1;             /* AngularSpeedConfidence */
-static int hf_its_value_03 = -1;                  /* CartesianCoordinateLarge */
-static int hf_its_confidence_03 = -1;             /* CoordinateConfidence */
-static int hf_its_xCoordinate = -1;               /* CartesianCoordinate */
-static int hf_its_yCoordinate = -1;               /* CartesianCoordinate */
-static int hf_its_zCoordinate = -1;               /* CartesianCoordinate */
-static int hf_its_xCoordinate_01 = -1;            /* CartesianCoordinateWithConfidence */
-static int hf_its_yCoordinate_01 = -1;            /* CartesianCoordinateWithConfidence */
-static int hf_its_zCoordinate_01 = -1;            /* CartesianCoordinateWithConfidence */
-static int hf_its_causeCode = -1;                 /* CauseCodeType */
-static int hf_its_subCauseCode = -1;              /* SubCauseCodeType */
-static int hf_its_reserved0 = -1;                 /* SubCauseCodeType */
-static int hf_its_trafficCondition1 = -1;         /* TrafficConditionSubCauseCode */
-static int hf_its_accident2 = -1;                 /* AccidentSubCauseCode */
-static int hf_its_roadworks3 = -1;                /* RoadworksSubCauseCode */
-static int hf_its_reserved4 = -1;                 /* SubCauseCodeType */
-static int hf_its_impassability5 = -1;            /* SubCauseCodeType */
-static int hf_its_adverseWeatherCondition_Adhesion6 = -1;  /* AdverseWeatherCondition_AdhesionSubCauseCode */
-static int hf_its_aquaplaning7 = -1;              /* SubCauseCodeType */
-static int hf_its_reserved8 = -1;                 /* SubCauseCodeType */
-static int hf_its_hazardousLocation_SurfaceCondition9 = -1;  /* HazardousLocation_SurfaceConditionSubCauseCode */
-static int hf_its_hazardousLocation_ObstacleOnTheRoad10 = -1;  /* HazardousLocation_ObstacleOnTheRoadSubCauseCode */
-static int hf_its_hazardousLocation_AnimalOnTheRoad11 = -1;  /* HazardousLocation_AnimalOnTheRoadSubCauseCode */
-static int hf_its_humanPresenceOnTheRoad12 = -1;  /* HumanPresenceOnTheRoadSubCauseCode */
-static int hf_its_reserved13 = -1;                /* SubCauseCodeType */
-static int hf_its_wrongWayDriving14 = -1;         /* WrongWayDrivingSubCauseCode */
-static int hf_its_rescueAndRecoveryWorkInProgress15 = -1;  /* RescueAndRecoveryWorkInProgressSubCauseCode */
-static int hf_its_reserved16 = -1;                /* SubCauseCodeType */
-static int hf_its_adverseWeatherCondition_ExtremeWeatherCondition17 = -1;  /* AdverseWeatherCondition_ExtremeWeatherConditionSubCauseCode */
-static int hf_its_adverseWeatherCondition_Visibility18 = -1;  /* AdverseWeatherCondition_VisibilitySubCauseCode */
-static int hf_its_adverseWeatherCondition_Precipitation19 = -1;  /* AdverseWeatherCondition_PrecipitationSubCauseCode */
-static int hf_its_violence20 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved21 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved22 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved23 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved24 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved25 = -1;                /* SubCauseCodeType */
-static int hf_its_slowVehicle26 = -1;             /* SlowVehicleSubCauseCode */
-static int hf_its_dangerousEndOfQueue27 = -1;     /* DangerousEndOfQueueSubCauseCode */
-static int hf_its_reserved28 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved29 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved30 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved31 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved32 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved33 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved34 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved35 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved36 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved37 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved38 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved39 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved40 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved41 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved42 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved43 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved44 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved45 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved46 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved47 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved48 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved49 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved50 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved51 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved52 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved53 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved54 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved55 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved56 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved57 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved58 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved59 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved60 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved61 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved62 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved63 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved64 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved65 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved66 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved67 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved68 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved69 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved70 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved71 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved72 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved73 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved74 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved75 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved76 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved77 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved78 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved79 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved80 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved81 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved82 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved83 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved84 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved85 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved86 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved87 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved88 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved89 = -1;                /* SubCauseCodeType */
-static int hf_its_reserved90 = -1;                /* SubCauseCodeType */
-static int hf_its_vehicleBreakdown91 = -1;        /* VehicleBreakdownSubCauseCode */
-static int hf_its_postCrash92 = -1;               /* PostCrashSubCauseCode */
-static int hf_its_humanProblem93 = -1;            /* HumanProblemSubCauseCode */
-static int hf_its_stationaryVehicle94 = -1;       /* StationaryVehicleSubCauseCode */
-static int hf_its_emergencyVehicleApproaching95 = -1;  /* EmergencyVehicleApproachingSubCauseCode */
-static int hf_its_hazardousLocation_DangerousCurve96 = -1;  /* HazardousLocation_DangerousCurveSubCauseCode */
-static int hf_its_collisionRisk97 = -1;           /* CollisionRiskSubCauseCode */
-static int hf_its_signalViolation98 = -1;         /* SignalViolationSubCauseCode */
-static int hf_its_dangerousSituation99 = -1;      /* DangerousSituationSubCauseCode */
-static int hf_its_railwayLevelCrossing100 = -1;   /* RailwayLevelCrossingSubCauseCode */
-static int hf_its_reserved101 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved102 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved103 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved104 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved105 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved106 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved107 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved108 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved109 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved110 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved111 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved112 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved113 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved114 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved115 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved116 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved117 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved118 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved119 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved120 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved121 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved122 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved123 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved124 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved125 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved126 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved127 = -1;               /* SubCauseCodeType */
-static int hf_its_reserved128 = -1;               /* SubCauseCodeType */
-static int hf_its_ccAndScc = -1;                  /* CauseCodeChoice */
-static int hf_its_protectedZoneLatitude = -1;     /* Latitude */
-static int hf_its_protectedZoneLongitude = -1;    /* Longitude */
-static int hf_its_cenDsrcTollingZoneId = -1;      /* ProtectedZoneId */
-static int hf_its_shapeReferencePoint = -1;       /* CartesianPosition3d */
-static int hf_its_radius = -1;                    /* StandardLength12b */
-static int hf_its_height = -1;                    /* StandardLength12b */
-static int hf_its_innerhardShoulderStatus = -1;   /* HardShoulderStatus */
-static int hf_its_outerhardShoulderStatus = -1;   /* HardShoulderStatus */
-static int hf_its_drivingLaneStatus = -1;         /* DrivingLaneStatus */
-static int hf_its_clusterBreakupReason = -1;      /* ClusterBreakupReason */
-static int hf_its_breakupTime = -1;               /* DeltaTimeQuarterSecond */
-static int hf_its_clusterId = -1;                 /* Identifier1B */
-static int hf_its_joinTime = -1;                  /* DeltaTimeQuarterSecond */
-static int hf_its_clusterLeaveReason = -1;        /* ClusterLeaveReason */
-static int hf_its_CorrelationColumn_item = -1;    /* CorrelationCellValue */
-static int hf_its_curvatureValue = -1;            /* CurvatureValue */
-static int hf_its_curvatureConfidence = -1;       /* CurvatureConfidence */
-static int hf_its_dangerousGoodsType = -1;        /* DangerousGoodsBasic */
-static int hf_its_unNumber = -1;                  /* INTEGER_0_9999 */
-static int hf_its_elevatedTemperature = -1;       /* BOOLEAN */
-static int hf_its_tunnelsRestricted = -1;         /* BOOLEAN */
-static int hf_its_limitedQuantity = -1;           /* BOOLEAN */
-static int hf_its_emergencyActionCode = -1;       /* IA5String_SIZE_1_24 */
-static int hf_its_phoneNumber = -1;               /* PhoneNumber */
-static int hf_its_companyName = -1;               /* UTF8String_SIZE_1_24 */
-static int hf_its_deltaLatitude = -1;             /* DeltaLatitude */
-static int hf_its_deltaLongitude = -1;            /* DeltaLongitude */
-static int hf_its_deltaAltitude = -1;             /* DeltaAltitude */
-static int hf_its_DigitalMap_item = -1;           /* ReferencePosition */
-static int hf_its_semiMajorAxisLength = -1;       /* StandardLength12b */
-static int hf_its_semiMinorAxisLength = -1;       /* StandardLength12b */
-static int hf_its_orientation = -1;               /* Wgs84AngleValue */
-static int hf_its_zAngle = -1;                    /* CartesianAngle */
-static int hf_its_yAngle = -1;                    /* CartesianAngle */
-static int hf_its_xAngle = -1;                    /* CartesianAngle */
-static int hf_its_euVehicleCategoryL = -1;        /* EuVehicleCategoryL */
-static int hf_its_euVehicleCategoryM = -1;        /* EuVehicleCategoryM */
-static int hf_its_euVehicleCategoryN = -1;        /* EuVehicleCategoryN */
-static int hf_its_euVehicleCategoryO = -1;        /* EuVehicleCategoryO */
-static int hf_its_euVehicleCategoryT = -1;        /* NULL */
-static int hf_its_euVehicleCategoryG = -1;        /* NULL */
-static int hf_its_EventHistory_item = -1;         /* EventPoint */
-static int hf_its_eventPosition = -1;             /* DeltaReferencePosition */
-static int hf_its_eventDeltaTime = -1;            /* PathDeltaTime */
-static int hf_its_informationQuality = -1;        /* InformationQuality */
-static int hf_its_trafficLanePosition = -1;       /* LanePosition */
-static int hf_its_nonTrafficLanePosition = -1;    /* LanePositionAndType */
-static int hf_its_trafficIslandPosition = -1;     /* TrafficIslandPosition */
-static int hf_its_mapPosition = -1;               /* MapPosition */
-static int hf_its_headingValue = -1;              /* HeadingValue */
-static int hf_its_headingConfidence = -1;         /* HeadingConfidence */
-static int hf_its_direction = -1;                 /* TurningDirection */
-static int hf_its_centreFrequency = -1;           /* INTEGER_1_99999 */
-static int hf_its_channelWidth = -1;              /* INTEGER_0_9999 */
-static int hf_its_exponent = -1;                  /* INTEGER_0_15 */
-static int hf_its_zoneDefinition = -1;            /* InterferenceManagementZoneDefinition */
-static int hf_its_managementInfo = -1;            /* InterferenceManagementInfo */
-static int hf_its_interferenceManagementZoneLatitude = -1;  /* Latitude */
-static int hf_its_interferenceManagementZoneLongitude = -1;  /* Longitude */
-static int hf_its_interferenceManagementZoneId = -1;  /* ProtectedZoneId */
-static int hf_its_interferenceManagementZoneShape = -1;  /* Shape */
-static int hf_its_InterferenceManagementInfo_item = -1;  /* InterferenceManagementInfoPerChannel */
-static int hf_its_interferenceManagementChannel = -1;  /* InterferenceManagementChannel */
-static int hf_its_interferenceManagementZoneType = -1;  /* InterferenceManagementZoneType */
-static int hf_its_interferenceManagementMitigationType = -1;  /* MitigationForTechnologies */
-static int hf_its_expiryTime = -1;                /* TimestampIts */
-static int hf_its_InterferenceManagementZones_item = -1;  /* InterferenceManagementZone */
-static int hf_its_region = -1;                    /* Identifier2B */
-static int hf_its_id = -1;                        /* Identifier2B */
-static int hf_its_ItineraryPath_item = -1;        /* ReferencePosition */
-static int hf_its_protocolVersion = -1;           /* ProtocolVersion */
-static int hf_its_messageId = -1;                 /* MessageId */
-static int hf_its_stationId = -1;                 /* StationId */
-static int hf_its_transversalPosition = -1;       /* LanePosition */
-static int hf_its_laneType = -1;                  /* LaneType */
-static int hf_its_lateralAccelerationValue = -1;  /* LateralAccelerationValue */
-static int hf_its_lateralAccelerationConfidence = -1;  /* AccelerationConfidence */
-static int hf_its_longitudinalAccelerationValue = -1;  /* LongitudinalAccelerationValue */
-static int hf_its_longitudinalAccelerationConfidence = -1;  /* AccelerationConfidence */
-static int hf_its_longitudinalLanePositionValue = -1;  /* LongitudinalLanePositionValue */
-static int hf_its_longitudinalLanePositionConfidence = -1;  /* LongitudinalLanePositionConfidence */
-static int hf_its_LowerTriangularPositiveSemidefiniteMatrices_item = -1;  /* LowerTriangularPositiveSemidefiniteMatrix */
-static int hf_its_componentsIncludedIntheMatrix = -1;  /* MatrixIncludedComponents */
-static int hf_its_matrix = -1;                    /* LowerTriangularPositiveSemidefiniteMatrixColumns */
-static int hf_its_LowerTriangularPositiveSemidefiniteMatrixColumns_item = -1;  /* CorrelationColumn */
-static int hf_its_mapReference = -1;              /* MapReference */
-static int hf_its_laneId = -1;                    /* Identifier1B */
-static int hf_its_connectionId = -1;              /* Identifier1B */
-static int hf_its_longitudinalLanePosition = -1;  /* LongitudinalLanePosition */
-static int hf_its_roadsegment = -1;               /* RoadSegmentReferenceId */
-static int hf_its_intersection = -1;              /* IntersectionReferenceId */
-static int hf_its_mantissa = -1;                  /* INTEGER_1_100 */
-static int hf_its_exponent_01 = -1;               /* INTEGER_M5_2 */
-static int hf_its_totalMsgNo = -1;                /* CardinalNumber3b */
-static int hf_its_thisMsgNo = -1;                 /* OrdinalNumber3b */
-static int hf_its_MitigationForTechnologies_item = -1;  /* MitigationPerTechnologyClass */
-static int hf_its_accessTechnologyClass = -1;     /* AccessTechnologyClass */
-static int hf_its_lowDutyCycle = -1;              /* INTEGER_0_10000 */
-static int hf_its_powerReduction = -1;            /* INTEGER_0_30 */
-static int hf_its_dmcToffLimit = -1;              /* INTEGER_0_1200 */
-static int hf_its_dmcTonLimit = -1;               /* INTEGER_0_20 */
-static int hf_its_vehicleSubClass = -1;           /* TrafficParticipantType */
-static int hf_its_vruSubClass = -1;               /* VruProfileAndSubprofile */
-static int hf_its_groupSubClass = -1;             /* VruClusterInformation */
-static int hf_its_otherSubClass = -1;             /* OtherSubClass */
-static int hf_its_ObjectClassDescription_item = -1;  /* ObjectClassWithConfidence */
-static int hf_its_objectClass = -1;               /* ObjectClass */
-static int hf_its_confidence_04 = -1;             /* ConfidenceLevel */
-static int hf_its_value_04 = -1;                  /* ObjectDimensionValue */
-static int hf_its_confidence_05 = -1;             /* ObjectDimensionConfidence */
-static int hf_its_Path_item = -1;                 /* PathPoint */
-static int hf_its_PathHistory_item = -1;          /* PathPoint */
-static int hf_its_PathPredicted_item = -1;        /* PathPointPredicted */
-static int hf_its_pathPosition = -1;              /* DeltaReferencePosition */
-static int hf_its_pathDeltaTime = -1;             /* PathDeltaTime */
-static int hf_its_horizontalPositionConfidence = -1;  /* PosConfidenceEllipse */
-static int hf_its_pathDeltaTime_01 = -1;          /* DeltaTimeTenthOfSecond */
-static int hf_its_objectId = -1;                  /* Identifier2B */
-static int hf_its_measurementDeltaTime = -1;      /* DeltaTimeMilliSecondSigned */
-static int hf_its_position = -1;                  /* CartesianPosition3dWithConfidence */
-static int hf_its_velocity = -1;                  /* Velocity3dWithConfidence */
-static int hf_its_acceleration = -1;              /* Acceleration3dWithConfidence */
-static int hf_its_angles = -1;                    /* EulerAnglesWithConfidence */
-static int hf_its_zAngularVelocity = -1;          /* CartesianAngularVelocityComponent */
-static int hf_its_lowerTriangularCorrelationMatrices = -1;  /* LowerTriangularPositiveSemidefiniteMatrices */
-static int hf_its_objectDimensionZ = -1;          /* ObjectDimension */
-static int hf_its_objectDimensionY = -1;          /* ObjectDimension */
-static int hf_its_objectDimensionX = -1;          /* ObjectDimension */
-static int hf_its_objectAge = -1;                 /* DeltaTimeMilliSecondSigned */
-static int hf_its_objectPerceptionQuality = -1;   /* ObjectPerceptionQuality */
-static int hf_its_sensorIdList = -1;              /* SequenceOfIdentifier1B */
-static int hf_its_classification = -1;            /* ObjectClassDescription */
-static int hf_its_polygon = -1;                   /* SequenceOfCartesianPosition3d_SIZE_3_16_ */
-static int hf_its_semiMajorConfidence = -1;       /* SemiAxisLength */
-static int hf_its_semiMinorConfidence = -1;       /* SemiAxisLength */
-static int hf_its_semiMajorOrientation = -1;      /* HeadingValue */
-static int hf_its_semiMajorAxisLength_01 = -1;    /* SemiAxisLength */
-static int hf_its_semiMinorAxisLength_01 = -1;    /* SemiAxisLength */
-static int hf_its_semiMajorAxisOrientation = -1;  /* Wgs84AngleValue */
-static int hf_its_PositionOfPillars_item = -1;    /* PosPillar */
-static int hf_its_protectedZoneType = -1;         /* ProtectedZoneType */
-static int hf_its_protectedZoneRadius = -1;       /* ProtectedZoneRadius */
-static int hf_its_protectedZoneId = -1;           /* ProtectedZoneId */
-static int hf_its_ProtectedCommunicationZonesRSU_item = -1;  /* ProtectedCommunicationZone */
-static int hf_its_ptActivationType = -1;          /* PtActivationType */
-static int hf_its_ptActivationData = -1;          /* PtActivationData */
-static int hf_its_range = -1;                     /* StandardLength12b */
-static int hf_its_stationaryHorizontalOpeningAngleStart = -1;  /* Wgs84AngleValue */
-static int hf_its_stationaryHorizontalOpeningAngleEnd = -1;  /* Wgs84AngleValue */
-static int hf_its_verticalOpeningAngleStart = -1;  /* CartesianAngleValue */
-static int hf_its_verticalOpeningAngleEnd = -1;   /* CartesianAngleValue */
-static int hf_its_refPointId = -1;                /* Identifier1B */
-static int hf_its_xCoordinate_02 = -1;            /* CartesianCoordinateSmall */
-static int hf_its_yCoordinate_02 = -1;            /* CartesianCoordinateSmall */
-static int hf_its_zCoordinate_02 = -1;            /* CartesianCoordinateSmall */
-static int hf_its_radialShapesList = -1;          /* RadialShapesList */
-static int hf_its_RadialShapesList_item = -1;     /* RadialShapeDetails */
-static int hf_its_horizontalOpeningAngleStart = -1;  /* CartesianAngleValue */
-static int hf_its_horizontalOpeningAngleEnd = -1;  /* CartesianAngleValue */
-static int hf_its_centerPoint = -1;               /* CartesianPosition3d */
-static int hf_its_semiLength = -1;                /* StandardLength12b */
-static int hf_its_semiBreadth = -1;               /* StandardLength12b */
-static int hf_its_latitude = -1;                  /* Latitude */
-static int hf_its_longitude = -1;                 /* Longitude */
-static int hf_its_positionConfidenceEllipse = -1;  /* PosConfidenceEllipse */
-static int hf_its_altitude = -1;                  /* Altitude */
-static int hf_its_positionConfidenceEllipse_01 = -1;  /* PositionConfidenceEllipse */
-static int hf_its_RestrictedTypes_item = -1;      /* StationType */
-static int hf_its_subjectStation = -1;            /* StationId */
-static int hf_its_safeDistanceIndicator = -1;     /* SafeDistanceIndicator */
-static int hf_its_timeToCollision = -1;           /* DeltaTimeTenthOfSecond */
-static int hf_its_SequenceOfCartesianPosition3d_item = -1;  /* CartesianPosition3d */
-static int hf_its_SequenceOfIdentifier1B_item = -1;  /* Identifier1B */
-static int hf_its_SequenceOfSafeDistanceIndication_item = -1;  /* SafeDistanceIndication */
-static int hf_its_SequenceOfTrajectoryInterceptionIndication_item = -1;  /* TrajectoryInterceptionIndication */
-static int hf_its_rectangular = -1;               /* RectangularShape */
-static int hf_its_circular = -1;                  /* CircularShape */
-static int hf_its_polygonal = -1;                 /* PolygonalShape */
-static int hf_its_elliptical = -1;                /* EllipticalShape */
-static int hf_its_radial = -1;                    /* RadialShape */
-static int hf_its_radialShapes = -1;              /* RadialShapes */
-static int hf_its_speedValue = -1;                /* SpeedValue */
-static int hf_its_speedConfidence = -1;           /* SpeedConfidence */
-static int hf_its_lossProbability = -1;           /* StabilityLossProbability */
-static int hf_its_steeringWheelAngleValue = -1;   /* SteeringWheelAngleValue */
-static int hf_its_steeringWheelAngleConfidence = -1;  /* SteeringWheelAngleConfidence */
-static int hf_its_Traces_item = -1;               /* Path */
-static int hf_its_oneSide = -1;                   /* LanePositionAndType */
-static int hf_its_otherSide = -1;                 /* LanePositionAndType */
-static int hf_its_hitchPointOffset = -1;          /* StandardLength1B */
-static int hf_its_frontOverhang = -1;             /* StandardLength1B */
-static int hf_its_rearOverhang = -1;              /* StandardLength1B */
-static int hf_its_trailerWidth = -1;              /* VehicleWidth */
-static int hf_its_hitchAngle = -1;                /* CartesianAngle */
-static int hf_its_trajectoryInterceptionProbability = -1;  /* TrajectoryInterceptionProbability */
-static int hf_its_trajectoryInterceptionConfidence = -1;  /* TrajectoryInterceptionConfidence */
-static int hf_its_vlnContent = -1;                /* INTEGER_0_127 */
-static int hf_its_vlnExtension = -1;              /* Ext1 */
-static int hf_its_e1Content = -1;                 /* INTEGER_128_16511 */
-static int hf_its_e2Extension = -1;               /* Ext2 */
-static int hf_its_e2Content = -1;                 /* INTEGER_16512_2113663 */
-static int hf_its_e1Extension = -1;               /* Ext3 */
-static int hf_its_verticalAccelerationValue = -1;  /* VerticalAccelerationValue */
-static int hf_its_verticalAccelerationConfidence = -1;  /* AccelerationConfidence */
-static int hf_its_wMInumber = -1;                 /* WMInumber */
-static int hf_its_vDS = -1;                       /* VDS */
-static int hf_its_vehicleLengthValue = -1;        /* VehicleLengthValue */
-static int hf_its_vehicleLengthConfidenceIndication = -1;  /* VehicleLengthConfidenceIndication */
-static int hf_its_polarVelocity = -1;             /* VelocityPolarWithZ */
-static int hf_its_cartesianVelocity = -1;         /* VelocityCartesian */
-static int hf_its_xVelocity = -1;                 /* VelocityComponent */
-static int hf_its_yVelocity = -1;                 /* VelocityComponent */
-static int hf_its_zVelocity = -1;                 /* VelocityComponent */
-static int hf_its_value_05 = -1;                  /* VelocityComponentValue */
-static int hf_its_confidence_06 = -1;             /* SpeedConfidence */
-static int hf_its_velocityMagnitude = -1;         /* Speed */
-static int hf_its_velocityDirection = -1;         /* CartesianAngle */
-static int hf_its_clusterBoundingBoxShape = -1;   /* Shape */
-static int hf_its_clusterCardinalitySize = -1;    /* CardinalNumber1B */
-static int hf_its_clusterProfiles = -1;           /* VruClusterProfiles */
-static int hf_its_vehicular = -1;                 /* ExteriorLights */
-static int hf_its_vruSpecific = -1;               /* VruSpecificExteriorLights */
-static int hf_its_pedestrian = -1;                /* VruSubProfilePedestrian */
-static int hf_its_bicyclistAndLightVruVehicle = -1;  /* VruSubProfileBicyclist */
-static int hf_its_motorcyclist = -1;              /* VruSubProfileMotorcyclist */
-static int hf_its_animal = -1;                    /* VruSubProfileAnimal */
-static int hf_its_value_06 = -1;                  /* Wgs84AngleValue */
-static int hf_its_confidence_07 = -1;             /* Wgs84AngleConfidence */
-static int hf_its_yawRateValue = -1;              /* YawRateValue */
-static int hf_its_yawRateConfidence = -1;         /* YawRateConfidence */
+static int hf_its_its_ItsPduHeader_PDU;           /* ItsPduHeader */
+static int hf_its_polarAcceleration;              /* AccelerationPolarWithZ */
+static int hf_its_cartesianAcceleration;          /* AccelerationCartesian */
+static int hf_its_accelerationMagnitude;          /* AccelerationMagnitude */
+static int hf_its_accelerationDirection;          /* CartesianAngle */
+static int hf_its_zAcceleration;                  /* AccelerationComponent */
+static int hf_its_xAcceleration;                  /* AccelerationComponent */
+static int hf_its_yAcceleration;                  /* AccelerationComponent */
+static int hf_its_value;                          /* AccelerationValue */
+static int hf_its_confidence;                     /* AccelerationConfidence */
+static int hf_its_accelOrDecel;                   /* AccelerationChange */
+static int hf_its_actionDeltaTime;                /* DeltaTimeTenthOfSecond */
+static int hf_its_accelerationMagnitudeValue;     /* AccelerationMagnitudeValue */
+static int hf_its_accelerationConfidence;         /* AccelerationConfidence */
+static int hf_its_originatingStationId;           /* StationId */
+static int hf_its_sequenceNumber;                 /* SequenceNumber */
+static int hf_its_originatingStationId_01;        /* StationID */
+static int hf_its_ActionIdList_item;              /* ActionId */
+static int hf_its_altitudeValue;                  /* AltitudeValue */
+static int hf_its_altitudeConfidence;             /* AltitudeConfidence */
+static int hf_its_stationType;                    /* TrafficParticipantType */
+static int hf_its_referencePosition;              /* ReferencePositionWithConfidence */
+static int hf_its_value_01;                       /* CartesianAngleValue */
+static int hf_its_confidence_01;                  /* AngleConfidence */
+static int hf_its_value_02;                       /* CartesianAngularVelocityComponentValue */
+static int hf_its_confidence_02;                  /* AngularSpeedConfidence */
+static int hf_its_value_03;                       /* CartesianCoordinateLarge */
+static int hf_its_confidence_03;                  /* CoordinateConfidence */
+static int hf_its_xCoordinate;                    /* CartesianCoordinate */
+static int hf_its_yCoordinate;                    /* CartesianCoordinate */
+static int hf_its_zCoordinate;                    /* CartesianCoordinate */
+static int hf_its_xCoordinate_01;                 /* CartesianCoordinateWithConfidence */
+static int hf_its_yCoordinate_01;                 /* CartesianCoordinateWithConfidence */
+static int hf_its_zCoordinate_01;                 /* CartesianCoordinateWithConfidence */
+static int hf_its_causeCode;                      /* CauseCodeType */
+static int hf_its_subCauseCode;                   /* SubCauseCodeType */
+static int hf_its_reserved0;                      /* SubCauseCodeType */
+static int hf_its_trafficCondition1;              /* TrafficConditionSubCauseCode */
+static int hf_its_accident2;                      /* AccidentSubCauseCode */
+static int hf_its_roadworks3;                     /* RoadworksSubCauseCode */
+static int hf_its_reserved4;                      /* SubCauseCodeType */
+static int hf_its_impassability5;                 /* ImpassabilitySubCauseCode */
+static int hf_its_adverseWeatherCondition_Adhesion6;  /* AdverseWeatherCondition_AdhesionSubCauseCode */
+static int hf_its_aquaplaning7;                   /* SubCauseCodeType */
+static int hf_its_reserved8;                      /* SubCauseCodeType */
+static int hf_its_hazardousLocation_SurfaceCondition9;  /* HazardousLocation_SurfaceConditionSubCauseCode */
+static int hf_its_hazardousLocation_ObstacleOnTheRoad10;  /* HazardousLocation_ObstacleOnTheRoadSubCauseCode */
+static int hf_its_hazardousLocation_AnimalOnTheRoad11;  /* HazardousLocation_AnimalOnTheRoadSubCauseCode */
+static int hf_its_humanPresenceOnTheRoad12;       /* HumanPresenceOnTheRoadSubCauseCode */
+static int hf_its_reserved13;                     /* SubCauseCodeType */
+static int hf_its_wrongWayDriving14;              /* WrongWayDrivingSubCauseCode */
+static int hf_its_rescueAndRecoveryWorkInProgress15;  /* RescueAndRecoveryWorkInProgressSubCauseCode */
+static int hf_its_reserved16;                     /* SubCauseCodeType */
+static int hf_its_adverseWeatherCondition_ExtremeWeatherCondition17;  /* AdverseWeatherCondition_ExtremeWeatherConditionSubCauseCode */
+static int hf_its_adverseWeatherCondition_Visibility18;  /* AdverseWeatherCondition_VisibilitySubCauseCode */
+static int hf_its_adverseWeatherCondition_Precipitation19;  /* AdverseWeatherCondition_PrecipitationSubCauseCode */
+static int hf_its_violence20;                     /* SubCauseCodeType */
+static int hf_its_reserved21;                     /* SubCauseCodeType */
+static int hf_its_reserved22;                     /* SubCauseCodeType */
+static int hf_its_reserved23;                     /* SubCauseCodeType */
+static int hf_its_reserved24;                     /* SubCauseCodeType */
+static int hf_its_reserved25;                     /* SubCauseCodeType */
+static int hf_its_slowVehicle26;                  /* SlowVehicleSubCauseCode */
+static int hf_its_dangerousEndOfQueue27;          /* DangerousEndOfQueueSubCauseCode */
+static int hf_its_publicTransportVehicleApproaching28;  /* SubCauseCodeType */
+static int hf_its_reserved29;                     /* SubCauseCodeType */
+static int hf_its_reserved30;                     /* SubCauseCodeType */
+static int hf_its_reserved31;                     /* SubCauseCodeType */
+static int hf_its_reserved32;                     /* SubCauseCodeType */
+static int hf_its_reserved33;                     /* SubCauseCodeType */
+static int hf_its_reserved34;                     /* SubCauseCodeType */
+static int hf_its_reserved35;                     /* SubCauseCodeType */
+static int hf_its_reserved36;                     /* SubCauseCodeType */
+static int hf_its_reserved37;                     /* SubCauseCodeType */
+static int hf_its_reserved38;                     /* SubCauseCodeType */
+static int hf_its_reserved39;                     /* SubCauseCodeType */
+static int hf_its_reserved40;                     /* SubCauseCodeType */
+static int hf_its_reserved41;                     /* SubCauseCodeType */
+static int hf_its_reserved42;                     /* SubCauseCodeType */
+static int hf_its_reserved43;                     /* SubCauseCodeType */
+static int hf_its_reserved44;                     /* SubCauseCodeType */
+static int hf_its_reserved45;                     /* SubCauseCodeType */
+static int hf_its_reserved46;                     /* SubCauseCodeType */
+static int hf_its_reserved47;                     /* SubCauseCodeType */
+static int hf_its_reserved48;                     /* SubCauseCodeType */
+static int hf_its_reserved49;                     /* SubCauseCodeType */
+static int hf_its_reserved50;                     /* SubCauseCodeType */
+static int hf_its_reserved51;                     /* SubCauseCodeType */
+static int hf_its_reserved52;                     /* SubCauseCodeType */
+static int hf_its_reserved53;                     /* SubCauseCodeType */
+static int hf_its_reserved54;                     /* SubCauseCodeType */
+static int hf_its_reserved55;                     /* SubCauseCodeType */
+static int hf_its_reserved56;                     /* SubCauseCodeType */
+static int hf_its_reserved57;                     /* SubCauseCodeType */
+static int hf_its_reserved58;                     /* SubCauseCodeType */
+static int hf_its_reserved59;                     /* SubCauseCodeType */
+static int hf_its_reserved60;                     /* SubCauseCodeType */
+static int hf_its_reserved61;                     /* SubCauseCodeType */
+static int hf_its_reserved62;                     /* SubCauseCodeType */
+static int hf_its_reserved63;                     /* SubCauseCodeType */
+static int hf_its_reserved64;                     /* SubCauseCodeType */
+static int hf_its_reserved65;                     /* SubCauseCodeType */
+static int hf_its_reserved66;                     /* SubCauseCodeType */
+static int hf_its_reserved67;                     /* SubCauseCodeType */
+static int hf_its_reserved68;                     /* SubCauseCodeType */
+static int hf_its_reserved69;                     /* SubCauseCodeType */
+static int hf_its_reserved70;                     /* SubCauseCodeType */
+static int hf_its_reserved71;                     /* SubCauseCodeType */
+static int hf_its_reserved72;                     /* SubCauseCodeType */
+static int hf_its_reserved73;                     /* SubCauseCodeType */
+static int hf_its_reserved74;                     /* SubCauseCodeType */
+static int hf_its_reserved75;                     /* SubCauseCodeType */
+static int hf_its_reserved76;                     /* SubCauseCodeType */
+static int hf_its_reserved77;                     /* SubCauseCodeType */
+static int hf_its_reserved78;                     /* SubCauseCodeType */
+static int hf_its_reserved79;                     /* SubCauseCodeType */
+static int hf_its_reserved80;                     /* SubCauseCodeType */
+static int hf_its_reserved81;                     /* SubCauseCodeType */
+static int hf_its_reserved82;                     /* SubCauseCodeType */
+static int hf_its_reserved83;                     /* SubCauseCodeType */
+static int hf_its_reserved84;                     /* SubCauseCodeType */
+static int hf_its_reserved85;                     /* SubCauseCodeType */
+static int hf_its_reserved86;                     /* SubCauseCodeType */
+static int hf_its_reserved87;                     /* SubCauseCodeType */
+static int hf_its_reserved88;                     /* SubCauseCodeType */
+static int hf_its_reserved89;                     /* SubCauseCodeType */
+static int hf_its_reserved90;                     /* SubCauseCodeType */
+static int hf_its_vehicleBreakdown91;             /* VehicleBreakdownSubCauseCode */
+static int hf_its_postCrash92;                    /* PostCrashSubCauseCode */
+static int hf_its_humanProblem93;                 /* HumanProblemSubCauseCode */
+static int hf_its_stationaryVehicle94;            /* StationaryVehicleSubCauseCode */
+static int hf_its_emergencyVehicleApproaching95;  /* EmergencyVehicleApproachingSubCauseCode */
+static int hf_its_hazardousLocation_DangerousCurve96;  /* HazardousLocation_DangerousCurveSubCauseCode */
+static int hf_its_collisionRisk97;                /* CollisionRiskSubCauseCode */
+static int hf_its_signalViolation98;              /* SignalViolationSubCauseCode */
+static int hf_its_dangerousSituation99;           /* DangerousSituationSubCauseCode */
+static int hf_its_railwayLevelCrossing100;        /* RailwayLevelCrossingSubCauseCode */
+static int hf_its_reserved101;                    /* SubCauseCodeType */
+static int hf_its_reserved102;                    /* SubCauseCodeType */
+static int hf_its_reserved103;                    /* SubCauseCodeType */
+static int hf_its_reserved104;                    /* SubCauseCodeType */
+static int hf_its_reserved105;                    /* SubCauseCodeType */
+static int hf_its_reserved106;                    /* SubCauseCodeType */
+static int hf_its_reserved107;                    /* SubCauseCodeType */
+static int hf_its_reserved108;                    /* SubCauseCodeType */
+static int hf_its_reserved109;                    /* SubCauseCodeType */
+static int hf_its_reserved110;                    /* SubCauseCodeType */
+static int hf_its_reserved111;                    /* SubCauseCodeType */
+static int hf_its_reserved112;                    /* SubCauseCodeType */
+static int hf_its_reserved113;                    /* SubCauseCodeType */
+static int hf_its_reserved114;                    /* SubCauseCodeType */
+static int hf_its_reserved115;                    /* SubCauseCodeType */
+static int hf_its_reserved116;                    /* SubCauseCodeType */
+static int hf_its_reserved117;                    /* SubCauseCodeType */
+static int hf_its_reserved118;                    /* SubCauseCodeType */
+static int hf_its_reserved119;                    /* SubCauseCodeType */
+static int hf_its_reserved120;                    /* SubCauseCodeType */
+static int hf_its_reserved121;                    /* SubCauseCodeType */
+static int hf_its_reserved122;                    /* SubCauseCodeType */
+static int hf_its_reserved123;                    /* SubCauseCodeType */
+static int hf_its_reserved124;                    /* SubCauseCodeType */
+static int hf_its_reserved125;                    /* SubCauseCodeType */
+static int hf_its_reserved126;                    /* SubCauseCodeType */
+static int hf_its_reserved127;                    /* SubCauseCodeType */
+static int hf_its_reserved128;                    /* SubCauseCodeType */
+static int hf_its_ccAndScc;                       /* CauseCodeChoice */
+static int hf_its_protectedZoneLatitude;          /* Latitude */
+static int hf_its_protectedZoneLongitude;         /* Longitude */
+static int hf_its_cenDsrcTollingZoneId;           /* ProtectedZoneId */
+static int hf_its_shapeReferencePoint;            /* CartesianPosition3d */
+static int hf_its_radius;                         /* StandardLength12b */
+static int hf_its_height;                         /* StandardLength12b */
+static int hf_its_innerhardShoulderStatus;        /* HardShoulderStatus */
+static int hf_its_outerhardShoulderStatus;        /* HardShoulderStatus */
+static int hf_its_drivingLaneStatus;              /* DrivingLaneStatus */
+static int hf_its_clusterBreakupReason;           /* ClusterBreakupReason */
+static int hf_its_breakupTime;                    /* DeltaTimeQuarterSecond */
+static int hf_its_clusterId;                      /* Identifier1B */
+static int hf_its_joinTime;                       /* DeltaTimeQuarterSecond */
+static int hf_its_clusterLeaveReason;             /* ClusterLeaveReason */
+static int hf_its_CorrelationColumn_item;         /* CorrelationCellValue */
+static int hf_its_curvatureValue;                 /* CurvatureValue */
+static int hf_its_curvatureConfidence;            /* CurvatureConfidence */
+static int hf_its_dangerousGoodsType;             /* DangerousGoodsBasic */
+static int hf_its_unNumber;                       /* INTEGER_0_9999 */
+static int hf_its_elevatedTemperature;            /* BOOLEAN */
+static int hf_its_tunnelsRestricted;              /* BOOLEAN */
+static int hf_its_limitedQuantity;                /* BOOLEAN */
+static int hf_its_emergencyActionCode;            /* IA5String_SIZE_1_24 */
+static int hf_its_phoneNumber;                    /* PhoneNumber */
+static int hf_its_companyName;                    /* UTF8String_SIZE_1_24 */
+static int hf_its_deltaLatitude;                  /* DeltaLatitude */
+static int hf_its_deltaLongitude;                 /* DeltaLongitude */
+static int hf_its_deltaAltitude;                  /* DeltaAltitude */
+static int hf_its_DigitalMap_item;                /* ReferencePosition */
+static int hf_its_semiMajorAxisLength;            /* StandardLength12b */
+static int hf_its_semiMinorAxisLength;            /* StandardLength12b */
+static int hf_its_orientation;                    /* CartesianAngleValue */
+static int hf_its_zAngle;                         /* CartesianAngle */
+static int hf_its_yAngle;                         /* CartesianAngle */
+static int hf_its_xAngle;                         /* CartesianAngle */
+static int hf_its_euVehicleCategoryL;             /* EuVehicleCategoryL */
+static int hf_its_euVehicleCategoryM;             /* EuVehicleCategoryM */
+static int hf_its_euVehicleCategoryN;             /* EuVehicleCategoryN */
+static int hf_its_euVehicleCategoryO;             /* EuVehicleCategoryO */
+static int hf_its_euVehicleCategoryT;             /* NULL */
+static int hf_its_euVehicleCategoryG;             /* NULL */
+static int hf_its_EventHistory_item;              /* EventPoint */
+static int hf_its_eventPosition;                  /* DeltaReferencePosition */
+static int hf_its_eventDeltaTime;                 /* PathDeltaTime */
+static int hf_its_informationQuality;             /* InformationQuality */
+static int hf_its_lanePositionBased;              /* LanePositionOptions */
+static int hf_its_mapBased;                       /* MapPosition */
+static int hf_its_confidence_04;                  /* MetaInformation */
+static int hf_its_headingValue;                   /* HeadingValue */
+static int hf_its_headingConfidence;              /* HeadingConfidence */
+static int hf_its_direction;                      /* TurningDirection */
+static int hf_its_centreFrequency;                /* INTEGER_1_99999 */
+static int hf_its_channelWidth;                   /* INTEGER_0_9999 */
+static int hf_its_exponent;                       /* INTEGER_0_15 */
+static int hf_its_zoneDefinition;                 /* InterferenceManagementZoneDefinition */
+static int hf_its_managementInfo;                 /* InterferenceManagementInfo */
+static int hf_its_interferenceManagementZoneLatitude;  /* Latitude */
+static int hf_its_interferenceManagementZoneLongitude;  /* Longitude */
+static int hf_its_interferenceManagementZoneId;   /* ProtectedZoneId */
+static int hf_its_interferenceManagementZoneShape;  /* Shape */
+static int hf_its_InterferenceManagementInfo_item;  /* InterferenceManagementInfoPerChannel */
+static int hf_its_interferenceManagementChannel;  /* InterferenceManagementChannel */
+static int hf_its_interferenceManagementZoneType;  /* InterferenceManagementZoneType */
+static int hf_its_interferenceManagementMitigationType;  /* MitigationForTechnologies */
+static int hf_its_expiryTime;                     /* TimestampIts */
+static int hf_its_InterferenceManagementZones_item;  /* InterferenceManagementZone */
+static int hf_its_region;                         /* Identifier2B */
+static int hf_its_id;                             /* Identifier2B */
+static int hf_its_ItineraryPath_item;             /* ReferencePosition */
+static int hf_its_protocolVersion;                /* ProtocolVersion */
+static int hf_its_messageId;                      /* MessageId */
+static int hf_its_stationId;                      /* StationId */
+static int hf_its_transversalPosition;            /* LanePosition */
+static int hf_its_laneType;                       /* LaneType */
+static int hf_its_direction_01;                   /* Direction */
+static int hf_its_simplelanePosition;             /* LanePosition */
+static int hf_its_simpleLaneType;                 /* LaneType */
+static int hf_its_detailedlanePosition;           /* LanePositionAndType */
+static int hf_its_lanePositionWithLateralDetails;  /* LanePositionWithLateralDetails */
+static int hf_its_trafficIslandPosition;          /* TrafficIslandPosition */
+static int hf_its_lateralAccelerationValue;       /* LateralAccelerationValue */
+static int hf_its_lateralAccelerationConfidence;  /* AccelerationConfidence */
+static int hf_its_longitudinalAccelerationValue;  /* LongitudinalAccelerationValue */
+static int hf_its_longitudinalAccelerationConfidence;  /* AccelerationConfidence */
+static int hf_its_longitudinalLanePositionValue;  /* LongitudinalLanePositionValue */
+static int hf_its_longitudinalLanePositionConfidence;  /* LongitudinalLanePositionConfidence */
+static int hf_its_LowerTriangularPositiveSemidefiniteMatrices_item;  /* LowerTriangularPositiveSemidefiniteMatrix */
+static int hf_its_componentsIncludedIntheMatrix;  /* MatrixIncludedComponents */
+static int hf_its_matrix;                         /* LowerTriangularPositiveSemidefiniteMatrixColumns */
+static int hf_its_LowerTriangularPositiveSemidefiniteMatrixColumns_item;  /* CorrelationColumn */
+static int hf_its_mapReference;                   /* MapReference */
+static int hf_its_laneId;                         /* Identifier1B */
+static int hf_its_connectionId;                   /* Identifier1B */
+static int hf_its_longitudinalLanePosition;       /* LongitudinalLanePosition */
+static int hf_its_roadsegment;                    /* RoadSegmentReferenceId */
+static int hf_its_intersection;                   /* IntersectionReferenceId */
+static int hf_its_mantissa;                       /* INTEGER_1_100 */
+static int hf_its_exponent_01;                    /* INTEGER_M5_2 */
+static int hf_its_totalMsgNo;                     /* CardinalNumber3b */
+static int hf_its_thisMsgNo;                      /* OrdinalNumber3b */
+static int hf_its_usedDetectionInformation;       /* SensorTypes */
+static int hf_its_usedStoredInformation;          /* StoredInformationType */
+static int hf_its_confidenceValue;                /* ConfidenceLevel */
+static int hf_its_MitigationForTechnologies_item;  /* MitigationPerTechnologyClass */
+static int hf_its_accessTechnologyClass;          /* AccessTechnologyClass */
+static int hf_its_lowDutyCycle;                   /* INTEGER_0_10000 */
+static int hf_its_powerReduction;                 /* INTEGER_0_30 */
+static int hf_its_dmcToffLimit;                   /* INTEGER_0_1200 */
+static int hf_its_dmcTonLimit;                    /* INTEGER_0_20 */
+static int hf_its_vehicleSubClass;                /* TrafficParticipantType */
+static int hf_its_vruSubClass;                    /* VruProfileAndSubprofile */
+static int hf_its_groupSubClass;                  /* VruClusterInformation */
+static int hf_its_otherSubClass;                  /* OtherSubClass */
+static int hf_its_ObjectClassDescription_item;    /* ObjectClassWithConfidence */
+static int hf_its_objectClass;                    /* ObjectClass */
+static int hf_its_confidence_05;                  /* ConfidenceLevel */
+static int hf_its_value_04;                       /* ObjectDimensionValue */
+static int hf_its_confidence_06;                  /* ObjectDimensionConfidence */
+static int hf_its_Path_item;                      /* PathPoint */
+static int hf_its_deltaTimeHighPrecision;         /* DeltaTimeTenthOfSecond */
+static int hf_its_deltaTimeBigRange;              /* DeltaTimeTenSeconds */
+static int hf_its_PathHistory_item;               /* PathPoint */
+static int hf_its_PathPredicted_item;             /* PathPointPredicted */
+static int hf_its_pathPosition;                   /* DeltaReferencePosition */
+static int hf_its_pathDeltaTime;                  /* PathDeltaTime */
+static int hf_its_horizontalPositionConfidence;   /* PosConfidenceEllipse */
+static int hf_its_pathDeltaTime_01;               /* PathDeltaTimeChoice */
+static int hf_its_symmetricAreaOffset;            /* StandardLength9b */
+static int hf_its_asymmetricAreaOffset;           /* StandardLength9b */
+static int hf_its_objectId;                       /* Identifier2B */
+static int hf_its_measurementDeltaTime;           /* DeltaTimeMilliSecondSigned */
+static int hf_its_position;                       /* CartesianPosition3dWithConfidence */
+static int hf_its_velocity;                       /* Velocity3dWithConfidence */
+static int hf_its_acceleration;                   /* Acceleration3dWithConfidence */
+static int hf_its_angles;                         /* EulerAnglesWithConfidence */
+static int hf_its_zAngularVelocity;               /* CartesianAngularVelocityComponent */
+static int hf_its_lowerTriangularCorrelationMatrices;  /* LowerTriangularPositiveSemidefiniteMatrices */
+static int hf_its_objectDimensionZ;               /* ObjectDimension */
+static int hf_its_objectDimensionY;               /* ObjectDimension */
+static int hf_its_objectDimensionX;               /* ObjectDimension */
+static int hf_its_objectAge;                      /* DeltaTimeMilliSecondSigned */
+static int hf_its_objectPerceptionQuality;        /* ObjectPerceptionQuality */
+static int hf_its_sensorIdList;                   /* SequenceOfIdentifier1B */
+static int hf_its_classification;                 /* ObjectClassDescription */
+static int hf_its_mapPosition;                    /* MapPosition */
+static int hf_its_polygon;                        /* SequenceOfCartesianPosition3d_SIZE_3_16_ */
+static int hf_its_semiMajorConfidence;            /* SemiAxisLength */
+static int hf_its_semiMinorConfidence;            /* SemiAxisLength */
+static int hf_its_semiMajorOrientation;           /* HeadingValue */
+static int hf_its_semiMajorAxisLength_01;         /* SemiAxisLength */
+static int hf_its_semiMinorAxisLength_01;         /* SemiAxisLength */
+static int hf_its_semiMajorAxisOrientation;       /* Wgs84AngleValue */
+static int hf_its_PositionOfPillars_item;         /* PosPillar */
+static int hf_its_protectedZoneType;              /* ProtectedZoneType */
+static int hf_its_protectedZoneRadius;            /* ProtectedZoneRadius */
+static int hf_its_protectedZoneId;                /* ProtectedZoneId */
+static int hf_its_ProtectedCommunicationZonesRSU_item;  /* ProtectedCommunicationZone */
+static int hf_its_ptActivationType;               /* PtActivationType */
+static int hf_its_ptActivationData;               /* PtActivationData */
+static int hf_its_range;                          /* StandardLength12b */
+static int hf_its_horizontalOpeningAngleStart;    /* CartesianAngleValue */
+static int hf_its_horizontalOpeningAngleEnd;      /* CartesianAngleValue */
+static int hf_its_verticalOpeningAngleStart;      /* CartesianAngleValue */
+static int hf_its_verticalOpeningAngleEnd;        /* CartesianAngleValue */
+static int hf_its_refPointId;                     /* Identifier1B */
+static int hf_its_xCoordinate_02;                 /* CartesianCoordinateSmall */
+static int hf_its_yCoordinate_02;                 /* CartesianCoordinateSmall */
+static int hf_its_zCoordinate_02;                 /* CartesianCoordinateSmall */
+static int hf_its_radialShapesList;               /* RadialShapesList */
+static int hf_its_RadialShapesList_item;          /* RadialShapeDetails */
+static int hf_its_semiLength;                     /* StandardLength12b */
+static int hf_its_semiBreadth;                    /* StandardLength12b */
+static int hf_its_latitude;                       /* Latitude */
+static int hf_its_longitude;                      /* Longitude */
+static int hf_its_positionConfidenceEllipse;      /* PosConfidenceEllipse */
+static int hf_its_altitude;                       /* Altitude */
+static int hf_its_positionConfidenceEllipse_01;   /* PositionConfidenceEllipse */
+static int hf_its_RestrictedTypes_item;           /* StationType */
+static int hf_its_subjectStation;                 /* StationId */
+static int hf_its_safeDistanceIndicator;          /* SafeDistanceIndicator */
+static int hf_its_timeToCollision;                /* DeltaTimeTenthOfSecond */
+static int hf_its_SequenceOfCartesianPosition3d_item;  /* CartesianPosition3d */
+static int hf_its_SequenceOfIdentifier1B_item;    /* Identifier1B */
+static int hf_its_SequenceOfSafeDistanceIndication_item;  /* SafeDistanceIndication */
+static int hf_its_SequenceOfTrajectoryInterceptionIndication_item;  /* TrajectoryInterceptionIndication */
+static int hf_its_rectangular;                    /* RectangularShape */
+static int hf_its_circular;                       /* CircularShape */
+static int hf_its_polygonal;                      /* PolygonalShape */
+static int hf_its_elliptical;                     /* EllipticalShape */
+static int hf_its_radial;                         /* RadialShape */
+static int hf_its_radialShapes;                   /* RadialShapes */
+static int hf_its_speedValue;                     /* SpeedValue */
+static int hf_its_speedConfidence;                /* SpeedConfidence */
+static int hf_its_lossProbability;                /* StabilityLossProbability */
+static int hf_its_steeringWheelAngleValue;        /* SteeringWheelAngleValue */
+static int hf_its_steeringWheelAngleConfidence;   /* SteeringWheelAngleConfidence */
+static int hf_its_Traces_item;                    /* Path */
+static int hf_its_oneSide;                        /* LanePositionAndType */
+static int hf_its_otherSide;                      /* LanePositionAndType */
+static int hf_its_hitchPointOffset;               /* StandardLength1B */
+static int hf_its_frontOverhang;                  /* StandardLength1B */
+static int hf_its_rearOverhang;                   /* StandardLength1B */
+static int hf_its_trailerWidth;                   /* VehicleWidth */
+static int hf_its_hitchAngle;                     /* CartesianAngle */
+static int hf_its_trajectoryInterceptionProbability;  /* TrajectoryInterceptionProbability */
+static int hf_its_trajectoryInterceptionConfidence;  /* TrajectoryInterceptionConfidence */
+static int hf_its_vlnContent;                     /* INTEGER_0_127 */
+static int hf_its_vlnExtension;                   /* Ext1 */
+static int hf_its_e1Content;                      /* INTEGER_128_16511 */
+static int hf_its_e2Extension;                    /* Ext2 */
+static int hf_its_e2Content;                      /* INTEGER_16512_2113663 */
+static int hf_its_e1Extension;                    /* Ext3 */
+static int hf_its_verticalAccelerationValue;      /* VerticalAccelerationValue */
+static int hf_its_verticalAccelerationConfidence;  /* AccelerationConfidence */
+static int hf_its_wMInumber;                      /* WMInumber */
+static int hf_its_vDS;                            /* VDS */
+static int hf_its_vehicleLengthValue;             /* VehicleLengthValue */
+static int hf_its_vehicleLengthConfidenceIndication;  /* VehicleLengthConfidenceIndication */
+static int hf_its_polarVelocity;                  /* VelocityPolarWithZ */
+static int hf_its_cartesianVelocity;              /* VelocityCartesian */
+static int hf_its_xVelocity;                      /* VelocityComponent */
+static int hf_its_yVelocity;                      /* VelocityComponent */
+static int hf_its_zVelocity;                      /* VelocityComponent */
+static int hf_its_value_05;                       /* VelocityComponentValue */
+static int hf_its_confidence_07;                  /* SpeedConfidence */
+static int hf_its_velocityMagnitude;              /* Speed */
+static int hf_its_velocityDirection;              /* CartesianAngle */
+static int hf_its_clusterBoundingBoxShape;        /* Shape */
+static int hf_its_clusterCardinalitySize;         /* CardinalNumber1B */
+static int hf_its_clusterProfiles;                /* VruClusterProfiles */
+static int hf_its_vehicular;                      /* ExteriorLights */
+static int hf_its_vruSpecific;                    /* VruSpecificExteriorLights */
+static int hf_its_pedestrian;                     /* VruSubProfilePedestrian */
+static int hf_its_bicyclistAndLightVruVehicle;    /* VruSubProfileBicyclist */
+static int hf_its_motorcyclist;                   /* VruSubProfileMotorcyclist */
+static int hf_its_animal;                         /* VruSubProfileAnimal */
+static int hf_its_value_06;                       /* Wgs84AngleValue */
+static int hf_its_confidence_08;                  /* Wgs84AngleConfidence */
+static int hf_its_yawRateValue;                   /* YawRateValue */
+static int hf_its_yawRateConfidence;              /* YawRateConfidence */
+static int hf_its_distanceToLeftBorder;           /* StandardLength9b */
+static int hf_its_distanceToRightBorder;          /* StandardLength9b */
 /* named bits */
-static int hf_its_AccelerationControl_brakePedalEngaged = -1;
-static int hf_its_AccelerationControl_gasPedalEngaged = -1;
-static int hf_its_AccelerationControl_emergencyBrakeEngaged = -1;
-static int hf_its_AccelerationControl_collisionWarningEngaged = -1;
-static int hf_its_AccelerationControl_accEngaged = -1;
-static int hf_its_AccelerationControl_cruiseControlEngaged = -1;
-static int hf_its_AccelerationControl_speedLimiterEngaged = -1;
-static int hf_its_EmergencyPriority_requestForRightOfWay = -1;
-static int hf_its_EmergencyPriority_requestForFreeCrossingAtATrafficLight = -1;
-static int hf_its_EnergyStorageType_hydrogenStorage = -1;
-static int hf_its_EnergyStorageType_electricEnergyStorage = -1;
-static int hf_its_EnergyStorageType_liquidPropaneGas = -1;
-static int hf_its_EnergyStorageType_compressedNaturalGas = -1;
-static int hf_its_EnergyStorageType_diesel = -1;
-static int hf_its_EnergyStorageType_gasoline = -1;
-static int hf_its_EnergyStorageType_ammonia = -1;
-static int hf_its_ExteriorLights_lowBeamHeadlightsOn = -1;
-static int hf_its_ExteriorLights_highBeamHeadlightsOn = -1;
-static int hf_its_ExteriorLights_leftTurnSignalOn = -1;
-static int hf_its_ExteriorLights_rightTurnSignalOn = -1;
-static int hf_its_ExteriorLights_daytimeRunningLightsOn = -1;
-static int hf_its_ExteriorLights_reverseLightOn = -1;
-static int hf_its_ExteriorLights_fogLightOn = -1;
-static int hf_its_ExteriorLights_parkingLightsOn = -1;
-static int hf_its_LightBarSirenInUse_lightBarActivated = -1;
-static int hf_its_LightBarSirenInUse_sirenActivated = -1;
-static int hf_its_MatrixIncludedComponents_xPosition = -1;
-static int hf_its_MatrixIncludedComponents_yPosition = -1;
-static int hf_its_MatrixIncludedComponents_zPosition = -1;
-static int hf_its_MatrixIncludedComponents_xVelocityOrVelocityMagnitude = -1;
-static int hf_its_MatrixIncludedComponents_yVelocityOrVelocityDirection = -1;
-static int hf_its_MatrixIncludedComponents_zSpeed = -1;
-static int hf_its_MatrixIncludedComponents_xAccelOrAccelMagnitude = -1;
-static int hf_its_MatrixIncludedComponents_yAccelOrAccelDirection = -1;
-static int hf_its_MatrixIncludedComponents_zAcceleration = -1;
-static int hf_its_MatrixIncludedComponents_zAngle = -1;
-static int hf_its_MatrixIncludedComponents_yAngle = -1;
-static int hf_its_MatrixIncludedComponents_xAngle = -1;
-static int hf_its_MatrixIncludedComponents_zAngularVelocity = -1;
-static int hf_its_PositionOfOccupants_row1LeftOccupied = -1;
-static int hf_its_PositionOfOccupants_row1RightOccupied = -1;
-static int hf_its_PositionOfOccupants_row1MidOccupied = -1;
-static int hf_its_PositionOfOccupants_row1NotDetectable = -1;
-static int hf_its_PositionOfOccupants_row1NotPresent = -1;
-static int hf_its_PositionOfOccupants_row2LeftOccupied = -1;
-static int hf_its_PositionOfOccupants_row2RightOccupied = -1;
-static int hf_its_PositionOfOccupants_row2MidOccupied = -1;
-static int hf_its_PositionOfOccupants_row2NotDetectable = -1;
-static int hf_its_PositionOfOccupants_row2NotPresent = -1;
-static int hf_its_PositionOfOccupants_row3LeftOccupied = -1;
-static int hf_its_PositionOfOccupants_row3RightOccupied = -1;
-static int hf_its_PositionOfOccupants_row3MidOccupied = -1;
-static int hf_its_PositionOfOccupants_row3NotDetectable = -1;
-static int hf_its_PositionOfOccupants_row3NotPresent = -1;
-static int hf_its_PositionOfOccupants_row4LeftOccupied = -1;
-static int hf_its_PositionOfOccupants_row4RightOccupied = -1;
-static int hf_its_PositionOfOccupants_row4MidOccupied = -1;
-static int hf_its_PositionOfOccupants_row4NotDetectable = -1;
-static int hf_its_PositionOfOccupants_row4NotPresent = -1;
-static int hf_its_SpecialTransportType_heavyLoad = -1;
-static int hf_its_SpecialTransportType_excessWidth = -1;
-static int hf_its_SpecialTransportType_excessLength = -1;
-static int hf_its_SpecialTransportType_excessHeight = -1;
-static int hf_its_VruClusterProfiles_pedestrian = -1;
-static int hf_its_VruClusterProfiles_bicyclist = -1;
-static int hf_its_VruClusterProfiles_motorcyclist = -1;
-static int hf_its_VruClusterProfiles_animal = -1;
-static int hf_its_VruSpecificExteriorLights_unavailable = -1;
-static int hf_its_VruSpecificExteriorLights_backFlashLight = -1;
-static int hf_its_VruSpecificExteriorLights_helmetLight = -1;
-static int hf_its_VruSpecificExteriorLights_armLight = -1;
-static int hf_its_VruSpecificExteriorLights_legLight = -1;
-static int hf_its_VruSpecificExteriorLights_wheelLight = -1;
+static int hf_its_AccelerationControl_brakePedalEngaged;
+static int hf_its_AccelerationControl_gasPedalEngaged;
+static int hf_its_AccelerationControl_emergencyBrakeEngaged;
+static int hf_its_AccelerationControl_collisionWarningEngaged;
+static int hf_its_AccelerationControl_accEngaged;
+static int hf_its_AccelerationControl_cruiseControlEngaged;
+static int hf_its_AccelerationControl_speedLimiterEngaged;
+static int hf_its_EmergencyPriority_requestForRightOfWay;
+static int hf_its_EmergencyPriority_requestForFreeCrossingAtATrafficLight;
+static int hf_its_EnergyStorageType_hydrogenStorage;
+static int hf_its_EnergyStorageType_electricEnergyStorage;
+static int hf_its_EnergyStorageType_liquidPropaneGas;
+static int hf_its_EnergyStorageType_compressedNaturalGas;
+static int hf_its_EnergyStorageType_diesel;
+static int hf_its_EnergyStorageType_gasoline;
+static int hf_its_EnergyStorageType_ammonia;
+static int hf_its_ExteriorLights_lowBeamHeadlightsOn;
+static int hf_its_ExteriorLights_highBeamHeadlightsOn;
+static int hf_its_ExteriorLights_leftTurnSignalOn;
+static int hf_its_ExteriorLights_rightTurnSignalOn;
+static int hf_its_ExteriorLights_daytimeRunningLightsOn;
+static int hf_its_ExteriorLights_reverseLightOn;
+static int hf_its_ExteriorLights_fogLightOn;
+static int hf_its_ExteriorLights_parkingLightsOn;
+static int hf_its_LightBarSirenInUse_lightBarActivated;
+static int hf_its_LightBarSirenInUse_sirenActivated;
+static int hf_its_MatrixIncludedComponents_xPosition;
+static int hf_its_MatrixIncludedComponents_yPosition;
+static int hf_its_MatrixIncludedComponents_zPosition;
+static int hf_its_MatrixIncludedComponents_xVelocityOrVelocityMagnitude;
+static int hf_its_MatrixIncludedComponents_yVelocityOrVelocityDirection;
+static int hf_its_MatrixIncludedComponents_zSpeed;
+static int hf_its_MatrixIncludedComponents_xAccelOrAccelMagnitude;
+static int hf_its_MatrixIncludedComponents_yAccelOrAccelDirection;
+static int hf_its_MatrixIncludedComponents_zAcceleration;
+static int hf_its_MatrixIncludedComponents_zAngle;
+static int hf_its_MatrixIncludedComponents_yAngle;
+static int hf_its_MatrixIncludedComponents_xAngle;
+static int hf_its_MatrixIncludedComponents_zAngularVelocity;
+static int hf_its_PositionOfOccupants_row1LeftOccupied;
+static int hf_its_PositionOfOccupants_row1RightOccupied;
+static int hf_its_PositionOfOccupants_row1MidOccupied;
+static int hf_its_PositionOfOccupants_row1NotDetectable;
+static int hf_its_PositionOfOccupants_row1NotPresent;
+static int hf_its_PositionOfOccupants_row2LeftOccupied;
+static int hf_its_PositionOfOccupants_row2RightOccupied;
+static int hf_its_PositionOfOccupants_row2MidOccupied;
+static int hf_its_PositionOfOccupants_row2NotDetectable;
+static int hf_its_PositionOfOccupants_row2NotPresent;
+static int hf_its_PositionOfOccupants_row3LeftOccupied;
+static int hf_its_PositionOfOccupants_row3RightOccupied;
+static int hf_its_PositionOfOccupants_row3MidOccupied;
+static int hf_its_PositionOfOccupants_row3NotDetectable;
+static int hf_its_PositionOfOccupants_row3NotPresent;
+static int hf_its_PositionOfOccupants_row4LeftOccupied;
+static int hf_its_PositionOfOccupants_row4RightOccupied;
+static int hf_its_PositionOfOccupants_row4MidOccupied;
+static int hf_its_PositionOfOccupants_row4NotDetectable;
+static int hf_its_PositionOfOccupants_row4NotPresent;
+static int hf_its_SensorTypes_undefined;
+static int hf_its_SensorTypes_radar;
+static int hf_its_SensorTypes_lidar;
+static int hf_its_SensorTypes_monovideo;
+static int hf_its_SensorTypes_stereovision;
+static int hf_its_SensorTypes_nightvision;
+static int hf_its_SensorTypes_ultrasonic;
+static int hf_its_SensorTypes_pmd;
+static int hf_its_SensorTypes_inductionLoop;
+static int hf_its_SensorTypes_sphericalCamera;
+static int hf_its_SensorTypes_uwb;
+static int hf_its_SensorTypes_acoustic;
+static int hf_its_SensorTypes_localAggregation;
+static int hf_its_SensorTypes_itsAggregation;
+static int hf_its_SpecialTransportType_heavyLoad;
+static int hf_its_SpecialTransportType_excessWidth;
+static int hf_its_SpecialTransportType_excessLength;
+static int hf_its_SpecialTransportType_excessHeight;
+static int hf_its_StoredInformationType_undefined;
+static int hf_its_StoredInformationType_staticDb;
+static int hf_its_StoredInformationType_dynamicDb;
+static int hf_its_StoredInformationType_realTimeDb;
+static int hf_its_StoredInformationType_map;
+static int hf_its_VruClusterProfiles_pedestrian;
+static int hf_its_VruClusterProfiles_bicyclist;
+static int hf_its_VruClusterProfiles_motorcyclist;
+static int hf_its_VruClusterProfiles_animal;
+static int hf_its_VruSpecificExteriorLights_unavailable;
+static int hf_its_VruSpecificExteriorLights_backFlashLight;
+static int hf_its_VruSpecificExteriorLights_helmetLight;
+static int hf_its_VruSpecificExteriorLights_armLight;
+static int hf_its_VruSpecificExteriorLights_legLight;
+static int hf_its_VruSpecificExteriorLights_wheelLight;
 
 /* --- Module ITS-ContainerV1 --- --- ---                                     */
 
-static int hf_itsv1_latitude = -1;                /* Latitude */
-static int hf_itsv1_longitude = -1;               /* Longitude */
-static int hf_itsv1_positionConfidenceEllipse = -1;  /* PosConfidenceEllipse */
-static int hf_itsv1_altitude = -1;                /* Altitude */
-static int hf_itsv1_deltaLatitude = -1;           /* DeltaLatitude */
-static int hf_itsv1_deltaLongitude = -1;          /* DeltaLongitude */
-static int hf_itsv1_deltaAltitude = -1;           /* DeltaAltitude */
-static int hf_itsv1_altitudeValue = -1;           /* AltitudeValue */
-static int hf_itsv1_altitudeConfidence = -1;      /* AltitudeConfidence */
-static int hf_itsv1_semiMajorConfidence = -1;     /* SemiAxisLength */
-static int hf_itsv1_semiMinorConfidence = -1;     /* SemiAxisLength */
-static int hf_itsv1_semiMajorOrientation = -1;    /* HeadingValue */
-static int hf_itsv1_pathPosition = -1;            /* DeltaReferencePosition */
-static int hf_itsv1_pathDeltaTime = -1;           /* PathDeltaTime */
-static int hf_itsv1_ptActivationType = -1;        /* PtActivationType */
-static int hf_itsv1_ptActivationData = -1;        /* PtActivationData */
-static int hf_itsv1_causeCode = -1;               /* CauseCodeTypeV1 */
-static int hf_itsv1_subCauseCode = -1;            /* SubCauseCodeTypeV1 */
-static int hf_itsv1_curvatureValue = -1;          /* CurvatureValue */
-static int hf_itsv1_curvatureConfidence = -1;     /* CurvatureConfidence */
-static int hf_itsv1_headingValue = -1;            /* HeadingValue */
-static int hf_itsv1_headingConfidence = -1;       /* HeadingConfidence */
-static int hf_itsv1_hardShoulderStatus = -1;      /* HardShoulderStatus */
-static int hf_itsv1_drivingLaneStatus = -1;       /* DrivingLaneStatus */
-static int hf_itsv1_speedValue = -1;              /* SpeedValue */
-static int hf_itsv1_speedConfidence = -1;         /* SpeedConfidence */
-static int hf_itsv1_longitudinalAccelerationValue = -1;  /* LongitudinalAccelerationValue */
-static int hf_itsv1_longitudinalAccelerationConfidence = -1;  /* AccelerationConfidence */
-static int hf_itsv1_lateralAccelerationValue = -1;  /* LateralAccelerationValue */
-static int hf_itsv1_lateralAccelerationConfidence = -1;  /* AccelerationConfidence */
-static int hf_itsv1_verticalAccelerationValue = -1;  /* VerticalAccelerationValue */
-static int hf_itsv1_verticalAccelerationConfidence = -1;  /* AccelerationConfidence */
-static int hf_itsv1_dangerousGoodsType = -1;      /* DangerousGoodsBasic */
-static int hf_itsv1_unNumber = -1;                /* INTEGER_0_9999 */
-static int hf_itsv1_elevatedTemperature = -1;     /* BOOLEAN */
-static int hf_itsv1_tunnelsRestricted = -1;       /* BOOLEAN */
-static int hf_itsv1_limitedQuantity = -1;         /* BOOLEAN */
-static int hf_itsv1_emergencyActionCode = -1;     /* IA5String_SIZE_1_24 */
-static int hf_itsv1_phoneNumber = -1;             /* IA5String_SIZE_1_24 */
-static int hf_itsv1_companyName = -1;             /* UTF8String_SIZE_1_24 */
-static int hf_itsv1_wMInumber = -1;               /* WMInumber */
-static int hf_itsv1_vDS = -1;                     /* VDS */
-static int hf_itsv1_vehicleLengthValue = -1;      /* VehicleLengthValue */
-static int hf_itsv1_vehicleLengthConfidenceIndication = -1;  /* VehicleLengthConfidenceIndication */
-static int hf_itsv1_PathHistory_item = -1;        /* PathPoint */
-static int hf_itsv1_steeringWheelAngleValue = -1;  /* SteeringWheelAngleValue */
-static int hf_itsv1_steeringWheelAngleConfidence = -1;  /* SteeringWheelAngleConfidence */
-static int hf_itsv1_yawRateValue = -1;            /* YawRateValue */
-static int hf_itsv1_yawRateConfidence = -1;       /* YawRateConfidence */
-static int hf_itsv1_originatingStationID = -1;    /* StationID */
-static int hf_itsv1_sequenceNumber = -1;          /* SequenceNumber */
-static int hf_itsv1_ItineraryPath_item = -1;      /* ReferencePosition */
-static int hf_itsv1_protectedZoneType = -1;       /* ProtectedZoneType */
-static int hf_itsv1_expiryTime = -1;              /* TimestampIts */
-static int hf_itsv1_protectedZoneLatitude = -1;   /* Latitude */
-static int hf_itsv1_protectedZoneLongitude = -1;  /* Longitude */
-static int hf_itsv1_protectedZoneRadius = -1;     /* ProtectedZoneRadius */
-static int hf_itsv1_protectedZoneID = -1;         /* ProtectedZoneID */
-static int hf_itsv1_Traces_item = -1;             /* PathHistory */
-static int hf_itsv1_PositionOfPillars_item = -1;  /* PosPillar */
-static int hf_itsv1_RestrictedTypes_item = -1;    /* StationType */
-static int hf_itsv1_EventHistory_item = -1;       /* EventPoint */
-static int hf_itsv1_eventPosition = -1;           /* DeltaReferencePosition */
-static int hf_itsv1_eventDeltaTime = -1;          /* PathDeltaTime */
-static int hf_itsv1_informationQuality = -1;      /* InformationQuality */
-static int hf_itsv1_ProtectedCommunicationZonesRSU_item = -1;  /* ProtectedCommunicationZone */
-static int hf_itsv1_cenDsrcTollingZoneID = -1;    /* CenDsrcTollingZoneID */
+static int hf_itsv1_latitude;                     /* Latitude */
+static int hf_itsv1_longitude;                    /* Longitude */
+static int hf_itsv1_positionConfidenceEllipse;    /* PosConfidenceEllipse */
+static int hf_itsv1_altitude;                     /* Altitude */
+static int hf_itsv1_deltaLatitude;                /* DeltaLatitude */
+static int hf_itsv1_deltaLongitude;               /* DeltaLongitude */
+static int hf_itsv1_deltaAltitude;                /* DeltaAltitude */
+static int hf_itsv1_altitudeValue;                /* AltitudeValue */
+static int hf_itsv1_altitudeConfidence;           /* AltitudeConfidence */
+static int hf_itsv1_semiMajorConfidence;          /* SemiAxisLength */
+static int hf_itsv1_semiMinorConfidence;          /* SemiAxisLength */
+static int hf_itsv1_semiMajorOrientation;         /* HeadingValue */
+static int hf_itsv1_pathPosition;                 /* DeltaReferencePosition */
+static int hf_itsv1_pathDeltaTime;                /* PathDeltaTime */
+static int hf_itsv1_ptActivationType;             /* PtActivationType */
+static int hf_itsv1_ptActivationData;             /* PtActivationData */
+static int hf_itsv1_causeCode;                    /* CauseCodeTypeV1 */
+static int hf_itsv1_subCauseCode;                 /* SubCauseCodeTypeV1 */
+static int hf_itsv1_curvatureValue;               /* CurvatureValue */
+static int hf_itsv1_curvatureConfidence;          /* CurvatureConfidence */
+static int hf_itsv1_headingValue;                 /* HeadingValue */
+static int hf_itsv1_headingConfidence;            /* HeadingConfidence */
+static int hf_itsv1_hardShoulderStatus;           /* HardShoulderStatus */
+static int hf_itsv1_drivingLaneStatus;            /* DrivingLaneStatus */
+static int hf_itsv1_speedValue;                   /* SpeedValue */
+static int hf_itsv1_speedConfidence;              /* SpeedConfidence */
+static int hf_itsv1_longitudinalAccelerationValue;  /* LongitudinalAccelerationValue */
+static int hf_itsv1_longitudinalAccelerationConfidence;  /* AccelerationConfidence */
+static int hf_itsv1_lateralAccelerationValue;     /* LateralAccelerationValue */
+static int hf_itsv1_lateralAccelerationConfidence;  /* AccelerationConfidence */
+static int hf_itsv1_verticalAccelerationValue;    /* VerticalAccelerationValue */
+static int hf_itsv1_verticalAccelerationConfidence;  /* AccelerationConfidence */
+static int hf_itsv1_dangerousGoodsType;           /* DangerousGoodsBasic */
+static int hf_itsv1_unNumber;                     /* INTEGER_0_9999 */
+static int hf_itsv1_elevatedTemperature;          /* BOOLEAN */
+static int hf_itsv1_tunnelsRestricted;            /* BOOLEAN */
+static int hf_itsv1_limitedQuantity;              /* BOOLEAN */
+static int hf_itsv1_emergencyActionCode;          /* IA5String_SIZE_1_24 */
+static int hf_itsv1_phoneNumber;                  /* IA5String_SIZE_1_24 */
+static int hf_itsv1_companyName;                  /* UTF8String_SIZE_1_24 */
+static int hf_itsv1_wMInumber;                    /* WMInumber */
+static int hf_itsv1_vDS;                          /* VDS */
+static int hf_itsv1_vehicleLengthValue;           /* VehicleLengthValue */
+static int hf_itsv1_vehicleLengthConfidenceIndication;  /* VehicleLengthConfidenceIndication */
+static int hf_itsv1_PathHistory_item;             /* PathPoint */
+static int hf_itsv1_steeringWheelAngleValue;      /* SteeringWheelAngleValue */
+static int hf_itsv1_steeringWheelAngleConfidence;  /* SteeringWheelAngleConfidence */
+static int hf_itsv1_yawRateValue;                 /* YawRateValue */
+static int hf_itsv1_yawRateConfidence;            /* YawRateConfidence */
+static int hf_itsv1_originatingStationID;         /* StationID */
+static int hf_itsv1_sequenceNumber;               /* SequenceNumber */
+static int hf_itsv1_ItineraryPath_item;           /* ReferencePosition */
+static int hf_itsv1_protectedZoneType;            /* ProtectedZoneType */
+static int hf_itsv1_expiryTime;                   /* TimestampIts */
+static int hf_itsv1_protectedZoneLatitude;        /* Latitude */
+static int hf_itsv1_protectedZoneLongitude;       /* Longitude */
+static int hf_itsv1_protectedZoneRadius;          /* ProtectedZoneRadius */
+static int hf_itsv1_protectedZoneID;              /* ProtectedZoneID */
+static int hf_itsv1_Traces_item;                  /* PathHistory */
+static int hf_itsv1_PositionOfPillars_item;       /* PosPillar */
+static int hf_itsv1_RestrictedTypes_item;         /* StationType */
+static int hf_itsv1_EventHistory_item;            /* EventPoint */
+static int hf_itsv1_eventPosition;                /* DeltaReferencePosition */
+static int hf_itsv1_eventDeltaTime;               /* PathDeltaTime */
+static int hf_itsv1_informationQuality;           /* InformationQuality */
+static int hf_itsv1_ProtectedCommunicationZonesRSU_item;  /* ProtectedCommunicationZone */
+static int hf_itsv1_cenDsrcTollingZoneID;         /* CenDsrcTollingZoneID */
 /* named bits */
-static int hf_itsv1_AccelerationControl_brakePedalEngaged = -1;
-static int hf_itsv1_AccelerationControl_gasPedalEngaged = -1;
-static int hf_itsv1_AccelerationControl_emergencyBrakeEngaged = -1;
-static int hf_itsv1_AccelerationControl_collisionWarningEngaged = -1;
-static int hf_itsv1_AccelerationControl_accEngaged = -1;
-static int hf_itsv1_AccelerationControl_cruiseControlEngaged = -1;
-static int hf_itsv1_AccelerationControl_speedLimiterEngaged = -1;
-static int hf_itsv1_DrivingLaneStatus_spare_bit0 = -1;
-static int hf_itsv1_DrivingLaneStatus_outermostLaneClosed = -1;
-static int hf_itsv1_DrivingLaneStatus_secondLaneFromOutsideClosed = -1;
-static int hf_itsv1_ExteriorLights_lowBeamHeadlightsOn = -1;
-static int hf_itsv1_ExteriorLights_highBeamHeadlightsOn = -1;
-static int hf_itsv1_ExteriorLights_leftTurnSignalOn = -1;
-static int hf_itsv1_ExteriorLights_rightTurnSignalOn = -1;
-static int hf_itsv1_ExteriorLights_daytimeRunningLightsOn = -1;
-static int hf_itsv1_ExteriorLights_reverseLightOn = -1;
-static int hf_itsv1_ExteriorLights_fogLightOn = -1;
-static int hf_itsv1_ExteriorLights_parkingLightsOn = -1;
-static int hf_itsv1_SpecialTransportType_heavyLoad = -1;
-static int hf_itsv1_SpecialTransportType_excessWidth = -1;
-static int hf_itsv1_SpecialTransportType_excessLength = -1;
-static int hf_itsv1_SpecialTransportType_excessHeight = -1;
-static int hf_itsv1_LightBarSirenInUse_lightBarActivated = -1;
-static int hf_itsv1_LightBarSirenInUse_sirenActivated = -1;
-static int hf_itsv1_PositionOfOccupants_row1LeftOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row1RightOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row1MidOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row1NotDetectable = -1;
-static int hf_itsv1_PositionOfOccupants_row1NotPresent = -1;
-static int hf_itsv1_PositionOfOccupants_row2LeftOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row2RightOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row2MidOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row2NotDetectable = -1;
-static int hf_itsv1_PositionOfOccupants_row2NotPresent = -1;
-static int hf_itsv1_PositionOfOccupants_row3LeftOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row3RightOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row3MidOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row3NotDetectable = -1;
-static int hf_itsv1_PositionOfOccupants_row3NotPresent = -1;
-static int hf_itsv1_PositionOfOccupants_row4LeftOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row4RightOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row4MidOccupied = -1;
-static int hf_itsv1_PositionOfOccupants_row4NotDetectable = -1;
-static int hf_itsv1_PositionOfOccupants_row4NotPresent = -1;
-static int hf_itsv1_EnergyStorageType_hydrogenStorage = -1;
-static int hf_itsv1_EnergyStorageType_electricEnergyStorage = -1;
-static int hf_itsv1_EnergyStorageType_liquidPropaneGas = -1;
-static int hf_itsv1_EnergyStorageType_compressedNaturalGas = -1;
-static int hf_itsv1_EnergyStorageType_diesel = -1;
-static int hf_itsv1_EnergyStorageType_gasoline = -1;
-static int hf_itsv1_EnergyStorageType_ammonia = -1;
-static int hf_itsv1_EmergencyPriority_requestForRightOfWay = -1;
-static int hf_itsv1_EmergencyPriority_requestForFreeCrossingAtATrafficLight = -1;
+static int hf_itsv1_AccelerationControl_brakePedalEngaged;
+static int hf_itsv1_AccelerationControl_gasPedalEngaged;
+static int hf_itsv1_AccelerationControl_emergencyBrakeEngaged;
+static int hf_itsv1_AccelerationControl_collisionWarningEngaged;
+static int hf_itsv1_AccelerationControl_accEngaged;
+static int hf_itsv1_AccelerationControl_cruiseControlEngaged;
+static int hf_itsv1_AccelerationControl_speedLimiterEngaged;
+static int hf_itsv1_DrivingLaneStatus_spare_bit0;
+static int hf_itsv1_DrivingLaneStatus_outermostLaneClosed;
+static int hf_itsv1_DrivingLaneStatus_secondLaneFromOutsideClosed;
+static int hf_itsv1_ExteriorLights_lowBeamHeadlightsOn;
+static int hf_itsv1_ExteriorLights_highBeamHeadlightsOn;
+static int hf_itsv1_ExteriorLights_leftTurnSignalOn;
+static int hf_itsv1_ExteriorLights_rightTurnSignalOn;
+static int hf_itsv1_ExteriorLights_daytimeRunningLightsOn;
+static int hf_itsv1_ExteriorLights_reverseLightOn;
+static int hf_itsv1_ExteriorLights_fogLightOn;
+static int hf_itsv1_ExteriorLights_parkingLightsOn;
+static int hf_itsv1_SpecialTransportType_heavyLoad;
+static int hf_itsv1_SpecialTransportType_excessWidth;
+static int hf_itsv1_SpecialTransportType_excessLength;
+static int hf_itsv1_SpecialTransportType_excessHeight;
+static int hf_itsv1_LightBarSirenInUse_lightBarActivated;
+static int hf_itsv1_LightBarSirenInUse_sirenActivated;
+static int hf_itsv1_PositionOfOccupants_row1LeftOccupied;
+static int hf_itsv1_PositionOfOccupants_row1RightOccupied;
+static int hf_itsv1_PositionOfOccupants_row1MidOccupied;
+static int hf_itsv1_PositionOfOccupants_row1NotDetectable;
+static int hf_itsv1_PositionOfOccupants_row1NotPresent;
+static int hf_itsv1_PositionOfOccupants_row2LeftOccupied;
+static int hf_itsv1_PositionOfOccupants_row2RightOccupied;
+static int hf_itsv1_PositionOfOccupants_row2MidOccupied;
+static int hf_itsv1_PositionOfOccupants_row2NotDetectable;
+static int hf_itsv1_PositionOfOccupants_row2NotPresent;
+static int hf_itsv1_PositionOfOccupants_row3LeftOccupied;
+static int hf_itsv1_PositionOfOccupants_row3RightOccupied;
+static int hf_itsv1_PositionOfOccupants_row3MidOccupied;
+static int hf_itsv1_PositionOfOccupants_row3NotDetectable;
+static int hf_itsv1_PositionOfOccupants_row3NotPresent;
+static int hf_itsv1_PositionOfOccupants_row4LeftOccupied;
+static int hf_itsv1_PositionOfOccupants_row4RightOccupied;
+static int hf_itsv1_PositionOfOccupants_row4MidOccupied;
+static int hf_itsv1_PositionOfOccupants_row4NotDetectable;
+static int hf_itsv1_PositionOfOccupants_row4NotPresent;
+static int hf_itsv1_EnergyStorageType_hydrogenStorage;
+static int hf_itsv1_EnergyStorageType_electricEnergyStorage;
+static int hf_itsv1_EnergyStorageType_liquidPropaneGas;
+static int hf_itsv1_EnergyStorageType_compressedNaturalGas;
+static int hf_itsv1_EnergyStorageType_diesel;
+static int hf_itsv1_EnergyStorageType_gasoline;
+static int hf_itsv1_EnergyStorageType_ammonia;
+static int hf_itsv1_EmergencyPriority_requestForRightOfWay;
+static int hf_itsv1_EmergencyPriority_requestForFreeCrossingAtATrafficLight;
 
 /* --- Module EfcDsrcApplication --- --- ---                                  */
 
-static int hf_dsrc_app_maxLadenweightOnAxle1 = -1;  /* Int2 */
-static int hf_dsrc_app_maxLadenweightOnAxle2 = -1;  /* Int2 */
-static int hf_dsrc_app_maxLadenweightOnAxle3 = -1;  /* Int2 */
-static int hf_dsrc_app_maxLadenweightOnAxle4 = -1;  /* Int2 */
-static int hf_dsrc_app_maxLadenweightOnAxle5 = -1;  /* Int2 */
-static int hf_dsrc_app_particulate = -1;          /* T_particulate */
-static int hf_dsrc_app_unitType = -1;             /* UnitType */
-static int hf_dsrc_app_value = -1;                /* INTEGER_0_32767 */
-static int hf_dsrc_app_absorptionCoeff = -1;      /* Int2 */
-static int hf_dsrc_app_euroValue = -1;            /* EuroValue */
-static int hf_dsrc_app_copValue = -1;             /* CopValue */
-static int hf_dsrc_app_emissionCO = -1;           /* INTEGER_0_32767 */
-static int hf_dsrc_app_emissionHC = -1;           /* Int2 */
-static int hf_dsrc_app_emissionNOX = -1;          /* Int2 */
-static int hf_dsrc_app_emissionHCNOX = -1;        /* Int2 */
-static int hf_dsrc_app_numberOfSeats = -1;        /* Int1 */
-static int hf_dsrc_app_numberOfStandingPlaces = -1;  /* Int1 */
-static int hf_dsrc_app_countryCode = -1;          /* CountryCode */
-static int hf_dsrc_app_providerIdentifier = -1;   /* AVIAEIIssuerIdentifier */
-static int hf_dsrc_app_soundstationary = -1;      /* Int1 */
-static int hf_dsrc_app_sounddriveby = -1;         /* Int1 */
-static int hf_dsrc_app_vehicleLengthOverall = -1;  /* Int1 */
-static int hf_dsrc_app_vehicleHeigthOverall = -1;  /* Int1 */
-static int hf_dsrc_app_vehicleWidthOverall = -1;  /* Int1 */
-static int hf_dsrc_app_vehicleMaxLadenWeight = -1;  /* Int2 */
-static int hf_dsrc_app_vehicleTrainMaximumWeight = -1;  /* Int2 */
-static int hf_dsrc_app_vehicleWeightUnladen = -1;  /* Int2 */
+static int hf_dsrc_app_maxLadenweightOnAxle1;     /* Int2 */
+static int hf_dsrc_app_maxLadenweightOnAxle2;     /* Int2 */
+static int hf_dsrc_app_maxLadenweightOnAxle3;     /* Int2 */
+static int hf_dsrc_app_maxLadenweightOnAxle4;     /* Int2 */
+static int hf_dsrc_app_maxLadenweightOnAxle5;     /* Int2 */
+static int hf_dsrc_app_particulate;               /* T_particulate */
+static int hf_dsrc_app_unitType;                  /* UnitType */
+static int hf_dsrc_app_value;                     /* INTEGER_0_32767 */
+static int hf_dsrc_app_absorptionCoeff;           /* Int2 */
+static int hf_dsrc_app_euroValue;                 /* EuroValue */
+static int hf_dsrc_app_copValue;                  /* CopValue */
+static int hf_dsrc_app_emissionCO;                /* INTEGER_0_32767 */
+static int hf_dsrc_app_emissionHC;                /* Int2 */
+static int hf_dsrc_app_emissionNOX;               /* Int2 */
+static int hf_dsrc_app_emissionHCNOX;             /* Int2 */
+static int hf_dsrc_app_numberOfSeats;             /* Int1 */
+static int hf_dsrc_app_numberOfStandingPlaces;    /* Int1 */
+static int hf_dsrc_app_countryCode;               /* CountryCode */
+static int hf_dsrc_app_providerIdentifier;        /* AVIAEIIssuerIdentifier */
+static int hf_dsrc_app_soundstationary;           /* Int1 */
+static int hf_dsrc_app_sounddriveby;              /* Int1 */
+static int hf_dsrc_app_vehicleLengthOverall;      /* Int1 */
+static int hf_dsrc_app_vehicleHeigthOverall;      /* Int1 */
+static int hf_dsrc_app_vehicleWidthOverall;       /* Int1 */
+static int hf_dsrc_app_vehicleMaxLadenWeight;     /* Int2 */
+static int hf_dsrc_app_vehicleTrainMaximumWeight;  /* Int2 */
+static int hf_dsrc_app_vehicleWeightUnladen;      /* Int2 */
 
 /* --- Module DSRC --- --- ---                                                */
 
-static int hf_dsrc_dsrc_MapData_PDU = -1;         /* MapData */
-static int hf_dsrc_dsrc_RTCMcorrections_PDU = -1;  /* RTCMcorrections */
-static int hf_dsrc_dsrc_SPAT_PDU = -1;            /* SPAT */
-static int hf_dsrc_dsrc_SignalRequestMessage_PDU = -1;  /* SignalRequestMessage */
-static int hf_dsrc_dsrc_SignalStatusMessage_PDU = -1;  /* SignalStatusMessage */
-static int hf_dsrc_regionId = -1;                 /* RegionId */
-static int hf_dsrc_regExtValue = -1;              /* T_regExtValue */
-static int hf_dsrc_mdTimeStamp = -1;              /* MinuteOfTheYear */
-static int hf_dsrc_msgIssueRevision = -1;         /* MsgCount */
-static int hf_dsrc_layerType = -1;                /* LayerType */
-static int hf_dsrc_layerID = -1;                  /* LayerID */
-static int hf_dsrc_mdIntersections = -1;          /* IntersectionGeometryList */
-static int hf_dsrc_roadSegments = -1;             /* RoadSegmentList */
-static int hf_dsrc_dataParameters = -1;           /* DataParameters */
-static int hf_dsrc_restrictionList = -1;          /* RestrictionClassList */
-static int hf_dsrc_mapRegional = -1;              /* T_MAPRegional */
-static int hf_dsrc_mapRegional_item = -1;         /* RegionalExtension */
-static int hf_dsrc_msgCnt = -1;                   /* MsgCount */
-static int hf_dsrc_rev = -1;                      /* RTCM_Revision */
-static int hf_dsrc_timeStamp = -1;                /* MinuteOfTheYear */
-static int hf_dsrc_anchorPoint = -1;              /* FullPositionVector */
-static int hf_dsrc_rtcmHeader = -1;               /* RTCMheader */
-static int hf_dsrc_msgs = -1;                     /* RTCMmessageList */
-static int hf_dsrc_regional = -1;                 /* SEQUENCE_SIZE_1_4_OF_RegionalExtension */
-static int hf_dsrc_regional_item = -1;            /* RegionalExtension */
-static int hf_dsrc_spatTimeStamp = -1;            /* MinuteOfTheYear */
-static int hf_dsrc_name = -1;                     /* DescriptiveName */
-static int hf_dsrc_spatIntersections = -1;        /* IntersectionStateList */
-static int hf_dsrc_spatRegional = -1;             /* T_SPATRegional */
-static int hf_dsrc_spatRegional_item = -1;        /* RegionalExtension */
-static int hf_dsrc_srmTimeStamp = -1;             /* MinuteOfTheYear */
-static int hf_dsrc_second = -1;                   /* DSecond */
-static int hf_dsrc_sequenceNumber = -1;           /* MsgCount */
-static int hf_dsrc_requests = -1;                 /* SignalRequestList */
-static int hf_dsrc_requestor = -1;                /* RequestorDescription */
-static int hf_dsrc_srmRegional = -1;              /* T_SRMRegional */
-static int hf_dsrc_srmRegional_item = -1;         /* RegionalExtension */
-static int hf_dsrc_ssmTimeStamp = -1;             /* MinuteOfTheYear */
-static int hf_dsrc_ssmStatus = -1;                /* SignalStatusList */
-static int hf_dsrc_ssmRegional = -1;              /* T_SSMRegional */
-static int hf_dsrc_ssmRegional_item = -1;         /* RegionalExtension */
-static int hf_dsrc_asType = -1;                   /* AdvisorySpeedType */
-static int hf_dsrc_asSpeed = -1;                  /* SpeedAdvice */
-static int hf_dsrc_asConfidence = -1;             /* SpeedConfidenceDSRC */
-static int hf_dsrc_distance = -1;                 /* ZoneLength */
-static int hf_dsrc_class = -1;                    /* RestrictionClassID */
-static int hf_dsrc_asRegional = -1;               /* T_AdvisorySpeedRegional */
-static int hf_dsrc_asRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_AdvisorySpeedList_item = -1;   /* AdvisorySpeed */
-static int hf_dsrc_antOffsetX = -1;               /* Offset_B12 */
-static int hf_dsrc_antOffsetY = -1;               /* Offset_B09 */
-static int hf_dsrc_antOffsetZ = -1;               /* Offset_B10 */
-static int hf_dsrc_referenceLaneId = -1;          /* LaneID */
-static int hf_dsrc_offsetXaxis = -1;              /* T_offsetXaxis */
-static int hf_dsrc_small = -1;                    /* DrivenLineOffsetSm */
-static int hf_dsrc_large = -1;                    /* DrivenLineOffsetLg */
-static int hf_dsrc_offsetYaxis = -1;              /* T_offsetYaxis */
-static int hf_dsrc_rotateXY = -1;                 /* Angle */
-static int hf_dsrc_scaleXaxis = -1;               /* Scale_B12 */
-static int hf_dsrc_scaleYaxis = -1;               /* Scale_B12 */
-static int hf_dsrc_clRegional = -1;               /* T_ComputedLaneRegional */
-static int hf_dsrc_clRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_ConnectsToList_item = -1;      /* Connection */
-static int hf_dsrc_lane = -1;                     /* LaneID */
-static int hf_dsrc_maneuver = -1;                 /* AllowedManeuvers */
-static int hf_dsrc_connectingLane = -1;           /* ConnectingLane */
-static int hf_dsrc_remoteIntersection = -1;       /* IntersectionReferenceID */
-static int hf_dsrc_signalGroup = -1;              /* SignalGroupID */
-static int hf_dsrc_userClass = -1;                /* RestrictionClassID */
-static int hf_dsrc_connectionID = -1;             /* LaneConnectionID */
-static int hf_dsrc_queueLength = -1;              /* ZoneLength */
-static int hf_dsrc_availableStorageLength = -1;   /* ZoneLength */
-static int hf_dsrc_waitOnStop = -1;               /* WaitOnStopline */
-static int hf_dsrc_pedBicycleDetect = -1;         /* PedestrianBicycleDetect */
-static int hf_dsrc_cmaRegional = -1;              /* T_ConnectionManeuverAssistRegional */
-static int hf_dsrc_cmaRegional_item = -1;         /* RegionalExtension */
-static int hf_dsrc_processMethod = -1;            /* IA5String_SIZE_1_255 */
-static int hf_dsrc_processAgency = -1;            /* IA5String_SIZE_1_255 */
-static int hf_dsrc_lastCheckedDate = -1;          /* IA5String_SIZE_1_255 */
-static int hf_dsrc_geoidUsed = -1;                /* IA5String_SIZE_1_255 */
-static int hf_dsrc_year = -1;                     /* DYear */
-static int hf_dsrc_month = -1;                    /* DMonth */
-static int hf_dsrc_day = -1;                      /* DDay */
-static int hf_dsrc_hour = -1;                     /* DHour */
-static int hf_dsrc_minute = -1;                   /* DMinute */
-static int hf_dsrc_offset = -1;                   /* DOffset */
-static int hf_dsrc_EnabledLaneList_item = -1;     /* LaneID */
-static int hf_dsrc_utcTime = -1;                  /* DDateTime */
-static int hf_dsrc_long = -1;                     /* Longitude */
-static int hf_dsrc_lat = -1;                      /* Latitude */
-static int hf_dsrc_fpvElevation = -1;             /* Elevation */
-static int hf_dsrc_fpvHeading = -1;               /* HeadingDSRC */
-static int hf_dsrc_fpvSpeed = -1;                 /* TransmissionAndSpeed */
-static int hf_dsrc_posAccuracy = -1;              /* PositionalAccuracy */
-static int hf_dsrc_timeConfidence = -1;           /* TimeConfidence */
-static int hf_dsrc_posConfidence = -1;            /* PositionConfidenceSet */
-static int hf_dsrc_speedConfidence = -1;          /* SpeedandHeadingandThrottleConfidence */
-static int hf_dsrc_laneID = -1;                   /* LaneID */
-static int hf_dsrc_ingressApproach = -1;          /* ApproachID */
-static int hf_dsrc_egressApproach = -1;           /* ApproachID */
-static int hf_dsrc_laneAttributes = -1;           /* LaneAttributes */
-static int hf_dsrc_maneuvers = -1;                /* AllowedManeuvers */
-static int hf_dsrc_nodeList = -1;                 /* NodeListXY */
-static int hf_dsrc_connectsTo = -1;               /* ConnectsToList */
-static int hf_dsrc_overlays = -1;                 /* OverlayLaneList */
-static int hf_dsrc_glRegional = -1;               /* T_GenericLaneRegional */
-static int hf_dsrc_glRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_approach = -1;                 /* ApproachID */
-static int hf_dsrc_connection = -1;               /* LaneConnectionID */
-static int hf_dsrc_igId = -1;                     /* IntersectionReferenceID */
-static int hf_dsrc_revision = -1;                 /* MsgCount */
-static int hf_dsrc_refPoint = -1;                 /* Position3D */
-static int hf_dsrc_laneWidth = -1;                /* LaneWidth */
-static int hf_dsrc_speedLimits = -1;              /* SpeedLimitList */
-static int hf_dsrc_laneSet = -1;                  /* LaneList */
-static int hf_dsrc_preemptPriorityData = -1;      /* PreemptPriorityList */
-static int hf_dsrc_igRegional = -1;               /* T_IntersectionGeometryRegional */
-static int hf_dsrc_igRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_IntersectionGeometryList_item = -1;  /* IntersectionGeometry */
-static int hf_dsrc_region = -1;                   /* RoadRegulatorID */
-static int hf_dsrc_irId = -1;                     /* IntersectionID */
-static int hf_dsrc_isId = -1;                     /* IntersectionReferenceID */
-static int hf_dsrc_isStatus = -1;                 /* IntersectionStatusObject */
-static int hf_dsrc_moy = -1;                      /* MinuteOfTheYear */
-static int hf_dsrc_isTimeStamp = -1;              /* DSecond */
-static int hf_dsrc_enabledLanes = -1;             /* EnabledLaneList */
-static int hf_dsrc_states = -1;                   /* MovementList */
-static int hf_dsrc_maneuverAssistList = -1;       /* ManeuverAssistList */
-static int hf_dsrc_isRegional = -1;               /* T_IntersectionStateRegional */
-static int hf_dsrc_isRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_IntersectionStateList_item = -1;  /* IntersectionState */
-static int hf_dsrc_directionalUse = -1;           /* LaneDirection */
-static int hf_dsrc_sharedWith = -1;               /* LaneSharing */
-static int hf_dsrc_laneType = -1;                 /* LaneTypeAttributes */
-static int hf_dsrc_laRegional = -1;               /* RegionalExtension */
-static int hf_dsrc_pathEndPointAngle = -1;        /* DeltaAngle */
-static int hf_dsrc_laneCrownPointCenter = -1;     /* RoadwayCrownAngle */
-static int hf_dsrc_laneCrownPointLeft = -1;       /* RoadwayCrownAngle */
-static int hf_dsrc_laneCrownPointRight = -1;      /* RoadwayCrownAngle */
-static int hf_dsrc_laneAngle = -1;                /* MergeDivergeNodeAngle */
-static int hf_dsrc_ldaRegional = -1;              /* T_LaneDataAttributeRegional */
-static int hf_dsrc_ldaRegional_item = -1;         /* RegionalExtension */
-static int hf_dsrc_LaneDataAttributeList_item = -1;  /* LaneDataAttribute */
-static int hf_dsrc_LaneList_item = -1;            /* GenericLane */
-static int hf_dsrc_vehicle = -1;                  /* LaneAttributes_Vehicle */
-static int hf_dsrc_crosswalk = -1;                /* LaneAttributes_Crosswalk */
-static int hf_dsrc_bikeLane = -1;                 /* LaneAttributes_Bike */
-static int hf_dsrc_sidewalk = -1;                 /* LaneAttributes_Sidewalk */
-static int hf_dsrc_median = -1;                   /* LaneAttributes_Barrier */
-static int hf_dsrc_striping = -1;                 /* LaneAttributes_Striping */
-static int hf_dsrc_trackedVehicle = -1;           /* LaneAttributes_TrackedVehicle */
-static int hf_dsrc_parking = -1;                  /* LaneAttributes_Parking */
-static int hf_dsrc_ManeuverAssistList_item = -1;  /* ConnectionManeuverAssist */
-static int hf_dsrc_eventState = -1;               /* MovementPhaseState */
-static int hf_dsrc_timing = -1;                   /* TimeChangeDetails */
-static int hf_dsrc_speeds = -1;                   /* AdvisorySpeedList */
-static int hf_dsrc_meRegional = -1;               /* T_MovementEventRegional */
-static int hf_dsrc_meRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_MovementEventList_item = -1;   /* MovementEvent */
-static int hf_dsrc_MovementList_item = -1;        /* MovementState */
-static int hf_dsrc_movementName = -1;             /* DescriptiveName */
-static int hf_dsrc_state_time_speed = -1;         /* MovementEventList */
-static int hf_dsrc_msRegional = -1;               /* T_MovementStateRegional */
-static int hf_dsrc_msRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_localNode = -1;                /* NodeAttributeXYList */
-static int hf_dsrc_disabled = -1;                 /* SegmentAttributeXYList */
-static int hf_dsrc_enabled = -1;                  /* SegmentAttributeXYList */
-static int hf_dsrc_data = -1;                     /* LaneDataAttributeList */
-static int hf_dsrc_dWidth = -1;                   /* Offset_B10 */
-static int hf_dsrc_dElevation = -1;               /* Offset_B10 */
-static int hf_dsrc_nasxyRegional = -1;            /* T_NodeAttributeSetXYRegional */
-static int hf_dsrc_nasxyRegional_item = -1;       /* RegionalExtension */
-static int hf_dsrc_NodeAttributeXYList_item = -1;  /* NodeAttributeXY */
-static int hf_dsrc_lon = -1;                      /* Longitude */
-static int hf_dsrc_n20bX = -1;                    /* Offset_B10 */
-static int hf_dsrc_n20bY = -1;                    /* Offset_B10 */
-static int hf_dsrc_n22bX = -1;                    /* Offset_B11 */
-static int hf_dsrc_n22bY = -1;                    /* Offset_B11 */
-static int hf_dsrc_n24bX = -1;                    /* Offset_B12 */
-static int hf_dsrc_n24bY = -1;                    /* Offset_B12 */
-static int hf_dsrc_n26bX = -1;                    /* Offset_B13 */
-static int hf_dsrc_n26bY = -1;                    /* Offset_B13 */
-static int hf_dsrc_n28bX = -1;                    /* Offset_B14 */
-static int hf_dsrc_n28bY = -1;                    /* Offset_B14 */
-static int hf_dsrc_n32bX = -1;                    /* Offset_B16 */
-static int hf_dsrc_n32bY = -1;                    /* Offset_B16 */
-static int hf_dsrc_nodes = -1;                    /* NodeSetXY */
-static int hf_dsrc_computed = -1;                 /* ComputedLane */
-static int hf_dsrc_node_XY1 = -1;                 /* Node_XY_20b */
-static int hf_dsrc_node_XY2 = -1;                 /* Node_XY_22b */
-static int hf_dsrc_node_XY3 = -1;                 /* Node_XY_24b */
-static int hf_dsrc_node_XY4 = -1;                 /* Node_XY_26b */
-static int hf_dsrc_node_XY5 = -1;                 /* Node_XY_28b */
-static int hf_dsrc_node_XY6 = -1;                 /* Node_XY_32b */
-static int hf_dsrc_node_LatLon = -1;              /* Node_LLmD_64b */
-static int hf_dsrc_nopxyRegional = -1;            /* RegionalExtension */
-static int hf_dsrc_delta = -1;                    /* NodeOffsetPointXY */
-static int hf_dsrc_attributes = -1;               /* NodeAttributeSetXY */
-static int hf_dsrc_NodeSetXY_item = -1;           /* NodeXY */
-static int hf_dsrc_OverlayLaneList_item = -1;     /* LaneID */
-static int hf_dsrc_semiMajor = -1;                /* SemiMajorAxisAccuracy */
-static int hf_dsrc_semiMinor = -1;                /* SemiMinorAxisAccuracy */
-static int hf_dsrc_orientation = -1;              /* SemiMajorAxisOrientation */
-static int hf_dsrc_pos = -1;                      /* PositionConfidence */
-static int hf_dsrc_pcsElevation = -1;             /* ElevationConfidence */
-static int hf_dsrc_p3dElevation = -1;             /* Elevation */
-static int hf_dsrc_p3dRegional = -1;              /* T_Position3DRegional */
-static int hf_dsrc_p3dRegional_item = -1;         /* RegionalExtension */
-static int hf_dsrc_PreemptPriorityList_item = -1;  /* SignalControlZone */
-static int hf_dsrc_rslType = -1;                  /* SpeedLimitType */
-static int hf_dsrc_rslSpeed = -1;                 /* Velocity */
-static int hf_dsrc_rdId = -1;                     /* VehicleID */
-static int hf_dsrc_rdType = -1;                   /* RequestorType */
-static int hf_dsrc_rdPosition = -1;               /* RequestorPositionVector */
-static int hf_dsrc_routeName = -1;                /* DescriptiveName */
-static int hf_dsrc_transitStatus = -1;            /* TransitVehicleStatus */
-static int hf_dsrc_transitOccupancy = -1;         /* TransitVehicleOccupancy */
-static int hf_dsrc_transitSchedule = -1;          /* DeltaTime */
-static int hf_dsrc_rdRegional = -1;               /* T_RequestorDescriptionRegional */
-static int hf_dsrc_rdRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_rpvPosition = -1;              /* Position3D */
-static int hf_dsrc_rpvHeading = -1;               /* Angle */
-static int hf_dsrc_rpvSpeed = -1;                 /* TransmissionAndSpeed */
-static int hf_dsrc_role = -1;                     /* BasicVehicleRole */
-static int hf_dsrc_subrole = -1;                  /* RequestSubRole */
-static int hf_dsrc_rtRequest = -1;                /* RequestImportanceLevel */
-static int hf_dsrc_iso3883 = -1;                  /* Iso3833VehicleType */
-static int hf_dsrc_hpmsType = -1;                 /* VehicleType */
-static int hf_dsrc_rtRegional = -1;               /* RegionalExtension */
-static int hf_dsrc_scaId = -1;                    /* RestrictionClassID */
-static int hf_dsrc_users = -1;                    /* RestrictionUserTypeList */
-static int hf_dsrc_RestrictionClassList_item = -1;  /* RestrictionClassAssignment */
-static int hf_dsrc_basicType = -1;                /* RestrictionAppliesTo */
-static int hf_dsrc_rutRegional = -1;              /* T_RestrictionUserTypeRegional */
-static int hf_dsrc_rutRegional_item = -1;         /* RegionalExtension */
-static int hf_dsrc_RestrictionUserTypeList_item = -1;  /* RestrictionUserType */
-static int hf_dsrc_RoadLaneSetList_item = -1;     /* GenericLane */
-static int hf_dsrc_rsrId = -1;                    /* RoadSegmentID */
-static int hf_dsrc_rsId = -1;                     /* RoadSegmentReferenceID */
-static int hf_dsrc_roadLaneSet = -1;              /* RoadLaneSetList */
-static int hf_dsrc_rsRegional = -1;               /* T_RoadSegmentRegional */
-static int hf_dsrc_rsRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_RoadSegmentList_item = -1;     /* RoadSegment */
-static int hf_dsrc_status = -1;                   /* GNSSstatus */
-static int hf_dsrc_offsetSet = -1;                /* AntennaOffsetSet */
-static int hf_dsrc_RTCMmessageList_item = -1;     /* RTCMmessage */
-static int hf_dsrc_SegmentAttributeXYList_item = -1;  /* SegmentAttributeXY */
-static int hf_dsrc_zone = -1;                     /* RegionalExtension */
-static int hf_dsrc_sriId = -1;                    /* VehicleID */
-static int hf_dsrc_sriRequest = -1;               /* RequestID */
-static int hf_dsrc_typeData = -1;                 /* RequestorType */
-static int hf_dsrc_srId = -1;                     /* IntersectionReferenceID */
-static int hf_dsrc_requestID = -1;                /* RequestID */
-static int hf_dsrc_requestType = -1;              /* PriorityRequestType */
-static int hf_dsrc_inBoundLane = -1;              /* IntersectionAccessPoint */
-static int hf_dsrc_outBoundLane = -1;             /* IntersectionAccessPoint */
-static int hf_dsrc_srRegional = -1;               /* T_SignalRequestRegional */
-static int hf_dsrc_srRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_SignalRequestList_item = -1;   /* SignalRequestPackage */
-static int hf_dsrc_srpRequest = -1;               /* SignalRequest */
-static int hf_dsrc_srpMinute = -1;                /* MinuteOfTheYear */
-static int hf_dsrc_duration = -1;                 /* DSecond */
-static int hf_dsrc_srpRegional = -1;              /* T_SignalRequestPackageRegional */
-static int hf_dsrc_srpRegional_item = -1;         /* RegionalExtension */
-static int hf_dsrc_ssId = -1;                     /* IntersectionReferenceID */
-static int hf_dsrc_sigStatus = -1;                /* SignalStatusPackageList */
-static int hf_dsrc_ssRegional = -1;               /* T_SignalStatusRegional */
-static int hf_dsrc_ssRegional_item = -1;          /* RegionalExtension */
-static int hf_dsrc_SignalStatusList_item = -1;    /* SignalStatus */
-static int hf_dsrc_SignalStatusPackageList_item = -1;  /* SignalStatusPackage */
-static int hf_dsrc_requester = -1;                /* SignalRequesterInfo */
-static int hf_dsrc_inboundOn = -1;                /* IntersectionAccessPoint */
-static int hf_dsrc_outboundOn = -1;               /* IntersectionAccessPoint */
-static int hf_dsrc_sspMinute = -1;                /* MinuteOfTheYear */
-static int hf_dsrc_sspStatus = -1;                /* PrioritizationResponseStatus */
-static int hf_dsrc_sspRegional = -1;              /* T_SignalStatusPackageRegional */
-static int hf_dsrc_sspRegional_item = -1;         /* RegionalExtension */
-static int hf_dsrc_shtcheading = -1;              /* HeadingConfidenceDSRC */
-static int hf_dsrc_shtcSpeed = -1;                /* SpeedConfidenceDSRC */
-static int hf_dsrc_throttle = -1;                 /* ThrottleConfidence */
-static int hf_dsrc_SpeedLimitList_item = -1;      /* RegulatorySpeedLimit */
-static int hf_dsrc_startTime = -1;                /* TimeMark */
-static int hf_dsrc_minEndTime = -1;               /* TimeMark */
-static int hf_dsrc_maxEndTime = -1;               /* TimeMark */
-static int hf_dsrc_likelyTime = -1;               /* TimeMark */
-static int hf_dsrc_tcdConfidence = -1;            /* TimeIntervalConfidence */
-static int hf_dsrc_nextTime = -1;                 /* TimeMark */
-static int hf_dsrc_transmisson = -1;              /* TransmissionState */
-static int hf_dsrc_tasSpeed = -1;                 /* Velocity */
-static int hf_dsrc_entityID = -1;                 /* TemporaryID */
-static int hf_dsrc_stationID = -1;                /* StationID */
+static int hf_dsrc_dsrc_MapData_PDU;              /* MapData */
+static int hf_dsrc_dsrc_RTCMcorrections_PDU;      /* RTCMcorrections */
+static int hf_dsrc_dsrc_SPAT_PDU;                 /* SPAT */
+static int hf_dsrc_dsrc_SignalRequestMessage_PDU;  /* SignalRequestMessage */
+static int hf_dsrc_dsrc_SignalStatusMessage_PDU;  /* SignalStatusMessage */
+static int hf_dsrc_regionId;                      /* RegionId */
+static int hf_dsrc_regExtValue;                   /* T_regExtValue */
+static int hf_dsrc_mdTimeStamp;                   /* MinuteOfTheYear */
+static int hf_dsrc_msgIssueRevision;              /* MsgCount */
+static int hf_dsrc_layerType;                     /* LayerType */
+static int hf_dsrc_layerID;                       /* LayerID */
+static int hf_dsrc_mdIntersections;               /* IntersectionGeometryList */
+static int hf_dsrc_roadSegments;                  /* RoadSegmentList */
+static int hf_dsrc_dataParameters;                /* DataParameters */
+static int hf_dsrc_restrictionList;               /* RestrictionClassList */
+static int hf_dsrc_mapRegional;                   /* T_MAPRegional */
+static int hf_dsrc_mapRegional_item;              /* RegionalExtension */
+static int hf_dsrc_msgCnt;                        /* MsgCount */
+static int hf_dsrc_rev;                           /* RTCM_Revision */
+static int hf_dsrc_timeStamp;                     /* MinuteOfTheYear */
+static int hf_dsrc_anchorPoint;                   /* FullPositionVector */
+static int hf_dsrc_rtcmHeader;                    /* RTCMheader */
+static int hf_dsrc_msgs;                          /* RTCMmessageList */
+static int hf_dsrc_regional;                      /* SEQUENCE_SIZE_1_4_OF_RegionalExtension */
+static int hf_dsrc_regional_item;                 /* RegionalExtension */
+static int hf_dsrc_spatTimeStamp;                 /* MinuteOfTheYear */
+static int hf_dsrc_name;                          /* DescriptiveName */
+static int hf_dsrc_spatIntersections;             /* IntersectionStateList */
+static int hf_dsrc_spatRegional;                  /* T_SPATRegional */
+static int hf_dsrc_spatRegional_item;             /* RegionalExtension */
+static int hf_dsrc_srmTimeStamp;                  /* MinuteOfTheYear */
+static int hf_dsrc_second;                        /* DSecond */
+static int hf_dsrc_sequenceNumber;                /* MsgCount */
+static int hf_dsrc_requests;                      /* SignalRequestList */
+static int hf_dsrc_requestor;                     /* RequestorDescription */
+static int hf_dsrc_srmRegional;                   /* T_SRMRegional */
+static int hf_dsrc_srmRegional_item;              /* RegionalExtension */
+static int hf_dsrc_ssmTimeStamp;                  /* MinuteOfTheYear */
+static int hf_dsrc_ssmStatus;                     /* SignalStatusList */
+static int hf_dsrc_ssmRegional;                   /* T_SSMRegional */
+static int hf_dsrc_ssmRegional_item;              /* RegionalExtension */
+static int hf_dsrc_asType;                        /* AdvisorySpeedType */
+static int hf_dsrc_asSpeed;                       /* SpeedAdvice */
+static int hf_dsrc_asConfidence;                  /* SpeedConfidenceDSRC */
+static int hf_dsrc_distance;                      /* ZoneLength */
+static int hf_dsrc_class;                         /* RestrictionClassID */
+static int hf_dsrc_asRegional;                    /* T_AdvisorySpeedRegional */
+static int hf_dsrc_asRegional_item;               /* RegionalExtension */
+static int hf_dsrc_AdvisorySpeedList_item;        /* AdvisorySpeed */
+static int hf_dsrc_antOffsetX;                    /* Offset_B12 */
+static int hf_dsrc_antOffsetY;                    /* Offset_B09 */
+static int hf_dsrc_antOffsetZ;                    /* Offset_B10 */
+static int hf_dsrc_referenceLaneId;               /* LaneID */
+static int hf_dsrc_offsetXaxis;                   /* T_offsetXaxis */
+static int hf_dsrc_small;                         /* DrivenLineOffsetSm */
+static int hf_dsrc_large;                         /* DrivenLineOffsetLg */
+static int hf_dsrc_offsetYaxis;                   /* T_offsetYaxis */
+static int hf_dsrc_rotateXY;                      /* Angle */
+static int hf_dsrc_scaleXaxis;                    /* Scale_B12 */
+static int hf_dsrc_scaleYaxis;                    /* Scale_B12 */
+static int hf_dsrc_clRegional;                    /* T_ComputedLaneRegional */
+static int hf_dsrc_clRegional_item;               /* RegionalExtension */
+static int hf_dsrc_ConnectsToList_item;           /* Connection */
+static int hf_dsrc_lane;                          /* LaneID */
+static int hf_dsrc_maneuver;                      /* AllowedManeuvers */
+static int hf_dsrc_connectingLane;                /* ConnectingLane */
+static int hf_dsrc_remoteIntersection;            /* IntersectionReferenceID */
+static int hf_dsrc_signalGroup;                   /* SignalGroupID */
+static int hf_dsrc_userClass;                     /* RestrictionClassID */
+static int hf_dsrc_connectionID;                  /* LaneConnectionID */
+static int hf_dsrc_queueLength;                   /* ZoneLength */
+static int hf_dsrc_availableStorageLength;        /* ZoneLength */
+static int hf_dsrc_waitOnStop;                    /* WaitOnStopline */
+static int hf_dsrc_pedBicycleDetect;              /* PedestrianBicycleDetect */
+static int hf_dsrc_cmaRegional;                   /* T_ConnectionManeuverAssistRegional */
+static int hf_dsrc_cmaRegional_item;              /* RegionalExtension */
+static int hf_dsrc_processMethod;                 /* IA5String_SIZE_1_255 */
+static int hf_dsrc_processAgency;                 /* IA5String_SIZE_1_255 */
+static int hf_dsrc_lastCheckedDate;               /* IA5String_SIZE_1_255 */
+static int hf_dsrc_geoidUsed;                     /* IA5String_SIZE_1_255 */
+static int hf_dsrc_year;                          /* DYear */
+static int hf_dsrc_month;                         /* DMonth */
+static int hf_dsrc_day;                           /* DDay */
+static int hf_dsrc_hour;                          /* DHour */
+static int hf_dsrc_minute;                        /* DMinute */
+static int hf_dsrc_offset;                        /* DOffset */
+static int hf_dsrc_EnabledLaneList_item;          /* LaneID */
+static int hf_dsrc_utcTime;                       /* DDateTime */
+static int hf_dsrc_long;                          /* Longitude */
+static int hf_dsrc_lat;                           /* Latitude */
+static int hf_dsrc_fpvElevation;                  /* Elevation */
+static int hf_dsrc_fpvHeading;                    /* HeadingDSRC */
+static int hf_dsrc_fpvSpeed;                      /* TransmissionAndSpeed */
+static int hf_dsrc_posAccuracy;                   /* PositionalAccuracy */
+static int hf_dsrc_timeConfidence;                /* TimeConfidence */
+static int hf_dsrc_posConfidence;                 /* PositionConfidenceSet */
+static int hf_dsrc_speedConfidence;               /* SpeedandHeadingandThrottleConfidence */
+static int hf_dsrc_laneID;                        /* LaneID */
+static int hf_dsrc_ingressApproach;               /* ApproachID */
+static int hf_dsrc_egressApproach;                /* ApproachID */
+static int hf_dsrc_laneAttributes;                /* LaneAttributes */
+static int hf_dsrc_maneuvers;                     /* AllowedManeuvers */
+static int hf_dsrc_nodeList;                      /* NodeListXY */
+static int hf_dsrc_connectsTo;                    /* ConnectsToList */
+static int hf_dsrc_overlays;                      /* OverlayLaneList */
+static int hf_dsrc_glRegional;                    /* T_GenericLaneRegional */
+static int hf_dsrc_glRegional_item;               /* RegionalExtension */
+static int hf_dsrc_approach;                      /* ApproachID */
+static int hf_dsrc_connection;                    /* LaneConnectionID */
+static int hf_dsrc_igId;                          /* IntersectionReferenceID */
+static int hf_dsrc_revision;                      /* MsgCount */
+static int hf_dsrc_refPoint;                      /* Position3D */
+static int hf_dsrc_laneWidth;                     /* LaneWidth */
+static int hf_dsrc_speedLimits;                   /* SpeedLimitList */
+static int hf_dsrc_laneSet;                       /* LaneList */
+static int hf_dsrc_preemptPriorityData;           /* PreemptPriorityList */
+static int hf_dsrc_igRegional;                    /* T_IntersectionGeometryRegional */
+static int hf_dsrc_igRegional_item;               /* RegionalExtension */
+static int hf_dsrc_IntersectionGeometryList_item;  /* IntersectionGeometry */
+static int hf_dsrc_region;                        /* RoadRegulatorID */
+static int hf_dsrc_irId;                          /* IntersectionID */
+static int hf_dsrc_isId;                          /* IntersectionReferenceID */
+static int hf_dsrc_isStatus;                      /* IntersectionStatusObject */
+static int hf_dsrc_moy;                           /* MinuteOfTheYear */
+static int hf_dsrc_isTimeStamp;                   /* DSecond */
+static int hf_dsrc_enabledLanes;                  /* EnabledLaneList */
+static int hf_dsrc_states;                        /* MovementList */
+static int hf_dsrc_maneuverAssistList;            /* ManeuverAssistList */
+static int hf_dsrc_isRegional;                    /* T_IntersectionStateRegional */
+static int hf_dsrc_isRegional_item;               /* RegionalExtension */
+static int hf_dsrc_IntersectionStateList_item;    /* IntersectionState */
+static int hf_dsrc_directionalUse;                /* LaneDirection */
+static int hf_dsrc_sharedWith;                    /* LaneSharing */
+static int hf_dsrc_laneType;                      /* LaneTypeAttributes */
+static int hf_dsrc_laRegional;                    /* RegionalExtension */
+static int hf_dsrc_pathEndPointAngle;             /* DeltaAngle */
+static int hf_dsrc_laneCrownPointCenter;          /* RoadwayCrownAngle */
+static int hf_dsrc_laneCrownPointLeft;            /* RoadwayCrownAngle */
+static int hf_dsrc_laneCrownPointRight;           /* RoadwayCrownAngle */
+static int hf_dsrc_laneAngle;                     /* MergeDivergeNodeAngle */
+static int hf_dsrc_ldaRegional;                   /* T_LaneDataAttributeRegional */
+static int hf_dsrc_ldaRegional_item;              /* RegionalExtension */
+static int hf_dsrc_LaneDataAttributeList_item;    /* LaneDataAttribute */
+static int hf_dsrc_LaneList_item;                 /* GenericLane */
+static int hf_dsrc_vehicle;                       /* LaneAttributes_Vehicle */
+static int hf_dsrc_crosswalk;                     /* LaneAttributes_Crosswalk */
+static int hf_dsrc_bikeLane;                      /* LaneAttributes_Bike */
+static int hf_dsrc_sidewalk;                      /* LaneAttributes_Sidewalk */
+static int hf_dsrc_median;                        /* LaneAttributes_Barrier */
+static int hf_dsrc_striping;                      /* LaneAttributes_Striping */
+static int hf_dsrc_trackedVehicle;                /* LaneAttributes_TrackedVehicle */
+static int hf_dsrc_parking;                       /* LaneAttributes_Parking */
+static int hf_dsrc_ManeuverAssistList_item;       /* ConnectionManeuverAssist */
+static int hf_dsrc_eventState;                    /* MovementPhaseState */
+static int hf_dsrc_timing;                        /* TimeChangeDetails */
+static int hf_dsrc_speeds;                        /* AdvisorySpeedList */
+static int hf_dsrc_meRegional;                    /* T_MovementEventRegional */
+static int hf_dsrc_meRegional_item;               /* RegionalExtension */
+static int hf_dsrc_MovementEventList_item;        /* MovementEvent */
+static int hf_dsrc_MovementList_item;             /* MovementState */
+static int hf_dsrc_movementName;                  /* DescriptiveName */
+static int hf_dsrc_state_time_speed;              /* MovementEventList */
+static int hf_dsrc_msRegional;                    /* T_MovementStateRegional */
+static int hf_dsrc_msRegional_item;               /* RegionalExtension */
+static int hf_dsrc_localNode;                     /* NodeAttributeXYList */
+static int hf_dsrc_disabled;                      /* SegmentAttributeXYList */
+static int hf_dsrc_enabled;                       /* SegmentAttributeXYList */
+static int hf_dsrc_data;                          /* LaneDataAttributeList */
+static int hf_dsrc_dWidth;                        /* Offset_B10 */
+static int hf_dsrc_dElevation;                    /* Offset_B10 */
+static int hf_dsrc_nasxyRegional;                 /* T_NodeAttributeSetXYRegional */
+static int hf_dsrc_nasxyRegional_item;            /* RegionalExtension */
+static int hf_dsrc_NodeAttributeXYList_item;      /* NodeAttributeXY */
+static int hf_dsrc_lon;                           /* Longitude */
+static int hf_dsrc_n20bX;                         /* Offset_B10 */
+static int hf_dsrc_n20bY;                         /* Offset_B10 */
+static int hf_dsrc_n22bX;                         /* Offset_B11 */
+static int hf_dsrc_n22bY;                         /* Offset_B11 */
+static int hf_dsrc_n24bX;                         /* Offset_B12 */
+static int hf_dsrc_n24bY;                         /* Offset_B12 */
+static int hf_dsrc_n26bX;                         /* Offset_B13 */
+static int hf_dsrc_n26bY;                         /* Offset_B13 */
+static int hf_dsrc_n28bX;                         /* Offset_B14 */
+static int hf_dsrc_n28bY;                         /* Offset_B14 */
+static int hf_dsrc_n32bX;                         /* Offset_B16 */
+static int hf_dsrc_n32bY;                         /* Offset_B16 */
+static int hf_dsrc_nodes;                         /* NodeSetXY */
+static int hf_dsrc_computed;                      /* ComputedLane */
+static int hf_dsrc_node_XY1;                      /* Node_XY_20b */
+static int hf_dsrc_node_XY2;                      /* Node_XY_22b */
+static int hf_dsrc_node_XY3;                      /* Node_XY_24b */
+static int hf_dsrc_node_XY4;                      /* Node_XY_26b */
+static int hf_dsrc_node_XY5;                      /* Node_XY_28b */
+static int hf_dsrc_node_XY6;                      /* Node_XY_32b */
+static int hf_dsrc_node_LatLon;                   /* Node_LLmD_64b */
+static int hf_dsrc_nopxyRegional;                 /* RegionalExtension */
+static int hf_dsrc_delta;                         /* NodeOffsetPointXY */
+static int hf_dsrc_attributes;                    /* NodeAttributeSetXY */
+static int hf_dsrc_NodeSetXY_item;                /* NodeXY */
+static int hf_dsrc_OverlayLaneList_item;          /* LaneID */
+static int hf_dsrc_semiMajor;                     /* SemiMajorAxisAccuracy */
+static int hf_dsrc_semiMinor;                     /* SemiMinorAxisAccuracy */
+static int hf_dsrc_orientation;                   /* SemiMajorAxisOrientation */
+static int hf_dsrc_pos;                           /* PositionConfidence */
+static int hf_dsrc_pcsElevation;                  /* ElevationConfidence */
+static int hf_dsrc_p3dElevation;                  /* Elevation */
+static int hf_dsrc_p3dRegional;                   /* T_Position3DRegional */
+static int hf_dsrc_p3dRegional_item;              /* RegionalExtension */
+static int hf_dsrc_PreemptPriorityList_item;      /* SignalControlZone */
+static int hf_dsrc_rslType;                       /* SpeedLimitType */
+static int hf_dsrc_rslSpeed;                      /* Velocity */
+static int hf_dsrc_rdId;                          /* VehicleID */
+static int hf_dsrc_rdType;                        /* RequestorType */
+static int hf_dsrc_rdPosition;                    /* RequestorPositionVector */
+static int hf_dsrc_routeName;                     /* DescriptiveName */
+static int hf_dsrc_transitStatus;                 /* TransitVehicleStatus */
+static int hf_dsrc_transitOccupancy;              /* TransitVehicleOccupancy */
+static int hf_dsrc_transitSchedule;               /* DeltaTime */
+static int hf_dsrc_rdRegional;                    /* T_RequestorDescriptionRegional */
+static int hf_dsrc_rdRegional_item;               /* RegionalExtension */
+static int hf_dsrc_rpvPosition;                   /* Position3D */
+static int hf_dsrc_rpvHeading;                    /* Angle */
+static int hf_dsrc_rpvSpeed;                      /* TransmissionAndSpeed */
+static int hf_dsrc_role;                          /* BasicVehicleRole */
+static int hf_dsrc_subrole;                       /* RequestSubRole */
+static int hf_dsrc_rtRequest;                     /* RequestImportanceLevel */
+static int hf_dsrc_iso3883;                       /* Iso3833VehicleType */
+static int hf_dsrc_hpmsType;                      /* VehicleType */
+static int hf_dsrc_rtRegional;                    /* RegionalExtension */
+static int hf_dsrc_scaId;                         /* RestrictionClassID */
+static int hf_dsrc_users;                         /* RestrictionUserTypeList */
+static int hf_dsrc_RestrictionClassList_item;     /* RestrictionClassAssignment */
+static int hf_dsrc_basicType;                     /* RestrictionAppliesTo */
+static int hf_dsrc_rutRegional;                   /* T_RestrictionUserTypeRegional */
+static int hf_dsrc_rutRegional_item;              /* RegionalExtension */
+static int hf_dsrc_RestrictionUserTypeList_item;  /* RestrictionUserType */
+static int hf_dsrc_RoadLaneSetList_item;          /* GenericLane */
+static int hf_dsrc_rsrId;                         /* RoadSegmentID */
+static int hf_dsrc_rsId;                          /* RoadSegmentReferenceID */
+static int hf_dsrc_roadLaneSet;                   /* RoadLaneSetList */
+static int hf_dsrc_rsRegional;                    /* T_RoadSegmentRegional */
+static int hf_dsrc_rsRegional_item;               /* RegionalExtension */
+static int hf_dsrc_RoadSegmentList_item;          /* RoadSegment */
+static int hf_dsrc_status;                        /* GNSSstatus */
+static int hf_dsrc_offsetSet;                     /* AntennaOffsetSet */
+static int hf_dsrc_RTCMmessageList_item;          /* RTCMmessage */
+static int hf_dsrc_SegmentAttributeXYList_item;   /* SegmentAttributeXY */
+static int hf_dsrc_zone;                          /* RegionalExtension */
+static int hf_dsrc_sriId;                         /* VehicleID */
+static int hf_dsrc_sriRequest;                    /* RequestID */
+static int hf_dsrc_typeData;                      /* RequestorType */
+static int hf_dsrc_srId;                          /* IntersectionReferenceID */
+static int hf_dsrc_requestID;                     /* RequestID */
+static int hf_dsrc_requestType;                   /* PriorityRequestType */
+static int hf_dsrc_inBoundLane;                   /* IntersectionAccessPoint */
+static int hf_dsrc_outBoundLane;                  /* IntersectionAccessPoint */
+static int hf_dsrc_srRegional;                    /* T_SignalRequestRegional */
+static int hf_dsrc_srRegional_item;               /* RegionalExtension */
+static int hf_dsrc_SignalRequestList_item;        /* SignalRequestPackage */
+static int hf_dsrc_srpRequest;                    /* SignalRequest */
+static int hf_dsrc_srpMinute;                     /* MinuteOfTheYear */
+static int hf_dsrc_duration;                      /* DSecond */
+static int hf_dsrc_srpRegional;                   /* T_SignalRequestPackageRegional */
+static int hf_dsrc_srpRegional_item;              /* RegionalExtension */
+static int hf_dsrc_ssId;                          /* IntersectionReferenceID */
+static int hf_dsrc_sigStatus;                     /* SignalStatusPackageList */
+static int hf_dsrc_ssRegional;                    /* T_SignalStatusRegional */
+static int hf_dsrc_ssRegional_item;               /* RegionalExtension */
+static int hf_dsrc_SignalStatusList_item;         /* SignalStatus */
+static int hf_dsrc_SignalStatusPackageList_item;  /* SignalStatusPackage */
+static int hf_dsrc_requester;                     /* SignalRequesterInfo */
+static int hf_dsrc_inboundOn;                     /* IntersectionAccessPoint */
+static int hf_dsrc_outboundOn;                    /* IntersectionAccessPoint */
+static int hf_dsrc_sspMinute;                     /* MinuteOfTheYear */
+static int hf_dsrc_sspStatus;                     /* PrioritizationResponseStatus */
+static int hf_dsrc_sspRegional;                   /* T_SignalStatusPackageRegional */
+static int hf_dsrc_sspRegional_item;              /* RegionalExtension */
+static int hf_dsrc_shtcheading;                   /* HeadingConfidenceDSRC */
+static int hf_dsrc_shtcSpeed;                     /* SpeedConfidenceDSRC */
+static int hf_dsrc_throttle;                      /* ThrottleConfidence */
+static int hf_dsrc_SpeedLimitList_item;           /* RegulatorySpeedLimit */
+static int hf_dsrc_startTime;                     /* TimeMark */
+static int hf_dsrc_minEndTime;                    /* TimeMark */
+static int hf_dsrc_maxEndTime;                    /* TimeMark */
+static int hf_dsrc_likelyTime;                    /* TimeMark */
+static int hf_dsrc_tcdConfidence;                 /* TimeIntervalConfidence */
+static int hf_dsrc_nextTime;                      /* TimeMark */
+static int hf_dsrc_transmisson;                   /* TransmissionState */
+static int hf_dsrc_tasSpeed;                      /* Velocity */
+static int hf_dsrc_entityID;                      /* TemporaryID */
+static int hf_dsrc_stationID;                     /* StationID */
 /* named bits */
-static int hf_dsrc_LaneSharing_overlappingLaneDescriptionProvided = -1;
-static int hf_dsrc_LaneSharing_multipleLanesTreatedAsOneLane = -1;
-static int hf_dsrc_LaneSharing_otherNonMotorizedTrafficTypes = -1;
-static int hf_dsrc_LaneSharing_individualMotorizedVehicleTraffic = -1;
-static int hf_dsrc_LaneSharing_busVehicleTraffic = -1;
-static int hf_dsrc_LaneSharing_taxiVehicleTraffic = -1;
-static int hf_dsrc_LaneSharing_pedestriansTraffic = -1;
-static int hf_dsrc_LaneSharing_cyclistVehicleTraffic = -1;
-static int hf_dsrc_LaneSharing_trackedVehicleTraffic = -1;
-static int hf_dsrc_LaneSharing_pedestrianTraffic = -1;
-static int hf_dsrc_AllowedManeuvers_maneuverStraightAllowed = -1;
-static int hf_dsrc_AllowedManeuvers_maneuverLeftAllowed = -1;
-static int hf_dsrc_AllowedManeuvers_maneuverRightAllowed = -1;
-static int hf_dsrc_AllowedManeuvers_maneuverUTurnAllowed = -1;
-static int hf_dsrc_AllowedManeuvers_maneuverLeftTurnOnRedAllowed = -1;
-static int hf_dsrc_AllowedManeuvers_maneuverRightTurnOnRedAllowed = -1;
-static int hf_dsrc_AllowedManeuvers_maneuverLaneChangeAllowed = -1;
-static int hf_dsrc_AllowedManeuvers_maneuverNoStoppingAllowed = -1;
-static int hf_dsrc_AllowedManeuvers_yieldAllwaysRequired = -1;
-static int hf_dsrc_AllowedManeuvers_goWithHalt = -1;
-static int hf_dsrc_AllowedManeuvers_caution = -1;
-static int hf_dsrc_AllowedManeuvers_reserved1 = -1;
-static int hf_dsrc_GNSSstatus_unavailable = -1;
-static int hf_dsrc_GNSSstatus_isHealthy = -1;
-static int hf_dsrc_GNSSstatus_isMonitored = -1;
-static int hf_dsrc_GNSSstatus_baseStationType = -1;
-static int hf_dsrc_GNSSstatus_aPDOPofUnder5 = -1;
-static int hf_dsrc_GNSSstatus_inViewOfUnder5 = -1;
-static int hf_dsrc_GNSSstatus_localCorrectionsPresent = -1;
-static int hf_dsrc_GNSSstatus_networkCorrectionsPresent = -1;
-static int hf_dsrc_IntersectionStatusObject_manualControlIsEnabled = -1;
-static int hf_dsrc_IntersectionStatusObject_stopTimeIsActivated = -1;
-static int hf_dsrc_IntersectionStatusObject_failureFlash = -1;
-static int hf_dsrc_IntersectionStatusObject_preemptIsActive = -1;
-static int hf_dsrc_IntersectionStatusObject_signalPriorityIsActive = -1;
-static int hf_dsrc_IntersectionStatusObject_fixedTimeOperation = -1;
-static int hf_dsrc_IntersectionStatusObject_trafficDependentOperation = -1;
-static int hf_dsrc_IntersectionStatusObject_standbyOperation = -1;
-static int hf_dsrc_IntersectionStatusObject_failureMode = -1;
-static int hf_dsrc_IntersectionStatusObject_off = -1;
-static int hf_dsrc_IntersectionStatusObject_recentMAPmessageUpdate = -1;
-static int hf_dsrc_IntersectionStatusObject_recentChangeInMAPassignedLanesIDsUsed = -1;
-static int hf_dsrc_IntersectionStatusObject_noValidMAPisAvailableAtThisTime = -1;
-static int hf_dsrc_IntersectionStatusObject_noValidSPATisAvailableAtThisTime = -1;
-static int hf_dsrc_LaneAttributes_Barrier_median_RevocableLane = -1;
-static int hf_dsrc_LaneAttributes_Barrier_median = -1;
-static int hf_dsrc_LaneAttributes_Barrier_whiteLineHashing = -1;
-static int hf_dsrc_LaneAttributes_Barrier_stripedLines = -1;
-static int hf_dsrc_LaneAttributes_Barrier_doubleStripedLines = -1;
-static int hf_dsrc_LaneAttributes_Barrier_trafficCones = -1;
-static int hf_dsrc_LaneAttributes_Barrier_constructionBarrier = -1;
-static int hf_dsrc_LaneAttributes_Barrier_trafficChannels = -1;
-static int hf_dsrc_LaneAttributes_Barrier_lowCurbs = -1;
-static int hf_dsrc_LaneAttributes_Barrier_highCurbs = -1;
-static int hf_dsrc_LaneAttributes_Bike_bikeRevocableLane = -1;
-static int hf_dsrc_LaneAttributes_Bike_pedestrianUseAllowed = -1;
-static int hf_dsrc_LaneAttributes_Bike_isBikeFlyOverLane = -1;
-static int hf_dsrc_LaneAttributes_Bike_fixedCycleTime = -1;
-static int hf_dsrc_LaneAttributes_Bike_biDirectionalCycleTimes = -1;
-static int hf_dsrc_LaneAttributes_Bike_isolatedByBarrier = -1;
-static int hf_dsrc_LaneAttributes_Bike_unsignalizedSegmentsPresent = -1;
-static int hf_dsrc_LaneAttributes_Crosswalk_crosswalkRevocableLane = -1;
-static int hf_dsrc_LaneAttributes_Crosswalk_bicyleUseAllowed = -1;
-static int hf_dsrc_LaneAttributes_Crosswalk_isXwalkFlyOverLane = -1;
-static int hf_dsrc_LaneAttributes_Crosswalk_fixedCycleTime = -1;
-static int hf_dsrc_LaneAttributes_Crosswalk_biDirectionalCycleTimes = -1;
-static int hf_dsrc_LaneAttributes_Crosswalk_hasPushToWalkButton = -1;
-static int hf_dsrc_LaneAttributes_Crosswalk_audioSupport = -1;
-static int hf_dsrc_LaneAttributes_Crosswalk_rfSignalRequestPresent = -1;
-static int hf_dsrc_LaneAttributes_Crosswalk_unsignalizedSegmentsPresent = -1;
-static int hf_dsrc_LaneAttributes_Parking_parkingRevocableLane = -1;
-static int hf_dsrc_LaneAttributes_Parking_parallelParkingInUse = -1;
-static int hf_dsrc_LaneAttributes_Parking_headInParkingInUse = -1;
-static int hf_dsrc_LaneAttributes_Parking_doNotParkZone = -1;
-static int hf_dsrc_LaneAttributes_Parking_parkingForBusUse = -1;
-static int hf_dsrc_LaneAttributes_Parking_parkingForTaxiUse = -1;
-static int hf_dsrc_LaneAttributes_Parking_noPublicParkingUse = -1;
-static int hf_dsrc_LaneAttributes_Sidewalk_sidewalk_RevocableLane = -1;
-static int hf_dsrc_LaneAttributes_Sidewalk_bicyleUseAllowed = -1;
-static int hf_dsrc_LaneAttributes_Sidewalk_isSidewalkFlyOverLane = -1;
-static int hf_dsrc_LaneAttributes_Sidewalk_walkBikes = -1;
-static int hf_dsrc_LaneAttributes_Striping_stripeToConnectingLanesRevocableLane = -1;
-static int hf_dsrc_LaneAttributes_Striping_stripeDrawOnLeft = -1;
-static int hf_dsrc_LaneAttributes_Striping_stripeDrawOnRight = -1;
-static int hf_dsrc_LaneAttributes_Striping_stripeToConnectingLanesLeft = -1;
-static int hf_dsrc_LaneAttributes_Striping_stripeToConnectingLanesRight = -1;
-static int hf_dsrc_LaneAttributes_Striping_stripeToConnectingLanesAhead = -1;
-static int hf_dsrc_LaneAttributes_TrackedVehicle_spec_RevocableLane = -1;
-static int hf_dsrc_LaneAttributes_TrackedVehicle_spec_commuterRailRoadTrack = -1;
-static int hf_dsrc_LaneAttributes_TrackedVehicle_spec_lightRailRoadTrack = -1;
-static int hf_dsrc_LaneAttributes_TrackedVehicle_spec_heavyRailRoadTrack = -1;
-static int hf_dsrc_LaneAttributes_TrackedVehicle_spec_otherRailType = -1;
-static int hf_dsrc_LaneAttributes_Vehicle_isVehicleRevocableLane = -1;
-static int hf_dsrc_LaneAttributes_Vehicle_isVehicleFlyOverLane = -1;
-static int hf_dsrc_LaneAttributes_Vehicle_hovLaneUseOnly = -1;
-static int hf_dsrc_LaneAttributes_Vehicle_restrictedToBusUse = -1;
-static int hf_dsrc_LaneAttributes_Vehicle_restrictedToTaxiUse = -1;
-static int hf_dsrc_LaneAttributes_Vehicle_restrictedFromPublicUse = -1;
-static int hf_dsrc_LaneAttributes_Vehicle_hasIRbeaconCoverage = -1;
-static int hf_dsrc_LaneAttributes_Vehicle_permissionOnRequest = -1;
-static int hf_dsrc_LaneDirection_ingressPath = -1;
-static int hf_dsrc_LaneDirection_egressPath = -1;
-static int hf_dsrc_TransitVehicleStatus_loading = -1;
-static int hf_dsrc_TransitVehicleStatus_anADAuse = -1;
-static int hf_dsrc_TransitVehicleStatus_aBikeLoad = -1;
-static int hf_dsrc_TransitVehicleStatus_doorOpen = -1;
-static int hf_dsrc_TransitVehicleStatus_charging = -1;
-static int hf_dsrc_TransitVehicleStatus_atStopLine = -1;
+static int hf_dsrc_LaneSharing_overlappingLaneDescriptionProvided;
+static int hf_dsrc_LaneSharing_multipleLanesTreatedAsOneLane;
+static int hf_dsrc_LaneSharing_otherNonMotorizedTrafficTypes;
+static int hf_dsrc_LaneSharing_individualMotorizedVehicleTraffic;
+static int hf_dsrc_LaneSharing_busVehicleTraffic;
+static int hf_dsrc_LaneSharing_taxiVehicleTraffic;
+static int hf_dsrc_LaneSharing_pedestriansTraffic;
+static int hf_dsrc_LaneSharing_cyclistVehicleTraffic;
+static int hf_dsrc_LaneSharing_trackedVehicleTraffic;
+static int hf_dsrc_LaneSharing_pedestrianTraffic;
+static int hf_dsrc_AllowedManeuvers_maneuverStraightAllowed;
+static int hf_dsrc_AllowedManeuvers_maneuverLeftAllowed;
+static int hf_dsrc_AllowedManeuvers_maneuverRightAllowed;
+static int hf_dsrc_AllowedManeuvers_maneuverUTurnAllowed;
+static int hf_dsrc_AllowedManeuvers_maneuverLeftTurnOnRedAllowed;
+static int hf_dsrc_AllowedManeuvers_maneuverRightTurnOnRedAllowed;
+static int hf_dsrc_AllowedManeuvers_maneuverLaneChangeAllowed;
+static int hf_dsrc_AllowedManeuvers_maneuverNoStoppingAllowed;
+static int hf_dsrc_AllowedManeuvers_yieldAllwaysRequired;
+static int hf_dsrc_AllowedManeuvers_goWithHalt;
+static int hf_dsrc_AllowedManeuvers_caution;
+static int hf_dsrc_AllowedManeuvers_reserved1;
+static int hf_dsrc_GNSSstatus_unavailable;
+static int hf_dsrc_GNSSstatus_isHealthy;
+static int hf_dsrc_GNSSstatus_isMonitored;
+static int hf_dsrc_GNSSstatus_baseStationType;
+static int hf_dsrc_GNSSstatus_aPDOPofUnder5;
+static int hf_dsrc_GNSSstatus_inViewOfUnder5;
+static int hf_dsrc_GNSSstatus_localCorrectionsPresent;
+static int hf_dsrc_GNSSstatus_networkCorrectionsPresent;
+static int hf_dsrc_IntersectionStatusObject_manualControlIsEnabled;
+static int hf_dsrc_IntersectionStatusObject_stopTimeIsActivated;
+static int hf_dsrc_IntersectionStatusObject_failureFlash;
+static int hf_dsrc_IntersectionStatusObject_preemptIsActive;
+static int hf_dsrc_IntersectionStatusObject_signalPriorityIsActive;
+static int hf_dsrc_IntersectionStatusObject_fixedTimeOperation;
+static int hf_dsrc_IntersectionStatusObject_trafficDependentOperation;
+static int hf_dsrc_IntersectionStatusObject_standbyOperation;
+static int hf_dsrc_IntersectionStatusObject_failureMode;
+static int hf_dsrc_IntersectionStatusObject_off;
+static int hf_dsrc_IntersectionStatusObject_recentMAPmessageUpdate;
+static int hf_dsrc_IntersectionStatusObject_recentChangeInMAPassignedLanesIDsUsed;
+static int hf_dsrc_IntersectionStatusObject_noValidMAPisAvailableAtThisTime;
+static int hf_dsrc_IntersectionStatusObject_noValidSPATisAvailableAtThisTime;
+static int hf_dsrc_LaneAttributes_Barrier_median_RevocableLane;
+static int hf_dsrc_LaneAttributes_Barrier_median;
+static int hf_dsrc_LaneAttributes_Barrier_whiteLineHashing;
+static int hf_dsrc_LaneAttributes_Barrier_stripedLines;
+static int hf_dsrc_LaneAttributes_Barrier_doubleStripedLines;
+static int hf_dsrc_LaneAttributes_Barrier_trafficCones;
+static int hf_dsrc_LaneAttributes_Barrier_constructionBarrier;
+static int hf_dsrc_LaneAttributes_Barrier_trafficChannels;
+static int hf_dsrc_LaneAttributes_Barrier_lowCurbs;
+static int hf_dsrc_LaneAttributes_Barrier_highCurbs;
+static int hf_dsrc_LaneAttributes_Bike_bikeRevocableLane;
+static int hf_dsrc_LaneAttributes_Bike_pedestrianUseAllowed;
+static int hf_dsrc_LaneAttributes_Bike_isBikeFlyOverLane;
+static int hf_dsrc_LaneAttributes_Bike_fixedCycleTime;
+static int hf_dsrc_LaneAttributes_Bike_biDirectionalCycleTimes;
+static int hf_dsrc_LaneAttributes_Bike_isolatedByBarrier;
+static int hf_dsrc_LaneAttributes_Bike_unsignalizedSegmentsPresent;
+static int hf_dsrc_LaneAttributes_Crosswalk_crosswalkRevocableLane;
+static int hf_dsrc_LaneAttributes_Crosswalk_bicyleUseAllowed;
+static int hf_dsrc_LaneAttributes_Crosswalk_isXwalkFlyOverLane;
+static int hf_dsrc_LaneAttributes_Crosswalk_fixedCycleTime;
+static int hf_dsrc_LaneAttributes_Crosswalk_biDirectionalCycleTimes;
+static int hf_dsrc_LaneAttributes_Crosswalk_hasPushToWalkButton;
+static int hf_dsrc_LaneAttributes_Crosswalk_audioSupport;
+static int hf_dsrc_LaneAttributes_Crosswalk_rfSignalRequestPresent;
+static int hf_dsrc_LaneAttributes_Crosswalk_unsignalizedSegmentsPresent;
+static int hf_dsrc_LaneAttributes_Parking_parkingRevocableLane;
+static int hf_dsrc_LaneAttributes_Parking_parallelParkingInUse;
+static int hf_dsrc_LaneAttributes_Parking_headInParkingInUse;
+static int hf_dsrc_LaneAttributes_Parking_doNotParkZone;
+static int hf_dsrc_LaneAttributes_Parking_parkingForBusUse;
+static int hf_dsrc_LaneAttributes_Parking_parkingForTaxiUse;
+static int hf_dsrc_LaneAttributes_Parking_noPublicParkingUse;
+static int hf_dsrc_LaneAttributes_Sidewalk_sidewalk_RevocableLane;
+static int hf_dsrc_LaneAttributes_Sidewalk_bicyleUseAllowed;
+static int hf_dsrc_LaneAttributes_Sidewalk_isSidewalkFlyOverLane;
+static int hf_dsrc_LaneAttributes_Sidewalk_walkBikes;
+static int hf_dsrc_LaneAttributes_Striping_stripeToConnectingLanesRevocableLane;
+static int hf_dsrc_LaneAttributes_Striping_stripeDrawOnLeft;
+static int hf_dsrc_LaneAttributes_Striping_stripeDrawOnRight;
+static int hf_dsrc_LaneAttributes_Striping_stripeToConnectingLanesLeft;
+static int hf_dsrc_LaneAttributes_Striping_stripeToConnectingLanesRight;
+static int hf_dsrc_LaneAttributes_Striping_stripeToConnectingLanesAhead;
+static int hf_dsrc_LaneAttributes_TrackedVehicle_spec_RevocableLane;
+static int hf_dsrc_LaneAttributes_TrackedVehicle_spec_commuterRailRoadTrack;
+static int hf_dsrc_LaneAttributes_TrackedVehicle_spec_lightRailRoadTrack;
+static int hf_dsrc_LaneAttributes_TrackedVehicle_spec_heavyRailRoadTrack;
+static int hf_dsrc_LaneAttributes_TrackedVehicle_spec_otherRailType;
+static int hf_dsrc_LaneAttributes_Vehicle_isVehicleRevocableLane;
+static int hf_dsrc_LaneAttributes_Vehicle_isVehicleFlyOverLane;
+static int hf_dsrc_LaneAttributes_Vehicle_hovLaneUseOnly;
+static int hf_dsrc_LaneAttributes_Vehicle_restrictedToBusUse;
+static int hf_dsrc_LaneAttributes_Vehicle_restrictedToTaxiUse;
+static int hf_dsrc_LaneAttributes_Vehicle_restrictedFromPublicUse;
+static int hf_dsrc_LaneAttributes_Vehicle_hasIRbeaconCoverage;
+static int hf_dsrc_LaneAttributes_Vehicle_permissionOnRequest;
+static int hf_dsrc_LaneDirection_ingressPath;
+static int hf_dsrc_LaneDirection_egressPath;
+static int hf_dsrc_TransitVehicleStatus_loading;
+static int hf_dsrc_TransitVehicleStatus_anADAuse;
+static int hf_dsrc_TransitVehicleStatus_aBikeLoad;
+static int hf_dsrc_TransitVehicleStatus_doorOpen;
+static int hf_dsrc_TransitVehicleStatus_charging;
+static int hf_dsrc_TransitVehicleStatus_atStopLine;
 
 /* --- Module AddGrpC --- --- ---                                             */
 
-static int hf_AddGrpC_AddGrpC_ConnectionManeuverAssist_addGrpC_PDU = -1;  /* ConnectionManeuverAssist_addGrpC */
-static int hf_AddGrpC_AddGrpC_ConnectionTrajectory_addGrpC_PDU = -1;  /* ConnectionTrajectory_addGrpC */
-static int hf_AddGrpC_AddGrpC_IntersectionState_addGrpC_PDU = -1;  /* IntersectionState_addGrpC */
-static int hf_AddGrpC_AddGrpC_LaneAttributes_addGrpC_PDU = -1;  /* LaneAttributes_addGrpC */
-static int hf_AddGrpC_AddGrpC_MapData_addGrpC_PDU = -1;  /* MapData_addGrpC */
-static int hf_AddGrpC_AddGrpC_MovementEvent_addGrpC_PDU = -1;  /* MovementEvent_addGrpC */
-static int hf_AddGrpC_AddGrpC_NodeAttributeSet_addGrpC_PDU = -1;  /* NodeAttributeSet_addGrpC */
-static int hf_AddGrpC_AddGrpC_Position3D_addGrpC_PDU = -1;  /* Position3D_addGrpC */
-static int hf_AddGrpC_AddGrpC_RestrictionUserType_addGrpC_PDU = -1;  /* RestrictionUserType_addGrpC */
-static int hf_AddGrpC_AddGrpC_RequestorDescription_addGrpC_PDU = -1;  /* RequestorDescription_addGrpC */
-static int hf_AddGrpC_AddGrpC_SignalStatusPackage_addGrpC_PDU = -1;  /* SignalStatusPackage_addGrpC */
-static int hf_AddGrpC_itsStationPosition = -1;    /* ItsStationPositionList */
-static int hf_AddGrpC_nodes = -1;                 /* NodeSetXY */
-static int hf_AddGrpC_connectionID = -1;          /* LaneConnectionID */
-static int hf_AddGrpC_activePrioritizations = -1;  /* PrioritizationResponseList */
-static int hf_AddGrpC_maxVehicleHeight = -1;      /* VehicleHeight */
-static int hf_AddGrpC_maxVehicleWeight = -1;      /* VehicleMass */
-static int hf_AddGrpC_signalHeadLocations = -1;   /* SignalHeadLocationList */
-static int hf_AddGrpC_stateChangeReason = -1;     /* ExceptionalCondition */
-static int hf_AddGrpC_ptvRequest = -1;            /* PtvRequestType */
-static int hf_AddGrpC_nodeLink = -1;              /* NodeLink */
-static int hf_AddGrpC_node = -1;                  /* Node */
-static int hf_AddGrpC_altitude = -1;              /* Altitude */
-static int hf_AddGrpC_emission = -1;              /* EmissionType */
-static int hf_AddGrpC_fuel = -1;                  /* FuelType */
-static int hf_AddGrpC_batteryStatus = -1;         /* BatteryStatus */
-static int hf_AddGrpC_synchToSchedule = -1;       /* DeltaTime */
-static int hf_AddGrpC_rejectedReason = -1;        /* RejectedReason */
-static int hf_AddGrpC_stationID = -1;             /* StationID */
-static int hf_AddGrpC_laneID = -1;                /* LaneID */
-static int hf_AddGrpC_nodeXY = -1;                /* NodeOffsetPointXY */
-static int hf_AddGrpC_timeReference = -1;         /* TimeReference */
-static int hf_AddGrpC_ItsStationPositionList_item = -1;  /* ItsStationPosition */
-static int hf_AddGrpC_id = -1;                    /* INTEGER */
-static int hf_AddGrpC_lane = -1;                  /* LaneID */
-static int hf_AddGrpC_intersectionID = -1;        /* IntersectionID */
-static int hf_AddGrpC_NodeLink_item = -1;         /* Node */
-static int hf_AddGrpC_priorState = -1;            /* PrioritizationResponseStatus */
-static int hf_AddGrpC_signalGroup = -1;           /* SignalGroupID */
-static int hf_AddGrpC_PrioritizationResponseList_item = -1;  /* PrioritizationResponse */
-static int hf_AddGrpC_nodeZ = -1;                 /* DeltaAltitude */
-static int hf_AddGrpC_signalGroupID = -1;         /* SignalGroupID */
-static int hf_AddGrpC_SignalHeadLocationList_item = -1;  /* SignalHeadLocation */
+static int hf_AddGrpC_AddGrpC_ConnectionManeuverAssist_addGrpC_PDU;  /* ConnectionManeuverAssist_addGrpC */
+static int hf_AddGrpC_AddGrpC_ConnectionTrajectory_addGrpC_PDU;  /* ConnectionTrajectory_addGrpC */
+static int hf_AddGrpC_AddGrpC_IntersectionState_addGrpC_PDU;  /* IntersectionState_addGrpC */
+static int hf_AddGrpC_AddGrpC_LaneAttributes_addGrpC_PDU;  /* LaneAttributes_addGrpC */
+static int hf_AddGrpC_AddGrpC_MapData_addGrpC_PDU;  /* MapData_addGrpC */
+static int hf_AddGrpC_AddGrpC_MovementEvent_addGrpC_PDU;  /* MovementEvent_addGrpC */
+static int hf_AddGrpC_AddGrpC_NodeAttributeSet_addGrpC_PDU;  /* NodeAttributeSet_addGrpC */
+static int hf_AddGrpC_AddGrpC_Position3D_addGrpC_PDU;  /* Position3D_addGrpC */
+static int hf_AddGrpC_AddGrpC_RestrictionUserType_addGrpC_PDU;  /* RestrictionUserType_addGrpC */
+static int hf_AddGrpC_AddGrpC_RequestorDescription_addGrpC_PDU;  /* RequestorDescription_addGrpC */
+static int hf_AddGrpC_AddGrpC_SignalStatusPackage_addGrpC_PDU;  /* SignalStatusPackage_addGrpC */
+static int hf_AddGrpC_itsStationPosition;         /* ItsStationPositionList */
+static int hf_AddGrpC_nodes;                      /* NodeSetXY */
+static int hf_AddGrpC_connectionID;               /* LaneConnectionID */
+static int hf_AddGrpC_activePrioritizations;      /* PrioritizationResponseList */
+static int hf_AddGrpC_maxVehicleHeight;           /* VehicleHeight */
+static int hf_AddGrpC_maxVehicleWeight;           /* VehicleMass */
+static int hf_AddGrpC_signalHeadLocations;        /* SignalHeadLocationList */
+static int hf_AddGrpC_stateChangeReason;          /* ExceptionalCondition */
+static int hf_AddGrpC_ptvRequest;                 /* PtvRequestType */
+static int hf_AddGrpC_nodeLink;                   /* NodeLink */
+static int hf_AddGrpC_node;                       /* Node */
+static int hf_AddGrpC_altitude;                   /* Altitude */
+static int hf_AddGrpC_emission;                   /* EmissionType */
+static int hf_AddGrpC_fuel;                       /* FuelType */
+static int hf_AddGrpC_batteryStatus;              /* BatteryStatus */
+static int hf_AddGrpC_synchToSchedule;            /* DeltaTime */
+static int hf_AddGrpC_rejectedReason;             /* RejectedReason */
+static int hf_AddGrpC_stationID;                  /* StationID */
+static int hf_AddGrpC_laneID;                     /* LaneID */
+static int hf_AddGrpC_nodeXY;                     /* NodeOffsetPointXY */
+static int hf_AddGrpC_timeReference;              /* TimeReference */
+static int hf_AddGrpC_ItsStationPositionList_item;  /* ItsStationPosition */
+static int hf_AddGrpC_id;                         /* INTEGER */
+static int hf_AddGrpC_lane;                       /* LaneID */
+static int hf_AddGrpC_intersectionID;             /* IntersectionID */
+static int hf_AddGrpC_NodeLink_item;              /* Node */
+static int hf_AddGrpC_priorState;                 /* PrioritizationResponseStatus */
+static int hf_AddGrpC_signalGroup;                /* SignalGroupID */
+static int hf_AddGrpC_PrioritizationResponseList_item;  /* PrioritizationResponse */
+static int hf_AddGrpC_nodeZ;                      /* DeltaAltitude */
+static int hf_AddGrpC_signalGroupID;              /* SignalGroupID */
+static int hf_AddGrpC_SignalHeadLocationList_item;  /* SignalHeadLocation */
 
 /* --- Module GDD --- --- ---                                                 */
 
-static int hf_gdd_pictogramCode = -1;             /* Pictogram */
-static int hf_gdd_attributes = -1;                /* GddAttributes */
-static int hf_gdd_countryCode = -1;               /* Pictogram_countryCode */
-static int hf_gdd_serviceCategoryCode = -1;       /* Pictogram_serviceCategory */
-static int hf_gdd_pictogramCategoryCode = -1;     /* Pictogram_category */
-static int hf_gdd_trafficSignPictogram = -1;      /* Pictogram_trafficSign */
-static int hf_gdd_publicFacilitiesPictogram = -1;  /* Pictogram_publicFacilitySign */
-static int hf_gdd_ambientOrRoadConditionPictogram = -1;  /* Pictogram_conditionsSign */
-static int hf_gdd_nature = -1;                    /* Pictogram_nature */
-static int hf_gdd_serialNumber = -1;              /* Pictogram_serialNumber */
-static int hf_gdd_GddAttributes_item = -1;        /* GddAttributes_item */
-static int hf_gdd_dtm = -1;                       /* InternationalSign_applicablePeriod */
-static int hf_gdd_edt = -1;                       /* InternationalSign_exemptedApplicablePeriod */
-static int hf_gdd_dfl = -1;                       /* InternationalSign_directionalFlowOfLane */
-static int hf_gdd_ved = -1;                       /* InternationalSign_applicableVehicleDimensions */
-static int hf_gdd_spe = -1;                       /* InternationalSign_speedLimits */
-static int hf_gdd_roi = -1;                       /* InternationalSign_rateOfIncline */
-static int hf_gdd_dbv = -1;                       /* InternationalSign_distanceBetweenVehicles */
-static int hf_gdd_ddd = -1;                       /* InternationalSign_destinationInformation */
-static int hf_gdd_set = -1;                       /* InternationalSign_section */
-static int hf_gdd_nol = -1;                       /* InternationalSign_numberOfLane */
-static int hf_gdd_year = -1;                      /* T_year */
-static int hf_gdd_yearRangeStartYear = -1;        /* Year */
-static int hf_gdd_yearRangeEndYear = -1;          /* Year */
-static int hf_gdd_month_day = -1;                 /* T_month_day */
-static int hf_gdd_dateRangeStartMonthDate = -1;   /* MonthDay */
-static int hf_gdd_dateRangeEndMonthDate = -1;     /* MonthDay */
-static int hf_gdd_repeatingPeriodDayTypes = -1;   /* RPDT */
-static int hf_gdd_hourMinutes = -1;               /* T_hourMinutes */
-static int hf_gdd_timeRangeStartTime = -1;        /* HoursMinutes */
-static int hf_gdd_timeRangeEndTime = -1;          /* HoursMinutes */
-static int hf_gdd_dateRangeOfWeek = -1;           /* DayOfWeek */
-static int hf_gdd_durationHourminute = -1;        /* HoursMinutes */
-static int hf_gdd_month = -1;                     /* MonthDay_month */
-static int hf_gdd_day = -1;                       /* MonthDay_day */
-static int hf_gdd_hours = -1;                     /* HoursMinutes_hours */
-static int hf_gdd_mins = -1;                      /* HoursMinutes_mins */
-static int hf_gdd_startingPointLength = -1;       /* Distance */
-static int hf_gdd_continuityLength = -1;          /* Distance */
-static int hf_gdd_vehicleHeight = -1;             /* Distance */
-static int hf_gdd_vehicleWidth = -1;              /* Distance */
-static int hf_gdd_vehicleLength = -1;             /* Distance */
-static int hf_gdd_vehicleWeight = -1;             /* Weight */
-static int hf_gdd_dValue = -1;                    /* INTEGER_1_16384 */
-static int hf_gdd_unit = -1;                      /* T_unit */
-static int hf_gdd_wValue = -1;                    /* INTEGER_1_16384 */
-static int hf_gdd_unit_01 = -1;                   /* T_unit_01 */
-static int hf_gdd_speedLimitMax = -1;             /* INTEGER_0_250 */
-static int hf_gdd_speedLimitMin = -1;             /* INTEGER_0_250 */
-static int hf_gdd_unit_02 = -1;                   /* T_unit_02 */
-static int hf_gdd_junctionDirection = -1;         /* DistinInfo_junctionDirection */
-static int hf_gdd_roundaboutCwDirection = -1;     /* DistinInfo_roundaboutCwDirection */
-static int hf_gdd_roundaboutCcwDirection = -1;    /* DistinInfo_roundaboutCcwDirection */
-static int hf_gdd_ioList = -1;                    /* SEQUENCE_SIZE_1_8__OF_DestinationInformationIO */
-static int hf_gdd_ioList_item = -1;               /* DestinationInformationIO */
-static int hf_gdd_arrowDirection = -1;            /* IO_arrowDirection */
-static int hf_gdd_destPlace = -1;                 /* SEQUENCE_SIZE_1_4__OF_DestinationPlace */
-static int hf_gdd_destPlace_item = -1;            /* DestinationPlace */
-static int hf_gdd_destRoad = -1;                  /* SEQUENCE_SIZE_1_4__OF_DestinationRoad */
-static int hf_gdd_destRoad_item = -1;             /* DestinationRoad */
-static int hf_gdd_roadNumberIdentifier = -1;      /* IO_roadNumberIdentifier */
-static int hf_gdd_streetName = -1;                /* IO_streetName */
-static int hf_gdd_streetNameText = -1;            /* IO_streetNameText */
-static int hf_gdd_distanceToDivergingPoint = -1;  /* DistanceOrDuration */
-static int hf_gdd_distanceToDestinationPlace = -1;  /* DistanceOrDuration */
-static int hf_gdd_destType = -1;                  /* DestinationType */
-static int hf_gdd_destRSCode = -1;                /* GddStructure */
-static int hf_gdd_destBlob = -1;                  /* DestPlace_destBlob */
-static int hf_gdd_placeNameIdentification = -1;   /* DestPlace_placeNameIdentification */
-static int hf_gdd_placeNameText = -1;             /* DestPlace_placeNameText */
-static int hf_gdd_derType = -1;                   /* DestinationRoadType */
-static int hf_gdd_roadNumberIdentifier_01 = -1;   /* DestRoad_roadNumberIdentifier */
-static int hf_gdd_roadNumberText = -1;            /* DestRoad_roadNumberText */
-static int hf_gdd_dodValue = -1;                  /* DistOrDuration_value */
-static int hf_gdd_unit_03 = -1;                   /* DistOrDuration_Units */
+static int hf_gdd_pictogramCode;                  /* Pictogram */
+static int hf_gdd_attributes;                     /* GddAttributes */
+static int hf_gdd_countryCode;                    /* Pictogram_countryCode */
+static int hf_gdd_serviceCategoryCode;            /* Pictogram_serviceCategory */
+static int hf_gdd_pictogramCategoryCode;          /* Pictogram_category */
+static int hf_gdd_trafficSignPictogram;           /* Pictogram_trafficSign */
+static int hf_gdd_publicFacilitiesPictogram;      /* Pictogram_publicFacilitySign */
+static int hf_gdd_ambientOrRoadConditionPictogram;  /* Pictogram_conditionsSign */
+static int hf_gdd_nature;                         /* Pictogram_nature */
+static int hf_gdd_serialNumber;                   /* Pictogram_serialNumber */
+static int hf_gdd_GddAttributes_item;             /* GddAttributes_item */
+static int hf_gdd_dtm;                            /* InternationalSign_applicablePeriod */
+static int hf_gdd_edt;                            /* InternationalSign_exemptedApplicablePeriod */
+static int hf_gdd_dfl;                            /* InternationalSign_directionalFlowOfLane */
+static int hf_gdd_ved;                            /* InternationalSign_applicableVehicleDimensions */
+static int hf_gdd_spe;                            /* InternationalSign_speedLimits */
+static int hf_gdd_roi;                            /* InternationalSign_rateOfIncline */
+static int hf_gdd_dbv;                            /* InternationalSign_distanceBetweenVehicles */
+static int hf_gdd_ddd;                            /* InternationalSign_destinationInformation */
+static int hf_gdd_set;                            /* InternationalSign_section */
+static int hf_gdd_nol;                            /* InternationalSign_numberOfLane */
+static int hf_gdd_year;                           /* T_year */
+static int hf_gdd_yearRangeStartYear;             /* Year */
+static int hf_gdd_yearRangeEndYear;               /* Year */
+static int hf_gdd_month_day;                      /* T_month_day */
+static int hf_gdd_dateRangeStartMonthDate;        /* MonthDay */
+static int hf_gdd_dateRangeEndMonthDate;          /* MonthDay */
+static int hf_gdd_repeatingPeriodDayTypes;        /* RPDT */
+static int hf_gdd_hourMinutes;                    /* T_hourMinutes */
+static int hf_gdd_timeRangeStartTime;             /* HoursMinutes */
+static int hf_gdd_timeRangeEndTime;               /* HoursMinutes */
+static int hf_gdd_dateRangeOfWeek;                /* DayOfWeek */
+static int hf_gdd_durationHourminute;             /* HoursMinutes */
+static int hf_gdd_month;                          /* MonthDay_month */
+static int hf_gdd_day;                            /* MonthDay_day */
+static int hf_gdd_hours;                          /* HoursMinutes_hours */
+static int hf_gdd_mins;                           /* HoursMinutes_mins */
+static int hf_gdd_startingPointLength;            /* Distance */
+static int hf_gdd_continuityLength;               /* Distance */
+static int hf_gdd_vehicleHeight;                  /* Distance */
+static int hf_gdd_vehicleWidth;                   /* Distance */
+static int hf_gdd_vehicleLength;                  /* Distance */
+static int hf_gdd_vehicleWeight;                  /* Weight */
+static int hf_gdd_dValue;                         /* INTEGER_1_16384 */
+static int hf_gdd_unit;                           /* T_unit */
+static int hf_gdd_wValue;                         /* INTEGER_1_16384 */
+static int hf_gdd_unit_01;                        /* T_unit_01 */
+static int hf_gdd_speedLimitMax;                  /* INTEGER_0_250 */
+static int hf_gdd_speedLimitMin;                  /* INTEGER_0_250 */
+static int hf_gdd_unit_02;                        /* T_unit_02 */
+static int hf_gdd_junctionDirection;              /* DistinInfo_junctionDirection */
+static int hf_gdd_roundaboutCwDirection;          /* DistinInfo_roundaboutCwDirection */
+static int hf_gdd_roundaboutCcwDirection;         /* DistinInfo_roundaboutCcwDirection */
+static int hf_gdd_ioList;                         /* SEQUENCE_SIZE_1_8__OF_DestinationInformationIO */
+static int hf_gdd_ioList_item;                    /* DestinationInformationIO */
+static int hf_gdd_arrowDirection;                 /* IO_arrowDirection */
+static int hf_gdd_destPlace;                      /* SEQUENCE_SIZE_1_4__OF_DestinationPlace */
+static int hf_gdd_destPlace_item;                 /* DestinationPlace */
+static int hf_gdd_destRoad;                       /* SEQUENCE_SIZE_1_4__OF_DestinationRoad */
+static int hf_gdd_destRoad_item;                  /* DestinationRoad */
+static int hf_gdd_roadNumberIdentifier;           /* IO_roadNumberIdentifier */
+static int hf_gdd_streetName;                     /* IO_streetName */
+static int hf_gdd_streetNameText;                 /* IO_streetNameText */
+static int hf_gdd_distanceToDivergingPoint;       /* DistanceOrDuration */
+static int hf_gdd_distanceToDestinationPlace;     /* DistanceOrDuration */
+static int hf_gdd_destType;                       /* DestinationType */
+static int hf_gdd_destRSCode;                     /* GddStructure */
+static int hf_gdd_destBlob;                       /* DestPlace_destBlob */
+static int hf_gdd_placeNameIdentification;        /* DestPlace_placeNameIdentification */
+static int hf_gdd_placeNameText;                  /* DestPlace_placeNameText */
+static int hf_gdd_derType;                        /* DestinationRoadType */
+static int hf_gdd_roadNumberIdentifier_01;        /* DestRoad_roadNumberIdentifier */
+static int hf_gdd_roadNumberText;                 /* DestRoad_roadNumberText */
+static int hf_gdd_dodValue;                       /* DistOrDuration_value */
+static int hf_gdd_unit_03;                        /* DistOrDuration_Units */
 /* named bits */
-static int hf_gdd_RPDT_national_holiday = -1;
-static int hf_gdd_RPDT_even_days = -1;
-static int hf_gdd_RPDT_odd_days = -1;
-static int hf_gdd_RPDT_market_day = -1;
-static int hf_gdd_DayOfWeek_unused = -1;
-static int hf_gdd_DayOfWeek_monday = -1;
-static int hf_gdd_DayOfWeek_tuesday = -1;
-static int hf_gdd_DayOfWeek_wednesday = -1;
-static int hf_gdd_DayOfWeek_thursday = -1;
-static int hf_gdd_DayOfWeek_friday = -1;
-static int hf_gdd_DayOfWeek_saturday = -1;
-static int hf_gdd_DayOfWeek_sunday = -1;
+static int hf_gdd_RPDT_national_holiday;
+static int hf_gdd_RPDT_even_days;
+static int hf_gdd_RPDT_odd_days;
+static int hf_gdd_RPDT_market_day;
+static int hf_gdd_DayOfWeek_unused;
+static int hf_gdd_DayOfWeek_monday;
+static int hf_gdd_DayOfWeek_tuesday;
+static int hf_gdd_DayOfWeek_wednesday;
+static int hf_gdd_DayOfWeek_thursday;
+static int hf_gdd_DayOfWeek_friday;
+static int hf_gdd_DayOfWeek_saturday;
+static int hf_gdd_DayOfWeek_sunday;
 
 /* --- Module IVI --- --- ---                                                 */
 
-static int hf_ivi_ivi_IviStructure_PDU = -1;      /* IviStructure */
-static int hf_ivi_mandatory = -1;                 /* IviManagementContainer */
-static int hf_ivi_optional = -1;                  /* IviContainers */
-static int hf_ivi_IviContainers_item = -1;        /* IviContainer */
-static int hf_ivi_glc = -1;                       /* GeographicLocationContainer */
-static int hf_ivi_giv = -1;                       /* GeneralIviContainer */
-static int hf_ivi_rcc = -1;                       /* RoadConfigurationContainer */
-static int hf_ivi_tc = -1;                        /* TextContainer */
-static int hf_ivi_lac = -1;                       /* LayoutContainer */
-static int hf_ivi_avc = -1;                       /* AutomatedVehicleContainer */
-static int hf_ivi_mlc = -1;                       /* MapLocationContainer */
-static int hf_ivi_rsc = -1;                       /* RoadSurfaceContainer */
-static int hf_ivi_serviceProviderId = -1;         /* Provider */
-static int hf_ivi_iviIdentificationNumber = -1;   /* IviIdentificationNumber */
-static int hf_ivi_timeStamp = -1;                 /* TimestampIts */
-static int hf_ivi_validFrom = -1;                 /* TimestampIts */
-static int hf_ivi_validTo = -1;                   /* TimestampIts */
-static int hf_ivi_connectedIviStructures = -1;    /* IviIdentificationNumbers */
-static int hf_ivi_iviStatus = -1;                 /* IviStatus */
-static int hf_ivi_connectedDenms = -1;            /* ConnectedDenms */
-static int hf_ivi_referencePosition = -1;         /* ReferencePosition */
-static int hf_ivi_referencePositionTime = -1;     /* TimestampIts */
-static int hf_ivi_referencePositionHeading = -1;  /* Heading */
-static int hf_ivi_referencePositionSpeed = -1;    /* Speed */
-static int hf_ivi_parts = -1;                     /* GlcParts */
-static int hf_ivi_GlcParts_item = -1;             /* GlcPart */
-static int hf_ivi_zoneId = -1;                    /* Zid */
-static int hf_ivi_laneNumber = -1;                /* LanePosition */
-static int hf_ivi_zoneExtension = -1;             /* INTEGER_0_255 */
-static int hf_ivi_zoneHeading = -1;               /* HeadingValue */
-static int hf_ivi_zone = -1;                      /* Zone */
-static int hf_ivi_GeneralIviContainer_item = -1;  /* GicPart */
-static int hf_ivi_gpDetectionZoneIds = -1;        /* T_GicPartDetectionZoneIds */
-static int hf_ivi_its_Rrid = -1;                  /* VarLengthNumber */
-static int hf_ivi_gpRelevanceZoneIds = -1;        /* T_GicPartRelevanceZoneIds */
-static int hf_ivi_direction = -1;                 /* Direction */
-static int hf_ivi_gpDriverAwarenessZoneIds = -1;  /* T_GicPartDriverAwarenessZoneIds */
-static int hf_ivi_minimumAwarenessTime = -1;      /* INTEGER_0_255 */
-static int hf_ivi_applicableLanes = -1;           /* LanePositions */
-static int hf_ivi_iviType = -1;                   /* IviType */
-static int hf_ivi_iviPurpose = -1;                /* IviPurpose */
-static int hf_ivi_laneStatus = -1;                /* LaneStatus */
-static int hf_ivi_vehicleCharacteristics = -1;    /* VehicleCharacteristicsList */
-static int hf_ivi_driverCharacteristics = -1;     /* DriverCharacteristics */
-static int hf_ivi_layoutId = -1;                  /* INTEGER_1_4_ */
-static int hf_ivi_preStoredlayoutId = -1;         /* INTEGER_1_64_ */
-static int hf_ivi_roadSignCodes = -1;             /* RoadSignCodes */
-static int hf_ivi_extraText = -1;                 /* T_GicPartExtraText */
-static int hf_ivi_RoadConfigurationContainer_item = -1;  /* RccPart */
-static int hf_ivi_relevanceZoneIds = -1;          /* ZoneIds */
-static int hf_ivi_roadType = -1;                  /* RoadType */
-static int hf_ivi_laneConfiguration = -1;         /* LaneConfiguration */
-static int hf_ivi_RoadSurfaceContainer_item = -1;  /* RscPart */
-static int hf_ivi_detectionZoneIds = -1;          /* ZoneIds */
-static int hf_ivi_roadSurfaceStaticCharacteristics = -1;  /* RoadSurfaceStaticCharacteristics */
-static int hf_ivi_roadSurfaceDynamicCharacteristics = -1;  /* RoadSurfaceDynamicCharacteristics */
-static int hf_ivi_TextContainer_item = -1;        /* TcPart */
-static int hf_ivi_tpDetectionZoneIds = -1;        /* T_TcPartDetectionZoneIds */
-static int hf_ivi_tpRelevanceZoneIds = -1;        /* T_TcPartRelevanceZoneIds */
-static int hf_ivi_tpDriverAwarenessZoneIds = -1;  /* T_TcPartDriverAwarenessZoneIds */
-static int hf_ivi_text = -1;                      /* T_TcPartText */
-static int hf_ivi_data = -1;                      /* OCTET_STRING */
-static int hf_ivi_height = -1;                    /* INTEGER_10_73 */
-static int hf_ivi_width = -1;                     /* INTEGER_10_265 */
-static int hf_ivi_layoutComponents = -1;          /* LayoutComponents */
-static int hf_ivi_AutomatedVehicleContainer_item = -1;  /* AvcPart */
-static int hf_ivi_automatedVehicleRules = -1;     /* AutomatedVehicleRules */
-static int hf_ivi_platooningRules = -1;           /* PlatooningRules */
-static int hf_ivi_reference = -1;                 /* MapReference */
-static int hf_ivi_parts_01 = -1;                  /* MlcParts */
-static int hf_ivi_MlcParts_item = -1;             /* MlcPart */
-static int hf_ivi_laneIds = -1;                   /* LaneIds */
-static int hf_ivi_AbsolutePositions_item = -1;    /* AbsolutePosition */
-static int hf_ivi_AbsolutePositionsWAltitude_item = -1;  /* AbsolutePositionWAltitude */
-static int hf_ivi_AutomatedVehicleRules_item = -1;  /* AutomatedVehicleRule */
-static int hf_ivi_ConnectedDenms_item = -1;       /* ActionID */
-static int hf_ivi_DeltaPositions_item = -1;       /* DeltaPosition */
-static int hf_ivi_DeltaReferencePositions_item = -1;  /* DeltaReferencePosition */
-static int hf_ivi_ConstraintTextLines1_item = -1;  /* Text */
-static int hf_ivi_ConstraintTextLines2_item = -1;  /* Text */
-static int hf_ivi_IviIdentificationNumbers_item = -1;  /* IviIdentificationNumber */
-static int hf_ivi_ISO14823Attributes_item = -1;   /* ISO14823Attribute */
-static int hf_ivi_LaneConfiguration_item = -1;    /* LaneInformation */
-static int hf_ivi_LaneIds_item = -1;              /* LaneID */
-static int hf_ivi_LanePositions_item = -1;        /* LanePosition */
-static int hf_ivi_LayoutComponents_item = -1;     /* LayoutComponent */
-static int hf_ivi_PlatooningRules_item = -1;      /* PlatooningRule */
-static int hf_ivi_RoadSignCodes_item = -1;        /* RSCode */
-static int hf_ivi_TextLines_item = -1;            /* Text */
-static int hf_ivi_TrailerCharacteristicsList_item = -1;  /* TrailerCharacteristics */
-static int hf_ivi_TrailerCharacteristicsFixValuesList_item = -1;  /* VehicleCharacteristicsFixValues */
-static int hf_ivi_TrailerCharacteristicsRangesList_item = -1;  /* VehicleCharacteristicsRanges */
-static int hf_ivi_SaeAutomationLevels_item = -1;  /* SaeAutomationLevel */
-static int hf_ivi_VehicleCharacteristicsFixValuesList_item = -1;  /* VehicleCharacteristicsFixValues */
-static int hf_ivi_VehicleCharacteristicsList_item = -1;  /* CompleteVehicleCharacteristics */
-static int hf_ivi_VehicleCharacteristicsRangesList_item = -1;  /* VehicleCharacteristicsRanges */
-static int hf_ivi_ValidityPeriods_item = -1;      /* InternationalSign_applicablePeriod */
-static int hf_ivi_ZoneIds_item = -1;              /* Zid */
-static int hf_ivi_latitude = -1;                  /* Latitude */
-static int hf_ivi_longitude = -1;                 /* Longitude */
-static int hf_ivi_altitude = -1;                  /* Altitude */
-static int hf_ivi_owner = -1;                     /* Provider */
-static int hf_ivi_version = -1;                   /* INTEGER_0_255 */
-static int hf_ivi_acPictogramCode = -1;           /* INTEGER_0_65535 */
-static int hf_ivi_acValue = -1;                   /* INTEGER_0_65535 */
-static int hf_ivi_unit = -1;                      /* RSCUnit */
-static int hf_ivi_attributes = -1;                /* ISO14823Attributes */
-static int hf_ivi_priority = -1;                  /* PriorityLevel */
-static int hf_ivi_allowedSaeAutomationLevels = -1;  /* SaeAutomationLevels */
-static int hf_ivi_minGapBetweenVehicles = -1;     /* GapBetweenVehicles */
-static int hf_ivi_recGapBetweenVehicles = -1;     /* GapBetweenVehicles */
-static int hf_ivi_automatedVehicleMaxSpeedLimit = -1;  /* SpeedValue */
-static int hf_ivi_automatedVehicleMinSpeedLimit = -1;  /* SpeedValue */
-static int hf_ivi_automatedVehicleSpeedRecommendation = -1;  /* SpeedValue */
-static int hf_ivi_extraText_01 = -1;              /* ConstraintTextLines2 */
-static int hf_ivi_tractor = -1;                   /* TractorCharacteristics */
-static int hf_ivi_trailer = -1;                   /* TrailerCharacteristicsList */
-static int hf_ivi_train = -1;                     /* TrainCharacteristics */
-static int hf_ivi_laneWidth = -1;                 /* IviLaneWidth */
-static int hf_ivi_offsetDistance = -1;            /* INTEGER_M32768_32767 */
-static int hf_ivi_offsetPosition = -1;            /* DeltaReferencePosition */
-static int hf_ivi_deltaLatitude = -1;             /* DeltaLatitude */
-static int hf_ivi_deltaLongitude = -1;            /* DeltaLongitude */
-static int hf_ivi_dtm = -1;                       /* InternationalSign_applicablePeriod */
-static int hf_ivi_edt = -1;                       /* InternationalSign_exemptedApplicablePeriod */
-static int hf_ivi_dfl = -1;                       /* InternationalSign_directionalFlowOfLane */
-static int hf_ivi_ved = -1;                       /* InternationalSign_applicableVehicleDimensions */
-static int hf_ivi_spe = -1;                       /* InternationalSign_speedLimits */
-static int hf_ivi_roi = -1;                       /* InternationalSign_rateOfIncline */
-static int hf_ivi_dbv = -1;                       /* InternationalSign_distanceBetweenVehicles */
-static int hf_ivi_ddd = -1;                       /* InternationalSign_destinationInformation */
-static int hf_ivi_icPictogramCode = -1;           /* T_icPictogramCode */
-static int hf_ivi_countryCode = -1;               /* OCTET_STRING_SIZE_2 */
-static int hf_ivi_serviceCategoryCode = -1;       /* T_serviceCategoryCode */
-static int hf_ivi_trafficSignPictogram = -1;      /* T_trafficSignPictogram */
-static int hf_ivi_publicFacilitiesPictogram = -1;  /* T_publicFacilitiesPictogram */
-static int hf_ivi_ambientOrRoadConditionPictogram = -1;  /* T_ambientOrRoadConditionPictogram */
-static int hf_ivi_pictogramCategoryCode = -1;     /* T_pictogramCategoryCode */
-static int hf_ivi_nature = -1;                    /* INTEGER_1_9 */
-static int hf_ivi_serialNumber = -1;              /* INTEGER_0_99 */
-static int hf_ivi_liValidity = -1;                /* InternationalSign_applicablePeriod */
-static int hf_ivi_laneType = -1;                  /* LaneType */
-static int hf_ivi_laneTypeQualifier = -1;         /* CompleteVehicleCharacteristics */
-static int hf_ivi_laneCharacteristics = -1;       /* LaneCharacteristics */
-static int hf_ivi_laneSurfaceStaticCharacteristics = -1;  /* RoadSurfaceStaticCharacteristics */
-static int hf_ivi_laneSurfaceDynamicCharacteristics = -1;  /* RoadSurfaceDynamicCharacteristics */
-static int hf_ivi_zoneDefinitionAccuracy = -1;    /* DefinitionAccuracy */
-static int hf_ivi_existinglaneMarkingStatus = -1;  /* LaneMarkingStatus */
-static int hf_ivi_newlaneMarkingColour = -1;      /* MarkingColour */
-static int hf_ivi_laneDelimitationLeft = -1;      /* LaneDelimitation */
-static int hf_ivi_laneDelimitationRight = -1;     /* LaneDelimitation */
-static int hf_ivi_mergingWith = -1;               /* Zid */
-static int hf_ivi_lcLayoutComponentId = -1;       /* INTEGER_1_8_ */
-static int hf_ivi_x = -1;                         /* INTEGER_10_265 */
-static int hf_ivi_y = -1;                         /* INTEGER_10_73 */
-static int hf_ivi_textScripting = -1;             /* T_textScripting */
-static int hf_ivi_goodsType = -1;                 /* GoodsType */
-static int hf_ivi_dangerousGoodsType = -1;        /* DangerousGoodsBasic */
-static int hf_ivi_specialTransportType = -1;      /* SpecialTransportType */
-static int hf_ivi_roadsegment = -1;               /* RoadSegmentReferenceID */
-static int hf_ivi_intersection = -1;              /* IntersectionReferenceID */
-static int hf_ivi_maxNoOfVehicles = -1;           /* MaxNoOfVehicles */
-static int hf_ivi_maxLenghtOfPlatoon = -1;        /* MaxLenghtOfPlatoon */
-static int hf_ivi_platoonMaxSpeedLimit = -1;      /* SpeedValue */
-static int hf_ivi_platoonMinSpeedLimit = -1;      /* SpeedValue */
-static int hf_ivi_platoonSpeedRecommendation = -1;  /* SpeedValue */
-static int hf_ivi_deltaPositions = -1;            /* DeltaPositions */
-static int hf_ivi_deltaPositionsWithAltitude = -1;  /* DeltaReferencePositions */
-static int hf_ivi_absolutePositions = -1;         /* AbsolutePositions */
-static int hf_ivi_absolutePositionsWithAltitude = -1;  /* AbsolutePositionsWAltitude */
-static int hf_ivi_condition = -1;                 /* Condition */
-static int hf_ivi_temperature = -1;               /* Temperature */
-static int hf_ivi_iceOrWaterDepth = -1;           /* Depth */
-static int hf_ivi_treatment = -1;                 /* TreatmentType */
-static int hf_ivi_frictionCoefficient = -1;       /* FrictionCoefficient */
-static int hf_ivi_material = -1;                  /* MaterialType */
-static int hf_ivi_wear = -1;                      /* WearLevel */
-static int hf_ivi_avBankingAngle = -1;            /* BankingAngle */
-static int hf_ivi_rscLayoutComponentId = -1;      /* INTEGER_1_4_ */
-static int hf_ivi_code = -1;                      /* T_code */
-static int hf_ivi_viennaConvention = -1;          /* VcCode */
-static int hf_ivi_iso14823 = -1;                  /* ISO14823Code */
-static int hf_ivi_itisCodes = -1;                 /* INTEGER_0_65535 */
-static int hf_ivi_anyCatalogue = -1;              /* AnyCatalogue */
-static int hf_ivi_line = -1;                      /* PolygonalLine */
-static int hf_ivi_tLayoutComponentId = -1;        /* INTEGER_1_4_ */
-static int hf_ivi_language = -1;                  /* T_language */
-static int hf_ivi_textContent = -1;               /* UTF8String */
-static int hf_ivi_toEqualTo = -1;                 /* T_TractorCharactEqualTo */
-static int hf_ivi_toNotEqualTo = -1;              /* T_TractorCharactNotEqualTo */
-static int hf_ivi_ranges = -1;                    /* VehicleCharacteristicsRangesList */
-static int hf_ivi_teEqualTo = -1;                 /* T_TrailerCharactEqualTo */
-static int hf_ivi_teNotEqualTo = -1;              /* T_TrailerCharactNotEqualTo */
-static int hf_ivi_ranges_01 = -1;                 /* TrailerCharacteristicsRangesList */
-static int hf_ivi_roadSignClass = -1;             /* VcClass */
-static int hf_ivi_roadSignCode = -1;              /* INTEGER_1_64 */
-static int hf_ivi_vcOption = -1;                  /* VcOption */
-static int hf_ivi_vcValidity = -1;                /* ValidityPeriods */
-static int hf_ivi_vcValue = -1;                   /* INTEGER_0_65535 */
-static int hf_ivi_simpleVehicleType = -1;         /* StationType */
-static int hf_ivi_euVehicleCategoryCode = -1;     /* EuVehicleCategoryCode */
-static int hf_ivi_iso3833VehicleType = -1;        /* Iso3833VehicleType */
-static int hf_ivi_euroAndCo2value = -1;           /* EnvironmentalCharacteristics */
-static int hf_ivi_engineCharacteristics = -1;     /* EngineCharacteristics */
-static int hf_ivi_loadType = -1;                  /* LoadType */
-static int hf_ivi_usage = -1;                     /* VehicleRole */
-static int hf_ivi_comparisonOperator = -1;        /* ComparisonOperator */
-static int hf_ivi_limits = -1;                    /* T_limits */
-static int hf_ivi_numberOfAxles = -1;             /* INTEGER_0_7 */
-static int hf_ivi_vehicleDimensions = -1;         /* VehicleDimensions */
-static int hf_ivi_vehicleWeightLimits = -1;       /* VehicleWeightLimits */
-static int hf_ivi_axleWeightLimits = -1;          /* AxleWeightLimits */
-static int hf_ivi_passengerCapacity = -1;         /* PassengerCapacity */
-static int hf_ivi_exhaustEmissionValues = -1;     /* ExhaustEmissionValues */
-static int hf_ivi_dieselEmissionValues = -1;      /* DieselEmissionValues */
-static int hf_ivi_soundLevel = -1;                /* SoundLevel */
-static int hf_ivi_segment = -1;                   /* Segment */
-static int hf_ivi_area = -1;                      /* PolygonalLine */
-static int hf_ivi_computedSegment = -1;           /* ComputedSegment */
-static int dummy_hf_ivi_eag_field = -1; /* never registered */
+static int hf_ivi_ivi_IviStructure_PDU;           /* IviStructure */
+static int hf_ivi_mandatory;                      /* IviManagementContainer */
+static int hf_ivi_optional;                       /* IviContainers */
+static int hf_ivi_IviContainers_item;             /* IviContainer */
+static int hf_ivi_glc;                            /* GeographicLocationContainer */
+static int hf_ivi_giv;                            /* GeneralIviContainer */
+static int hf_ivi_rcc;                            /* RoadConfigurationContainer */
+static int hf_ivi_tc;                             /* TextContainer */
+static int hf_ivi_lac;                            /* LayoutContainer */
+static int hf_ivi_avc;                            /* AutomatedVehicleContainer */
+static int hf_ivi_mlc;                            /* MapLocationContainer */
+static int hf_ivi_rsc;                            /* RoadSurfaceContainer */
+static int hf_ivi_serviceProviderId;              /* Provider */
+static int hf_ivi_iviIdentificationNumber;        /* IviIdentificationNumber */
+static int hf_ivi_timeStamp;                      /* TimestampIts */
+static int hf_ivi_validFrom;                      /* TimestampIts */
+static int hf_ivi_validTo;                        /* TimestampIts */
+static int hf_ivi_connectedIviStructures;         /* IviIdentificationNumbers */
+static int hf_ivi_iviStatus;                      /* IviStatus */
+static int hf_ivi_connectedDenms;                 /* ConnectedDenms */
+static int hf_ivi_referencePosition;              /* ReferencePosition */
+static int hf_ivi_referencePositionTime;          /* TimestampIts */
+static int hf_ivi_referencePositionHeading;       /* Heading */
+static int hf_ivi_referencePositionSpeed;         /* Speed */
+static int hf_ivi_parts;                          /* GlcParts */
+static int hf_ivi_GlcParts_item;                  /* GlcPart */
+static int hf_ivi_zoneId;                         /* Zid */
+static int hf_ivi_laneNumber;                     /* LanePosition */
+static int hf_ivi_zoneExtension;                  /* INTEGER_0_255 */
+static int hf_ivi_zoneHeading;                    /* HeadingValue */
+static int hf_ivi_zone;                           /* Zone */
+static int hf_ivi_GeneralIviContainer_item;       /* GicPart */
+static int hf_ivi_gpDetectionZoneIds;             /* T_GicPartDetectionZoneIds */
+static int hf_ivi_its_Rrid;                       /* VarLengthNumber */
+static int hf_ivi_gpRelevanceZoneIds;             /* T_GicPartRelevanceZoneIds */
+static int hf_ivi_direction;                      /* Direction */
+static int hf_ivi_gpDriverAwarenessZoneIds;       /* T_GicPartDriverAwarenessZoneIds */
+static int hf_ivi_minimumAwarenessTime;           /* INTEGER_0_255 */
+static int hf_ivi_applicableLanes;                /* LanePositions */
+static int hf_ivi_iviType;                        /* IviType */
+static int hf_ivi_iviPurpose;                     /* IviPurpose */
+static int hf_ivi_laneStatus;                     /* LaneStatus */
+static int hf_ivi_vehicleCharacteristics;         /* VehicleCharacteristicsList */
+static int hf_ivi_driverCharacteristics;          /* DriverCharacteristics */
+static int hf_ivi_layoutId;                       /* INTEGER_1_4_ */
+static int hf_ivi_preStoredlayoutId;              /* INTEGER_1_64_ */
+static int hf_ivi_roadSignCodes;                  /* RoadSignCodes */
+static int hf_ivi_extraText;                      /* T_GicPartExtraText */
+static int hf_ivi_RoadConfigurationContainer_item;  /* RccPart */
+static int hf_ivi_relevanceZoneIds;               /* ZoneIds */
+static int hf_ivi_roadType;                       /* RoadType */
+static int hf_ivi_laneConfiguration;              /* LaneConfiguration */
+static int hf_ivi_RoadSurfaceContainer_item;      /* RscPart */
+static int hf_ivi_detectionZoneIds;               /* ZoneIds */
+static int hf_ivi_roadSurfaceStaticCharacteristics;  /* RoadSurfaceStaticCharacteristics */
+static int hf_ivi_roadSurfaceDynamicCharacteristics;  /* RoadSurfaceDynamicCharacteristics */
+static int hf_ivi_TextContainer_item;             /* TcPart */
+static int hf_ivi_tpDetectionZoneIds;             /* T_TcPartDetectionZoneIds */
+static int hf_ivi_tpRelevanceZoneIds;             /* T_TcPartRelevanceZoneIds */
+static int hf_ivi_tpDriverAwarenessZoneIds;       /* T_TcPartDriverAwarenessZoneIds */
+static int hf_ivi_text;                           /* T_TcPartText */
+static int hf_ivi_data;                           /* OCTET_STRING */
+static int hf_ivi_height;                         /* INTEGER_10_73 */
+static int hf_ivi_width;                          /* INTEGER_10_265 */
+static int hf_ivi_layoutComponents;               /* LayoutComponents */
+static int hf_ivi_AutomatedVehicleContainer_item;  /* AvcPart */
+static int hf_ivi_automatedVehicleRules;          /* AutomatedVehicleRules */
+static int hf_ivi_platooningRules;                /* PlatooningRules */
+static int hf_ivi_reference;                      /* MapReference */
+static int hf_ivi_parts_01;                       /* MlcParts */
+static int hf_ivi_MlcParts_item;                  /* MlcPart */
+static int hf_ivi_laneIds;                        /* LaneIds */
+static int hf_ivi_AbsolutePositions_item;         /* AbsolutePosition */
+static int hf_ivi_AbsolutePositionsWAltitude_item;  /* AbsolutePositionWAltitude */
+static int hf_ivi_AutomatedVehicleRules_item;     /* AutomatedVehicleRule */
+static int hf_ivi_ConnectedDenms_item;            /* ActionID */
+static int hf_ivi_DeltaPositions_item;            /* DeltaPosition */
+static int hf_ivi_DeltaReferencePositions_item;   /* DeltaReferencePosition */
+static int hf_ivi_ConstraintTextLines1_item;      /* Text */
+static int hf_ivi_ConstraintTextLines2_item;      /* Text */
+static int hf_ivi_IviIdentificationNumbers_item;  /* IviIdentificationNumber */
+static int hf_ivi_ISO14823Attributes_item;        /* ISO14823Attribute */
+static int hf_ivi_LaneConfiguration_item;         /* LaneInformation */
+static int hf_ivi_LaneIds_item;                   /* LaneID */
+static int hf_ivi_LanePositions_item;             /* LanePosition */
+static int hf_ivi_LayoutComponents_item;          /* LayoutComponent */
+static int hf_ivi_PlatooningRules_item;           /* PlatooningRule */
+static int hf_ivi_RoadSignCodes_item;             /* RSCode */
+static int hf_ivi_TextLines_item;                 /* Text */
+static int hf_ivi_TrailerCharacteristicsList_item;  /* TrailerCharacteristics */
+static int hf_ivi_TrailerCharacteristicsFixValuesList_item;  /* VehicleCharacteristicsFixValues */
+static int hf_ivi_TrailerCharacteristicsRangesList_item;  /* VehicleCharacteristicsRanges */
+static int hf_ivi_SaeAutomationLevels_item;       /* SaeAutomationLevel */
+static int hf_ivi_VehicleCharacteristicsFixValuesList_item;  /* VehicleCharacteristicsFixValues */
+static int hf_ivi_VehicleCharacteristicsList_item;  /* CompleteVehicleCharacteristics */
+static int hf_ivi_VehicleCharacteristicsRangesList_item;  /* VehicleCharacteristicsRanges */
+static int hf_ivi_ValidityPeriods_item;           /* InternationalSign_applicablePeriod */
+static int hf_ivi_ZoneIds_item;                   /* Zid */
+static int hf_ivi_latitude;                       /* Latitude */
+static int hf_ivi_longitude;                      /* Longitude */
+static int hf_ivi_altitude;                       /* Altitude */
+static int hf_ivi_owner;                          /* Provider */
+static int hf_ivi_version;                        /* INTEGER_0_255 */
+static int hf_ivi_acPictogramCode;                /* INTEGER_0_65535 */
+static int hf_ivi_acValue;                        /* INTEGER_0_65535 */
+static int hf_ivi_unit;                           /* RSCUnit */
+static int hf_ivi_attributes;                     /* ISO14823Attributes */
+static int hf_ivi_priority;                       /* PriorityLevel */
+static int hf_ivi_allowedSaeAutomationLevels;     /* SaeAutomationLevels */
+static int hf_ivi_minGapBetweenVehicles;          /* GapBetweenVehicles */
+static int hf_ivi_recGapBetweenVehicles;          /* GapBetweenVehicles */
+static int hf_ivi_automatedVehicleMaxSpeedLimit;  /* SpeedValue */
+static int hf_ivi_automatedVehicleMinSpeedLimit;  /* SpeedValue */
+static int hf_ivi_automatedVehicleSpeedRecommendation;  /* SpeedValue */
+static int hf_ivi_extraText_01;                   /* ConstraintTextLines2 */
+static int hf_ivi_tractor;                        /* TractorCharacteristics */
+static int hf_ivi_trailer;                        /* TrailerCharacteristicsList */
+static int hf_ivi_train;                          /* TrainCharacteristics */
+static int hf_ivi_laneWidth;                      /* IviLaneWidth */
+static int hf_ivi_offsetDistance;                 /* INTEGER_M32768_32767 */
+static int hf_ivi_offsetPosition;                 /* DeltaReferencePosition */
+static int hf_ivi_deltaLatitude;                  /* DeltaLatitude */
+static int hf_ivi_deltaLongitude;                 /* DeltaLongitude */
+static int hf_ivi_dtm;                            /* InternationalSign_applicablePeriod */
+static int hf_ivi_edt;                            /* InternationalSign_exemptedApplicablePeriod */
+static int hf_ivi_dfl;                            /* InternationalSign_directionalFlowOfLane */
+static int hf_ivi_ved;                            /* InternationalSign_applicableVehicleDimensions */
+static int hf_ivi_spe;                            /* InternationalSign_speedLimits */
+static int hf_ivi_roi;                            /* InternationalSign_rateOfIncline */
+static int hf_ivi_dbv;                            /* InternationalSign_distanceBetweenVehicles */
+static int hf_ivi_ddd;                            /* InternationalSign_destinationInformation */
+static int hf_ivi_icPictogramCode;                /* T_icPictogramCode */
+static int hf_ivi_countryCode;                    /* OCTET_STRING_SIZE_2 */
+static int hf_ivi_serviceCategoryCode;            /* T_serviceCategoryCode */
+static int hf_ivi_trafficSignPictogram;           /* T_trafficSignPictogram */
+static int hf_ivi_publicFacilitiesPictogram;      /* T_publicFacilitiesPictogram */
+static int hf_ivi_ambientOrRoadConditionPictogram;  /* T_ambientOrRoadConditionPictogram */
+static int hf_ivi_pictogramCategoryCode;          /* T_pictogramCategoryCode */
+static int hf_ivi_nature;                         /* INTEGER_1_9 */
+static int hf_ivi_serialNumber;                   /* INTEGER_0_99 */
+static int hf_ivi_liValidity;                     /* InternationalSign_applicablePeriod */
+static int hf_ivi_laneType;                       /* LaneType */
+static int hf_ivi_laneTypeQualifier;              /* CompleteVehicleCharacteristics */
+static int hf_ivi_laneCharacteristics;            /* LaneCharacteristics */
+static int hf_ivi_laneSurfaceStaticCharacteristics;  /* RoadSurfaceStaticCharacteristics */
+static int hf_ivi_laneSurfaceDynamicCharacteristics;  /* RoadSurfaceDynamicCharacteristics */
+static int hf_ivi_zoneDefinitionAccuracy;         /* DefinitionAccuracy */
+static int hf_ivi_existinglaneMarkingStatus;      /* LaneMarkingStatus */
+static int hf_ivi_newlaneMarkingColour;           /* MarkingColour */
+static int hf_ivi_laneDelimitationLeft;           /* LaneDelimitation */
+static int hf_ivi_laneDelimitationRight;          /* LaneDelimitation */
+static int hf_ivi_mergingWith;                    /* Zid */
+static int hf_ivi_lcLayoutComponentId;            /* INTEGER_1_8_ */
+static int hf_ivi_x;                              /* INTEGER_10_265 */
+static int hf_ivi_y;                              /* INTEGER_10_73 */
+static int hf_ivi_textScripting;                  /* T_textScripting */
+static int hf_ivi_goodsType;                      /* GoodsType */
+static int hf_ivi_dangerousGoodsType;             /* DangerousGoodsBasic */
+static int hf_ivi_specialTransportType;           /* SpecialTransportType */
+static int hf_ivi_roadsegment;                    /* RoadSegmentReferenceID */
+static int hf_ivi_intersection;                   /* IntersectionReferenceID */
+static int hf_ivi_maxNoOfVehicles;                /* MaxNoOfVehicles */
+static int hf_ivi_maxLenghtOfPlatoon;             /* MaxLenghtOfPlatoon */
+static int hf_ivi_platoonMaxSpeedLimit;           /* SpeedValue */
+static int hf_ivi_platoonMinSpeedLimit;           /* SpeedValue */
+static int hf_ivi_platoonSpeedRecommendation;     /* SpeedValue */
+static int hf_ivi_deltaPositions;                 /* DeltaPositions */
+static int hf_ivi_deltaPositionsWithAltitude;     /* DeltaReferencePositions */
+static int hf_ivi_absolutePositions;              /* AbsolutePositions */
+static int hf_ivi_absolutePositionsWithAltitude;  /* AbsolutePositionsWAltitude */
+static int hf_ivi_condition;                      /* Condition */
+static int hf_ivi_temperature;                    /* Temperature */
+static int hf_ivi_iceOrWaterDepth;                /* Depth */
+static int hf_ivi_treatment;                      /* TreatmentType */
+static int hf_ivi_frictionCoefficient;            /* FrictionCoefficient */
+static int hf_ivi_material;                       /* MaterialType */
+static int hf_ivi_wear;                           /* WearLevel */
+static int hf_ivi_avBankingAngle;                 /* BankingAngle */
+static int hf_ivi_rscLayoutComponentId;           /* INTEGER_1_4_ */
+static int hf_ivi_code;                           /* T_code */
+static int hf_ivi_viennaConvention;               /* VcCode */
+static int hf_ivi_iso14823;                       /* ISO14823Code */
+static int hf_ivi_itisCodes;                      /* INTEGER_0_65535 */
+static int hf_ivi_anyCatalogue;                   /* AnyCatalogue */
+static int hf_ivi_line;                           /* PolygonalLine */
+static int hf_ivi_tLayoutComponentId;             /* INTEGER_1_4_ */
+static int hf_ivi_language;                       /* T_language */
+static int hf_ivi_textContent;                    /* UTF8String */
+static int hf_ivi_toEqualTo;                      /* T_TractorCharactEqualTo */
+static int hf_ivi_toNotEqualTo;                   /* T_TractorCharactNotEqualTo */
+static int hf_ivi_ranges;                         /* VehicleCharacteristicsRangesList */
+static int hf_ivi_teEqualTo;                      /* T_TrailerCharactEqualTo */
+static int hf_ivi_teNotEqualTo;                   /* T_TrailerCharactNotEqualTo */
+static int hf_ivi_ranges_01;                      /* TrailerCharacteristicsRangesList */
+static int hf_ivi_roadSignClass;                  /* VcClass */
+static int hf_ivi_roadSignCode;                   /* INTEGER_1_64 */
+static int hf_ivi_vcOption;                       /* VcOption */
+static int hf_ivi_vcValidity;                     /* ValidityPeriods */
+static int hf_ivi_vcValue;                        /* INTEGER_0_65535 */
+static int hf_ivi_simpleVehicleType;              /* StationType */
+static int hf_ivi_euVehicleCategoryCode;          /* EuVehicleCategoryCode */
+static int hf_ivi_iso3833VehicleType;             /* Iso3833VehicleType */
+static int hf_ivi_euroAndCo2value;                /* EnvironmentalCharacteristics */
+static int hf_ivi_engineCharacteristics;          /* EngineCharacteristics */
+static int hf_ivi_loadType;                       /* LoadType */
+static int hf_ivi_usage;                          /* VehicleRole */
+static int hf_ivi_comparisonOperator;             /* ComparisonOperator */
+static int hf_ivi_limits;                         /* T_limits */
+static int hf_ivi_numberOfAxles;                  /* INTEGER_0_7 */
+static int hf_ivi_vehicleDimensions;              /* VehicleDimensions */
+static int hf_ivi_vehicleWeightLimits;            /* VehicleWeightLimits */
+static int hf_ivi_axleWeightLimits;               /* AxleWeightLimits */
+static int hf_ivi_passengerCapacity;              /* PassengerCapacity */
+static int hf_ivi_exhaustEmissionValues;          /* ExhaustEmissionValues */
+static int hf_ivi_dieselEmissionValues;           /* DieselEmissionValues */
+static int hf_ivi_soundLevel;                     /* SoundLevel */
+static int hf_ivi_segment;                        /* Segment */
+static int hf_ivi_area;                           /* PolygonalLine */
+static int hf_ivi_computedSegment;                /* ComputedSegment */
+static int dummy_hf_ivi_eag_field; /* never registered */
 
 /* --- Module CAMv1-PDU-Descriptions --- --- ---                              */
 
-static int hf_camv1_camv1_CoopAwarenessV1_PDU = -1;  /* CoopAwarenessV1 */
-static int hf_camv1_generationDeltaTime = -1;     /* GenerationDeltaTime */
-static int hf_camv1_camParameters = -1;           /* CamParameters */
-static int hf_camv1_basicContainer = -1;          /* BasicContainer */
-static int hf_camv1_highFrequencyContainer = -1;  /* HighFrequencyContainer */
-static int hf_camv1_lowFrequencyContainer = -1;   /* LowFrequencyContainer */
-static int hf_camv1_specialVehicleContainer = -1;  /* SpecialVehicleContainer */
-static int hf_camv1_basicVehicleContainerHighFrequency = -1;  /* BasicVehicleContainerHighFrequency */
-static int hf_camv1_rsuContainerHighFrequency = -1;  /* RSUContainerHighFrequency */
-static int hf_camv1_basicVehicleContainerLowFrequency = -1;  /* BasicVehicleContainerLowFrequency */
-static int hf_camv1_publicTransportContainer = -1;  /* PublicTransportContainer */
-static int hf_camv1_specialTransportContainer = -1;  /* SpecialTransportContainer */
-static int hf_camv1_dangerousGoodsContainer = -1;  /* DangerousGoodsContainer */
-static int hf_camv1_roadWorksContainerBasic = -1;  /* RoadWorksContainerBasic */
-static int hf_camv1_rescueContainer = -1;         /* RescueContainer */
-static int hf_camv1_emergencyContainer = -1;      /* EmergencyContainer */
-static int hf_camv1_safetyCarContainer = -1;      /* SafetyCarContainer */
-static int hf_camv1_stationType = -1;             /* StationType */
-static int hf_camv1_referencePosition = -1;       /* ReferencePosition */
-static int hf_camv1_heading = -1;                 /* Heading */
-static int hf_camv1_speed = -1;                   /* Speed */
-static int hf_camv1_driveDirection = -1;          /* DriveDirection */
-static int hf_camv1_vehicleLength = -1;           /* VehicleLength */
-static int hf_camv1_vehicleWidth = -1;            /* VehicleWidth */
-static int hf_camv1_longitudinalAcceleration = -1;  /* LongitudinalAcceleration */
-static int hf_camv1_curvature = -1;               /* Curvature */
-static int hf_camv1_curvatureCalculationMode = -1;  /* CurvatureCalculationMode */
-static int hf_camv1_yawRate = -1;                 /* YawRate */
-static int hf_camv1_accelerationControl = -1;     /* AccelerationControl */
-static int hf_camv1_lanePosition = -1;            /* LanePosition */
-static int hf_camv1_steeringWheelAngle = -1;      /* SteeringWheelAngle */
-static int hf_camv1_lateralAcceleration = -1;     /* LateralAcceleration */
-static int hf_camv1_verticalAcceleration = -1;    /* VerticalAcceleration */
-static int hf_camv1_performanceClass = -1;        /* PerformanceClass */
-static int hf_camv1_cenDsrcTollingZone = -1;      /* CenDsrcTollingZone */
-static int hf_camv1_vehicleRole = -1;             /* VehicleRole */
-static int hf_camv1_exteriorLights = -1;          /* ExteriorLights */
-static int hf_camv1_pathHistory = -1;             /* PathHistory */
-static int hf_camv1_embarkationStatus = -1;       /* EmbarkationStatus */
-static int hf_camv1_ptActivation = -1;            /* PtActivation */
-static int hf_camv1_specialTransportType = -1;    /* SpecialTransportType */
-static int hf_camv1_lightBarSirenInUse = -1;      /* LightBarSirenInUse */
-static int hf_camv1_dangerousGoodsBasic = -1;     /* DangerousGoodsBasic */
-static int hf_camv1_roadworksSubCauseCode = -1;   /* RoadworksSubCauseCode */
-static int hf_camv1_closedLanes = -1;             /* ClosedLanes */
-static int hf_camv1_incidentIndication = -1;      /* CauseCode */
-static int hf_camv1_emergencyPriority = -1;       /* EmergencyPriority */
-static int hf_camv1_trafficRule = -1;             /* TrafficRule */
-static int hf_camv1_speedLimit = -1;              /* SpeedLimit */
-static int hf_camv1_protectedCommunicationZonesRSU = -1;  /* ProtectedCommunicationZonesRSU */
+static int hf_camv1_camv1_CoopAwarenessV1_PDU;    /* CoopAwarenessV1 */
+static int hf_camv1_generationDeltaTime;          /* GenerationDeltaTime */
+static int hf_camv1_camParameters;                /* CamParameters */
+static int hf_camv1_basicContainer;               /* BasicContainer */
+static int hf_camv1_highFrequencyContainer;       /* HighFrequencyContainer */
+static int hf_camv1_lowFrequencyContainer;        /* LowFrequencyContainer */
+static int hf_camv1_specialVehicleContainer;      /* SpecialVehicleContainer */
+static int hf_camv1_basicVehicleContainerHighFrequency;  /* BasicVehicleContainerHighFrequency */
+static int hf_camv1_rsuContainerHighFrequency;    /* RSUContainerHighFrequency */
+static int hf_camv1_basicVehicleContainerLowFrequency;  /* BasicVehicleContainerLowFrequency */
+static int hf_camv1_publicTransportContainer;     /* PublicTransportContainer */
+static int hf_camv1_specialTransportContainer;    /* SpecialTransportContainer */
+static int hf_camv1_dangerousGoodsContainer;      /* DangerousGoodsContainer */
+static int hf_camv1_roadWorksContainerBasic;      /* RoadWorksContainerBasic */
+static int hf_camv1_rescueContainer;              /* RescueContainer */
+static int hf_camv1_emergencyContainer;           /* EmergencyContainer */
+static int hf_camv1_safetyCarContainer;           /* SafetyCarContainer */
+static int hf_camv1_stationType;                  /* StationType */
+static int hf_camv1_referencePosition;            /* ReferencePosition */
+static int hf_camv1_heading;                      /* Heading */
+static int hf_camv1_speed;                        /* Speed */
+static int hf_camv1_driveDirection;               /* DriveDirection */
+static int hf_camv1_vehicleLength;                /* VehicleLength */
+static int hf_camv1_vehicleWidth;                 /* VehicleWidth */
+static int hf_camv1_longitudinalAcceleration;     /* LongitudinalAcceleration */
+static int hf_camv1_curvature;                    /* Curvature */
+static int hf_camv1_curvatureCalculationMode;     /* CurvatureCalculationMode */
+static int hf_camv1_yawRate;                      /* YawRate */
+static int hf_camv1_accelerationControl;          /* AccelerationControl */
+static int hf_camv1_lanePosition;                 /* LanePosition */
+static int hf_camv1_steeringWheelAngle;           /* SteeringWheelAngle */
+static int hf_camv1_lateralAcceleration;          /* LateralAcceleration */
+static int hf_camv1_verticalAcceleration;         /* VerticalAcceleration */
+static int hf_camv1_performanceClass;             /* PerformanceClass */
+static int hf_camv1_cenDsrcTollingZone;           /* CenDsrcTollingZone */
+static int hf_camv1_vehicleRole;                  /* VehicleRole */
+static int hf_camv1_exteriorLights;               /* ExteriorLights */
+static int hf_camv1_pathHistory;                  /* PathHistory */
+static int hf_camv1_embarkationStatus;            /* EmbarkationStatus */
+static int hf_camv1_ptActivation;                 /* PtActivation */
+static int hf_camv1_specialTransportType;         /* SpecialTransportType */
+static int hf_camv1_lightBarSirenInUse;           /* LightBarSirenInUse */
+static int hf_camv1_dangerousGoodsBasic;          /* DangerousGoodsBasic */
+static int hf_camv1_roadworksSubCauseCode;        /* RoadworksSubCauseCode */
+static int hf_camv1_closedLanes;                  /* ClosedLanes */
+static int hf_camv1_incidentIndication;           /* CauseCode */
+static int hf_camv1_emergencyPriority;            /* EmergencyPriority */
+static int hf_camv1_trafficRule;                  /* TrafficRule */
+static int hf_camv1_speedLimit;                   /* SpeedLimit */
+static int hf_camv1_protectedCommunicationZonesRSU;  /* ProtectedCommunicationZonesRSU */
 
 /* --- Module CAM-PDU-Descriptions --- --- ---                                */
 
-static int hf_cam_cam_CamPayload_PDU = -1;        /* CamPayload */
-static int hf_cam_generationDeltaTime = -1;       /* GenerationDeltaTime */
-static int hf_cam_camParameters = -1;             /* CamParameters */
-static int hf_cam_basicContainer = -1;            /* BasicContainer */
-static int hf_cam_highFrequencyContainer = -1;    /* HighFrequencyContainer */
-static int hf_cam_lowFrequencyContainer = -1;     /* LowFrequencyContainer */
-static int hf_cam_specialVehicleContainer = -1;   /* SpecialVehicleContainer */
-static int hf_cam_basicVehicleContainerHighFrequency = -1;  /* BasicVehicleContainerHighFrequency */
-static int hf_cam_rsuContainerHighFrequency = -1;  /* RSUContainerHighFrequency */
-static int hf_cam_basicVehicleContainerLowFrequency = -1;  /* BasicVehicleContainerLowFrequency */
-static int hf_cam_publicTransportContainer = -1;  /* PublicTransportContainer */
-static int hf_cam_specialTransportContainer = -1;  /* SpecialTransportContainer */
-static int hf_cam_dangerousGoodsContainer = -1;   /* DangerousGoodsContainer */
-static int hf_cam_roadWorksContainerBasic = -1;   /* RoadWorksContainerBasic */
-static int hf_cam_rescueContainer = -1;           /* RescueContainer */
-static int hf_cam_emergencyContainer = -1;        /* EmergencyContainer */
-static int hf_cam_safetyCarContainer = -1;        /* SafetyCarContainer */
-static int hf_cam_heading = -1;                   /* Heading */
-static int hf_cam_speed = -1;                     /* Speed */
-static int hf_cam_driveDirection = -1;            /* DriveDirection */
-static int hf_cam_vehicleLength = -1;             /* VehicleLength */
-static int hf_cam_vehicleWidth = -1;              /* VehicleWidth */
-static int hf_cam_longitudinalAcceleration = -1;  /* AccelerationComponent */
-static int hf_cam_curvature = -1;                 /* Curvature */
-static int hf_cam_curvatureCalculationMode = -1;  /* CurvatureCalculationMode */
-static int hf_cam_yawRate = -1;                   /* YawRate */
-static int hf_cam_accelerationControl = -1;       /* AccelerationControl */
-static int hf_cam_lanePosition = -1;              /* LanePosition */
-static int hf_cam_steeringWheelAngle = -1;        /* SteeringWheelAngle */
-static int hf_cam_lateralAcceleration = -1;       /* AccelerationComponent */
-static int hf_cam_verticalAcceleration = -1;      /* AccelerationComponent */
-static int hf_cam_performanceClass = -1;          /* PerformanceClass */
-static int hf_cam_cenDsrcTollingZone = -1;        /* CenDsrcTollingZone */
-static int hf_cam_vehicleRole = -1;               /* VehicleRole */
-static int hf_cam_exteriorLights = -1;            /* ExteriorLights */
-static int hf_cam_pathHistory = -1;               /* Path */
-static int hf_cam_embarkationStatus = -1;         /* EmbarkationStatus */
-static int hf_cam_ptActivation = -1;              /* PtActivation */
-static int hf_cam_specialTransportType = -1;      /* SpecialTransportType */
-static int hf_cam_lightBarSirenInUse = -1;        /* LightBarSirenInUse */
-static int hf_cam_dangerousGoodsBasic = -1;       /* DangerousGoodsBasic */
-static int hf_cam_roadworksSubCauseCode = -1;     /* RoadworksSubCauseCode */
-static int hf_cam_closedLanes = -1;               /* ClosedLanes */
-static int hf_cam_incidentIndication = -1;        /* CauseCodeV2 */
-static int hf_cam_emergencyPriority = -1;         /* EmergencyPriority */
-static int hf_cam_trafficRule = -1;               /* TrafficRule */
-static int hf_cam_speedLimit = -1;                /* SpeedLimit */
-static int hf_cam_protectedCommunicationZonesRSU = -1;  /* ProtectedCommunicationZonesRSU */
+static int hf_cam_cam_CamPayload_PDU;             /* CamPayload */
+static int hf_cam_generationDeltaTime;            /* GenerationDeltaTime */
+static int hf_cam_camParameters;                  /* CamParameters */
+static int hf_cam_basicContainer;                 /* BasicContainer */
+static int hf_cam_highFrequencyContainer;         /* HighFrequencyContainer */
+static int hf_cam_lowFrequencyContainer;          /* LowFrequencyContainer */
+static int hf_cam_specialVehicleContainer;        /* SpecialVehicleContainer */
+static int hf_cam_basicVehicleContainerHighFrequency;  /* BasicVehicleContainerHighFrequency */
+static int hf_cam_rsuContainerHighFrequency;      /* RSUContainerHighFrequency */
+static int hf_cam_basicVehicleContainerLowFrequency;  /* BasicVehicleContainerLowFrequency */
+static int hf_cam_publicTransportContainer;       /* PublicTransportContainer */
+static int hf_cam_specialTransportContainer;      /* SpecialTransportContainer */
+static int hf_cam_dangerousGoodsContainer;        /* DangerousGoodsContainer */
+static int hf_cam_roadWorksContainerBasic;        /* RoadWorksContainerBasic */
+static int hf_cam_rescueContainer;                /* RescueContainer */
+static int hf_cam_emergencyContainer;             /* EmergencyContainer */
+static int hf_cam_safetyCarContainer;             /* SafetyCarContainer */
+static int hf_cam_heading;                        /* Heading */
+static int hf_cam_speed;                          /* Speed */
+static int hf_cam_driveDirection;                 /* DriveDirection */
+static int hf_cam_vehicleLength;                  /* VehicleLength */
+static int hf_cam_vehicleWidth;                   /* VehicleWidth */
+static int hf_cam_longitudinalAcceleration;       /* AccelerationComponent */
+static int hf_cam_curvature;                      /* Curvature */
+static int hf_cam_curvatureCalculationMode;       /* CurvatureCalculationMode */
+static int hf_cam_yawRate;                        /* YawRate */
+static int hf_cam_accelerationControl;            /* AccelerationControl */
+static int hf_cam_lanePosition;                   /* LanePosition */
+static int hf_cam_steeringWheelAngle;             /* SteeringWheelAngle */
+static int hf_cam_lateralAcceleration;            /* AccelerationComponent */
+static int hf_cam_verticalAcceleration;           /* AccelerationComponent */
+static int hf_cam_performanceClass;               /* PerformanceClass */
+static int hf_cam_cenDsrcTollingZone;             /* CenDsrcTollingZone */
+static int hf_cam_vehicleRole;                    /* VehicleRole */
+static int hf_cam_exteriorLights;                 /* ExteriorLights */
+static int hf_cam_pathHistory;                    /* Path */
+static int hf_cam_embarkationStatus;              /* EmbarkationStatus */
+static int hf_cam_ptActivation;                   /* PtActivation */
+static int hf_cam_specialTransportType;           /* SpecialTransportType */
+static int hf_cam_lightBarSirenInUse;             /* LightBarSirenInUse */
+static int hf_cam_dangerousGoodsBasic;            /* DangerousGoodsBasic */
+static int hf_cam_roadworksSubCauseCode;          /* RoadworksSubCauseCode */
+static int hf_cam_closedLanes;                    /* ClosedLanes */
+static int hf_cam_incidentIndication;             /* CauseCodeV2 */
+static int hf_cam_emergencyPriority;              /* EmergencyPriority */
+static int hf_cam_trafficRule;                    /* TrafficRule */
+static int hf_cam_speedLimit;                     /* SpeedLimit */
+static int hf_cam_protectedCommunicationZonesRSU;  /* ProtectedCommunicationZonesRSU */
 
 /* --- Module DENMv1-PDU-Descriptions --- --- ---                             */
 
-static int hf_denmv1_denmv1_DecentralizedEnvironmentalNotificationMessageV1_PDU = -1;  /* DecentralizedEnvironmentalNotificationMessageV1 */
-static int hf_denmv1_management = -1;             /* ManagementContainer */
-static int hf_denmv1_situation = -1;              /* SituationContainer */
-static int hf_denmv1_location = -1;               /* LocationContainer */
-static int hf_denmv1_alacarte = -1;               /* AlacarteContainer */
-static int hf_denmv1_actionID = -1;               /* ActionID */
-static int hf_denmv1_detectionTime = -1;          /* TimestampIts */
-static int hf_denmv1_referenceTime = -1;          /* TimestampIts */
-static int hf_denmv1_termination = -1;            /* Termination */
-static int hf_denmv1_eventPosition = -1;          /* ReferencePosition */
-static int hf_denmv1_relevanceDistance = -1;      /* RelevanceDistance */
-static int hf_denmv1_relevanceTrafficDirection = -1;  /* RelevanceTrafficDirection */
-static int hf_denmv1_validityDuration = -1;       /* ValidityDuration */
-static int hf_denmv1_transmissionInterval = -1;   /* TransmissionInterval */
-static int hf_denmv1_stationType = -1;            /* StationType */
-static int hf_denmv1_informationQuality = -1;     /* InformationQuality */
-static int hf_denmv1_eventType = -1;              /* CauseCode */
-static int hf_denmv1_linkedCause = -1;            /* CauseCode */
-static int hf_denmv1_eventHistory = -1;           /* EventHistory */
-static int hf_denmv1_eventSpeed = -1;             /* Speed */
-static int hf_denmv1_eventPositionHeading = -1;   /* Heading */
-static int hf_denmv1_traces = -1;                 /* Traces */
-static int hf_denmv1_roadType = -1;               /* RoadType */
-static int hf_denmv1_heightLonCarrLeft = -1;      /* HeightLonCarr */
-static int hf_denmv1_heightLonCarrRight = -1;     /* HeightLonCarr */
-static int hf_denmv1_posLonCarrLeft = -1;         /* PosLonCarr */
-static int hf_denmv1_posLonCarrRight = -1;        /* PosLonCarr */
-static int hf_denmv1_positionOfPillars = -1;      /* PositionOfPillars */
-static int hf_denmv1_posCentMass = -1;            /* PosCentMass */
-static int hf_denmv1_wheelBaseVehicle = -1;       /* WheelBaseVehicle */
-static int hf_denmv1_turningRadius = -1;          /* TurningRadius */
-static int hf_denmv1_posFrontAx = -1;             /* PosFrontAx */
-static int hf_denmv1_positionOfOccupants = -1;    /* PositionOfOccupants */
-static int hf_denmv1_vehicleMass = -1;            /* VehicleMass */
-static int hf_denmv1_requestResponseIndication = -1;  /* RequestResponseIndication */
-static int hf_denmv1_lightBarSirenInUse = -1;     /* LightBarSirenInUse */
-static int hf_denmv1_closedLanes = -1;            /* ClosedLanes */
-static int hf_denmv1_restriction = -1;            /* RestrictedTypes */
-static int hf_denmv1_speedLimit = -1;             /* SpeedLimit */
-static int hf_denmv1_incidentIndication = -1;     /* CauseCode */
-static int hf_denmv1_recommendedPath = -1;        /* ItineraryPath */
-static int hf_denmv1_startingPointSpeedLimit = -1;  /* DeltaReferencePosition */
-static int hf_denmv1_trafficFlowRule = -1;        /* TrafficRule */
-static int hf_denmv1_referenceDenms = -1;         /* ReferenceDenms */
-static int hf_denmv1_stationarySince = -1;        /* StationarySince */
-static int hf_denmv1_stationaryCause = -1;        /* CauseCode */
-static int hf_denmv1_carryingDangerousGoods = -1;  /* DangerousGoodsExtended */
-static int hf_denmv1_numberOfOccupants = -1;      /* NumberOfOccupants */
-static int hf_denmv1_vehicleIdentification = -1;  /* VehicleIdentification */
-static int hf_denmv1_energyStorageType = -1;      /* EnergyStorageType */
-static int hf_denmv1_lanePosition = -1;           /* LanePosition */
-static int hf_denmv1_impactReduction = -1;        /* ImpactReductionContainer */
-static int hf_denmv1_externalTemperature = -1;    /* Temperature */
-static int hf_denmv1_roadWorks = -1;              /* RoadWorksContainerExtended */
-static int hf_denmv1_positioningSolution = -1;    /* PositioningSolutionType */
-static int hf_denmv1_stationaryVehicle = -1;      /* StationaryVehicleContainer */
-static int hf_denmv1_ReferenceDenms_item = -1;    /* ActionID */
+static int hf_denmv1_denmv1_DecentralizedEnvironmentalNotificationMessageV1_PDU;  /* DecentralizedEnvironmentalNotificationMessageV1 */
+static int hf_denmv1_management;                  /* ManagementContainer */
+static int hf_denmv1_situation;                   /* SituationContainer */
+static int hf_denmv1_location;                    /* LocationContainer */
+static int hf_denmv1_alacarte;                    /* AlacarteContainer */
+static int hf_denmv1_actionID;                    /* ActionID */
+static int hf_denmv1_detectionTime;               /* TimestampIts */
+static int hf_denmv1_referenceTime;               /* TimestampIts */
+static int hf_denmv1_termination;                 /* Termination */
+static int hf_denmv1_eventPosition;               /* ReferencePosition */
+static int hf_denmv1_relevanceDistance;           /* RelevanceDistance */
+static int hf_denmv1_relevanceTrafficDirection;   /* RelevanceTrafficDirection */
+static int hf_denmv1_validityDuration;            /* ValidityDuration */
+static int hf_denmv1_transmissionInterval;        /* TransmissionInterval */
+static int hf_denmv1_stationType;                 /* StationType */
+static int hf_denmv1_informationQuality;          /* InformationQuality */
+static int hf_denmv1_eventType;                   /* CauseCode */
+static int hf_denmv1_linkedCause;                 /* CauseCode */
+static int hf_denmv1_eventHistory;                /* EventHistory */
+static int hf_denmv1_eventSpeed;                  /* Speed */
+static int hf_denmv1_eventPositionHeading;        /* Heading */
+static int hf_denmv1_traces;                      /* Traces */
+static int hf_denmv1_roadType;                    /* RoadType */
+static int hf_denmv1_heightLonCarrLeft;           /* HeightLonCarr */
+static int hf_denmv1_heightLonCarrRight;          /* HeightLonCarr */
+static int hf_denmv1_posLonCarrLeft;              /* PosLonCarr */
+static int hf_denmv1_posLonCarrRight;             /* PosLonCarr */
+static int hf_denmv1_positionOfPillars;           /* PositionOfPillars */
+static int hf_denmv1_posCentMass;                 /* PosCentMass */
+static int hf_denmv1_wheelBaseVehicle;            /* WheelBaseVehicle */
+static int hf_denmv1_turningRadius;               /* TurningRadius */
+static int hf_denmv1_posFrontAx;                  /* PosFrontAx */
+static int hf_denmv1_positionOfOccupants;         /* PositionOfOccupants */
+static int hf_denmv1_vehicleMass;                 /* VehicleMass */
+static int hf_denmv1_requestResponseIndication;   /* RequestResponseIndication */
+static int hf_denmv1_lightBarSirenInUse;          /* LightBarSirenInUse */
+static int hf_denmv1_closedLanes;                 /* ClosedLanes */
+static int hf_denmv1_restriction;                 /* RestrictedTypes */
+static int hf_denmv1_speedLimit;                  /* SpeedLimit */
+static int hf_denmv1_incidentIndication;          /* CauseCode */
+static int hf_denmv1_recommendedPath;             /* ItineraryPath */
+static int hf_denmv1_startingPointSpeedLimit;     /* DeltaReferencePosition */
+static int hf_denmv1_trafficFlowRule;             /* TrafficRule */
+static int hf_denmv1_referenceDenms;              /* ReferenceDenms */
+static int hf_denmv1_stationarySince;             /* StationarySince */
+static int hf_denmv1_stationaryCause;             /* CauseCode */
+static int hf_denmv1_carryingDangerousGoods;      /* DangerousGoodsExtended */
+static int hf_denmv1_numberOfOccupants;           /* NumberOfOccupants */
+static int hf_denmv1_vehicleIdentification;       /* VehicleIdentification */
+static int hf_denmv1_energyStorageType;           /* EnergyStorageType */
+static int hf_denmv1_lanePosition;                /* LanePosition */
+static int hf_denmv1_impactReduction;             /* ImpactReductionContainer */
+static int hf_denmv1_externalTemperature;         /* Temperature */
+static int hf_denmv1_roadWorks;                   /* RoadWorksContainerExtended */
+static int hf_denmv1_positioningSolution;         /* PositioningSolutionType */
+static int hf_denmv1_stationaryVehicle;           /* StationaryVehicleContainer */
+static int hf_denmv1_ReferenceDenms_item;         /* ActionID */
 
 /* --- Module DENM-PDU-Description --- --- ---                                */
 
-static int hf_denm_denm_DenmPayload_PDU = -1;     /* DenmPayload */
-static int hf_denm_management = -1;               /* ManagementContainer */
-static int hf_denm_situation = -1;                /* SituationContainer */
-static int hf_denm_location = -1;                 /* LocationContainer */
-static int hf_denm_alacarte = -1;                 /* AlacarteContainer */
-static int hf_denm_actionId = -1;                 /* ActionId */
-static int hf_denm_detectionTime = -1;            /* TimestampIts */
-static int hf_denm_referenceTime = -1;            /* TimestampIts */
-static int hf_denm_termination = -1;              /* Termination */
-static int hf_denm_eventPosition = -1;            /* ReferencePosition */
-static int hf_denm_awarenessDistance = -1;        /* StandardLength3b */
-static int hf_denm_awarenessTrafficDirection = -1;  /* TrafficDirection */
-static int hf_denm_validityDuration = -1;         /* DeltaTimeSecond */
-static int hf_denm_transmissionInterval = -1;     /* DeltaTimeMilliSecondPositive */
-static int hf_denm_stationType = -1;              /* StationType */
-static int hf_denm_informationQuality = -1;       /* InformationQuality */
-static int hf_denm_eventType = -1;                /* CauseCodeV2 */
-static int hf_denm_linkedCause = -1;              /* CauseCodeV2 */
-static int hf_denm_eventZone = -1;                /* EventZone */
-static int hf_denm_eventSpeed = -1;               /* Speed */
-static int hf_denm_eventPositionHeading = -1;     /* Wgs84Angle */
-static int hf_denm_traces = -1;                   /* Traces */
-static int hf_denm_roadType = -1;                 /* RoadType */
-static int hf_denm_heightLonCarrLeft = -1;        /* HeightLonCarr */
-static int hf_denm_heightLonCarrRight = -1;       /* HeightLonCarr */
-static int hf_denm_posLonCarrLeft = -1;           /* PosLonCarr */
-static int hf_denm_posLonCarrRight = -1;          /* PosLonCarr */
-static int hf_denm_positionOfPillars = -1;        /* PositionOfPillars */
-static int hf_denm_posCentMass = -1;              /* PosCentMass */
-static int hf_denm_wheelBaseVehicle = -1;         /* WheelBaseVehicle */
-static int hf_denm_turningRadius = -1;            /* TurningRadius */
-static int hf_denm_posFrontAx = -1;               /* PosFrontAx */
-static int hf_denm_positionOfOccupants = -1;      /* PositionOfOccupants */
-static int hf_denm_vehicleMass = -1;              /* VehicleMass */
-static int hf_denm_requestResponseIndication = -1;  /* RequestResponseIndication */
-static int hf_denm_lightBarSirenInUse = -1;       /* LightBarSirenInUse */
-static int hf_denm_closedLanes = -1;              /* ClosedLanes */
-static int hf_denm_restriction = -1;              /* RestrictedTypes */
-static int hf_denm_speedLimit = -1;               /* SpeedLimit */
-static int hf_denm_incidentIndication = -1;       /* CauseCodeV2 */
-static int hf_denm_recommendedPath = -1;          /* ItineraryPath */
-static int hf_denm_startingPointSpeedLimit = -1;  /* DeltaReferencePosition */
-static int hf_denm_trafficFlowRule = -1;          /* TrafficRule */
-static int hf_denm_referenceDenms = -1;           /* ActionIdList */
-static int hf_denm_stationarySince = -1;          /* StationarySince */
-static int hf_denm_stationaryCause = -1;          /* CauseCodeV2 */
-static int hf_denm_carryingDangerousGoods = -1;   /* DangerousGoodsExtended */
-static int hf_denm_numberOfOccupants = -1;        /* NumberOfOccupants */
-static int hf_denm_vehicleIdentification = -1;    /* VehicleIdentification */
-static int hf_denm_energyStorageType = -1;        /* EnergyStorageType */
-static int hf_denm_lanePosition = -1;             /* LanePosition */
-static int hf_denm_impactReduction = -1;          /* ImpactReductionContainer */
-static int hf_denm_externalTemperature = -1;      /* Temperature */
-static int hf_denm_roadWorks = -1;                /* RoadWorksContainerExtended */
-static int hf_denm_positioningSolution = -1;      /* PositioningSolutionType */
-static int hf_denm_stationaryVehicle = -1;        /* StationaryVehicleContainer */
+static int hf_denm_denm_DenmPayload_PDU;          /* DenmPayload */
+static int hf_denm_management;                    /* ManagementContainer */
+static int hf_denm_situation;                     /* SituationContainer */
+static int hf_denm_location;                      /* LocationContainer */
+static int hf_denm_alacarte;                      /* AlacarteContainer */
+static int hf_denm_actionId;                      /* ActionId */
+static int hf_denm_detectionTime;                 /* TimestampIts */
+static int hf_denm_referenceTime;                 /* TimestampIts */
+static int hf_denm_termination;                   /* Termination */
+static int hf_denm_eventPosition;                 /* ReferencePosition */
+static int hf_denm_awarenessDistance;             /* StandardLength3b */
+static int hf_denm_awarenessTrafficDirection;     /* TrafficDirection */
+static int hf_denm_validityDuration;              /* DeltaTimeSecond */
+static int hf_denm_transmissionInterval;          /* DeltaTimeMilliSecondPositive */
+static int hf_denm_stationType;                   /* StationType */
+static int hf_denm_informationQuality;            /* InformationQuality */
+static int hf_denm_eventType;                     /* CauseCodeV2 */
+static int hf_denm_linkedCause;                   /* CauseCodeV2 */
+static int hf_denm_eventZone;                     /* EventZone */
+static int hf_denm_eventSpeed;                    /* Speed */
+static int hf_denm_eventPositionHeading;          /* Wgs84Angle */
+static int hf_denm_traces;                        /* Traces */
+static int hf_denm_roadType;                      /* RoadType */
+static int hf_denm_heightLonCarrLeft;             /* HeightLonCarr */
+static int hf_denm_heightLonCarrRight;            /* HeightLonCarr */
+static int hf_denm_posLonCarrLeft;                /* PosLonCarr */
+static int hf_denm_posLonCarrRight;               /* PosLonCarr */
+static int hf_denm_positionOfPillars;             /* PositionOfPillars */
+static int hf_denm_posCentMass;                   /* PosCentMass */
+static int hf_denm_wheelBaseVehicle;              /* WheelBaseVehicle */
+static int hf_denm_turningRadius;                 /* TurningRadius */
+static int hf_denm_posFrontAx;                    /* PosFrontAx */
+static int hf_denm_positionOfOccupants;           /* PositionOfOccupants */
+static int hf_denm_vehicleMass;                   /* VehicleMass */
+static int hf_denm_requestResponseIndication;     /* RequestResponseIndication */
+static int hf_denm_lightBarSirenInUse;            /* LightBarSirenInUse */
+static int hf_denm_closedLanes;                   /* ClosedLanes */
+static int hf_denm_restriction;                   /* RestrictedTypes */
+static int hf_denm_speedLimit;                    /* SpeedLimit */
+static int hf_denm_incidentIndication;            /* CauseCodeV2 */
+static int hf_denm_recommendedPath;               /* ItineraryPath */
+static int hf_denm_startingPointSpeedLimit;       /* DeltaReferencePosition */
+static int hf_denm_trafficFlowRule;               /* TrafficRule */
+static int hf_denm_referenceDenms;                /* ActionIdList */
+static int hf_denm_stationarySince;               /* StationarySince */
+static int hf_denm_stationaryCause;               /* CauseCodeV2 */
+static int hf_denm_carryingDangerousGoods;        /* DangerousGoodsExtended */
+static int hf_denm_numberOfOccupants;             /* NumberOfOccupants */
+static int hf_denm_vehicleIdentification;         /* VehicleIdentification */
+static int hf_denm_energyStorageType;             /* EnergyStorageType */
+static int hf_denm_lanePosition;                  /* LanePosition */
+static int hf_denm_impactReduction;               /* ImpactReductionContainer */
+static int hf_denm_externalTemperature;           /* Temperature */
+static int hf_denm_roadWorks;                     /* RoadWorksContainerExtended */
+static int hf_denm_positioningSolution;           /* PositioningSolutionType */
+static int hf_denm_stationaryVehicle;             /* StationaryVehicleContainer */
 
 /* --- Module TIS-TPG-Transactions-Descriptions --- --- ---                   */
 
-static int hf_tistpg_tistpg_TisTpgTransaction_PDU = -1;  /* TisTpgTransaction */
-static int hf_tistpg_drm = -1;                    /* TisTpgDRM */
-static int hf_tistpg_snm = -1;                    /* TisTpgSNM */
-static int hf_tistpg_trm = -1;                    /* TisTpgTRM */
-static int hf_tistpg_tcm = -1;                    /* TisTpgTCM */
-static int hf_tistpg_vdrm = -1;                   /* TisTpgVDRM */
-static int hf_tistpg_vdpm = -1;                   /* TisTpgVDPM */
-static int hf_tistpg_eofm = -1;                   /* TisTpgEOFM */
-static int hf_tistpg_drmManagement = -1;          /* TisTpgDRM_Management */
-static int hf_tistpg_drmSituation = -1;           /* TisTpgDRM_Situation */
-static int hf_tistpg_drmLocation = -1;            /* TisTpgDRM_Location */
-static int hf_tistpg_generationTime = -1;         /* TimestampIts */
-static int hf_tistpg_vehicleType = -1;            /* UNVehicleClassifcation */
-static int hf_tistpg_costumerContract = -1;       /* CustomerContract */
-static int hf_tistpg_tisProfile = -1;             /* TisProfile */
-static int hf_tistpg_causeCode = -1;              /* CauseCode */
-static int hf_tistpg_vehiclePosition = -1;        /* ReferencePosition */
-static int hf_tistpg_vehicleSpeed = -1;           /* Speed */
-static int hf_tistpg_vehicleHeading = -1;         /* Heading */
-static int hf_tistpg_requestedPosition = -1;      /* ReferencePosition */
-static int hf_tistpg_searchRange = -1;            /* SearchRange */
-static int hf_tistpg_searchCondition = -1;        /* SearchCondition */
-static int hf_tistpg_snmManagement = -1;          /* TisTpgSNM_Management */
-static int hf_tistpg_tpgContainer = -1;           /* TpgNotifContainer */
-static int hf_tistpg_totalTpgStations = -1;       /* TotalTpgStations */
-static int hf_tistpg_trmManagement = -1;          /* TisTpgTRM_Management */
-static int hf_tistpg_trmSituation = -1;           /* TisTpgTRM_Situation */
-static int hf_tistpg_trmLocation = -1;            /* TisTpgTRM_Location */
-static int hf_tistpg_tpgStationID = -1;           /* StationID */
-static int hf_tistpg_reservationStatus = -1;      /* ReservationStatus */
-static int hf_tistpg_costumercontract = -1;       /* CustomerContract */
-static int hf_tistpg_reservationID = -1;          /* ReservationID */
-static int hf_tistpg_estArrivalTime = -1;         /* TimestampIts */
-static int hf_tistpg_proposedPairingID = -1;      /* PairingID */
-static int hf_tistpg_tcmManagement = -1;          /* TisTpgTCM_Management */
-static int hf_tistpg_tcmSituation = -1;           /* TisTpgTCM_Situation */
-static int hf_tistpg_tcmLocation = -1;            /* TisTpgTCM_Location */
-static int hf_tistpg_reservedTpg = -1;            /* INTEGER_1_65535 */
-static int hf_tistpg_tpgAutomationLevel = -1;     /* TpgAutomation */
-static int hf_tistpg_pairingID = -1;              /* PairingID */
-static int hf_tistpg_reservationTimeLimit = -1;   /* TimestampIts */
-static int hf_tistpg_cancellationCondition = -1;  /* CancellationCondition */
-static int hf_tistpg_tpgLocation = -1;            /* ReferencePosition */
-static int hf_tistpg_address = -1;                /* UTF8String_SIZE_1_128 */
-static int hf_tistpg_vdrmManagement = -1;         /* TisTpgVDRM_Management */
-static int hf_tistpg_fillingStatus = -1;          /* FillingStatus */
-static int hf_tistpg_automationLevel = -1;        /* TpgAutomation */
-static int hf_tistpg_vdpmManagement = -1;         /* TisTpgVDPM_Management */
-static int hf_tistpg_placardTable = -1;           /* PlacardTable */
-static int hf_tistpg_vehicleSpecificData = -1;    /* VehicleSpecificData */
-static int hf_tistpg_language = -1;               /* Language */
-static int hf_tistpg_tyreTempCondition = -1;      /* TyreTempCondition */
-static int hf_tistpg_currentVehicleConfiguration = -1;  /* PressureConfiguration */
-static int hf_tistpg_frontLeftTyreData = -1;      /* TyreData */
-static int hf_tistpg_frontRightTyreData = -1;     /* TyreData */
-static int hf_tistpg_rearLeftTyreData = -1;       /* TyreData */
-static int hf_tistpg_rearRightTyreData = -1;      /* TyreData */
-static int hf_tistpg_spareTyreData = -1;          /* TyreData */
-static int hf_tistpg_eofmManagement = -1;         /* TisTpgEOFM_Management */
-static int hf_tistpg_numberOfAppliedPressure = -1;  /* NumberOfAppliedPressure */
-static int hf_tistpg_appliedTyrePressures = -1;   /* AppliedTyrePressures */
-static int hf_tistpg_PlacardTable_item = -1;      /* TyreSetVariant */
-static int hf_tistpg_variantID = -1;              /* TyreSetVariantID */
-static int hf_tistpg_frontAxleDimension = -1;     /* TyreSidewallInformation */
-static int hf_tistpg_rearAxleDimension = -1;      /* TyreSidewallInformation */
-static int hf_tistpg_pressureVariantsList = -1;   /* PressureVariantsList */
-static int hf_tistpg_PressureVariantsList_item = -1;  /* PressureVariant */
-static int hf_tistpg_pressureConfiguration = -1;  /* PressureConfiguration */
-static int hf_tistpg_frontAxlePressure = -1;      /* AxlePlacardPressure */
-static int hf_tistpg_rearAxlePressure = -1;       /* AxlePlacardPressure */
-static int hf_tistpg_currentTyrePressure = -1;    /* T_currentTyrePressure */
-static int hf_tistpg_tyrePressureValue = -1;      /* TyrePressure */
-static int hf_tistpg_unavailable = -1;            /* NULL */
-static int hf_tistpg_tyreSidewallInformation = -1;  /* T_tyreSidewallInformation */
-static int hf_tistpg_tyreSidewallInformationValue = -1;  /* TyreSidewallInformation */
-static int hf_tistpg_currentInsideAirTemperature = -1;  /* T_currentInsideAirTemperature */
-static int hf_tistpg_tyreAirTemperatureValue = -1;  /* TyreAirTemperature */
-static int hf_tistpg_recommendedTyrePressure = -1;  /* T_recommendedTyrePressure */
-static int hf_tistpg_axlePlacardPressureValue = -1;  /* AxlePlacardPressure */
-static int hf_tistpg_tin = -1;                    /* T_tin */
-static int hf_tistpg_tinValue = -1;               /* TIN */
-static int hf_tistpg_sensorState = -1;            /* T_sensorState */
-static int hf_tistpg_sensorStateValue = -1;       /* SensorState */
-static int hf_tistpg_tpgNumber = -1;              /* TpgNumber */
-static int hf_tistpg_tpgProvider = -1;            /* TpgProvider */
-static int hf_tistpg_accessibility = -1;          /* Accessibility */
-static int hf_tistpg_phoneNumber = -1;            /* PhoneNumber */
-static int hf_tistpg_digitalMap = -1;             /* DigitalMap */
-static int hf_tistpg_openingDaysHours = -1;       /* OpeningDaysHours */
-static int hf_tistpg_bookingInfo = -1;            /* BookingInfo */
-static int hf_tistpg_availableTpgNumber = -1;     /* AvailableTpgNumber */
-static int hf_tistpg_AppliedTyrePressures_item = -1;  /* AppliedTyrePressure */
-static int hf_tistpg_TpgNotifContainer_item = -1;  /* TpgStationData */
+static int hf_tistpg_tistpg_TisTpgTransaction_PDU;  /* TisTpgTransaction */
+static int hf_tistpg_drm;                         /* TisTpgDRM */
+static int hf_tistpg_snm;                         /* TisTpgSNM */
+static int hf_tistpg_trm;                         /* TisTpgTRM */
+static int hf_tistpg_tcm;                         /* TisTpgTCM */
+static int hf_tistpg_vdrm;                        /* TisTpgVDRM */
+static int hf_tistpg_vdpm;                        /* TisTpgVDPM */
+static int hf_tistpg_eofm;                        /* TisTpgEOFM */
+static int hf_tistpg_drmManagement;               /* TisTpgDRM_Management */
+static int hf_tistpg_drmSituation;                /* TisTpgDRM_Situation */
+static int hf_tistpg_drmLocation;                 /* TisTpgDRM_Location */
+static int hf_tistpg_generationTime;              /* TimestampIts */
+static int hf_tistpg_vehicleType;                 /* UNVehicleClassifcation */
+static int hf_tistpg_costumerContract;            /* CustomerContract */
+static int hf_tistpg_tisProfile;                  /* TisProfile */
+static int hf_tistpg_causeCode;                   /* CauseCode */
+static int hf_tistpg_vehiclePosition;             /* ReferencePosition */
+static int hf_tistpg_vehicleSpeed;                /* Speed */
+static int hf_tistpg_vehicleHeading;              /* Heading */
+static int hf_tistpg_requestedPosition;           /* ReferencePosition */
+static int hf_tistpg_searchRange;                 /* SearchRange */
+static int hf_tistpg_searchCondition;             /* SearchCondition */
+static int hf_tistpg_snmManagement;               /* TisTpgSNM_Management */
+static int hf_tistpg_tpgContainer;                /* TpgNotifContainer */
+static int hf_tistpg_totalTpgStations;            /* TotalTpgStations */
+static int hf_tistpg_trmManagement;               /* TisTpgTRM_Management */
+static int hf_tistpg_trmSituation;                /* TisTpgTRM_Situation */
+static int hf_tistpg_trmLocation;                 /* TisTpgTRM_Location */
+static int hf_tistpg_tpgStationID;                /* StationID */
+static int hf_tistpg_reservationStatus;           /* ReservationStatus */
+static int hf_tistpg_costumercontract;            /* CustomerContract */
+static int hf_tistpg_reservationID;               /* ReservationID */
+static int hf_tistpg_estArrivalTime;              /* TimestampIts */
+static int hf_tistpg_proposedPairingID;           /* PairingID */
+static int hf_tistpg_tcmManagement;               /* TisTpgTCM_Management */
+static int hf_tistpg_tcmSituation;                /* TisTpgTCM_Situation */
+static int hf_tistpg_tcmLocation;                 /* TisTpgTCM_Location */
+static int hf_tistpg_reservedTpg;                 /* INTEGER_1_65535 */
+static int hf_tistpg_tpgAutomationLevel;          /* TpgAutomation */
+static int hf_tistpg_pairingID;                   /* PairingID */
+static int hf_tistpg_reservationTimeLimit;        /* TimestampIts */
+static int hf_tistpg_cancellationCondition;       /* CancellationCondition */
+static int hf_tistpg_tpgLocation;                 /* ReferencePosition */
+static int hf_tistpg_address;                     /* UTF8String_SIZE_1_128 */
+static int hf_tistpg_vdrmManagement;              /* TisTpgVDRM_Management */
+static int hf_tistpg_fillingStatus;               /* FillingStatus */
+static int hf_tistpg_automationLevel;             /* TpgAutomation */
+static int hf_tistpg_vdpmManagement;              /* TisTpgVDPM_Management */
+static int hf_tistpg_placardTable;                /* PlacardTable */
+static int hf_tistpg_vehicleSpecificData;         /* VehicleSpecificData */
+static int hf_tistpg_language;                    /* Language */
+static int hf_tistpg_tyreTempCondition;           /* TyreTempCondition */
+static int hf_tistpg_currentVehicleConfiguration;  /* PressureConfiguration */
+static int hf_tistpg_frontLeftTyreData;           /* TyreData */
+static int hf_tistpg_frontRightTyreData;          /* TyreData */
+static int hf_tistpg_rearLeftTyreData;            /* TyreData */
+static int hf_tistpg_rearRightTyreData;           /* TyreData */
+static int hf_tistpg_spareTyreData;               /* TyreData */
+static int hf_tistpg_eofmManagement;              /* TisTpgEOFM_Management */
+static int hf_tistpg_numberOfAppliedPressure;     /* NumberOfAppliedPressure */
+static int hf_tistpg_appliedTyrePressures;        /* AppliedTyrePressures */
+static int hf_tistpg_PlacardTable_item;           /* TyreSetVariant */
+static int hf_tistpg_variantID;                   /* TyreSetVariantID */
+static int hf_tistpg_frontAxleDimension;          /* TyreSidewallInformation */
+static int hf_tistpg_rearAxleDimension;           /* TyreSidewallInformation */
+static int hf_tistpg_pressureVariantsList;        /* PressureVariantsList */
+static int hf_tistpg_PressureVariantsList_item;   /* PressureVariant */
+static int hf_tistpg_pressureConfiguration;       /* PressureConfiguration */
+static int hf_tistpg_frontAxlePressure;           /* AxlePlacardPressure */
+static int hf_tistpg_rearAxlePressure;            /* AxlePlacardPressure */
+static int hf_tistpg_currentTyrePressure;         /* T_currentTyrePressure */
+static int hf_tistpg_tyrePressureValue;           /* TyrePressure */
+static int hf_tistpg_unavailable;                 /* NULL */
+static int hf_tistpg_tyreSidewallInformation;     /* T_tyreSidewallInformation */
+static int hf_tistpg_tyreSidewallInformationValue;  /* TyreSidewallInformation */
+static int hf_tistpg_currentInsideAirTemperature;  /* T_currentInsideAirTemperature */
+static int hf_tistpg_tyreAirTemperatureValue;     /* TyreAirTemperature */
+static int hf_tistpg_recommendedTyrePressure;     /* T_recommendedTyrePressure */
+static int hf_tistpg_axlePlacardPressureValue;    /* AxlePlacardPressure */
+static int hf_tistpg_tin;                         /* T_tin */
+static int hf_tistpg_tinValue;                    /* TIN */
+static int hf_tistpg_sensorState;                 /* T_sensorState */
+static int hf_tistpg_sensorStateValue;            /* SensorState */
+static int hf_tistpg_tpgNumber;                   /* TpgNumber */
+static int hf_tistpg_tpgProvider;                 /* TpgProvider */
+static int hf_tistpg_accessibility;               /* Accessibility */
+static int hf_tistpg_phoneNumber;                 /* PhoneNumber */
+static int hf_tistpg_digitalMap;                  /* DigitalMap */
+static int hf_tistpg_openingDaysHours;            /* OpeningDaysHours */
+static int hf_tistpg_bookingInfo;                 /* BookingInfo */
+static int hf_tistpg_availableTpgNumber;          /* AvailableTpgNumber */
+static int hf_tistpg_AppliedTyrePressures_item;   /* AppliedTyrePressure */
+static int hf_tistpg_TpgNotifContainer_item;      /* TpgStationData */
 /* named bits */
-static int hf_tistpg_TpgAutomation_fullAutomated = -1;
-static int hf_tistpg_TpgAutomation_semiAutomated = -1;
-static int hf_tistpg_TpgAutomation_manual = -1;
-static int hf_tistpg_TpgAutomation_reserved = -1;
-static int hf_tistpg_TisProfile_reserved = -1;
-static int hf_tistpg_TisProfile_profileOne = -1;
-static int hf_tistpg_TisProfile_profileTwo = -1;
-static int hf_tistpg_TisProfile_profileThree = -1;
+static int hf_tistpg_TpgAutomation_fullAutomated;
+static int hf_tistpg_TpgAutomation_semiAutomated;
+static int hf_tistpg_TpgAutomation_manual;
+static int hf_tistpg_TpgAutomation_reserved;
+static int hf_tistpg_TisProfile_reserved;
+static int hf_tistpg_TisProfile_profileOne;
+static int hf_tistpg_TisProfile_profileTwo;
+static int hf_tistpg_TisProfile_profileThree;
 
 /* --- Module EVCSN-PDU-Descriptions --- --- ---                              */
 
-static int hf_evcsn_evcsn_EVChargingSpotNotificationPOIMessage_PDU = -1;  /* EVChargingSpotNotificationPOIMessage */
-static int hf_evcsn_poiHeader = -1;               /* ItsPOIHeader */
-static int hf_evcsn_evcsnData = -1;               /* ItsEVCSNData */
-static int hf_evcsn_poiType = -1;                 /* POIType */
-static int hf_evcsn_timeStamp = -1;               /* TimestampIts */
-static int hf_evcsn_relayCapable = -1;            /* BOOLEAN */
-static int hf_evcsn_totalNumberOfStations = -1;   /* NumberStations */
-static int hf_evcsn_chargingStationsData = -1;    /* SEQUENCE_SIZE_1_256_OF_ItsChargingStationData */
-static int hf_evcsn_chargingStationsData_item = -1;  /* ItsChargingStationData */
-static int hf_evcsn_chargingStationID = -1;       /* StationID */
-static int hf_evcsn_utilityDistributorId = -1;    /* UTF8String_SIZE_1_32 */
-static int hf_evcsn_providerID = -1;              /* UTF8String_SIZE_1_32 */
-static int hf_evcsn_chargingStationLocation = -1;  /* ReferencePosition */
-static int hf_evcsn_address = -1;                 /* UTF8String */
-static int hf_evcsn_phoneNumber = -1;             /* NumericString_SIZE_1_16 */
-static int hf_evcsn_accessibility = -1;           /* UTF8String_SIZE_1_32 */
-static int hf_evcsn_digitalMap = -1;              /* DigitalMap */
-static int hf_evcsn_openingDaysHours = -1;        /* UTF8String */
-static int hf_evcsn_pricing = -1;                 /* UTF8String */
-static int hf_evcsn_bookingContactInfo = -1;      /* UTF8String */
-static int hf_evcsn_payment = -1;                 /* UTF8String */
-static int hf_evcsn_chargingSpotsAvailable = -1;  /* ItsChargingSpots */
-static int hf_evcsn_ItsChargingSpots_item = -1;   /* ItsChargingSpotDataElements */
-static int hf_evcsn_type = -1;                    /* ChargingSpotType */
-static int hf_evcsn_evEquipmentID = -1;           /* UTF8String */
-static int hf_evcsn_typeOfReceptacle = -1;        /* TypeOfReceptacle */
-static int hf_evcsn_energyAvailability = -1;      /* UTF8String */
-static int hf_evcsn_parkingPlacesData = -1;       /* ParkingPlacesData */
-static int hf_evcsn_ParkingPlacesData_item = -1;  /* SpotAvailability */
-static int hf_evcsn_maxWaitingTimeMinutes = -1;   /* INTEGER_0_1400 */
-static int hf_evcsn_blocking = -1;                /* BOOLEAN */
+static int hf_evcsn_evcsn_EVChargingSpotNotificationPOIMessage_PDU;  /* EVChargingSpotNotificationPOIMessage */
+static int hf_evcsn_poiHeader;                    /* ItsPOIHeader */
+static int hf_evcsn_evcsnData;                    /* ItsEVCSNData */
+static int hf_evcsn_poiType;                      /* POIType */
+static int hf_evcsn_timeStamp;                    /* TimestampIts */
+static int hf_evcsn_relayCapable;                 /* BOOLEAN */
+static int hf_evcsn_totalNumberOfStations;        /* NumberStations */
+static int hf_evcsn_chargingStationsData;         /* SEQUENCE_SIZE_1_256_OF_ItsChargingStationData */
+static int hf_evcsn_chargingStationsData_item;    /* ItsChargingStationData */
+static int hf_evcsn_chargingStationID;            /* StationID */
+static int hf_evcsn_utilityDistributorId;         /* UTF8String_SIZE_1_32 */
+static int hf_evcsn_providerID;                   /* UTF8String_SIZE_1_32 */
+static int hf_evcsn_chargingStationLocation;      /* ReferencePosition */
+static int hf_evcsn_address;                      /* UTF8String */
+static int hf_evcsn_phoneNumber;                  /* NumericString_SIZE_1_16 */
+static int hf_evcsn_accessibility;                /* UTF8String_SIZE_1_32 */
+static int hf_evcsn_digitalMap;                   /* DigitalMap */
+static int hf_evcsn_openingDaysHours;             /* UTF8String */
+static int hf_evcsn_pricing;                      /* UTF8String */
+static int hf_evcsn_bookingContactInfo;           /* UTF8String */
+static int hf_evcsn_payment;                      /* UTF8String */
+static int hf_evcsn_chargingSpotsAvailable;       /* ItsChargingSpots */
+static int hf_evcsn_ItsChargingSpots_item;        /* ItsChargingSpotDataElements */
+static int hf_evcsn_type;                         /* ChargingSpotType */
+static int hf_evcsn_evEquipmentID;                /* UTF8String */
+static int hf_evcsn_typeOfReceptacle;             /* TypeOfReceptacle */
+static int hf_evcsn_energyAvailability;           /* UTF8String */
+static int hf_evcsn_parkingPlacesData;            /* ParkingPlacesData */
+static int hf_evcsn_ParkingPlacesData_item;       /* SpotAvailability */
+static int hf_evcsn_maxWaitingTimeMinutes;        /* INTEGER_0_1400 */
+static int hf_evcsn_blocking;                     /* BOOLEAN */
 /* named bits */
-static int hf_evcsn_ChargingSpotType_standardChargeMode1 = -1;
-static int hf_evcsn_ChargingSpotType_standardChargeMode2 = -1;
-static int hf_evcsn_ChargingSpotType_standardOrFastChargeMode3 = -1;
-static int hf_evcsn_ChargingSpotType_fastChargeWithExternalCharger = -1;
-static int hf_evcsn_ChargingSpotType_spare_bit4 = -1;
-static int hf_evcsn_ChargingSpotType_spare_bit5 = -1;
-static int hf_evcsn_ChargingSpotType_spare_bit6 = -1;
-static int hf_evcsn_ChargingSpotType_spare_bit7 = -1;
-static int hf_evcsn_ChargingSpotType_quickDrop = -1;
-static int hf_evcsn_ChargingSpotType_spare_bit9 = -1;
-static int hf_evcsn_ChargingSpotType_spare_bit10 = -1;
-static int hf_evcsn_ChargingSpotType_spare_bit11 = -1;
-static int hf_evcsn_ChargingSpotType_inductiveChargeWhileStationary = -1;
-static int hf_evcsn_ChargingSpotType_spare_bit13 = -1;
-static int hf_evcsn_ChargingSpotType_inductiveChargeWhileDriving = -1;
+static int hf_evcsn_ChargingSpotType_standardChargeMode1;
+static int hf_evcsn_ChargingSpotType_standardChargeMode2;
+static int hf_evcsn_ChargingSpotType_standardOrFastChargeMode3;
+static int hf_evcsn_ChargingSpotType_fastChargeWithExternalCharger;
+static int hf_evcsn_ChargingSpotType_spare_bit4;
+static int hf_evcsn_ChargingSpotType_spare_bit5;
+static int hf_evcsn_ChargingSpotType_spare_bit6;
+static int hf_evcsn_ChargingSpotType_spare_bit7;
+static int hf_evcsn_ChargingSpotType_quickDrop;
+static int hf_evcsn_ChargingSpotType_spare_bit9;
+static int hf_evcsn_ChargingSpotType_spare_bit10;
+static int hf_evcsn_ChargingSpotType_spare_bit11;
+static int hf_evcsn_ChargingSpotType_inductiveChargeWhileStationary;
+static int hf_evcsn_ChargingSpotType_spare_bit13;
+static int hf_evcsn_ChargingSpotType_inductiveChargeWhileDriving;
 
 /* --- Module EV-RechargingSpotReservation-PDU-Descriptions --- --- ---       */
 
-static int hf_evrsr_evrsr_EV_RSR_MessageBody_PDU = -1;  /* EV_RSR_MessageBody */
-static int hf_evrsr_preReservationRequestMessage = -1;  /* PreReservationRequestMessage */
-static int hf_evrsr_preReservationResponseMessage = -1;  /* PreReservationResponseMessage */
-static int hf_evrsr_reservationRequestMessage = -1;  /* ReservationRequestMessage */
-static int hf_evrsr_reservationResponseMessage = -1;  /* ReservationResponseMessage */
-static int hf_evrsr_cancellationRequestMessage = -1;  /* CancellationRequestMessage */
-static int hf_evrsr_cancellationResponseMessage = -1;  /* CancellationResponseMessage */
-static int hf_evrsr_updateRequestMessage = -1;    /* UpdateRequestMessage */
-static int hf_evrsr_updateResponseMessage = -1;   /* UpdateResponseMessage */
-static int hf_evrsr_evse_ID = -1;                 /* EVSE_ID */
-static int hf_evrsr_arrivalTime = -1;             /* TimestampUTC */
-static int hf_evrsr_departureTime = -1;           /* TimestampUTC */
-static int hf_evrsr_rechargingType = -1;          /* RechargingType */
-static int hf_evrsr_batteryType = -1;             /* BatteryType */
-static int hf_evrsr_preReservation_ID = -1;       /* PreReservation_ID */
-static int hf_evrsr_availabilityStatus = -1;      /* AvailabilityStatus */
-static int hf_evrsr_preReservationExpirationTime = -1;  /* TimestampUTC */
-static int hf_evrsr_supportedPaymentTypes = -1;   /* SupportedPaymentTypes */
-static int hf_evrsr_currentTime = -1;             /* TimestampUTC */
-static int hf_evrsr_eAmount = -1;                 /* EAmount */
-static int hf_evrsr_eAmountMin = -1;              /* EAmount */
-static int hf_evrsr_paymentType = -1;             /* PaymentType */
-static int hf_evrsr_payment_ID = -1;              /* Payment_ID */
-static int hf_evrsr_secondPayment_ID = -1;        /* Payment_ID */
-static int hf_evrsr_pairing_ID = -1;              /* Pairing_ID */
-static int hf_evrsr_reservationResponseCode = -1;  /* ReservationResponseCode */
-static int hf_evrsr_reservation_ID = -1;          /* Reservation_ID */
-static int hf_evrsr_reservation_Password = -1;    /* Reservation_Password */
-static int hf_evrsr_stationDetails = -1;          /* StationDetails */
-static int hf_evrsr_chargingSpotLabel = -1;       /* ChargingSpotLabel */
-static int hf_evrsr_expirationTime = -1;          /* TimestampUTC */
-static int hf_evrsr_freeCancelTimeLimit = -1;     /* TimestampUTC */
-static int hf_evrsr_cancellationResponseCode = -1;  /* CancellationResponseCode */
-static int hf_evrsr_updatedArrivalTime = -1;      /* TimestampUTC */
-static int hf_evrsr_updatedDepartureTime = -1;    /* TimestampUTC */
-static int hf_evrsr_updateResponseCode = -1;      /* UpdateResponseCode */
-static int hf_evrsr_contractID = -1;              /* ContractID */
-static int hf_evrsr_externalIdentificationMeans = -1;  /* ExternalIdentificationMeans */
-static int hf_evrsr_rechargingMode = -1;          /* RechargingMode */
-static int hf_evrsr_powerSource = -1;             /* PowerSource */
+static int hf_evrsr_evrsr_EV_RSR_MessageBody_PDU;  /* EV_RSR_MessageBody */
+static int hf_evrsr_preReservationRequestMessage;  /* PreReservationRequestMessage */
+static int hf_evrsr_preReservationResponseMessage;  /* PreReservationResponseMessage */
+static int hf_evrsr_reservationRequestMessage;    /* ReservationRequestMessage */
+static int hf_evrsr_reservationResponseMessage;   /* ReservationResponseMessage */
+static int hf_evrsr_cancellationRequestMessage;   /* CancellationRequestMessage */
+static int hf_evrsr_cancellationResponseMessage;  /* CancellationResponseMessage */
+static int hf_evrsr_updateRequestMessage;         /* UpdateRequestMessage */
+static int hf_evrsr_updateResponseMessage;        /* UpdateResponseMessage */
+static int hf_evrsr_evse_ID;                      /* EVSE_ID */
+static int hf_evrsr_arrivalTime;                  /* TimestampUTC */
+static int hf_evrsr_departureTime;                /* TimestampUTC */
+static int hf_evrsr_rechargingType;               /* RechargingType */
+static int hf_evrsr_batteryType;                  /* BatteryType */
+static int hf_evrsr_preReservation_ID;            /* PreReservation_ID */
+static int hf_evrsr_availabilityStatus;           /* AvailabilityStatus */
+static int hf_evrsr_preReservationExpirationTime;  /* TimestampUTC */
+static int hf_evrsr_supportedPaymentTypes;        /* SupportedPaymentTypes */
+static int hf_evrsr_currentTime;                  /* TimestampUTC */
+static int hf_evrsr_eAmount;                      /* EAmount */
+static int hf_evrsr_eAmountMin;                   /* EAmount */
+static int hf_evrsr_paymentType;                  /* PaymentType */
+static int hf_evrsr_payment_ID;                   /* Payment_ID */
+static int hf_evrsr_secondPayment_ID;             /* Payment_ID */
+static int hf_evrsr_pairing_ID;                   /* Pairing_ID */
+static int hf_evrsr_reservationResponseCode;      /* ReservationResponseCode */
+static int hf_evrsr_reservation_ID;               /* Reservation_ID */
+static int hf_evrsr_reservation_Password;         /* Reservation_Password */
+static int hf_evrsr_stationDetails;               /* StationDetails */
+static int hf_evrsr_chargingSpotLabel;            /* ChargingSpotLabel */
+static int hf_evrsr_expirationTime;               /* TimestampUTC */
+static int hf_evrsr_freeCancelTimeLimit;          /* TimestampUTC */
+static int hf_evrsr_cancellationResponseCode;     /* CancellationResponseCode */
+static int hf_evrsr_updatedArrivalTime;           /* TimestampUTC */
+static int hf_evrsr_updatedDepartureTime;         /* TimestampUTC */
+static int hf_evrsr_updateResponseCode;           /* UpdateResponseCode */
+static int hf_evrsr_contractID;                   /* ContractID */
+static int hf_evrsr_externalIdentificationMeans;  /* ExternalIdentificationMeans */
+static int hf_evrsr_rechargingMode;               /* RechargingMode */
+static int hf_evrsr_powerSource;                  /* PowerSource */
 /* named bits */
-static int hf_evrsr_SupportedPaymentTypes_contract = -1;
-static int hf_evrsr_SupportedPaymentTypes_externalIdentification = -1;
+static int hf_evrsr_SupportedPaymentTypes_contract;
+static int hf_evrsr_SupportedPaymentTypes_externalIdentification;
 
 /* --- Module CPM-OriginatingStationContainers --- --- ---                    */
 
-static int hf_cpm_cpm_OriginatingVehicleContainer_PDU = -1;  /* OriginatingVehicleContainer */
-static int hf_cpm_cpm_OriginatingRsuContainer_PDU = -1;  /* OriginatingRsuContainer */
-static int hf_cpm_orientationAngle = -1;          /* Wgs84Angle */
-static int hf_cpm_pitchAngle = -1;                /* CartesianAngle */
-static int hf_cpm_rollAngle = -1;                 /* CartesianAngle */
-static int hf_cpm_trailerDataSet = -1;            /* TrailerDataSet */
-static int hf_cpm_mapReference = -1;              /* MapReference */
-static int hf_cpm_TrailerDataSet_item = -1;       /* TrailerData */
+static int hf_cpm_cpm_OriginatingVehicleContainer_PDU;  /* OriginatingVehicleContainer */
+static int hf_cpm_cpm_OriginatingRsuContainer_PDU;  /* OriginatingRsuContainer */
+static int hf_cpm_orientationAngle;               /* Wgs84Angle */
+static int hf_cpm_pitchAngle;                     /* CartesianAngle */
+static int hf_cpm_rollAngle;                      /* CartesianAngle */
+static int hf_cpm_trailerDataSet;                 /* TrailerDataSet */
+static int hf_cpm_mapReference;                   /* MapReference */
+static int hf_cpm_TrailerDataSet_item;            /* TrailerData */
 
 /* --- Module CPM-PDU-Descriptions --- --- ---                                */
 
-static int hf_cpm_cpm_CollectivePerceptionMessage_PDU = -1;  /* CollectivePerceptionMessage */
-static int hf_cpm_header = -1;                    /* ItsPduHeader */
-static int hf_cpm_payload = -1;                   /* CpmPayload */
-static int hf_cpm_managementContainer = -1;       /* ManagementContainer */
-static int hf_cpm_cpmContainers = -1;             /* ConstraintWrappedCpmContainers */
-static int hf_cpm_referenceTime = -1;             /* TimestampIts */
-static int hf_cpm_referencePosition = -1;         /* ReferencePosition */
-static int hf_cpm_segmentationInfo = -1;          /* MessageSegmentationInfo */
-static int hf_cpm_messageRateRange = -1;          /* MessageRateRange */
-static int hf_cpm_containerId = -1;               /* CpmContainerId */
-static int hf_cpm_containerData = -1;             /* T_containerData */
-static int hf_cpm_WrappedCpmContainers_item = -1;  /* WrappedCpmContainer */
-static int hf_cpm_messageRateMin = -1;            /* MessageRateHz */
-static int hf_cpm_messageRateMax = -1;            /* MessageRateHz */
+static int hf_cpm_cpm_CpmPayload_PDU;             /* CpmPayload */
+static int hf_cpm_managementContainer;            /* ManagementContainer */
+static int hf_cpm_cpmContainers;                  /* ConstraintWrappedCpmContainers */
+static int hf_cpm_referenceTime;                  /* TimestampIts */
+static int hf_cpm_referencePosition;              /* ReferencePosition */
+static int hf_cpm_segmentationInfo;               /* MessageSegmentationInfo */
+static int hf_cpm_messageRateRange;               /* MessageRateRange */
+static int hf_cpm_containerId;                    /* CpmContainerId */
+static int hf_cpm_containerData;                  /* T_containerData */
+static int hf_cpm_WrappedCpmContainers_item;      /* WrappedCpmContainer */
+static int hf_cpm_messageRateMin;                 /* MessageRateHz */
+static int hf_cpm_messageRateMax;                 /* MessageRateHz */
 
 /* --- Module CPM-PerceivedObjectContainer --- --- ---                        */
 
-static int hf_cpm_cpm_PerceivedObjectContainer_PDU = -1;  /* PerceivedObjectContainer */
-static int hf_cpm_numberOfPerceivedObjects = -1;  /* CardinalNumber1B */
-static int hf_cpm_perceivedObjects = -1;          /* PerceivedObjects */
-static int hf_cpm_PerceivedObjects_item = -1;     /* PerceivedObject */
+static int hf_cpm_cpm_PerceivedObjectContainer_PDU;  /* PerceivedObjectContainer */
+static int hf_cpm_numberOfPerceivedObjects;       /* CardinalNumber1B */
+static int hf_cpm_perceivedObjects;               /* PerceivedObjects */
+static int hf_cpm_PerceivedObjects_item;          /* PerceivedObject */
 
 /* --- Module CPM-PerceptionRegionContainer --- --- ---                       */
 
-static int hf_cpm_cpm_PerceptionRegionContainer_PDU = -1;  /* PerceptionRegionContainer */
-static int hf_cpm_PerceptionRegionContainer_item = -1;  /* PerceptionRegion */
-static int hf_cpm_measurementDeltaTime = -1;      /* DeltaTimeMilliSecondSigned */
-static int hf_cpm_perceptionRegionPerceptionRegionConfidence = -1;  /* ConfidenceLevel */
-static int hf_cpm_perceptionRegionPerceptionRegionShape = -1;  /* Shape */
-static int hf_cpm_perceptionRegionShadowingApplies = -1;  /* T_PerceptionRegionShadowingApplies */
-static int hf_cpm_sensorIdList = -1;              /* SequenceOfIdentifier1B */
-static int hf_cpm_perceptionRegionNumberOfPerceivedObjects = -1;  /* T_PerceptionRegionNumberOfPerceivedObjects */
-static int hf_cpm_perceivedObjectIds = -1;        /* PerceivedObjectIds */
-static int hf_cpm_PerceivedObjectIds_item = -1;   /* Identifier2B */
+static int hf_cpm_cpm_PerceptionRegionContainer_PDU;  /* PerceptionRegionContainer */
+static int hf_cpm_PerceptionRegionContainer_item;  /* PerceptionRegion */
+static int hf_cpm_measurementDeltaTime;           /* DeltaTimeMilliSecondSigned */
+static int hf_cpm_perceptionRegionPerceptionRegionConfidence;  /* ConfidenceLevel */
+static int hf_cpm_perceptionRegionPerceptionRegionShape;  /* Shape */
+static int hf_cpm_perceptionRegionShadowingApplies;  /* T_PerceptionRegionShadowingApplies */
+static int hf_cpm_sensorIdList;                   /* SequenceOfIdentifier1B */
+static int hf_cpm_perceptionRegionNumberOfPerceivedObjects;  /* T_PerceptionRegionNumberOfPerceivedObjects */
+static int hf_cpm_perceivedObjectIds;             /* PerceivedObjectIds */
+static int hf_cpm_PerceivedObjectIds_item;        /* Identifier2B */
 
 /* --- Module CPM-SensorInformationContainer --- --- ---                      */
 
-static int hf_cpm_cpm_SensorInformationContainer_PDU = -1;  /* SensorInformationContainer */
-static int hf_cpm_SensorInformationContainer_item = -1;  /* SensorInformation */
-static int hf_cpm_sensorId = -1;                  /* Identifier1B */
-static int hf_cpm_sensorType = -1;                /* SensorType */
-static int hf_cpm_perceptionRegionShape = -1;     /* Shape */
-static int hf_cpm_perceptionRegionConfidence = -1;  /* ConfidenceLevel */
-static int hf_cpm_shadowingApplies = -1;          /* BOOLEAN */
+static int hf_cpm_cpm_SensorInformationContainer_PDU;  /* SensorInformationContainer */
+static int hf_cpm_SensorInformationContainer_item;  /* SensorInformation */
+static int hf_cpm_sensorId;                       /* Identifier1B */
+static int hf_cpm_sensorType;                     /* SensorType */
+static int hf_cpm_perceptionRegionShape;          /* Shape */
+static int hf_cpm_perceptionRegionConfidence;     /* ConfidenceLevel */
+static int hf_cpm_shadowingApplies;               /* BOOLEAN */
 
 /* --- Module VAM-PDU-Descriptions --- --- ---                                */
 
-static int hf_vam_vam_VruAwareness_PDU = -1;      /* VruAwareness */
-static int hf_vam_generationDeltaTime = -1;       /* GenerationDeltaTime */
-static int hf_vam_vamParameters = -1;             /* VamParameters */
-static int hf_vam_basicContainer = -1;            /* BasicContainer */
-static int hf_vam_vruHighFrequencyContainer = -1;  /* VruHighFrequencyContainer */
-static int hf_vam_vruLowFrequencyContainer = -1;  /* VruLowFrequencyContainer */
-static int hf_vam_vruClusterInformationContainer = -1;  /* VruClusterInformationContainer */
-static int hf_vam_vruClusterOperationContainer = -1;  /* VruClusterOperationContainer */
-static int hf_vam_vruMotionPredictionContainer = -1;  /* VruMotionPredictionContainer */
-static int hf_vam_heading = -1;                   /* Wgs84Angle */
-static int hf_vam_speed = -1;                     /* Speed */
-static int hf_vam_longitudinalAcceleration = -1;  /* LongitudinalAcceleration */
-static int hf_vam_curvature = -1;                 /* Curvature */
-static int hf_vam_curvatureCalculationMode = -1;  /* CurvatureCalculationMode */
-static int hf_vam_yawRate = -1;                   /* YawRate */
-static int hf_vam_lateralAcceleration = -1;       /* LateralAcceleration */
-static int hf_vam_verticalAcceleration = -1;      /* VerticalAcceleration */
-static int hf_vam_vruLanePosition = -1;           /* GeneralizedLanePosition */
-static int hf_vam_environment = -1;               /* VruEnvironment */
-static int hf_vam_movementControl = -1;           /* VruMovementControl */
-static int hf_vam_orientation = -1;               /* Wgs84Angle */
-static int hf_vam_rollAngle = -1;                 /* CartesianAngle */
-static int hf_vam_deviceUsage = -1;               /* VruDeviceUsage */
-static int hf_vam_profileAndSubprofile = -1;      /* VruProfileAndSubprofile */
-static int hf_vam_sizeClass = -1;                 /* VruSizeClass */
-static int hf_vam_exteriorLights = -1;            /* VruExteriorLights */
-static int hf_vam_vruClusterInformation = -1;     /* VruClusterInformation */
-static int hf_vam_clusterJoinInfo = -1;           /* ClusterJoinInfo */
-static int hf_vam_clusterLeaveInfo = -1;          /* ClusterLeaveInfo */
-static int hf_vam_clusterBreakupInfo = -1;        /* ClusterBreakupInfo */
-static int hf_vam_clusterIdChangeTimeInfo = -1;   /* DeltaTimeQuarterSecond */
-static int hf_vam_pathHistory = -1;               /* PathHistory */
-static int hf_vam_pathPrediction = -1;            /* PathPredicted */
-static int hf_vam_safeDistance = -1;              /* SequenceOfSafeDistanceIndication */
-static int hf_vam_trajectoryInterceptionIndication = -1;  /* SequenceOfTrajectoryInterceptionIndication */
-static int hf_vam_accelerationChangeIndication = -1;  /* AccelerationChangeIndication */
-static int hf_vam_headingChangeIndication = -1;   /* HeadingChangeIndication */
-static int hf_vam_stabilityChangeIndication = -1;  /* StabilityChangeIndication */
+static int hf_vam_vam_VruAwareness_PDU;           /* VruAwareness */
+static int hf_vam_generationDeltaTime;            /* GenerationDeltaTime */
+static int hf_vam_vamParameters;                  /* VamParameters */
+static int hf_vam_basicContainer;                 /* BasicContainer */
+static int hf_vam_vruHighFrequencyContainer;      /* VruHighFrequencyContainer */
+static int hf_vam_vruLowFrequencyContainer;       /* VruLowFrequencyContainer */
+static int hf_vam_vruClusterInformationContainer;  /* VruClusterInformationContainer */
+static int hf_vam_vruClusterOperationContainer;   /* VruClusterOperationContainer */
+static int hf_vam_vruMotionPredictionContainer;   /* VruMotionPredictionContainer */
+static int hf_vam_heading;                        /* Wgs84Angle */
+static int hf_vam_speed;                          /* Speed */
+static int hf_vam_longitudinalAcceleration;       /* LongitudinalAcceleration */
+static int hf_vam_curvature;                      /* Curvature */
+static int hf_vam_curvatureCalculationMode;       /* CurvatureCalculationMode */
+static int hf_vam_yawRate;                        /* YawRate */
+static int hf_vam_lateralAcceleration;            /* LateralAcceleration */
+static int hf_vam_verticalAcceleration;           /* VerticalAcceleration */
+static int hf_vam_vruLanePosition;                /* GeneralizedLanePosition */
+static int hf_vam_environment;                    /* VruEnvironment */
+static int hf_vam_movementControl;                /* VruMovementControl */
+static int hf_vam_orientation;                    /* Wgs84Angle */
+static int hf_vam_rollAngle;                      /* CartesianAngle */
+static int hf_vam_deviceUsage;                    /* VruDeviceUsage */
+static int hf_vam_profileAndSubprofile;           /* VruProfileAndSubprofile */
+static int hf_vam_sizeClass;                      /* VruSizeClass */
+static int hf_vam_exteriorLights;                 /* VruExteriorLights */
+static int hf_vam_vruClusterInformation;          /* VruClusterInformation */
+static int hf_vam_clusterJoinInfo;                /* ClusterJoinInfo */
+static int hf_vam_clusterLeaveInfo;               /* ClusterLeaveInfo */
+static int hf_vam_clusterBreakupInfo;             /* ClusterBreakupInfo */
+static int hf_vam_clusterIdChangeTimeInfo;        /* DeltaTimeQuarterSecond */
+static int hf_vam_pathHistory;                    /* PathHistory */
+static int hf_vam_pathPrediction;                 /* PathPredicted */
+static int hf_vam_safeDistance;                   /* SequenceOfSafeDistanceIndication */
+static int hf_vam_trajectoryInterceptionIndication;  /* SequenceOfTrajectoryInterceptionIndication */
+static int hf_vam_accelerationChangeIndication;   /* AccelerationChangeIndication */
+static int hf_vam_headingChangeIndication;        /* HeadingChangeIndication */
+static int hf_vam_stabilityChangeIndication;      /* StabilityChangeIndication */
 
 /* --- Module IMZM-PDU-Descriptions --- --- ---                               */
 
-static int hf_imzm_imzm_InterferenceManagementZoneMessage_PDU = -1;  /* InterferenceManagementZoneMessage */
-static int hf_imzm_generationDeltaTime = -1;      /* GenerationDeltaTime */
-static int hf_imzm_imzmParameters = -1;           /* ImzmParameters */
-static int hf_imzm_basicContainer = -1;           /* BasicContainer */
-static int hf_imzm_imzmContainer = -1;            /* ImzmContainer */
-static int hf_imzm_interferenceManagementZones = -1;  /* InterferenceManagementZones */
+static int hf_imzm_imzm_InterferenceManagementZoneMessage_PDU;  /* InterferenceManagementZoneMessage */
+static int hf_imzm_generationDeltaTime;           /* GenerationDeltaTime */
+static int hf_imzm_imzmParameters;                /* ImzmParameters */
+static int hf_imzm_basicContainer;                /* BasicContainer */
+static int hf_imzm_imzmContainer;                 /* ImzmContainer */
+static int hf_imzm_interferenceManagementZones;   /* InterferenceManagementZones */
 
-static gint ett_its = -1;
+static int ett_its;
 
 
 /* --- Module ETSI-ITS-CDD --- --- ---                                        */
 
-static gint ett_its_AccelerationControl = -1;
-static gint ett_its_EmergencyPriority = -1;
-static gint ett_its_EnergyStorageType = -1;
-static gint ett_its_ExteriorLights = -1;
-static gint ett_its_LightBarSirenInUse = -1;
-static gint ett_its_MatrixIncludedComponents = -1;
-static gint ett_its_PositionOfOccupants = -1;
-static gint ett_its_SpecialTransportType = -1;
-static gint ett_its_VruClusterProfiles = -1;
-static gint ett_its_VruSpecificExteriorLights = -1;
-static gint ett_its_Acceleration3dWithConfidence = -1;
-static gint ett_its_AccelerationPolarWithZ = -1;
-static gint ett_its_AccelerationCartesian = -1;
-static gint ett_its_AccelerationComponent = -1;
-static gint ett_its_AccelerationChangeIndication = -1;
-static gint ett_its_AccelerationMagnitude = -1;
-static gint ett_its_ActionId = -1;
-static gint ett_its_ActionID = -1;
-static gint ett_its_ActionIdList = -1;
-static gint ett_its_Altitude = -1;
-static gint ett_its_BasicContainer = -1;
-static gint ett_its_CartesianAngle = -1;
-static gint ett_its_CartesianAngularVelocityComponent = -1;
-static gint ett_its_CartesianCoordinateWithConfidence = -1;
-static gint ett_its_CartesianPosition3d = -1;
-static gint ett_its_CartesianPosition3dWithConfidence = -1;
-static gint ett_its_CauseCode = -1;
-static gint ett_its_CauseCodeChoice = -1;
-static gint ett_its_CauseCodeV2 = -1;
-static gint ett_its_CenDsrcTollingZone = -1;
-static gint ett_its_CircularShape = -1;
-static gint ett_its_ClosedLanes = -1;
-static gint ett_its_ClusterBreakupInfo = -1;
-static gint ett_its_ClusterJoinInfo = -1;
-static gint ett_its_ClusterLeaveInfo = -1;
-static gint ett_its_CorrelationColumn = -1;
-static gint ett_its_Curvature = -1;
-static gint ett_its_DangerousGoodsExtended = -1;
-static gint ett_its_DeltaReferencePosition = -1;
-static gint ett_its_DigitalMap = -1;
-static gint ett_its_EllipticalShape = -1;
-static gint ett_its_EulerAnglesWithConfidence = -1;
-static gint ett_its_EuVehicleCategoryCode = -1;
-static gint ett_its_EventHistory = -1;
-static gint ett_its_EventPoint = -1;
-static gint ett_its_GeneralizedLanePosition = -1;
-static gint ett_its_Heading = -1;
-static gint ett_its_HeadingChangeIndication = -1;
-static gint ett_its_InterferenceManagementChannel = -1;
-static gint ett_its_InterferenceManagementZone = -1;
-static gint ett_its_InterferenceManagementZoneDefinition = -1;
-static gint ett_its_InterferenceManagementInfo = -1;
-static gint ett_its_InterferenceManagementInfoPerChannel = -1;
-static gint ett_its_InterferenceManagementZones = -1;
-static gint ett_its_IntersectionReferenceId = -1;
-static gint ett_its_ItineraryPath = -1;
-static gint ett_its_ItsPduHeader = -1;
-static gint ett_its_LanePositionAndType = -1;
-static gint ett_its_LateralAcceleration = -1;
-static gint ett_its_LongitudinalAcceleration = -1;
-static gint ett_its_LongitudinalLanePosition = -1;
-static gint ett_its_LowerTriangularPositiveSemidefiniteMatrices = -1;
-static gint ett_its_LowerTriangularPositiveSemidefiniteMatrix = -1;
-static gint ett_its_LowerTriangularPositiveSemidefiniteMatrixColumns = -1;
-static gint ett_its_MapPosition = -1;
-static gint ett_its_MapReference = -1;
-static gint ett_its_MessageRateHz = -1;
-static gint ett_its_MessageSegmentationInfo = -1;
-static gint ett_its_MitigationForTechnologies = -1;
-static gint ett_its_MitigationPerTechnologyClass = -1;
-static gint ett_its_ObjectClass = -1;
-static gint ett_its_ObjectClassDescription = -1;
-static gint ett_its_ObjectClassWithConfidence = -1;
-static gint ett_its_ObjectDimension = -1;
-static gint ett_its_Path = -1;
-static gint ett_its_PathHistory = -1;
-static gint ett_its_PathPredicted = -1;
-static gint ett_its_PathPoint = -1;
-static gint ett_its_PathPointPredicted = -1;
-static gint ett_its_PerceivedObject = -1;
-static gint ett_its_PolygonalShape = -1;
-static gint ett_its_PosConfidenceEllipse = -1;
-static gint ett_its_PositionConfidenceEllipse = -1;
-static gint ett_its_PositionOfPillars = -1;
-static gint ett_its_ProtectedCommunicationZone = -1;
-static gint ett_its_ProtectedCommunicationZonesRSU = -1;
-static gint ett_its_PtActivation = -1;
-static gint ett_its_RadialShape = -1;
-static gint ett_its_RadialShapes = -1;
-static gint ett_its_RadialShapesList = -1;
-static gint ett_its_RadialShapeDetails = -1;
-static gint ett_its_RectangularShape = -1;
-static gint ett_its_ReferencePosition = -1;
-static gint ett_its_ReferencePositionWithConfidence = -1;
-static gint ett_its_RestrictedTypes = -1;
-static gint ett_its_RoadSegmentReferenceId = -1;
-static gint ett_its_SafeDistanceIndication = -1;
-static gint ett_its_SequenceOfCartesianPosition3d = -1;
-static gint ett_its_SequenceOfIdentifier1B = -1;
-static gint ett_its_SequenceOfSafeDistanceIndication = -1;
-static gint ett_its_SequenceOfTrajectoryInterceptionIndication = -1;
-static gint ett_its_Shape = -1;
-static gint ett_its_Speed = -1;
-static gint ett_its_StabilityChangeIndication = -1;
-static gint ett_its_SteeringWheelAngle = -1;
-static gint ett_its_Traces = -1;
-static gint ett_its_TrafficIslandPosition = -1;
-static gint ett_its_TrailerData = -1;
-static gint ett_its_TrajectoryInterceptionIndication = -1;
-static gint ett_its_VarLengthNumber = -1;
-static gint ett_its_Ext1 = -1;
-static gint ett_its_Ext2 = -1;
-static gint ett_its_VerticalAcceleration = -1;
-static gint ett_its_VehicleIdentification = -1;
-static gint ett_its_VehicleLength = -1;
-static gint ett_its_Velocity3dWithConfidence = -1;
-static gint ett_its_VelocityCartesian = -1;
-static gint ett_its_VelocityComponent = -1;
-static gint ett_its_VelocityPolarWithZ = -1;
-static gint ett_its_VruClusterInformation = -1;
-static gint ett_its_VruExteriorLights = -1;
-static gint ett_its_VruProfileAndSubprofile = -1;
-static gint ett_its_Wgs84Angle = -1;
-static gint ett_its_YawRate = -1;
+static int ett_its_AccelerationControl;
+static int ett_its_EmergencyPriority;
+static int ett_its_EnergyStorageType;
+static int ett_its_ExteriorLights;
+static int ett_its_LightBarSirenInUse;
+static int ett_its_MatrixIncludedComponents;
+static int ett_its_PositionOfOccupants;
+static int ett_its_SensorTypes;
+static int ett_its_SpecialTransportType;
+static int ett_its_StoredInformationType;
+static int ett_its_VruClusterProfiles;
+static int ett_its_VruSpecificExteriorLights;
+static int ett_its_Acceleration3dWithConfidence;
+static int ett_its_AccelerationPolarWithZ;
+static int ett_its_AccelerationCartesian;
+static int ett_its_AccelerationComponent;
+static int ett_its_AccelerationChangeIndication;
+static int ett_its_AccelerationMagnitude;
+static int ett_its_ActionId;
+static int ett_its_ActionID;
+static int ett_its_ActionIdList;
+static int ett_its_Altitude;
+static int ett_its_BasicContainer;
+static int ett_its_CartesianAngle;
+static int ett_its_CartesianAngularVelocityComponent;
+static int ett_its_CartesianCoordinateWithConfidence;
+static int ett_its_CartesianPosition3d;
+static int ett_its_CartesianPosition3dWithConfidence;
+static int ett_its_CauseCode;
+static int ett_its_CauseCodeChoice;
+static int ett_its_CauseCodeV2;
+static int ett_its_CenDsrcTollingZone;
+static int ett_its_CircularShape;
+static int ett_its_ClosedLanes;
+static int ett_its_ClusterBreakupInfo;
+static int ett_its_ClusterJoinInfo;
+static int ett_its_ClusterLeaveInfo;
+static int ett_its_CorrelationColumn;
+static int ett_its_Curvature;
+static int ett_its_DangerousGoodsExtended;
+static int ett_its_DeltaReferencePosition;
+static int ett_its_DigitalMap;
+static int ett_its_EllipticalShape;
+static int ett_its_EulerAnglesWithConfidence;
+static int ett_its_EuVehicleCategoryCode;
+static int ett_its_EventHistory;
+static int ett_its_EventPoint;
+static int ett_its_GeneralizedLanePosition;
+static int ett_its_Heading;
+static int ett_its_HeadingChangeIndication;
+static int ett_its_InterferenceManagementChannel;
+static int ett_its_InterferenceManagementZone;
+static int ett_its_InterferenceManagementZoneDefinition;
+static int ett_its_InterferenceManagementInfo;
+static int ett_its_InterferenceManagementInfoPerChannel;
+static int ett_its_InterferenceManagementZones;
+static int ett_its_IntersectionReferenceId;
+static int ett_its_ItineraryPath;
+static int ett_its_ItsPduHeader;
+static int ett_its_LanePositionAndType;
+static int ett_its_LanePositionOptions;
+static int ett_its_LanePositionWithLateralDetails;
+static int ett_its_LateralAcceleration;
+static int ett_its_LongitudinalAcceleration;
+static int ett_its_LongitudinalLanePosition;
+static int ett_its_LowerTriangularPositiveSemidefiniteMatrices;
+static int ett_its_LowerTriangularPositiveSemidefiniteMatrix;
+static int ett_its_LowerTriangularPositiveSemidefiniteMatrixColumns;
+static int ett_its_MapPosition;
+static int ett_its_MapReference;
+static int ett_its_MessageRateHz;
+static int ett_its_MessageSegmentationInfo;
+static int ett_its_MetaInformation;
+static int ett_its_MitigationForTechnologies;
+static int ett_its_MitigationPerTechnologyClass;
+static int ett_its_ObjectClass;
+static int ett_its_ObjectClassDescription;
+static int ett_its_ObjectClassWithConfidence;
+static int ett_its_ObjectDimension;
+static int ett_its_Path;
+static int ett_its_PathDeltaTimeChoice;
+static int ett_its_PathHistory;
+static int ett_its_PathPredicted;
+static int ett_its_PathPoint;
+static int ett_its_PathPointPredicted;
+static int ett_its_PerceivedObject;
+static int ett_its_PolygonalShape;
+static int ett_its_PosConfidenceEllipse;
+static int ett_its_PositionConfidenceEllipse;
+static int ett_its_PositionOfPillars;
+static int ett_its_ProtectedCommunicationZone;
+static int ett_its_ProtectedCommunicationZonesRSU;
+static int ett_its_PtActivation;
+static int ett_its_RadialShape;
+static int ett_its_RadialShapes;
+static int ett_its_RadialShapesList;
+static int ett_its_RadialShapeDetails;
+static int ett_its_RectangularShape;
+static int ett_its_ReferencePosition;
+static int ett_its_ReferencePositionWithConfidence;
+static int ett_its_RestrictedTypes;
+static int ett_its_RoadSegmentReferenceId;
+static int ett_its_SafeDistanceIndication;
+static int ett_its_SequenceOfCartesianPosition3d;
+static int ett_its_SequenceOfIdentifier1B;
+static int ett_its_SequenceOfSafeDistanceIndication;
+static int ett_its_SequenceOfTrajectoryInterceptionIndication;
+static int ett_its_Shape;
+static int ett_its_Speed;
+static int ett_its_StabilityChangeIndication;
+static int ett_its_SteeringWheelAngle;
+static int ett_its_Traces;
+static int ett_its_TrafficIslandPosition;
+static int ett_its_TrailerData;
+static int ett_its_TrajectoryInterceptionIndication;
+static int ett_its_VarLengthNumber;
+static int ett_its_Ext1;
+static int ett_its_Ext2;
+static int ett_its_VerticalAcceleration;
+static int ett_its_VehicleIdentification;
+static int ett_its_VehicleLength;
+static int ett_its_Velocity3dWithConfidence;
+static int ett_its_VelocityCartesian;
+static int ett_its_VelocityComponent;
+static int ett_its_VelocityPolarWithZ;
+static int ett_its_VruClusterInformation;
+static int ett_its_VruExteriorLights;
+static int ett_its_VruProfileAndSubprofile;
+static int ett_its_Wgs84Angle;
+static int ett_its_YawRate;
 
 /* --- Module ITS-ContainerV1 --- --- ---                                     */
 
-static gint ett_itsv1_ReferencePosition = -1;
-static gint ett_itsv1_DeltaReferencePosition = -1;
-static gint ett_itsv1_Altitude = -1;
-static gint ett_itsv1_PosConfidenceEllipse = -1;
-static gint ett_itsv1_PathPoint = -1;
-static gint ett_itsv1_PtActivation = -1;
-static gint ett_itsv1_AccelerationControl = -1;
-static gint ett_itsv1_CauseCode = -1;
-static gint ett_itsv1_Curvature = -1;
-static gint ett_itsv1_Heading = -1;
-static gint ett_itsv1_ClosedLanes = -1;
-static gint ett_itsv1_DrivingLaneStatus = -1;
-static gint ett_itsv1_Speed = -1;
-static gint ett_itsv1_LongitudinalAcceleration = -1;
-static gint ett_itsv1_LateralAcceleration = -1;
-static gint ett_itsv1_VerticalAcceleration = -1;
-static gint ett_itsv1_ExteriorLights = -1;
-static gint ett_itsv1_DangerousGoodsExtended = -1;
-static gint ett_itsv1_SpecialTransportType = -1;
-static gint ett_itsv1_LightBarSirenInUse = -1;
-static gint ett_itsv1_PositionOfOccupants = -1;
-static gint ett_itsv1_VehicleIdentification = -1;
-static gint ett_itsv1_EnergyStorageType = -1;
-static gint ett_itsv1_VehicleLength = -1;
-static gint ett_itsv1_PathHistory = -1;
-static gint ett_itsv1_EmergencyPriority = -1;
-static gint ett_itsv1_SteeringWheelAngle = -1;
-static gint ett_itsv1_YawRate = -1;
-static gint ett_itsv1_ActionID = -1;
-static gint ett_itsv1_ItineraryPath = -1;
-static gint ett_itsv1_ProtectedCommunicationZone = -1;
-static gint ett_itsv1_Traces = -1;
-static gint ett_itsv1_PositionOfPillars = -1;
-static gint ett_itsv1_RestrictedTypes = -1;
-static gint ett_itsv1_EventHistory = -1;
-static gint ett_itsv1_EventPoint = -1;
-static gint ett_itsv1_ProtectedCommunicationZonesRSU = -1;
-static gint ett_itsv1_CenDsrcTollingZone = -1;
+static int ett_itsv1_ReferencePosition;
+static int ett_itsv1_DeltaReferencePosition;
+static int ett_itsv1_Altitude;
+static int ett_itsv1_PosConfidenceEllipse;
+static int ett_itsv1_PathPoint;
+static int ett_itsv1_PtActivation;
+static int ett_itsv1_AccelerationControl;
+static int ett_itsv1_CauseCode;
+static int ett_itsv1_Curvature;
+static int ett_itsv1_Heading;
+static int ett_itsv1_ClosedLanes;
+static int ett_itsv1_DrivingLaneStatus;
+static int ett_itsv1_Speed;
+static int ett_itsv1_LongitudinalAcceleration;
+static int ett_itsv1_LateralAcceleration;
+static int ett_itsv1_VerticalAcceleration;
+static int ett_itsv1_ExteriorLights;
+static int ett_itsv1_DangerousGoodsExtended;
+static int ett_itsv1_SpecialTransportType;
+static int ett_itsv1_LightBarSirenInUse;
+static int ett_itsv1_PositionOfOccupants;
+static int ett_itsv1_VehicleIdentification;
+static int ett_itsv1_EnergyStorageType;
+static int ett_itsv1_VehicleLength;
+static int ett_itsv1_PathHistory;
+static int ett_itsv1_EmergencyPriority;
+static int ett_itsv1_SteeringWheelAngle;
+static int ett_itsv1_YawRate;
+static int ett_itsv1_ActionID;
+static int ett_itsv1_ItineraryPath;
+static int ett_itsv1_ProtectedCommunicationZone;
+static int ett_itsv1_Traces;
+static int ett_itsv1_PositionOfPillars;
+static int ett_itsv1_RestrictedTypes;
+static int ett_itsv1_EventHistory;
+static int ett_itsv1_EventPoint;
+static int ett_itsv1_ProtectedCommunicationZonesRSU;
+static int ett_itsv1_CenDsrcTollingZone;
 
 /* --- Module AVIAEINumberingAndDataStructures --- --- ---                    */
 
 
 /* --- Module EfcDsrcApplication --- --- ---                                  */
 
-static gint ett_dsrc_app_AxleWeightLimits = -1;
-static gint ett_dsrc_app_DieselEmissionValues = -1;
-static gint ett_dsrc_app_T_particulate = -1;
-static gint ett_dsrc_app_EnvironmentalCharacteristics = -1;
-static gint ett_dsrc_app_ExhaustEmissionValues = -1;
-static gint ett_dsrc_app_PassengerCapacity = -1;
-static gint ett_dsrc_app_Provider = -1;
-static gint ett_dsrc_app_SoundLevel = -1;
-static gint ett_dsrc_app_VehicleDimensions = -1;
-static gint ett_dsrc_app_VehicleWeightLimits = -1;
+static int ett_dsrc_app_AxleWeightLimits;
+static int ett_dsrc_app_DieselEmissionValues;
+static int ett_dsrc_app_T_particulate;
+static int ett_dsrc_app_EnvironmentalCharacteristics;
+static int ett_dsrc_app_ExhaustEmissionValues;
+static int ett_dsrc_app_PassengerCapacity;
+static int ett_dsrc_app_Provider;
+static int ett_dsrc_app_SoundLevel;
+static int ett_dsrc_app_VehicleDimensions;
+static int ett_dsrc_app_VehicleWeightLimits;
 
 /* --- Module DSRC --- --- ---                                                */
 
-static gint ett_dsrc_RegionalExtension = -1;
-static gint ett_dsrc_MapData = -1;
-static gint ett_dsrc_T_MAPRegional = -1;
-static gint ett_dsrc_RTCMcorrections = -1;
-static gint ett_dsrc_SEQUENCE_SIZE_1_4_OF_RegionalExtension = -1;
-static gint ett_dsrc_SPAT = -1;
-static gint ett_dsrc_T_SPATRegional = -1;
-static gint ett_dsrc_SignalRequestMessage = -1;
-static gint ett_dsrc_T_SRMRegional = -1;
-static gint ett_dsrc_SignalStatusMessage = -1;
-static gint ett_dsrc_T_SSMRegional = -1;
-static gint ett_dsrc_AdvisorySpeed = -1;
-static gint ett_dsrc_T_AdvisorySpeedRegional = -1;
-static gint ett_dsrc_AdvisorySpeedList = -1;
-static gint ett_dsrc_AntennaOffsetSet = -1;
-static gint ett_dsrc_ComputedLane = -1;
-static gint ett_dsrc_T_offsetXaxis = -1;
-static gint ett_dsrc_T_offsetYaxis = -1;
-static gint ett_dsrc_T_ComputedLaneRegional = -1;
-static gint ett_dsrc_ConnectsToList = -1;
-static gint ett_dsrc_ConnectingLane = -1;
-static gint ett_dsrc_Connection = -1;
-static gint ett_dsrc_ConnectionManeuverAssist = -1;
-static gint ett_dsrc_T_ConnectionManeuverAssistRegional = -1;
-static gint ett_dsrc_DataParameters = -1;
-static gint ett_dsrc_DDateTime = -1;
-static gint ett_dsrc_EnabledLaneList = -1;
-static gint ett_dsrc_FullPositionVector = -1;
-static gint ett_dsrc_GenericLane = -1;
-static gint ett_dsrc_T_GenericLaneRegional = -1;
-static gint ett_dsrc_IntersectionAccessPoint = -1;
-static gint ett_dsrc_IntersectionGeometry = -1;
-static gint ett_dsrc_T_IntersectionGeometryRegional = -1;
-static gint ett_dsrc_IntersectionGeometryList = -1;
-static gint ett_dsrc_IntersectionReferenceID = -1;
-static gint ett_dsrc_IntersectionState = -1;
-static gint ett_dsrc_T_IntersectionStateRegional = -1;
-static gint ett_dsrc_IntersectionStateList = -1;
-static gint ett_dsrc_LaneAttributes = -1;
-static gint ett_dsrc_LaneDataAttribute = -1;
-static gint ett_dsrc_T_LaneDataAttributeRegional = -1;
-static gint ett_dsrc_LaneDataAttributeList = -1;
-static gint ett_dsrc_LaneList = -1;
-static gint ett_dsrc_LaneSharing = -1;
-static gint ett_dsrc_LaneTypeAttributes = -1;
-static gint ett_dsrc_ManeuverAssistList = -1;
-static gint ett_dsrc_MovementEvent = -1;
-static gint ett_dsrc_T_MovementEventRegional = -1;
-static gint ett_dsrc_MovementEventList = -1;
-static gint ett_dsrc_MovementList = -1;
-static gint ett_dsrc_MovementState = -1;
-static gint ett_dsrc_T_MovementStateRegional = -1;
-static gint ett_dsrc_NodeAttributeSetXY = -1;
-static gint ett_dsrc_T_NodeAttributeSetXYRegional = -1;
-static gint ett_dsrc_NodeAttributeXYList = -1;
-static gint ett_dsrc_Node_LLmD_64b = -1;
-static gint ett_dsrc_Node_XY_20b = -1;
-static gint ett_dsrc_Node_XY_22b = -1;
-static gint ett_dsrc_Node_XY_24b = -1;
-static gint ett_dsrc_Node_XY_26b = -1;
-static gint ett_dsrc_Node_XY_28b = -1;
-static gint ett_dsrc_Node_XY_32b = -1;
-static gint ett_dsrc_NodeListXY = -1;
-static gint ett_dsrc_NodeOffsetPointXY = -1;
-static gint ett_dsrc_NodeXY = -1;
-static gint ett_dsrc_NodeSetXY = -1;
-static gint ett_dsrc_OverlayLaneList = -1;
-static gint ett_dsrc_PositionalAccuracy = -1;
-static gint ett_dsrc_PositionConfidenceSet = -1;
-static gint ett_dsrc_Position3D = -1;
-static gint ett_dsrc_T_Position3DRegional = -1;
-static gint ett_dsrc_PreemptPriorityList = -1;
-static gint ett_dsrc_RegulatorySpeedLimit = -1;
-static gint ett_dsrc_RequestorDescription = -1;
-static gint ett_dsrc_T_RequestorDescriptionRegional = -1;
-static gint ett_dsrc_RequestorPositionVector = -1;
-static gint ett_dsrc_RequestorType = -1;
-static gint ett_dsrc_RestrictionClassAssignment = -1;
-static gint ett_dsrc_RestrictionClassList = -1;
-static gint ett_dsrc_RestrictionUserType = -1;
-static gint ett_dsrc_T_RestrictionUserTypeRegional = -1;
-static gint ett_dsrc_RestrictionUserTypeList = -1;
-static gint ett_dsrc_RoadLaneSetList = -1;
-static gint ett_dsrc_RoadSegmentReferenceID = -1;
-static gint ett_dsrc_RoadSegment = -1;
-static gint ett_dsrc_T_RoadSegmentRegional = -1;
-static gint ett_dsrc_RoadSegmentList = -1;
-static gint ett_dsrc_RTCMheader = -1;
-static gint ett_dsrc_RTCMmessageList = -1;
-static gint ett_dsrc_SegmentAttributeXYList = -1;
-static gint ett_dsrc_SignalControlZone = -1;
-static gint ett_dsrc_SignalRequesterInfo = -1;
-static gint ett_dsrc_SignalRequest = -1;
-static gint ett_dsrc_T_SignalRequestRegional = -1;
-static gint ett_dsrc_SignalRequestList = -1;
-static gint ett_dsrc_SignalRequestPackage = -1;
-static gint ett_dsrc_T_SignalRequestPackageRegional = -1;
-static gint ett_dsrc_SignalStatus = -1;
-static gint ett_dsrc_T_SignalStatusRegional = -1;
-static gint ett_dsrc_SignalStatusList = -1;
-static gint ett_dsrc_SignalStatusPackageList = -1;
-static gint ett_dsrc_SignalStatusPackage = -1;
-static gint ett_dsrc_T_SignalStatusPackageRegional = -1;
-static gint ett_dsrc_SpeedandHeadingandThrottleConfidence = -1;
-static gint ett_dsrc_SpeedLimitList = -1;
-static gint ett_dsrc_TimeChangeDetails = -1;
-static gint ett_dsrc_TransmissionAndSpeed = -1;
-static gint ett_dsrc_VehicleID = -1;
-static gint ett_dsrc_AllowedManeuvers = -1;
-static gint ett_dsrc_GNSSstatus = -1;
-static gint ett_dsrc_IntersectionStatusObject = -1;
-static gint ett_dsrc_LaneAttributes_Barrier = -1;
-static gint ett_dsrc_LaneAttributes_Bike = -1;
-static gint ett_dsrc_LaneAttributes_Crosswalk = -1;
-static gint ett_dsrc_LaneAttributes_Parking = -1;
-static gint ett_dsrc_LaneAttributes_Sidewalk = -1;
-static gint ett_dsrc_LaneAttributes_Striping = -1;
-static gint ett_dsrc_LaneAttributes_TrackedVehicle = -1;
-static gint ett_dsrc_LaneAttributes_Vehicle = -1;
-static gint ett_dsrc_LaneDirection = -1;
-static gint ett_dsrc_TransitVehicleStatus = -1;
+static int ett_dsrc_RegionalExtension;
+static int ett_dsrc_MapData;
+static int ett_dsrc_T_MAPRegional;
+static int ett_dsrc_RTCMcorrections;
+static int ett_dsrc_SEQUENCE_SIZE_1_4_OF_RegionalExtension;
+static int ett_dsrc_SPAT;
+static int ett_dsrc_T_SPATRegional;
+static int ett_dsrc_SignalRequestMessage;
+static int ett_dsrc_T_SRMRegional;
+static int ett_dsrc_SignalStatusMessage;
+static int ett_dsrc_T_SSMRegional;
+static int ett_dsrc_AdvisorySpeed;
+static int ett_dsrc_T_AdvisorySpeedRegional;
+static int ett_dsrc_AdvisorySpeedList;
+static int ett_dsrc_AntennaOffsetSet;
+static int ett_dsrc_ComputedLane;
+static int ett_dsrc_T_offsetXaxis;
+static int ett_dsrc_T_offsetYaxis;
+static int ett_dsrc_T_ComputedLaneRegional;
+static int ett_dsrc_ConnectsToList;
+static int ett_dsrc_ConnectingLane;
+static int ett_dsrc_Connection;
+static int ett_dsrc_ConnectionManeuverAssist;
+static int ett_dsrc_T_ConnectionManeuverAssistRegional;
+static int ett_dsrc_DataParameters;
+static int ett_dsrc_DDateTime;
+static int ett_dsrc_EnabledLaneList;
+static int ett_dsrc_FullPositionVector;
+static int ett_dsrc_GenericLane;
+static int ett_dsrc_T_GenericLaneRegional;
+static int ett_dsrc_IntersectionAccessPoint;
+static int ett_dsrc_IntersectionGeometry;
+static int ett_dsrc_T_IntersectionGeometryRegional;
+static int ett_dsrc_IntersectionGeometryList;
+static int ett_dsrc_IntersectionReferenceID;
+static int ett_dsrc_IntersectionState;
+static int ett_dsrc_T_IntersectionStateRegional;
+static int ett_dsrc_IntersectionStateList;
+static int ett_dsrc_LaneAttributes;
+static int ett_dsrc_LaneDataAttribute;
+static int ett_dsrc_T_LaneDataAttributeRegional;
+static int ett_dsrc_LaneDataAttributeList;
+static int ett_dsrc_LaneList;
+static int ett_dsrc_LaneSharing;
+static int ett_dsrc_LaneTypeAttributes;
+static int ett_dsrc_ManeuverAssistList;
+static int ett_dsrc_MovementEvent;
+static int ett_dsrc_T_MovementEventRegional;
+static int ett_dsrc_MovementEventList;
+static int ett_dsrc_MovementList;
+static int ett_dsrc_MovementState;
+static int ett_dsrc_T_MovementStateRegional;
+static int ett_dsrc_NodeAttributeSetXY;
+static int ett_dsrc_T_NodeAttributeSetXYRegional;
+static int ett_dsrc_NodeAttributeXYList;
+static int ett_dsrc_Node_LLmD_64b;
+static int ett_dsrc_Node_XY_20b;
+static int ett_dsrc_Node_XY_22b;
+static int ett_dsrc_Node_XY_24b;
+static int ett_dsrc_Node_XY_26b;
+static int ett_dsrc_Node_XY_28b;
+static int ett_dsrc_Node_XY_32b;
+static int ett_dsrc_NodeListXY;
+static int ett_dsrc_NodeOffsetPointXY;
+static int ett_dsrc_NodeXY;
+static int ett_dsrc_NodeSetXY;
+static int ett_dsrc_OverlayLaneList;
+static int ett_dsrc_PositionalAccuracy;
+static int ett_dsrc_PositionConfidenceSet;
+static int ett_dsrc_Position3D;
+static int ett_dsrc_T_Position3DRegional;
+static int ett_dsrc_PreemptPriorityList;
+static int ett_dsrc_RegulatorySpeedLimit;
+static int ett_dsrc_RequestorDescription;
+static int ett_dsrc_T_RequestorDescriptionRegional;
+static int ett_dsrc_RequestorPositionVector;
+static int ett_dsrc_RequestorType;
+static int ett_dsrc_RestrictionClassAssignment;
+static int ett_dsrc_RestrictionClassList;
+static int ett_dsrc_RestrictionUserType;
+static int ett_dsrc_T_RestrictionUserTypeRegional;
+static int ett_dsrc_RestrictionUserTypeList;
+static int ett_dsrc_RoadLaneSetList;
+static int ett_dsrc_RoadSegmentReferenceID;
+static int ett_dsrc_RoadSegment;
+static int ett_dsrc_T_RoadSegmentRegional;
+static int ett_dsrc_RoadSegmentList;
+static int ett_dsrc_RTCMheader;
+static int ett_dsrc_RTCMmessageList;
+static int ett_dsrc_SegmentAttributeXYList;
+static int ett_dsrc_SignalControlZone;
+static int ett_dsrc_SignalRequesterInfo;
+static int ett_dsrc_SignalRequest;
+static int ett_dsrc_T_SignalRequestRegional;
+static int ett_dsrc_SignalRequestList;
+static int ett_dsrc_SignalRequestPackage;
+static int ett_dsrc_T_SignalRequestPackageRegional;
+static int ett_dsrc_SignalStatus;
+static int ett_dsrc_T_SignalStatusRegional;
+static int ett_dsrc_SignalStatusList;
+static int ett_dsrc_SignalStatusPackageList;
+static int ett_dsrc_SignalStatusPackage;
+static int ett_dsrc_T_SignalStatusPackageRegional;
+static int ett_dsrc_SpeedandHeadingandThrottleConfidence;
+static int ett_dsrc_SpeedLimitList;
+static int ett_dsrc_TimeChangeDetails;
+static int ett_dsrc_TransmissionAndSpeed;
+static int ett_dsrc_VehicleID;
+static int ett_dsrc_AllowedManeuvers;
+static int ett_dsrc_GNSSstatus;
+static int ett_dsrc_IntersectionStatusObject;
+static int ett_dsrc_LaneAttributes_Barrier;
+static int ett_dsrc_LaneAttributes_Bike;
+static int ett_dsrc_LaneAttributes_Crosswalk;
+static int ett_dsrc_LaneAttributes_Parking;
+static int ett_dsrc_LaneAttributes_Sidewalk;
+static int ett_dsrc_LaneAttributes_Striping;
+static int ett_dsrc_LaneAttributes_TrackedVehicle;
+static int ett_dsrc_LaneAttributes_Vehicle;
+static int ett_dsrc_LaneDirection;
+static int ett_dsrc_TransitVehicleStatus;
 
 /* --- Module AddGrpC --- --- ---                                             */
 
-static gint ett_AddGrpC_ConnectionManeuverAssist_addGrpC = -1;
-static gint ett_AddGrpC_ConnectionTrajectory_addGrpC = -1;
-static gint ett_AddGrpC_IntersectionState_addGrpC = -1;
-static gint ett_AddGrpC_LaneAttributes_addGrpC = -1;
-static gint ett_AddGrpC_MapData_addGrpC = -1;
-static gint ett_AddGrpC_MovementEvent_addGrpC = -1;
-static gint ett_AddGrpC_NodeAttributeSet_addGrpC = -1;
-static gint ett_AddGrpC_Position3D_addGrpC = -1;
-static gint ett_AddGrpC_RestrictionUserType_addGrpC = -1;
-static gint ett_AddGrpC_RequestorDescription_addGrpC = -1;
-static gint ett_AddGrpC_SignalStatusPackage_addGrpC = -1;
-static gint ett_AddGrpC_ItsStationPosition = -1;
-static gint ett_AddGrpC_ItsStationPositionList = -1;
-static gint ett_AddGrpC_Node = -1;
-static gint ett_AddGrpC_NodeLink = -1;
-static gint ett_AddGrpC_PrioritizationResponse = -1;
-static gint ett_AddGrpC_PrioritizationResponseList = -1;
-static gint ett_AddGrpC_SignalHeadLocation = -1;
-static gint ett_AddGrpC_SignalHeadLocationList = -1;
+static int ett_AddGrpC_ConnectionManeuverAssist_addGrpC;
+static int ett_AddGrpC_ConnectionTrajectory_addGrpC;
+static int ett_AddGrpC_IntersectionState_addGrpC;
+static int ett_AddGrpC_LaneAttributes_addGrpC;
+static int ett_AddGrpC_MapData_addGrpC;
+static int ett_AddGrpC_MovementEvent_addGrpC;
+static int ett_AddGrpC_NodeAttributeSet_addGrpC;
+static int ett_AddGrpC_Position3D_addGrpC;
+static int ett_AddGrpC_RestrictionUserType_addGrpC;
+static int ett_AddGrpC_RequestorDescription_addGrpC;
+static int ett_AddGrpC_SignalStatusPackage_addGrpC;
+static int ett_AddGrpC_ItsStationPosition;
+static int ett_AddGrpC_ItsStationPositionList;
+static int ett_AddGrpC_Node;
+static int ett_AddGrpC_NodeLink;
+static int ett_AddGrpC_PrioritizationResponse;
+static int ett_AddGrpC_PrioritizationResponseList;
+static int ett_AddGrpC_SignalHeadLocation;
+static int ett_AddGrpC_SignalHeadLocationList;
 
 /* --- Module REGION --- --- ---                                              */
 
 
 /* --- Module GDD --- --- ---                                                 */
 
-static gint ett_gdd_GddStructure = -1;
-static gint ett_gdd_Pictogram = -1;
-static gint ett_gdd_Pictogram_serviceCategory = -1;
-static gint ett_gdd_Pictogram_category = -1;
-static gint ett_gdd_GddAttributes = -1;
-static gint ett_gdd_GddAttributes_item = -1;
-static gint ett_gdd_InternationalSign_applicablePeriod = -1;
-static gint ett_gdd_T_year = -1;
-static gint ett_gdd_T_month_day = -1;
-static gint ett_gdd_T_hourMinutes = -1;
-static gint ett_gdd_MonthDay = -1;
-static gint ett_gdd_HoursMinutes = -1;
-static gint ett_gdd_RPDT = -1;
-static gint ett_gdd_DayOfWeek = -1;
-static gint ett_gdd_InternationalSign_section = -1;
-static gint ett_gdd_InternationalSign_applicableVehicleDimensions = -1;
-static gint ett_gdd_Distance = -1;
-static gint ett_gdd_Weight = -1;
-static gint ett_gdd_InternationalSign_speedLimits = -1;
-static gint ett_gdd_InternationalSign_destinationInformation = -1;
-static gint ett_gdd_SEQUENCE_SIZE_1_8__OF_DestinationInformationIO = -1;
-static gint ett_gdd_DestinationInformationIO = -1;
-static gint ett_gdd_SEQUENCE_SIZE_1_4__OF_DestinationPlace = -1;
-static gint ett_gdd_SEQUENCE_SIZE_1_4__OF_DestinationRoad = -1;
-static gint ett_gdd_DestinationPlace = -1;
-static gint ett_gdd_DestinationRoad = -1;
-static gint ett_gdd_DistanceOrDuration = -1;
+static int ett_gdd_GddStructure;
+static int ett_gdd_Pictogram;
+static int ett_gdd_Pictogram_serviceCategory;
+static int ett_gdd_Pictogram_category;
+static int ett_gdd_GddAttributes;
+static int ett_gdd_GddAttributes_item;
+static int ett_gdd_InternationalSign_applicablePeriod;
+static int ett_gdd_T_year;
+static int ett_gdd_T_month_day;
+static int ett_gdd_T_hourMinutes;
+static int ett_gdd_MonthDay;
+static int ett_gdd_HoursMinutes;
+static int ett_gdd_RPDT;
+static int ett_gdd_DayOfWeek;
+static int ett_gdd_InternationalSign_section;
+static int ett_gdd_InternationalSign_applicableVehicleDimensions;
+static int ett_gdd_Distance;
+static int ett_gdd_Weight;
+static int ett_gdd_InternationalSign_speedLimits;
+static int ett_gdd_InternationalSign_destinationInformation;
+static int ett_gdd_SEQUENCE_SIZE_1_8__OF_DestinationInformationIO;
+static int ett_gdd_DestinationInformationIO;
+static int ett_gdd_SEQUENCE_SIZE_1_4__OF_DestinationPlace;
+static int ett_gdd_SEQUENCE_SIZE_1_4__OF_DestinationRoad;
+static int ett_gdd_DestinationPlace;
+static int ett_gdd_DestinationRoad;
+static int ett_gdd_DistanceOrDuration;
 
 /* --- Module IVI --- --- ---                                                 */
 
-static gint ett_ivi_IviStructure = -1;
-static gint ett_ivi_IviContainers = -1;
-static gint ett_ivi_IviContainer = -1;
-static gint ett_ivi_IviManagementContainer = -1;
-static gint ett_ivi_GeographicLocationContainer = -1;
-static gint ett_ivi_GlcParts = -1;
-static gint ett_ivi_GlcPart = -1;
-static gint ett_ivi_GeneralIviContainer = -1;
-static gint ett_ivi_GicPart = -1;
-static gint ett_ivi_RoadConfigurationContainer = -1;
-static gint ett_ivi_RccPart = -1;
-static gint ett_ivi_RoadSurfaceContainer = -1;
-static gint ett_ivi_RscPart = -1;
-static gint ett_ivi_TextContainer = -1;
-static gint ett_ivi_TcPart = -1;
-static gint ett_ivi_LayoutContainer = -1;
-static gint ett_ivi_AutomatedVehicleContainer = -1;
-static gint ett_ivi_AvcPart = -1;
-static gint ett_ivi_MapLocationContainer = -1;
-static gint ett_ivi_MlcParts = -1;
-static gint ett_ivi_MlcPart = -1;
-static gint ett_ivi_AbsolutePositions = -1;
-static gint ett_ivi_AbsolutePositionsWAltitude = -1;
-static gint ett_ivi_AutomatedVehicleRules = -1;
-static gint ett_ivi_ConnectedDenms = -1;
-static gint ett_ivi_DeltaPositions = -1;
-static gint ett_ivi_DeltaReferencePositions = -1;
-static gint ett_ivi_ConstraintTextLines1 = -1;
-static gint ett_ivi_ConstraintTextLines2 = -1;
-static gint ett_ivi_IviIdentificationNumbers = -1;
-static gint ett_ivi_ISO14823Attributes = -1;
-static gint ett_ivi_LaneConfiguration = -1;
-static gint ett_ivi_LaneIds = -1;
-static gint ett_ivi_LanePositions = -1;
-static gint ett_ivi_LayoutComponents = -1;
-static gint ett_ivi_PlatooningRules = -1;
-static gint ett_ivi_RoadSignCodes = -1;
-static gint ett_ivi_TextLines = -1;
-static gint ett_ivi_TrailerCharacteristicsList = -1;
-static gint ett_ivi_TrailerCharacteristicsFixValuesList = -1;
-static gint ett_ivi_TrailerCharacteristicsRangesList = -1;
-static gint ett_ivi_SaeAutomationLevels = -1;
-static gint ett_ivi_VehicleCharacteristicsFixValuesList = -1;
-static gint ett_ivi_VehicleCharacteristicsList = -1;
-static gint ett_ivi_VehicleCharacteristicsRangesList = -1;
-static gint ett_ivi_ValidityPeriods = -1;
-static gint ett_ivi_ZoneIds = -1;
-static gint ett_ivi_AbsolutePosition = -1;
-static gint ett_ivi_AbsolutePositionWAltitude = -1;
-static gint ett_ivi_AnyCatalogue = -1;
-static gint ett_ivi_AutomatedVehicleRule = -1;
-static gint ett_ivi_CompleteVehicleCharacteristics = -1;
-static gint ett_ivi_ComputedSegment = -1;
-static gint ett_ivi_DeltaPosition = -1;
-static gint ett_ivi_ISO14823Attribute = -1;
-static gint ett_ivi_ISO14823Code = -1;
-static gint ett_ivi_T_icPictogramCode = -1;
-static gint ett_ivi_T_serviceCategoryCode = -1;
-static gint ett_ivi_T_pictogramCategoryCode = -1;
-static gint ett_ivi_LaneInformation = -1;
-static gint ett_ivi_LaneCharacteristics = -1;
-static gint ett_ivi_LayoutComponent = -1;
-static gint ett_ivi_LoadType = -1;
-static gint ett_ivi_MapReference = -1;
-static gint ett_ivi_PlatooningRule = -1;
-static gint ett_ivi_PolygonalLine = -1;
-static gint ett_ivi_RoadSurfaceDynamicCharacteristics = -1;
-static gint ett_ivi_RoadSurfaceStaticCharacteristics = -1;
-static gint ett_ivi_RSCode = -1;
-static gint ett_ivi_T_code = -1;
-static gint ett_ivi_Segment = -1;
-static gint ett_ivi_Text = -1;
-static gint ett_ivi_TractorCharacteristics = -1;
-static gint ett_ivi_TrailerCharacteristics = -1;
-static gint ett_ivi_VcCode = -1;
-static gint ett_ivi_VehicleCharacteristicsFixValues = -1;
-static gint ett_ivi_VehicleCharacteristicsRanges = -1;
-static gint ett_ivi_T_limits = -1;
-static gint ett_ivi_Zone = -1;
+static int ett_ivi_IviStructure;
+static int ett_ivi_IviContainers;
+static int ett_ivi_IviContainer;
+static int ett_ivi_IviManagementContainer;
+static int ett_ivi_GeographicLocationContainer;
+static int ett_ivi_GlcParts;
+static int ett_ivi_GlcPart;
+static int ett_ivi_GeneralIviContainer;
+static int ett_ivi_GicPart;
+static int ett_ivi_RoadConfigurationContainer;
+static int ett_ivi_RccPart;
+static int ett_ivi_RoadSurfaceContainer;
+static int ett_ivi_RscPart;
+static int ett_ivi_TextContainer;
+static int ett_ivi_TcPart;
+static int ett_ivi_LayoutContainer;
+static int ett_ivi_AutomatedVehicleContainer;
+static int ett_ivi_AvcPart;
+static int ett_ivi_MapLocationContainer;
+static int ett_ivi_MlcParts;
+static int ett_ivi_MlcPart;
+static int ett_ivi_AbsolutePositions;
+static int ett_ivi_AbsolutePositionsWAltitude;
+static int ett_ivi_AutomatedVehicleRules;
+static int ett_ivi_ConnectedDenms;
+static int ett_ivi_DeltaPositions;
+static int ett_ivi_DeltaReferencePositions;
+static int ett_ivi_ConstraintTextLines1;
+static int ett_ivi_ConstraintTextLines2;
+static int ett_ivi_IviIdentificationNumbers;
+static int ett_ivi_ISO14823Attributes;
+static int ett_ivi_LaneConfiguration;
+static int ett_ivi_LaneIds;
+static int ett_ivi_LanePositions;
+static int ett_ivi_LayoutComponents;
+static int ett_ivi_PlatooningRules;
+static int ett_ivi_RoadSignCodes;
+static int ett_ivi_TextLines;
+static int ett_ivi_TrailerCharacteristicsList;
+static int ett_ivi_TrailerCharacteristicsFixValuesList;
+static int ett_ivi_TrailerCharacteristicsRangesList;
+static int ett_ivi_SaeAutomationLevels;
+static int ett_ivi_VehicleCharacteristicsFixValuesList;
+static int ett_ivi_VehicleCharacteristicsList;
+static int ett_ivi_VehicleCharacteristicsRangesList;
+static int ett_ivi_ValidityPeriods;
+static int ett_ivi_ZoneIds;
+static int ett_ivi_AbsolutePosition;
+static int ett_ivi_AbsolutePositionWAltitude;
+static int ett_ivi_AnyCatalogue;
+static int ett_ivi_AutomatedVehicleRule;
+static int ett_ivi_CompleteVehicleCharacteristics;
+static int ett_ivi_ComputedSegment;
+static int ett_ivi_DeltaPosition;
+static int ett_ivi_ISO14823Attribute;
+static int ett_ivi_ISO14823Code;
+static int ett_ivi_T_icPictogramCode;
+static int ett_ivi_T_serviceCategoryCode;
+static int ett_ivi_T_pictogramCategoryCode;
+static int ett_ivi_LaneInformation;
+static int ett_ivi_LaneCharacteristics;
+static int ett_ivi_LayoutComponent;
+static int ett_ivi_LoadType;
+static int ett_ivi_MapReference;
+static int ett_ivi_PlatooningRule;
+static int ett_ivi_PolygonalLine;
+static int ett_ivi_RoadSurfaceDynamicCharacteristics;
+static int ett_ivi_RoadSurfaceStaticCharacteristics;
+static int ett_ivi_RSCode;
+static int ett_ivi_T_code;
+static int ett_ivi_Segment;
+static int ett_ivi_Text;
+static int ett_ivi_TractorCharacteristics;
+static int ett_ivi_TrailerCharacteristics;
+static int ett_ivi_VcCode;
+static int ett_ivi_VehicleCharacteristicsFixValues;
+static int ett_ivi_VehicleCharacteristicsRanges;
+static int ett_ivi_T_limits;
+static int ett_ivi_Zone;
 
 /* --- Module SPATEM-PDU-Descriptions --- --- ---                             */
 
@@ -2696,183 +2752,182 @@ static gint ett_ivi_Zone = -1;
 
 /* --- Module CAMv1-PDU-Descriptions --- --- ---                              */
 
-static gint ett_camv1_CoopAwarenessV1 = -1;
-static gint ett_camv1_CamParameters = -1;
-static gint ett_camv1_HighFrequencyContainer = -1;
-static gint ett_camv1_LowFrequencyContainer = -1;
-static gint ett_camv1_SpecialVehicleContainer = -1;
-static gint ett_camv1_BasicContainer = -1;
-static gint ett_camv1_BasicVehicleContainerHighFrequency = -1;
-static gint ett_camv1_BasicVehicleContainerLowFrequency = -1;
-static gint ett_camv1_PublicTransportContainer = -1;
-static gint ett_camv1_SpecialTransportContainer = -1;
-static gint ett_camv1_DangerousGoodsContainer = -1;
-static gint ett_camv1_RoadWorksContainerBasic = -1;
-static gint ett_camv1_RescueContainer = -1;
-static gint ett_camv1_EmergencyContainer = -1;
-static gint ett_camv1_SafetyCarContainer = -1;
-static gint ett_camv1_RSUContainerHighFrequency = -1;
+static int ett_camv1_CoopAwarenessV1;
+static int ett_camv1_CamParameters;
+static int ett_camv1_HighFrequencyContainer;
+static int ett_camv1_LowFrequencyContainer;
+static int ett_camv1_SpecialVehicleContainer;
+static int ett_camv1_BasicContainer;
+static int ett_camv1_BasicVehicleContainerHighFrequency;
+static int ett_camv1_BasicVehicleContainerLowFrequency;
+static int ett_camv1_PublicTransportContainer;
+static int ett_camv1_SpecialTransportContainer;
+static int ett_camv1_DangerousGoodsContainer;
+static int ett_camv1_RoadWorksContainerBasic;
+static int ett_camv1_RescueContainer;
+static int ett_camv1_EmergencyContainer;
+static int ett_camv1_SafetyCarContainer;
+static int ett_camv1_RSUContainerHighFrequency;
 
 /* --- Module CAM-PDU-Descriptions --- --- ---                                */
 
-static gint ett_cam_CamPayload = -1;
-static gint ett_cam_CamParameters = -1;
-static gint ett_cam_HighFrequencyContainer = -1;
-static gint ett_cam_LowFrequencyContainer = -1;
-static gint ett_cam_SpecialVehicleContainer = -1;
-static gint ett_cam_BasicVehicleContainerHighFrequency = -1;
-static gint ett_cam_BasicVehicleContainerLowFrequency = -1;
-static gint ett_cam_PublicTransportContainer = -1;
-static gint ett_cam_SpecialTransportContainer = -1;
-static gint ett_cam_DangerousGoodsContainer = -1;
-static gint ett_cam_RoadWorksContainerBasic = -1;
-static gint ett_cam_RescueContainer = -1;
-static gint ett_cam_EmergencyContainer = -1;
-static gint ett_cam_SafetyCarContainer = -1;
-static gint ett_cam_RSUContainerHighFrequency = -1;
+static int ett_cam_CamPayload;
+static int ett_cam_CamParameters;
+static int ett_cam_HighFrequencyContainer;
+static int ett_cam_LowFrequencyContainer;
+static int ett_cam_SpecialVehicleContainer;
+static int ett_cam_BasicVehicleContainerHighFrequency;
+static int ett_cam_BasicVehicleContainerLowFrequency;
+static int ett_cam_PublicTransportContainer;
+static int ett_cam_SpecialTransportContainer;
+static int ett_cam_DangerousGoodsContainer;
+static int ett_cam_RoadWorksContainerBasic;
+static int ett_cam_RescueContainer;
+static int ett_cam_EmergencyContainer;
+static int ett_cam_SafetyCarContainer;
+static int ett_cam_RSUContainerHighFrequency;
 
 /* --- Module DENMv1-PDU-Descriptions --- --- ---                             */
 
-static gint ett_denmv1_DecentralizedEnvironmentalNotificationMessageV1 = -1;
-static gint ett_denmv1_ManagementContainer = -1;
-static gint ett_denmv1_SituationContainer = -1;
-static gint ett_denmv1_LocationContainer = -1;
-static gint ett_denmv1_ImpactReductionContainer = -1;
-static gint ett_denmv1_RoadWorksContainerExtended = -1;
-static gint ett_denmv1_StationaryVehicleContainer = -1;
-static gint ett_denmv1_AlacarteContainer = -1;
-static gint ett_denmv1_ReferenceDenms = -1;
+static int ett_denmv1_DecentralizedEnvironmentalNotificationMessageV1;
+static int ett_denmv1_ManagementContainer;
+static int ett_denmv1_SituationContainer;
+static int ett_denmv1_LocationContainer;
+static int ett_denmv1_ImpactReductionContainer;
+static int ett_denmv1_RoadWorksContainerExtended;
+static int ett_denmv1_StationaryVehicleContainer;
+static int ett_denmv1_AlacarteContainer;
+static int ett_denmv1_ReferenceDenms;
 
 /* --- Module DENM-PDU-Description --- --- ---                                */
 
-static gint ett_denm_DenmPayload = -1;
-static gint ett_denm_ManagementContainer = -1;
-static gint ett_denm_SituationContainer = -1;
-static gint ett_denm_LocationContainer = -1;
-static gint ett_denm_ImpactReductionContainer = -1;
-static gint ett_denm_RoadWorksContainerExtended = -1;
-static gint ett_denm_StationaryVehicleContainer = -1;
-static gint ett_denm_AlacarteContainer = -1;
+static int ett_denm_DenmPayload;
+static int ett_denm_ManagementContainer;
+static int ett_denm_SituationContainer;
+static int ett_denm_LocationContainer;
+static int ett_denm_ImpactReductionContainer;
+static int ett_denm_RoadWorksContainerExtended;
+static int ett_denm_StationaryVehicleContainer;
+static int ett_denm_AlacarteContainer;
 
 /* --- Module TIS-TPG-Transactions-Descriptions --- --- ---                   */
 
-static gint ett_tistpg_TisTpgTransaction = -1;
-static gint ett_tistpg_TisTpgDRM = -1;
-static gint ett_tistpg_TisTpgDRM_Management = -1;
-static gint ett_tistpg_TisTpgDRM_Situation = -1;
-static gint ett_tistpg_TisTpgDRM_Location = -1;
-static gint ett_tistpg_TisTpgSNM = -1;
-static gint ett_tistpg_TisTpgSNM_Management = -1;
-static gint ett_tistpg_TisTpgTRM = -1;
-static gint ett_tistpg_TisTpgTRM_Management = -1;
-static gint ett_tistpg_TisTpgTRM_Situation = -1;
-static gint ett_tistpg_TisTpgTRM_Location = -1;
-static gint ett_tistpg_TisTpgTCM = -1;
-static gint ett_tistpg_TisTpgTCM_Management = -1;
-static gint ett_tistpg_TisTpgTCM_Situation = -1;
-static gint ett_tistpg_TisTpgTCM_Location = -1;
-static gint ett_tistpg_TisTpgVDRM = -1;
-static gint ett_tistpg_TisTpgVDRM_Management = -1;
-static gint ett_tistpg_TisTpgVDPM = -1;
-static gint ett_tistpg_TisTpgVDPM_Management = -1;
-static gint ett_tistpg_VehicleSpecificData = -1;
-static gint ett_tistpg_TisTpgEOFM = -1;
-static gint ett_tistpg_TisTpgEOFM_Management = -1;
-static gint ett_tistpg_PlacardTable = -1;
-static gint ett_tistpg_TyreSetVariant = -1;
-static gint ett_tistpg_PressureVariantsList = -1;
-static gint ett_tistpg_PressureVariant = -1;
-static gint ett_tistpg_TyreData = -1;
-static gint ett_tistpg_T_currentTyrePressure = -1;
-static gint ett_tistpg_T_tyreSidewallInformation = -1;
-static gint ett_tistpg_T_currentInsideAirTemperature = -1;
-static gint ett_tistpg_T_recommendedTyrePressure = -1;
-static gint ett_tistpg_T_tin = -1;
-static gint ett_tistpg_T_sensorState = -1;
-static gint ett_tistpg_AppliedTyrePressure = -1;
-static gint ett_tistpg_TpgStationData = -1;
-static gint ett_tistpg_AppliedTyrePressures = -1;
-static gint ett_tistpg_TpgNotifContainer = -1;
-static gint ett_tistpg_TpgAutomation = -1;
-static gint ett_tistpg_TisProfile = -1;
+static int ett_tistpg_TisTpgTransaction;
+static int ett_tistpg_TisTpgDRM;
+static int ett_tistpg_TisTpgDRM_Management;
+static int ett_tistpg_TisTpgDRM_Situation;
+static int ett_tistpg_TisTpgDRM_Location;
+static int ett_tistpg_TisTpgSNM;
+static int ett_tistpg_TisTpgSNM_Management;
+static int ett_tistpg_TisTpgTRM;
+static int ett_tistpg_TisTpgTRM_Management;
+static int ett_tistpg_TisTpgTRM_Situation;
+static int ett_tistpg_TisTpgTRM_Location;
+static int ett_tistpg_TisTpgTCM;
+static int ett_tistpg_TisTpgTCM_Management;
+static int ett_tistpg_TisTpgTCM_Situation;
+static int ett_tistpg_TisTpgTCM_Location;
+static int ett_tistpg_TisTpgVDRM;
+static int ett_tistpg_TisTpgVDRM_Management;
+static int ett_tistpg_TisTpgVDPM;
+static int ett_tistpg_TisTpgVDPM_Management;
+static int ett_tistpg_VehicleSpecificData;
+static int ett_tistpg_TisTpgEOFM;
+static int ett_tistpg_TisTpgEOFM_Management;
+static int ett_tistpg_PlacardTable;
+static int ett_tistpg_TyreSetVariant;
+static int ett_tistpg_PressureVariantsList;
+static int ett_tistpg_PressureVariant;
+static int ett_tistpg_TyreData;
+static int ett_tistpg_T_currentTyrePressure;
+static int ett_tistpg_T_tyreSidewallInformation;
+static int ett_tistpg_T_currentInsideAirTemperature;
+static int ett_tistpg_T_recommendedTyrePressure;
+static int ett_tistpg_T_tin;
+static int ett_tistpg_T_sensorState;
+static int ett_tistpg_AppliedTyrePressure;
+static int ett_tistpg_TpgStationData;
+static int ett_tistpg_AppliedTyrePressures;
+static int ett_tistpg_TpgNotifContainer;
+static int ett_tistpg_TpgAutomation;
+static int ett_tistpg_TisProfile;
 
 /* --- Module EVCSN-PDU-Descriptions --- --- ---                              */
 
-static gint ett_evcsn_EVChargingSpotNotificationPOIMessage = -1;
-static gint ett_evcsn_ItsPOIHeader = -1;
-static gint ett_evcsn_ItsEVCSNData = -1;
-static gint ett_evcsn_SEQUENCE_SIZE_1_256_OF_ItsChargingStationData = -1;
-static gint ett_evcsn_ItsChargingStationData = -1;
-static gint ett_evcsn_ItsChargingSpots = -1;
-static gint ett_evcsn_ItsChargingSpotDataElements = -1;
-static gint ett_evcsn_ChargingSpotType = -1;
-static gint ett_evcsn_ParkingPlacesData = -1;
-static gint ett_evcsn_SpotAvailability = -1;
+static int ett_evcsn_EVChargingSpotNotificationPOIMessage;
+static int ett_evcsn_ItsPOIHeader;
+static int ett_evcsn_ItsEVCSNData;
+static int ett_evcsn_SEQUENCE_SIZE_1_256_OF_ItsChargingStationData;
+static int ett_evcsn_ItsChargingStationData;
+static int ett_evcsn_ItsChargingSpots;
+static int ett_evcsn_ItsChargingSpotDataElements;
+static int ett_evcsn_ChargingSpotType;
+static int ett_evcsn_ParkingPlacesData;
+static int ett_evcsn_SpotAvailability;
 
 /* --- Module EV-RechargingSpotReservation-PDU-Descriptions --- --- ---       */
 
-static gint ett_evrsr_EV_RSR_MessageBody = -1;
-static gint ett_evrsr_PreReservationRequestMessage = -1;
-static gint ett_evrsr_PreReservationResponseMessage = -1;
-static gint ett_evrsr_ReservationRequestMessage = -1;
-static gint ett_evrsr_ReservationResponseMessage = -1;
-static gint ett_evrsr_CancellationRequestMessage = -1;
-static gint ett_evrsr_CancellationResponseMessage = -1;
-static gint ett_evrsr_UpdateRequestMessage = -1;
-static gint ett_evrsr_UpdateResponseMessage = -1;
-static gint ett_evrsr_Payment_ID = -1;
-static gint ett_evrsr_RechargingType = -1;
-static gint ett_evrsr_SupportedPaymentTypes = -1;
+static int ett_evrsr_EV_RSR_MessageBody;
+static int ett_evrsr_PreReservationRequestMessage;
+static int ett_evrsr_PreReservationResponseMessage;
+static int ett_evrsr_ReservationRequestMessage;
+static int ett_evrsr_ReservationResponseMessage;
+static int ett_evrsr_CancellationRequestMessage;
+static int ett_evrsr_CancellationResponseMessage;
+static int ett_evrsr_UpdateRequestMessage;
+static int ett_evrsr_UpdateResponseMessage;
+static int ett_evrsr_Payment_ID;
+static int ett_evrsr_RechargingType;
+static int ett_evrsr_SupportedPaymentTypes;
 
 /* --- Module CPM-OriginatingStationContainers --- --- ---                    */
 
-static gint ett_cpm_OriginatingVehicleContainer = -1;
-static gint ett_cpm_OriginatingRsuContainer = -1;
-static gint ett_cpm_TrailerDataSet = -1;
+static int ett_cpm_OriginatingVehicleContainer;
+static int ett_cpm_OriginatingRsuContainer;
+static int ett_cpm_TrailerDataSet;
 
 /* --- Module CPM-PDU-Descriptions --- --- ---                                */
 
-static gint ett_cpm_CollectivePerceptionMessage = -1;
-static gint ett_cpm_CpmPayload = -1;
-static gint ett_cpm_ManagementContainer = -1;
-static gint ett_cpm_WrappedCpmContainer = -1;
-static gint ett_cpm_WrappedCpmContainers = -1;
-static gint ett_cpm_MessageRateRange = -1;
+static int ett_cpm_CpmPayload;
+static int ett_cpm_ManagementContainer;
+static int ett_cpm_WrappedCpmContainer;
+static int ett_cpm_WrappedCpmContainers;
+static int ett_cpm_MessageRateRange;
 
 /* --- Module CPM-PerceivedObjectContainer --- --- ---                        */
 
-static gint ett_cpm_PerceivedObjectContainer = -1;
-static gint ett_cpm_PerceivedObjects = -1;
+static int ett_cpm_PerceivedObjectContainer;
+static int ett_cpm_PerceivedObjects;
 
 /* --- Module CPM-PerceptionRegionContainer --- --- ---                       */
 
-static gint ett_cpm_PerceptionRegionContainer = -1;
-static gint ett_cpm_PerceptionRegion = -1;
-static gint ett_cpm_PerceivedObjectIds = -1;
+static int ett_cpm_PerceptionRegionContainer;
+static int ett_cpm_PerceptionRegion;
+static int ett_cpm_PerceivedObjectIds;
 
 /* --- Module CPM-SensorInformationContainer --- --- ---                      */
 
-static gint ett_cpm_SensorInformationContainer = -1;
-static gint ett_cpm_SensorInformation = -1;
+static int ett_cpm_SensorInformationContainer;
+static int ett_cpm_SensorInformation;
 
 /* --- Module VAM-PDU-Descriptions --- --- ---                                */
 
-static gint ett_vam_VruAwareness = -1;
-static gint ett_vam_VamParameters = -1;
-static gint ett_vam_VruHighFrequencyContainer = -1;
-static gint ett_vam_VruLowFrequencyContainer = -1;
-static gint ett_vam_VruClusterInformationContainer = -1;
-static gint ett_vam_VruClusterOperationContainer = -1;
-static gint ett_vam_VruMotionPredictionContainer = -1;
+static int ett_vam_VruAwareness;
+static int ett_vam_VamParameters;
+static int ett_vam_VruHighFrequencyContainer;
+static int ett_vam_VruLowFrequencyContainer;
+static int ett_vam_VruClusterInformationContainer;
+static int ett_vam_VruClusterOperationContainer;
+static int ett_vam_VruMotionPredictionContainer;
 
 /* --- Module IMZM-PDU-Descriptions --- --- ---                               */
 
-static gint ett_imzm_InterferenceManagementZoneMessage = -1;
-static gint ett_imzm_ImzmParameters = -1;
-static gint ett_imzm_ImzmContainer = -1;
+static int ett_imzm_InterferenceManagementZoneMessage;
+static int ett_imzm_ImzmParameters;
+static int ett_imzm_ImzmContainer;
 
 // Deal with cause/subcause code management
-struct { CauseCodeType_enum cause; int* hf; } cause_to_subcause[] = {
+static struct { CauseCodeType_enum cause; int* hf; } cause_to_subcause[] = {
     { trafficCondition, &hf_its_trafficCondition1 },
     { accident, &hf_its_accident2 },
     { roadworks, &hf_its_roadworks3 },
@@ -2897,7 +2952,7 @@ struct { CauseCodeType_enum cause; int* hf; } cause_to_subcause[] = {
     { collisionRisk, &hf_its_collisionRisk97 },
     { signalViolation, &hf_its_signalViolation98 },
     { dangerousSituation, &hf_its_dangerousSituation99 },
-    { reserved, NULL },
+    { 0, NULL },
 };
 
 static int*
@@ -2919,10 +2974,10 @@ static unsigned char ita2_ascii[32] = {
 static void
 append_country_code_fmt(proto_item *item, tvbuff_t *val_tvb)
 {
-  guint16 v = tvb_get_guint16(val_tvb, 0, ENC_BIG_ENDIAN);
+  uint16_t v = tvb_get_uint16(val_tvb, 0, ENC_BIG_ENDIAN);
   v >>= 6;  /* 10 bits */
-  guint16 v1 = (v >> 5) & 0x1F;
-  guint16 v2 = v & 0x1F;
+  uint16_t v1 = (v >> 5) & 0x1F;
+  uint16_t v2 = v & 0x1F;
   proto_item_append_text(item, " - %c%c", ita2_ascii[v1], ita2_ascii[v2]);
 }
 
@@ -2940,7 +2995,7 @@ static const value_string its_AccelerationChange_vals[] = {
 static int
 dissect_its_AccelerationChange(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -2950,7 +3005,7 @@ dissect_its_AccelerationChange(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_its_AccelerationConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 102U, NULL, FALSE);
+                                                            0U, 102U, NULL, false);
 
   return offset;
 }
@@ -2970,7 +3025,7 @@ static int * const its_AccelerationControl_bits[] = {
 static int
 dissect_its_AccelerationControl(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     7, 7, FALSE, its_AccelerationControl_bits, 7, NULL, NULL);
+                                     7, 7, false, its_AccelerationControl_bits, 7, NULL, NULL);
 
   return offset;
 }
@@ -2986,7 +3041,7 @@ static const value_string its_AccelerationMagnitudeValue_vals[] = {
 static int
 dissect_its_AccelerationMagnitudeValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 161U, NULL, FALSE);
+                                                            0U, 161U, NULL, false);
 
   return offset;
 }
@@ -3003,7 +3058,7 @@ static const value_string its_AccelerationValue_vals[] = {
 static int
 dissect_its_AccelerationValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -160, 161U, NULL, FALSE);
+                                                            -160, 161U, NULL, false);
 
   return offset;
 }
@@ -3021,7 +3076,7 @@ static const value_string its_AccessTechnologyClass_vals[] = {
 static int
 dissect_its_AccessTechnologyClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, TRUE, 0, NULL);
+                                     4, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -3044,7 +3099,7 @@ static const value_string its_AccidentSubCauseCode_vals[] = {
 static int
 dissect_its_AccidentSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3069,7 +3124,7 @@ static const value_string its_AdverseWeatherCondition_AdhesionSubCauseCode_vals[
 static int
 dissect_its_AdverseWeatherCondition_AdhesionSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3090,7 +3145,7 @@ static const value_string its_AdverseWeatherCondition_ExtremeWeatherConditionSub
 static int
 dissect_its_AdverseWeatherCondition_ExtremeWeatherConditionSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3108,7 +3163,7 @@ static const value_string its_AdverseWeatherCondition_PrecipitationSubCauseCode_
 static int
 dissect_its_AdverseWeatherCondition_PrecipitationSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3131,7 +3186,7 @@ static const value_string its_AdverseWeatherCondition_VisibilitySubCauseCode_val
 static int
 dissect_its_AdverseWeatherCondition_VisibilitySubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3161,7 +3216,7 @@ static const value_string its_AltitudeConfidence_vals[] = {
 static int
 dissect_its_AltitudeConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3171,7 +3226,7 @@ dissect_its_AltitudeConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_its_AltitudeValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -100000, 800001U, NULL, FALSE);
+                                                            -100000, 800001U, NULL, false);
 
   return offset;
 }
@@ -3187,7 +3242,7 @@ static const value_string its_AngleConfidence_vals[] = {
 static int
 dissect_its_AngleConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -3209,7 +3264,7 @@ static const value_string its_AngularSpeedConfidence_vals[] = {
 static int
 dissect_its_AngularSpeedConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3219,7 +3274,7 @@ dissect_its_AngularSpeedConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_its_CardinalNumber1B(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3229,7 +3284,7 @@ dissect_its_CardinalNumber1B(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_its_CardinalNumber3b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 8U, NULL, FALSE);
+                                                            1U, 8U, NULL, false);
 
   return offset;
 }
@@ -3245,7 +3300,7 @@ static const value_string its_CartesianAngleValue_vals[] = {
 static int
 dissect_its_CartesianAngleValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3601U, NULL, FALSE);
+                                                            0U, 3601U, NULL, false);
 
   return offset;
 }
@@ -3262,14 +3317,13 @@ static const value_string its_CartesianAngularVelocityComponentValue_vals[] = {
 static int
 dissect_its_CartesianAngularVelocityComponentValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -255, 256U, NULL, FALSE);
+                                                            -255, 256U, NULL, false);
 
   return offset;
 }
 
 
 static const value_string its_CauseCodeType_vals[] = {
-  { reserved, "reserved" },
   { trafficCondition, "trafficCondition" },
   { accident, "accident" },
   { roadworks, "roadworks" },
@@ -3288,6 +3342,7 @@ static const value_string its_CauseCodeType_vals[] = {
   { violence, "violence" },
   { slowVehicle, "slowVehicle" },
   { dangerousEndOfQueue, "dangerousEndOfQueue" },
+  { publicTransportVehicleApproaching, "publicTransportVehicleApproaching" },
   { vehicleBreakdown, "vehicleBreakdown" },
   { postCrash, "postCrash" },
   { humanProblem, "humanProblem" },
@@ -3305,7 +3360,7 @@ static const value_string its_CauseCodeType_vals[] = {
 static int
 dissect_its_CauseCodeType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, &((its_private_data_t*)actx->private_data)->cause_code, FALSE);
+                                                            0U, 255U, &((its_private_data_t*)actx->private_data)->cause_code, false);
 
   return offset;
 }
@@ -3321,7 +3376,7 @@ static const value_string its_CartesianCoordinateSmall_vals[] = {
 static int
 dissect_its_CartesianCoordinateSmall(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -3094, 1001U, NULL, FALSE);
+                                                            -3094, 1001U, NULL, false);
 
   return offset;
 }
@@ -3337,7 +3392,7 @@ static const value_string its_CartesianCoordinate_vals[] = {
 static int
 dissect_its_CartesianCoordinate(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -32768, 32767U, NULL, FALSE);
+                                                            -32768, 32767U, NULL, false);
 
   return offset;
 }
@@ -3353,7 +3408,7 @@ static const value_string its_CartesianCoordinateLarge_vals[] = {
 static int
 dissect_its_CartesianCoordinateLarge(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -131072, 131071U, NULL, FALSE);
+                                                            -131072, 131071U, NULL, false);
 
   return offset;
 }
@@ -3366,16 +3421,14 @@ static const value_string its_ClusterBreakupReason_vals[] = {
   {   3, "joiningAnotherCluster" },
   {   4, "enteringLowRiskAreaBasedOnMaps" },
   {   5, "receptionOfCpmContainingCluster" },
-  {  15, "max" },
   { 0, NULL }
 };
 
-static uint32_t its_ClusterBreakupReason_value_map[7+0] = {0, 1, 2, 3, 4, 5, 15};
 
 static int
 dissect_its_ClusterBreakupReason(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     7, NULL, FALSE, 0, its_ClusterBreakupReason_value_map);
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -3391,16 +3444,14 @@ static const value_string its_ClusterLeaveReason_vals[] = {
   {   6, "cancelledJoin" },
   {   7, "failedJoin" },
   {   8, "safetyCondition" },
-  {  15, "max" },
   { 0, NULL }
 };
 
-static uint32_t its_ClusterLeaveReason_value_map[10+0] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 15};
 
 static int
 dissect_its_ClusterLeaveReason(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     10, NULL, FALSE, 0, its_ClusterLeaveReason_value_map);
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -3412,6 +3463,9 @@ static const value_string its_CollisionRiskSubCauseCode_vals[] = {
   {   2, "crossingCollisionRisk" },
   {   3, "lateralCollisionRisk" },
   {   4, "vulnerableRoadUser" },
+  {   5, "collisionRiskWithPedestrian" },
+  {   6, "collisionRiskWithCyclist" },
+  {   7, "collisionRiskWithMotorVehicle" },
   { 0, NULL }
 };
 
@@ -3419,7 +3473,7 @@ static const value_string its_CollisionRiskSubCauseCode_vals[] = {
 static int
 dissect_its_CollisionRiskSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3434,7 +3488,7 @@ static const value_string its_ConfidenceLevel_vals[] = {
 static int
 dissect_its_ConfidenceLevel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 101U, NULL, FALSE);
+                                                            1U, 101U, NULL, false);
 
   return offset;
 }
@@ -3450,7 +3504,7 @@ static const value_string its_CoordinateConfidence_vals[] = {
 static int
 dissect_its_CoordinateConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 4096U, NULL, FALSE);
+                                                            1U, 4096U, NULL, false);
 
   return offset;
 }
@@ -3468,7 +3522,7 @@ static const value_string its_CorrelationCellValue_vals[] = {
 static int
 dissect_its_CorrelationCellValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -100, 101U, NULL, FALSE);
+                                                            -100, 101U, NULL, false);
 
   return offset;
 }
@@ -3485,7 +3539,7 @@ static const value_string its_CurvatureCalculationMode_vals[] = {
 static int
 dissect_its_CurvatureCalculationMode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, TRUE, 0, NULL);
+                                     3, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -3507,7 +3561,7 @@ static const value_string its_CurvatureConfidence_vals[] = {
 static int
 dissect_its_CurvatureConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3517,7 +3571,7 @@ dissect_its_CurvatureConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_its_CurvatureValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -1023, 1023U, NULL, FALSE);
+                                                            -1023, 1023U, NULL, false);
 
   return offset;
 }
@@ -3536,7 +3590,7 @@ static const value_string its_DangerousEndOfQueueSubCauseCode_vals[] = {
 static int
 dissect_its_DangerousEndOfQueueSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3570,7 +3624,7 @@ static const value_string its_DangerousGoodsBasic_vals[] = {
 static int
 dissect_its_DangerousGoodsBasic(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     20, NULL, FALSE, 0, NULL);
+                                     20, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3592,7 +3646,7 @@ static const value_string its_DangerousSituationSubCauseCode_vals[] = {
 static int
 dissect_its_DangerousSituationSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3602,7 +3656,7 @@ dissect_its_DangerousSituationSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, as
 static int
 dissect_its_DeltaAltitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -12700, 12800U, NULL, FALSE);
+                                                            -12700, 12800U, NULL, false);
 
   return offset;
 }
@@ -3612,7 +3666,7 @@ dissect_its_DeltaAltitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_its_DeltaLatitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -131071, 131072U, NULL, FALSE);
+                                                            -131071, 131072U, NULL, false);
 
   return offset;
 }
@@ -3622,7 +3676,7 @@ dissect_its_DeltaLatitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_its_DeltaLongitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -131071, 131072U, NULL, FALSE);
+                                                            -131071, 131072U, NULL, false);
 
   return offset;
 }
@@ -3632,7 +3686,7 @@ dissect_its_DeltaLongitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_its_DeltaTimeMilliSecondPositive(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 10000U, NULL, FALSE);
+                                                            1U, 10000U, NULL, false);
 
   return offset;
 }
@@ -3642,7 +3696,7 @@ dissect_its_DeltaTimeMilliSecondPositive(tvbuff_t *tvb _U_, int offset _U_, asn1
 static int
 dissect_its_DeltaTimeMilliSecondSigned(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -2048, 2047U, NULL, FALSE);
+                                                            -2048, 2047U, NULL, false);
 
   return offset;
 }
@@ -3657,7 +3711,7 @@ static const value_string its_DeltaTimeQuarterSecond_vals[] = {
 static int
 dissect_its_DeltaTimeQuarterSecond(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 255U, NULL, FALSE);
+                                                            1U, 255U, NULL, false);
 
   return offset;
 }
@@ -3672,7 +3726,7 @@ static const value_string its_DeltaTimeTenthOfSecond_vals[] = {
 static int
 dissect_its_DeltaTimeTenthOfSecond(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 127U, NULL, FALSE);
+                                                            0U, 127U, NULL, false);
 
   return offset;
 }
@@ -3682,7 +3736,35 @@ dissect_its_DeltaTimeTenthOfSecond(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_its_DeltaTimeSecond(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 86400U, NULL, FALSE);
+                                                            0U, 86400U, NULL, false);
+
+  return offset;
+}
+
+
+
+static int
+dissect_its_DeltaTimeTenSeconds(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 127U, NULL, false);
+
+  return offset;
+}
+
+
+static const value_string its_Direction_vals[] = {
+  {   0, "sameDirection" },
+  {   1, "oppositeDirection" },
+  {   2, "bothDirections" },
+  {   3, "unavailable" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_its_Direction(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 3U, NULL, false);
 
   return offset;
 }
@@ -3699,7 +3781,7 @@ static const value_string its_DriveDirection_vals[] = {
 static int
 dissect_its_DriveDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, FALSE, 0, NULL);
+                                     3, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3709,7 +3791,7 @@ dissect_its_DriveDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_its_DrivingLaneStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     1, 13, FALSE, NULL, 0, NULL, NULL);
+                                     1, 13, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -3733,7 +3815,7 @@ static int * const its_EmergencyPriority_bits[] = {
 static int
 dissect_its_EmergencyPriority(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     2, 2, FALSE, its_EmergencyPriority_bits, 2, NULL, NULL);
+                                     2, 2, false, its_EmergencyPriority_bits, 2, NULL, NULL);
 
   return offset;
 }
@@ -3750,7 +3832,7 @@ static const value_string its_EmergencyVehicleApproachingSubCauseCode_vals[] = {
 static int
 dissect_its_EmergencyVehicleApproachingSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3770,7 +3852,7 @@ static int * const its_EnergyStorageType_bits[] = {
 static int
 dissect_its_EnergyStorageType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     7, 7, FALSE, its_EnergyStorageType_bits, 7, NULL, NULL);
+                                     7, 7, false, its_EnergyStorageType_bits, 7, NULL, NULL);
 
   return offset;
 }
@@ -3791,7 +3873,7 @@ static const value_string its_EuVehicleCategoryL_vals[] = {
 static int
 dissect_its_EuVehicleCategoryL(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     7, NULL, FALSE, 0, NULL);
+                                     7, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3808,7 +3890,7 @@ static const value_string its_EuVehicleCategoryM_vals[] = {
 static int
 dissect_its_EuVehicleCategoryM(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, FALSE, 0, NULL);
+                                     3, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3825,7 +3907,7 @@ static const value_string its_EuVehicleCategoryN_vals[] = {
 static int
 dissect_its_EuVehicleCategoryN(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, FALSE, 0, NULL);
+                                     3, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3843,7 +3925,7 @@ static const value_string its_EuVehicleCategoryO_vals[] = {
 static int
 dissect_its_EuVehicleCategoryO(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3864,7 +3946,7 @@ static int * const its_ExteriorLights_bits[] = {
 static int
 dissect_its_ExteriorLights(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     8, 8, FALSE, its_ExteriorLights_bits, 8, NULL, NULL);
+                                     8, 8, false, its_ExteriorLights_bits, 8, NULL, NULL);
 
   return offset;
 }
@@ -3874,7 +3956,7 @@ dissect_its_ExteriorLights(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_its_GenerationDeltaTime(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -3891,7 +3973,7 @@ static const value_string its_HardShoulderStatus_vals[] = {
 static int
 dissect_its_HardShoulderStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, FALSE, 0, NULL);
+                                     3, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3903,6 +3985,11 @@ static const value_string its_HazardousLocation_AnimalOnTheRoadSubCauseCode_vals
   {   2, "herdOfAnimals" },
   {   3, "smallAnimals" },
   {   4, "largeAnimals" },
+  {   5, "wildAnimalsSmall" },
+  {   6, "wildAnimalsLarge" },
+  {   7, "domesticAnimals" },
+  {   8, "domesticAnimalsSmall" },
+  {   9, "domesticAnimalsLarge" },
   { 0, NULL }
 };
 
@@ -3910,7 +3997,7 @@ static const value_string its_HazardousLocation_AnimalOnTheRoadSubCauseCode_vals
 static int
 dissect_its_HazardousLocation_AnimalOnTheRoadSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3930,7 +4017,7 @@ static const value_string its_HazardousLocation_DangerousCurveSubCauseCode_vals[
 static int
 dissect_its_HazardousLocation_DangerousCurveSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3952,7 +4039,7 @@ static const value_string its_HazardousLocation_ObstacleOnTheRoadSubCauseCode_va
 static int
 dissect_its_HazardousLocation_ObstacleOnTheRoadSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3977,7 +4064,7 @@ static const value_string its_HazardousLocation_SurfaceConditionSubCauseCode_val
 static int
 dissect_its_HazardousLocation_SurfaceConditionSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3987,7 +4074,7 @@ dissect_its_HazardousLocation_SurfaceConditionSubCauseCode(tvbuff_t *tvb _U_, in
 static int
 dissect_its_HeadingConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -4007,7 +4094,7 @@ static const value_string its_HeadingValue_vals[] = {
 static int
 dissect_its_HeadingValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3601U, NULL, FALSE);
+                                                            0U, 3601U, NULL, false);
 
   return offset;
 }
@@ -4023,7 +4110,7 @@ static const value_string its_HeightLonCarr_vals[] = {
 static int
 dissect_its_HeightLonCarr(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 100U, NULL, FALSE);
+                                                            1U, 100U, NULL, false);
 
   return offset;
 }
@@ -4034,6 +4121,24 @@ static const value_string its_HumanPresenceOnTheRoadSubCauseCode_vals[] = {
   {   1, "childrenOnRoadway" },
   {   2, "cyclistOnRoadway" },
   {   3, "motorcyclistOnRoadway" },
+  {   4, "pedestrian" },
+  {   5, "ordinary-pedestrian" },
+  {   6, "road-worker" },
+  {   7, "first-responder" },
+  {   8, "lightVruVehicle" },
+  {   9, "bicyclist" },
+  {  10, "wheelchair-user" },
+  {  11, "horse-and-rider" },
+  {  12, "rollerskater" },
+  {  13, "e-scooter" },
+  {  14, "personal-transporter" },
+  {  15, "pedelec" },
+  {  16, "speed-pedelec" },
+  {  17, "ptw" },
+  {  18, "moped" },
+  {  19, "motorcycle" },
+  {  20, "motorcycle-and-sidecar-right" },
+  {  21, "motorcycle-and-sidecar-left" },
   { 0, NULL }
 };
 
@@ -4041,7 +4146,7 @@ static const value_string its_HumanPresenceOnTheRoadSubCauseCode_vals[] = {
 static int
 dissect_its_HumanPresenceOnTheRoadSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4058,7 +4163,7 @@ static const value_string its_HumanProblemSubCauseCode_vals[] = {
 static int
 dissect_its_HumanProblemSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4068,7 +4173,7 @@ dissect_its_HumanProblemSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static int
 dissect_its_Identifier1B(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4078,7 +4183,39 @@ dissect_its_Identifier1B(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_its_Identifier2B(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
+
+  return offset;
+}
+
+
+static const value_string its_ImpassabilitySubCauseCode_vals[] = {
+  {   0, "unavailable" },
+  {   1, "flooding" },
+  {   2, "dangerOfAvalanches" },
+  {   3, "blastingOfAvalanches" },
+  {   4, "landslips" },
+  {   5, "chemicalSpillage" },
+  {   6, "winterClosure" },
+  {   7, "sinkhole" },
+  {   8, "earthquakeDamage" },
+  {   9, "fallenTrees" },
+  {  10, "rockfalls" },
+  {  11, "sewerOverflow" },
+  {  12, "stormDamage" },
+  {  13, "subsidence" },
+  {  14, "burstPipe" },
+  {  15, "burstWaterMain" },
+  {  16, "fallenPowerCables" },
+  {  17, "snowDrifts" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_its_ImpassabilitySubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4088,7 +4225,7 @@ dissect_its_Identifier2B(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_its_InformationQuality(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -4108,7 +4245,7 @@ static const value_string its_InterferenceManagementZoneType_vals[] = {
 static int
 dissect_its_InterferenceManagementZoneType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     6, NULL, TRUE, 0, NULL);
+                                     6, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -4163,7 +4300,17 @@ static const value_string its_Iso3833VehicleType_vals[] = {
 static int
 dissect_its_Iso3833VehicleType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
+
+  return offset;
+}
+
+
+
+static int
+dissect_its_IviIdentificationNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            1U, 32767U, NULL, true);
 
   return offset;
 }
@@ -4180,7 +4327,7 @@ static const value_string its_LanePosition_vals[] = {
 static int
 dissect_its_LanePosition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -1, 14U, NULL, FALSE);
+                                                            -1, 14U, NULL, false);
 
   return offset;
 }
@@ -4208,6 +4355,7 @@ static const value_string its_LaneType_vals[] = {
   {  18, "emergency" },
   {  19, "verge" },
   {  20, "minimumRiskManoeuvre" },
+  {  21, "exclusiveCycleLane" },
   {  31, "unknown" },
   { 0, NULL }
 };
@@ -4216,7 +4364,7 @@ static const value_string its_LaneType_vals[] = {
 static int
 dissect_its_LaneType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 31U, NULL, FALSE);
+                                                            0U, 31U, NULL, false);
 
   return offset;
 }
@@ -4226,7 +4374,7 @@ dissect_its_LaneType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
 static int
 dissect_its_Latitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -900000000, 900000001U, NULL, FALSE);
+                                                            -900000000, 900000001U, NULL, false);
 
   return offset;
 }
@@ -4236,7 +4384,7 @@ dissect_its_Latitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
 static int
 dissect_its_LateralAccelerationValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -160, 161U, NULL, FALSE);
+                                                            -160, 161U, NULL, false);
 
   return offset;
 }
@@ -4251,7 +4399,7 @@ static int * const its_LightBarSirenInUse_bits[] = {
 static int
 dissect_its_LightBarSirenInUse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     2, 2, FALSE, its_LightBarSirenInUse_bits, 2, NULL, NULL);
+                                     2, 2, false, its_LightBarSirenInUse_bits, 2, NULL, NULL);
 
   return offset;
 }
@@ -4261,7 +4409,7 @@ dissect_its_LightBarSirenInUse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_its_Longitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -1800000000, 1800000001U, NULL, FALSE);
+                                                            -1800000000, 1800000001U, NULL, false);
 
   return offset;
 }
@@ -4271,7 +4419,7 @@ dissect_its_Longitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int
 dissect_its_LongitudinalAccelerationValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -160, 161U, NULL, FALSE);
+                                                            -160, 161U, NULL, false);
 
   return offset;
 }
@@ -4287,7 +4435,7 @@ static const value_string its_LongitudinalLanePositionValue_vals[] = {
 static int
 dissect_its_LongitudinalLanePositionValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 32767U, NULL, FALSE);
+                                                            0U, 32767U, NULL, false);
 
   return offset;
 }
@@ -4303,7 +4451,7 @@ static const value_string its_LongitudinalLanePositionConfidence_vals[] = {
 static int
 dissect_its_LongitudinalLanePositionConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 1023U, NULL, FALSE);
+                                                            0U, 1023U, NULL, false);
 
   return offset;
 }
@@ -4329,7 +4477,7 @@ static int * const its_MatrixIncludedComponents_bits[] = {
 static int
 dissect_its_MatrixIncludedComponents(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     13, 13, TRUE, its_MatrixIncludedComponents_bits, 13, NULL, NULL);
+                                     13, 13, true, its_MatrixIncludedComponents_bits, 13, NULL, NULL);
 
   return offset;
 }
@@ -4338,12 +4486,12 @@ dissect_its_MatrixIncludedComponents(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static const value_string its_MessageId_vals[] = {
   { ITS_DENM, "denm" },
   { ITS_CAM, "cam" },
-  { ITS_POI, "poi" },
+  { ITS_POIM, "poim" },
   { ITS_SPATEM, "spatem" },
   { ITS_MAPEM, "mapem" },
   { ITS_IVIM, "ivim" },
-  { ITS_EV_RSR, "ev-rsr" },
-  { ITS_TISTPGTRANSACTION, "tistpgtransaction" },
+  { ITS_RFU1, "rfu1" },
+  { ITS_RFU2, "rfu2" },
   { ITS_SREM, "srem" },
   { ITS_SSEM, "ssem" },
   { ITS_EVCSN, "evcsn" },
@@ -4363,8 +4511,13 @@ static const value_string its_MessageId_vals[] = {
 
 static int
 dissect_its_MessageId(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+    uint32_t msgId;
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, &((its_header_t*)actx->private_data)->msgId, FALSE);
+                                                            0U, 255U, &msgId, false);
+
+    its_header_t *its_hdr = its_get_private_data(actx->pinfo);
+    its_hdr->msgId = msgId;
+
 
   return offset;
 }
@@ -4380,7 +4533,7 @@ static const value_string its_NumberOfOccupants_vals[] = {
 static int
 dissect_its_NumberOfOccupants(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 127U, NULL, FALSE);
+                                                            0U, 127U, NULL, false);
 
   return offset;
 }
@@ -4396,7 +4549,7 @@ static const value_string its_ObjectPerceptionQuality_vals[] = {
 static int
 dissect_its_ObjectPerceptionQuality(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, FALSE);
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -4406,7 +4559,7 @@ dissect_its_ObjectPerceptionQuality(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 static int
 dissect_its_ObjectDimensionValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 256U, NULL, FALSE);
+                                                            1U, 256U, NULL, false);
 
   return offset;
 }
@@ -4422,7 +4575,7 @@ static const value_string its_ObjectDimensionConfidence_vals[] = {
 static int
 dissect_its_ObjectDimensionConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 32U, NULL, FALSE);
+                                                            1U, 32U, NULL, false);
 
   return offset;
 }
@@ -4432,7 +4585,7 @@ dissect_its_ObjectDimensionConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int
 dissect_its_OpeningDaysHours(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          NO_BOUND, NO_BOUND, FALSE);
+                                          NO_BOUND, NO_BOUND, false);
 
   return offset;
 }
@@ -4442,7 +4595,7 @@ dissect_its_OpeningDaysHours(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_its_OrdinalNumber3b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 8U, NULL, FALSE);
+                                                            1U, 8U, NULL, false);
 
   return offset;
 }
@@ -4460,7 +4613,7 @@ static const value_string its_OtherSubClass_vals[] = {
 static int
 dissect_its_OtherSubClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4470,7 +4623,7 @@ dissect_its_OtherSubClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_its_PathDeltaTime(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 65535U, NULL, TRUE);
+                                                            1U, 65535U, NULL, true);
 
   return offset;
 }
@@ -4487,7 +4640,7 @@ static const value_string its_PerformanceClass_vals[] = {
 static int
 dissect_its_PerformanceClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -4497,7 +4650,7 @@ dissect_its_PerformanceClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_its_PhoneNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_NumericString(tvb, offset, actx, tree, hf_index,
-                                          1, 16, FALSE,
+                                          1, 16, false,
                                           NULL);
 
   return offset;
@@ -4515,7 +4668,7 @@ static const value_string its_PosCentMass_vals[] = {
 static int
 dissect_its_PosCentMass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 63U, NULL, FALSE);
+                                                            1U, 63U, NULL, false);
 
   return offset;
 }
@@ -4528,6 +4681,7 @@ static const value_string its_PositioningSolutionType_vals[] = {
   {   3, "sGNSSplusDR" },
   {   4, "dGNSSplusDR" },
   {   5, "dR" },
+  {   6, "manuallyByOperator" },
   { 0, NULL }
 };
 
@@ -4535,7 +4689,7 @@ static const value_string its_PositioningSolutionType_vals[] = {
 static int
 dissect_its_PositioningSolutionType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     6, NULL, TRUE, 0, NULL);
+                                     6, NULL, true, 1, NULL);
 
   return offset;
 }
@@ -4568,7 +4722,7 @@ static int * const its_PositionOfOccupants_bits[] = {
 static int
 dissect_its_PositionOfOccupants(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     20, 20, FALSE, its_PositionOfOccupants_bits, 20, NULL, NULL);
+                                     20, 20, false, its_PositionOfOccupants_bits, 20, NULL, NULL);
 
   return offset;
 }
@@ -4584,7 +4738,7 @@ static const value_string its_PosFrontAx_vals[] = {
 static int
 dissect_its_PosFrontAx(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 20U, NULL, FALSE);
+                                                            1U, 20U, NULL, false);
 
   return offset;
 }
@@ -4600,7 +4754,7 @@ static const value_string its_PosLonCarr_vals[] = {
 static int
 dissect_its_PosLonCarr(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -4616,7 +4770,7 @@ static const value_string its_PosPillar_vals[] = {
 static int
 dissect_its_PosPillar(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 30U, NULL, FALSE);
+                                                            1U, 30U, NULL, false);
 
   return offset;
 }
@@ -4635,7 +4789,7 @@ static const value_string its_PostCrashSubCauseCode_vals[] = {
 static int
 dissect_its_PostCrashSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4645,7 +4799,7 @@ dissect_its_PostCrashSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_its_ProtectedZoneId(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 134217727U, NULL, FALSE);
+                                                            0U, 134217727U, NULL, false);
 
   return offset;
 }
@@ -4655,7 +4809,7 @@ dissect_its_ProtectedZoneId(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_its_ProtectedZoneRadius(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 255U, NULL, TRUE);
+                                                            1U, 255U, NULL, true);
 
   return offset;
 }
@@ -4671,7 +4825,7 @@ static const value_string its_ProtectedZoneType_vals[] = {
 static int
 dissect_its_ProtectedZoneType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     1, NULL, TRUE, 1, NULL);
+                                     1, NULL, true, 1, NULL);
 
   return offset;
 }
@@ -4681,7 +4835,7 @@ dissect_its_ProtectedZoneType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_its_PtActivationData(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       1, 20, FALSE, &((its_pt_activation_data_t*)actx->private_data)->data);
+                                       1, 20, false, &((its_pt_activation_data_t*)actx->private_data)->data);
 
   return offset;
 }
@@ -4698,7 +4852,7 @@ static const value_string its_PtActivationType_vals[] = {
 static int
 dissect_its_PtActivationType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, &((its_pt_activation_data_t*)actx->private_data)->type, FALSE);
+                                                            0U, 255U, &((its_pt_activation_data_t*)actx->private_data)->type, false);
 
   return offset;
 }
@@ -4717,7 +4871,7 @@ static const value_string its_RailwayLevelCrossingSubCauseCode_vals[] = {
 static int
 dissect_its_RailwayLevelCrossingSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4733,7 +4887,7 @@ static const value_string its_RequestResponseIndication_vals[] = {
 static int
 dissect_its_RequestResponseIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -4746,6 +4900,8 @@ static const value_string its_RescueAndRecoveryWorkInProgressSubCauseCode_vals[]
   {   3, "policeActivityOngoing" },
   {   4, "medicalEmergencyOngoing" },
   {   5, "childAbductionInProgress" },
+  {   6, "prioritizedVehicle" },
+  {   7, "rescueAndRecoveryVehicle" },
   { 0, NULL }
 };
 
@@ -4753,7 +4909,7 @@ static const value_string its_RescueAndRecoveryWorkInProgressSubCauseCode_vals[]
 static int
 dissect_its_RescueAndRecoveryWorkInProgressSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4771,7 +4927,7 @@ static const value_string its_RoadType_vals[] = {
 static int
 dissect_its_RoadType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -4792,7 +4948,7 @@ static const value_string its_RoadworksSubCauseCode_vals[] = {
 static int
 dissect_its_RoadworksSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4811,7 +4967,7 @@ dissect_its_SafeDistanceIndicator(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_its_SemiAxisLength(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 4095U, NULL, FALSE);
+                                                            0U, 4095U, NULL, false);
 
   return offset;
 }
@@ -4839,7 +4995,34 @@ static const value_string its_SensorType_vals[] = {
 static int
 dissect_its_SensorType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 31U, NULL, FALSE);
+                                                            0U, 31U, NULL, false);
+
+  return offset;
+}
+
+
+static int * const its_SensorTypes_bits[] = {
+  &hf_its_SensorTypes_undefined,
+  &hf_its_SensorTypes_radar,
+  &hf_its_SensorTypes_lidar,
+  &hf_its_SensorTypes_monovideo,
+  &hf_its_SensorTypes_stereovision,
+  &hf_its_SensorTypes_nightvision,
+  &hf_its_SensorTypes_ultrasonic,
+  &hf_its_SensorTypes_pmd,
+  &hf_its_SensorTypes_inductionLoop,
+  &hf_its_SensorTypes_sphericalCamera,
+  &hf_its_SensorTypes_uwb,
+  &hf_its_SensorTypes_acoustic,
+  &hf_its_SensorTypes_localAggregation,
+  &hf_its_SensorTypes_itsAggregation,
+  NULL
+};
+
+static int
+dissect_its_SensorTypes(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
+                                     16, 16, true, its_SensorTypes_bits, 14, NULL, NULL);
 
   return offset;
 }
@@ -4849,7 +5032,7 @@ dissect_its_SensorType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_its_SequenceNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -4867,7 +5050,7 @@ static const value_string its_SignalViolationSubCauseCode_vals[] = {
 static int
 dissect_its_SignalViolationSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4890,7 +5073,7 @@ static const value_string its_SlowVehicleSubCauseCode_vals[] = {
 static int
 dissect_its_SlowVehicleSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -4907,7 +5090,7 @@ static int * const its_SpecialTransportType_bits[] = {
 static int
 dissect_its_SpecialTransportType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     4, 4, FALSE, its_SpecialTransportType_bits, 4, NULL, NULL);
+                                     4, 4, false, its_SpecialTransportType_bits, 4, NULL, NULL);
 
   return offset;
 }
@@ -4917,7 +5100,7 @@ dissect_its_SpecialTransportType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 static int
 dissect_its_SpeedConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -4927,7 +5110,7 @@ dissect_its_SpeedConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_its_SpeedLimit(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 255U, NULL, FALSE);
+                                                            1U, 255U, NULL, false);
 
   return offset;
 }
@@ -4937,7 +5120,25 @@ dissect_its_SpeedLimit(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_its_SpeedValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 16383U, NULL, FALSE);
+                                                            0U, 16383U, NULL, false);
+
+  return offset;
+}
+
+
+static int * const its_StoredInformationType_bits[] = {
+  &hf_its_StoredInformationType_undefined,
+  &hf_its_StoredInformationType_staticDb,
+  &hf_its_StoredInformationType_dynamicDb,
+  &hf_its_StoredInformationType_realTimeDb,
+  &hf_its_StoredInformationType_map,
+  NULL
+};
+
+static int
+dissect_its_StoredInformationType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
+                                     8, 8, true, its_StoredInformationType_bits, 5, NULL, NULL);
 
   return offset;
 }
@@ -4954,7 +5155,7 @@ static const value_string its_VelocityComponentValue_vals[] = {
 static int
 dissect_its_VelocityComponentValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -16383, 16383U, NULL, FALSE);
+                                                            -16383, 16383U, NULL, false);
 
   return offset;
 }
@@ -4971,7 +5172,7 @@ static const value_string its_StabilityLossProbability_vals[] = {
 static int
 dissect_its_StabilityLossProbability(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 63U, NULL, FALSE);
+                                                            0U, 63U, NULL, false);
 
   return offset;
 }
@@ -4981,7 +5182,7 @@ dissect_its_StabilityLossProbability(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static int
 dissect_its_StandardLength12b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 4095U, NULL, FALSE);
+                                                            0U, 4095U, NULL, false);
 
   return offset;
 }
@@ -5003,7 +5204,17 @@ static const value_string its_StandardLength3b_vals[] = {
 static int
 dissect_its_StandardLength3b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
+
+  return offset;
+}
+
+
+
+static int
+dissect_its_StandardLength9b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 511U, NULL, false);
 
   return offset;
 }
@@ -5013,7 +5224,7 @@ dissect_its_StandardLength3b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_its_StandardLength1B(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -5031,7 +5242,7 @@ static const value_string its_StationarySince_vals[] = {
 static int
 dissect_its_StationarySince(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5052,7 +5263,7 @@ static const value_string its_StationaryVehicleSubCauseCode_vals[] = {
 static int
 dissect_its_StationaryVehicleSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -5061,8 +5272,13 @@ dissect_its_StationaryVehicleSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn
 
 static int
 dissect_its_StationId(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+    uint32_t stationId;
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 4294967295U, actx->private_data?&((its_header_t*)actx->private_data)->stationId:NULL, FALSE);
+                                                            0U, 4294967295U, &stationId, false);
+
+    its_header_t *its_hdr = its_get_private_data(actx->pinfo);
+    its_hdr->stationId = stationId;
+
 
   return offset;
 }
@@ -5072,7 +5288,7 @@ dissect_its_StationId(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int
 dissect_its_StationID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 4294967295U, NULL, FALSE);
+                                                            0U, 4294967295U, NULL, false);
 
   return offset;
 }
@@ -5101,7 +5317,7 @@ static const value_string its_StationType_vals[] = {
 static int
 dissect_its_StationType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -5111,7 +5327,7 @@ dissect_its_StationType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_its_SteeringWheelAngleConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -5121,7 +5337,7 @@ dissect_its_SteeringWheelAngleConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1
 static int
 dissect_its_SteeringWheelAngleValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -511, 512U, NULL, FALSE);
+                                                            -511, 512U, NULL, false);
 
   return offset;
 }
@@ -5133,7 +5349,7 @@ dissect_its_SubCauseCodeType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
   // Overwrite hf_index
   hf_index = *find_subcause_from_cause((CauseCodeType_enum) ((its_private_data_t*)actx->private_data)->cause_code);
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
 
   return offset;
@@ -5150,7 +5366,7 @@ static const value_string its_Temperature_vals[] = {
 static int
 dissect_its_Temperature(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -60, 67U, NULL, FALSE);
+                                                            -60, 67U, NULL, false);
 
   return offset;
 }
@@ -5160,7 +5376,7 @@ dissect_its_Temperature(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_its_TimestampIts(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer_64b(tvb, offset, actx, tree, hf_index,
-                                                            0U, G_GUINT64_CONSTANT(4398046511103), NULL, FALSE);
+                                                            0U, UINT64_C(4398046511103), NULL, false);
 
   return offset;
 }
@@ -5172,10 +5388,11 @@ static const value_string its_TrafficConditionSubCauseCode_vals[] = {
   {   2, "trafficJamSlowlyIncreasing" },
   {   3, "trafficJamIncreasing" },
   {   4, "trafficJamStronglyIncreasing" },
-  {   5, "trafficStationary" },
+  {   5, "trafficJam" },
   {   6, "trafficJamSlightlyDecreasing" },
   {   7, "trafficJamDecreasing" },
   {   8, "trafficJamStronglyDecreasing" },
+  {   9, "trafficJamStable" },
   { 0, NULL }
 };
 
@@ -5183,7 +5400,7 @@ static const value_string its_TrafficConditionSubCauseCode_vals[] = {
 static int
 dissect_its_TrafficConditionSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -5191,9 +5408,9 @@ dissect_its_TrafficConditionSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1
 
 static const value_string its_TrafficDirection_vals[] = {
   {   0, "allTrafficDirections" },
-  {   1, "upstreamTraffic" },
-  {   2, "downstreamTraffic" },
-  {   3, "oppositeTraffic" },
+  {   1, "sameAsReferenceDirection-upstreamOfReferencePosition" },
+  {   2, "sameAsReferenceDirection-downstreamOfReferencePosition" },
+  {   3, "oppositeToReferenceDirection" },
   { 0, NULL }
 };
 
@@ -5201,7 +5418,7 @@ static const value_string its_TrafficDirection_vals[] = {
 static int
 dissect_its_TrafficDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5231,7 +5448,7 @@ static const value_string its_TrafficParticipantType_vals[] = {
 static int
 dissect_its_TrafficParticipantType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -5242,6 +5459,7 @@ static const value_string its_TrafficRule_vals[] = {
   {   1, "noPassingForTrucks" },
   {   2, "passToRight" },
   {   3, "passToLeft" },
+  {   4, "passToLeftOrRight" },
   { 0, NULL }
 };
 
@@ -5249,7 +5467,7 @@ static const value_string its_TrafficRule_vals[] = {
 static int
 dissect_its_TrafficRule(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, TRUE, 0, NULL);
+                                     4, NULL, true, 1, NULL);
 
   return offset;
 }
@@ -5264,7 +5482,7 @@ static const value_string its_TrajectoryInterceptionProbability_vals[] = {
 static int
 dissect_its_TrajectoryInterceptionProbability(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 63U, NULL, FALSE);
+                                                            0U, 63U, NULL, false);
 
   return offset;
 }
@@ -5282,7 +5500,7 @@ static const value_string its_TrajectoryInterceptionConfidence_vals[] = {
 static int
 dissect_its_TrajectoryInterceptionConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3U, NULL, FALSE);
+                                                            0U, 3U, NULL, false);
 
   return offset;
 }
@@ -5298,7 +5516,7 @@ static const value_string its_TurningDirection_vals[] = {
 static int
 dissect_its_TurningDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5314,7 +5532,7 @@ static const value_string its_TurningRadius_vals[] = {
 static int
 dissect_its_TurningRadius(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 255U, NULL, FALSE);
+                                                            1U, 255U, NULL, false);
 
   return offset;
 }
@@ -5324,7 +5542,7 @@ dissect_its_TurningRadius(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_its_VDS(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_IA5String(tvb, offset, actx, tree, hf_index,
-                                          6, 6, FALSE,
+                                          6, 6, false,
                                           NULL);
 
   return offset;
@@ -5350,7 +5568,7 @@ static const value_string its_VehicleBreakdownSubCauseCode_vals[] = {
 static int
 dissect_its_VehicleBreakdownSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -5366,7 +5584,7 @@ static const value_string its_VehicleHeight_vals[] = {
 static int
 dissect_its_VehicleHeight(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 128U, NULL, FALSE);
+                                                            1U, 128U, NULL, false);
 
   return offset;
 }
@@ -5385,7 +5603,7 @@ static const value_string its_VehicleLengthConfidenceIndication_vals[] = {
 static int
 dissect_its_VehicleLengthConfidenceIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     5, NULL, FALSE, 0, NULL);
+                                     5, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5395,7 +5613,7 @@ dissect_its_VehicleLengthConfidenceIndication(tvbuff_t *tvb _U_, int offset _U_,
 static int
 dissect_its_VehicleLengthValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 1023U, NULL, FALSE);
+                                                            1U, 1023U, NULL, false);
 
   return offset;
 }
@@ -5411,7 +5629,7 @@ static const value_string its_VehicleMass_vals[] = {
 static int
 dissect_its_VehicleMass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 1024U, NULL, FALSE);
+                                                            1U, 1024U, NULL, false);
 
   return offset;
 }
@@ -5431,9 +5649,9 @@ static const value_string its_VehicleRole_vals[] = {
   {  10, "military" },
   {  11, "roadOperator" },
   {  12, "taxi" },
-  {  13, "reserved1" },
-  {  14, "reserved2" },
-  {  15, "reserved3" },
+  {  13, "uvar" },
+  {  14, "rfu1" },
+  {  15, "rfu2" },
   { 0, NULL }
 };
 
@@ -5441,7 +5659,7 @@ static const value_string its_VehicleRole_vals[] = {
 static int
 dissect_its_VehicleRole(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5451,7 +5669,7 @@ dissect_its_VehicleRole(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_its_VehicleWidth(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 62U, NULL, FALSE);
+                                                            1U, 62U, NULL, false);
 
   return offset;
 }
@@ -5461,7 +5679,7 @@ dissect_its_VehicleWidth(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_its_VerticalAccelerationValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -160, 161U, NULL, FALSE);
+                                                            -160, 161U, NULL, false);
 
   return offset;
 }
@@ -5478,7 +5696,7 @@ static int * const its_VruClusterProfiles_bits[] = {
 static int
 dissect_its_VruClusterProfiles(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     4, 4, FALSE, its_VruClusterProfiles_bits, 4, NULL, NULL);
+                                     4, 4, false, its_VruClusterProfiles_bits, 4, NULL, NULL);
 
   return offset;
 }
@@ -5494,16 +5712,14 @@ static const value_string its_VruDeviceUsage_vals[] = {
   {   6, "playingGames" },
   {   7, "reading" },
   {   8, "viewing" },
-  { 255, "max" },
   { 0, NULL }
 };
 
-static uint32_t its_VruDeviceUsage_value_map[10+0] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 255};
 
 static int
 dissect_its_VruDeviceUsage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     10, NULL, FALSE, 0, its_VruDeviceUsage_value_map);
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -5516,16 +5732,14 @@ static const value_string its_VruEnvironment_vals[] = {
   {   3, "sidewalk" },
   {   4, "onVehicleRoad" },
   {   5, "protectedGeographicArea" },
-  { 255, "max" },
   { 0, NULL }
 };
 
-static uint32_t its_VruEnvironment_value_map[7+0] = {0, 1, 2, 3, 4, 5, 255};
 
 static int
 dissect_its_VruEnvironment(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     7, NULL, FALSE, 0, its_VruEnvironment_value_map);
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -5539,16 +5753,14 @@ static const value_string its_VruMovementControl_vals[] = {
   {   4, "brakingAndStopPedaling" },
   {   5, "hardBrakingAndStopPedaling" },
   {   6, "noReaction" },
-  { 255, "max" },
   { 0, NULL }
 };
 
-static uint32_t its_VruMovementControl_value_map[8+0] = {0, 1, 2, 3, 4, 5, 6, 255};
 
 static int
 dissect_its_VruMovementControl(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, its_VruMovementControl_value_map);
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -5559,16 +5771,14 @@ static const value_string its_VruSubProfilePedestrian_vals[] = {
   {   1, "ordinary-pedestrian" },
   {   2, "road-worker" },
   {   3, "first-responder" },
-  {  15, "max" },
   { 0, NULL }
 };
 
-static uint32_t its_VruSubProfilePedestrian_value_map[5+0] = {0, 1, 2, 3, 15};
 
 static int
 dissect_its_VruSubProfilePedestrian(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     5, NULL, FALSE, 0, its_VruSubProfilePedestrian_value_map);
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -5584,16 +5794,16 @@ static const value_string its_VruSubProfileBicyclist_vals[] = {
   {   6, "personal-transporter" },
   {   7, "pedelec" },
   {   8, "speed-pedelec" },
-  {  15, "max" },
+  {   9, "roadbike" },
+  {  10, "childrensbike" },
   { 0, NULL }
 };
 
-static uint32_t its_VruSubProfileBicyclist_value_map[10+0] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 15};
 
 static int
 dissect_its_VruSubProfileBicyclist(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     10, NULL, FALSE, 0, its_VruSubProfileBicyclist_value_map);
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -5605,16 +5815,14 @@ static const value_string its_VruSubProfileMotorcyclist_vals[] = {
   {   2, "motorcycle" },
   {   3, "motorcycle-and-sidecar-right" },
   {   4, "motorcycle-and-sidecar-left" },
-  {  15, "max" },
   { 0, NULL }
 };
 
-static uint32_t its_VruSubProfileMotorcyclist_value_map[6+0] = {0, 1, 2, 3, 4, 15};
 
 static int
 dissect_its_VruSubProfileMotorcyclist(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     6, NULL, FALSE, 0, its_VruSubProfileMotorcyclist_value_map);
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -5625,16 +5833,14 @@ static const value_string its_VruSubProfileAnimal_vals[] = {
   {   1, "wild-animal" },
   {   2, "farm-animal" },
   {   3, "service-animal" },
-  {  15, "max" },
   { 0, NULL }
 };
 
-static uint32_t its_VruSubProfileAnimal_value_map[5+0] = {0, 1, 2, 3, 15};
 
 static int
 dissect_its_VruSubProfileAnimal(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     5, NULL, FALSE, 0, its_VruSubProfileAnimal_value_map);
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -5645,16 +5851,14 @@ static const value_string its_VruSizeClass_vals[] = {
   {   1, "low" },
   {   2, "medium" },
   {   3, "high" },
-  {  15, "max" },
   { 0, NULL }
 };
 
-static uint32_t its_VruSizeClass_value_map[5+0] = {0, 1, 2, 3, 15};
 
 static int
 dissect_its_VruSizeClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     5, NULL, FALSE, 0, its_VruSizeClass_value_map);
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -5673,7 +5877,7 @@ static int * const its_VruSpecificExteriorLights_bits[] = {
 static int
 dissect_its_VruSpecificExteriorLights(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     8, 8, FALSE, its_VruSpecificExteriorLights_bits, 6, NULL, NULL);
+                                     8, 8, false, its_VruSpecificExteriorLights_bits, 6, NULL, NULL);
 
   return offset;
 }
@@ -5689,7 +5893,7 @@ static const value_string its_WheelBaseVehicle_vals[] = {
 static int
 dissect_its_WheelBaseVehicle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -5705,7 +5909,7 @@ static const value_string its_Wgs84AngleConfidence_vals[] = {
 static int
 dissect_its_Wgs84AngleConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -5725,7 +5929,7 @@ static const value_string its_Wgs84AngleValue_vals[] = {
 static int
 dissect_its_Wgs84AngleValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3601U, NULL, FALSE);
+                                                            0U, 3601U, NULL, false);
 
   return offset;
 }
@@ -5735,7 +5939,7 @@ dissect_its_Wgs84AngleValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_its_WMInumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_IA5String(tvb, offset, actx, tree, hf_index,
-                                          1, 3, FALSE,
+                                          1, 3, false,
                                           NULL);
 
   return offset;
@@ -5753,7 +5957,7 @@ static const value_string its_WrongWayDrivingSubCauseCode_vals[] = {
 static int
 dissect_its_WrongWayDrivingSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -5776,7 +5980,7 @@ static const value_string its_YawRateConfidence_vals[] = {
 static int
 dissect_its_YawRateConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     9, NULL, FALSE, 0, NULL);
+                                     9, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5786,7 +5990,7 @@ dissect_its_YawRateConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_its_YawRateValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -32766, 32767U, NULL, FALSE);
+                                                            -32766, 32767U, NULL, false);
 
   return offset;
 }
@@ -5944,7 +6148,7 @@ static int
 dissect_its_ActionIdList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_ActionIdList, its_ActionIdList_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -6119,7 +6323,7 @@ static const value_string its_CauseCodeChoice_vals[] = {
   {  25, "reserved25" },
   {  26, "slowVehicle26" },
   {  27, "dangerousEndOfQueue27" },
-  {  28, "reserved28" },
+  {  28, "publicTransportVehicleApproaching28" },
   {  29, "reserved29" },
   {  30, "reserved30" },
   {  31, "reserved31" },
@@ -6229,7 +6433,7 @@ static const per_choice_t its_CauseCodeChoice_choice[] = {
   {   2, &hf_its_accident2       , ASN1_NO_EXTENSIONS     , dissect_its_AccidentSubCauseCode },
   {   3, &hf_its_roadworks3      , ASN1_NO_EXTENSIONS     , dissect_its_RoadworksSubCauseCode },
   {   4, &hf_its_reserved4       , ASN1_NO_EXTENSIONS     , dissect_its_SubCauseCodeType },
-  {   5, &hf_its_impassability5  , ASN1_NO_EXTENSIONS     , dissect_its_SubCauseCodeType },
+  {   5, &hf_its_impassability5  , ASN1_NO_EXTENSIONS     , dissect_its_ImpassabilitySubCauseCode },
   {   6, &hf_its_adverseWeatherCondition_Adhesion6, ASN1_NO_EXTENSIONS     , dissect_its_AdverseWeatherCondition_AdhesionSubCauseCode },
   {   7, &hf_its_aquaplaning7    , ASN1_NO_EXTENSIONS     , dissect_its_SubCauseCodeType },
   {   8, &hf_its_reserved8       , ASN1_NO_EXTENSIONS     , dissect_its_SubCauseCodeType },
@@ -6252,7 +6456,7 @@ static const per_choice_t its_CauseCodeChoice_choice[] = {
   {  25, &hf_its_reserved25      , ASN1_NO_EXTENSIONS     , dissect_its_SubCauseCodeType },
   {  26, &hf_its_slowVehicle26   , ASN1_NO_EXTENSIONS     , dissect_its_SlowVehicleSubCauseCode },
   {  27, &hf_its_dangerousEndOfQueue27, ASN1_NO_EXTENSIONS     , dissect_its_DangerousEndOfQueueSubCauseCode },
-  {  28, &hf_its_reserved28      , ASN1_NO_EXTENSIONS     , dissect_its_SubCauseCodeType },
+  {  28, &hf_its_publicTransportVehicleApproaching28, ASN1_NO_EXTENSIONS     , dissect_its_SubCauseCodeType },
   {  29, &hf_its_reserved29      , ASN1_NO_EXTENSIONS     , dissect_its_SubCauseCodeType },
   {  30, &hf_its_reserved30      , ASN1_NO_EXTENSIONS     , dissect_its_SubCauseCodeType },
   {  31, &hf_its_reserved31      , ASN1_NO_EXTENSIONS     , dissect_its_SubCauseCodeType },
@@ -6481,7 +6685,7 @@ static int
 dissect_its_CorrelationColumn(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_CorrelationColumn, its_CorrelationColumn_sequence_of,
-                                                  1, 13, TRUE);
+                                                  1, 13, true);
 
   return offset;
 }
@@ -6506,7 +6710,7 @@ dissect_its_Curvature(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int
 dissect_its_INTEGER_0_9999(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 9999U, NULL, FALSE);
+                                                            0U, 9999U, NULL, false);
 
   return offset;
 }
@@ -6525,7 +6729,7 @@ dissect_its_BOOLEAN(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 static int
 dissect_its_IA5String_SIZE_1_24(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_IA5String(tvb, offset, actx, tree, hf_index,
-                                          1, 24, FALSE,
+                                          1, 24, false,
                                           NULL);
 
   return offset;
@@ -6536,7 +6740,7 @@ dissect_its_IA5String_SIZE_1_24(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_its_UTF8String_SIZE_1_24(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 24, FALSE);
+                                          1, 24, false);
 
   return offset;
 }
@@ -6620,7 +6824,7 @@ static int
 dissect_its_DigitalMap(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_DigitalMap, its_DigitalMap_sequence_of,
-                                                  1, 256, FALSE);
+                                                  1, 256, false);
 
   return offset;
 }
@@ -6630,7 +6834,7 @@ static const per_sequence_t its_EllipticalShape_sequence[] = {
   { &hf_its_shapeReferencePoint, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_CartesianPosition3d },
   { &hf_its_semiMajorAxisLength, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_StandardLength12b },
   { &hf_its_semiMinorAxisLength, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_StandardLength12b },
-  { &hf_its_orientation     , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_Wgs84AngleValue },
+  { &hf_its_orientation     , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_CartesianAngleValue },
   { &hf_its_height          , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_StandardLength12b },
   { NULL, 0, 0, NULL }
 };
@@ -6723,7 +6927,7 @@ static int
 dissect_its_EventHistory(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_EventHistory, its_EventHistory_sequence_of,
-                                                  1, 23, FALSE);
+                                                  1, 23, false);
 
   return offset;
 }
@@ -6740,7 +6944,8 @@ dissect_its_EventZone(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 
 static const per_sequence_t its_LanePositionAndType_sequence[] = {
   { &hf_its_transversalPosition, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_LanePosition },
-  { &hf_its_laneType        , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_LaneType },
+  { &hf_its_laneType        , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_LaneType },
+  { &hf_its_direction_01    , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_Direction },
   { NULL, 0, 0, NULL }
 };
 
@@ -6748,6 +6953,24 @@ static int
 dissect_its_LanePositionAndType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_its_LanePositionAndType, its_LanePositionAndType_sequence);
+
+  return offset;
+}
+
+
+static const per_sequence_t its_LanePositionWithLateralDetails_sequence[] = {
+  { &hf_its_transversalPosition, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_LanePosition },
+  { &hf_its_laneType        , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_LaneType },
+  { &hf_its_direction_01    , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_Direction },
+  { &hf_its_distanceToLeftBorder, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_StandardLength9b },
+  { &hf_its_distanceToRightBorder, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_StandardLength9b },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_its_LanePositionWithLateralDetails(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_its_LanePositionWithLateralDetails, its_LanePositionWithLateralDetails_sequence);
 
   return offset;
 }
@@ -6763,6 +6986,34 @@ static int
 dissect_its_TrafficIslandPosition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_its_TrafficIslandPosition, its_TrafficIslandPosition_sequence);
+
+  return offset;
+}
+
+
+static const value_string its_LanePositionOptions_vals[] = {
+  {   0, "simplelanePosition" },
+  {   1, "simpleLaneType" },
+  {   2, "detailedlanePosition" },
+  {   3, "lanePositionWithLateralDetails" },
+  {   4, "trafficIslandPosition" },
+  { 0, NULL }
+};
+
+static const per_choice_t its_LanePositionOptions_choice[] = {
+  {   0, &hf_its_simplelanePosition, ASN1_EXTENSION_ROOT    , dissect_its_LanePosition },
+  {   1, &hf_its_simpleLaneType  , ASN1_EXTENSION_ROOT    , dissect_its_LaneType },
+  {   2, &hf_its_detailedlanePosition, ASN1_EXTENSION_ROOT    , dissect_its_LanePositionAndType },
+  {   3, &hf_its_lanePositionWithLateralDetails, ASN1_EXTENSION_ROOT    , dissect_its_LanePositionWithLateralDetails },
+  {   4, &hf_its_trafficIslandPosition, ASN1_EXTENSION_ROOT    , dissect_its_TrafficIslandPosition },
+  { 0, NULL, 0, NULL }
+};
+
+static int
+dissect_its_LanePositionOptions(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_choice(tvb, offset, actx, tree, hf_index,
+                                 ett_its_LanePositionOptions, its_LanePositionOptions_choice,
+                                 NULL);
 
   return offset;
 }
@@ -6852,27 +7103,33 @@ dissect_its_MapPosition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 }
 
 
-static const value_string its_GeneralizedLanePosition_vals[] = {
-  {   0, "trafficLanePosition" },
-  {   1, "nonTrafficLanePosition" },
-  {   2, "trafficIslandPosition" },
-  {   3, "mapPosition" },
-  { 0, NULL }
+static const per_sequence_t its_MetaInformation_sequence[] = {
+  { &hf_its_usedDetectionInformation, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_SensorTypes },
+  { &hf_its_usedStoredInformation, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_StoredInformationType },
+  { &hf_its_confidenceValue , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_ConfidenceLevel },
+  { NULL, 0, 0, NULL }
 };
 
-static const per_choice_t its_GeneralizedLanePosition_choice[] = {
-  {   0, &hf_its_trafficLanePosition, ASN1_EXTENSION_ROOT    , dissect_its_LanePosition },
-  {   1, &hf_its_nonTrafficLanePosition, ASN1_EXTENSION_ROOT    , dissect_its_LanePositionAndType },
-  {   2, &hf_its_trafficIslandPosition, ASN1_EXTENSION_ROOT    , dissect_its_TrafficIslandPosition },
-  {   3, &hf_its_mapPosition     , ASN1_EXTENSION_ROOT    , dissect_its_MapPosition },
-  { 0, NULL, 0, NULL }
+static int
+dissect_its_MetaInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_its_MetaInformation, its_MetaInformation_sequence);
+
+  return offset;
+}
+
+
+static const per_sequence_t its_GeneralizedLanePosition_sequence[] = {
+  { &hf_its_lanePositionBased, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_LanePositionOptions },
+  { &hf_its_mapBased        , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_MapPosition },
+  { &hf_its_confidence_04   , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_MetaInformation },
+  { NULL, 0, 0, NULL }
 };
 
 static int
 dissect_its_GeneralizedLanePosition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_choice(tvb, offset, actx, tree, hf_index,
-                                 ett_its_GeneralizedLanePosition, its_GeneralizedLanePosition_choice,
-                                 NULL);
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_its_GeneralizedLanePosition, its_GeneralizedLanePosition_sequence);
 
   return offset;
 }
@@ -6912,7 +7169,7 @@ dissect_its_HeadingChangeIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 static int
 dissect_its_INTEGER_1_99999(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 99999U, NULL, FALSE);
+                                                            1U, 99999U, NULL, false);
 
   return offset;
 }
@@ -6922,7 +7179,7 @@ dissect_its_INTEGER_1_99999(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_its_INTEGER_0_15(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, FALSE);
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -6945,10 +7202,10 @@ dissect_its_InterferenceManagementChannel(tvbuff_t *tvb _U_, int offset _U_, asn
 
 
 static const per_sequence_t its_RectangularShape_sequence[] = {
-  { &hf_its_centerPoint     , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_CartesianPosition3d },
+  { &hf_its_shapeReferencePoint, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_CartesianPosition3d },
   { &hf_its_semiLength      , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_StandardLength12b },
   { &hf_its_semiBreadth     , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_StandardLength12b },
-  { &hf_its_orientation     , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_Wgs84AngleValue },
+  { &hf_its_orientation     , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_CartesianAngleValue },
   { &hf_its_height          , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_StandardLength12b },
   { NULL, 0, 0, NULL }
 };
@@ -6970,7 +7227,7 @@ static int
 dissect_its_SequenceOfCartesianPosition3d(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_SequenceOfCartesianPosition3d, its_SequenceOfCartesianPosition3d_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -6980,7 +7237,7 @@ dissect_its_SequenceOfCartesianPosition3d(tvbuff_t *tvb _U_, int offset _U_, asn
 static int
 dissect_its_SequenceOfCartesianPosition3d_SIZE_3_16_(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_size_constrained_type(tvb, offset, actx, tree, hf_index, dissect_its_SequenceOfCartesianPosition3d,
-                                                "SequenceOfCartesianPosition3d", 3, 16, TRUE);
+                                                "SequenceOfCartesianPosition3d", 3, 16, true);
 
   return offset;
 }
@@ -7005,8 +7262,8 @@ dissect_its_PolygonalShape(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static const per_sequence_t its_RadialShape_sequence[] = {
   { &hf_its_shapeReferencePoint, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_CartesianPosition3d },
   { &hf_its_range           , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_StandardLength12b },
-  { &hf_its_stationaryHorizontalOpeningAngleStart, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_Wgs84AngleValue },
-  { &hf_its_stationaryHorizontalOpeningAngleEnd, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_Wgs84AngleValue },
+  { &hf_its_horizontalOpeningAngleStart, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_CartesianAngleValue },
+  { &hf_its_horizontalOpeningAngleEnd, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_CartesianAngleValue },
   { &hf_its_verticalOpeningAngleStart, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_CartesianAngleValue },
   { &hf_its_verticalOpeningAngleEnd, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_its_CartesianAngleValue },
   { NULL, 0, 0, NULL }
@@ -7047,7 +7304,7 @@ static int
 dissect_its_RadialShapesList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_RadialShapesList, its_RadialShapesList_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -7122,7 +7379,7 @@ dissect_its_InterferenceManagementZoneDefinition(tvbuff_t *tvb _U_, int offset _
 static int
 dissect_its_INTEGER_0_10000(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 10000U, NULL, FALSE);
+                                                            0U, 10000U, NULL, false);
 
   return offset;
 }
@@ -7132,7 +7389,7 @@ dissect_its_INTEGER_0_10000(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_its_INTEGER_0_30(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 30U, NULL, FALSE);
+                                                            0U, 30U, NULL, false);
 
   return offset;
 }
@@ -7142,7 +7399,7 @@ dissect_its_INTEGER_0_30(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_its_INTEGER_0_1200(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 1200U, NULL, FALSE);
+                                                            0U, 1200U, NULL, false);
 
   return offset;
 }
@@ -7152,7 +7409,7 @@ dissect_its_INTEGER_0_1200(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_its_INTEGER_0_20(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 20U, NULL, FALSE);
+                                                            0U, 20U, NULL, false);
 
   return offset;
 }
@@ -7184,7 +7441,7 @@ static int
 dissect_its_MitigationForTechnologies(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_MitigationForTechnologies, its_MitigationForTechnologies_sequence_of,
-                                                  1, 8, FALSE);
+                                                  1, 8, false);
 
   return offset;
 }
@@ -7215,7 +7472,7 @@ static int
 dissect_its_InterferenceManagementInfo(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_InterferenceManagementInfo, its_InterferenceManagementInfo_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -7244,7 +7501,7 @@ static int
 dissect_its_InterferenceManagementZones(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_InterferenceManagementZones, its_InterferenceManagementZones_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -7258,7 +7515,7 @@ static int
 dissect_its_ItineraryPath(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_ItineraryPath, its_ItineraryPath_sequence_of,
-                                                  1, 40, FALSE);
+                                                  1, 40, false);
 
   return offset;
 }
@@ -7267,8 +7524,13 @@ dissect_its_ItineraryPath(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 
 static int
 dissect_its_ProtocolVersion(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+    uint32_t version;
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, &((its_header_t*)actx->private_data)->version, FALSE);
+                                                            0U, 255U, &version, false);
+
+    its_header_t *its_hdr = its_get_private_data(actx->pinfo);
+    its_hdr->version = version;
+
 
   return offset;
 }
@@ -7283,20 +7545,19 @@ static const per_sequence_t its_ItsPduHeader_sequence[] = {
 
 static int
 dissect_its_ItsPduHeader(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  guint8 version = tvb_get_guint8(tvb, 0);
+  uint8_t version = tvb_get_uint8(tvb, 0);
   int test_offset = offset;
   if ((test_offset = dissector_try_uint(its_version_subdissector_table, version, tvb, actx->pinfo, tree))) {
     return test_offset;
   }
   // Lets try it that way, regarless of version value...
-  its_header_t *hdr = wmem_new0(actx->pinfo->pool, its_header_t);
-  actx->private_data = (void*)hdr;
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_its_ItsPduHeader, its_ItsPduHeader_sequence);
 
   tap_queue_packet(its_tap, actx->pinfo, actx->private_data);
   tvbuff_t *next_tvb = tvb_new_subset_length(tvb, offset >> 3, -1);
-  int data_offset = dissector_try_uint(its_msgid_subdissector_table, (hdr->version << 16)+hdr->msgId, next_tvb, actx->pinfo, tree);
+  its_header_t *its_hdr = its_get_private_data(actx->pinfo);
+  int data_offset = dissector_try_uint(its_msgid_subdissector_table, (its_hdr->version << 16)+its_hdr->msgId, next_tvb, actx->pinfo, tree);
   if (!data_offset) {
     proto_tree_add_expert(tree, actx->pinfo, &ei_its_no_sub_dis, next_tvb, 0,  - 1);
     data_offset = call_data_dissector(next_tvb, actx->pinfo, tree);
@@ -7345,7 +7606,7 @@ static int
 dissect_its_LowerTriangularPositiveSemidefiniteMatrixColumns(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_LowerTriangularPositiveSemidefiniteMatrixColumns, its_LowerTriangularPositiveSemidefiniteMatrixColumns_sequence_of,
-                                                  1, 13, FALSE);
+                                                  1, 13, true);
 
   return offset;
 }
@@ -7374,7 +7635,7 @@ static int
 dissect_its_LowerTriangularPositiveSemidefiniteMatrices(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_LowerTriangularPositiveSemidefiniteMatrices, its_LowerTriangularPositiveSemidefiniteMatrices_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -7384,7 +7645,7 @@ dissect_its_LowerTriangularPositiveSemidefiniteMatrices(tvbuff_t *tvb _U_, int o
 static int
 dissect_its_INTEGER_1_100(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 100U, NULL, FALSE);
+                                                            1U, 100U, NULL, false);
 
   return offset;
 }
@@ -7394,7 +7655,7 @@ dissect_its_INTEGER_1_100(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_its_INTEGER_M5_2(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -5, 2U, NULL, FALSE);
+                                                            -5, 2U, NULL, false);
 
   return offset;
 }
@@ -7501,7 +7762,7 @@ dissect_its_ObjectClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 
 static const per_sequence_t its_ObjectClassWithConfidence_sequence[] = {
   { &hf_its_objectClass     , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_ObjectClass },
-  { &hf_its_confidence_04   , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_ConfidenceLevel },
+  { &hf_its_confidence_05   , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_ConfidenceLevel },
   { NULL, 0, 0, NULL }
 };
 
@@ -7522,7 +7783,7 @@ static int
 dissect_its_ObjectClassDescription(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_ObjectClassDescription, its_ObjectClassDescription_sequence_of,
-                                                  1, 8, FALSE);
+                                                  1, 8, false);
 
   return offset;
 }
@@ -7530,7 +7791,7 @@ dissect_its_ObjectClassDescription(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 
 static const per_sequence_t its_ObjectDimension_sequence[] = {
   { &hf_its_value_04        , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_ObjectDimensionValue },
-  { &hf_its_confidence_05   , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_ObjectDimensionConfidence },
+  { &hf_its_confidence_06   , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_ObjectDimensionConfidence },
   { NULL, 0, 0, NULL }
 };
 
@@ -7566,7 +7827,29 @@ static int
 dissect_its_Path(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_Path, its_Path_sequence_of,
-                                                  0, 40, FALSE);
+                                                  0, 40, false);
+
+  return offset;
+}
+
+
+static const value_string its_PathDeltaTimeChoice_vals[] = {
+  {   0, "deltaTimeHighPrecision" },
+  {   1, "deltaTimeBigRange" },
+  { 0, NULL }
+};
+
+static const per_choice_t its_PathDeltaTimeChoice_choice[] = {
+  {   0, &hf_its_deltaTimeHighPrecision, ASN1_EXTENSION_ROOT    , dissect_its_DeltaTimeTenthOfSecond },
+  {   1, &hf_its_deltaTimeBigRange, ASN1_EXTENSION_ROOT    , dissect_its_DeltaTimeTenSeconds },
+  { 0, NULL, 0, NULL }
+};
+
+static int
+dissect_its_PathDeltaTimeChoice(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_choice(tvb, offset, actx, tree, hf_index,
+                                 ett_its_PathDeltaTimeChoice, its_PathDeltaTimeChoice_choice,
+                                 NULL);
 
   return offset;
 }
@@ -7580,7 +7863,7 @@ static int
 dissect_its_PathHistory(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_PathHistory, its_PathHistory_sequence_of,
-                                                  40, 40, FALSE);
+                                                  0, 40, false);
 
   return offset;
 }
@@ -7592,7 +7875,9 @@ static const per_sequence_t its_PathPointPredicted_sequence[] = {
   { &hf_its_horizontalPositionConfidence, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_PosConfidenceEllipse },
   { &hf_its_deltaAltitude   , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_DeltaAltitude },
   { &hf_its_altitudeConfidence, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_AltitudeConfidence },
-  { &hf_its_pathDeltaTime_01, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_DeltaTimeTenthOfSecond },
+  { &hf_its_pathDeltaTime_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_PathDeltaTimeChoice },
+  { &hf_its_symmetricAreaOffset, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_StandardLength9b },
+  { &hf_its_asymmetricAreaOffset, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_StandardLength9b },
   { NULL, 0, 0, NULL }
 };
 
@@ -7613,7 +7898,7 @@ static int
 dissect_its_PathPredicted(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_PathPredicted, its_PathPredicted_sequence_of,
-                                                  0, 15, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -7636,7 +7921,7 @@ dissect_its_Speed(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto
 
 static const per_sequence_t its_VelocityComponent_sequence[] = {
   { &hf_its_value_05        , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_VelocityComponentValue },
-  { &hf_its_confidence_06   , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_SpeedConfidence },
+  { &hf_its_confidence_07   , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_SpeedConfidence },
   { NULL, 0, 0, NULL }
 };
 
@@ -7711,7 +7996,7 @@ static int
 dissect_its_SequenceOfIdentifier1B(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_SequenceOfIdentifier1B, its_SequenceOfIdentifier1B_sequence_of,
-                                                  1, 128, TRUE);
+                                                  1, 128, true);
 
   return offset;
 }
@@ -7754,7 +8039,7 @@ static int
 dissect_its_PositionOfPillars(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_PositionOfPillars, its_PositionOfPillars_sequence_of,
-                                                  1, 3, TRUE);
+                                                  1, 3, true);
 
   return offset;
 }
@@ -7787,7 +8072,7 @@ static int
 dissect_its_ProtectedCommunicationZonesRSU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_ProtectedCommunicationZonesRSU, its_ProtectedCommunicationZonesRSU_sequence_of,
-                                                  1, 16, FALSE);
+                                                  1, 16, false);
 
   return offset;
 }
@@ -7809,7 +8094,7 @@ dissect_its_PtActivation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_its_PtActivation, its_PtActivation_sequence);
 
-  dissector_try_uint_new(cam_pt_activation_table, pta->type, pta->data, actx->pinfo, tree, TRUE, NULL);
+  dissector_try_uint_new(cam_pt_activation_table, pta->type, pta->data, actx->pinfo, tree, true, NULL);
   actx->private_data = priv_data;
   return offset;
 }
@@ -7823,7 +8108,7 @@ static int
 dissect_its_RestrictedTypes(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_RestrictedTypes, its_RestrictedTypes_sequence_of,
-                                                  1, 3, TRUE);
+                                                  1, 3, true);
 
   return offset;
 }
@@ -7853,7 +8138,7 @@ static int
 dissect_its_SequenceOfSafeDistanceIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_SequenceOfSafeDistanceIndication, its_SequenceOfSafeDistanceIndication_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -7883,7 +8168,7 @@ static int
 dissect_its_SequenceOfTrajectoryInterceptionIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_SequenceOfTrajectoryInterceptionIndication, its_SequenceOfTrajectoryInterceptionIndication_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -7927,7 +8212,7 @@ static int
 dissect_its_Traces(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_its_Traces, its_Traces_sequence_of,
-                                                  1, 7, FALSE);
+                                                  1, 7, false);
 
   return offset;
 }
@@ -7956,7 +8241,7 @@ dissect_its_TrailerData(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_its_INTEGER_0_127(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 127U, NULL, FALSE);
+                                                            0U, 127U, NULL, false);
 
   return offset;
 }
@@ -7966,7 +8251,7 @@ dissect_its_INTEGER_0_127(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_its_INTEGER_128_16511(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            128U, 16511U, NULL, FALSE);
+                                                            128U, 16511U, NULL, false);
 
   return offset;
 }
@@ -7976,7 +8261,7 @@ dissect_its_INTEGER_128_16511(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_its_INTEGER_16512_2113663(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            16512U, 2113663U, NULL, FALSE);
+                                                            16512U, 2113663U, NULL, false);
 
   return offset;
 }
@@ -7986,7 +8271,7 @@ dissect_its_INTEGER_16512_2113663(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_its_Ext3(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            2113664U, 270549119U, NULL, TRUE);
+                                                            2113664U, 270549119U, NULL, true);
 
   return offset;
 }
@@ -8120,7 +8405,7 @@ dissect_its_VruExteriorLights(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 
 static const per_sequence_t its_Wgs84Angle_sequence[] = {
   { &hf_its_value_06        , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_Wgs84AngleValue },
-  { &hf_its_confidence_07   , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_Wgs84AngleConfidence },
+  { &hf_its_confidence_08   , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_Wgs84AngleConfidence },
   { NULL, 0, 0, NULL }
 };
 
@@ -8152,7 +8437,7 @@ dissect_its_YawRate(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 static int dissect_its_ItsPduHeader_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_its_ItsPduHeader(tvb, offset, &asn1_ctx, tree, hf_its_its_ItsPduHeader_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8166,7 +8451,7 @@ static int dissect_its_ItsPduHeader_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U
 static int
 dissect_itsv1_StationID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 4294967295U, NULL, FALSE);
+                                                            0U, 4294967295U, NULL, false);
 
   return offset;
 }
@@ -8176,7 +8461,7 @@ dissect_itsv1_StationID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_itsv1_Latitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -900000000, 900000001U, NULL, FALSE);
+                                                            -900000000, 900000001U, NULL, false);
 
   return offset;
 }
@@ -8186,7 +8471,7 @@ dissect_itsv1_Latitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_itsv1_Longitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -1800000000, 1800000001U, NULL, FALSE);
+                                                            -1800000000, 1800000001U, NULL, false);
 
   return offset;
 }
@@ -8196,7 +8481,7 @@ dissect_itsv1_Longitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_itsv1_SemiAxisLength(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 4095U, NULL, FALSE);
+                                                            0U, 4095U, NULL, false);
 
   return offset;
 }
@@ -8206,7 +8491,7 @@ dissect_itsv1_SemiAxisLength(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_itsv1_HeadingValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3601U, NULL, FALSE);
+                                                            0U, 3601U, NULL, false);
 
   return offset;
 }
@@ -8232,7 +8517,7 @@ dissect_itsv1_PosConfidenceEllipse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_itsv1_AltitudeValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -100000, 800001U, NULL, FALSE);
+                                                            -100000, 800001U, NULL, false);
 
   return offset;
 }
@@ -8262,7 +8547,7 @@ static const value_string itsv1_AltitudeConfidence_vals[] = {
 static int
 dissect_itsv1_AltitudeConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -8304,7 +8589,7 @@ dissect_itsv1_ReferencePosition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_itsv1_DeltaLatitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -131071, 131072U, NULL, FALSE);
+                                                            -131071, 131072U, NULL, false);
 
   return offset;
 }
@@ -8314,7 +8599,7 @@ dissect_itsv1_DeltaLatitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_itsv1_DeltaLongitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -131071, 131072U, NULL, FALSE);
+                                                            -131071, 131072U, NULL, false);
 
   return offset;
 }
@@ -8324,7 +8609,7 @@ dissect_itsv1_DeltaLongitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_itsv1_DeltaAltitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -12700, 12800U, NULL, FALSE);
+                                                            -12700, 12800U, NULL, false);
 
   return offset;
 }
@@ -8350,7 +8635,7 @@ dissect_itsv1_DeltaReferencePosition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static int
 dissect_itsv1_PathDeltaTime(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 65535U, NULL, TRUE);
+                                                            1U, 65535U, NULL, true);
 
   return offset;
 }
@@ -8382,7 +8667,7 @@ static const value_string itsv1_PtActivationType_vals[] = {
 static int
 dissect_itsv1_PtActivationType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, &((its_pt_activation_data_t*)actx->private_data)->type, FALSE);
+                                                            0U, 255U, &((its_pt_activation_data_t*)actx->private_data)->type, false);
 
   return offset;
 }
@@ -8392,7 +8677,7 @@ dissect_itsv1_PtActivationType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_itsv1_PtActivationData(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       1, 20, FALSE, &((its_pt_activation_data_t*)actx->private_data)->data);
+                                       1, 20, false, &((its_pt_activation_data_t*)actx->private_data)->data);
 
   return offset;
 }
@@ -8414,7 +8699,7 @@ dissect_itsv1_PtActivation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_itsv1_PtActivation, itsv1_PtActivation_sequence);
 
-  dissector_try_uint_new(cam_pt_activation_table, pta->type, pta->data, actx->pinfo, tree, TRUE, NULL);
+  dissector_try_uint_new(cam_pt_activation_table, pta->type, pta->data, actx->pinfo, tree, true, NULL);
   actx->private_data = priv_data;
   return offset;
 }
@@ -8434,7 +8719,7 @@ static int * const itsv1_AccelerationControl_bits[] = {
 static int
 dissect_itsv1_AccelerationControl(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     7, 7, FALSE, itsv1_AccelerationControl_bits, 7, NULL, NULL);
+                                     7, 7, false, itsv1_AccelerationControl_bits, 7, NULL, NULL);
 
   return offset;
 }
@@ -8473,7 +8758,7 @@ static const value_string itsv1_CauseCodeTypeV1_vals[] = {
 static int
 dissect_itsv1_CauseCodeTypeV1(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -8483,7 +8768,7 @@ dissect_itsv1_CauseCodeTypeV1(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_itsv1_SubCauseCodeTypeV1(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -8519,7 +8804,7 @@ static const value_string itsv1_RoadworksSubCauseCode_vals[] = {
 static int
 dissect_itsv1_RoadworksSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -8529,7 +8814,7 @@ dissect_itsv1_RoadworksSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 static int
 dissect_itsv1_CurvatureValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -30000, 30001U, NULL, FALSE);
+                                                            -30000, 30001U, NULL, false);
 
   return offset;
 }
@@ -8551,7 +8836,7 @@ static const value_string itsv1_CurvatureConfidence_vals[] = {
 static int
 dissect_itsv1_CurvatureConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -8583,7 +8868,7 @@ static const value_string itsv1_CurvatureCalculationMode_vals[] = {
 static int
 dissect_itsv1_CurvatureCalculationMode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, TRUE, 0, NULL);
+                                     3, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -8593,7 +8878,7 @@ dissect_itsv1_CurvatureCalculationMode(tvbuff_t *tvb _U_, int offset _U_, asn1_c
 static int
 dissect_itsv1_HeadingConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -8626,7 +8911,7 @@ static const value_string itsv1_LanePosition_vals[] = {
 static int
 dissect_itsv1_LanePosition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -1, 14U, NULL, FALSE);
+                                                            -1, 14U, NULL, false);
 
   return offset;
 }
@@ -8643,7 +8928,7 @@ static const value_string itsv1_HardShoulderStatus_vals[] = {
 static int
 dissect_itsv1_HardShoulderStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, FALSE, 0, NULL);
+                                     3, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -8659,7 +8944,7 @@ static int * const itsv1_DrivingLaneStatus_bits[] = {
 static int
 dissect_itsv1_DrivingLaneStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     1, 14, FALSE, itsv1_DrivingLaneStatus_bits, 3, NULL, NULL);
+                                     1, 14, false, itsv1_DrivingLaneStatus_bits, 3, NULL, NULL);
 
   return offset;
 }
@@ -8691,7 +8976,7 @@ static const value_string itsv1_PerformanceClass_vals[] = {
 static int
 dissect_itsv1_PerformanceClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -8701,7 +8986,7 @@ dissect_itsv1_PerformanceClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_itsv1_SpeedValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 16383U, NULL, FALSE);
+                                                            0U, 16383U, NULL, false);
 
   return offset;
 }
@@ -8711,7 +8996,7 @@ dissect_itsv1_SpeedValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_itsv1_SpeedConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -8727,7 +9012,7 @@ static const value_string itsv1_VehicleMass_vals[] = {
 static int
 dissect_itsv1_VehicleMass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 1024U, NULL, FALSE);
+                                                            1U, 1024U, NULL, false);
 
   return offset;
 }
@@ -8759,7 +9044,7 @@ static const value_string itsv1_DriveDirection_vals[] = {
 static int
 dissect_itsv1_DriveDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, FALSE, 0, NULL);
+                                     3, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -8778,7 +9063,7 @@ dissect_itsv1_EmbarkationStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_itsv1_LongitudinalAccelerationValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -160, 161U, NULL, FALSE);
+                                                            -160, 161U, NULL, false);
 
   return offset;
 }
@@ -8788,7 +9073,7 @@ dissect_itsv1_LongitudinalAccelerationValue(tvbuff_t *tvb _U_, int offset _U_, a
 static int
 dissect_itsv1_AccelerationConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 102U, NULL, FALSE);
+                                                            0U, 102U, NULL, false);
 
   return offset;
 }
@@ -8813,7 +9098,7 @@ dissect_itsv1_LongitudinalAcceleration(tvbuff_t *tvb _U_, int offset _U_, asn1_c
 static int
 dissect_itsv1_LateralAccelerationValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -160, 161U, NULL, FALSE);
+                                                            -160, 161U, NULL, false);
 
   return offset;
 }
@@ -8838,7 +9123,7 @@ dissect_itsv1_LateralAcceleration(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_itsv1_VerticalAccelerationValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -160, 161U, NULL, FALSE);
+                                                            -160, 161U, NULL, false);
 
   return offset;
 }
@@ -8880,7 +9165,7 @@ static const value_string itsv1_StationType_vals[] = {
 static int
 dissect_itsv1_StationType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -8901,7 +9186,7 @@ static int * const itsv1_ExteriorLights_bits[] = {
 static int
 dissect_itsv1_ExteriorLights(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     8, 8, FALSE, itsv1_ExteriorLights_bits, 8, NULL, NULL);
+                                     8, 8, false, itsv1_ExteriorLights_bits, 8, NULL, NULL);
 
   return offset;
 }
@@ -8935,7 +9220,7 @@ static const value_string itsv1_DangerousGoodsBasic_vals[] = {
 static int
 dissect_itsv1_DangerousGoodsBasic(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     20, NULL, FALSE, 0, NULL);
+                                     20, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -8945,7 +9230,7 @@ dissect_itsv1_DangerousGoodsBasic(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_itsv1_INTEGER_0_9999(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 9999U, NULL, FALSE);
+                                                            0U, 9999U, NULL, false);
 
   return offset;
 }
@@ -8964,7 +9249,7 @@ dissect_itsv1_BOOLEAN(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int
 dissect_itsv1_IA5String_SIZE_1_24(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_IA5String(tvb, offset, actx, tree, hf_index,
-                                          1, 24, FALSE,
+                                          1, 24, false,
                                           NULL);
 
   return offset;
@@ -8975,7 +9260,7 @@ dissect_itsv1_IA5String_SIZE_1_24(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_itsv1_UTF8String_SIZE_1_24(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 24, FALSE);
+                                          1, 24, false);
 
   return offset;
 }
@@ -9013,7 +9298,7 @@ static int * const itsv1_SpecialTransportType_bits[] = {
 static int
 dissect_itsv1_SpecialTransportType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     4, 4, FALSE, itsv1_SpecialTransportType_bits, 4, NULL, NULL);
+                                     4, 4, false, itsv1_SpecialTransportType_bits, 4, NULL, NULL);
 
   return offset;
 }
@@ -9028,7 +9313,7 @@ static int * const itsv1_LightBarSirenInUse_bits[] = {
 static int
 dissect_itsv1_LightBarSirenInUse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     2, 2, FALSE, itsv1_LightBarSirenInUse_bits, 2, NULL, NULL);
+                                     2, 2, false, itsv1_LightBarSirenInUse_bits, 2, NULL, NULL);
 
   return offset;
 }
@@ -9044,7 +9329,7 @@ static const value_string itsv1_HeightLonCarr_vals[] = {
 static int
 dissect_itsv1_HeightLonCarr(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 100U, NULL, FALSE);
+                                                            1U, 100U, NULL, false);
 
   return offset;
 }
@@ -9060,7 +9345,7 @@ static const value_string itsv1_PosLonCarr_vals[] = {
 static int
 dissect_itsv1_PosLonCarr(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -9076,7 +9361,7 @@ static const value_string itsv1_PosPillar_vals[] = {
 static int
 dissect_itsv1_PosPillar(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 30U, NULL, FALSE);
+                                                            1U, 30U, NULL, false);
 
   return offset;
 }
@@ -9092,7 +9377,7 @@ static const value_string itsv1_PosCentMass_vals[] = {
 static int
 dissect_itsv1_PosCentMass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 63U, NULL, FALSE);
+                                                            1U, 63U, NULL, false);
 
   return offset;
 }
@@ -9108,7 +9393,7 @@ static const value_string itsv1_RequestResponseIndication_vals[] = {
 static int
 dissect_itsv1_RequestResponseIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -9118,7 +9403,7 @@ dissect_itsv1_RequestResponseIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_
 static int
 dissect_itsv1_SpeedLimit(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 255U, NULL, FALSE);
+                                                            1U, 255U, NULL, false);
 
   return offset;
 }
@@ -9136,7 +9421,7 @@ static const value_string itsv1_StationarySince_vals[] = {
 static int
 dissect_itsv1_StationarySince(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -9153,7 +9438,7 @@ static const value_string itsv1_Temperature_vals[] = {
 static int
 dissect_itsv1_Temperature(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -60, 67U, NULL, FALSE);
+                                                            -60, 67U, NULL, false);
 
   return offset;
 }
@@ -9171,7 +9456,7 @@ static const value_string itsv1_TrafficRule_vals[] = {
 static int
 dissect_itsv1_TrafficRule(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, TRUE, 0, NULL);
+                                     4, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -9187,7 +9472,7 @@ static const value_string itsv1_WheelBaseVehicle_vals[] = {
 static int
 dissect_itsv1_WheelBaseVehicle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -9203,7 +9488,7 @@ static const value_string itsv1_TurningRadius_vals[] = {
 static int
 dissect_itsv1_TurningRadius(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 255U, NULL, FALSE);
+                                                            1U, 255U, NULL, false);
 
   return offset;
 }
@@ -9219,7 +9504,7 @@ static const value_string itsv1_PosFrontAx_vals[] = {
 static int
 dissect_itsv1_PosFrontAx(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 20U, NULL, FALSE);
+                                                            1U, 20U, NULL, false);
 
   return offset;
 }
@@ -9252,7 +9537,7 @@ static int * const itsv1_PositionOfOccupants_bits[] = {
 static int
 dissect_itsv1_PositionOfOccupants(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     20, 20, FALSE, itsv1_PositionOfOccupants_bits, 20, NULL, NULL);
+                                     20, 20, false, itsv1_PositionOfOccupants_bits, 20, NULL, NULL);
 
   return offset;
 }
@@ -9272,7 +9557,7 @@ static const value_string itsv1_PositioningSolutionType_vals[] = {
 static int
 dissect_itsv1_PositioningSolutionType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     6, NULL, TRUE, 0, NULL);
+                                     6, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -9282,7 +9567,7 @@ dissect_itsv1_PositioningSolutionType(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int
 dissect_itsv1_WMInumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_IA5String(tvb, offset, actx, tree, hf_index,
-                                          1, 3, FALSE,
+                                          1, 3, false,
                                           NULL);
 
   return offset;
@@ -9293,7 +9578,7 @@ dissect_itsv1_WMInumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_itsv1_VDS(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_IA5String(tvb, offset, actx, tree, hf_index,
-                                          6, 6, FALSE,
+                                          6, 6, false,
                                           NULL);
 
   return offset;
@@ -9329,7 +9614,7 @@ static int * const itsv1_EnergyStorageType_bits[] = {
 static int
 dissect_itsv1_EnergyStorageType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     7, 7, FALSE, itsv1_EnergyStorageType_bits, 7, NULL, NULL);
+                                     7, 7, false, itsv1_EnergyStorageType_bits, 7, NULL, NULL);
 
   return offset;
 }
@@ -9339,7 +9624,7 @@ dissect_itsv1_EnergyStorageType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_itsv1_VehicleLengthValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 1023U, NULL, FALSE);
+                                                            1U, 1023U, NULL, false);
 
   return offset;
 }
@@ -9358,7 +9643,7 @@ static const value_string itsv1_VehicleLengthConfidenceIndication_vals[] = {
 static int
 dissect_itsv1_VehicleLengthConfidenceIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     5, NULL, FALSE, 0, NULL);
+                                     5, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -9383,7 +9668,7 @@ dissect_itsv1_VehicleLength(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_itsv1_VehicleWidth(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 62U, NULL, FALSE);
+                                                            1U, 62U, NULL, false);
 
   return offset;
 }
@@ -9397,7 +9682,7 @@ static int
 dissect_itsv1_PathHistory(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_itsv1_PathHistory, itsv1_PathHistory_sequence_of,
-                                                  0, 40, FALSE);
+                                                  0, 40, false);
 
   return offset;
 }
@@ -9412,7 +9697,7 @@ static int * const itsv1_EmergencyPriority_bits[] = {
 static int
 dissect_itsv1_EmergencyPriority(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     2, 2, FALSE, itsv1_EmergencyPriority_bits, 2, NULL, NULL);
+                                     2, 2, false, itsv1_EmergencyPriority_bits, 2, NULL, NULL);
 
   return offset;
 }
@@ -9429,7 +9714,7 @@ static const value_string itsv1_InformationQuality_vals[] = {
 static int
 dissect_itsv1_InformationQuality(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -9447,7 +9732,7 @@ static const value_string itsv1_RoadType_vals[] = {
 static int
 dissect_itsv1_RoadType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -9457,7 +9742,7 @@ dissect_itsv1_RoadType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_itsv1_SteeringWheelAngleValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -511, 512U, NULL, FALSE);
+                                                            -511, 512U, NULL, false);
 
   return offset;
 }
@@ -9467,7 +9752,7 @@ dissect_itsv1_SteeringWheelAngleValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int
 dissect_itsv1_SteeringWheelAngleConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 127U, NULL, FALSE);
+                                                            1U, 127U, NULL, false);
 
   return offset;
 }
@@ -9492,7 +9777,7 @@ dissect_itsv1_SteeringWheelAngle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 static int
 dissect_itsv1_TimestampIts(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer_64b(tvb, offset, actx, tree, hf_index,
-                                                            0U, G_GUINT64_CONSTANT(4398046511103), NULL, FALSE);
+                                                            0U, UINT64_C(4398046511103), NULL, false);
 
   return offset;
 }
@@ -9522,7 +9807,7 @@ static const value_string itsv1_VehicleRole_vals[] = {
 static int
 dissect_itsv1_VehicleRole(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -9532,7 +9817,7 @@ dissect_itsv1_VehicleRole(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_itsv1_YawRateValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -32766, 32767U, NULL, FALSE);
+                                                            -32766, 32767U, NULL, false);
 
   return offset;
 }
@@ -9555,7 +9840,7 @@ static const value_string itsv1_YawRateConfidence_vals[] = {
 static int
 dissect_itsv1_YawRateConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     9, NULL, FALSE, 0, NULL);
+                                     9, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -9585,7 +9870,7 @@ static const value_string itsv1_ProtectedZoneType_vals[] = {
 static int
 dissect_itsv1_ProtectedZoneType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     1, NULL, TRUE, 0, NULL);
+                                     1, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -9607,7 +9892,7 @@ static const value_string itsv1_RelevanceDistance_vals[] = {
 static int
 dissect_itsv1_RelevanceDistance(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -9625,7 +9910,7 @@ static const value_string itsv1_RelevanceTrafficDirection_vals[] = {
 static int
 dissect_itsv1_RelevanceTrafficDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -9641,7 +9926,7 @@ static const value_string itsv1_TransmissionInterval_vals[] = {
 static int
 dissect_itsv1_TransmissionInterval(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 10000U, NULL, FALSE);
+                                                            1U, 10000U, NULL, false);
 
   return offset;
 }
@@ -9651,7 +9936,7 @@ dissect_itsv1_TransmissionInterval(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_itsv1_ValidityDuration(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 86400U, NULL, FALSE);
+                                                            0U, 86400U, NULL, false);
 
   return offset;
 }
@@ -9661,7 +9946,7 @@ dissect_itsv1_ValidityDuration(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_itsv1_SequenceNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -9690,7 +9975,7 @@ static int
 dissect_itsv1_ItineraryPath(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_itsv1_ItineraryPath, itsv1_ItineraryPath_sequence_of,
-                                                  1, 40, FALSE);
+                                                  1, 40, false);
 
   return offset;
 }
@@ -9705,7 +9990,7 @@ static const value_string itsv1_ProtectedZoneRadius_vals[] = {
 static int
 dissect_itsv1_ProtectedZoneRadius(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 255U, NULL, TRUE);
+                                                            1U, 255U, NULL, true);
 
   return offset;
 }
@@ -9715,7 +10000,7 @@ dissect_itsv1_ProtectedZoneRadius(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_itsv1_ProtectedZoneID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 134217727U, NULL, FALSE);
+                                                            0U, 134217727U, NULL, false);
 
   return offset;
 }
@@ -9748,7 +10033,7 @@ static int
 dissect_itsv1_Traces(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_itsv1_Traces, itsv1_Traces_sequence_of,
-                                                  1, 7, FALSE);
+                                                  1, 7, false);
 
   return offset;
 }
@@ -9764,7 +10049,7 @@ static const value_string itsv1_NumberOfOccupants_vals[] = {
 static int
 dissect_itsv1_NumberOfOccupants(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 127U, NULL, FALSE);
+                                                            0U, 127U, NULL, false);
 
   return offset;
 }
@@ -9778,7 +10063,7 @@ static int
 dissect_itsv1_PositionOfPillars(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_itsv1_PositionOfPillars, itsv1_PositionOfPillars_sequence_of,
-                                                  1, 3, TRUE);
+                                                  1, 3, true);
 
   return offset;
 }
@@ -9792,7 +10077,7 @@ static int
 dissect_itsv1_RestrictedTypes(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_itsv1_RestrictedTypes, itsv1_RestrictedTypes_sequence_of,
-                                                  1, 3, TRUE);
+                                                  1, 3, true);
 
   return offset;
 }
@@ -9822,7 +10107,7 @@ static int
 dissect_itsv1_EventHistory(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_itsv1_EventHistory, itsv1_EventHistory_sequence_of,
-                                                  1, 23, FALSE);
+                                                  1, 23, false);
 
   return offset;
 }
@@ -9836,7 +10121,7 @@ static int
 dissect_itsv1_ProtectedCommunicationZonesRSU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_itsv1_ProtectedCommunicationZonesRSU, itsv1_ProtectedCommunicationZonesRSU_sequence_of,
-                                                  1, 16, FALSE);
+                                                  1, 16, false);
 
   return offset;
 }
@@ -9875,7 +10160,7 @@ static int
 dissect_anads_CountryCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   tvbuff_t *val_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     10, 10, FALSE, NULL, 0, &val_tvb, NULL);
+                                     10, 10, false, NULL, 0, &val_tvb, NULL);
 
   append_country_code_fmt(actx->created_item, val_tvb);
 
@@ -9887,7 +10172,7 @@ dissect_anads_CountryCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_anads_AVIAEIIssuerIdentifier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 16383U, NULL, FALSE);
+                                                            0U, 16383U, NULL, false);
 
   return offset;
 }
@@ -9900,7 +10185,7 @@ dissect_anads_AVIAEIIssuerIdentifier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static int
 dissect_dsrc_app_Int2(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -9934,7 +10219,7 @@ static const value_string dsrc_app_UnitType_vals[] = {
 static int
 dissect_dsrc_app_UnitType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -9944,7 +10229,7 @@ dissect_dsrc_app_UnitType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_dsrc_app_INTEGER_0_32767(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 32767U, NULL, FALSE);
+                                                            0U, 32767U, NULL, false);
 
   return offset;
 }
@@ -10004,7 +10289,7 @@ static const value_string dsrc_app_EuroValue_vals[] = {
 static int
 dissect_dsrc_app_EuroValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -10027,7 +10312,7 @@ static const value_string dsrc_app_CopValue_vals[] = {
 static int
 dissect_dsrc_app_CopValue(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     9, NULL, FALSE, 0, NULL);
+                                     9, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -10066,7 +10351,7 @@ static const value_string dsrc_app_EngineCharacteristics_vals[] = {
 static int
 dissect_dsrc_app_EngineCharacteristics(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -10094,7 +10379,7 @@ dissect_dsrc_app_ExhaustEmissionValues(tvbuff_t *tvb _U_, int offset _U_, asn1_c
 static int
 dissect_dsrc_app_Int1(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -10192,7 +10477,7 @@ static const value_string dsrc_RegionId_vals[] = {
 static int
 dissect_dsrc_RegionId(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, &((its_private_data_t*)actx->private_data)->region_id, FALSE);
+                                                            0U, 255U, &((its_private_data_t*)actx->private_data)->region_id, false);
 
   return offset;
 }
@@ -10226,7 +10511,7 @@ dissect_dsrc_RegionalExtension(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_dsrc_MinuteOfTheYear(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 527040U, NULL, FALSE);
+                                                            0U, 527040U, NULL, false);
 
   return offset;
 }
@@ -10236,7 +10521,7 @@ dissect_dsrc_MinuteOfTheYear(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_dsrc_MsgCount(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 127U, NULL, FALSE);
+                                                            0U, 127U, NULL, false);
 
   return offset;
 }
@@ -10258,7 +10543,7 @@ static const value_string dsrc_LayerType_vals[] = {
 static int
 dissect_dsrc_LayerType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, TRUE, 0, NULL);
+                                     8, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -10268,7 +10553,7 @@ dissect_dsrc_LayerType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_dsrc_LayerID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 100U, NULL, FALSE);
+                                                            0U, 100U, NULL, false);
 
   return offset;
 }
@@ -10278,7 +10563,7 @@ dissect_dsrc_LayerID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
 static int
 dissect_dsrc_DescriptiveName(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_IA5String(tvb, offset, actx, tree, hf_index,
-                                          1, 63, FALSE,
+                                          1, 63, false,
                                           NULL);
 
   return offset;
@@ -10289,7 +10574,7 @@ dissect_dsrc_DescriptiveName(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_dsrc_RoadRegulatorID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -10299,7 +10584,7 @@ dissect_dsrc_RoadRegulatorID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_dsrc_IntersectionID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -10324,7 +10609,7 @@ dissect_dsrc_IntersectionReferenceID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static int
 dissect_dsrc_Elevation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -4096, 61439U, NULL, FALSE);
+                                                            -4096, 61439U, NULL, false);
 
   return offset;
 }
@@ -10338,7 +10623,7 @@ static int
 dissect_dsrc_T_Position3DRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_Position3DRegional, dsrc_T_Position3DRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -10368,7 +10653,7 @@ dissect_dsrc_Position3D(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_dsrc_LaneWidth(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 32767U, NULL, FALSE);
+                                                            0U, 32767U, NULL, false);
 
   return offset;
 }
@@ -10395,7 +10680,7 @@ static const value_string dsrc_SpeedLimitType_vals[] = {
 static int
 dissect_dsrc_SpeedLimitType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     13, NULL, TRUE, 0, NULL);
+                                     13, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -10405,7 +10690,7 @@ dissect_dsrc_SpeedLimitType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_dsrc_Velocity(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 8191U, NULL, FALSE);
+                                                            0U, 8191U, NULL, false);
 
   return offset;
 }
@@ -10434,7 +10719,7 @@ static int
 dissect_dsrc_SpeedLimitList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_SpeedLimitList, dsrc_SpeedLimitList_sequence_of,
-                                                  1, 9, FALSE);
+                                                  1, 9, false);
 
   return offset;
 }
@@ -10444,7 +10729,7 @@ dissect_dsrc_SpeedLimitList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_dsrc_LaneID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -10454,7 +10739,7 @@ dissect_dsrc_LaneID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 static int
 dissect_dsrc_ApproachID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, FALSE);
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -10469,7 +10754,7 @@ static int * const dsrc_LaneDirection_bits[] = {
 static int
 dissect_dsrc_LaneDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     2, 2, FALSE, dsrc_LaneDirection_bits, 2, NULL, NULL);
+                                     2, 2, false, dsrc_LaneDirection_bits, 2, NULL, NULL);
 
   return offset;
 }
@@ -10492,7 +10777,7 @@ static int * const dsrc_LaneSharing_bits[] = {
 static int
 dissect_dsrc_LaneSharing(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     10, 10, FALSE, dsrc_LaneSharing_bits, 10, NULL, NULL);
+                                     10, 10, false, dsrc_LaneSharing_bits, 10, NULL, NULL);
 
   return offset;
 }
@@ -10513,7 +10798,7 @@ static int * const dsrc_LaneAttributes_Vehicle_bits[] = {
 static int
 dissect_dsrc_LaneAttributes_Vehicle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     8, 8, TRUE, dsrc_LaneAttributes_Vehicle_bits, 8, NULL, NULL);
+                                     8, 8, true, dsrc_LaneAttributes_Vehicle_bits, 8, NULL, NULL);
 
   return offset;
 }
@@ -10535,7 +10820,7 @@ static int * const dsrc_LaneAttributes_Crosswalk_bits[] = {
 static int
 dissect_dsrc_LaneAttributes_Crosswalk(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     16, 16, FALSE, dsrc_LaneAttributes_Crosswalk_bits, 9, NULL, NULL);
+                                     16, 16, false, dsrc_LaneAttributes_Crosswalk_bits, 9, NULL, NULL);
 
   return offset;
 }
@@ -10555,7 +10840,7 @@ static int * const dsrc_LaneAttributes_Bike_bits[] = {
 static int
 dissect_dsrc_LaneAttributes_Bike(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     16, 16, FALSE, dsrc_LaneAttributes_Bike_bits, 7, NULL, NULL);
+                                     16, 16, false, dsrc_LaneAttributes_Bike_bits, 7, NULL, NULL);
 
   return offset;
 }
@@ -10572,7 +10857,7 @@ static int * const dsrc_LaneAttributes_Sidewalk_bits[] = {
 static int
 dissect_dsrc_LaneAttributes_Sidewalk(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     16, 16, FALSE, dsrc_LaneAttributes_Sidewalk_bits, 4, NULL, NULL);
+                                     16, 16, false, dsrc_LaneAttributes_Sidewalk_bits, 4, NULL, NULL);
 
   return offset;
 }
@@ -10595,7 +10880,7 @@ static int * const dsrc_LaneAttributes_Barrier_bits[] = {
 static int
 dissect_dsrc_LaneAttributes_Barrier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     16, 16, FALSE, dsrc_LaneAttributes_Barrier_bits, 10, NULL, NULL);
+                                     16, 16, false, dsrc_LaneAttributes_Barrier_bits, 10, NULL, NULL);
 
   return offset;
 }
@@ -10614,7 +10899,7 @@ static int * const dsrc_LaneAttributes_Striping_bits[] = {
 static int
 dissect_dsrc_LaneAttributes_Striping(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     16, 16, FALSE, dsrc_LaneAttributes_Striping_bits, 6, NULL, NULL);
+                                     16, 16, false, dsrc_LaneAttributes_Striping_bits, 6, NULL, NULL);
 
   return offset;
 }
@@ -10632,7 +10917,7 @@ static int * const dsrc_LaneAttributes_TrackedVehicle_bits[] = {
 static int
 dissect_dsrc_LaneAttributes_TrackedVehicle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     16, 16, FALSE, dsrc_LaneAttributes_TrackedVehicle_bits, 5, NULL, NULL);
+                                     16, 16, false, dsrc_LaneAttributes_TrackedVehicle_bits, 5, NULL, NULL);
 
   return offset;
 }
@@ -10652,7 +10937,7 @@ static int * const dsrc_LaneAttributes_Parking_bits[] = {
 static int
 dissect_dsrc_LaneAttributes_Parking(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     16, 16, FALSE, dsrc_LaneAttributes_Parking_bits, 7, NULL, NULL);
+                                     16, 16, false, dsrc_LaneAttributes_Parking_bits, 7, NULL, NULL);
 
   return offset;
 }
@@ -10731,7 +11016,7 @@ static int * const dsrc_AllowedManeuvers_bits[] = {
 static int
 dissect_dsrc_AllowedManeuvers(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     12, 12, FALSE, dsrc_AllowedManeuvers_bits, 12, NULL, NULL);
+                                     12, 12, false, dsrc_AllowedManeuvers_bits, 12, NULL, NULL);
 
   return offset;
 }
@@ -10741,7 +11026,7 @@ dissect_dsrc_AllowedManeuvers(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_dsrc_Offset_B10(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -512, 511U, NULL, FALSE);
+                                                            -512, 511U, NULL, false);
 
   return offset;
 }
@@ -10766,7 +11051,7 @@ dissect_dsrc_Node_XY_20b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_dsrc_Offset_B11(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -1024, 1023U, NULL, FALSE);
+                                                            -1024, 1023U, NULL, false);
 
   return offset;
 }
@@ -10791,7 +11076,7 @@ dissect_dsrc_Node_XY_22b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_dsrc_Offset_B12(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -2048, 2047U, NULL, FALSE);
+                                                            -2048, 2047U, NULL, false);
 
   return offset;
 }
@@ -10816,7 +11101,7 @@ dissect_dsrc_Node_XY_24b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_dsrc_Offset_B13(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -4096, 4095U, NULL, FALSE);
+                                                            -4096, 4095U, NULL, false);
 
   return offset;
 }
@@ -10841,7 +11126,7 @@ dissect_dsrc_Node_XY_26b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_dsrc_Offset_B14(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -8192, 8191U, NULL, FALSE);
+                                                            -8192, 8191U, NULL, false);
 
   return offset;
 }
@@ -10866,7 +11151,7 @@ dissect_dsrc_Node_XY_28b(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_dsrc_Offset_B16(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -32768, 32767U, NULL, FALSE);
+                                                            -32768, 32767U, NULL, false);
 
   return offset;
 }
@@ -10959,7 +11244,7 @@ static const value_string dsrc_NodeAttributeXY_vals[] = {
 static int
 dissect_dsrc_NodeAttributeXY(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     12, NULL, TRUE, 0, NULL);
+                                     12, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -10973,7 +11258,7 @@ static int
 dissect_dsrc_NodeAttributeXYList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_NodeAttributeXYList, dsrc_NodeAttributeXYList_sequence_of,
-                                                  1, 8, FALSE);
+                                                  1, 8, false);
 
   return offset;
 }
@@ -11025,7 +11310,7 @@ static const value_string dsrc_SegmentAttributeXY_vals[] = {
 static int
 dissect_dsrc_SegmentAttributeXY(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     38, NULL, TRUE, 0, NULL);
+                                     38, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -11039,7 +11324,7 @@ static int
 dissect_dsrc_SegmentAttributeXYList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_SegmentAttributeXYList, dsrc_SegmentAttributeXYList_sequence_of,
-                                                  1, 8, FALSE);
+                                                  1, 8, false);
 
   return offset;
 }
@@ -11049,7 +11334,7 @@ dissect_dsrc_SegmentAttributeXYList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 static int
 dissect_dsrc_DeltaAngle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -150, 150U, NULL, FALSE);
+                                                            -150, 150U, NULL, false);
 
   return offset;
 }
@@ -11059,7 +11344,7 @@ dissect_dsrc_DeltaAngle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_dsrc_RoadwayCrownAngle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -128, 127U, NULL, FALSE);
+                                                            -128, 127U, NULL, false);
 
   return offset;
 }
@@ -11069,7 +11354,7 @@ dissect_dsrc_RoadwayCrownAngle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_dsrc_MergeDivergeNodeAngle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -180, 180U, NULL, FALSE);
+                                                            -180, 180U, NULL, false);
 
   return offset;
 }
@@ -11083,7 +11368,7 @@ static int
 dissect_dsrc_T_LaneDataAttributeRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_LaneDataAttributeRegional, dsrc_T_LaneDataAttributeRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -11132,7 +11417,7 @@ static int
 dissect_dsrc_LaneDataAttributeList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_LaneDataAttributeList, dsrc_LaneDataAttributeList_sequence_of,
-                                                  1, 8, FALSE);
+                                                  1, 8, false);
 
   return offset;
 }
@@ -11146,7 +11431,7 @@ static int
 dissect_dsrc_T_NodeAttributeSetXYRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_NodeAttributeSetXYRegional, dsrc_T_NodeAttributeSetXYRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -11198,7 +11483,7 @@ static int
 dissect_dsrc_NodeSetXY(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_NodeSetXY, dsrc_NodeSetXY_sequence_of,
-                                                  2, 63, FALSE);
+                                                  2, 63, false);
 
   return offset;
 }
@@ -11208,7 +11493,7 @@ dissect_dsrc_NodeSetXY(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_dsrc_DrivenLineOffsetSm(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -2047, 2047U, NULL, FALSE);
+                                                            -2047, 2047U, NULL, false);
 
   return offset;
 }
@@ -11218,7 +11503,7 @@ dissect_dsrc_DrivenLineOffsetSm(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_dsrc_DrivenLineOffsetLg(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -32767, 32767U, NULL, FALSE);
+                                                            -32767, 32767U, NULL, false);
 
   return offset;
 }
@@ -11272,7 +11557,7 @@ dissect_dsrc_T_offsetYaxis(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_dsrc_Angle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 28800U, NULL, FALSE);
+                                                            0U, 28800U, NULL, false);
 
   return offset;
 }
@@ -11282,7 +11567,7 @@ dissect_dsrc_Angle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, prot
 static int
 dissect_dsrc_Scale_B12(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -2048, 2047U, NULL, FALSE);
+                                                            -2048, 2047U, NULL, false);
 
   return offset;
 }
@@ -11296,7 +11581,7 @@ static int
 dissect_dsrc_T_ComputedLaneRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_ComputedLaneRegional, dsrc_T_ComputedLaneRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -11366,7 +11651,7 @@ dissect_dsrc_ConnectingLane(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_dsrc_SignalGroupID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -11376,7 +11661,7 @@ dissect_dsrc_SignalGroupID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_dsrc_RestrictionClassID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -11386,7 +11671,7 @@ dissect_dsrc_RestrictionClassID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_dsrc_LaneConnectionID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -11418,7 +11703,7 @@ static int
 dissect_dsrc_ConnectsToList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_ConnectsToList, dsrc_ConnectsToList_sequence_of,
-                                                  1, 16, FALSE);
+                                                  1, 16, false);
 
   return offset;
 }
@@ -11432,7 +11717,7 @@ static int
 dissect_dsrc_OverlayLaneList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_OverlayLaneList, dsrc_OverlayLaneList_sequence_of,
-                                                  1, 5, FALSE);
+                                                  1, 5, false);
 
   return offset;
 }
@@ -11446,7 +11731,7 @@ static int
 dissect_dsrc_T_GenericLaneRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_GenericLaneRegional, dsrc_T_GenericLaneRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -11486,7 +11771,7 @@ static int
 dissect_dsrc_LaneList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_LaneList, dsrc_LaneList_sequence_of,
-                                                  1, 255, FALSE);
+                                                  1, 255, false);
 
   return offset;
 }
@@ -11517,7 +11802,7 @@ static int
 dissect_dsrc_PreemptPriorityList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_PreemptPriorityList, dsrc_PreemptPriorityList_sequence_of,
-                                                  1, 32, FALSE);
+                                                  1, 32, false);
 
   return offset;
 }
@@ -11531,7 +11816,7 @@ static int
 dissect_dsrc_T_IntersectionGeometryRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_IntersectionGeometryRegional, dsrc_T_IntersectionGeometryRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -11570,7 +11855,7 @@ static int
 dissect_dsrc_IntersectionGeometryList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_IntersectionGeometryList, dsrc_IntersectionGeometryList_sequence_of,
-                                                  1, 32, FALSE);
+                                                  1, 32, false);
 
   return offset;
 }
@@ -11580,7 +11865,7 @@ dissect_dsrc_IntersectionGeometryList(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int
 dissect_dsrc_RoadSegmentID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -11609,7 +11894,7 @@ static int
 dissect_dsrc_RoadLaneSetList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_RoadLaneSetList, dsrc_RoadLaneSetList_sequence_of,
-                                                  1, 255, FALSE);
+                                                  1, 255, false);
 
   return offset;
 }
@@ -11623,7 +11908,7 @@ static int
 dissect_dsrc_T_RoadSegmentRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_RoadSegmentRegional, dsrc_T_RoadSegmentRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -11661,7 +11946,7 @@ static int
 dissect_dsrc_RoadSegmentList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_RoadSegmentList, dsrc_RoadSegmentList_sequence_of,
-                                                  1, 32, FALSE);
+                                                  1, 32, false);
 
   return offset;
 }
@@ -11671,7 +11956,7 @@ dissect_dsrc_RoadSegmentList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_dsrc_IA5String_SIZE_1_255(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_IA5String(tvb, offset, actx, tree, hf_index,
-                                          1, 255, FALSE,
+                                          1, 255, false,
                                           NULL);
 
   return offset;
@@ -11717,7 +12002,7 @@ static const value_string dsrc_RestrictionAppliesTo_vals[] = {
 static int
 dissect_dsrc_RestrictionAppliesTo(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     14, NULL, TRUE, 0, NULL);
+                                     14, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -11731,7 +12016,7 @@ static int
 dissect_dsrc_T_RestrictionUserTypeRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_RestrictionUserTypeRegional, dsrc_T_RestrictionUserTypeRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -11770,7 +12055,7 @@ static int
 dissect_dsrc_RestrictionUserTypeList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_RestrictionUserTypeList, dsrc_RestrictionUserTypeList_sequence_of,
-                                                  1, 16, FALSE);
+                                                  1, 16, false);
 
   return offset;
 }
@@ -11799,7 +12084,7 @@ static int
 dissect_dsrc_RestrictionClassList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_RestrictionClassList, dsrc_RestrictionClassList_sequence_of,
-                                                  1, 254, FALSE);
+                                                  1, 254, false);
 
   return offset;
 }
@@ -11813,7 +12098,7 @@ static int
 dissect_dsrc_T_MAPRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_MAPRegional, dsrc_T_MAPRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -11858,7 +12143,7 @@ static const value_string dsrc_RTCM_Revision_vals[] = {
 static int
 dissect_dsrc_RTCM_Revision(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, TRUE, 0, NULL);
+                                     4, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -11868,7 +12153,7 @@ dissect_dsrc_RTCM_Revision(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_dsrc_DYear(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 4095U, NULL, FALSE);
+                                                            0U, 4095U, NULL, false);
 
   return offset;
 }
@@ -11878,7 +12163,7 @@ dissect_dsrc_DYear(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, prot
 static int
 dissect_dsrc_DMonth(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 12U, NULL, FALSE);
+                                                            0U, 12U, NULL, false);
 
   return offset;
 }
@@ -11888,7 +12173,7 @@ dissect_dsrc_DMonth(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 static int
 dissect_dsrc_DDay(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 31U, NULL, FALSE);
+                                                            0U, 31U, NULL, false);
 
   return offset;
 }
@@ -11898,7 +12183,7 @@ dissect_dsrc_DDay(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto
 static int
 dissect_dsrc_DHour(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 31U, NULL, FALSE);
+                                                            0U, 31U, NULL, false);
 
   return offset;
 }
@@ -11908,7 +12193,7 @@ dissect_dsrc_DHour(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, prot
 static int
 dissect_dsrc_DMinute(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 60U, NULL, FALSE);
+                                                            0U, 60U, NULL, false);
 
   return offset;
 }
@@ -11918,7 +12203,7 @@ dissect_dsrc_DMinute(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
 static int
 dissect_dsrc_DSecond(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -11928,7 +12213,7 @@ dissect_dsrc_DSecond(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
 static int
 dissect_dsrc_DOffset(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -840, 840U, NULL, FALSE);
+                                                            -840, 840U, NULL, false);
 
   return offset;
 }
@@ -11958,7 +12243,7 @@ dissect_dsrc_DDateTime(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_dsrc_HeadingDSRC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 28800U, NULL, FALSE);
+                                                            0U, 28800U, NULL, false);
 
   return offset;
 }
@@ -11980,7 +12265,7 @@ static const value_string dsrc_TransmissionState_vals[] = {
 static int
 dissect_dsrc_TransmissionState(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -12005,7 +12290,7 @@ dissect_dsrc_TransmissionAndSpeed(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_dsrc_SemiMajorAxisAccuracy(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -12015,7 +12300,7 @@ dissect_dsrc_SemiMajorAxisAccuracy(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_dsrc_SemiMinorAxisAccuracy(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -12025,7 +12310,7 @@ dissect_dsrc_SemiMinorAxisAccuracy(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_dsrc_SemiMajorAxisOrientation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -12095,7 +12380,7 @@ static const value_string dsrc_TimeConfidence_vals[] = {
 static int
 dissect_dsrc_TimeConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     40, NULL, FALSE, 0, NULL);
+                                     40, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -12125,7 +12410,7 @@ static const value_string dsrc_PositionConfidence_vals[] = {
 static int
 dissect_dsrc_PositionConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -12155,7 +12440,7 @@ static const value_string dsrc_ElevationConfidence_vals[] = {
 static int
 dissect_dsrc_ElevationConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -12192,7 +12477,7 @@ static const value_string dsrc_HeadingConfidenceDSRC_vals[] = {
 static int
 dissect_dsrc_HeadingConfidenceDSRC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -12214,7 +12499,7 @@ static const value_string dsrc_SpeedConfidenceDSRC_vals[] = {
 static int
 dissect_dsrc_SpeedConfidenceDSRC(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -12232,7 +12517,7 @@ static const value_string dsrc_ThrottleConfidence_vals[] = {
 static int
 dissect_dsrc_ThrottleConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -12292,7 +12577,7 @@ static int * const dsrc_GNSSstatus_bits[] = {
 static int
 dissect_dsrc_GNSSstatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     8, 8, FALSE, dsrc_GNSSstatus_bits, 8, NULL, NULL);
+                                     8, 8, false, dsrc_GNSSstatus_bits, 8, NULL, NULL);
 
   return offset;
 }
@@ -12302,7 +12587,7 @@ dissect_dsrc_GNSSstatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_dsrc_Offset_B09(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -256, 255U, NULL, FALSE);
+                                                            -256, 255U, NULL, false);
 
   return offset;
 }
@@ -12343,7 +12628,7 @@ dissect_dsrc_RTCMheader(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_dsrc_RTCMmessage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       1, 1023, FALSE, NULL);
+                                       1, 1023, false, NULL);
 
   return offset;
 }
@@ -12357,7 +12642,7 @@ static int
 dissect_dsrc_RTCMmessageList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_RTCMmessageList, dsrc_RTCMmessageList_sequence_of,
-                                                  1, 5, FALSE);
+                                                  1, 5, false);
 
   return offset;
 }
@@ -12371,7 +12656,7 @@ static int
 dissect_dsrc_SEQUENCE_SIZE_1_4_OF_RegionalExtension(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_SEQUENCE_SIZE_1_4_OF_RegionalExtension, dsrc_SEQUENCE_SIZE_1_4_OF_RegionalExtension_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -12423,7 +12708,7 @@ static int * const dsrc_IntersectionStatusObject_bits[] = {
 static int
 dissect_dsrc_IntersectionStatusObject(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     16, 16, FALSE, dsrc_IntersectionStatusObject_bits, 14, NULL, NULL);
+                                     16, 16, false, dsrc_IntersectionStatusObject_bits, 14, NULL, NULL);
 
   return offset;
 }
@@ -12437,7 +12722,7 @@ static int
 dissect_dsrc_EnabledLaneList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_EnabledLaneList, dsrc_EnabledLaneList_sequence_of,
-                                                  1, 16, FALSE);
+                                                  1, 16, false);
 
   return offset;
 }
@@ -12461,7 +12746,7 @@ static const value_string dsrc_MovementPhaseState_vals[] = {
 static int
 dissect_dsrc_MovementPhaseState(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     10, NULL, FALSE, 0, NULL);
+                                     10, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -12471,7 +12756,7 @@ dissect_dsrc_MovementPhaseState(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_dsrc_TimeMark(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 36001U, NULL, FALSE);
+                                                            0U, 36001U, NULL, false);
 
   return offset;
 }
@@ -12481,7 +12766,7 @@ dissect_dsrc_TimeMark(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int
 dissect_dsrc_TimeIntervalConfidence(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, FALSE);
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -12518,7 +12803,7 @@ static const value_string dsrc_AdvisorySpeedType_vals[] = {
 static int
 dissect_dsrc_AdvisorySpeedType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, TRUE, 0, NULL);
+                                     4, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -12528,7 +12813,7 @@ dissect_dsrc_AdvisorySpeedType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_dsrc_SpeedAdvice(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 500U, NULL, FALSE);
+                                                            0U, 500U, NULL, false);
 
   return offset;
 }
@@ -12538,7 +12823,7 @@ dissect_dsrc_SpeedAdvice(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_dsrc_ZoneLength(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 10000U, NULL, FALSE);
+                                                            0U, 10000U, NULL, false);
 
   return offset;
 }
@@ -12552,7 +12837,7 @@ static int
 dissect_dsrc_T_AdvisorySpeedRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_AdvisorySpeedRegional, dsrc_T_AdvisorySpeedRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -12588,7 +12873,7 @@ static int
 dissect_dsrc_AdvisorySpeedList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_AdvisorySpeedList, dsrc_AdvisorySpeedList_sequence_of,
-                                                  1, 16, FALSE);
+                                                  1, 16, false);
 
   return offset;
 }
@@ -12602,7 +12887,7 @@ static int
 dissect_dsrc_T_MovementEventRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_MovementEventRegional, dsrc_T_MovementEventRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -12636,7 +12921,7 @@ static int
 dissect_dsrc_MovementEventList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_MovementEventList, dsrc_MovementEventList_sequence_of,
-                                                  1, 16, FALSE);
+                                                  1, 16, false);
 
   return offset;
 }
@@ -12668,7 +12953,7 @@ static int
 dissect_dsrc_T_ConnectionManeuverAssistRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_ConnectionManeuverAssistRegional, dsrc_T_ConnectionManeuverAssistRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -12704,7 +12989,7 @@ static int
 dissect_dsrc_ManeuverAssistList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_ManeuverAssistList, dsrc_ManeuverAssistList_sequence_of,
-                                                  1, 16, FALSE);
+                                                  1, 16, false);
 
   return offset;
 }
@@ -12718,7 +13003,7 @@ static int
 dissect_dsrc_T_MovementStateRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_MovementStateRegional, dsrc_T_MovementStateRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -12753,7 +13038,7 @@ static int
 dissect_dsrc_MovementList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_MovementList, dsrc_MovementList_sequence_of,
-                                                  1, 255, FALSE);
+                                                  1, 255, false);
 
   return offset;
 }
@@ -12767,7 +13052,7 @@ static int
 dissect_dsrc_T_IntersectionStateRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_IntersectionStateRegional, dsrc_T_IntersectionStateRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -12807,7 +13092,7 @@ static int
 dissect_dsrc_IntersectionStateList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_IntersectionStateList, dsrc_IntersectionStateList_sequence_of,
-                                                  1, 32, FALSE);
+                                                  1, 32, false);
 
   return offset;
 }
@@ -12821,7 +13106,7 @@ static int
 dissect_dsrc_T_SPATRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_SPATRegional, dsrc_T_SPATRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -12853,7 +13138,7 @@ dissect_dsrc_SPAT(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto
 static int
 dissect_dsrc_RequestID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -12871,7 +13156,7 @@ static const value_string dsrc_PriorityRequestType_vals[] = {
 static int
 dissect_dsrc_PriorityRequestType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, TRUE, 0, NULL);
+                                     4, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -12909,7 +13194,7 @@ static int
 dissect_dsrc_T_SignalRequestRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_SignalRequestRegional, dsrc_T_SignalRequestRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -12945,7 +13230,7 @@ static int
 dissect_dsrc_T_SignalRequestPackageRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_SignalRequestPackageRegional, dsrc_T_SignalRequestPackageRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -12980,7 +13265,7 @@ static int
 dissect_dsrc_SignalRequestList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_SignalRequestList, dsrc_SignalRequestList_sequence_of,
-                                                  1, 32, FALSE);
+                                                  1, 32, false);
 
   return offset;
 }
@@ -12990,7 +13275,7 @@ dissect_dsrc_SignalRequestList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_dsrc_TemporaryID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       4, 4, FALSE, NULL);
+                                       4, 4, false, NULL);
 
   return offset;
 }
@@ -13049,7 +13334,7 @@ static const value_string dsrc_BasicVehicleRole_vals[] = {
 static int
 dissect_dsrc_BasicVehicleRole(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     23, NULL, TRUE, 0, NULL);
+                                     23, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -13079,7 +13364,7 @@ static const value_string dsrc_RequestSubRole_vals[] = {
 static int
 dissect_dsrc_RequestSubRole(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -13109,7 +13394,7 @@ static const value_string dsrc_RequestImportanceLevel_vals[] = {
 static int
 dissect_dsrc_RequestImportanceLevel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -13139,7 +13424,7 @@ static const value_string dsrc_VehicleType_vals[] = {
 static int
 dissect_dsrc_VehicleType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, TRUE, 0, NULL);
+                                     16, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -13196,7 +13481,7 @@ static int * const dsrc_TransitVehicleStatus_bits[] = {
 static int
 dissect_dsrc_TransitVehicleStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     8, 8, FALSE, dsrc_TransitVehicleStatus_bits, 6, NULL, NULL);
+                                     8, 8, false, dsrc_TransitVehicleStatus_bits, 6, NULL, NULL);
 
   return offset;
 }
@@ -13218,7 +13503,7 @@ static const value_string dsrc_TransitVehicleOccupancy_vals[] = {
 static int
 dissect_dsrc_TransitVehicleOccupancy(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -13228,7 +13513,7 @@ dissect_dsrc_TransitVehicleOccupancy(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static int
 dissect_dsrc_DeltaTime(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -122, 121U, NULL, FALSE);
+                                                            -122, 121U, NULL, false);
 
   return offset;
 }
@@ -13242,7 +13527,7 @@ static int
 dissect_dsrc_T_RequestorDescriptionRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_RequestorDescriptionRegional, dsrc_T_RequestorDescriptionRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -13281,7 +13566,7 @@ static int
 dissect_dsrc_T_SRMRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_SRMRegional, dsrc_T_SRMRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -13345,7 +13630,7 @@ static const value_string dsrc_PrioritizationResponseStatus_vals[] = {
 static int
 dissect_dsrc_PrioritizationResponseStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, TRUE, 0, NULL);
+                                     8, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -13359,7 +13644,7 @@ static int
 dissect_dsrc_T_SignalStatusPackageRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_SignalStatusPackageRegional, dsrc_T_SignalStatusPackageRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -13397,7 +13682,7 @@ static int
 dissect_dsrc_SignalStatusPackageList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_SignalStatusPackageList, dsrc_SignalStatusPackageList_sequence_of,
-                                                  1, 32, FALSE);
+                                                  1, 32, false);
 
   return offset;
 }
@@ -13411,7 +13696,7 @@ static int
 dissect_dsrc_T_SignalStatusRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_SignalStatusRegional, dsrc_T_SignalStatusRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -13445,7 +13730,7 @@ static int
 dissect_dsrc_SignalStatusList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_SignalStatusList, dsrc_SignalStatusList_sequence_of,
-                                                  1, 32, FALSE);
+                                                  1, 32, false);
 
   return offset;
 }
@@ -13459,7 +13744,7 @@ static int
 dissect_dsrc_T_SSMRegional(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_dsrc_T_SSMRegional, dsrc_T_SSMRegional_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -13506,7 +13791,7 @@ static const value_string dsrc_FuelType_vals[] = {
 static int
 dissect_dsrc_FuelType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, FALSE);
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -13516,7 +13801,7 @@ dissect_dsrc_FuelType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int dissect_dsrc_MapData_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_dsrc_MapData(tvb, offset, &asn1_ctx, tree, hf_dsrc_dsrc_MapData_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -13524,7 +13809,7 @@ static int dissect_dsrc_MapData_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, p
 static int dissect_dsrc_RTCMcorrections_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_dsrc_RTCMcorrections(tvb, offset, &asn1_ctx, tree, hf_dsrc_dsrc_RTCMcorrections_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -13532,7 +13817,7 @@ static int dissect_dsrc_RTCMcorrections_PDU(tvbuff_t *tvb _U_, packet_info *pinf
 static int dissect_dsrc_SPAT_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_dsrc_SPAT(tvb, offset, &asn1_ctx, tree, hf_dsrc_dsrc_SPAT_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -13540,7 +13825,7 @@ static int dissect_dsrc_SPAT_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, prot
 static int dissect_dsrc_SignalRequestMessage_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_dsrc_SignalRequestMessage(tvb, offset, &asn1_ctx, tree, hf_dsrc_dsrc_SignalRequestMessage_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -13548,7 +13833,7 @@ static int dissect_dsrc_SignalRequestMessage_PDU(tvbuff_t *tvb _U_, packet_info 
 static int dissect_dsrc_SignalStatusMessage_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_dsrc_SignalStatusMessage(tvb, offset, &asn1_ctx, tree, hf_dsrc_dsrc_SignalStatusMessage_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -13567,7 +13852,7 @@ static const value_string AddGrpC_TimeReference_vals[] = {
 static int
 dissect_AddGrpC_TimeReference(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 60000U, NULL, FALSE);
+                                                            0U, 60000U, NULL, false);
 
   return offset;
 }
@@ -13598,7 +13883,7 @@ static int
 dissect_AddGrpC_ItsStationPositionList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_AddGrpC_ItsStationPositionList, AddGrpC_ItsStationPositionList_sequence_of,
-                                                  1, 5, FALSE);
+                                                  1, 5, false);
 
   return offset;
 }
@@ -13659,7 +13944,7 @@ static int
 dissect_AddGrpC_PrioritizationResponseList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_AddGrpC_PrioritizationResponseList, AddGrpC_PrioritizationResponseList_sequence_of,
-                                                  1, 10, FALSE);
+                                                  1, 10, false);
 
   return offset;
 }
@@ -13720,7 +14005,7 @@ static int
 dissect_AddGrpC_SignalHeadLocationList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_AddGrpC_SignalHeadLocationList, AddGrpC_SignalHeadLocationList_sequence_of,
-                                                  1, 64, FALSE);
+                                                  1, 64, false);
 
   return offset;
 }
@@ -13762,7 +14047,7 @@ static const value_string AddGrpC_ExceptionalCondition_vals[] = {
 static int
 dissect_AddGrpC_ExceptionalCondition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     13, NULL, TRUE, 0, NULL);
+                                     13, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -13796,7 +14081,7 @@ static const value_string AddGrpC_PtvRequestType_vals[] = {
 static int
 dissect_AddGrpC_PtvRequestType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     5, NULL, TRUE, 0, NULL);
+                                     5, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -13836,7 +14121,7 @@ static int
 dissect_AddGrpC_NodeLink(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_AddGrpC_NodeLink, AddGrpC_NodeLink_sequence_of,
-                                                  1, 5, FALSE);
+                                                  1, 5, false);
 
   return offset;
 }
@@ -13888,7 +14173,7 @@ static const value_string AddGrpC_EmissionType_vals[] = {
 static int
 dissect_AddGrpC_EmissionType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     6, NULL, TRUE, 0, NULL);
+                                     6, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -13922,7 +14207,7 @@ static const value_string AddGrpC_BatteryStatus_vals[] = {
 static int
 dissect_AddGrpC_BatteryStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, TRUE, 0, NULL);
+                                     4, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -13958,7 +14243,7 @@ static const value_string AddGrpC_RejectedReason_vals[] = {
 static int
 dissect_AddGrpC_RejectedReason(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     6, NULL, TRUE, 0, NULL);
+                                     6, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -13984,7 +14269,7 @@ dissect_AddGrpC_SignalStatusPackage_addGrpC(tvbuff_t *tvb _U_, int offset _U_, a
 static int dissect_AddGrpC_ConnectionManeuverAssist_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_ConnectionManeuverAssist_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_ConnectionManeuverAssist_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -13992,7 +14277,7 @@ static int dissect_AddGrpC_ConnectionManeuverAssist_addGrpC_PDU(tvbuff_t *tvb _U
 static int dissect_AddGrpC_ConnectionTrajectory_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_ConnectionTrajectory_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_ConnectionTrajectory_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -14000,7 +14285,7 @@ static int dissect_AddGrpC_ConnectionTrajectory_addGrpC_PDU(tvbuff_t *tvb _U_, p
 static int dissect_AddGrpC_IntersectionState_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_IntersectionState_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_IntersectionState_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -14008,7 +14293,7 @@ static int dissect_AddGrpC_IntersectionState_addGrpC_PDU(tvbuff_t *tvb _U_, pack
 static int dissect_AddGrpC_LaneAttributes_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_LaneAttributes_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_LaneAttributes_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -14016,7 +14301,7 @@ static int dissect_AddGrpC_LaneAttributes_addGrpC_PDU(tvbuff_t *tvb _U_, packet_
 static int dissect_AddGrpC_MapData_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_MapData_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_MapData_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -14024,7 +14309,7 @@ static int dissect_AddGrpC_MapData_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *p
 static int dissect_AddGrpC_MovementEvent_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_MovementEvent_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_MovementEvent_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -14032,7 +14317,7 @@ static int dissect_AddGrpC_MovementEvent_addGrpC_PDU(tvbuff_t *tvb _U_, packet_i
 static int dissect_AddGrpC_NodeAttributeSet_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_NodeAttributeSet_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_NodeAttributeSet_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -14040,7 +14325,7 @@ static int dissect_AddGrpC_NodeAttributeSet_addGrpC_PDU(tvbuff_t *tvb _U_, packe
 static int dissect_AddGrpC_Position3D_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_Position3D_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_Position3D_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -14048,7 +14333,7 @@ static int dissect_AddGrpC_Position3D_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info
 static int dissect_AddGrpC_RestrictionUserType_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_RestrictionUserType_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_RestrictionUserType_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -14056,7 +14341,7 @@ static int dissect_AddGrpC_RestrictionUserType_addGrpC_PDU(tvbuff_t *tvb _U_, pa
 static int dissect_AddGrpC_RequestorDescription_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_RequestorDescription_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_RequestorDescription_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -14064,7 +14349,7 @@ static int dissect_AddGrpC_RequestorDescription_addGrpC_PDU(tvbuff_t *tvb _U_, p
 static int dissect_AddGrpC_SignalStatusPackage_addGrpC_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_AddGrpC_SignalStatusPackage_addGrpC(tvb, offset, &asn1_ctx, tree, hf_AddGrpC_AddGrpC_SignalStatusPackage_addGrpC_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -14087,7 +14372,7 @@ static int dissect_gdd_GddStructure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 static int
 dissect_gdd_Pictogram_countryCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       2, 2, FALSE, NULL);
+                                       2, 2, false, NULL);
 
   return offset;
 }
@@ -14105,7 +14390,7 @@ static uint32_t gdd_Pictogram_trafficSign_value_map[3+0] = {11, 12, 13};
 static int
 dissect_gdd_Pictogram_trafficSign(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, TRUE, 0, gdd_Pictogram_trafficSign_value_map);
+                                     3, NULL, true, 0, gdd_Pictogram_trafficSign_value_map);
 
   return offset;
 }
@@ -14121,7 +14406,7 @@ static uint32_t gdd_Pictogram_publicFacilitySign_value_map[1+0] = {21};
 static int
 dissect_gdd_Pictogram_publicFacilitySign(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     1, NULL, TRUE, 0, gdd_Pictogram_publicFacilitySign_value_map);
+                                     1, NULL, true, 0, gdd_Pictogram_publicFacilitySign_value_map);
 
   return offset;
 }
@@ -14138,7 +14423,7 @@ static uint32_t gdd_Pictogram_conditionsSign_value_map[2+0] = {31, 32};
 static int
 dissect_gdd_Pictogram_conditionsSign(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, TRUE, 0, gdd_Pictogram_conditionsSign_value_map);
+                                     2, NULL, true, 0, gdd_Pictogram_conditionsSign_value_map);
 
   return offset;
 }
@@ -14172,7 +14457,7 @@ dissect_gdd_Pictogram_serviceCategory(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int
 dissect_gdd_Pictogram_nature(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 9U, NULL, FALSE);
+                                                            1U, 9U, NULL, false);
 
   return offset;
 }
@@ -14182,7 +14467,7 @@ dissect_gdd_Pictogram_nature(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_gdd_Pictogram_serialNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 99U, NULL, FALSE);
+                                                            0U, 99U, NULL, false);
 
   return offset;
 }
@@ -14223,7 +14508,7 @@ dissect_gdd_Pictogram(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int
 dissect_gdd_Year(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            2000U, 2127U, NULL, TRUE);
+                                                            2000U, 2127U, NULL, true);
 
   return offset;
 }
@@ -14248,7 +14533,7 @@ dissect_gdd_T_year(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, prot
 static int
 dissect_gdd_MonthDay_month(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 12U, NULL, FALSE);
+                                                            1U, 12U, NULL, false);
 
   return offset;
 }
@@ -14258,7 +14543,7 @@ dissect_gdd_MonthDay_month(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_gdd_MonthDay_day(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 31U, NULL, FALSE);
+                                                            1U, 31U, NULL, false);
 
   return offset;
 }
@@ -14305,7 +14590,7 @@ static int * const gdd_RPDT_bits[] = {
 static int
 dissect_gdd_RPDT(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     4, 4, FALSE, gdd_RPDT_bits, 4, NULL, NULL);
+                                     4, 4, false, gdd_RPDT_bits, 4, NULL, NULL);
 
   return offset;
 }
@@ -14315,7 +14600,7 @@ dissect_gdd_RPDT(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_
 static int
 dissect_gdd_HoursMinutes_hours(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 23U, NULL, FALSE);
+                                                            0U, 23U, NULL, false);
 
   return offset;
 }
@@ -14325,7 +14610,7 @@ dissect_gdd_HoursMinutes_hours(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_gdd_HoursMinutes_mins(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 59U, NULL, FALSE);
+                                                            0U, 59U, NULL, false);
 
   return offset;
 }
@@ -14376,7 +14661,7 @@ static int * const gdd_DayOfWeek_bits[] = {
 static int
 dissect_gdd_DayOfWeek(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     8, 8, FALSE, gdd_DayOfWeek_bits, 8, NULL, NULL);
+                                     8, 8, false, gdd_DayOfWeek_bits, 8, NULL, NULL);
 
   return offset;
 }
@@ -14426,7 +14711,7 @@ static const value_string gdd_InternationalSign_directionalFlowOfLane_vals[] = {
 static int
 dissect_gdd_InternationalSign_directionalFlowOfLane(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 8U, NULL, FALSE);
+                                                            1U, 8U, NULL, false);
 
   return offset;
 }
@@ -14436,7 +14721,7 @@ dissect_gdd_InternationalSign_directionalFlowOfLane(tvbuff_t *tvb _U_, int offse
 static int
 dissect_gdd_INTEGER_1_16384(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 16384U, NULL, FALSE);
+                                                            1U, 16384U, NULL, false);
 
   return offset;
 }
@@ -14466,7 +14751,7 @@ static const value_string gdd_Code_Units_vals[] = {
 static int
 dissect_gdd_T_unit(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                           2U, 8U, NULL, FALSE);
+                                           2U, 8U, NULL, false);
 
   return offset;
 }
@@ -14491,7 +14776,7 @@ dissect_gdd_Distance(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
 static int
 dissect_gdd_T_unit_01(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                           10U, 12U, NULL, FALSE);
+                                           10U, 12U, NULL, false);
 
   return offset;
 }
@@ -14533,7 +14818,7 @@ dissect_gdd_InternationalSign_applicableVehicleDimensions(tvbuff_t *tvb _U_, int
 static int
 dissect_gdd_INTEGER_0_250(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 250U, NULL, FALSE);
+                                                            0U, 250U, NULL, false);
 
   return offset;
 }
@@ -14543,7 +14828,7 @@ dissect_gdd_INTEGER_0_250(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_gdd_T_unit_02(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                           0U, 1U, NULL, FALSE);
+                                           0U, 1U, NULL, false);
 
   return offset;
 }
@@ -14569,7 +14854,7 @@ dissect_gdd_InternationalSign_speedLimits(tvbuff_t *tvb _U_, int offset _U_, asn
 static int
 dissect_gdd_InternationalSign_rateOfIncline(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 32U, NULL, FALSE);
+                                                            1U, 32U, NULL, false);
 
   return offset;
 }
@@ -14588,7 +14873,7 @@ dissect_gdd_InternationalSign_distanceBetweenVehicles(tvbuff_t *tvb _U_, int off
 static int
 dissect_gdd_DistinInfo_junctionDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 128U, NULL, FALSE);
+                                                            1U, 128U, NULL, false);
 
   return offset;
 }
@@ -14598,7 +14883,7 @@ dissect_gdd_DistinInfo_junctionDirection(tvbuff_t *tvb _U_, int offset _U_, asn1
 static int
 dissect_gdd_DistinInfo_roundaboutCwDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 128U, NULL, FALSE);
+                                                            1U, 128U, NULL, false);
 
   return offset;
 }
@@ -14608,7 +14893,7 @@ dissect_gdd_DistinInfo_roundaboutCwDirection(tvbuff_t *tvb _U_, int offset _U_, 
 static int
 dissect_gdd_DistinInfo_roundaboutCcwDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 128U, NULL, FALSE);
+                                                            1U, 128U, NULL, false);
 
   return offset;
 }
@@ -14618,7 +14903,7 @@ dissect_gdd_DistinInfo_roundaboutCcwDirection(tvbuff_t *tvb _U_, int offset _U_,
 static int
 dissect_gdd_IO_arrowDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -14648,7 +14933,7 @@ static const value_string gdd_DestinationType_vals[] = {
 static int
 dissect_gdd_DestinationType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, TRUE);
+                                                            0U, 15U, NULL, true);
 
   return offset;
 }
@@ -14658,7 +14943,7 @@ dissect_gdd_DestinationType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_gdd_DestPlace_destBlob(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       NO_BOUND, NO_BOUND, FALSE, NULL);
+                                       NO_BOUND, NO_BOUND, false, NULL);
 
   return offset;
 }
@@ -14668,7 +14953,7 @@ dissect_gdd_DestPlace_destBlob(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_gdd_DestPlace_placeNameIdentification(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 999U, NULL, FALSE);
+                                                            1U, 999U, NULL, false);
 
   return offset;
 }
@@ -14678,7 +14963,7 @@ dissect_gdd_DestPlace_placeNameIdentification(tvbuff_t *tvb _U_, int offset _U_,
 static int
 dissect_gdd_DestPlace_placeNameText(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          NO_BOUND, NO_BOUND, FALSE);
+                                          NO_BOUND, NO_BOUND, false);
 
   return offset;
 }
@@ -14710,7 +14995,7 @@ static int
 dissect_gdd_SEQUENCE_SIZE_1_4__OF_DestinationPlace(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_gdd_SEQUENCE_SIZE_1_4__OF_DestinationPlace, gdd_SEQUENCE_SIZE_1_4__OF_DestinationPlace_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -14740,7 +15025,7 @@ static const value_string gdd_DestinationRoadType_vals[] = {
 static int
 dissect_gdd_DestinationRoadType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, TRUE);
+                                                            0U, 15U, NULL, true);
 
   return offset;
 }
@@ -14750,7 +15035,7 @@ dissect_gdd_DestinationRoadType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_gdd_DestRoad_roadNumberIdentifier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 999U, NULL, FALSE);
+                                                            1U, 999U, NULL, false);
 
   return offset;
 }
@@ -14760,7 +15045,7 @@ dissect_gdd_DestRoad_roadNumberIdentifier(tvbuff_t *tvb _U_, int offset _U_, asn
 static int
 dissect_gdd_DestRoad_roadNumberText(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          NO_BOUND, NO_BOUND, FALSE);
+                                          NO_BOUND, NO_BOUND, false);
 
   return offset;
 }
@@ -14790,7 +15075,7 @@ static int
 dissect_gdd_SEQUENCE_SIZE_1_4__OF_DestinationRoad(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_gdd_SEQUENCE_SIZE_1_4__OF_DestinationRoad, gdd_SEQUENCE_SIZE_1_4__OF_DestinationRoad_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -14800,7 +15085,7 @@ dissect_gdd_SEQUENCE_SIZE_1_4__OF_DestinationRoad(tvbuff_t *tvb _U_, int offset 
 static int
 dissect_gdd_IO_roadNumberIdentifier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 999U, NULL, FALSE);
+                                                            1U, 999U, NULL, false);
 
   return offset;
 }
@@ -14810,7 +15095,7 @@ dissect_gdd_IO_roadNumberIdentifier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 static int
 dissect_gdd_IO_streetName(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 999U, NULL, FALSE);
+                                                            1U, 999U, NULL, false);
 
   return offset;
 }
@@ -14820,7 +15105,7 @@ dissect_gdd_IO_streetName(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_gdd_IO_streetNameText(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          NO_BOUND, NO_BOUND, FALSE);
+                                          NO_BOUND, NO_BOUND, false);
 
   return offset;
 }
@@ -14830,7 +15115,7 @@ dissect_gdd_IO_streetNameText(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_gdd_DistOrDuration_value(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 16384U, NULL, FALSE);
+                                                            1U, 16384U, NULL, false);
 
   return offset;
 }
@@ -14840,7 +15125,7 @@ dissect_gdd_DistOrDuration_value(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 static int
 dissect_gdd_DistOrDuration_Units(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                           2U, 9U, NULL, FALSE);
+                                           2U, 9U, NULL, false);
 
   return offset;
 }
@@ -14890,7 +15175,7 @@ static int
 dissect_gdd_SEQUENCE_SIZE_1_8__OF_DestinationInformationIO(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_gdd_SEQUENCE_SIZE_1_8__OF_DestinationInformationIO, gdd_SEQUENCE_SIZE_1_8__OF_DestinationInformationIO_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -14932,7 +15217,7 @@ dissect_gdd_InternationalSign_section(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int
 dissect_gdd_InternationalSign_numberOfLane(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 99U, NULL, FALSE);
+                                                            0U, 99U, NULL, false);
 
   return offset;
 }
@@ -14984,7 +15269,7 @@ static int
 dissect_gdd_GddAttributes(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_gdd_GddAttributes, gdd_GddAttributes_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -14998,7 +15283,7 @@ static const per_sequence_t gdd_GddStructure_sequence[] = {
 
 static int
 dissect_gdd_GddStructure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  // GddStructure → GddAttributes → GddAttributes/_item → InternationalSign-destinationInformation → InternationalSign-destinationInformation/ioList → DestinationInformationIO → DestinationInformationIO/destPlace → DestinationPlace → GddStructure
+  // GddStructure -> GddAttributes -> GddAttributes/_item -> InternationalSign-destinationInformation -> InternationalSign-destinationInformation/ioList -> DestinationInformationIO -> DestinationInformationIO/destPlace -> DestinationPlace -> GddStructure
   actx->pinfo->dissection_depth += 8;
   increment_dissection_depth(actx->pinfo);
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -15013,25 +15298,15 @@ dissect_gdd_GddStructure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 /* --- Module IVI --- --- ---                                                 */
 
 
-
-static int
-dissect_ivi_IviIdentificationNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 32767U, NULL, TRUE);
-
-  return offset;
-}
-
-
 static const per_sequence_t ivi_IviIdentificationNumbers_sequence_of[1] = {
-  { &hf_ivi_IviIdentificationNumbers_item, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_ivi_IviIdentificationNumber },
+  { &hf_ivi_IviIdentificationNumbers_item, ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_IviIdentificationNumber },
 };
 
 static int
 dissect_ivi_IviIdentificationNumbers(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_IviIdentificationNumbers, ivi_IviIdentificationNumbers_sequence_of,
-                                                  1, 8, FALSE);
+                                                  1, 8, false);
 
   return offset;
 }
@@ -15049,7 +15324,7 @@ static const value_string ivi_IviStatus_vals[] = {
 static int
 dissect_ivi_IviStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -15063,7 +15338,7 @@ static int
 dissect_ivi_ConnectedDenms(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_ConnectedDenms, ivi_ConnectedDenms_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -15071,7 +15346,7 @@ dissect_ivi_ConnectedDenms(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 
 static const per_sequence_t ivi_IviManagementContainer_sequence[] = {
   { &hf_ivi_serviceProviderId, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_dsrc_app_Provider },
-  { &hf_ivi_iviIdentificationNumber, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_ivi_IviIdentificationNumber },
+  { &hf_ivi_iviIdentificationNumber, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_its_IviIdentificationNumber },
   { &hf_ivi_timeStamp       , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_TimestampIts },
   { &hf_ivi_validFrom       , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_TimestampIts },
   { &hf_ivi_validTo         , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_TimestampIts },
@@ -15094,7 +15369,7 @@ dissect_ivi_IviManagementContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_ivi_Zid(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 32U, NULL, TRUE);
+                                                            1U, 32U, NULL, true);
 
   return offset;
 }
@@ -15104,7 +15379,7 @@ dissect_ivi_Zid(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_t
 static int
 dissect_ivi_INTEGER_0_255(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -15133,7 +15408,7 @@ static int
 dissect_ivi_DeltaPositions(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_DeltaPositions, ivi_DeltaPositions_sequence_of,
-                                                  1, 32, TRUE);
+                                                  1, 32, true);
 
   return offset;
 }
@@ -15147,7 +15422,7 @@ static int
 dissect_ivi_DeltaReferencePositions(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_DeltaReferencePositions, ivi_DeltaReferencePositions_sequence_of,
-                                                  1, 32, TRUE);
+                                                  1, 32, true);
 
   return offset;
 }
@@ -15176,7 +15451,7 @@ static int
 dissect_ivi_AbsolutePositions(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_AbsolutePositions, ivi_AbsolutePositions_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -15206,7 +15481,7 @@ static int
 dissect_ivi_AbsolutePositionsWAltitude(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_AbsolutePositionsWAltitude, ivi_AbsolutePositionsWAltitude_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -15242,7 +15517,7 @@ dissect_ivi_PolygonalLine(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_ivi_IviLaneWidth(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 1023U, NULL, FALSE);
+                                                            0U, 1023U, NULL, false);
 
   return offset;
 }
@@ -15267,7 +15542,7 @@ dissect_ivi_Segment(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 static int
 dissect_ivi_INTEGER_M32768_32767(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -32768, 32767U, NULL, FALSE);
+                                                            -32768, 32767U, NULL, false);
 
   return offset;
 }
@@ -15341,7 +15616,7 @@ static int
 dissect_ivi_GlcParts(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_GlcParts, ivi_GlcParts_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -15373,7 +15648,7 @@ static int
 dissect_ivi_ZoneIds(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_ZoneIds, ivi_ZoneIds_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -15409,7 +15684,7 @@ static const value_string ivi_Direction_vals[] = {
 static int
 dissect_ivi_Direction(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3U, NULL, FALSE);
+                                                            0U, 3U, NULL, false);
 
   return offset;
 }
@@ -15432,7 +15707,7 @@ static int
 dissect_ivi_LanePositions(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_LanePositions, ivi_LanePositions_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -15451,7 +15726,7 @@ static const value_string ivi_IviType_vals[] = {
 static int
 dissect_ivi_IviType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -15468,7 +15743,7 @@ static const value_string ivi_IviPurpose_vals[] = {
 static int
 dissect_ivi_IviPurpose(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3U, NULL, FALSE);
+                                                            0U, 3U, NULL, false);
 
   return offset;
 }
@@ -15489,7 +15764,7 @@ static const value_string ivi_LaneStatus_vals[] = {
 static int
 dissect_ivi_LaneStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, TRUE);
+                                                            0U, 7U, NULL, true);
 
   return offset;
 }
@@ -15517,7 +15792,7 @@ static const value_string ivi_GoodsType_vals[] = {
 static int
 dissect_ivi_GoodsType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, TRUE);
+                                                            0U, 15U, NULL, true);
 
   return offset;
 }
@@ -15579,7 +15854,7 @@ static int
 dissect_ivi_VehicleCharacteristicsFixValuesList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_VehicleCharacteristicsFixValuesList, ivi_VehicleCharacteristicsFixValuesList_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -15615,7 +15890,7 @@ static const value_string ivi_ComparisonOperator_vals[] = {
 static int
 dissect_ivi_ComparisonOperator(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3U, NULL, FALSE);
+                                                            0U, 3U, NULL, false);
 
   return offset;
 }
@@ -15625,7 +15900,7 @@ dissect_ivi_ComparisonOperator(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_ivi_INTEGER_0_7(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -15688,7 +15963,7 @@ static int
 dissect_ivi_VehicleCharacteristicsRangesList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_VehicleCharacteristicsRangesList, ivi_VehicleCharacteristicsRangesList_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -15718,7 +15993,7 @@ static int
 dissect_ivi_TrailerCharacteristicsFixValuesList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_TrailerCharacteristicsFixValuesList, ivi_TrailerCharacteristicsFixValuesList_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -15750,7 +16025,7 @@ static int
 dissect_ivi_TrailerCharacteristicsRangesList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_TrailerCharacteristicsRangesList, ivi_TrailerCharacteristicsRangesList_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -15780,7 +16055,7 @@ static int
 dissect_ivi_TrailerCharacteristicsList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_TrailerCharacteristicsList, ivi_TrailerCharacteristicsList_sequence_of,
-                                                  1, 3, FALSE);
+                                                  1, 3, false);
 
   return offset;
 }
@@ -15819,7 +16094,7 @@ static int
 dissect_ivi_VehicleCharacteristicsList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_VehicleCharacteristicsList, ivi_VehicleCharacteristicsList_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -15837,7 +16112,7 @@ static const value_string ivi_DriverCharacteristics_vals[] = {
 static int
 dissect_ivi_DriverCharacteristics(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3U, NULL, FALSE);
+                                                            0U, 3U, NULL, false);
 
   return offset;
 }
@@ -15847,7 +16122,7 @@ dissect_ivi_DriverCharacteristics(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_ivi_INTEGER_1_4_(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 4U, NULL, TRUE);
+                                                            1U, 4U, NULL, true);
 
   return offset;
 }
@@ -15857,7 +16132,7 @@ dissect_ivi_INTEGER_1_4_(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_ivi_INTEGER_1_64_(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 64U, NULL, TRUE);
+                                                            1U, 64U, NULL, true);
 
   return offset;
 }
@@ -15879,7 +16154,7 @@ static const value_string ivi_VcClass_vals[] = {
 static int
 dissect_ivi_VcClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -15889,7 +16164,7 @@ dissect_ivi_VcClass(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 static int
 dissect_ivi_INTEGER_1_64(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 64U, NULL, FALSE);
+                                                            1U, 64U, NULL, false);
 
   return offset;
 }
@@ -15911,7 +16186,7 @@ static const value_string ivi_VcOption_vals[] = {
 static int
 dissect_ivi_VcOption(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -15925,7 +16200,7 @@ static int
 dissect_ivi_ValidityPeriods(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_ValidityPeriods, ivi_ValidityPeriods_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -15935,7 +16210,7 @@ dissect_ivi_ValidityPeriods(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_ivi_INTEGER_0_65535(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -15963,7 +16238,7 @@ static const value_string ivi_RSCUnit_vals[] = {
 static int
 dissect_ivi_RSCUnit(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, FALSE);
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -15992,7 +16267,7 @@ dissect_ivi_VcCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, prot
 static int
 dissect_ivi_OCTET_STRING_SIZE_2(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       2, 2, FALSE, NULL);
+                                       2, 2, false, NULL);
 
   return offset;
 }
@@ -16009,7 +16284,7 @@ static const value_string ivi_T_trafficSignPictogram_vals[] = {
 static int
 dissect_ivi_T_trafficSignPictogram(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, TRUE, 0, NULL);
+                                     3, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -16024,7 +16299,7 @@ static const value_string ivi_T_publicFacilitiesPictogram_vals[] = {
 static int
 dissect_ivi_T_publicFacilitiesPictogram(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     1, NULL, TRUE, 0, NULL);
+                                     1, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -16040,7 +16315,7 @@ static const value_string ivi_T_ambientOrRoadConditionPictogram_vals[] = {
 static int
 dissect_ivi_T_ambientOrRoadConditionPictogram(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, TRUE, 0, NULL);
+                                     2, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -16074,7 +16349,7 @@ dissect_ivi_T_serviceCategoryCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_ivi_INTEGER_1_9(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 9U, NULL, FALSE);
+                                                            1U, 9U, NULL, false);
 
   return offset;
 }
@@ -16084,7 +16359,7 @@ dissect_ivi_INTEGER_1_9(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_ivi_INTEGER_0_99(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 99U, NULL, FALSE);
+                                                            0U, 99U, NULL, false);
 
   return offset;
 }
@@ -16163,7 +16438,7 @@ static int
 dissect_ivi_ISO14823Attributes(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_ISO14823Attributes, ivi_ISO14823Attributes_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -16252,7 +16527,7 @@ static int
 dissect_ivi_RoadSignCodes(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_RoadSignCodes, ivi_RoadSignCodes_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -16263,7 +16538,7 @@ static int
 dissect_ivi_T_language(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   tvbuff_t *val_tvb = NULL;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     10, 10, FALSE, NULL, 0, &val_tvb, NULL);
+                                     10, 10, false, NULL, 0, &val_tvb, NULL);
 
   append_country_code_fmt(actx->created_item, val_tvb);
 
@@ -16275,7 +16550,7 @@ dissect_ivi_T_language(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_ivi_UTF8String(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          NO_BOUND, NO_BOUND, FALSE);
+                                          NO_BOUND, NO_BOUND, false);
 
   return offset;
 }
@@ -16305,7 +16580,7 @@ static int
 dissect_ivi_ConstraintTextLines1(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_ConstraintTextLines1, ivi_ConstraintTextLines1_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -16357,7 +16632,7 @@ static int
 dissect_ivi_GeneralIviContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_GeneralIviContainer, ivi_GeneralIviContainer_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -16392,7 +16667,7 @@ static const value_string ivi_LaneType_vals[] = {
 static int
 dissect_ivi_LaneType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 31U, NULL, FALSE);
+                                                            0U, 31U, NULL, false);
 
   return offset;
 }
@@ -16414,7 +16689,7 @@ static const value_string ivi_DefinitionAccuracy_vals[] = {
 static int
 dissect_ivi_DefinitionAccuracy(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, TRUE);
+                                                            0U, 7U, NULL, true);
 
   return offset;
 }
@@ -16443,7 +16718,7 @@ static const value_string ivi_MarkingColour_vals[] = {
 static int
 dissect_ivi_MarkingColour(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, TRUE);
+                                                            0U, 7U, NULL, true);
 
   return offset;
 }
@@ -16464,7 +16739,7 @@ static const value_string ivi_LaneDelimitation_vals[] = {
 static int
 dissect_ivi_LaneDelimitation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, TRUE);
+                                                            0U, 7U, NULL, true);
 
   return offset;
 }
@@ -16493,7 +16768,7 @@ dissect_ivi_LaneCharacteristics(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_ivi_FrictionCoefficient(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 101U, NULL, FALSE);
+                                                            0U, 101U, NULL, false);
 
   return offset;
 }
@@ -16512,7 +16787,7 @@ static const value_string ivi_MaterialType_vals[] = {
 static int
 dissect_ivi_MaterialType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, TRUE);
+                                                            0U, 7U, NULL, true);
 
   return offset;
 }
@@ -16531,7 +16806,7 @@ static const value_string ivi_WearLevel_vals[] = {
 static int
 dissect_ivi_WearLevel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, TRUE);
+                                                            0U, 7U, NULL, true);
 
   return offset;
 }
@@ -16541,7 +16816,7 @@ dissect_ivi_WearLevel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int
 dissect_ivi_BankingAngle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -20, 21U, NULL, FALSE);
+                                                            -20, 21U, NULL, false);
 
   return offset;
 }
@@ -16581,7 +16856,7 @@ static const value_string ivi_Condition_vals[] = {
 static int
 dissect_ivi_Condition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, TRUE);
+                                                            0U, 15U, NULL, true);
 
   return offset;
 }
@@ -16591,7 +16866,7 @@ dissect_ivi_Condition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int
 dissect_ivi_Temperature(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            -100, 151U, NULL, FALSE);
+                                                            -100, 151U, NULL, false);
 
   return offset;
 }
@@ -16601,7 +16876,7 @@ dissect_ivi_Temperature(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_ivi_Depth(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -16620,7 +16895,7 @@ static const value_string ivi_TreatmentType_vals[] = {
 static int
 dissect_ivi_TreatmentType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -16689,7 +16964,7 @@ static int
 dissect_ivi_LaneConfiguration(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_LaneConfiguration, ivi_LaneConfiguration_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -16719,7 +16994,7 @@ static int
 dissect_ivi_RoadConfigurationContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_RoadConfigurationContainer, ivi_RoadConfigurationContainer_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -16760,7 +17035,7 @@ static int
 dissect_ivi_TextLines(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_TextLines, ivi_TextLines_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -16779,7 +17054,7 @@ dissect_ivi_T_TcPartText(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_ivi_OCTET_STRING(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       NO_BOUND, NO_BOUND, FALSE, NULL);
+                                       NO_BOUND, NO_BOUND, false, NULL);
 
   return offset;
 }
@@ -16832,7 +17107,7 @@ static int
 dissect_ivi_TextContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_TextContainer, ivi_TextContainer_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -16842,7 +17117,7 @@ dissect_ivi_TextContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_ivi_INTEGER_10_73(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            10U, 73U, NULL, FALSE);
+                                                            10U, 73U, NULL, false);
 
   return offset;
 }
@@ -16852,7 +17127,7 @@ dissect_ivi_INTEGER_10_73(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_ivi_INTEGER_10_265(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            10U, 265U, NULL, FALSE);
+                                                            10U, 265U, NULL, false);
 
   return offset;
 }
@@ -16862,7 +17137,7 @@ dissect_ivi_INTEGER_10_265(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_ivi_INTEGER_1_8_(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 8U, NULL, TRUE);
+                                                            1U, 8U, NULL, true);
 
   return offset;
 }
@@ -16878,7 +17153,7 @@ static const value_string ivi_T_textScripting_vals[] = {
 static int
 dissect_ivi_T_textScripting(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 1U, NULL, FALSE);
+                                                            0U, 1U, NULL, false);
 
   return offset;
 }
@@ -16911,7 +17186,7 @@ static int
 dissect_ivi_LayoutComponents(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_LayoutComponents, ivi_LayoutComponents_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -16938,7 +17213,7 @@ dissect_ivi_LayoutContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_ivi_PriorityLevel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 2U, NULL, FALSE);
+                                                            0U, 2U, NULL, false);
 
   return offset;
 }
@@ -16948,7 +17223,7 @@ dissect_ivi_PriorityLevel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_ivi_SaeAutomationLevel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 5U, NULL, FALSE);
+                                                            0U, 5U, NULL, false);
 
   return offset;
 }
@@ -16962,7 +17237,7 @@ static int
 dissect_ivi_SaeAutomationLevels(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_SaeAutomationLevels, ivi_SaeAutomationLevels_sequence_of,
-                                                  1, 5, FALSE);
+                                                  1, 5, false);
 
   return offset;
 }
@@ -16972,7 +17247,7 @@ dissect_ivi_SaeAutomationLevels(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_ivi_GapBetweenVehicles(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -16986,7 +17261,7 @@ static int
 dissect_ivi_ConstraintTextLines2(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_ConstraintTextLines2, ivi_ConstraintTextLines2_sequence_of,
-                                                  1, 4, TRUE);
+                                                  1, 4, true);
 
   return offset;
 }
@@ -17022,7 +17297,7 @@ static int
 dissect_ivi_AutomatedVehicleRules(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_AutomatedVehicleRules, ivi_AutomatedVehicleRules_sequence_of,
-                                                  1, 5, FALSE);
+                                                  1, 5, false);
 
   return offset;
 }
@@ -17032,7 +17307,7 @@ dissect_ivi_AutomatedVehicleRules(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_ivi_MaxNoOfVehicles(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            2U, 64U, NULL, FALSE);
+                                                            2U, 64U, NULL, false);
 
   return offset;
 }
@@ -17042,7 +17317,7 @@ dissect_ivi_MaxNoOfVehicles(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 static int
 dissect_ivi_MaxLenghtOfPlatoon(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 64U, NULL, FALSE);
+                                                            1U, 64U, NULL, false);
 
   return offset;
 }
@@ -17079,7 +17354,7 @@ static int
 dissect_ivi_PlatooningRules(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_PlatooningRules, ivi_PlatooningRules_sequence_of,
-                                                  1, 5, FALSE);
+                                                  1, 5, false);
 
   return offset;
 }
@@ -17113,7 +17388,7 @@ static int
 dissect_ivi_AutomatedVehicleContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_AutomatedVehicleContainer, ivi_AutomatedVehicleContainer_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -17149,7 +17424,7 @@ static int
 dissect_ivi_LaneIds(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_LaneIds, ivi_LaneIds_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -17178,7 +17453,7 @@ static int
 dissect_ivi_MlcParts(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_MlcParts, ivi_MlcParts_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -17225,7 +17500,7 @@ static int
 dissect_ivi_RoadSurfaceContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_RoadSurfaceContainer, ivi_RoadSurfaceContainer_sequence_of,
-                                                  1, 16, TRUE);
+                                                  1, 16, true);
 
   return offset;
 }
@@ -17273,7 +17548,7 @@ static int
 dissect_ivi_IviContainers(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_ivi_IviContainers, ivi_IviContainers_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -17301,7 +17576,7 @@ dissect_ivi_IviStructure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int dissect_ivi_IviStructure_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_ivi_IviStructure(tvb, offset, &asn1_ctx, tree, hf_ivi_ivi_IviStructure_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -17333,7 +17608,7 @@ static int dissect_ivi_IviStructure_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U
 static int
 dissect_camv1_GenerationDeltaTime(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -17633,7 +17908,7 @@ dissect_camv1_CoopAwarenessV1(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int dissect_camv1_CoopAwarenessV1_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_camv1_CoopAwarenessV1(tvb, offset, &asn1_ctx, tree, hf_camv1_camv1_CoopAwarenessV1_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -17922,7 +18197,7 @@ dissect_cam_CamPayload(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int dissect_cam_CamPayload_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_cam_CamPayload(tvb, offset, &asn1_ctx, tree, hf_cam_cam_CamPayload_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -17942,7 +18217,7 @@ static const value_string denmv1_Termination_vals[] = {
 static int
 dissect_denmv1_Termination(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -18038,7 +18313,7 @@ static int
 dissect_denmv1_ReferenceDenms(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_denmv1_ReferenceDenms, denmv1_ReferenceDenms_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -18128,7 +18403,7 @@ dissect_denmv1_DecentralizedEnvironmentalNotificationMessageV1(tvbuff_t *tvb _U_
 static int dissect_denmv1_DecentralizedEnvironmentalNotificationMessageV1_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_denmv1_DecentralizedEnvironmentalNotificationMessageV1(tvb, offset, &asn1_ctx, tree, hf_denmv1_denmv1_DecentralizedEnvironmentalNotificationMessageV1_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -18148,7 +18423,7 @@ static const value_string denm_Termination_vals[] = {
 static int
 dissect_denm_Termination(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -18320,7 +18595,7 @@ dissect_denm_DenmPayload(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int dissect_denm_DenmPayload_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_denm_DenmPayload(tvb, offset, &asn1_ctx, tree, hf_denm_denm_DenmPayload_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -18347,7 +18622,7 @@ static const value_string tistpg_UNVehicleClassifcation_vals[] = {
 static int
 dissect_tistpg_UNVehicleClassifcation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 63U, NULL, FALSE);
+                                                            0U, 63U, NULL, false);
 
   return offset;
 }
@@ -18357,7 +18632,7 @@ dissect_tistpg_UNVehicleClassifcation(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int
 dissect_tistpg_CustomerContract(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_IA5String(tvb, offset, actx, tree, hf_index,
-                                          1, 32, FALSE,
+                                          1, 32, false,
                                           NULL);
 
   return offset;
@@ -18375,7 +18650,7 @@ static int * const tistpg_TisProfile_bits[] = {
 static int
 dissect_tistpg_TisProfile(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     8, 8, FALSE, tistpg_TisProfile_bits, 4, NULL, NULL);
+                                     8, 8, false, tistpg_TisProfile_bits, 4, NULL, NULL);
 
   return offset;
 }
@@ -18416,7 +18691,7 @@ dissect_tistpg_TisTpgDRM_Situation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_tistpg_SearchRange(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -18433,7 +18708,7 @@ static const value_string tistpg_SearchCondition_vals[] = {
 static int
 dissect_tistpg_SearchCondition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -18478,7 +18753,7 @@ dissect_tistpg_TisTpgDRM(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_tistpg_TotalTpgStations(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -18510,7 +18785,7 @@ static int * const tistpg_TpgAutomation_bits[] = {
 static int
 dissect_tistpg_TpgAutomation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     4, 4, FALSE, tistpg_TpgAutomation_bits, 4, NULL, NULL);
+                                     4, 4, false, tistpg_TpgAutomation_bits, 4, NULL, NULL);
 
   return offset;
 }
@@ -18520,7 +18795,7 @@ dissect_tistpg_TpgAutomation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_tistpg_TpgNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 65535U, NULL, FALSE);
+                                                            1U, 65535U, NULL, false);
 
   return offset;
 }
@@ -18530,7 +18805,7 @@ dissect_tistpg_TpgNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_tistpg_TpgProvider(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 32, FALSE);
+                                          1, 32, false);
 
   return offset;
 }
@@ -18540,7 +18815,7 @@ dissect_tistpg_TpgProvider(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_tistpg_Accessibility(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 32, FALSE);
+                                          1, 32, false);
 
   return offset;
 }
@@ -18550,7 +18825,7 @@ dissect_tistpg_Accessibility(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_tistpg_UTF8String_SIZE_1_128(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 128, FALSE);
+                                          1, 128, false);
 
   return offset;
 }
@@ -18560,7 +18835,7 @@ dissect_tistpg_UTF8String_SIZE_1_128(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static int
 dissect_tistpg_BookingInfo(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          NO_BOUND, NO_BOUND, FALSE);
+                                          NO_BOUND, NO_BOUND, false);
 
   return offset;
 }
@@ -18570,7 +18845,7 @@ dissect_tistpg_BookingInfo(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_tistpg_AvailableTpgNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 65535U, NULL, FALSE);
+                                                            1U, 65535U, NULL, false);
 
   return offset;
 }
@@ -18580,7 +18855,7 @@ dissect_tistpg_AvailableTpgNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_tistpg_CancellationCondition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 32, FALSE);
+                                          1, 32, false);
 
   return offset;
 }
@@ -18620,7 +18895,7 @@ static int
 dissect_tistpg_TpgNotifContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_tistpg_TpgNotifContainer, tistpg_TpgNotifContainer_sequence_of,
-                                                  1, 8, FALSE);
+                                                  1, 8, false);
 
   return offset;
 }
@@ -18652,7 +18927,7 @@ static const value_string tistpg_ReservationStatus_vals[] = {
 static int
 dissect_tistpg_ReservationStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, TRUE, 0, NULL);
+                                     3, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -18662,7 +18937,7 @@ dissect_tistpg_ReservationStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 static int
 dissect_tistpg_ReservationID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 32, FALSE);
+                                          1, 32, false);
 
   return offset;
 }
@@ -18691,7 +18966,7 @@ dissect_tistpg_TisTpgTRM_Management(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 static int
 dissect_tistpg_PairingID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 9999U, NULL, FALSE);
+                                                            0U, 9999U, NULL, false);
 
   return offset;
 }
@@ -18748,7 +19023,7 @@ dissect_tistpg_TisTpgTRM(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_tistpg_INTEGER_1_65535(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 65535U, NULL, FALSE);
+                                                            1U, 65535U, NULL, false);
 
   return offset;
 }
@@ -18834,7 +19109,7 @@ static const value_string tistpg_FillingStatus_vals[] = {
 static int
 dissect_tistpg_FillingStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -18875,7 +19150,7 @@ dissect_tistpg_TisTpgVDRM(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_tistpg_Language(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     10, 10, FALSE, NULL, 0, NULL, NULL);
+                                     10, 10, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -18892,7 +19167,7 @@ static const value_string tistpg_TyreTempCondition_vals[] = {
 static int
 dissect_tistpg_TyreTempCondition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, TRUE, 0, NULL);
+                                     3, NULL, true, 0, NULL);
 
   return offset;
 }
@@ -18922,7 +19197,7 @@ dissect_tistpg_TisTpgVDPM_Management(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static int
 dissect_tistpg_TyreSetVariantID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, FALSE);
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -18932,7 +19207,7 @@ dissect_tistpg_TyreSetVariantID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_tistpg_TyreSidewallInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     60, 60, FALSE, NULL, 0, NULL, NULL);
+                                     60, 60, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -18942,7 +19217,7 @@ dissect_tistpg_TyreSidewallInformation(tvbuff_t *tvb _U_, int offset _U_, asn1_c
 static int
 dissect_tistpg_PressureConfiguration(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     9, 9, FALSE, NULL, 0, NULL, NULL);
+                                     9, 9, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -18958,7 +19233,7 @@ static const value_string tistpg_AxlePlacardPressure_vals[] = {
 static int
 dissect_tistpg_AxlePlacardPressure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -18988,7 +19263,7 @@ static int
 dissect_tistpg_PressureVariantsList(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_tistpg_PressureVariantsList, tistpg_PressureVariantsList_sequence_of,
-                                                  1, 15, FALSE);
+                                                  1, 15, false);
 
   return offset;
 }
@@ -19019,7 +19294,7 @@ static int
 dissect_tistpg_PlacardTable(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_tistpg_PlacardTable, tistpg_PlacardTable_sequence_of,
-                                                  0, 15, FALSE);
+                                                  0, 15, false);
 
   return offset;
 }
@@ -19039,7 +19314,7 @@ static const value_string tistpg_TyrePressure_vals[] = {
 static int
 dissect_tistpg_TyrePressure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -19127,7 +19402,7 @@ static const value_string tistpg_TyreAirTemperature_vals[] = {
 static int
 dissect_tistpg_TyreAirTemperature(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -19181,7 +19456,7 @@ dissect_tistpg_T_recommendedTyrePressure(tvbuff_t *tvb _U_, int offset _U_, asn1
 static int
 dissect_tistpg_TIN(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     64, 64, FALSE, NULL, 0, NULL, NULL);
+                                     64, 64, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -19219,7 +19494,7 @@ static const value_string tistpg_SensorState_vals[] = {
 static int
 dissect_tistpg_SensorState(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -19311,7 +19586,7 @@ static const value_string tistpg_NumberOfAppliedPressure_vals[] = {
 static int
 dissect_tistpg_NumberOfAppliedPressure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 5U, NULL, FALSE);
+                                                            1U, 5U, NULL, false);
 
   return offset;
 }
@@ -19347,7 +19622,7 @@ static int
 dissect_tistpg_AppliedTyrePressures(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_tistpg_AppliedTyrePressures, tistpg_AppliedTyrePressures_sequence_of,
-                                                  1, 5, FALSE);
+                                                  1, 5, false);
 
   return offset;
 }
@@ -19424,7 +19699,7 @@ dissect_tistpg_TisTpgTransaction(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 static int dissect_tistpg_TisTpgTransaction_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tistpg_TisTpgTransaction(tvb, offset, &asn1_ctx, tree, hf_tistpg_tistpg_TisTpgTransaction_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -19438,7 +19713,7 @@ static int dissect_tistpg_TisTpgTransaction_PDU(tvbuff_t *tvb _U_, packet_info *
 static int
 dissect_evcsn_POIType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -19473,7 +19748,7 @@ dissect_evcsn_ItsPOIHeader(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_evcsn_NumberStations(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 256U, NULL, FALSE);
+                                                            1U, 256U, NULL, false);
 
   return offset;
 }
@@ -19483,7 +19758,7 @@ dissect_evcsn_NumberStations(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_evcsn_UTF8String_SIZE_1_32(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 32, FALSE);
+                                          1, 32, false);
 
   return offset;
 }
@@ -19493,7 +19768,7 @@ dissect_evcsn_UTF8String_SIZE_1_32(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_evcsn_UTF8String(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          NO_BOUND, NO_BOUND, FALSE);
+                                          NO_BOUND, NO_BOUND, false);
 
   return offset;
 }
@@ -19503,7 +19778,7 @@ dissect_evcsn_UTF8String(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_evcsn_NumericString_SIZE_1_16(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_NumericString(tvb, offset, actx, tree, hf_index,
-                                          1, 16, FALSE,
+                                          1, 16, false,
                                           NULL);
 
   return offset;
@@ -19532,7 +19807,7 @@ static int * const evcsn_ChargingSpotType_bits[] = {
 static int
 dissect_evcsn_ChargingSpotType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     NO_BOUND, NO_BOUND, FALSE, evcsn_ChargingSpotType_bits, 15, NULL, NULL);
+                                     NO_BOUND, NO_BOUND, false, evcsn_ChargingSpotType_bits, 15, NULL, NULL);
 
   return offset;
 }
@@ -19544,7 +19819,7 @@ dissect_evcsn_TypeOfReceptacle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
   tvbuff_t *parameter_tvb = NULL;
   int len;
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     NO_BOUND, NO_BOUND, FALSE, NULL, 0, &parameter_tvb, &len);
+                                     NO_BOUND, NO_BOUND, false, NULL, 0, &parameter_tvb, &len);
 
   /* TODO Provide values?
    * See ETSI TS 101 556-1 V1.1.1 Annex B Description for data elements
@@ -19582,7 +19857,7 @@ dissect_evcsn_TypeOfReceptacle(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_evcsn_INTEGER_0_1400(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 1400U, NULL, FALSE);
+                                                            0U, 1400U, NULL, false);
 
   return offset;
 }
@@ -19611,7 +19886,7 @@ static int
 dissect_evcsn_ParkingPlacesData(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_evcsn_ParkingPlacesData, evcsn_ParkingPlacesData_sequence_of,
-                                                  1, 4, FALSE);
+                                                  1, 4, false);
 
   return offset;
 }
@@ -19643,7 +19918,7 @@ static int
 dissect_evcsn_ItsChargingSpots(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_evcsn_ItsChargingSpots, evcsn_ItsChargingSpots_sequence_of,
-                                                  1, 16, FALSE);
+                                                  1, 16, false);
 
   return offset;
 }
@@ -19683,7 +19958,7 @@ static int
 dissect_evcsn_SEQUENCE_SIZE_1_256_OF_ItsChargingStationData(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_evcsn_SEQUENCE_SIZE_1_256_OF_ItsChargingStationData, evcsn_SEQUENCE_SIZE_1_256_OF_ItsChargingStationData_sequence_of,
-                                                  1, 256, FALSE);
+                                                  1, 256, false);
 
   return offset;
 }
@@ -19726,7 +20001,7 @@ dissect_evcsn_EVChargingSpotNotificationPOIMessage(tvbuff_t *tvb _U_, int offset
 static int dissect_evcsn_EVChargingSpotNotificationPOIMessage_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_evcsn_EVChargingSpotNotificationPOIMessage(tvb, offset, &asn1_ctx, tree, hf_evcsn_evcsn_EVChargingSpotNotificationPOIMessage_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -19740,7 +20015,7 @@ static int dissect_evcsn_EVChargingSpotNotificationPOIMessage_PDU(tvbuff_t *tvb 
 static int
 dissect_evrsr_EVSE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       1, 32, FALSE, NULL);
+                                       1, 32, false, NULL);
 
   return offset;
 }
@@ -19776,7 +20051,7 @@ static const value_string evrsr_RechargingMode_vals[] = {
 static int
 dissect_evrsr_RechargingMode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, FALSE);
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -19796,7 +20071,7 @@ static const value_string evrsr_PowerSource_vals[] = {
 static int
 dissect_evrsr_PowerSource(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -19821,7 +20096,7 @@ dissect_evrsr_RechargingType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_evrsr_BatteryType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 16, FALSE);
+                                          1, 16, false);
 
   return offset;
 }
@@ -19849,7 +20124,7 @@ dissect_evrsr_PreReservationRequestMessage(tvbuff_t *tvb _U_, int offset _U_, as
 static int
 dissect_evrsr_Reservation_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_VisibleString(tvb, offset, actx, tree, hf_index,
-                                          8, 8, FALSE,
+                                          8, 8, false,
                                           NULL);
 
   return offset;
@@ -19875,7 +20150,7 @@ static const value_string evrsr_AvailabilityStatus_vals[] = {
 static int
 dissect_evrsr_AvailabilityStatus(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -19890,7 +20165,7 @@ static int * const evrsr_SupportedPaymentTypes_bits[] = {
 static int
 dissect_evrsr_SupportedPaymentTypes(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     2, 2, FALSE, evrsr_SupportedPaymentTypes_bits, 2, NULL, NULL);
+                                     2, 2, false, evrsr_SupportedPaymentTypes_bits, 2, NULL, NULL);
 
   return offset;
 }
@@ -19922,7 +20197,7 @@ static const value_string evrsr_EAmount_vals[] = {
 static int
 dissect_evrsr_EAmount(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 500000U, NULL, FALSE);
+                                                            1U, 500000U, NULL, false);
 
   return offset;
 }
@@ -19938,7 +20213,7 @@ static const value_string evrsr_PaymentType_vals[] = {
 static int
 dissect_evrsr_PaymentType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -19948,7 +20223,7 @@ dissect_evrsr_PaymentType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_evrsr_ContractID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 24, FALSE);
+                                          1, 24, false);
 
   return offset;
 }
@@ -19958,7 +20233,7 @@ dissect_evrsr_ContractID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_evrsr_ExternalIdentificationMeans(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 24, FALSE);
+                                          1, 24, false);
 
   return offset;
 }
@@ -19990,7 +20265,7 @@ dissect_evrsr_Payment_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int
 dissect_evrsr_Pairing_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_VisibleString(tvb, offset, actx, tree, hf_index,
-                                          1, 64, FALSE,
+                                          1, 64, false,
                                           NULL);
 
   return offset;
@@ -20034,7 +20309,7 @@ static const value_string evrsr_ReservationResponseCode_vals[] = {
 static int
 dissect_evrsr_ReservationResponseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     6, NULL, FALSE, 0, NULL);
+                                     6, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -20044,7 +20319,7 @@ dissect_evrsr_ReservationResponseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int
 dissect_evrsr_Reservation_Password(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_VisibleString(tvb, offset, actx, tree, hf_index,
-                                          8, 8, FALSE,
+                                          8, 8, false,
                                           NULL);
 
   return offset;
@@ -20055,7 +20330,7 @@ dissect_evrsr_Reservation_Password(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_evrsr_StationDetails(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 32, FALSE);
+                                          1, 32, false);
 
   return offset;
 }
@@ -20065,7 +20340,7 @@ dissect_evrsr_StationDetails(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_evrsr_ChargingSpotLabel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_UTF8String(tvb, offset, actx, tree, hf_index,
-                                          1, 4, FALSE);
+                                          1, 4, false);
 
   return offset;
 }
@@ -20118,7 +20393,7 @@ static const value_string evrsr_CancellationResponseCode_vals[] = {
 static int
 dissect_evrsr_CancellationResponseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     3, NULL, FALSE, 0, NULL);
+                                     3, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -20169,7 +20444,7 @@ static const value_string evrsr_UpdateResponseCode_vals[] = {
 static int
 dissect_evrsr_UpdateResponseCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     5, NULL, FALSE, 0, NULL);
+                                     5, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -20232,7 +20507,7 @@ dissect_evrsr_EV_RSR_MessageBody(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 static int dissect_evrsr_EV_RSR_MessageBody_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_evrsr_EV_RSR_MessageBody(tvb, offset, &asn1_ctx, tree, hf_evrsr_evrsr_EV_RSR_MessageBody_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -20250,7 +20525,7 @@ static int
 dissect_cpm_TrailerDataSet(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_cpm_TrailerDataSet, cpm_TrailerDataSet_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -20291,7 +20566,7 @@ dissect_cpm_OriginatingRsuContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 static int dissect_cpm_OriginatingVehicleContainer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_cpm_OriginatingVehicleContainer(tvb, offset, &asn1_ctx, tree, hf_cpm_cpm_OriginatingVehicleContainer_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -20299,7 +20574,7 @@ static int dissect_cpm_OriginatingVehicleContainer_PDU(tvbuff_t *tvb _U_, packet
 static int dissect_cpm_OriginatingRsuContainer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_cpm_OriginatingRsuContainer(tvb, offset, &asn1_ctx, tree, hf_cpm_cpm_OriginatingRsuContainer_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -20353,8 +20628,13 @@ static const value_string cpm_CpmContainerId_vals[] = {
 
 static int
 dissect_cpm_CpmContainerId(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+    uint32_t CpmContainerId;
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 16U, &((its_header_t*)actx->private_data)->CpmContainerId, FALSE);
+                                                            1U, 16U, &CpmContainerId, false);
+
+    its_header_t *its_hdr = its_get_private_data(actx->pinfo);
+    its_hdr->CpmContainerId = CpmContainerId;
+
 
   return offset;
 }
@@ -20392,7 +20672,7 @@ static int
 dissect_cpm_WrappedCpmContainers(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_cpm_WrappedCpmContainers, cpm_WrappedCpmContainers_sequence_of,
-                                                  1, 8, TRUE);
+                                                  1, 8, true);
 
   return offset;
 }
@@ -20415,37 +20695,22 @@ static const per_sequence_t cpm_CpmPayload_sequence[] = {
 
 static int
 dissect_cpm_CpmPayload(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  actx->private_data = (void*)wmem_new0(actx->pinfo->pool, its_private_data_t);
+  col_set_str(actx->pinfo->cinfo, COL_PROTOCOL, "CPM");
+  col_set_str(actx->pinfo->cinfo, COL_INFO, "CPM");
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_cpm_CpmPayload, cpm_CpmPayload_sequence);
 
   return offset;
 }
 
-
-static const per_sequence_t cpm_CollectivePerceptionMessage_sequence[] = {
-  { &hf_cpm_header          , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_its_ItsPduHeader },
-  { &hf_cpm_payload         , ASN1_NO_EXTENSIONS     , ASN1_NOT_OPTIONAL, dissect_cpm_CpmPayload },
-  { NULL, 0, 0, NULL }
-};
-
-static int
-dissect_cpm_CollectivePerceptionMessage(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  actx->private_data = (void*)wmem_new0(actx->pinfo->pool, its_private_data_t);
-  col_set_str(actx->pinfo->cinfo, COL_PROTOCOL, "CPM");
-  col_set_str(actx->pinfo->cinfo, COL_INFO, "CPM");
-  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
-                                   ett_cpm_CollectivePerceptionMessage, cpm_CollectivePerceptionMessage_sequence);
-
-  return offset;
-}
-
 /*--- PDUs ---*/
 
-static int dissect_cpm_CollectivePerceptionMessage_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+static int dissect_cpm_CpmPayload_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
-  offset = dissect_cpm_CollectivePerceptionMessage(tvb, offset, &asn1_ctx, tree, hf_cpm_cpm_CollectivePerceptionMessage_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
+  offset = dissect_cpm_CpmPayload(tvb, offset, &asn1_ctx, tree, hf_cpm_cpm_CpmPayload_PDU);
   offset += 7; offset >>= 3;
   return offset;
 }
@@ -20462,7 +20727,7 @@ static int
 dissect_cpm_PerceivedObjects(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_cpm_PerceivedObjects, cpm_PerceivedObjects_sequence_of,
-                                                  0, 255, TRUE);
+                                                  0, 255, true);
 
   return offset;
 }
@@ -20487,7 +20752,7 @@ dissect_cpm_PerceivedObjectContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static int dissect_cpm_PerceivedObjectContainer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_cpm_PerceivedObjectContainer(tvb, offset, &asn1_ctx, tree, hf_cpm_cpm_PerceivedObjectContainer_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -20523,7 +20788,7 @@ static int
 dissect_cpm_PerceivedObjectIds(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_cpm_PerceivedObjectIds, cpm_PerceivedObjectIds_sequence_of,
-                                                  0, 255, TRUE);
+                                                  0, 255, true);
 
   return offset;
 }
@@ -20557,7 +20822,7 @@ static int
 dissect_cpm_PerceptionRegionContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_cpm_PerceptionRegionContainer, cpm_PerceptionRegionContainer_sequence_of,
-                                                  1, 256, TRUE);
+                                                  1, 256, true);
 
   return offset;
 }
@@ -20567,7 +20832,7 @@ dissect_cpm_PerceptionRegionContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int dissect_cpm_PerceptionRegionContainer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_cpm_PerceptionRegionContainer(tvb, offset, &asn1_ctx, tree, hf_cpm_cpm_PerceptionRegionContainer_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -20612,7 +20877,7 @@ static int
 dissect_cpm_SensorInformationContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_cpm_SensorInformationContainer, cpm_SensorInformationContainer_sequence_of,
-                                                  1, 128, TRUE);
+                                                  1, 128, true);
 
   return offset;
 }
@@ -20622,7 +20887,7 @@ dissect_cpm_SensorInformationContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_c
 static int dissect_cpm_SensorInformationContainer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_cpm_SensorInformationContainer(tvb, offset, &asn1_ctx, tree, hf_cpm_cpm_SensorInformationContainer_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -20767,7 +21032,7 @@ dissect_vam_VruAwareness(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
 static int dissect_vam_VruAwareness_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_vam_VruAwareness(tvb, offset, &asn1_ctx, tree, hf_vam_vam_VruAwareness_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -20828,7 +21093,7 @@ dissect_imzm_InterferenceManagementZoneMessage(tvbuff_t *tvb _U_, int offset _U_
 static int dissect_imzm_InterferenceManagementZoneMessage_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_imzm_InterferenceManagementZoneMessage(tvb, offset, &asn1_ctx, tree, hf_imzm_imzm_InterferenceManagementZoneMessage_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -20836,9 +21101,9 @@ static int dissect_imzm_InterferenceManagementZoneMessage_PDU(tvbuff_t *tvb _U_,
 
 
 static void
-its_latitude_fmt(gchar *s, guint32 v)
+its_latitude_fmt(char *s, uint32_t v)
 {
-  gint32 lat = (gint32)v;
+  int32_t lat = (int32_t)v;
   if (lat == 900000001) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", lat);
   } else {
@@ -20852,9 +21117,9 @@ its_latitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_longitude_fmt(gchar *s, guint32 v)
+its_longitude_fmt(char *s, uint32_t v)
 {
-  gint32 lng = (gint32)v;
+  int32_t lng = (int32_t)v;
   if (lng == 1800000001) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", lng);
   } else {
@@ -20868,9 +21133,9 @@ its_longitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_altitude_fmt(gchar *s, guint32 v)
+its_altitude_fmt(char *s, uint32_t v)
 {
-  gint32 alt = (gint32)v;
+  int32_t alt = (int32_t)v;
   if (alt == 800001) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", alt);
   } else {
@@ -20879,9 +21144,9 @@ its_altitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_delta_latitude_fmt(gchar *s, guint32 v)
+its_delta_latitude_fmt(char *s, uint32_t v)
 {
-  gint32 lat = (gint32)v;
+  int32_t lat = (int32_t)v;
   if (lat == 131072) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", lat);
   } else {
@@ -20895,9 +21160,9 @@ its_delta_latitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_delta_longitude_fmt(gchar *s, guint32 v)
+its_delta_longitude_fmt(char *s, uint32_t v)
 {
-  gint32 lng = (gint32)v;
+  int32_t lng = (int32_t)v;
   if (lng == 131072) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", lng);
   } else {
@@ -20911,9 +21176,9 @@ its_delta_longitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_delta_altitude_fmt(gchar *s, guint32 v)
+its_delta_altitude_fmt(char *s, uint32_t v)
 {
-  gint32 alt = (gint32)v;
+  int32_t alt = (int32_t)v;
   if (alt == 12800) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", alt);
   } else {
@@ -20922,15 +21187,15 @@ its_delta_altitude_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_path_delta_time_fmt(gchar *s, guint32 v)
+its_path_delta_time_fmt(char *s, uint32_t v)
 {
-  gint32 dt = (gint32)v;
+  int32_t dt = (int32_t)v;
   snprintf(s, ITEM_LABEL_LENGTH, "%.2fs (%d)", dt * 0.01, dt);
 }
 
 
 static void
-its_sax_length_fmt(gchar *s, guint32 v)
+its_sax_length_fmt(char *s, uint32_t v)
 {
   if (v == 4095) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -20942,9 +21207,9 @@ its_sax_length_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_heading_value_fmt(gchar *s, guint32 v)
+its_heading_value_fmt(char *s, uint32_t v)
 {
-  const gchar *p = try_val_to_str(v, VALS(its_HeadingValue_vals));
+  const char *p = try_val_to_str(v, VALS(its_HeadingValue_vals));
   if (p) {
     snprintf(s, ITEM_LABEL_LENGTH, "%s (%d)", p, v);
   } else {
@@ -20953,7 +21218,7 @@ its_heading_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_heading_confidence_fmt(gchar *s, guint32 v)
+its_heading_confidence_fmt(char *s, uint32_t v)
 {
   if (v == 127) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -20965,7 +21230,7 @@ its_heading_confidence_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_speed_value_fmt(gchar *s, guint32 v)
+its_speed_value_fmt(char *s, uint32_t v)
 {
   if (v == 0) {
     snprintf(s, ITEM_LABEL_LENGTH, "standstill (%d)", v);
@@ -20979,7 +21244,7 @@ its_speed_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_speed_confidence_fmt(gchar *s, guint32 v)
+its_speed_confidence_fmt(char *s, uint32_t v)
 {
   if (v == 127) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -20991,13 +21256,13 @@ its_speed_confidence_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_speed_limit_fmt(gchar *s, guint32 v)
+its_speed_limit_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%dkm/h (%d)", v, v);
 }
 
 static void
-its_vehicle_length_value_fmt(gchar *s, guint32 v)
+its_vehicle_length_value_fmt(char *s, uint32_t v)
 {
   if (v == 1023) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -21009,7 +21274,7 @@ its_vehicle_length_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_vehicle_width_fmt(gchar *s, guint32 v)
+its_vehicle_width_fmt(char *s, uint32_t v)
 {
   if (v == 62) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -21021,9 +21286,9 @@ its_vehicle_width_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_acceleration_value_fmt(gchar *s, guint32 v)
+its_acceleration_value_fmt(char *s, uint32_t v)
 {
-  gint32 acc = (gint32)v;
+  int32_t acc = (int32_t)v;
   if (acc == 161) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
   } else {
@@ -21032,7 +21297,7 @@ its_acceleration_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_acceleration_confidence_fmt(gchar *s, guint32 v)
+its_acceleration_confidence_fmt(char *s, uint32_t v)
 {
   if (v == 102) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -21044,9 +21309,9 @@ its_acceleration_confidence_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_curvature_value_fmt(gchar *s, guint32 v)
+its_curvature_value_fmt(char *s, uint32_t v)
 {
-  gint32 curv = (gint32)v;
+  int32_t curv = (int32_t)v;
   if (curv == 0) {
     snprintf(s, ITEM_LABEL_LENGTH, "straight (%d)", v);
   } else if (curv == 30001) {
@@ -21060,9 +21325,9 @@ its_curvature_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_yaw_rate_value_fmt(gchar *s, guint32 v)
+its_yaw_rate_value_fmt(char *s, uint32_t v)
 {
-  gint32 yaw = (gint32)v;
+  int32_t yaw = (int32_t)v;
   if (yaw == 0) {
     snprintf(s, ITEM_LABEL_LENGTH, "straight (%d)", v);
   } else if (yaw == 32767) {
@@ -21076,9 +21341,9 @@ its_yaw_rate_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_swa_value_fmt(gchar *s, guint32 v)
+its_swa_value_fmt(char *s, uint32_t v)
 {
-  gint32 swa = (gint32)v;
+  int32_t swa = (int32_t)v;
   if (swa == 0) {
     snprintf(s, ITEM_LABEL_LENGTH, "straight (%d)", v);
   } else if (swa == 512) {
@@ -21092,7 +21357,7 @@ its_swa_value_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_swa_confidence_fmt(gchar *s, guint32 v)
+its_swa_confidence_fmt(char *s, uint32_t v)
 {
   if (v == 127) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -21104,7 +21369,7 @@ its_swa_confidence_fmt(gchar *s, guint32 v)
 }
 
 static void
-dsrc_moi_fmt(gchar *s, guint32 v)
+dsrc_moi_fmt(char *s, uint32_t v)
 {
   if (v == 527040) {
     snprintf(s, ITEM_LABEL_LENGTH, "invalid (%d)", v);
@@ -21115,7 +21380,7 @@ dsrc_moi_fmt(gchar *s, guint32 v)
 }
 
 static void
-dsrc_dsecond_fmt(gchar *s, guint32 v)
+dsrc_dsecond_fmt(char *s, uint32_t v)
 {
   if (v == 65535) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -21128,7 +21393,7 @@ dsrc_dsecond_fmt(gchar *s, guint32 v)
 }
 
 static void
-dsrc_time_mark_fmt(gchar *s, guint32 v)
+dsrc_time_mark_fmt(char *s, uint32_t v)
 {
   if (v == 36001) {
     snprintf(s, ITEM_LABEL_LENGTH, "unknown (%d)", v);
@@ -21141,17 +21406,17 @@ dsrc_time_mark_fmt(gchar *s, guint32 v)
 }
 
 static void
-its_timestamp_fmt(gchar *s, guint64 v)
+its_timestamp_fmt(char *s, uint64_t v)
 {
   time_t secs = v / 1000 + 1072915200 - 5;
   struct tm *tm = gmtime(&secs);
   snprintf(s, ITEM_LABEL_LENGTH, "%u-%02u-%02u %02u:%02u:%02u.%03u (%" PRIu64 ")",
-    tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (guint32)(v % 1000), v
+    tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec, (uint32_t)(v % 1000), v
   );
 }
 
 static void
-its_validity_duration_fmt(gchar *s, guint32 v)
+its_validity_duration_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%02u:%02u:%02u (%d)",
           v / 3600, v % 3600 / 60, v % 60, v);
@@ -21178,7 +21443,7 @@ static const value_string dsrc_TimeIntervalConfidence_vals[] = {
 };
 
 static void
-dsrc_velocity_fmt(gchar *s, guint32 v)
+dsrc_velocity_fmt(char *s, uint32_t v)
 {
   if (v == 8191) {
     snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -21190,15 +21455,15 @@ dsrc_velocity_fmt(gchar *s, guint32 v)
 }
 
 static void
-dsrc_angle_fmt(gchar *s, guint32 v)
+dsrc_angle_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.2f° (%d)", v * 0.0125, v);
 }
 
 static void
-dsrc_delta_time_fmt(gchar *s, guint32 v)
+dsrc_delta_time_fmt(char *s, uint32_t v)
 {
-  gint32 dt = (gint32)v;
+  int32_t dt = (int32_t)v;
   if (dt == -122) {
     snprintf(s, ITEM_LABEL_LENGTH, "unknown (%d)", dt);
   } else if (dt == -121) {
@@ -21213,13 +21478,13 @@ dsrc_delta_time_fmt(gchar *s, guint32 v)
 
 
 static void
-cpm_object_dimension_value_fmt(gchar *s, guint32 v)
+cpm_object_dimension_value_fmt(char *s, uint32_t v)
 {
   snprintf(s, ITEM_LABEL_LENGTH, "%.1fm (%d)", v * 0.1, v);
 }
 
 //static void
-//cpm_object_dimension_confidence_fmt(gchar *s, guint32 v)
+//cpm_object_dimension_confidence_fmt(char *s, uint32_t v)
 //{
 //  if (v == 102) {
 //    snprintf(s, ITEM_LABEL_LENGTH, "unavailable (%d)", v);
@@ -21247,14 +21512,14 @@ dissect_its_PDU(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
 // Decode As...
 static void
-its_msgid_prompt(packet_info *pinfo, gchar *result)
+its_msgid_prompt(packet_info *pinfo, char *result)
 {
-    guint32 msgid = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, hf_its_messageId, pinfo->curr_layer_num));
+    uint32_t msgid = GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, hf_its_messageId, pinfo->curr_layer_num));
 
     snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "MsgId (%s%u)", UTF8_RIGHTWARDS_ARROW, msgid);
 }
 
-static gpointer
+static void *
 its_msgid_value(packet_info *pinfo)
 {
     return p_get_proto_data(pinfo->pool, pinfo, hf_its_messageId, pinfo->curr_layer_num);
@@ -21433,8 +21698,8 @@ void proto_register_its(void)
         "SubCauseCodeType", HFILL }},
     { &hf_its_impassability5,
       { "impassability5", "its.impassability5",
-        FT_UINT32, BASE_DEC, NULL, 0,
-        "SubCauseCodeType", HFILL }},
+        FT_UINT32, BASE_DEC, VALS(its_ImpassabilitySubCauseCode_vals), 0,
+        "ImpassabilitySubCauseCode", HFILL }},
     { &hf_its_adverseWeatherCondition_Adhesion6,
       { "adverseWeatherCondition-Adhesion6", "its.adverseWeatherCondition_Adhesion6",
         FT_UINT32, BASE_DEC, VALS(its_AdverseWeatherCondition_AdhesionSubCauseCode_vals), 0,
@@ -21523,8 +21788,8 @@ void proto_register_its(void)
       { "dangerousEndOfQueue27", "its.dangerousEndOfQueue27",
         FT_UINT32, BASE_DEC, VALS(its_DangerousEndOfQueueSubCauseCode_vals), 0,
         "DangerousEndOfQueueSubCauseCode", HFILL }},
-    { &hf_its_reserved28,
-      { "reserved28", "its.reserved28",
+    { &hf_its_publicTransportVehicleApproaching28,
+      { "publicTransportVehicleApproaching28", "its.publicTransportVehicleApproaching28",
         FT_UINT32, BASE_DEC, NULL, 0,
         "SubCauseCodeType", HFILL }},
     { &hf_its_reserved29,
@@ -22057,8 +22322,8 @@ void proto_register_its(void)
         "StandardLength12b", HFILL }},
     { &hf_its_orientation,
       { "orientation", "its.orientation",
-        FT_UINT32, BASE_DEC, VALS(its_Wgs84AngleValue_vals), 0,
-        "Wgs84AngleValue", HFILL }},
+        FT_UINT32, BASE_DEC, VALS(its_CartesianAngleValue_vals), 0,
+        "CartesianAngleValue", HFILL }},
     { &hf_its_zAngle,
       { "zAngle", "its.zAngle_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -22111,22 +22376,18 @@ void proto_register_its(void)
       { "informationQuality", "its.informationQuality",
         FT_UINT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
-    { &hf_its_trafficLanePosition,
-      { "trafficLanePosition", "its.trafficLanePosition",
-        FT_INT32, BASE_DEC, VALS(its_LanePosition_vals), 0,
-        "LanePosition", HFILL }},
-    { &hf_its_nonTrafficLanePosition,
-      { "nonTrafficLanePosition", "its.nonTrafficLanePosition_element",
+    { &hf_its_lanePositionBased,
+      { "lanePositionBased", "its.lanePositionBased",
+        FT_UINT32, BASE_DEC, VALS(its_LanePositionOptions_vals), 0,
+        "LanePositionOptions", HFILL }},
+    { &hf_its_mapBased,
+      { "mapBased", "its.mapBased_element",
         FT_NONE, BASE_NONE, NULL, 0,
-        "LanePositionAndType", HFILL }},
-    { &hf_its_trafficIslandPosition,
-      { "trafficIslandPosition", "its.trafficIslandPosition_element",
+        "MapPosition", HFILL }},
+    { &hf_its_confidence_04,
+      { "confidence", "its.confidence_element",
         FT_NONE, BASE_NONE, NULL, 0,
-        NULL, HFILL }},
-    { &hf_its_mapPosition,
-      { "mapPosition", "its.mapPosition_element",
-        FT_NONE, BASE_NONE, NULL, 0,
-        NULL, HFILL }},
+        "MetaInformation", HFILL }},
     { &hf_its_headingValue,
       { "headingValue", "its.headingValue",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(its_heading_value_fmt), 0,
@@ -22231,6 +22492,30 @@ void proto_register_its(void)
       { "laneType", "its.laneType",
         FT_UINT32, BASE_DEC, VALS(its_LaneType_vals), 0,
         NULL, HFILL }},
+    { &hf_its_direction_01,
+      { "direction", "its.direction",
+        FT_UINT32, BASE_DEC, VALS(its_Direction_vals), 0,
+        NULL, HFILL }},
+    { &hf_its_simplelanePosition,
+      { "simplelanePosition", "its.simplelanePosition",
+        FT_INT32, BASE_DEC, VALS(its_LanePosition_vals), 0,
+        "LanePosition", HFILL }},
+    { &hf_its_simpleLaneType,
+      { "simpleLaneType", "its.simpleLaneType",
+        FT_UINT32, BASE_DEC, VALS(its_LaneType_vals), 0,
+        "LaneType", HFILL }},
+    { &hf_its_detailedlanePosition,
+      { "detailedlanePosition", "its.detailedlanePosition_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        "LanePositionAndType", HFILL }},
+    { &hf_its_lanePositionWithLateralDetails,
+      { "lanePositionWithLateralDetails", "its.lanePositionWithLateralDetails_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_its_trafficIslandPosition,
+      { "trafficIslandPosition", "its.trafficIslandPosition_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
     { &hf_its_lateralAccelerationValue,
       { "lateralAccelerationValue", "its.lateralAccelerationValue",
         FT_INT32, BASE_CUSTOM, CF_FUNC(its_acceleration_value_fmt), 0,
@@ -22311,6 +22596,18 @@ void proto_register_its(void)
       { "thisMsgNo", "its.thisMsgNo",
         FT_UINT32, BASE_DEC, NULL, 0,
         "OrdinalNumber3b", HFILL }},
+    { &hf_its_usedDetectionInformation,
+      { "usedDetectionInformation", "its.usedDetectionInformation",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "SensorTypes", HFILL }},
+    { &hf_its_usedStoredInformation,
+      { "usedStoredInformation", "its.usedStoredInformation",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "StoredInformationType", HFILL }},
+    { &hf_its_confidenceValue,
+      { "confidenceValue", "its.confidenceValue",
+        FT_UINT32, BASE_DEC, VALS(its_ConfidenceLevel_vals), 0,
+        "ConfidenceLevel", HFILL }},
     { &hf_its_MitigationForTechnologies_item,
       { "MitigationPerTechnologyClass", "its.MitigationPerTechnologyClass_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -22359,7 +22656,7 @@ void proto_register_its(void)
       { "objectClass", "its.objectClass",
         FT_UINT32, BASE_DEC, VALS(its_ObjectClass_vals), 0,
         NULL, HFILL }},
-    { &hf_its_confidence_04,
+    { &hf_its_confidence_05,
       { "confidence", "its.confidence",
         FT_UINT32, BASE_DEC, VALS(its_ConfidenceLevel_vals), 0,
         "ConfidenceLevel", HFILL }},
@@ -22367,7 +22664,7 @@ void proto_register_its(void)
       { "value", "its.value",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(cpm_object_dimension_value_fmt), 0,
         "ObjectDimensionValue", HFILL }},
-    { &hf_its_confidence_05,
+    { &hf_its_confidence_06,
       { "confidence", "its.confidence",
         FT_UINT32, BASE_DEC, VALS(its_ObjectDimensionConfidence_vals), 0,
         "ObjectDimensionConfidence", HFILL }},
@@ -22375,6 +22672,14 @@ void proto_register_its(void)
       { "PathPoint", "its.PathPoint_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
+    { &hf_its_deltaTimeHighPrecision,
+      { "deltaTimeHighPrecision", "its.deltaTimeHighPrecision",
+        FT_UINT32, BASE_DEC, VALS(its_DeltaTimeTenthOfSecond_vals), 0,
+        "DeltaTimeTenthOfSecond", HFILL }},
+    { &hf_its_deltaTimeBigRange,
+      { "deltaTimeBigRange", "its.deltaTimeBigRange",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "DeltaTimeTenSeconds", HFILL }},
     { &hf_its_PathHistory_item,
       { "PathPoint", "its.PathPoint_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -22397,8 +22702,16 @@ void proto_register_its(void)
         "PosConfidenceEllipse", HFILL }},
     { &hf_its_pathDeltaTime_01,
       { "pathDeltaTime", "its.pathDeltaTime",
-        FT_UINT32, BASE_DEC, VALS(its_DeltaTimeTenthOfSecond_vals), 0,
-        "DeltaTimeTenthOfSecond", HFILL }},
+        FT_UINT32, BASE_DEC, VALS(its_PathDeltaTimeChoice_vals), 0,
+        "PathDeltaTimeChoice", HFILL }},
+    { &hf_its_symmetricAreaOffset,
+      { "symmetricAreaOffset", "its.symmetricAreaOffset",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "StandardLength9b", HFILL }},
+    { &hf_its_asymmetricAreaOffset,
+      { "asymmetricAreaOffset", "its.asymmetricAreaOffset",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "StandardLength9b", HFILL }},
     { &hf_its_objectId,
       { "objectId", "its.objectId",
         FT_UINT32, BASE_DEC, NULL, 0,
@@ -22459,6 +22772,10 @@ void proto_register_its(void)
       { "classification", "its.classification",
         FT_UINT32, BASE_DEC, NULL, 0,
         "ObjectClassDescription", HFILL }},
+    { &hf_its_mapPosition,
+      { "mapPosition", "its.mapPosition_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
     { &hf_its_polygon,
       { "polygon", "its.polygon",
         FT_UINT32, BASE_DEC, NULL, 0,
@@ -22519,14 +22836,14 @@ void proto_register_its(void)
       { "range", "its.range",
         FT_UINT32, BASE_DEC, NULL, 0,
         "StandardLength12b", HFILL }},
-    { &hf_its_stationaryHorizontalOpeningAngleStart,
-      { "stationaryHorizontalOpeningAngleStart", "its.stationaryHorizontalOpeningAngleStart",
-        FT_UINT32, BASE_DEC, VALS(its_Wgs84AngleValue_vals), 0,
-        "Wgs84AngleValue", HFILL }},
-    { &hf_its_stationaryHorizontalOpeningAngleEnd,
-      { "stationaryHorizontalOpeningAngleEnd", "its.stationaryHorizontalOpeningAngleEnd",
-        FT_UINT32, BASE_DEC, VALS(its_Wgs84AngleValue_vals), 0,
-        "Wgs84AngleValue", HFILL }},
+    { &hf_its_horizontalOpeningAngleStart,
+      { "horizontalOpeningAngleStart", "its.horizontalOpeningAngleStart",
+        FT_UINT32, BASE_DEC, VALS(its_CartesianAngleValue_vals), 0,
+        "CartesianAngleValue", HFILL }},
+    { &hf_its_horizontalOpeningAngleEnd,
+      { "horizontalOpeningAngleEnd", "its.horizontalOpeningAngleEnd",
+        FT_UINT32, BASE_DEC, VALS(its_CartesianAngleValue_vals), 0,
+        "CartesianAngleValue", HFILL }},
     { &hf_its_verticalOpeningAngleStart,
       { "verticalOpeningAngleStart", "its.verticalOpeningAngleStart",
         FT_UINT32, BASE_DEC, VALS(its_CartesianAngleValue_vals), 0,
@@ -22559,18 +22876,6 @@ void proto_register_its(void)
       { "RadialShapeDetails", "its.RadialShapeDetails_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-    { &hf_its_horizontalOpeningAngleStart,
-      { "horizontalOpeningAngleStart", "its.horizontalOpeningAngleStart",
-        FT_UINT32, BASE_DEC, VALS(its_CartesianAngleValue_vals), 0,
-        "CartesianAngleValue", HFILL }},
-    { &hf_its_horizontalOpeningAngleEnd,
-      { "horizontalOpeningAngleEnd", "its.horizontalOpeningAngleEnd",
-        FT_UINT32, BASE_DEC, VALS(its_CartesianAngleValue_vals), 0,
-        "CartesianAngleValue", HFILL }},
-    { &hf_its_centerPoint,
-      { "centerPoint", "its.centerPoint_element",
-        FT_NONE, BASE_NONE, NULL, 0,
-        "CartesianPosition3d", HFILL }},
     { &hf_its_semiLength,
       { "semiLength", "its.semiLength",
         FT_UINT32, BASE_DEC, NULL, 0,
@@ -22787,7 +23092,7 @@ void proto_register_its(void)
       { "value", "its.value",
         FT_INT32, BASE_DEC, VALS(its_VelocityComponentValue_vals), 0,
         "VelocityComponentValue", HFILL }},
-    { &hf_its_confidence_06,
+    { &hf_its_confidence_07,
       { "confidence", "its.confidence",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(its_speed_confidence_fmt), 0,
         "SpeedConfidence", HFILL }},
@@ -22839,7 +23144,7 @@ void proto_register_its(void)
       { "value", "its.value",
         FT_UINT32, BASE_DEC, VALS(its_Wgs84AngleValue_vals), 0,
         "Wgs84AngleValue", HFILL }},
-    { &hf_its_confidence_07,
+    { &hf_its_confidence_08,
       { "confidence", "its.confidence",
         FT_UINT32, BASE_DEC, VALS(its_Wgs84AngleConfidence_vals), 0,
         "Wgs84AngleConfidence", HFILL }},
@@ -22851,6 +23156,14 @@ void proto_register_its(void)
       { "yawRateConfidence", "its.yawRateConfidence",
         FT_UINT32, BASE_DEC, VALS(its_YawRateConfidence_vals), 0,
         NULL, HFILL }},
+    { &hf_its_distanceToLeftBorder,
+      { "distanceToLeftBorder", "its.distanceToLeftBorder",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "StandardLength9b", HFILL }},
+    { &hf_its_distanceToRightBorder,
+      { "distanceToRightBorder", "its.distanceToRightBorder",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "StandardLength9b", HFILL }},
     { &hf_its_AccelerationControl_brakePedalEngaged,
       { "brakePedalEngaged", "its.AccelerationControl.brakePedalEngaged",
         FT_BOOLEAN, 8, NULL, 0x80,
@@ -23087,6 +23400,62 @@ void proto_register_its(void)
       { "row4NotPresent", "its.PositionOfOccupants.row4NotPresent",
         FT_BOOLEAN, 8, NULL, 0x10,
         NULL, HFILL }},
+    { &hf_its_SensorTypes_undefined,
+      { "undefined", "its.SensorTypes.undefined",
+        FT_BOOLEAN, 8, NULL, 0x80,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_radar,
+      { "radar", "its.SensorTypes.radar",
+        FT_BOOLEAN, 8, NULL, 0x40,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_lidar,
+      { "lidar", "its.SensorTypes.lidar",
+        FT_BOOLEAN, 8, NULL, 0x20,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_monovideo,
+      { "monovideo", "its.SensorTypes.monovideo",
+        FT_BOOLEAN, 8, NULL, 0x10,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_stereovision,
+      { "stereovision", "its.SensorTypes.stereovision",
+        FT_BOOLEAN, 8, NULL, 0x08,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_nightvision,
+      { "nightvision", "its.SensorTypes.nightvision",
+        FT_BOOLEAN, 8, NULL, 0x04,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_ultrasonic,
+      { "ultrasonic", "its.SensorTypes.ultrasonic",
+        FT_BOOLEAN, 8, NULL, 0x02,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_pmd,
+      { "pmd", "its.SensorTypes.pmd",
+        FT_BOOLEAN, 8, NULL, 0x01,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_inductionLoop,
+      { "inductionLoop", "its.SensorTypes.inductionLoop",
+        FT_BOOLEAN, 8, NULL, 0x80,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_sphericalCamera,
+      { "sphericalCamera", "its.SensorTypes.sphericalCamera",
+        FT_BOOLEAN, 8, NULL, 0x40,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_uwb,
+      { "uwb", "its.SensorTypes.uwb",
+        FT_BOOLEAN, 8, NULL, 0x20,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_acoustic,
+      { "acoustic", "its.SensorTypes.acoustic",
+        FT_BOOLEAN, 8, NULL, 0x10,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_localAggregation,
+      { "localAggregation", "its.SensorTypes.localAggregation",
+        FT_BOOLEAN, 8, NULL, 0x08,
+        NULL, HFILL }},
+    { &hf_its_SensorTypes_itsAggregation,
+      { "itsAggregation", "its.SensorTypes.itsAggregation",
+        FT_BOOLEAN, 8, NULL, 0x04,
+        NULL, HFILL }},
     { &hf_its_SpecialTransportType_heavyLoad,
       { "heavyLoad", "its.SpecialTransportType.heavyLoad",
         FT_BOOLEAN, 8, NULL, 0x80,
@@ -23102,6 +23471,26 @@ void proto_register_its(void)
     { &hf_its_SpecialTransportType_excessHeight,
       { "excessHeight", "its.SpecialTransportType.excessHeight",
         FT_BOOLEAN, 8, NULL, 0x10,
+        NULL, HFILL }},
+    { &hf_its_StoredInformationType_undefined,
+      { "undefined", "its.StoredInformationType.undefined",
+        FT_BOOLEAN, 8, NULL, 0x80,
+        NULL, HFILL }},
+    { &hf_its_StoredInformationType_staticDb,
+      { "staticDb", "its.StoredInformationType.staticDb",
+        FT_BOOLEAN, 8, NULL, 0x40,
+        NULL, HFILL }},
+    { &hf_its_StoredInformationType_dynamicDb,
+      { "dynamicDb", "its.StoredInformationType.dynamicDb",
+        FT_BOOLEAN, 8, NULL, 0x20,
+        NULL, HFILL }},
+    { &hf_its_StoredInformationType_realTimeDb,
+      { "realTimeDb", "its.StoredInformationType.realTimeDb",
+        FT_BOOLEAN, 8, NULL, 0x10,
+        NULL, HFILL }},
+    { &hf_its_StoredInformationType_map,
+      { "map", "its.StoredInformationType.map",
+        FT_BOOLEAN, 8, NULL, 0x08,
         NULL, HFILL }},
     { &hf_its_VruClusterProfiles_pedestrian,
       { "pedestrian", "its.VruClusterProfiles.pedestrian",
@@ -28400,18 +28789,10 @@ void proto_register_its(void)
 
 /* --- Module CPM-PDU-Descriptions --- --- ---                                */
 
-    { &hf_cpm_cpm_CollectivePerceptionMessage_PDU,
-      { "CollectivePerceptionMessage", "cpm.CollectivePerceptionMessage_element",
+    { &hf_cpm_cpm_CpmPayload_PDU,
+      { "CpmPayload", "cpm.CpmPayload_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-    { &hf_cpm_header,
-      { "header", "cpm.header_element",
-        FT_NONE, BASE_NONE, NULL, 0,
-        "ItsPduHeader", HFILL }},
-    { &hf_cpm_payload,
-      { "payload", "cpm.payload_element",
-        FT_NONE, BASE_NONE, NULL, 0,
-        "CpmPayload", HFILL }},
     { &hf_cpm_managementContainer,
       { "managementContainer", "cpm.managementContainer_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -28621,8 +29002,8 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_vam_vruLanePosition,
-      { "vruLanePosition", "vam.vruLanePosition",
-        FT_UINT32, BASE_DEC, VALS(its_GeneralizedLanePosition_vals), 0,
+      { "vruLanePosition", "vam.vruLanePosition_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         "GeneralizedLanePosition", HFILL }},
     { &hf_vam_environment,
       { "environment", "vam.environment",
@@ -28833,7 +29214,7 @@ void proto_register_its(void)
     { &hf_camssp_reserved, { "reserved", "its.ssp.cam.reserved", FT_UINT16, BASE_DEC, NULL, 0x0003, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_its,
         &ett_denmssp_flags,
         &ett_camssp_flags,
@@ -28847,7 +29228,9 @@ void proto_register_its(void)
     &ett_its_LightBarSirenInUse,
     &ett_its_MatrixIncludedComponents,
     &ett_its_PositionOfOccupants,
+    &ett_its_SensorTypes,
     &ett_its_SpecialTransportType,
+    &ett_its_StoredInformationType,
     &ett_its_VruClusterProfiles,
     &ett_its_VruSpecificExteriorLights,
     &ett_its_Acceleration3dWithConfidence,
@@ -28898,6 +29281,8 @@ void proto_register_its(void)
     &ett_its_ItineraryPath,
     &ett_its_ItsPduHeader,
     &ett_its_LanePositionAndType,
+    &ett_its_LanePositionOptions,
+    &ett_its_LanePositionWithLateralDetails,
     &ett_its_LateralAcceleration,
     &ett_its_LongitudinalAcceleration,
     &ett_its_LongitudinalLanePosition,
@@ -28908,6 +29293,7 @@ void proto_register_its(void)
     &ett_its_MapReference,
     &ett_its_MessageRateHz,
     &ett_its_MessageSegmentationInfo,
+    &ett_its_MetaInformation,
     &ett_its_MitigationForTechnologies,
     &ett_its_MitigationPerTechnologyClass,
     &ett_its_ObjectClass,
@@ -28915,6 +29301,7 @@ void proto_register_its(void)
     &ett_its_ObjectClassWithConfidence,
     &ett_its_ObjectDimension,
     &ett_its_Path,
+    &ett_its_PathDeltaTimeChoice,
     &ett_its_PathHistory,
     &ett_its_PathPredicted,
     &ett_its_PathPoint,
@@ -29439,7 +29826,6 @@ void proto_register_its(void)
 
 /* --- Module CPM-PDU-Descriptions --- --- ---                                */
 
-    &ett_cpm_CollectivePerceptionMessage,
     &ett_cpm_CpmPayload,
     &ett_cpm_ManagementContainer,
     &ett_cpm_WrappedCpmContainer,
@@ -29534,10 +29920,12 @@ void proto_register_its(void)
                                     decode_as_default_populate_list, decode_as_default_reset, decode_as_default_change, NULL};
 
     register_decode_as(&its_da);
+
+    its_tap = register_tap("its");
 }
 
 #define BTP_SUBDISS_SZ 2
-#define BTP_PORTS_SZ   12
+#define BTP_PORTS_SZ   13
 
 #define ITS_CAM_PROT_VER 2
 #define ITS_CAM_PROT_VERv1 1
@@ -29560,8 +29948,8 @@ void proto_register_its(void)
 
 void proto_reg_handoff_its(void)
 {
-    const char *subdissector[BTP_SUBDISS_SZ] = { "btpa.port", "btpb.port" };
-    const guint16 ports[BTP_PORTS_SZ] = { ITS_WKP_DEN, ITS_WKP_CA, ITS_WKP_EVCSN, ITS_WKP_CHARGING, ITS_WKP_IVI, ITS_WKP_TPG, ITS_WKP_TLC_SSEM, ITS_WKP_GPC, ITS_WKP_TLC_SREM, ITS_WKP_RLT, ITS_WKP_TLM, ITS_WKP_CPS };
+    static const char *subdissector[BTP_SUBDISS_SZ] = { "btpa.port", "btpb.port" };
+    static const uint16_t ports[BTP_PORTS_SZ] = { ITS_WKP_DEN, ITS_WKP_CA, ITS_WKP_EVCSN, ITS_WKP_CHARGING, ITS_WKP_IVI, ITS_WKP_TPG, ITS_WKP_TLC_SSEM, ITS_WKP_GPC, ITS_WKP_TLC_SREM, ITS_WKP_RLT, ITS_WKP_TLM, ITS_WKP_CPS, ITS_WKP_VA };
     int sdIdx, pIdx;
 
     // Register well known ports to btp subdissector table (BTP A and B)
@@ -29584,14 +29972,14 @@ void proto_reg_handoff_its(void)
     dissector_add_uint("its.msg_id", (ITS_MAPEM_PROT_VER << 16) + ITS_MAPEM,        create_dissector_handle( dissect_dsrc_MapData_PDU, proto_its_mapem ));
     dissector_add_uint("its.msg_id", (ITS_IVIM_PROT_VERv1 << 16) + ITS_IVIM,        create_dissector_handle( dissect_ivi_IviStructure_PDU, proto_its_ivimv1 ));
     dissector_add_uint("its.msg_id", (ITS_IVIM_PROT_VER << 16) + ITS_IVIM,          create_dissector_handle( dissect_ivi_IviStructure_PDU, proto_its_ivim ));
-    dissector_add_uint("its.msg_id", ITS_EV_RSR,                                    create_dissector_handle( dissect_evrsr_EV_RSR_MessageBody_PDU, proto_its_evrsr ));
+    dissector_add_uint("its.msg_id", ITS_RFU1  ,                                    create_dissector_handle( dissect_evrsr_EV_RSR_MessageBody_PDU, proto_its_evrsr ));
     dissector_add_uint("its.msg_id", (ITS_SREM_PROT_VER << 16) + ITS_SREM,          create_dissector_handle( dissect_dsrc_SignalRequestMessage_PDU, proto_its_srem ));
     dissector_add_uint("its.msg_id", (ITS_SSEM_PROT_VER << 16) + ITS_SSEM,          create_dissector_handle( dissect_dsrc_SignalStatusMessage_PDU, proto_its_ssem ));
     dissector_add_uint("its.msg_id", (ITS_RTCMEM_PROT_VERv1 << 16) + ITS_RTCMEM,    create_dissector_handle( dissect_dsrc_RTCMcorrections_PDU, proto_its_rtcmemv1));
     dissector_add_uint("its.msg_id", (ITS_RTCMEM_PROT_VER << 16) + ITS_RTCMEM,      create_dissector_handle(dissect_dsrc_RTCMcorrections_PDU, proto_its_rtcmem));
     dissector_add_uint("its.msg_id", ITS_EVCSN,                                     create_dissector_handle( dissect_evcsn_EVChargingSpotNotificationPOIMessage_PDU, proto_its_evcsn ));
-    dissector_add_uint("its.msg_id", (ITS_TIS_TPG_PROT_VER << 16) + ITS_TISTPGTRANSACTION, create_dissector_handle( dissect_tistpg_TisTpgTransaction_PDU, proto_its_tistpg ));
-    dissector_add_uint("its.msg_id", (ITS_CPM_PROT_VER << 16) + ITS_CPM,            create_dissector_handle(dissect_cpm_CollectivePerceptionMessage_PDU, proto_its_cpm));
+    dissector_add_uint("its.msg_id", (ITS_TIS_TPG_PROT_VER << 16) + ITS_RFU2,       create_dissector_handle( dissect_tistpg_TisTpgTransaction_PDU, proto_its_tistpg ));
+    dissector_add_uint("its.msg_id", (ITS_CPM_PROT_VER << 16) + ITS_CPM,            create_dissector_handle(dissect_cpm_CpmPayload_PDU, proto_its_cpm));
     dissector_add_uint("its.msg_id", (ITS_IMZM_PROT_VER << 16) + ITS_IMZM,          create_dissector_handle(dissect_imzm_InterferenceManagementZoneMessage_PDU, proto_its_imzm));
     dissector_add_uint("its.msg_id", (ITS_VAM_PROT_VER << 16) + ITS_VAM,            create_dissector_handle(dissect_vam_VruAwareness_PDU, proto_its_vam));
 
@@ -29619,8 +30007,6 @@ void proto_reg_handoff_its(void)
     dissector_add_uint("cpm.container", 3, create_dissector_handle(dissect_cpm_SensorInformationContainer_PDU, proto_its_cpm));
     dissector_add_uint("cpm.container", 4, create_dissector_handle(dissect_cpm_PerceptionRegionContainer_PDU, proto_its_cpm));
     dissector_add_uint("cpm.container", 5, create_dissector_handle(dissect_cpm_PerceivedObjectContainer_PDU, proto_its_cpm));
-
-    its_tap = register_tap("its");
 }
 
 /*

@@ -89,7 +89,14 @@
 #define ZBEE_ZCL_ATTR_ID_THERMOSTAT_SETPOINT_CHANGE_SOURCE   0x0030
 #define ZBEE_ZCL_ATTR_ID_THERMOSTAT_SETPOINT_CHANGE_AMOUNT   0x0031
 #define ZBEE_ZCL_ATTR_ID_THERMOSTAT_SETPOINT_CHANGE_TIME     0x0032
-/* Air Conditioning Atrributes. */
+#define ZBEE_ZCL_ATTR_ID_THERMOSTAT_OCCUPIED_SETBACK         0x0034
+#define ZBEE_ZCL_ATTR_ID_THERMOSTAT_OCCUPIED_SETBACK_MIN     0x0035
+#define ZBEE_ZCL_ATTR_ID_THERMOSTAT_OCCUPIED_SETBACK_MAX     0x0036
+#define ZBEE_ZCL_ATTR_ID_THERMOSTAT_UNOCCUPIED_SETBACK       0x0037
+#define ZBEE_ZCL_ATTR_ID_THERMOSTAT_UNOCCUPIED_SETBACK_MIN   0x0038
+#define ZBEE_ZCL_ATTR_ID_THERMOSTAT_UNOCCUPIED_SETBACK_MAX   0x0039
+#define ZBEE_ZCL_ATTR_ID_THERMOSTAT_EMERGENCY_HEAT_DELTA     0x003a
+/* Air Conditioning Attributes. */
 #define ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_TYPE                  0x0040
 #define ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_CAPACITY              0x0041
 #define ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_REFRIGERANT_TYPE      0x0042
@@ -132,6 +139,24 @@ static const value_string zbee_zcl_thermostat_attr_names[] = {
     { ZBEE_ZCL_ATTR_ID_THERMOSTAT_SETPOINT_HOLD_DURATION,   "TemperatureSetpointHoldDuration" },
     { ZBEE_ZCL_ATTR_ID_THERMOSTAT_PROGRAMMING_MODE,         "ThermostatProgrammingOperationMode" },
     { ZBEE_ZCL_ATTR_ID_THERMOSTAT_RUNNING_STATE,            "ThermostatRunningState" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_SETPOINT_CHANGE_SOURCE,   "SetpointChangeSource" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_SETPOINT_CHANGE_AMOUNT,   "SetpointChangeAmount" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_SETPOINT_CHANGE_TIME,     "SetpointChangeTime" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_OCCUPIED_SETBACK,         "OccupiedSetback" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_OCCUPIED_SETBACK_MIN,     "OccupiedSetbackMin" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_OCCUPIED_SETBACK_MAX,     "OccupiedSetbackMax" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_UNOCCUPIED_SETBACK,       "UnoccupiedSetback" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_UNOCCUPIED_SETBACK_MIN,   "UnoccupiedSetbackMin" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_UNOCCUPIED_SETBACK_MAX,   "UnoccupiedSetbackMax" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_EMERGENCY_HEAT_DELTA,     "EmergencyHeatDelta" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_TYPE,                  "AcType" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_CAPACITY,              "AcCapacity" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_REFRIGERANT_TYPE,      "AcRefrigerantType" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_COMPRESSOR_TYPE,       "AcCompressorType" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_ERROR_CODE,            "AcErrorCode" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_LOUVER_POSITION,       "AcLouverPosition" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_COIL_TEMPERATURE,      "AcCoilTemperature" },
+    { ZBEE_ZCL_ATTR_ID_THERMOSTAT_AC_CAPACITY_FORMAT,       "AcCapacityFormat" },
     { 0, NULL }
 };
 
@@ -165,10 +190,11 @@ static const value_string zbee_zcl_thermostat_attr_names[] = {
 #define ZBEE_ZCL_CMD_ID_THERMOSTAT_CLEAR_SCHEDULE       0x03
 #define ZBEE_ZCL_CMD_ID_THERMOSTAT_GET_RELAY_LOG        0x04
 static const value_string zbee_zcl_thermostat_srv_rx_cmd_names[] = {
-    { ZBEE_ZCL_CMD_ID_THERMOSTAT_SETPOINT,      "Setpoint Raise/Lower" },
-    { ZBEE_ZCL_CMD_ID_THERMOSTAT_SET_SCHEDULE,  "Set Weekly Schedule" },
-    { ZBEE_ZCL_CMD_ID_THERMOSTAT_GET_SCHEDULE,  "Get Weekly Schedule" },
-    { ZBEE_ZCL_CMD_ID_THERMOSTAT_GET_RELAY_LOG, "Get Relay Status Log" },
+    { ZBEE_ZCL_CMD_ID_THERMOSTAT_SETPOINT,       "Setpoint Raise/Lower" },
+    { ZBEE_ZCL_CMD_ID_THERMOSTAT_SET_SCHEDULE,   "Set Weekly Schedule" },
+    { ZBEE_ZCL_CMD_ID_THERMOSTAT_GET_SCHEDULE,   "Get Weekly Schedule" },
+    { ZBEE_ZCL_CMD_ID_THERMOSTAT_CLEAR_SCHEDULE, "Clear Weekly Schedule" },
+    { ZBEE_ZCL_CMD_ID_THERMOSTAT_GET_RELAY_LOG,  "Get Relay Status Log" },
     { 0, NULL }
 };
 
@@ -194,34 +220,34 @@ static const value_string zbee_zcl_thermostat_setpoint_mode_names[] = {
 /*************************/
 /* Global Variables      */
 /*************************/
-static int proto_zbee_zcl_thermostat = -1;
+static int proto_zbee_zcl_thermostat;
 
-static int hf_zbee_zcl_thermostat_attr_id = -1;
-static int hf_zbee_zcl_thermostat_srv_rx_cmd_id = -1;
-static int hf_zbee_zcl_thermostat_srv_tx_cmd_id = -1;
-static int hf_zbee_zcl_thermostat_setpoint_mode = -1;
-static int hf_zbee_zcl_thermostat_setpoint_amount = -1;
+static int hf_zbee_zcl_thermostat_attr_id;
+static int hf_zbee_zcl_thermostat_srv_rx_cmd_id;
+static int hf_zbee_zcl_thermostat_srv_tx_cmd_id;
+static int hf_zbee_zcl_thermostat_setpoint_mode;
+static int hf_zbee_zcl_thermostat_setpoint_amount;
 
-static int hf_zbee_zcl_thermostat_schedule_num_trans = -1;
-static int hf_zbee_zcl_thermostat_schedule_day_sequence = -1;
-static int hf_zbee_zcl_thermostat_schedule_day_sunday = -1;
-static int hf_zbee_zcl_thermostat_schedule_day_monday = -1;
-static int hf_zbee_zcl_thermostat_schedule_day_tuesday = -1;
-static int hf_zbee_zcl_thermostat_schedule_day_wednesday = -1;
-static int hf_zbee_zcl_thermostat_schedule_day_thursday = -1;
-static int hf_zbee_zcl_thermostat_schedule_day_friday = -1;
-static int hf_zbee_zcl_thermostat_schedule_day_saturday = -1;
-static int hf_zbee_zcl_thermostat_schedule_day_vacation = -1;
-static int hf_zbee_zcl_thermostat_schedule_mode_sequence = -1;
-static int hf_zbee_zcl_thermostat_schedule_mode_heat = -1;
-static int hf_zbee_zcl_thermostat_schedule_mode_cool = -1;
-static int hf_zbee_zcl_thermostat_schedule_time = -1;
-static int hf_zbee_zcl_thermostat_schedule_heat = -1;
-static int hf_zbee_zcl_thermostat_schedule_cool = -1;
+static int hf_zbee_zcl_thermostat_schedule_num_trans;
+static int hf_zbee_zcl_thermostat_schedule_day_sequence;
+static int hf_zbee_zcl_thermostat_schedule_day_sunday;
+static int hf_zbee_zcl_thermostat_schedule_day_monday;
+static int hf_zbee_zcl_thermostat_schedule_day_tuesday;
+static int hf_zbee_zcl_thermostat_schedule_day_wednesday;
+static int hf_zbee_zcl_thermostat_schedule_day_thursday;
+static int hf_zbee_zcl_thermostat_schedule_day_friday;
+static int hf_zbee_zcl_thermostat_schedule_day_saturday;
+static int hf_zbee_zcl_thermostat_schedule_day_vacation;
+static int hf_zbee_zcl_thermostat_schedule_mode_sequence;
+static int hf_zbee_zcl_thermostat_schedule_mode_heat;
+static int hf_zbee_zcl_thermostat_schedule_mode_cool;
+static int hf_zbee_zcl_thermostat_schedule_time;
+static int hf_zbee_zcl_thermostat_schedule_heat;
+static int hf_zbee_zcl_thermostat_schedule_cool;
 
-static gint ett_zbee_zcl_thermostat = -1;
-static gint ett_zbee_zcl_thermostat_schedule_days = -1;
-static gint ett_zbee_zcl_thermostat_schedule_mode = -1;
+static int ett_zbee_zcl_thermostat;
+static int ett_zbee_zcl_thermostat_schedule_days;
+static int ett_zbee_zcl_thermostat_schedule_mode;
 
 /*************************/
 /* Function Declarations */
@@ -230,11 +256,11 @@ void proto_register_zbee_zcl_thermostat(void);
 void proto_reg_handoff_zbee_zcl_thermostat(void);
 
 /* Attribute Dissector Helpers */
-static void dissect_zcl_thermostat_attr_data(proto_tree *tree, tvbuff_t *tvb, guint *offset, guint16 attr_id, guint data_type, gboolean client_attr);
+static void dissect_zcl_thermostat_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
-static int  dissect_zcl_thermostat_schedule(proto_tree *tree, tvbuff_t *tvb, guint offset);
-static void dissect_zcl_thermostat_schedule_days(proto_tree *tree, tvbuff_t *tvb, guint offset);
-static void dissect_zcl_thermostat_schedule_mode(proto_tree *tree, tvbuff_t *tvb, guint offset);
+static int  dissect_zcl_thermostat_schedule(proto_tree *tree, tvbuff_t *tvb, unsigned offset);
+static void dissect_zcl_thermostat_schedule_days(proto_tree *tree, tvbuff_t *tvb, unsigned offset);
+static void dissect_zcl_thermostat_schedule_mode(proto_tree *tree, tvbuff_t *tvb, unsigned offset);
 
 /**
  *Helper function to dissect a Thermostat scheduling days bitmask.
@@ -244,7 +270,7 @@ static void dissect_zcl_thermostat_schedule_mode(proto_tree *tree, tvbuff_t *tvb
  *@param offset payload offset of the ZoneStatus value.
 */
 static void
-dissect_zcl_thermostat_schedule_days(proto_tree *tree, tvbuff_t *tvb, guint offset)
+dissect_zcl_thermostat_schedule_days(proto_tree *tree, tvbuff_t *tvb, unsigned offset)
 {
 
     static int * const thermostat_schedule_days[] = {
@@ -272,7 +298,7 @@ dissect_zcl_thermostat_schedule_days(proto_tree *tree, tvbuff_t *tvb, guint offs
  *@param offset payload offset of the ZoneStatus value.
 */
 static void
-dissect_zcl_thermostat_schedule_mode(proto_tree *tree, tvbuff_t *tvb, guint offset)
+dissect_zcl_thermostat_schedule_mode(proto_tree *tree, tvbuff_t *tvb, unsigned offset)
 {
 
     static int * const thermostat_schedule_modes[] = {
@@ -294,14 +320,14 @@ dissect_zcl_thermostat_schedule_mode(proto_tree *tree, tvbuff_t *tvb, guint offs
  *@return length of parsed data.
 */
 static int
-dissect_zcl_thermostat_schedule(proto_tree *tree, tvbuff_t *tvb, guint offset)
+dissect_zcl_thermostat_schedule(proto_tree *tree, tvbuff_t *tvb, unsigned offset)
 {
-    guint       start = offset;
-    guint8      num_transitions;
-    guint8      mode_sequence;
+    unsigned    start = offset;
+    uint8_t     num_transitions;
+    uint8_t     mode_sequence;
     int         i;
 
-    num_transitions = tvb_get_guint8(tvb, offset);
+    num_transitions = tvb_get_uint8(tvb, offset);
     proto_tree_add_uint(tree, hf_zbee_zcl_thermostat_schedule_num_trans, tvb, offset, 1,
         num_transitions);
     offset++;
@@ -309,7 +335,7 @@ dissect_zcl_thermostat_schedule(proto_tree *tree, tvbuff_t *tvb, guint offset)
     dissect_zcl_thermostat_schedule_days(tree, tvb, offset);
     offset++;
 
-    mode_sequence = tvb_get_guint8(tvb, offset);
+    mode_sequence = tvb_get_uint8(tvb, offset);
     dissect_zcl_thermostat_schedule_mode(tree, tvb, offset);
     offset++;
 
@@ -352,8 +378,8 @@ static int
 dissect_zbee_zcl_thermostat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
     zbee_zcl_packet   *zcl;
-    guint             offset = 0;
-    guint8            cmd_id;
+    unsigned          offset = 0;
+    uint8_t           cmd_id;
     float             amount;
 
     /* Reject the packet if data is NULL */
@@ -379,7 +405,7 @@ dissect_zbee_zcl_thermostat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                 proto_tree_add_item(tree, hf_zbee_zcl_thermostat_setpoint_mode,
                     tvb, offset, 1, ENC_NA);
                 offset++;
-                amount = tvb_get_gint8(tvb, offset);
+                amount = tvb_get_int8(tvb, offset);
                 proto_tree_add_float(tree, hf_zbee_zcl_thermostat_setpoint_amount,
                     tvb, offset, 1, (amount / 100.0f));
                 offset++;
@@ -398,6 +424,7 @@ dissect_zbee_zcl_thermostat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                 dissect_zcl_thermostat_schedule(tree, tvb, offset);
                 break;
 
+            case ZBEE_ZCL_CMD_ID_THERMOSTAT_CLEAR_SCHEDULE:
             case ZBEE_ZCL_CMD_ID_THERMOSTAT_GET_RELAY_LOG:
                 /* No Payload - fall-through. */
             default:
@@ -441,7 +468,7 @@ dissect_zbee_zcl_thermostat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_thermostat_attr_data(proto_tree *tree, tvbuff_t *tvb, guint *offset, guint16 attr_id, guint data_type, gboolean client_attr)
+dissect_zcl_thermostat_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch (attr_id) {
@@ -544,7 +571,7 @@ proto_register_zbee_zcl_thermostat(void)
     };
 
     /* ZCL IAS Zone subtrees */
-    static gint *ett[ZBEE_ZCL_THERMOSTAT_NUM_ETT];
+    static int *ett[ZBEE_ZCL_THERMOSTAT_NUM_ETT];
 
     ett[0] = &ett_zbee_zcl_thermostat;
     ett[1] = &ett_zbee_zcl_thermostat_schedule_days;
@@ -678,27 +705,27 @@ static const value_string zbee_zcl_ias_zone_enroll_code_names[] = {
 /* Global Variables      */
 /*************************/
 /* Initialize the protocol and registered fields */
-static int proto_zbee_zcl_ias_zone = -1;
+static int proto_zbee_zcl_ias_zone;
 
-static int hf_zbee_zcl_ias_zone_attr_id = -1;
-static int hf_zbee_zcl_ias_zone_srv_rx_cmd_id = -1;
-static int hf_zbee_zcl_ias_zone_srv_tx_cmd_id = -1;
-static int hf_zbee_zcl_ias_zone_enroll_code = -1;
-static int hf_zbee_zcl_ias_zone_zone_id = -1;
-static int hf_zbee_zcl_ias_zone_state = -1;
-static int hf_zbee_zcl_ias_zone_type = -1;
-static int hf_zbee_zcl_ias_zone_status = -1;
-static int hf_zbee_zcl_ias_zone_delay = -1;
-static int hf_zbee_zcl_ias_zone_ext_status = -1;
-static int hf_zbee_zcl_ias_zone_manufacturer_code = -1;
-static int hf_zbee_zcl_ias_zone_status_ac_mains = -1;
-static int hf_zbee_zcl_ias_zone_status_alarm1 = -1;
-static int hf_zbee_zcl_ias_zone_status_alarm2 = -1;
-static int hf_zbee_zcl_ias_zone_status_battery = -1;
-static int hf_zbee_zcl_ias_zone_status_restore_reports = -1;
-static int hf_zbee_zcl_ias_zone_status_supervision_reports = -1;
-static int hf_zbee_zcl_ias_zone_status_tamper = -1;
-static int hf_zbee_zcl_ias_zone_status_trouble = -1;
+static int hf_zbee_zcl_ias_zone_attr_id;
+static int hf_zbee_zcl_ias_zone_srv_rx_cmd_id;
+static int hf_zbee_zcl_ias_zone_srv_tx_cmd_id;
+static int hf_zbee_zcl_ias_zone_enroll_code;
+static int hf_zbee_zcl_ias_zone_zone_id;
+static int hf_zbee_zcl_ias_zone_state;
+static int hf_zbee_zcl_ias_zone_type;
+static int hf_zbee_zcl_ias_zone_status;
+static int hf_zbee_zcl_ias_zone_delay;
+static int hf_zbee_zcl_ias_zone_ext_status;
+static int hf_zbee_zcl_ias_zone_manufacturer_code;
+static int hf_zbee_zcl_ias_zone_status_ac_mains;
+static int hf_zbee_zcl_ias_zone_status_alarm1;
+static int hf_zbee_zcl_ias_zone_status_alarm2;
+static int hf_zbee_zcl_ias_zone_status_battery;
+static int hf_zbee_zcl_ias_zone_status_restore_reports;
+static int hf_zbee_zcl_ias_zone_status_supervision_reports;
+static int hf_zbee_zcl_ias_zone_status_tamper;
+static int hf_zbee_zcl_ias_zone_status_trouble;
 
 static const true_false_string tfs_ac_mains = {
     "AC/Mains fault",
@@ -735,8 +762,8 @@ static const true_false_string tfs_trouble_failure = {
     "OK"
 };
 
-static gint ett_zbee_zcl_ias_zone = -1;
-static gint ett_zbee_zcl_ias_zone_status = -1;
+static int ett_zbee_zcl_ias_zone;
+static int ett_zbee_zcl_ias_zone_status;
 
 /*************************/
 /* Function Declarations */
@@ -748,10 +775,10 @@ void proto_reg_handoff_zbee_zcl_ias_zone(void);
 static int dissect_zbee_zcl_ias_zone   (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data);
 
 /* Attribute Dissector Helpers */
-static void dissect_zcl_ias_zone_attr_data  (proto_tree *tree, tvbuff_t *tvb, guint *offset, guint16 attr_id, guint data_type, gboolean client_attr);
+static void dissect_zcl_ias_zone_attr_data  (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* ZoneStatus bitmask helper */
-static void dissect_zcl_ias_zone_status     (proto_tree *tree, tvbuff_t *tvb, guint offset);
+static void dissect_zcl_ias_zone_status     (proto_tree *tree, tvbuff_t *tvb, unsigned offset);
 
 /**
  *Helper function to dissect the IAS ZoneStatus bitmask.
@@ -761,7 +788,7 @@ static void dissect_zcl_ias_zone_status     (proto_tree *tree, tvbuff_t *tvb, gu
  *@param offset payload offset of the ZoneStatus value.
 */
 static void
-dissect_zcl_ias_zone_status(proto_tree *tree, tvbuff_t *tvb, guint offset)
+dissect_zcl_ias_zone_status(proto_tree *tree, tvbuff_t *tvb, unsigned offset)
 {
     static int * const ias_zone_statuses[] = {
         &hf_zbee_zcl_ias_zone_status_alarm1,
@@ -792,8 +819,8 @@ static int
 dissect_zbee_zcl_ias_zone(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     zbee_zcl_packet   *zcl;
-    guint             offset = 0;
-    guint8            cmd_id;
+    unsigned          offset = 0;
+    uint8_t           cmd_id;
 
     /* Reject the packet if data is NULL */
     if (data == NULL)
@@ -875,7 +902,7 @@ dissect_zbee_zcl_ias_zone(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_ias_zone_attr_data(proto_tree *tree, tvbuff_t *tvb, guint *offset, guint16 attr_id, guint data_type, gboolean client_attr)
+dissect_zcl_ias_zone_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch (attr_id) {
@@ -1005,7 +1032,7 @@ proto_register_zbee_zcl_ias_zone(void)
     };
 
     /* ZCL IAS Zone subtrees */
-    static gint *ett[ZBEE_ZCL_IAS_ZONE_NUM_ETT];
+    static int *ett[ZBEE_ZCL_IAS_ZONE_NUM_ETT];
 
     ett[0] = &ett_zbee_zcl_ias_zone;
     ett[1] = &ett_zbee_zcl_ias_zone_status;

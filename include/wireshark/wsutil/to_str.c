@@ -95,7 +95,7 @@ byte_to_hex(char *out, uint32_t dword)
 }
 
 char *
-guint8_to_hex(char *out, uint8_t val)
+uint8_to_hex(char *out, uint8_t val)
 {
 	return byte_to_hex(out, val);
 }
@@ -418,7 +418,7 @@ uint_to_str_back_len(char *ptr, uint32_t value, int len)
 
 	new_ptr = uint_to_str_back(ptr, value);
 
-	/* substract from len number of generated characters */
+	/* subtract from len number of generated characters */
 	len -= (int)(ptr - new_ptr);
 
 	/* pad remaining with '0' */
@@ -438,7 +438,7 @@ uint64_to_str_back_len(char *ptr, uint64_t value, int len)
 
 	new_ptr = uint64_to_str_back(ptr, value);
 
-	/* substract from len number of generated characters */
+	/* subtract from len number of generated characters */
 	len -= (int)(ptr - new_ptr);
 
 	/* pad remaining with '0' */
@@ -476,7 +476,7 @@ int64_to_str_back(char *ptr, int64_t value)
 }
 
 static size_t
-guint32_to_str_buf_len(const uint32_t u)
+uint32_to_str_buf_len(const uint32_t u)
 {
 	/* ((2^32)-1) == 2147483647 */
 	if (u >= 1000000000)return 10;
@@ -493,9 +493,9 @@ guint32_to_str_buf_len(const uint32_t u)
 }
 
 void
-guint32_to_str_buf(uint32_t u, char *buf, size_t buf_len)
+uint32_to_str_buf(uint32_t u, char *buf, size_t buf_len)
 {
-	size_t str_len = guint32_to_str_buf_len(u)+1;
+	size_t str_len = uint32_to_str_buf_len(u)+1;
 
 	char *bp = &buf[str_len];
 
@@ -507,37 +507,37 @@ guint32_to_str_buf(uint32_t u, char *buf, size_t buf_len)
 }
 
 static size_t
-guint64_to_str_buf_len(const uint64_t u)
+uint64_to_str_buf_len(const uint64_t u)
 {
 	/* ((2^64)-1) == 18446744073709551615 */
 
-	if (u >= G_GUINT64_CONSTANT(10000000000000000000)) return 20;
-	if (u >= G_GUINT64_CONSTANT(1000000000000000000))  return 19;
-	if (u >= G_GUINT64_CONSTANT(100000000000000000))   return 18;
-	if (u >= G_GUINT64_CONSTANT(10000000000000000))    return 17;
-	if (u >= G_GUINT64_CONSTANT(1000000000000000))     return 16;
-	if (u >= G_GUINT64_CONSTANT(100000000000000))      return 15;
-	if (u >= G_GUINT64_CONSTANT(10000000000000))       return 14;
-	if (u >= G_GUINT64_CONSTANT(1000000000000))        return 13;
-	if (u >= G_GUINT64_CONSTANT(100000000000))         return 12;
-	if (u >= G_GUINT64_CONSTANT(10000000000))          return 11;
-	if (u >= G_GUINT64_CONSTANT(1000000000))           return 10;
-	if (u >= G_GUINT64_CONSTANT(100000000))            return 9;
-	if (u >= G_GUINT64_CONSTANT(10000000))             return 8;
-	if (u >= G_GUINT64_CONSTANT(1000000))              return 7;
-	if (u >= G_GUINT64_CONSTANT(100000))               return 6;
-	if (u >= G_GUINT64_CONSTANT(10000))                return 5;
-	if (u >= G_GUINT64_CONSTANT(1000))                 return 4;
-	if (u >= G_GUINT64_CONSTANT(100))                  return 3;
-	if (u >= G_GUINT64_CONSTANT(10))                   return 2;
+	if (u >= UINT64_C(10000000000000000000)) return 20;
+	if (u >= UINT64_C(1000000000000000000))  return 19;
+	if (u >= UINT64_C(100000000000000000))   return 18;
+	if (u >= UINT64_C(10000000000000000))    return 17;
+	if (u >= UINT64_C(1000000000000000))     return 16;
+	if (u >= UINT64_C(100000000000000))      return 15;
+	if (u >= UINT64_C(10000000000000))       return 14;
+	if (u >= UINT64_C(1000000000000))        return 13;
+	if (u >= UINT64_C(100000000000))         return 12;
+	if (u >= UINT64_C(10000000000))          return 11;
+	if (u >= UINT64_C(1000000000))           return 10;
+	if (u >= UINT64_C(100000000))            return 9;
+	if (u >= UINT64_C(10000000))             return 8;
+	if (u >= UINT64_C(1000000))              return 7;
+	if (u >= UINT64_C(100000))               return 6;
+	if (u >= UINT64_C(10000))                return 5;
+	if (u >= UINT64_C(1000))                 return 4;
+	if (u >= UINT64_C(100))                  return 3;
+	if (u >= UINT64_C(10))                   return 2;
 
 	return 1;
 }
 
 void
-guint64_to_str_buf(uint64_t u, char *buf, size_t buf_len)
+uint64_to_str_buf(uint64_t u, char *buf, size_t buf_len)
 {
-	size_t str_len = guint64_to_str_buf_len(u)+1;
+	size_t str_len = uint64_to_str_buf_len(u)+1;
 
 	char *bp = &buf[str_len];
 
@@ -553,8 +553,9 @@ guint64_to_str_buf(uint64_t u, char *buf, size_t buf_len)
    XXX update the address_to_str stuff to use this function.
    */
 void
-ip_to_str_buf(const uint8_t *ad, char *buf, const int buf_len)
+ip_addr_to_str_buf(const ws_in4_addr *_ad, char *buf, const int buf_len)
 {
+	uint8_t *ad = (uint8_t *)_ad;
 	register char const *p;
 	register char *b=buf;
 
@@ -589,13 +590,41 @@ ip_to_str_buf(const uint8_t *ad, char *buf, const int buf_len)
 	*b=0;
 }
 
-char *ip_to_str(wmem_allocator_t *scope, const uint8_t *ad)
+char *
+ip_addr_to_str(wmem_allocator_t *scope, const ws_in4_addr *ad)
 {
 	char *buf = wmem_alloc(scope, WS_INET_ADDRSTRLEN * sizeof(char));
 
-	ip_to_str_buf(ad, buf, WS_INET_ADDRSTRLEN);
+	ip_addr_to_str_buf(ad, buf, WS_INET_ADDRSTRLEN);
 
 	return buf;
+}
+
+void
+ip_num_to_str_buf(uint32_t ad, char *buf, const int buf_len)
+{
+	ws_in4_addr addr = g_htonl(ad);
+	ip_addr_to_str_buf(&addr, buf, buf_len);
+}
+
+/* Host byte order */
+char *
+ip_num_to_str(wmem_allocator_t *scope, uint32_t ad)
+{
+	ws_in4_addr addr = g_htonl(ad);
+	return ip_addr_to_str(scope, &addr);
+}
+
+void
+ip_to_str_buf(const uint8_t *ad, char *buf, const int buf_len)
+{
+	ip_addr_to_str_buf((const ws_in4_addr *)ad, buf, buf_len);
+}
+
+char *
+ip_to_str(wmem_allocator_t *scope, const uint8_t *ad)
+{
+	return ip_addr_to_str(scope, (const ws_in4_addr *)ad);
 }
 
 void

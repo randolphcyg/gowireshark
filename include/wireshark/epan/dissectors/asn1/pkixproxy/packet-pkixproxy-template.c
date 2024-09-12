@@ -14,6 +14,7 @@
 #include <epan/packet.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-pkixproxy.h"
@@ -26,7 +27,7 @@ void proto_register_pkixproxy(void);
 void proto_reg_handoff_pkixproxy(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_pkixproxy = -1;
+static int proto_pkixproxy;
 #include "packet-pkixproxy-hf.c"
 
 /* Initialize the subtree pointers */
@@ -44,7 +45,7 @@ void proto_register_pkixproxy(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
 #include "packet-pkixproxy-ettarr.c"
   };
 

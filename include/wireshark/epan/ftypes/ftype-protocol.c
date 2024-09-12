@@ -9,10 +9,9 @@
 #include "config.h"
 
 #include <ftypes-int.h>
-#include <epan/strutil.h>
 #include <epan/to_str.h>
 #include <string.h>
-#include <wsutil/glib-compat.h>
+#include <wsutil/array.h>
 
 #include <epan/exceptions.h>
 #include <wsutil/ws_assert.h>
@@ -369,10 +368,8 @@ void
 ftype_register_tvbuff(void)
 {
 
-	static ftype_t protocol_type = {
+	static const ftype_t protocol_type = {
 		FT_PROTOCOL,			/* ftype */
-		"FT_PROTOCOL",			/* name */
-		"Protocol",			/* pretty_name */
 		0,				/* wire_size */
 		value_new,			/* new_value */
 		value_copy,			/* copy_value */
@@ -380,10 +377,14 @@ ftype_register_tvbuff(void)
 		val_from_literal,		/* val_from_literal */
 		val_from_string,		/* val_from_string */
 		val_from_charconst,		/* val_from_charconst */
+		NULL,				/* val_from_uinteger64 */
+		NULL,				/* val_from_sinteger64 */
+		NULL,				/* val_from_double */
 		val_to_repr,			/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_to_double */
 
 		{ .set_value_protocol = value_set },	/* union set_value */
 		{ .get_value_protocol = value_get },	/* union get_value */

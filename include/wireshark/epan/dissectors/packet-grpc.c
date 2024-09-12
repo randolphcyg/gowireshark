@@ -77,29 +77,29 @@
 /*
 * Decompression of zlib encoded entities.
 */
-#ifdef HAVE_ZLIB
-static gboolean grpc_decompress_body = TRUE;
+#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+static bool grpc_decompress_body = true;
 #else
-static gboolean grpc_decompress_body = FALSE;
+static bool grpc_decompress_body;
 #endif
 
 /* detect json automatically */
-static gboolean grpc_detect_json_automatically = TRUE;
+static bool grpc_detect_json_automatically = true;
 /* whether embed GRPC messages under HTTP2 (or other) protocol tree items */
-static gboolean grpc_embedded_under_http2 = FALSE;
+static bool grpc_embedded_under_http2;
 
 void proto_register_grpc(void);
 void proto_reg_handoff_grpc(void);
 
-static int proto_grpc = -1;
-static int proto_http = -1;
+static int proto_grpc;
+static int proto_http;
 
 /* message header */
-static int hf_grpc_frame_type = -1;
-static int hf_grpc_compressed_flag = -1;
-static int hf_grpc_message_length = -1;
+static int hf_grpc_frame_type;
+static int hf_grpc_compressed_flag;
+static int hf_grpc_message_length;
 /* message body */
-static int hf_grpc_message_data = -1;
+static int hf_grpc_message_data;
 
 /* grpc protocol type */
 #define grpc_protocol_type_vals_VALUE_STRING_LIST(XXX)    \
@@ -127,13 +127,13 @@ VALUE_STRING_ENUM(grpc_compressed_flag_vals);
 VALUE_STRING_ARRAY(grpc_compressed_flag_vals);
 
 /* expert */
-static expert_field ei_grpc_body_decompression_failed = EI_INIT;
-static expert_field ei_grpc_body_malformed = EI_INIT;
+static expert_field ei_grpc_body_decompression_failed;
+static expert_field ei_grpc_body_malformed;
 
 /* trees */
-static int ett_grpc = -1;
-static int ett_grpc_message = -1;
-static int ett_grpc_encoded_entity = -1;
+static int ett_grpc;
+static int ett_grpc_message;
+static int ett_grpc_encoded_entity;
 
 static dissector_handle_t grpc_handle;
 static dissector_handle_t grpc_web_handle;
@@ -142,11 +142,11 @@ static dissector_handle_t data_text_lines_handle;
 
 /* the information used during dissecting a grpc message */
 typedef struct {
-    gboolean is_request; /* is request or response message */
+    bool is_request; /* is request or response message */
     grpc_protocol_type_t proto_type;
-    const gchar* path; /* is http2 ":path" or http request_uri, format: "/" Service-Name "/" {method name} */
-    const gchar* content_type; /* is http2 or http content-type, like: application/grpc */
-    const gchar* encoding; /* is grpc-encoding header containing compressed method, for example "gzip" */
+    const char* path; /* is http2 ":path" or http request_uri, format: "/" Service-Name "/" {method name} */
+    const char* content_type; /* is http2 or http content-type, like: application/grpc */
+    const char* encoding; /* is grpc-encoding header containing compressed method, for example "gzip" */
 } grpc_context_info_t;
 
 /* GRPC message type dissector table list.
@@ -163,12 +163,12 @@ static dissector_table_t grpc_message_type_subdissector_table;
 
 /* Try to dissect grpc message according to grpc message info or http2 content_type. */
 static void
-dissect_body_data(proto_tree *grpc_tree, packet_info *pinfo, tvbuff_t *tvb, const gint offset,
-    gint length, gboolean continue_dissect,
-    guint32 frame_type, grpc_context_info_t *grpc_ctx)
+dissect_body_data(proto_tree *grpc_tree, packet_info *pinfo, tvbuff_t *tvb, const int offset,
+    int length, bool continue_dissect,
+    uint32_t frame_type, grpc_context_info_t *grpc_ctx)
 {
-    const gchar *http2_content_type = grpc_ctx->content_type;
-    gchar *grpc_message_info;
+    const char *http2_content_type = grpc_ctx->content_type;
+    char *grpc_message_info;
     tvbuff_t *next_tvb;
     int dissected;
     proto_tree *parent_tree;
@@ -196,9 +196,9 @@ dissect_body_data(proto_tree *grpc_tree, packet_info *pinfo, tvbuff_t *tvb, cons
     * content-type application/grpc by json dissector insteadof protobuf dissector.
     */
     if (grpc_detect_json_automatically && length > 3
-        && tvb_get_guint8(next_tvb, 0) == '{')  /* start with '{' */
+        && tvb_get_uint8(next_tvb, 0) == '{')  /* start with '{' */
     {
-        guint8 end_bytes[3];
+        uint8_t end_bytes[3];
         tvb_memcpy(next_tvb, end_bytes, length - 3, 3);
         if (end_bytes[2] == '}'     /* end with '}' */
             || end_bytes[1] == '}'  /* or "}\n" */
@@ -220,7 +220,7 @@ dissect_body_data(proto_tree *grpc_tree, packet_info *pinfo, tvbuff_t *tvb, cons
     * the grpc message information might be used by the other Lua dissector in the future.
     * The grpc message information format is:
     *   http2_content_type "," http2_path "," ("request" / "response")
-    * Acording to grpc wire format guide, it will be:
+    * According to grpc wire format guide, it will be:
     *   "application/grpc" [("+proto" / "+json" / {custom})] "," "/" service-name "/" method-name "/" "," ("request" / "response")
     * For example:
     *   application/grpc,/helloworld.Greeter/SayHello,request
@@ -244,8 +244,8 @@ dissect_body_data(proto_tree *grpc_tree, packet_info *pinfo, tvbuff_t *tvb, cons
     }
 }
 
-static gboolean
-can_uncompress_body(const gchar *grpc_encoding)
+static bool
+can_uncompress_body(const char *grpc_encoding)
 {
     /* check http2 have a grpc-encoding header appropriate */
     return grpc_decompress_body
@@ -255,12 +255,12 @@ can_uncompress_body(const gchar *grpc_encoding)
 
 /* Dissect a grpc message. The caller needs to guarantee that the length is equal
 to 5 + message_length according to grpc wire format definition. */
-static guint
-dissect_grpc_message(tvbuff_t *tvb, guint offset, guint length, packet_info *pinfo, proto_tree *grpc_tree,
+static unsigned
+dissect_grpc_message(tvbuff_t *tvb, unsigned offset, unsigned length, packet_info *pinfo, proto_tree *grpc_tree,
                      grpc_context_info_t* grpc_ctx)
 {
-    guint32 frame_type, compressed_flag, message_length;
-    const gchar *compression_method = grpc_ctx->encoding;
+    uint32_t frame_type, compressed_flag, message_length;
+    const char *compression_method = grpc_ctx->encoding;
 
     /* GRPC message format:
     Delimited-Message -> Compressed-Flag Message-Length Message
@@ -290,7 +290,7 @@ dissect_grpc_message(tvbuff_t *tvb, guint offset, guint length, packet_info *pin
     if (compressed_flag & GRPC_COMPRESSED) {
         if (can_uncompress_body(compression_method)) {
             proto_item *compressed_proto_item = NULL;
-            tvbuff_t *uncompressed_tvb = tvb_child_uncompress(tvb, tvb, offset, message_length);
+            tvbuff_t *uncompressed_tvb = tvb_child_uncompress_zlib(tvb, tvb, offset, message_length);
 
             proto_tree *compressed_entity_tree = proto_tree_add_subtree_format(
                 grpc_tree, tvb, offset, message_length, ett_grpc_encoded_entity,
@@ -299,20 +299,20 @@ dissect_grpc_message(tvbuff_t *tvb, guint offset, guint length, packet_info *pin
             );
 
             if (uncompressed_tvb != NULL) {
-                guint uncompressed_length = tvb_captured_length(uncompressed_tvb);
+                unsigned uncompressed_length = tvb_captured_length(uncompressed_tvb);
                 add_new_data_source(pinfo, uncompressed_tvb, "Uncompressed entity body");
                 proto_item_append_text(compressed_proto_item, " -> %u bytes", uncompressed_length);
-                dissect_body_data(grpc_tree, pinfo, uncompressed_tvb, 0, uncompressed_length, TRUE, frame_type, grpc_ctx);
+                dissect_body_data(grpc_tree, pinfo, uncompressed_tvb, 0, uncompressed_length, true, frame_type, grpc_ctx);
             } else {
                 proto_tree_add_expert(compressed_entity_tree, pinfo, &ei_grpc_body_decompression_failed,
                     tvb, offset, message_length);
-                dissect_body_data(grpc_tree, pinfo, tvb, offset, message_length, FALSE, frame_type, grpc_ctx);
+                dissect_body_data(grpc_tree, pinfo, tvb, offset, message_length, false, frame_type, grpc_ctx);
             }
         } else { /* compressed flag is set, but we can not uncompressed */
-            dissect_body_data(grpc_tree, pinfo, tvb, offset, message_length, FALSE, frame_type, grpc_ctx);
+            dissect_body_data(grpc_tree, pinfo, tvb, offset, message_length, false, frame_type, grpc_ctx);
         }
     } else {
-        dissect_body_data(grpc_tree, pinfo, tvb, offset, message_length, TRUE, frame_type, grpc_ctx);
+        dissect_body_data(grpc_tree, pinfo, tvb, offset, message_length, true, frame_type, grpc_ctx);
     }
 
     return offset + message_length;
@@ -323,10 +323,10 @@ dissect_grpc_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, grpc_co
 {
     proto_item *ti;
     proto_tree *grpc_tree;
-    guint32 message_length;
-    guint offset = 0;
-    guint tvb_len = tvb_reported_length(tvb);
-    const gchar* proto_name;
+    uint32_t message_length;
+    unsigned offset = 0;
+    unsigned tvb_len = tvb_reported_length(tvb);
+    const char* proto_name;
 
     DISSECTOR_ASSERT(grpc_ctx != NULL);
 
@@ -391,24 +391,24 @@ get_grpc_context(packet_info *pinfo, const media_content_info_t *content_info)
     grpc_context_info_t* grpc_ctx = wmem_new0(pinfo->pool, grpc_context_info_t);
 
     if (proto_is_frame_protocol(pinfo->layers, "http2")) {
-        grpc_ctx->path = http2_get_header_value(pinfo, HTTP2_HEADER_PATH, FALSE);
+        grpc_ctx->path = http2_get_header_value(pinfo, HTTP2_HEADER_PATH, false);
         grpc_ctx->is_request = (grpc_ctx->path != NULL);
         if (grpc_ctx->path == NULL) {
             /* this must be response, so we get it from http2 request stream */
             /* XXX - Not necessarily true if the data has errors. */
-            grpc_ctx->path = http2_get_header_value(pinfo, HTTP2_HEADER_PATH, TRUE);
+            grpc_ctx->path = http2_get_header_value(pinfo, HTTP2_HEADER_PATH, true);
         }
-        grpc_ctx->content_type = http2_get_header_value(pinfo, HTTP2_HEADER_CONTENT_TYPE, FALSE);
-        grpc_ctx->encoding = http2_get_header_value(pinfo, HTTP2_HEADER_GRPC_ENCODING, FALSE);
+        grpc_ctx->content_type = http2_get_header_value(pinfo, HTTP2_HEADER_CONTENT_TYPE, false);
+        grpc_ctx->encoding = http2_get_header_value(pinfo, HTTP2_HEADER_GRPC_ENCODING, false);
     }
     else if (proto_is_frame_protocol(pinfo->layers, "http")) {
-        curr_req_res = (http_req_res_t*)p_get_proto_data(wmem_file_scope(), pinfo, proto_http, 0);
+        curr_req_res = (http_req_res_t*)p_get_proto_data(wmem_file_scope(), pinfo, proto_http, HTTP_PROTO_DATA_REQRES);
         DISSECTOR_ASSERT_HINT(curr_req_res && content_info, "Unexpected error: HTTP request/reply or HTTP message info not available.");
         grpc_ctx->is_request = (content_info->type == MEDIA_CONTAINER_HTTP_REQUEST);
         grpc_ctx->path = curr_req_res->request_uri;
         grpc_ctx->content_type = pinfo->match_string; /* only for grpc-web(-text) over http1.1 */
         if (content_info->data) {
-            grpc_ctx->encoding = (const gchar*)wmem_map_lookup((wmem_map_t *)content_info->data, HTTP2_HEADER_GRPC_ENCODING);
+            grpc_ctx->encoding = (const char*)wmem_map_lookup((wmem_map_t *)content_info->data, HTTP2_HEADER_GRPC_ENCODING);
         }
     }
     else {
@@ -493,7 +493,7 @@ proto_register_grpc(void)
         }
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_grpc,
         &ett_grpc_message,
         &ett_grpc_encoded_entity

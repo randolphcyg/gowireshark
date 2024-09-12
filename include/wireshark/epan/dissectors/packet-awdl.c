@@ -18,10 +18,12 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/oui.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
 #include "packet-llc.h"
 #include "packet-ieee80211.h"
 #include "packet-dns.h"
-#include <epan/oui.h>
 
 void proto_register_awdl(void);
 void proto_reg_handoff_awdl(void);
@@ -37,258 +39,272 @@ typedef struct awdl_tagged_field_data
 
 static const unit_name_string units_ieee80211_tu = { " TU", NULL }; /* 1 TU = 1024 microseconds */
 
-static int proto_awdl = -1;
-static int proto_awdl_data = -1;
+static int proto_awdl;
+static int proto_awdl_data;
 
-static int hf_awdl_unknown = -1;
+static int hf_awdl_unknown;
 
-static int hf_awdl_fixed_parameters = -1;
-static int hf_awdl_tagged_parameters = -1;
+static int hf_awdl_fixed_parameters;
+static int hf_awdl_tagged_parameters;
 
-static int hf_awdl_data_seq = -1;
-static int hf_awdl_data_header = -1;
-static int hf_awdl_data_ethertype = -1;
+static int hf_awdl_data_seq;
+static int hf_awdl_data_header;
+static int hf_awdl_data_ethertype;
 
-static int hf_awdl_type = -1;
-static int hf_awdl_subtype = -1;
-static int hf_awdl_rsvd = -1;
-static int hf_awdl_phytime = -1;
-static int hf_awdl_targettime = -1;
-static int hf_awdl_txdelay = -1;
+static int hf_awdl_type;
+static int hf_awdl_subtype;
+static int hf_awdl_rsvd;
+static int hf_awdl_phytime;
+static int hf_awdl_targettime;
+static int hf_awdl_txdelay;
 
-static int hf_awdl_tag = -1;
-static int hf_awdl_tag_number = -1;
-static int hf_awdl_tag_length = -1;
-static int hf_awdl_tag_data = -1;
-static int hf_awdl_tag_padding = -1;
+static int hf_awdl_tag;
+static int hf_awdl_tag_number;
+static int hf_awdl_tag_length;
+static int hf_awdl_tag_data;
+static int hf_awdl_tag_padding;
 
-static int hf_awdl_version = -1;
-static int hf_awdl_version_minor = -1;
-static int hf_awdl_version_major = -1;
-static int hf_awdl_version_devclass = -1;
+static int hf_awdl_version;
+static int hf_awdl_version_minor;
+static int hf_awdl_version_major;
+static int hf_awdl_version_devclass;
 
-static int hf_awdl_datastate_flags = -1;
-static int hf_awdl_datastate_flags_0 = -1;
-static int hf_awdl_datastate_flags_1 = -1;
-static int hf_awdl_datastate_flags_2 = -1;
-static int hf_awdl_datastate_flags_3 = -1;
-static int hf_awdl_datastate_flags_4 = -1;
-static int hf_awdl_datastate_flags_5 = -1;
-static int hf_awdl_datastate_flags_6 = -1;
-static int hf_awdl_datastate_flags_7 = -1;
-static int hf_awdl_datastate_flags_8 = -1;
-static int hf_awdl_datastate_flags_9 = -1;
-static int hf_awdl_datastate_flags_10 = -1;
-static int hf_awdl_datastate_flags_11 = -1;
-static int hf_awdl_datastate_flags_12 = -1;
-static int hf_awdl_datastate_flags_13 = -1;
-static int hf_awdl_datastate_flags_14 = -1;
-static int hf_awdl_datastate_flags_15 = -1;
-static int hf_awdl_datastate_extflags = -1;
-static int hf_awdl_datastate_extflags_0 = -1;
-static int hf_awdl_datastate_extflags_1 = -1;
-static int hf_awdl_datastate_extflags_2 = -1;
-static int hf_awdl_datastate_extflags_3to15 = -1;
-static int hf_awdl_datastate_infra_channel = -1;
-static int hf_awdl_datastate_countrycode = -1;
-static int hf_awdl_datastate_social_channel = -1;
-static int hf_awdl_datastate_social_channel_map = -1;
-static int hf_awdl_datastate_social_channel_map_6 = -1;
-static int hf_awdl_datastate_social_channel_map_44 = -1;
-static int hf_awdl_datastate_social_channel_map_149 = -1;
-static int hf_awdl_datastate_social_channel_map_unused = -1;
-static int hf_awdl_datastate_infra_bssid = -1;
-static int hf_awdl_datastate_infra_address = -1;
-static int hf_awdl_datastate_awdl_address = -1;
-static int hf_awdl_datastate_umi = -1;
-static int hf_awdl_datastate_umioptions = -1;
-static int hf_awdl_datastate_umioptions_length = -1;
-static int hf_awdl_datastate_logtrigger = -1;
-static int hf_awdl_datastate_undecoded = -1;
+static int hf_awdl_datastate_flags;
+static int hf_awdl_datastate_flags_0;
+static int hf_awdl_datastate_flags_1;
+static int hf_awdl_datastate_flags_2;
+static int hf_awdl_datastate_flags_3;
+static int hf_awdl_datastate_flags_4;
+static int hf_awdl_datastate_flags_5;
+static int hf_awdl_datastate_flags_6;
+static int hf_awdl_datastate_flags_7;
+static int hf_awdl_datastate_flags_8;
+static int hf_awdl_datastate_flags_9;
+static int hf_awdl_datastate_flags_10;
+static int hf_awdl_datastate_flags_11;
+static int hf_awdl_datastate_flags_12;
+static int hf_awdl_datastate_flags_13;
+static int hf_awdl_datastate_flags_14;
+static int hf_awdl_datastate_flags_15;
+static int hf_awdl_datastate_extflags;
+static int hf_awdl_datastate_extflags_0;
+static int hf_awdl_datastate_extflags_1;
+static int hf_awdl_datastate_extflags_2;
+static int hf_awdl_datastate_extflags_3;
+static int hf_awdl_datastate_extflags_4;
+static int hf_awdl_datastate_extflags_5;
+static int hf_awdl_datastate_extflags_6;
+static int hf_awdl_datastate_extflags_7;
+static int hf_awdl_datastate_extflags_8;
+static int hf_awdl_datastate_extflags_9;
+static int hf_awdl_datastate_extflags_10;
+static int hf_awdl_datastate_extflags_11;
+static int hf_awdl_datastate_extflags_12;
+static int hf_awdl_datastate_extflags_13;
+static int hf_awdl_datastate_extflags_14to15;
+static int hf_awdl_datastate_infra_channel;
+static int hf_awdl_datastate_countrycode;
+static int hf_awdl_datastate_social_channel;
+static int hf_awdl_datastate_social_channel_map;
+static int hf_awdl_datastate_social_channel_map_6;
+static int hf_awdl_datastate_social_channel_map_44;
+static int hf_awdl_datastate_social_channel_map_149;
+static int hf_awdl_datastate_social_channel_map_unused;
+static int hf_awdl_datastate_infra_bssid;
+static int hf_awdl_datastate_infra_address;
+static int hf_awdl_datastate_awdl_address;
+static int hf_awdl_datastate_umi;
+static int hf_awdl_datastate_umioptions;
+static int hf_awdl_datastate_umioptions_length;
+static int hf_awdl_datastate_logtrigger;
+static int hf_awdl_datastate_rlfc;
+static int hf_awdl_datastate_active_time;
+static int hf_awdl_datastate_aw_sequence_counter;
+static int hf_awdl_datastate_update_counter;
 
-static int hf_awdl_synctree_addr = -1;
+static int hf_awdl_synctree_addr;
 
-static int hf_awdl_syncparams_master = -1;
-static int hf_awdl_syncparams_awcounter = -1;
-static int hf_awdl_syncparams_apbeaconalignment = -1;
-static int hf_awdl_syncparams_tx_chan = -1;
-static int hf_awdl_syncparams_tx_counter = -1;
-static int hf_awdl_syncparams_master_chan = -1;
-static int hf_awdl_syncparams_guard_time = -1;
-static int hf_awdl_syncparams_aw_period = -1;
-static int hf_awdl_syncparams_action_frame_period = -1;
-static int hf_awdl_syncparams_awdl_flags = -1;
-static int hf_awdl_syncparams_aw_ext_length = -1;
-static int hf_awdl_syncparams_aw_cmn_length = -1;
-static int hf_awdl_syncparams_aw_remaining = -1;
-static int hf_awdl_syncparams_ext_min = -1;
-static int hf_awdl_syncparams_ext_max_multi = -1;
-static int hf_awdl_syncparams_ext_max_uni = -1;
-static int hf_awdl_syncparams_ext_max_af = -1;
-static int hf_awdl_syncparams_presence_mode = -1;
+static int hf_awdl_syncparams_master;
+static int hf_awdl_syncparams_awcounter;
+static int hf_awdl_syncparams_apbeaconalignment;
+static int hf_awdl_syncparams_tx_chan;
+static int hf_awdl_syncparams_tx_counter;
+static int hf_awdl_syncparams_master_chan;
+static int hf_awdl_syncparams_guard_time;
+static int hf_awdl_syncparams_aw_period;
+static int hf_awdl_syncparams_action_frame_period;
+static int hf_awdl_syncparams_awdl_flags;
+static int hf_awdl_syncparams_aw_ext_length;
+static int hf_awdl_syncparams_aw_cmn_length;
+static int hf_awdl_syncparams_aw_remaining;
+static int hf_awdl_syncparams_ext_min;
+static int hf_awdl_syncparams_ext_max_multi;
+static int hf_awdl_syncparams_ext_max_uni;
+static int hf_awdl_syncparams_ext_max_af;
+static int hf_awdl_syncparams_presence_mode;
 
-static int hf_awdl_channelseq_enc = -1;
-static int hf_awdl_channelseq_duplicate = -1;
-static int hf_awdl_channelseq_step_count = -1;
-static int hf_awdl_channelseq_fill_chan = -1;
-static int hf_awdl_channelseq_channel_count = -1;
-static int hf_awdl_channelseq_channel_list = -1;
-static int hf_awdl_channelseq_channel = -1;
-static int hf_awdl_channelseq_channel_number = -1;
-static int hf_awdl_channelseq_channel_flags = -1;
-static int hf_awdl_channelseq_channel_operating_class = -1;
+static int hf_awdl_channelseq_enc;
+static int hf_awdl_channelseq_duplicate;
+static int hf_awdl_channelseq_step_count;
+static int hf_awdl_channelseq_fill_chan;
+static int hf_awdl_channelseq_channel_count;
+static int hf_awdl_channelseq_channel_list;
+static int hf_awdl_channelseq_channel;
+static int hf_awdl_channelseq_channel_number;
+static int hf_awdl_channelseq_channel_flags;
+static int hf_awdl_channelseq_channel_operating_class;
 /* legacy encoding flags */
-static int hf_awdl_channelseq_legacy_unused = -1;
-static int hf_awdl_channelseq_legacy_band = -1;
-static int hf_awdl_channelseq_legacy_bandwidth = -1;
-static int hf_awdl_channelseq_legacy_control_channel = -1;
+static int hf_awdl_channelseq_legacy_unused;
+static int hf_awdl_channelseq_legacy_band;
+static int hf_awdl_channelseq_legacy_bandwidth;
+static int hf_awdl_channelseq_legacy_control_channel;
 
-static int hf_awdl_electionparams_master = -1;
-static int hf_awdl_electionparams_flags = -1;
-static int hf_awdl_electionparams_id = -1;
-static int hf_awdl_electionparams_distance = -1;
-static int hf_awdl_electionparams_mastermetric = -1;
-static int hf_awdl_electionparams_selfmetric = -1;
-static int hf_awdl_electionparams_unknown = -1;
-static int hf_awdl_electionparams_private_master = -1;
-static int hf_awdl_electionparams_private_mastermetric = -1;
-static int hf_awdl_electionparams_private_id = -1;
-static int hf_awdl_electionparams_private_phc = -1;
+static int hf_awdl_electionparams_master;
+static int hf_awdl_electionparams_flags;
+static int hf_awdl_electionparams_id;
+static int hf_awdl_electionparams_distance;
+static int hf_awdl_electionparams_mastermetric;
+static int hf_awdl_electionparams_selfmetric;
+static int hf_awdl_electionparams_unknown;
+static int hf_awdl_electionparams_private_master;
+static int hf_awdl_electionparams_private_mastermetric;
+static int hf_awdl_electionparams_private_id;
+static int hf_awdl_electionparams_private_phc;
 
-static int hf_awdl_electionparams2_master = -1;
-static int hf_awdl_electionparams2_other = -1;
-static int hf_awdl_electionparams2_mastermetric = -1;
-static int hf_awdl_electionparams2_selfmetric = -1;
-static int hf_awdl_electionparams2_mastercounter = -1;
-static int hf_awdl_electionparams2_selfcounter = -1;
-static int hf_awdl_electionparams2_distance = -1;
-static int hf_awdl_electionparams2_unknown = -1;
-static int hf_awdl_electionparams2_reserved = -1;
+static int hf_awdl_electionparams2_master;
+static int hf_awdl_electionparams2_other;
+static int hf_awdl_electionparams2_mastermetric;
+static int hf_awdl_electionparams2_selfmetric;
+static int hf_awdl_electionparams2_mastercounter;
+static int hf_awdl_electionparams2_selfcounter;
+static int hf_awdl_electionparams2_distance;
+static int hf_awdl_electionparams2_unknown;
+static int hf_awdl_electionparams2_reserved;
 
-static int hf_awdl_dns_name_len = -1;
-static int hf_awdl_dns_name = -1;
-static int hf_awdl_dns_name_label = -1;
-static int hf_awdl_dns_name_short = -1;
-static int hf_awdl_dns_type = -1;
-static int hf_awdl_dns_data_len = -1;
-static int hf_awdl_dns_txt = -1;
-static int hf_awdl_dns_ptr = -1;
-static int hf_awdl_dns_ptr_label = -1;
-static int hf_awdl_dns_ptr_short = -1;
-static int hf_awdl_dns_target = -1;
-static int hf_awdl_dns_target_label = -1;
-static int hf_awdl_dns_target_short = -1;
-static int hf_awdl_dns_unknown = -1;
-static int hf_awdl_dns_priority = -1;
-static int hf_awdl_dns_weight = -1;
-static int hf_awdl_dns_port = -1;
+static int hf_awdl_dns_name_len;
+static int hf_awdl_dns_name;
+static int hf_awdl_dns_name_label;
+static int hf_awdl_dns_name_short;
+static int hf_awdl_dns_type;
+static int hf_awdl_dns_data_len;
+static int hf_awdl_dns_txt;
+static int hf_awdl_dns_ptr;
+static int hf_awdl_dns_ptr_label;
+static int hf_awdl_dns_ptr_short;
+static int hf_awdl_dns_target;
+static int hf_awdl_dns_target_label;
+static int hf_awdl_dns_target_short;
+static int hf_awdl_dns_unknown;
+static int hf_awdl_dns_priority;
+static int hf_awdl_dns_weight;
+static int hf_awdl_dns_port;
 
-static int hf_awdl_serviceparams_sui = -1;
-static int hf_awdl_serviceparams_enc_values = -1;
-static int hf_awdl_serviceparams_bitmask = -1;
-static int hf_awdl_serviceparams_bitmask_0 = -1;
-static int hf_awdl_serviceparams_bitmask_1 = -1;
-static int hf_awdl_serviceparams_bitmask_2 = -1;
-static int hf_awdl_serviceparams_bitmask_3 = -1;
-static int hf_awdl_serviceparams_bitmask_4 = -1;
-static int hf_awdl_serviceparams_bitmask_5 = -1;
-static int hf_awdl_serviceparams_bitmask_6 = -1;
-static int hf_awdl_serviceparams_bitmask_7 = -1;
-static int hf_awdl_serviceparams_bitmask_8 = -1;
-static int hf_awdl_serviceparams_bitmask_9 = -1;
-static int hf_awdl_serviceparams_bitmask_10 = -1;
-static int hf_awdl_serviceparams_bitmask_11 = -1;
-static int hf_awdl_serviceparams_bitmask_12= -1;
-static int hf_awdl_serviceparams_bitmask_13 = -1;
-static int hf_awdl_serviceparams_bitmask_14 = -1;
-static int hf_awdl_serviceparams_bitmask_15 = -1;
-static int hf_awdl_serviceparams_bitmask_16 = -1;
-static int hf_awdl_serviceparams_bitmask_17 = -1;
-static int hf_awdl_serviceparams_bitmask_18 = -1;
-static int hf_awdl_serviceparams_bitmask_19 = -1;
-static int hf_awdl_serviceparams_bitmask_20 = -1;
-static int hf_awdl_serviceparams_bitmask_21 = -1;
-static int hf_awdl_serviceparams_bitmask_22 = -1;
-static int hf_awdl_serviceparams_bitmask_23 = -1;
-static int hf_awdl_serviceparams_bitmask_24 = -1;
-static int hf_awdl_serviceparams_bitmask_25 = -1;
-static int hf_awdl_serviceparams_bitmask_26 = -1;
-static int hf_awdl_serviceparams_bitmask_27 = -1;
-static int hf_awdl_serviceparams_bitmask_28 = -1;
-static int hf_awdl_serviceparams_bitmask_29 = -1;
-static int hf_awdl_serviceparams_bitmask_30 = -1;
-static int hf_awdl_serviceparams_bitmask_31 = -1;
-static int hf_awdl_serviceparams_values = -1;
-static int hf_awdl_serviceparams_values_0 = -1;
-static int hf_awdl_serviceparams_values_1 = -1;
-static int hf_awdl_serviceparams_values_2 = -1;
-static int hf_awdl_serviceparams_values_3 = -1;
-static int hf_awdl_serviceparams_values_4 = -1;
-static int hf_awdl_serviceparams_values_5 = -1;
-static int hf_awdl_serviceparams_values_6 = -1;
-static int hf_awdl_serviceparams_values_7 = -1;
+static int hf_awdl_serviceparams_sui;
+static int hf_awdl_serviceparams_enc_values;
+static int hf_awdl_serviceparams_bitmask;
+static int hf_awdl_serviceparams_bitmask_0;
+static int hf_awdl_serviceparams_bitmask_1;
+static int hf_awdl_serviceparams_bitmask_2;
+static int hf_awdl_serviceparams_bitmask_3;
+static int hf_awdl_serviceparams_bitmask_4;
+static int hf_awdl_serviceparams_bitmask_5;
+static int hf_awdl_serviceparams_bitmask_6;
+static int hf_awdl_serviceparams_bitmask_7;
+static int hf_awdl_serviceparams_bitmask_8;
+static int hf_awdl_serviceparams_bitmask_9;
+static int hf_awdl_serviceparams_bitmask_10;
+static int hf_awdl_serviceparams_bitmask_11;
+static int hf_awdl_serviceparams_bitmask_12;
+static int hf_awdl_serviceparams_bitmask_13;
+static int hf_awdl_serviceparams_bitmask_14;
+static int hf_awdl_serviceparams_bitmask_15;
+static int hf_awdl_serviceparams_bitmask_16;
+static int hf_awdl_serviceparams_bitmask_17;
+static int hf_awdl_serviceparams_bitmask_18;
+static int hf_awdl_serviceparams_bitmask_19;
+static int hf_awdl_serviceparams_bitmask_20;
+static int hf_awdl_serviceparams_bitmask_21;
+static int hf_awdl_serviceparams_bitmask_22;
+static int hf_awdl_serviceparams_bitmask_23;
+static int hf_awdl_serviceparams_bitmask_24;
+static int hf_awdl_serviceparams_bitmask_25;
+static int hf_awdl_serviceparams_bitmask_26;
+static int hf_awdl_serviceparams_bitmask_27;
+static int hf_awdl_serviceparams_bitmask_28;
+static int hf_awdl_serviceparams_bitmask_29;
+static int hf_awdl_serviceparams_bitmask_30;
+static int hf_awdl_serviceparams_bitmask_31;
+static int hf_awdl_serviceparams_values;
+static int hf_awdl_serviceparams_values_0;
+static int hf_awdl_serviceparams_values_1;
+static int hf_awdl_serviceparams_values_2;
+static int hf_awdl_serviceparams_values_3;
+static int hf_awdl_serviceparams_values_4;
+static int hf_awdl_serviceparams_values_5;
+static int hf_awdl_serviceparams_values_6;
+static int hf_awdl_serviceparams_values_7;
 
-static int hf_awdl_arpa = -1;
-static int hf_awdl_arpa_flags = -1;
-static int hf_awdl_arpa_name = -1;
-static int hf_awdl_arpa_short = -1;
+static int hf_awdl_arpa;
+static int hf_awdl_arpa_flags;
+static int hf_awdl_arpa_name;
+static int hf_awdl_arpa_short;
 
-static int hf_awdl_ht_unknown = -1;
+static int hf_awdl_ht_unknown;
 /* from hf_ieee80211_* from packet-ieee80211.c */
-static int hf_awdl_ht_cap = -1;
-static int hf_awdl_ht_ldpc_coding = -1;
-static int hf_awdl_ht_chan_width = -1;
-static int hf_awdl_ht_sm_pwsave = -1;
-static int hf_awdl_ht_green = -1;
-static int hf_awdl_ht_short20 = -1;
-static int hf_awdl_ht_short40 = -1;
-static int hf_awdl_ht_tx_stbc = -1;
-static int hf_awdl_ht_rx_stbc = -1;
-static int hf_awdl_ht_delayed_block_ack = -1;
-static int hf_awdl_ht_max_amsdu = -1;
-static int hf_awdl_ht_dss_cck_40 = -1;
-static int hf_awdl_ht_psmp = -1;
-static int hf_awdl_ht_40_mhz_intolerant = -1;
-static int hf_awdl_ht_l_sig = -1;
-static int hf_awdl_ampduparam = -1;
-static int hf_awdl_ampduparam_mpdu = -1;
-static int hf_awdl_ampduparam_mpdu_start_spacing = -1;
-static int hf_awdl_ampduparam_reserved = -1;
-static int hf_awdl_mcsset = -1;
-static int hf_awdl_mcsset_rx_bitmask = -1;
-static int hf_awdl_mcsset_rx_bitmask_0to7 = -1;
-static int hf_awdl_mcsset_rx_bitmask_8to15 = -1;
-static int hf_awdl_mcsset_rx_bitmask_16to23 = -1;
-static int hf_awdl_mcsset_rx_bitmask_24to31 = -1;
+static int hf_awdl_ht_cap;
+static int hf_awdl_ht_ldpc_coding;
+static int hf_awdl_ht_chan_width;
+static int hf_awdl_ht_sm_pwsave;
+static int hf_awdl_ht_green;
+static int hf_awdl_ht_short20;
+static int hf_awdl_ht_short40;
+static int hf_awdl_ht_tx_stbc;
+static int hf_awdl_ht_rx_stbc;
+static int hf_awdl_ht_delayed_block_ack;
+static int hf_awdl_ht_max_amsdu;
+static int hf_awdl_ht_dss_cck_40;
+static int hf_awdl_ht_psmp;
+static int hf_awdl_ht_40_mhz_intolerant;
+static int hf_awdl_ht_l_sig;
+static int hf_awdl_ampduparam;
+static int hf_awdl_ampduparam_mpdu;
+static int hf_awdl_ampduparam_mpdu_start_spacing;
+static int hf_awdl_ampduparam_reserved;
+static int hf_awdl_mcsset;
+static int hf_awdl_mcsset_rx_bitmask;
+static int hf_awdl_mcsset_rx_bitmask_0to7;
+static int hf_awdl_mcsset_rx_bitmask_8to15;
+static int hf_awdl_mcsset_rx_bitmask_16to23;
+static int hf_awdl_mcsset_rx_bitmask_24to31;
 
-static int hf_llc_apple_awdl_pid = -1;
+static int hf_llc_apple_awdl_pid;
 
-static gint ett_awdl_data = -1;
-static gint ett_awdl = -1;
-static gint ett_awdl_fixed_parameters = -1;
-static gint ett_awdl_tagged_parameters = -1;
-static gint ett_awdl_unknown = -1;
-static gint ett_awdl_tag = -1;
-static gint ett_awdl_channelseq_flags = -1;
-static gint ett_awdl_version = -1;
-static gint ett_awdl_dns_record = -1;
-static gint ett_awdl_dns_name = -1;
-static gint ett_awdl_channelseq_channel_list = -1;
-static gint ett_awdl_channelseq_channel = -1;
-static gint ett_awdl_datastate_flags = -1;
-static gint ett_awdl_datastate_social_channel_map = -1;
-static gint ett_awdl_datastate_extflags = -1;
-static gint ett_awdl_ht_capabilities = -1;
-static gint ett_awdl_ht_ampduparam = -1;
-static gint ett_awdl_ht_mcsset_tree = -1;
-static gint ett_awdl_ht_mcsbit_tree = -1;
-static gint ett_awdl_serviceparams_bitmask = -1;
-static gint ett_awdl_serviceparams_values = -1;
-static gint ett_awdl_serviceparams_value = -1;
+static int ett_awdl_data;
+static int ett_awdl;
+static int ett_awdl_fixed_parameters;
+static int ett_awdl_tagged_parameters;
+static int ett_awdl_unknown;
+static int ett_awdl_tag;
+static int ett_awdl_channelseq_flags;
+static int ett_awdl_version;
+static int ett_awdl_dns_record;
+static int ett_awdl_dns_name;
+static int ett_awdl_channelseq_channel_list;
+static int ett_awdl_channelseq_channel;
+static int ett_awdl_datastate_flags;
+static int ett_awdl_datastate_social_channel_map;
+static int ett_awdl_datastate_extflags;
+static int ett_awdl_ht_capabilities;
+static int ett_awdl_ht_ampduparam;
+static int ett_awdl_ht_mcsset_tree;
+static int ett_awdl_ht_mcsbit_tree;
+static int ett_awdl_serviceparams_bitmask;
+static int ett_awdl_serviceparams_values;
+static int ett_awdl_serviceparams_value;
 
-static expert_field ei_awdl_tag_length = EI_INIT;
-static expert_field ei_awdl_tag_data = EI_INIT;
-static expert_field ei_awdl_dns_data_len = EI_INIT;
+static expert_field ei_awdl_tag_length;
+static expert_field ei_awdl_tag_data;
+static expert_field ei_awdl_dns_data_len;
 
 static dissector_table_t ethertype_subdissector_table;
 static dissector_table_t tagged_field_table;
@@ -424,12 +440,14 @@ static const value_string awdl_chanseq_fill_chan[] = {
 enum {
   AWDL_VERSION_MACOS = 1,
   AWDL_VERSION_IOS = 2,
+  AWDL_VERSION_WATCHOS = 4,
   AWDL_VERSION_TVOS = 8,
 };
 
 static const value_string awdl_version_devclass[] = {
   { AWDL_VERSION_MACOS, "macOS" },
-  { AWDL_VERSION_IOS, "iOS or watchOS" },
+  { AWDL_VERSION_IOS, "iOS" },
+  { AWDL_VERSION_WATCHOS, "watchOS" },
   { AWDL_VERSION_TVOS, "tvOS" },
   { 0, NULL }
 };
@@ -563,7 +581,7 @@ static const value_string apple_awdl_pid_vals[] = {
 static proto_item *
 add_awdl_version(tvbuff_t *tvb, int offset, proto_tree *tree) {
   proto_item *version_item;
-  guint64 version;
+  uint64_t version;
   static int * const fields[] = {
     &hf_awdl_version_major,
     &hf_awdl_version_minor,
@@ -572,7 +590,7 @@ add_awdl_version(tvbuff_t *tvb, int offset, proto_tree *tree) {
 
   version_item = proto_tree_add_bitmask_with_flags_ret_uint64(tree, tvb, offset, hf_awdl_version, ett_awdl_version,
                                                               fields, ENC_LITTLE_ENDIAN, BMT_NO_APPEND, &version);
-  proto_item_append_text(version_item, " (%u.%u)", (guint8) ((version >> 4) & 0xf), (guint8) (version & 0xf));
+  proto_item_append_text(version_item, " (%u.%u)", (uint8_t) ((version >> 4) & 0xf), (uint8_t) (version & 0xf));
 
   return version_item;
 }
@@ -601,8 +619,8 @@ awdl_tag_sync_tree(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void
   return offset;
 }
 
-inline static gboolean
-test_bit_guint32(guint i, guint32 n) {
+inline static bool
+test_bit_uint32(unsigned i, uint32_t n) {
   return ((n >> i) & 1) == 1;
 }
 
@@ -669,20 +687,20 @@ awdl_tag_service_params(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
   values_tree = proto_item_add_subtree(values_item, ett_awdl_serviceparams_values);
 
   offset_item = proto_tree_add_bitmask_with_flags(values_tree, tvb, offset, hf_awdl_serviceparams_bitmask, ett_awdl_serviceparams_bitmask, bitmask_fields, ENC_LITTLE_ENDIAN, BMT_NO_APPEND);
-  guint32 bitmask = tvb_get_guint32(tvb, offset, ENC_LITTLE_ENDIAN);
+  uint32_t bitmask = tvb_get_uint32(tvb, offset, ENC_LITTLE_ENDIAN);
   offset += 4;
 
   if (bitmask != 0) {
-    guint count = 0;
-    for (guint i = 0; i < 32; i++) {
-      if (test_bit_guint32(i, bitmask)) {
+    unsigned count = 0;
+    for (unsigned i = 0; i < 32; i++) {
+      if (test_bit_uint32(i, bitmask)) {
         proto_item *value_item;
-        guint shift = i << 3;
+        unsigned shift = i << 3;
         value_item = proto_tree_add_bitmask(values_tree, tvb, offset, hf_awdl_serviceparams_values,
                                ett_awdl_serviceparams_value, value_fields, ENC_LITTLE_ENDIAN);
-        guint8 value = tvb_get_guint8(tvb, offset);
-        for (guint k = 0; k < 8; k++) {
-          if (test_bit_guint32(k, value)) {
+        uint8_t value = tvb_get_uint8(tvb, offset);
+        for (unsigned k = 0; k < 8; k++) {
+          if (test_bit_uint32(k, value)) {
             if (count == 0) {
               proto_item_append_text(values_item, ": %u", k + shift);
             } else {
@@ -706,8 +724,8 @@ static int
 awdl_tag_channel_sequence(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
   proto_item *chanlist_item, *channel_item;
   proto_tree *chanlist_tree, *channel_tree;
-  guint channels;
-  guint32 chan_number;
+  unsigned channels;
+  uint32_t chan_number;
   wmem_strbuf_t *strbuf;
   int offset = 0;
 
@@ -723,7 +741,7 @@ awdl_tag_channel_sequence(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
   channels += 1; /* channel list length is +1 */
   offset += 1;
 
-  guint8 seq_enc = tvb_get_guint8(tvb, offset);
+  uint8_t seq_enc = tvb_get_uint8(tvb, offset);
   proto_tree_add_item(tree, hf_awdl_channelseq_enc, tvb, offset, 1, ENC_LITTLE_ENDIAN);
   offset += 1;
   proto_tree_add_item(tree, hf_awdl_channelseq_duplicate, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -740,7 +758,7 @@ awdl_tag_channel_sequence(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
   case AWDL_CHANSEQ_ENC_CHANNELNUMBER:
     chanlist_item = proto_tree_add_item(tree, hf_awdl_channelseq_channel_list, tvb, offset, channels, ENC_NA);
     chanlist_tree = proto_item_add_subtree(chanlist_item, ett_awdl_channelseq_channel_list);
-    for (guint i = 0; i < channels; i++) {
+    for (unsigned i = 0; i < channels; i++) {
       proto_tree_add_item_ret_uint(chanlist_tree, hf_awdl_channelseq_channel_number, tvb, offset, 1, ENC_LITTLE_ENDIAN, &chan_number);
       offset += 1;
 
@@ -755,9 +773,9 @@ awdl_tag_channel_sequence(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
   case AWDL_CHANSEQ_ENC_LEGACY:
     chanlist_item = proto_tree_add_item(tree, hf_awdl_channelseq_channel_list, tvb, offset, 2 * channels, ENC_NA);
     chanlist_tree = proto_item_add_subtree(chanlist_item, ett_awdl_channelseq_channel_list);
-    for (guint i = 0; i < channels; i++) {
+    for (unsigned i = 0; i < channels; i++) {
       /* channel number is 2nd byte */
-      channel_item = proto_tree_add_item_ret_uint(chanlist_tree, hf_awdl_channelseq_channel, tvb, offset, 2,
+      channel_item = proto_tree_add_item_ret_uint(chanlist_tree, hf_awdl_channelseq_channel, tvb, offset + 1, 1,
                                                   ENC_LITTLE_ENDIAN, &chan_number);
       channel_tree = proto_item_add_subtree(channel_item, ett_awdl_channelseq_channel);
       proto_tree_add_bitmask(channel_tree, tvb, offset, hf_awdl_channelseq_channel_flags,
@@ -777,9 +795,9 @@ awdl_tag_channel_sequence(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
   case AWDL_CHANSEQ_ENC_OPCLASS:
     chanlist_item = proto_tree_add_item(tree, hf_awdl_channelseq_channel_list, tvb, offset, 2 * channels, ENC_NA);
     chanlist_tree = proto_item_add_subtree(chanlist_item, ett_awdl_channelseq_channel_list);
-    for (guint i = 0; i < channels; i++) {
-      /* channel number is 2nd byte */
-      channel_item = proto_tree_add_item_ret_uint(chanlist_tree, hf_awdl_channelseq_channel, tvb, offset, 2,
+    for (unsigned i = 0; i < channels; i++) {
+      /* channel number is 1st byte */
+      channel_item = proto_tree_add_item_ret_uint(chanlist_tree, hf_awdl_channelseq_channel, tvb, offset, 1,
                                                   ENC_LITTLE_ENDIAN, &chan_number);
       channel_tree = proto_item_add_subtree(channel_item, ett_awdl_channelseq_channel);
       proto_tree_add_item(channel_tree, hf_awdl_channelseq_channel_number, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -866,7 +884,7 @@ static int
 awdl_tag_election_params(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void* data _U_) {
   int offset = 0;
 
-  guint8 private_election = tvb_get_guint8(tvb, offset);
+  uint8_t private_election = tvb_get_uint8(tvb, offset);
 
   proto_tree_add_item(tree, hf_awdl_electionparams_flags, tvb, offset, 1, ENC_NA);
   offset += 1;
@@ -928,7 +946,7 @@ awdl_tag_election_params_v2(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
 static int
 awdl_tag_datapath_state(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void* data _U_) {
   int offset = 0;
-  guint16 flags;
+  uint16_t flags;
 
   static int * const flags_fields[] = {
     &hf_awdl_datastate_flags_0,
@@ -962,11 +980,22 @@ awdl_tag_datapath_state(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     &hf_awdl_datastate_extflags_0,
     &hf_awdl_datastate_extflags_1,
     &hf_awdl_datastate_extflags_2,
-    &hf_awdl_datastate_extflags_3to15,
+    &hf_awdl_datastate_extflags_3,
+    &hf_awdl_datastate_extflags_4,
+    &hf_awdl_datastate_extflags_5,
+    &hf_awdl_datastate_extflags_6,
+    &hf_awdl_datastate_extflags_7,
+    &hf_awdl_datastate_extflags_8,
+    &hf_awdl_datastate_extflags_9,
+    &hf_awdl_datastate_extflags_10,
+    &hf_awdl_datastate_extflags_11,
+    &hf_awdl_datastate_extflags_12,
+    &hf_awdl_datastate_extflags_13,
+    &hf_awdl_datastate_extflags_14to15,
     NULL
   };
 
-  flags = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+  flags = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
   proto_tree_add_bitmask(tree, tvb, offset, hf_awdl_datastate_flags,
                          ett_awdl_datastate_flags, flags_fields, ENC_LITTLE_ENDIAN);
   offset += 2;
@@ -977,7 +1006,7 @@ awdl_tag_datapath_state(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
   }
   if (flags & 0x0200) {
     /* this can either be a channel or a map indicating which channels this node supports */
-    guint16 map = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+    uint16_t map = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
     /* TODO unverified heuristic to decide whether this is a map or number */
     if (map & 1) {
       proto_tree_add_bitmask(tree, tvb, offset, hf_awdl_datastate_social_channel_map,
@@ -1007,7 +1036,7 @@ awdl_tag_datapath_state(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
     offset += 2;
   }
   if (flags & 0x1000) {
-    guint16 optionlength = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+    uint16_t optionlength = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
     proto_tree_add_item(tree, hf_awdl_datastate_umioptions_length, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
     proto_tree_add_item(tree, hf_awdl_datastate_umioptions, tvb, offset, optionlength, ENC_NA);
@@ -1015,28 +1044,28 @@ awdl_tag_datapath_state(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
   }
   /* now come the extended parameters */
   if (flags & 0x8000) {
-    guint16 extflags = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+    uint16_t extflags = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
     proto_tree_add_bitmask(tree, tvb, offset, hf_awdl_datastate_extflags,
                            ett_awdl_datastate_extflags, extflags_fields, ENC_LITTLE_ENDIAN);
     offset += 2;
 
+    if (extflags & 0x1) {
+      /* The logtrigger is actually two bytes. */
+      proto_tree_add_item(tree, hf_awdl_datastate_logtrigger, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+      offset += 2;
+    }
     if (extflags & 0x4) {
-      proto_tree_add_item(tree, hf_awdl_datastate_logtrigger, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+      /* Meaning unknown. */
+      proto_tree_add_item(tree, hf_awdl_datastate_rlfc, tvb, offset, 4, ENC_LITTLE_ENDIAN);
       offset += 4;
     }
-    if (extflags & 0x1) {
-      /* TODO add actual fields
-       *
-       * Binary: IO80211Family
-       * Method: IO80211AWDLPeer::parseAwdlDataPathTLVAndTakeAction
-       *
-       * __cstring:0000000000091E2A aRlfc           db 'RLFC',0
-       * __cstring:0000000000091E2F aMsecsince      db 'msecSince',0
-       * __cstring:0000000000091E39 aAwseq          db 'awSeq',0
-       * __cstring:0000000000091E3F aPayupdatecount db 'payUpdateCounter',0
-       */
-      proto_tree_add_item(tree, hf_awdl_datastate_undecoded, tvb, offset, 14, ENC_NA);
-      offset += 14;
+    if (extflags & 0x40) {
+      proto_tree_add_item(tree, hf_awdl_datastate_active_time, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+      offset += 4;
+      proto_tree_add_item(tree, hf_awdl_datastate_aw_sequence_counter, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+      offset += 4;
+      proto_tree_add_item(tree, hf_awdl_datastate_update_counter, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+      offset += 4;
     }
   }
 
@@ -1047,7 +1076,7 @@ static int
 awdl_tag_ieee80211_container(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
   int offset = 0;
 
-  const guint8 ids[] = {
+  const uint8_t ids[] = {
     191, // VHT Capability
   };
   offset += add_tagged_field(pinfo, tree, tvb, offset, MGT_ACTION, ids, G_N_ELEMENTS(ids), NULL);
@@ -1059,7 +1088,7 @@ static int
 awdl_tag_ht_capabilities(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void* data _U_) {
   proto_item *ti, *cap_item;
   proto_tree *mcs_tree, *bit_tree, *cap_tree;
-  guint8 streams; /* 0-4 for HT and 0-8 for VHT*/
+  uint8_t streams; /* 0-4 for HT and 0-8 for VHT*/
   int offset = 0;
   int tag_len = tvb_reported_length(tvb);
 
@@ -1091,13 +1120,13 @@ awdl_tag_ht_capabilities(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
   cap_item = proto_tree_add_item(tree, hf_awdl_ampduparam, tvb, offset, 1, ENC_LITTLE_ENDIAN);
   cap_tree = proto_item_add_subtree(cap_item, ett_awdl_ht_ampduparam);
   ti = proto_tree_add_item(cap_tree, hf_awdl_ampduparam_mpdu, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-  proto_item_append_text(ti, " (%04.0f[Bytes])", pow(2, 13 + (tvb_get_guint8(tvb, offset) & 0x3)) - 1);
+  proto_item_append_text(ti, " (%04.0f[Bytes])", pow(2, 13 + (tvb_get_uint8(tvb, offset) & 0x3)) - 1);
   proto_tree_add_item(cap_tree, hf_awdl_ampduparam_mpdu_start_spacing, tvb, offset, 1, ENC_LITTLE_ENDIAN);
   proto_tree_add_item(cap_tree, hf_awdl_ampduparam_reserved, tvb, offset, 1, ENC_LITTLE_ENDIAN);
   offset += 1;
 
   /* Check how many streams are supported */
-  for (streams = 0; streams < 4 /* max streams */ && tvb_get_guint8(tvb, offset + streams) != 0; streams++) {
+  for (streams = 0; streams < 4 /* max streams */ && tvb_get_uint8(tvb, offset + streams) != 0; streams++) {
   }
 
   ti = proto_tree_add_item(tree, hf_awdl_mcsset, tvb, offset, streams, ENC_NA);
@@ -1139,19 +1168,19 @@ awdl_tag_ht_capabilities(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
  */
 static int
 add_awdl_dns_name(proto_tree *tree, int hfindex_regular, int hfindex_compressed,
-                  tvbuff_t *tvb, int offset, int len, wmem_allocator_t *scope, const gchar **name) {
+                  tvbuff_t *tvb, int offset, int len, wmem_allocator_t *scope, const char **name) {
   int start_offset = offset;
-  guint8 component_len;
-  const guchar *component;
+  uint8_t component_len;
+  const unsigned char *component;
   wmem_strbuf_t *strbuf;
 
   strbuf = wmem_strbuf_new_sized(scope, MAX_DNAME_LEN);
 
   while (offset < (len + start_offset)) {
-    component_len = tvb_get_guint8(tvb, offset);
+    component_len = tvb_get_uint8(tvb, offset);
     if (component_len & 0xC0) {
       /* compressed label */
-      guint compressed_value;
+      unsigned compressed_value;
       proto_tree_add_item_ret_uint(tree, hfindex_compressed, tvb, offset, 2, ENC_BIG_ENDIAN, &compressed_value);
       if (compressed_value == 0xC000) {
         // 'NULL' compression -> ignore in printed string
@@ -1162,7 +1191,7 @@ add_awdl_dns_name(proto_tree *tree, int hfindex_regular, int hfindex_compressed,
       offset += 2;
     } else {
       /* regular label */
-      guint label_len;
+      unsigned label_len;
       proto_tree_add_item_ret_string_and_length(tree, hfindex_regular, tvb, offset, 1, ENC_ASCII, scope, &component, &label_len);
       offset += label_len;
     }
@@ -1180,13 +1209,13 @@ add_awdl_dns_name(proto_tree *tree, int hfindex_regular, int hfindex_compressed,
 }
 
 static int
-add_awdl_dns_entry(packet_info *pinfo, proto_tree *tree, gint ett,
+add_awdl_dns_entry(packet_info *pinfo, proto_tree *tree, int ett,
                    int hfindex_entry, int hfindex_regular, int hfindex_compressed,
-                   tvbuff_t *tvb, int offset, int len, const gchar **name) {
+                   tvbuff_t *tvb, int offset, int len, const char **name) {
   int start_offset = offset;
   proto_item *entry_item;
   proto_tree *entry_tree;
-  const gchar *n;
+  const char *n;
 
   entry_item = proto_tree_add_item(tree, hfindex_entry, tvb, offset, 0, ENC_NA);
   entry_tree = proto_item_add_subtree(entry_item, ett);
@@ -1217,10 +1246,10 @@ static int
 awdl_tag_service_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
   proto_item *rr_item;
   proto_tree *rr_tree, *data_len;
-  const gchar *name;
+  const char *name;
   int offset = 0;
-  guint len, type;
-  guint prio, weight, port;
+  unsigned len, type;
+  unsigned prio, weight, port;
 
   rr_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_awdl_dns_record, &rr_item, "");
 
@@ -1246,13 +1275,13 @@ awdl_tag_service_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
   switch (type) {
   case T_TXT:
     while (len > 0) {
-      const guchar *txt;
-      gint label_len;
+      const unsigned char *txt;
+      int label_len;
       proto_tree_add_item_ret_string_and_length(rr_tree, hf_awdl_dns_txt, tvb, offset, 1, ENC_ASCII,
                                                 pinfo->pool, &txt, &label_len);
       offset += label_len;
       proto_item_append_text(rr_item, ", %s", txt);
-      if (label_len > (gint) len) {
+      if (label_len > (int) len) {
         expert_add_info_format(pinfo, data_len, &ei_awdl_tag_length,
                                "DNS data length is too short");
         break;
@@ -1288,18 +1317,18 @@ awdl_tag_service_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
 static int
 awdl_add_tagged_field(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int offset, enum tag_length hdr_len) {
   tvbuff_t     *tag_tvb;
-  guint32       tag_no, tag_len;
+  uint32_t      tag_no, tag_len;
   proto_tree   *orig_tree = tree;
   proto_item   *ti        = NULL;
   proto_item   *ti_len, *ti_tag;
   awdl_tagged_field_data_t field_data;
   int parsed;
 
-  tag_no = tvb_get_guint8(tvb, offset);
+  tag_no = tvb_get_uint8(tvb, offset);
   if (hdr_len == TAG_LENGTH_SHORT) {
-    tag_len = tvb_get_guint8(tvb, offset + 1);
+    tag_len = tvb_get_uint8(tvb, offset + 1);
   } else {
-    tag_len = tvb_get_guint16(tvb, offset + 1, ENC_LITTLE_ENDIAN);
+    tag_len = tvb_get_uint16(tvb, offset + 1, ENC_LITTLE_ENDIAN);
   }
 
   if (tree) {
@@ -1311,7 +1340,7 @@ awdl_add_tagged_field(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int o
   ti_tag = proto_tree_add_uint(tree, hf_awdl_tag_number, tvb, offset, 1, tag_no);
   ti_len = proto_tree_add_uint(tree, hf_awdl_tag_length, tvb, offset + 1, hdr_len - 1, tag_len);
   offset += hdr_len;
-  if (tag_len > (guint)tvb_reported_length_remaining(tvb, offset)) {
+  if (tag_len > (unsigned)tvb_reported_length_remaining(tvb, offset)) {
     expert_add_info_format(pinfo, ti_len, &ei_awdl_tag_length,
                            "Tag Length is longer than remaining payload");
   }
@@ -1319,7 +1348,7 @@ awdl_add_tagged_field(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int o
   tag_tvb = tvb_new_subset_length(tvb, offset, tag_len);
   field_data.item_tag = ti;
   field_data.item_tag_length = ti_len;
-  if (!(parsed = dissector_try_uint_new(tagged_field_table, tag_no, tag_tvb, pinfo, tree, FALSE, &field_data)))
+  if (!(parsed = dissector_try_uint_new(tagged_field_table, tag_no, tag_tvb, pinfo, tree, false, &field_data)))
   {
     proto_tree_add_item(tree, hf_awdl_tag_data, tag_tvb, 0, tag_len, ENC_NA);
     expert_add_info_format(pinfo, ti_tag, &ei_awdl_tag_data,
@@ -1366,11 +1395,11 @@ static int
 dissect_awdl_action(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   int        offset = 0;
-  gint       tagged_parameter_tree_len;
+  int        tagged_parameter_tree_len;
   proto_tree *parent, *af_tree, *fixed_tree, *tag_tree;
   proto_item *ti, *item, *fixed_fields;
-  guint32 phytime, targettime;
-  guint8 subtype;
+  uint32_t phytime, targettime;
+  uint8_t subtype;
 
   parent = proto_tree_get_parent_tree(proto_tree_get_parent_tree(tree));
   ti = proto_tree_add_item(parent, proto_awdl, tvb, offset, -1, ENC_NA);
@@ -1382,16 +1411,16 @@ dissect_awdl_action(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
   offset += 1;
   add_awdl_version(tvb, offset, fixed_tree);
   offset += 1;
-  subtype = tvb_get_guint8(tvb, offset);
+  subtype = tvb_get_uint8(tvb, offset);
   proto_tree_add_item(fixed_tree, hf_awdl_subtype, tvb, offset, 1, ENC_LITTLE_ENDIAN);
   offset += 1;
   proto_tree_add_item(fixed_tree, hf_awdl_rsvd, tvb, offset, 1, ENC_LITTLE_ENDIAN);
   offset += 1;
   proto_tree_add_item(fixed_tree, hf_awdl_phytime, tvb, offset, 4, ENC_LITTLE_ENDIAN);
-  phytime = tvb_get_guint32(tvb, offset, ENC_LITTLE_ENDIAN);
+  phytime = tvb_get_uint32(tvb, offset, ENC_LITTLE_ENDIAN);
   offset += 4;
   proto_tree_add_item(fixed_tree, hf_awdl_targettime, tvb, offset, 4, ENC_LITTLE_ENDIAN);
-  targettime = tvb_get_guint32(tvb, offset, ENC_LITTLE_ENDIAN);
+  targettime = tvb_get_uint32(tvb, offset, ENC_LITTLE_ENDIAN);
   offset += 4;
   item = proto_tree_add_uint(fixed_tree, hf_awdl_txdelay, tvb, 0, 0, phytime - targettime);
   proto_item_set_generated(item);
@@ -1411,12 +1440,12 @@ dissect_awdl_action(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
 static int
 dissect_awdl_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  gint      offset = 0;
-  guint     etype;
+  int       offset = 0;
+  unsigned  etype;
   tvbuff_t *next_tvb;
   proto_item *ti;
   proto_tree *awdl_tree;
-  guint seq;
+  unsigned seq;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "AWDL Data");
   col_clear(pinfo->cinfo, COL_INFO);
@@ -1433,14 +1462,14 @@ dissect_awdl_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
   proto_item_append_text(ti, ", Seq: %u", seq);
   offset += 2;
 
-  if (tvb_get_guint8(tvb, offset) == 3) {
+  if (tvb_get_uint8(tvb, offset) == 3) {
       // 0x0300 ("long format")
       proto_item *tagged_item;
       proto_tree *tagged_tree;
       int         start_offset;
-      guint8      slen;
+      uint8_t     slen;
 
-      slen = tvb_get_guint8(tvb, offset + 1);
+      slen = tvb_get_uint8(tvb, offset + 1);
       proto_tree_add_item(awdl_tree, hf_awdl_data_header, tvb, offset, 2 + slen, ENC_NA);
       offset += 2 + slen;
 
@@ -1449,11 +1478,11 @@ dissect_awdl_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 
       start_offset = offset;
 
-      while (tvb_get_guint8(tvb, offset) != 3) {
+      while (tvb_get_uint8(tvb, offset) != 3) {
           offset += awdl_add_tagged_field(pinfo, tagged_tree, tvb, offset, TAG_LENGTH_SHORT);
       }
 
-      slen = tvb_get_guint8(tvb, offset + 1);
+      slen = tvb_get_uint8(tvb, offset + 1);
       proto_tree_add_item(awdl_tree, hf_awdl_data_header, tvb, offset, 2 + slen, ENC_NA);
       offset += 2 + slen;
 
@@ -1555,19 +1584,19 @@ void proto_register_awdl(void)
     },
     { &hf_awdl_phytime,
       { "PHY Tx Time", "awdl.phytime",
-        FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_microseconds, 0x0,
+        FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_microseconds), 0x0,
         "Time shortly before the frame was sent out by the radio", HFILL
       }
     },
     { &hf_awdl_targettime,
       { "Target Tx Time", "awdl.targettime",
-        FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_microseconds, 0x0,
+        FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_microseconds), 0x0,
         "Time when the frame was created.", HFILL
       }
     },
     { &hf_awdl_txdelay,
       { "Tx Delay", "awdl.txdelay",
-        FT_UINT32, BASE_DEC | BASE_UNIT_STRING, &units_microseconds, 0x0,
+        FT_UINT32, BASE_DEC | BASE_UNIT_STRING, UNS(&units_microseconds), 0x0,
         "Difference between the PHY and target time stamps", HFILL
       }
     },
@@ -1654,7 +1683,7 @@ void proto_register_awdl(void)
       }
     },
     { &hf_awdl_datastate_flags_3,
-      { "Bit 3", "awdl.datastate.flags.3",
+      { "RSDB Support", "awdl.datastate.flags.3",
         FT_BOOLEAN, 16, NULL, 0x0008, NULL, HFILL
       }
     },
@@ -1664,17 +1693,17 @@ void proto_register_awdl(void)
       }
     },
     { &hf_awdl_datastate_flags_5,
-      { "Bit 5", "awdl.datastate.flags.5",
+      { "Dualband Support", "awdl.datastate.flags.5",
         FT_BOOLEAN, 16, NULL, 0x0020, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_6,
-      { "Is AirPlay (?)", "awdl.datastate.flags.6",
+      { "AirPlay Sink", "awdl.datastate.flags.6",
         FT_BOOLEAN, 16, NULL, 0x0040, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_7,
-      { "Bit 7", "awdl.datastate.flags.7",
+      { "Follow Channel Sequence", "awdl.datastate.flags.7",
         FT_BOOLEAN, 16, NULL, 0x0080, NULL, HFILL
       }
     },
@@ -1689,12 +1718,12 @@ void proto_register_awdl(void)
       }
     },
     { &hf_awdl_datastate_flags_10,
-      { "Bit 10", "awdl.datastate.flags.10",
+      { "AirPlay Solo Mode", "awdl.datastate.flags.10",
         FT_BOOLEAN, 16, NULL, 0x0400, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_11,
-      { "Bit 11", "awdl.datastate.flags.11",
+      { "UMI Supported", "awdl.datastate.flags.11",
         FT_BOOLEAN, 16, NULL, 0x0800, NULL, HFILL
       }
     },
@@ -1704,12 +1733,12 @@ void proto_register_awdl(void)
       }
     },
     { &hf_awdl_datastate_flags_13,
-      { "Bit 13", "awdl.datastate.flags.13",
+      { "Real-Time", "awdl.datastate.flags.13",
         FT_BOOLEAN, 16, NULL, 0x2000, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_flags_14,
-      { "Is Rangeable", "awdl.datastate.flags.14",
+      { "Rangeable", "awdl.datastate.flags.14",
         FT_BOOLEAN, 16, NULL, 0x4000, NULL, HFILL
       }
     },
@@ -1797,34 +1826,106 @@ void proto_register_awdl(void)
       }
     },
     { &hf_awdl_datastate_extflags_0,
-      { "Undecoded (?)", "awdl.datastate.extflags.0",
-        FT_BOOLEAN, 16, NULL, 0x1, NULL, HFILL
+      { "Logtrigger ID", "awdl.datastate.extflags.0",
+        FT_BOOLEAN, 16, NULL, 0x0001, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_extflags_1,
       { "Ranging Discovery", "awdl.datastate.extflags.1",
-        FT_BOOLEAN, 16, NULL, 0x2, NULL, HFILL
+        FT_BOOLEAN, 16, NULL, 0x0002, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_extflags_2,
-      { "Logtrigger ID", "awdl.datastate.extflags.2",
-        FT_BOOLEAN, 16, NULL, 0x4, NULL, HFILL
+      { "RLFC", "awdl.datastate.extflags.2",
+        FT_BOOLEAN, 16, NULL, 0x0004, NULL, HFILL
       }
     },
-    { &hf_awdl_datastate_extflags_3to15,
-      { "Unknown", "awdl.datastate.extflags.3to15",
-        FT_UINT16, BASE_HEX_DEC, NULL, 0xfff8, NULL, HFILL
+    { &hf_awdl_datastate_extflags_3,
+      { "Is Social Channel Map Supported", "awdl.datastate.extflags.3",
+        FT_BOOLEAN, 16, NULL, 0x0008, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_4,
+      { "Dynamic SDB Support", "awdl.datastate.extflags.4",
+        FT_BOOLEAN, 16, NULL, 0x0010, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_5,
+      { "Misc", "awdl.datastate.extflags.5",
+        FT_BOOLEAN, 16, NULL, 0x0020,
+        "Indicates the presence of the rlfc, active_time and update_counter fields.", HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_6,
+      { "DFS Proxy Support", "awdl.datastate.extflags.6",
+        FT_BOOLEAN, 16, NULL, 0x0040, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_7,
+      { "Unknown", "awdl.datastate.extflags.7",
+        FT_BOOLEAN, 16, NULL, 0x0080, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_8,
+      { "High Efficiency Support", "awdl.datastate.extflags.8",
+        FT_BOOLEAN, 16, NULL, 0x0100, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_9,
+      { "Sidekick Hub", "awdl.datastate.extflags.9",
+        FT_BOOLEAN, 16, NULL, 0x0200, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_10,
+      { "Fast Discovery Enabled", "awdl.datastate.extflags.10",
+        FT_BOOLEAN, 16, NULL, 0x0400, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_11,
+      { "WiFi 6E Support", "awdl.datastate.extflags.11",
+        FT_BOOLEAN, 16, NULL, 0x0800, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_12,
+      { "Ultra Low Latency Infra Supported", "awdl.datastate.extflags.12",
+        FT_BOOLEAN, 16, NULL, 0x1000, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_13,
+      { "In Pro Mode", "awdl.datastate.extflags.13",
+        FT_BOOLEAN, 16, NULL, 0x2000, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_extflags_14to15,
+      { "Unknown", "awdl.datastate.extflags.14to15",
+        FT_UINT16, BASE_HEX_DEC, NULL, 0xc000, NULL, HFILL
       }
     },
     { &hf_awdl_datastate_logtrigger,
       { "Logtrigger ID", "awdl.datastate.logtrigger",
-        FT_UINT32, BASE_HEX, NULL, 0, NULL, HFILL
+        FT_UINT16, BASE_HEX, NULL, 0, NULL, HFILL
       }
     },
-    { &hf_awdl_datastate_undecoded,
-      { "Undecoded", "awdl.datastate.undecoded",
-        FT_BYTES, BASE_NONE, NULL, 0,
-        "Possibly contains 'RLFC', a timestamp in ms, a AW sequence number, and 'payUpdateCounter'", HFILL
+    { &hf_awdl_datastate_rlfc,
+      { "RLFC", "awdl.datastate.rlfc",
+        FT_UINT32, BASE_DEC, NULL, 0, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_active_time,
+      { "Active Time", "awdl.datastate.active_time",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "The amount of milliseconds, which have passed since the activation of the peer.", HFILL
+      }
+    },
+    { &hf_awdl_datastate_aw_sequence_counter,
+      { "AW Sequence Counter", "awdl.datastate.aw_sequence_counter",
+        FT_UINT32, BASE_DEC, NULL, 0, NULL, HFILL
+      }
+    },
+    { &hf_awdl_datastate_update_counter,
+      { "Update Counter", "awdl.datastate.update_counter",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "Incremented by one on every AF change.", HFILL
       }
     },
 
@@ -1873,7 +1974,7 @@ void proto_register_awdl(void)
     },
     { &hf_awdl_syncparams_tx_counter,
       { "Tx Counter", "awdl.syncparams.txcounter",
-        FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_ieee80211_tu, 0x0,
+        FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_ieee80211_tu), 0x0,
         "Time until next AW starts", HFILL
       }
     },
@@ -1889,12 +1990,12 @@ void proto_register_awdl(void)
     },
     { &hf_awdl_syncparams_aw_period,
       { "Availability Window Period", "awdl.syncparams.awperiod",
-        FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_ieee80211_tu, 0x0, NULL, HFILL
+        FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_ieee80211_tu), 0x0, NULL, HFILL
       }
     },
     { &hf_awdl_syncparams_action_frame_period,
       { "Action Frame Period", "awdl.syncparams.afperiod",
-        FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_ieee80211_tu, 0x0, NULL, HFILL
+        FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_ieee80211_tu), 0x0, NULL, HFILL
       }
     },
     { &hf_awdl_syncparams_awdl_flags,
@@ -1904,17 +2005,17 @@ void proto_register_awdl(void)
     },
     { &hf_awdl_syncparams_aw_ext_length,
       { "Availability Window Extension Length", "awdl.syncparams.aw.ext_len",
-        FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_ieee80211_tu, 0x0, NULL, HFILL
+        FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_ieee80211_tu), 0x0, NULL, HFILL
       }
     },
     { &hf_awdl_syncparams_aw_cmn_length,
       { "Availability Window Common Length", "awdl.syncparams.aw.common_len",
-        FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_ieee80211_tu, 0x0, NULL, HFILL
+        FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_ieee80211_tu), 0x0, NULL, HFILL
       }
     },
     { &hf_awdl_syncparams_aw_remaining,
       { "Remaining Availability Window Length", "awdl.syncparams.aw.remaining",
-        FT_INT16, BASE_DEC | BASE_UNIT_STRING, &units_ieee80211_tu, 0x0, NULL, HFILL
+        FT_INT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_ieee80211_tu), 0x0, NULL, HFILL
       }
     },
     { &hf_awdl_syncparams_ext_min,
@@ -2119,7 +2220,7 @@ void proto_register_awdl(void)
       }
     },
 
-    /* Service Reponse */
+    /* Service Response */
     { &hf_awdl_dns_name_len,
       { "Name Length", "awdl.dns.name.len",
         FT_UINT16, BASE_DEC, NULL, 0x0,
@@ -2221,7 +2322,7 @@ void proto_register_awdl(void)
       }
     },
     { &hf_awdl_serviceparams_enc_values,
-      { "Encoded Values", "awdl.serviceparams.values",
+      { "Encoded Values", "awdl.serviceparams.enc_values",
         FT_NONE, BASE_NONE, NULL, 0,
         "Encodes up to 256 unique 1-byte values. Calculation adds offsets to values.", HFILL
       }
@@ -2590,7 +2691,7 @@ void proto_register_awdl(void)
   };
 
   /* Setup protocol subtree array */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_awdl_data,
     &ett_awdl,
     &ett_awdl_fixed_parameters,

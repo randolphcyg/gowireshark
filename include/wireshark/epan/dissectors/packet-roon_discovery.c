@@ -20,6 +20,7 @@
 #include <stdlib.h> /* For bsearch() */
 
 #include <epan/packet.h>   /* Should be first Wireshark include (other than config.h) */
+#include <wsutil/array.h>
 
 /* Prototypes */
 /* (Required to prevent [-Wmissing-prototypes] warnings */
@@ -29,28 +30,29 @@ void proto_register_roon_discover(void);
 static dissector_handle_t roon_discover_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_roon_discover = -1;
-static int hf_roon_disco_config_version   = -1;
-static int hf_roon_disco_device_type      = -1;
-static int hf_roon_disco_device_class     = -1;
-static int hf_roon_disco_display_version  = -1;
-static int hf_roon_disco_http_port        = -1;
-static int hf_roon_disco_https_port       = -1;
-static int hf_roon_disco_is_dev           = -1;
-static int hf_roon_disco_machine_id       = -1;
-static int hf_roon_disco_machine_name     = -1;
-static int hf_roon_disco_marker           = -1;
-static int hf_roon_disco_name             = -1;
-static int hf_roon_disco_os_version       = -1;
-static int hf_roon_disco_protocol_version = -1;
-static int hf_roon_disco_protocol_hash    = -1;
-static int hf_roon_disco_raat_version     = -1;
-static int hf_roon_disco_service_id       = -1;
-static int hf_roon_disco_tcp_port         = -1;
-static int hf_roon_disco_tid              = -1;
-static int hf_roon_disco_type             = -1;
-static int hf_roon_disco_unique_id        = -1;
-static int hf_roon_disco_user_id          = -1;
+static int proto_roon_discover;
+static int hf_roon_disco_config_version;
+static int hf_roon_disco_device_type;
+static int hf_roon_disco_device_class;
+static int hf_roon_disco_display_version;
+static int hf_roon_disco_http_port;
+static int hf_roon_disco_https_port;
+static int hf_roon_disco_is_dev;
+static int hf_roon_disco_machine_id;
+static int hf_roon_disco_machine_name;
+static int hf_roon_disco_marker;
+static int hf_roon_disco_name;
+static int hf_roon_disco_os_version;
+static int hf_roon_disco_protocol_version;
+static int hf_roon_disco_protocol_hash;
+static int hf_roon_disco_query_service_id;
+static int hf_roon_disco_raat_version;
+static int hf_roon_disco_service_id;
+static int hf_roon_disco_tcp_port;
+static int hf_roon_disco_tid;
+static int hf_roon_disco_type;
+static int hf_roon_disco_unique_id;
+static int hf_roon_disco_user_id;
 
 
 #define ROON_DISCOVERY_ID "SOOD"
@@ -59,7 +61,7 @@ static int hf_roon_disco_user_id          = -1;
 #define ROON_DISCOVERY_UDP_PORT 9003 /* Not IANA-assigned */
 
 /* Initialize the subtree pointers */
-static gint ett_roon_discover = -1;
+static int ett_roon_discover;
 
 #define ROON_DISCOVERY_MIN_LENGTH 98 // empirically defined
 
@@ -86,6 +88,7 @@ static const roon_map roon_disco_string_fields[] = {
     { "os_version"       , "OS Version"       , &hf_roon_disco_os_version }       ,
     { "protocol_hash"    , "Protocol Hash"    , &hf_roon_disco_protocol_hash }    ,
     { "protocol_version" , "Protocol Version" , &hf_roon_disco_protocol_version } ,
+    { "query_service_id" , "Query ServiceID"  , &hf_roon_disco_query_service_id } ,
     { "raat_version"     , "RAAT Version"     , &hf_roon_disco_raat_version }     ,
     { "service_id"       , "ServiceID"        , &hf_roon_disco_service_id }       ,
     { "tcp_port"         , "TCP Port"         , &hf_roon_disco_tcp_port }         ,
@@ -159,7 +162,7 @@ dissect_roon_discover(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         return 0;
 
     // query or reply are the next two bytes.
-    switch (tvb_get_gint16(tvb, 4, ENC_BIG_ENDIAN)) {
+    switch (tvb_get_int16(tvb, 4, ENC_BIG_ENDIAN)) {
         case ROON_REPLY:
             is_reply = true;
             break;
@@ -189,17 +192,17 @@ dissect_roon_discover(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     int next;
     // iterate over the rest of our message bytes
-    for (guint i = 6; i < tvb_reported_length(tvb) ; i += next) {
-        guint8 key_len, value_len;
-        guint offset;
+    for (unsigned i = 6; i < tvb_reported_length(tvb) ; i += next) {
+        uint8_t key_len, value_len;
+        unsigned offset;
         char *key, *value;
 
-        key_len = tvb_get_guint8(tvb, i);
+        key_len = tvb_get_uint8(tvb, i);
         offset = i + 1;
         key = tvb_get_string_enc(pinfo->pool, tvb, offset, key_len, ENC_ASCII);
 
         offset += key_len + 1;
-        value_len = tvb_get_guint8(tvb, offset);
+        value_len = tvb_get_uint8(tvb, offset);
         offset += 1;
         value = tvb_get_string_enc(pinfo->pool, tvb, offset, value_len, ENC_ASCII);
 
@@ -291,6 +294,10 @@ proto_register_roon_discover(void)
           { "Protocol Version", "roon_disco.protocol_version",
               FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL } },
 
+        { &hf_roon_disco_query_service_id,
+          { "Query ServiceID", "roon_disco.query_service_id",
+              FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL } },
+
         { &hf_roon_disco_raat_version,
           { "RAAT Version", "roon_disco.raat_version",
               FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL } },
@@ -321,7 +328,7 @@ proto_register_roon_discover(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_roon_discover
     };
 

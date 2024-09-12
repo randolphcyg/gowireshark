@@ -26,41 +26,41 @@ void proto_reg_handoff_sndcp(void);
 
 /* Initialize the protocol and registered fields
 */
-static int proto_sndcp       = -1;
-static int hf_sndcp_x        = -1;
-static int hf_sndcp_f        = -1;
-static int hf_sndcp_t        = -1;
-static int hf_sndcp_m        = -1;
-static int hf_sndcp_nsapi    = -1;
-static int hf_sndcp_nsapib   = -1;
-static int hf_sndcp_dcomp    = -1;
-static int hf_sndcp_pcomp    = -1;
-static int hf_sndcp_segment  = -1;
-static int hf_sndcp_npdu1    = -1;
-static int hf_sndcp_npdu2    = -1;
-static int hf_sndcp_payload  = -1;
+static int proto_sndcp;
+static int hf_sndcp_x;
+static int hf_sndcp_f;
+static int hf_sndcp_t;
+static int hf_sndcp_m;
+static int hf_sndcp_nsapi;
+static int hf_sndcp_nsapib;
+static int hf_sndcp_dcomp;
+static int hf_sndcp_pcomp;
+static int hf_sndcp_segment;
+static int hf_sndcp_npdu1;
+static int hf_sndcp_npdu2;
+static int hf_sndcp_payload;
 
 /* These fields are used when reassembling N-PDU fragments
 */
-static int hf_npdu_fragments                    = -1;
-static int hf_npdu_fragment                     = -1;
-static int hf_npdu_fragment_overlap             = -1;
-static int hf_npdu_fragment_overlap_conflict    = -1;
-static int hf_npdu_fragment_multiple_tails      = -1;
-static int hf_npdu_fragment_too_long_fragment   = -1;
-static int hf_npdu_fragment_error               = -1;
-static int hf_npdu_fragment_count               = -1;
-static int hf_npdu_reassembled_in               = -1;
-static int hf_npdu_reassembled_length           = -1;
+static int hf_npdu_fragments;
+static int hf_npdu_fragment;
+static int hf_npdu_fragment_overlap;
+static int hf_npdu_fragment_overlap_conflict;
+static int hf_npdu_fragment_multiple_tails;
+static int hf_npdu_fragment_too_long_fragment;
+static int hf_npdu_fragment_error;
+static int hf_npdu_fragment_count;
+static int hf_npdu_reassembled_in;
+static int hf_npdu_reassembled_length;
 
 /* Initialize the subtree pointers
 */
-static gint ett_sndcp                   = -1;
-static gint ett_sndcp_address_field     = -1;
-static gint ett_sndcp_compression_field = -1;
-static gint ett_sndcp_npdu_field        = -1;
-static gint ett_npdu_fragment           = -1;
-static gint ett_npdu_fragments          = -1;
+static int ett_sndcp;
+static int ett_sndcp_address_field;
+static int ett_sndcp_compression_field;
+static int ett_sndcp_npdu_field;
+static int ett_npdu_fragment;
+static int ett_npdu_fragments;
 
 /* Structure needed for the fragmentation routines in reassemble.c
 */
@@ -176,11 +176,11 @@ static const true_false_string m_bit = {
 static int
 dissect_sndcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-  guint8         addr_field, comp_field, npdu_field1, dcomp=0, pcomp=0;
-  guint16        offset=0, npdu=0, segment=0, npdu_field2;
+  uint8_t        addr_field, comp_field, npdu_field1, dcomp=0, pcomp=0;
+  uint16_t       offset=0, npdu=0, segment=0, npdu_field2;
   tvbuff_t      *next_tvb, *npdu_tvb;
-  gint           len;
-  gboolean       first, more_frags, unack;
+  int            len;
+  bool           first, more_frags, unack;
   static int * const addr_fields[] = {
     &hf_sndcp_x,
     &hf_sndcp_f,
@@ -207,7 +207,7 @@ dissect_sndcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 
   /* get address field from next byte
    */
-  addr_field = tvb_get_guint8(tvb,offset);
+  addr_field = tvb_get_uint8(tvb,offset);
   first      = addr_field & MASK_F;
   more_frags = addr_field & MASK_M;
   unack      = addr_field & MASK_T;
@@ -221,7 +221,7 @@ dissect_sndcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
   /* get compression pointers from next byte if this is the first segment
    */
   if (first) {
-    comp_field = tvb_get_guint8(tvb,offset);
+    comp_field = tvb_get_uint8(tvb,offset);
     dcomp      = comp_field & 0xF0;
     pcomp      = comp_field & 0x0F;
 
@@ -252,7 +252,7 @@ dissect_sndcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     /* get N-PDU number from next byte for acknowledged mode (only for first segment)
      */
     if (!unack) {
-      npdu = npdu_field1 = tvb_get_guint8(tvb,offset);
+      npdu = npdu_field1 = tvb_get_uint8(tvb,offset);
       col_add_fstr(pinfo->cinfo, COL_INFO, "SN-DATA N-PDU %d", npdu_field1);
       if (tree) {
         npdu_field_tree = proto_tree_add_subtree_format(sndcp_tree, tvb, offset, 1, ett_sndcp_npdu_field, NULL, "Acknowledged mode, N-PDU %d", npdu_field1 );
@@ -294,15 +294,15 @@ dissect_sndcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     /* Try reassembling fragments
      */
     fragment_head  *fd_npdu         = NULL;
-    guint32         reassembled_in  = 0;
-    gboolean        save_fragmented = pinfo->fragmented;
+    uint32_t        reassembled_in  = 0;
+    bool            save_fragmented = pinfo->fragmented;
 
     len = tvb_captured_length_remaining(tvb, offset);
     if(len<=0){
         return offset;
     }
 
-    pinfo->fragmented = TRUE;
+    pinfo->fragmented = true;
 
     if (unack)
       fd_npdu  = fragment_add_seq_check(&npdu_reassembly_table, tvb, offset,
@@ -521,7 +521,7 @@ proto_register_sndcp(void)
   };
 
     /* Setup protocol subtree array */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_sndcp     ,
     &ett_sndcp_address_field,
     &ett_sndcp_compression_field,

@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-t124.h                                                              */
-/* asn2wrs.py -L -p t124 -c ./t124.cnf -s ./packet-t124-template -D . -O ../.. GCC-PROTOCOL.asn ../t125/MCS-PROTOCOL.asn */
+/* asn2wrs.py -q -L -p t124 -c ./t124.cnf -s ./packet-t124-template -D . -O ../.. GCC-PROTOCOL.asn ../t125/MCS-PROTOCOL.asn */
 
 /* packet-t124.h
  * Routines for t124 packet dissection
@@ -21,11 +21,11 @@
 #include "packet-per.h"
 
 extern int dissect_DomainMCSPDU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_);
-extern guint32 t124_get_last_channelId(void);
+extern uint32_t t124_get_last_channelId(void);
 extern void t124_set_top_tree(proto_tree *tree);
 
 extern void register_t124_ns_dissector(const char *nsKey, dissector_t dissector, int proto);
-extern void register_t124_sd_dissector(packet_info *pinfo, guint32 channelId, dissector_t dissector, int proto);
+extern void register_t124_sd_dissector(packet_info *pinfo, uint32_t channelId, dissector_t dissector, int proto);
 
 extern const value_string t124_ConnectGCCPDU_vals[];
 int dissect_t124_ConnectData(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);

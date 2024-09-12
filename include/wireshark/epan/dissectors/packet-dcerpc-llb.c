@@ -21,19 +21,19 @@
 void proto_register_llb (void);
 void proto_reg_handoff_llb (void);
 
-static int proto_llb = -1;
-static int hf_llb_opnum = -1;
+static int proto_llb;
+static int hf_llb_opnum;
 
-static gint ett_llb = -1;
+static int ett_llb;
 
 
 static e_guid_t uuid_llb =
   { 0x333b33c3, 0x0000, 0x0000, {0x0d, 0x00, 0x00, 0x87, 0x84, 0x00, 0x00,
                                  0x00} };
-static guint16 ver_llb = 4;
+static uint16_t ver_llb = 4;
 
 
-static dcerpc_sub_dissector llb_dissectors[] = {
+static const dcerpc_sub_dissector llb_dissectors[] = {
   {0, "insert", NULL, NULL},
   {1, "delete", NULL, NULL},
   {2, "lookup", NULL, NULL},
@@ -49,7 +49,7 @@ proto_register_llb (void)
       HFILL}},
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_llb,
   };
   proto_llb =

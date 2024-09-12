@@ -9,6 +9,7 @@
  */
 
 #include "config.h"
+#include "nettrace_3gpp_32_423.h"
 
 #include <sys/types.h>
 
@@ -30,9 +31,7 @@
 #include "wsutil/str_util.h"
 #include <wsutil/inet_addr.h>
 #include <wsutil/ws_assert.h>
-
-
-#include "nettrace_3gpp_32_423.h"
+#include <glib.h>
 
 /* String constants sought in the XML data.
  * Written as strings instead of lists of chars for readability.
@@ -40,39 +39,40 @@
  * the null byte at the end.
  */
 #define CLEN(x) (sizeof(x)-1)
-static const guchar c_xml_magic[] = "<?xml";
-static const guchar c_file_header[] = "<fileHeader";
-static const guchar c_file_format_version[] = "fileFormatVersion=\"";
-static const guchar c_threegpp_doc_no[] = "32.423";
-static const guchar c_begin_time[] = "<traceCollec beginTime=\"";
-static const guchar c_s_msg[] = "<msg";
-static const guchar c_e_msg[] = "</msg>";
-static const guchar c_s_rawmsg[] = "<rawMsg";
-static const guchar c_change_time[] = "changeTime=\"";
-static const guchar c_function[] = "function=\"";
-static const guchar c_proto_name[] = "name=\"";
-static const guchar c_address[] = "ddress"; /* omit the 'a' to cater for "Address" */
-static const guchar c_s_initiator[] = "<initiator";
-static const guchar c_e_initiator[] = "</initiator>";
-static const guchar c_s_target[] = "<target";
-static const guchar c_e_target[] = "</target>";
-static const guchar c_protocol[] = "protocol=\"";
+static const unsigned char c_xml_magic[] = "<?xml";
+static const unsigned char c_file_header[] = "<fileHeader";
+static const unsigned char c_file_format_version[] = "fileFormatVersion=\"";
+static const unsigned char c_threegpp_doc_no[] = "32.423";
+static const unsigned char c_begin_time[] = "<traceCollec beginTime=\"";
+static const unsigned char c_s_msg[] = "<msg";
+static const unsigned char c_e_msg[] = "</msg>";
+static const unsigned char c_s_rawmsg[] = "<rawMsg";
+static const unsigned char c_change_time[] = "changeTime=\"";
+static const unsigned char c_function[] = "function=\"";
+static const unsigned char c_proto_name[] = "name=\"";
+//static const unsigned char c_address[] = "ddress"; /* omit the 'a' to cater for "Address" */
+static const unsigned char c_s_initiator[] = "<initiator";
+static const unsigned char c_e_initiator[] = "</initiator>";
+static const unsigned char c_s_target[] = "<target";
+static const unsigned char c_e_target[] = "</target>";
+static const unsigned char c_protocol[] = "protocol=\"";
 
 /* These are protocol names we may put in the exported-pdu data based on
  * what's in the XML. They're defined here as constants so we can use
  * sizeof()/CLEN() on them and slightly reduce our use of magic constants
  * for their size. (Modern compilers should make this no slower than that.)
  */
-static const guchar c_sai_req[] = "gsm_map.v3.arg.opcode";
-static const guchar c_sai_rsp[] = "gsm_map.v3.res.opcode";
-static const guchar c_nas_eps[] = "nas-eps_plain";
-static const guchar c_nas_5gs[] = "nas-5gs";
+static const unsigned char c_sai_req[] = "gsm_map.v3.arg.opcode";
+static const unsigned char c_sai_rsp[] = "gsm_map.v3.res.opcode";
+static const unsigned char c_nas_eps[] = "nas-eps_plain";
+static const unsigned char c_nas_5gs[] = "nas-5gs";
 
-#define RINGBUFFER_START_SIZE G_MAXINT
+
+#define RINGBUFFER_START_SIZE INT_MAX
 #define RINGBUFFER_CHUNK_SIZE 1024
 
 #define MAX_FUNCTION_LEN 64
-#define MAX_NAME_LEN 64
+#define MAX_NAME_LEN 128
 #define MAX_PROTO_LEN 16
 #define MAX_DTBL_LEN 32
 
@@ -83,18 +83,18 @@ static const guchar c_nas_5gs[] = "nas-5gs";
 
 typedef struct nettrace_3gpp_32_423_file_info {
 	GByteArray *buffer;		// holds current chunk of file
-	gint64 start_offset;		// where in the file the start of the buffer points
+	int64_t start_offset;		// where in the file the start of the buffer points
 	nstime_t start_time;		// from <traceCollec beginTime=""> attribute
 } nettrace_3gpp_32_423_file_info_t;
 
 
 typedef struct exported_pdu_info {
-	guint32 presence_flags;
-	guint8 src_ip[16];
-	guint32 ptype; /* Based on epan/address.h port_type valid for both src and dst*/
-	guint32 src_port;
-	guint8 dst_ip[16];
-	guint32 dst_port;
+	uint32_t presence_flags;
+	uint8_t src_ip[16];
+	uint32_t ptype; /* Based on epan/address.h port_type valid for both src and dst*/
+	uint32_t src_port;
+	uint8_t dst_ip[16];
+	uint32_t dst_port;
 	char* proto_col_str;
 } exported_pdu_info_t;
 
@@ -120,20 +120,19 @@ void register_nettrace_3gpp_32_423(void);
  * Also parses the port pairs and transport layer type.
  */
 static char*
-nettrace_parse_address(char* curr_pos, char* next_pos, gboolean is_src_addr, exported_pdu_info_t *exported_pdu_info)
+nettrace_parse_address(char* curr_pos, char* next_pos, bool is_src_addr, exported_pdu_info_t *exported_pdu_info)
 {
-	guint port;
-	char transp_str[5];
-	int scan_found;
-	char str[3];
-	char* end_pos, *skip_pos;
-	char ip_addr_str[WS_INET6_ADDRSTRLEN];
-	int str_len;
+	unsigned port=0;
 	ws_in6_addr ip6_addr;
-	guint32 ip4_addr;
-	gchar tempchar;
+	uint32_t ip4_addr;
+	char *err; //for strtol function
+	char saved_next_char;
 
-	/* curr_pos pointing to first char after address */
+	GMatchInfo *match_info;
+	static GRegex *regex = NULL;
+	char *matched_ipaddress = NULL;
+	char *matched_port = NULL;
+	char *matched_transport = NULL;
 
 	/* Excample from one trace, unsure if it's generic...
 	 * {address == 192.168.73.1, port == 5062, transport == Udp}
@@ -141,39 +140,44 @@ nettrace_parse_address(char* curr_pos, char* next_pos, gboolean is_src_addr, exp
 	 * {address == 2001:1B70:8294:210A::90, port...
 	 *  Address=198.142.204.199,Port=2123
 	 */
-	/* Skip whitespace and equalsigns) */
-	for (skip_pos = curr_pos; skip_pos < next_pos &&
-		((tempchar = *skip_pos) == ' ' ||
-			tempchar == '\t' || tempchar == '\r' || tempchar == '\n' || tempchar == '=');
-		skip_pos++);
 
-	curr_pos = skip_pos;
+	if (regex == NULL) {
+		regex = g_regex_new (
+			"^.*address\\s*=*\\s*" //curr_pos will begin with address
+			"\\[?(?P<ipaddress>(?:" //store ipv4 or ipv6 address in named group "ipaddress"
+				"(?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})" //match an IPv4 address
+				"|" // or
+				"(?:[0-9a-f:]*)))\\]?" //match an IPv6 address.
+			"(?:.*port\\s*=*\\s*(?P<port>\\d{1,5}))?" //match a port store it in named group "port"
+			"(?:.*transport\\s*=*\\s*(?P<transport>\\w+))?", //match a transport store it in named group "transport"
+			G_REGEX_CASELESS | G_REGEX_FIRSTLINE, 0, NULL);
+	 }
 
-	(void) g_strlcpy(str, curr_pos, 3);
-	/* If we find "" here we have no IP address */
-	if (strcmp(str, "\"\"") == 0) {
+	/* curr_pos pointing to first char of "address" */
+	/* Ensure we don't overrun the intended input.  The input will always
+	 * be a mutable buffer, so modifying it is safe. */
+	saved_next_char = *next_pos;
+	*next_pos = '\0'; /* Insert a NUL terminator. */
+	g_regex_match (regex, curr_pos, 0, &match_info);
+
+	if (g_match_info_matches (match_info)) {
+		matched_ipaddress = g_match_info_fetch_named(match_info, "ipaddress"); //will be empty string if no ipv4 or ipv6
+		matched_port = g_match_info_fetch_named(match_info, "port"); //will be empty string if port not in trace
+		if (matched_port != NULL) {
+			port = (unsigned) strtol(matched_port, &err, 10);
+			g_free(matched_port);
+		}
+		matched_transport = g_match_info_fetch_named(match_info, "transport"); //will be empty string if transport not in trace
+	} else {
+		g_match_info_free(match_info);
+		*next_pos = saved_next_char;
 		return next_pos;
 	}
-	str[1] = 0;
-	if (strcmp(str, "[") == 0) {
-		/* Should we check for a digit here?*/
-		end_pos = strstr(curr_pos, "]");
 
-	}else {
-		/* Should we check for a digit here?*/
-		end_pos = strstr(curr_pos, ",");
-	}
-	if (!end_pos) {
-		return next_pos;
-	}
+	g_match_info_free(match_info);
+	*next_pos = saved_next_char;
 
-	str_len = (int)(end_pos - curr_pos)+1;
-	if (str_len > WS_INET6_ADDRSTRLEN) {
-		return next_pos;
-	}
-	(void) g_strlcpy(ip_addr_str, curr_pos, str_len);
-	curr_pos = end_pos;
-	if (ws_inet_pton6(ip_addr_str, &ip6_addr)) {
+	if (ws_inet_pton6(matched_ipaddress, &ip6_addr)) {
 		if (is_src_addr) {
 			exported_pdu_info->presence_flags |= EXP_PDU_TAG_IP6_SRC_BIT;
 			memcpy(exported_pdu_info->src_ip, ip6_addr.bytes, EXP_PDU_TAG_IPV6_LEN);
@@ -183,7 +187,7 @@ nettrace_parse_address(char* curr_pos, char* next_pos, gboolean is_src_addr, exp
 			memcpy(exported_pdu_info->dst_ip, ip6_addr.bytes, EXP_PDU_TAG_IPV6_LEN);
 		}
 	}
-	else if (ws_inet_pton4(ip_addr_str, &ip4_addr)) {
+	else if (ws_inet_pton4(matched_ipaddress, &ip4_addr)) {
 		if (is_src_addr) {
 			exported_pdu_info->presence_flags |= EXP_PDU_TAG_IP_SRC_BIT;
 			memcpy(exported_pdu_info->src_ip, &ip4_addr, EXP_PDU_TAG_IPV4_LEN);
@@ -194,18 +198,16 @@ nettrace_parse_address(char* curr_pos, char* next_pos, gboolean is_src_addr, exp
 		}
 	}
 
-	curr_pos++;
-	scan_found = sscanf(curr_pos, ", %*s %*s %5u, %*s %*s %4s", &port, transp_str);
-	if (scan_found == 2) {
+	if (port > 0) {
 		/* Only add port_type once */
 		if (exported_pdu_info->ptype == EXP_PDU_PT_NONE) {
-			if (g_ascii_strncasecmp(transp_str, "udp", 3) == 0) {
+			if (g_ascii_strncasecmp(matched_transport, "udp", 3) == 0) {
 				exported_pdu_info->ptype = EXP_PDU_PT_UDP;
 			}
-			else if (g_ascii_strncasecmp(transp_str, "tcp", 3) == 0) {
+			else if (g_ascii_strncasecmp(matched_transport, "tcp", 3) == 0) {
 				exported_pdu_info->ptype = EXP_PDU_PT_TCP;
 			}
-			else if (g_ascii_strncasecmp(transp_str, "sctp", 4) == 0) {
+			else if (g_ascii_strncasecmp(matched_transport, "sctp", 4) == 0) {
 				exported_pdu_info->ptype = EXP_PDU_PT_SCTP;
 			}
 		}
@@ -218,18 +220,20 @@ nettrace_parse_address(char* curr_pos, char* next_pos, gboolean is_src_addr, exp
 			exported_pdu_info->dst_port = port;
 		}
 	}
+	g_free(matched_ipaddress);
+	g_free(matched_transport);
 	return next_pos;
 }
 
 
 /* Parse a <msg ...><rawMsg ...>XXXX</rawMsg></msg> into packet data. */
-static gboolean
-nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *rec, Buffer *buf, guint8 *input, gsize len, int *err, gchar **err_info)
+static bool
+nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *rec, Buffer *buf, uint8_t *input, size_t len, int *err, char **err_info)
 {
 /* Convenience macro. haystack must be >= input! */
-#define STRNSTR(haystack, needle) g_strstr_len(haystack, (len - ((guint8*)(haystack) - (guint8*)input)), needle)
+#define STRNSTR(haystack, needle) g_strstr_len(haystack, (len - ((uint8_t*)(haystack) - (uint8_t*)input)), needle)
 
-	gboolean status = TRUE;
+	bool status = true;
 	char *curr_pos, *next_msg_pos, *next_pos, *prev_pos;
 	exported_pdu_info_t  exported_pdu_info = {0};
 
@@ -244,15 +248,15 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 	int function_str_len = 0;
 	int name_str_len = 0;
 	int proto_str_len, dissector_table_str_len, raw_data_len, pkt_data_len, exp_pdu_tags_len, i;
-	guint8 *packet_buf;
-	gint val1, val2;
-	gboolean use_proto_table = FALSE;
+	uint8_t *packet_buf;
+	int val1, val2;
+	bool use_proto_table = false;
 
 	/* We should always and only be called with a <msg....</msg> payload */
 	if (0 != strncmp(input, c_s_msg, CLEN(c_s_msg))) {
 		*err = WTAP_ERR_BAD_FILE;
 		*err_info = ws_strdup_printf("nettrace_3gpp_32_423: Did not start with \"%s\"", c_s_msg);
-		return FALSE;
+		return false;
 	}
 
 	curr_pos = input + CLEN(c_s_msg);
@@ -274,7 +278,7 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 		/* Something's wrong, bail out */
 		*err = WTAP_ERR_BAD_FILE;
 		*err_info = g_strdup("Did not find end of tag \">\"");
-		status = FALSE;
+		status = false;
 		goto end;
 	}
 	/* Check if its a tag close "/>" */
@@ -282,7 +286,7 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 		/* There is no rawmsg here. Should have been caught before we got called */
 		*err = WTAP_ERR_INTERNAL;
 		*err_info = g_strdup("Had \"<msg />\" with no \"<rawMsg>\"");
-		status = FALSE;
+		status = false;
 		goto end;
 	}
 	start_msg_tag_cont = curr_pos = prev_pos;
@@ -291,7 +295,7 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 		/* Something's wrong, bail out */
 		*err = WTAP_ERR_BAD_FILE;
 		*err_info = ws_strdup_printf("nettrace_3gpp_32_423: Did not find \"%s\"", c_e_msg);
-		status = FALSE;
+		status = false;
 		goto end;
 	}
 
@@ -301,7 +305,7 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 	 */
 	if (!nstime_is_unset(&(file_info->start_time))) {
 		int scan_found;
-		guint second = 0, ms = 0;
+		unsigned second = 0, ms = 0;
 
 		curr_pos = STRNSTR(start_msg_tag_cont, c_change_time);
 		/* Check if we have the tag or if we passed the end of the current message */
@@ -310,8 +314,8 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 			scan_found = sscanf(curr_pos, "%u.%u", &second, &ms);
 
 			if (scan_found == 2) {
-				guint start_ms = file_info->start_time.nsecs / 1000000;
-				guint elapsed_ms = start_ms + ms;
+				unsigned start_ms = file_info->start_time.nsecs / 1000000;
+				unsigned elapsed_ms = start_ms + ms;
 				if (elapsed_ms > 1000) {
 					elapsed_ms -= 1000;
 					second++;
@@ -337,7 +341,7 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 			goto end;
 		}
 
-		(void) g_strlcpy(function_str, curr_pos, (gsize)function_str_len + 1);
+		(void) g_strlcpy(function_str, curr_pos, (size_t)function_str_len + 1);
 		ascii_strdown_inplace(function_str);
 
 	}
@@ -356,7 +360,7 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 			goto end;
 		}
 
-		(void) g_strlcpy(name_str, curr_pos, (gsize)name_str_len + 1);
+		(void) g_strlcpy(name_str, curr_pos, (size_t)name_str_len + 1);
 		ascii_strdown_inplace(name_str);
 
 	}
@@ -369,10 +373,9 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 		curr_pos += CLEN(c_s_initiator);
 		next_pos = STRNSTR(curr_pos, c_e_initiator);
 		/* Find address */
-		curr_pos = STRNSTR(curr_pos, c_address);
+		//curr_pos = STRNSTR(curr_pos, c_address) - 1; //Not needed due to regex
 		if (curr_pos != NULL) {
-			curr_pos += CLEN(c_address);
-			nettrace_parse_address(curr_pos, next_pos, TRUE/* SRC */, &exported_pdu_info);
+			nettrace_parse_address(curr_pos, next_pos, true/* SRC */, &exported_pdu_info);
 		}
 	}
 
@@ -383,14 +386,12 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 	/* Check if we have the tag or if we passed the end of the current message */
 	if (curr_pos != NULL) {
 		curr_pos += CLEN(c_s_target);
-		curr_pos = curr_pos + 7;
 		next_pos = STRNSTR(curr_pos, c_e_target);
 		/* Find address */
-		curr_pos = STRNSTR(curr_pos, c_address);
+		//curr_pos = STRNSTR(curr_pos, c_address) - 1; //Not needed due to regex
 		if (curr_pos != NULL) {
-			curr_pos += CLEN(c_address);
 			/* curr_pos set below */
-			nettrace_parse_address(curr_pos, next_pos, FALSE/* DST */, &exported_pdu_info);
+			nettrace_parse_address(curr_pos, next_pos, false/* DST */, &exported_pdu_info);
 		}
 	}
 
@@ -399,24 +400,24 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 	if (raw_msg_pos == NULL) {
 		*err = WTAP_ERR_BAD_FILE;
 		*err_info = ws_strdup_printf("nettrace_3gpp_32_423: Did not find \"%s\"", c_s_rawmsg);
-		status = FALSE;
+		status = false;
 		goto end;
 	}
 	curr_pos = STRNSTR(raw_msg_pos, c_protocol);
 	if (curr_pos == NULL) {
 		*err = WTAP_ERR_BAD_FILE;
 		*err_info = ws_strdup_printf("nettrace_3gpp_32_423: Did not find \"%s\"", c_protocol);
-		status = FALSE;
+		status = false;
 		goto end;
 	}
 	curr_pos += CLEN(c_protocol);
 	next_pos = STRNSTR(curr_pos, "\"");
 	proto_str_len = (int)(next_pos - curr_pos);
 	if (proto_str_len > MAX_PROTO_LEN){
-		status = FALSE;
+		status = false;
 		goto end;
 	}
-	(void) g_strlcpy(proto_name_str, curr_pos, (gsize)proto_str_len+1);
+	(void) g_strlcpy(proto_name_str, curr_pos, (size_t)proto_str_len+1);
 	ascii_strdown_inplace(proto_name_str);
 
 	/* Do string matching and replace with Wiresharks protocol name */
@@ -437,7 +438,7 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 		} else {
 			*err = WTAP_ERR_BAD_FILE;
 			*err_info = ws_strdup_printf("nettrace_3gpp_32_423: No handle of message \"%s\" on function \"%s\" ", proto_name_str, function_str);
-			status = FALSE;
+			status = false;
 			goto end;
 		}
 	}
@@ -449,14 +450,14 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 		exported_pdu_info.proto_col_str = g_strdup("GSM MAP");
 
 		if (strcmp(name_str, "sai_request") == 0) {
-			use_proto_table = TRUE;
+			use_proto_table = true;
 			(void) g_strlcpy(dissector_table_str, c_sai_req, sizeof(c_sai_req));
 			dissector_table_str_len = CLEN(c_sai_req);
 			dissector_table_val = 56;
 			exported_pdu_info.presence_flags |= EXP_PDU_TAG_COL_PROT_BIT;
 		}
 		else if (strcmp(name_str, "sai_response") == 0) {
-			use_proto_table = TRUE;
+			use_proto_table = true;
 			(void) g_strlcpy(dissector_table_str, c_sai_rsp, sizeof(c_sai_rsp));
 			dissector_table_str_len = CLEN(c_sai_rsp);
 			dissector_table_val = 56;
@@ -473,7 +474,7 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 
 	/* Fill packet buff */
 	ws_buffer_clean(buf);
-	if (use_proto_table == FALSE) {
+	if (use_proto_table == false) {
 		wtap_buffer_append_epdu_tag(buf, EXP_PDU_TAG_DISSECTOR_NAME, proto_name_str, proto_str_len);
 	}
 	else {
@@ -520,14 +521,14 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 	packet_buf = ws_buffer_end_ptr(buf);
 
 	for (i = 0; i < pkt_data_len; i++) {
-		gchar chr1, chr2;
+		char chr1, chr2;
 
 		chr1 = *curr_pos++;
 		chr2 = *curr_pos++;
 		val1 = g_ascii_xdigit_value(chr1);
 		val2 = g_ascii_xdigit_value(chr2);
 		if ((val1 != -1) && (val2 != -1)) {
-			*packet_buf++ = ((guint8)val1 * 16) + val2;
+			*packet_buf++ = ((uint8_t)val1 * 16) + val2;
 		}
 		else {
 			/* Something wrong, bail out */
@@ -537,14 +538,14 @@ nettrace_msg_to_packet(nettrace_3gpp_32_423_file_info_t *file_info, wtap_rec *re
 				chr1,
 				chr2);
 			*err = WTAP_ERR_BAD_FILE;
-			status = FALSE;
+			status = false;
 			goto end;
 		}
 	}
 	ws_buffer_increase_length(buf, pkt_data_len);
 
-	rec->rec_header.packet_header.caplen = (guint32)ws_buffer_length(buf);
-	rec->rec_header.packet_header.len = (guint32)ws_buffer_length(buf);
+	rec->rec_header.packet_header.caplen = (uint32_t)ws_buffer_length(buf);
+	rec->rec_header.packet_header.len = (uint32_t)ws_buffer_length(buf);
 
 end:
 	return status;
@@ -555,12 +556,12 @@ end:
  * Returns location of needle once found, or NULL if it's never found
  * (due to either EOF or read error).
  */
-static guint8 *
-read_until(GByteArray *buffer, const guchar *needle, FILE_T fh, int *err, gchar **err_info)
+static uint8_t *
+read_until(GByteArray *buffer, const unsigned char *needle, FILE_T fh, int *err, char **err_info)
 {
-	guint8 read_buffer[RINGBUFFER_CHUNK_SIZE];
-	guint8 *found_it;
-	gint bytes_read = 0;
+	uint8_t read_buffer[RINGBUFFER_CHUNK_SIZE];
+	uint8_t *found_it;
+	int bytes_read = 0;
 
 	while (NULL == (found_it = g_strstr_len(buffer->data, buffer->len, needle))) {
 		bytes_read = file_read(read_buffer, RINGBUFFER_CHUNK_SIZE, fh);
@@ -579,15 +580,15 @@ read_until(GByteArray *buffer, const guchar *needle, FILE_T fh, int *err, gchar 
 /* Find a complete packet, parse and return it to wiretap.
  * Set as the subtype_read function in the file_open function below.
  */
-static gboolean
-nettrace_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, gchar **err_info, gint64 *data_offset)
+static bool
+nettrace_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, char **err_info, int64_t *data_offset)
 {
 	nettrace_3gpp_32_423_file_info_t *file_info = (nettrace_3gpp_32_423_file_info_t *)wth->priv;
-	guint8 *buf_start;
-	guint8 *msg_start, *msg_end;
-	guint msg_offset = 0;
-	gsize msg_len = 0;
-	gboolean status = FALSE;
+	uint8_t *buf_start;
+	uint8_t *msg_start, *msg_end;
+	unsigned msg_offset = 0;
+	size_t msg_len = 0;
+	bool status = false;
 
 	/* Make sure we have a start and end of message in our buffer -- end first */
 	msg_end = read_until(file_info->buffer, c_e_msg, wth->fh, err, err_info);
@@ -599,7 +600,7 @@ nettrace_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, gchar **err_info,
 	/* Now search backwards for the message start
 	 * (doing it this way should skip over any empty "<msg ... />" tags we have)
 	 */
-	msg_start = g_strrstr_len(buf_start, (guint)(msg_end - buf_start), c_s_msg);
+	msg_start = g_strrstr_len(buf_start, (unsigned)(msg_end - buf_start), c_s_msg);
 	if (msg_start == NULL || msg_start > msg_end) {
 		*err_info = ws_strdup_printf("nettrace_3gpp_32_423: Found \"%s\" without matching \"%s\"", c_e_msg, c_s_msg);
 		*err = WTAP_ERR_BAD_FILE;
@@ -607,9 +608,9 @@ nettrace_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, gchar **err_info,
 	}
 
 	/* We know we have a message, what's its offset from the buffer start? */
-	msg_offset = (guint)(msg_start - buf_start);
+	msg_offset = (unsigned)(msg_start - buf_start);
 	msg_end += CLEN(c_e_msg);
-	msg_len = (guint)(msg_end - msg_start);
+	msg_len = (unsigned)(msg_end - msg_start);
 
 	/* Tell Wireshark to put us at the start of the "<msg" for seek_read later */
 	*data_offset = file_info->start_offset + msg_offset;
@@ -621,15 +622,15 @@ nettrace_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, gchar **err_info,
 	 * Re-use msg_len to get the length of the data we're done with.
 	 */
 	msg_len = msg_end - file_info->buffer->data;
-	while (G_UNLIKELY(msg_len > G_MAXUINT)) {
-		g_byte_array_remove_range(file_info->buffer, 0, G_MAXUINT);
-		msg_len -= G_MAXUINT;
+	while (G_UNLIKELY(msg_len > UINT_MAX)) {
+		g_byte_array_remove_range(file_info->buffer, 0, UINT_MAX);
+		msg_len -= UINT_MAX;
 	}
-	g_byte_array_remove_range(file_info->buffer, 0, (guint)msg_len);
+	g_byte_array_remove_range(file_info->buffer, 0, (unsigned)msg_len);
 	file_info->start_offset += msg_len;
 
 end:
-	if (status == FALSE) {
+	if (status == false) {
 		/* There's no more to read. Empty out the buffer */
 		g_byte_array_set_size(file_info->buffer, 0);
 	}
@@ -640,24 +641,24 @@ end:
 /* Seek to the complete packet at the offset, parse and return it to wiretap.
  * Set as the subtype_seek_read function in the file_open function below.
  */
-static gboolean
-nettrace_seek_read(wtap *wth, gint64 seek_off, wtap_rec *rec, Buffer *buf, int *err, gchar **err_info)
+static bool
+nettrace_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec, Buffer *buf, int *err, char **err_info)
 {
 	nettrace_3gpp_32_423_file_info_t *file_info = (nettrace_3gpp_32_423_file_info_t *)wth->priv;
-	gboolean status = FALSE;
-	guint8 *msg_end;
-	guint msg_len = 0;
+	bool status = false;
+	uint8_t *msg_end;
+	unsigned msg_len = 0;
 
 	/* We stored the offset of the "<msg" for this packet */
 	if (file_seek(wth->random_fh, seek_off, SEEK_SET, err) == -1)
-		return FALSE;
+		return false;
 
 	msg_end = read_until(file_info->buffer, c_e_msg, wth->random_fh, err, err_info);
 	if (msg_end == NULL) {
-		return FALSE;
+		return false;
 	}
 	msg_end += CLEN(c_e_msg);
-	msg_len = (guint)(msg_end - file_info->buffer->data);
+	msg_len = (unsigned)(msg_end - file_info->buffer->data);
 
 	status = nettrace_msg_to_packet(file_info, rec, buf, file_info->buffer->data, msg_len, err, err_info);
 	g_byte_array_set_size(file_info->buffer, 0);
@@ -674,7 +675,7 @@ nettrace_close(wtap *wth)
 	nettrace_3gpp_32_423_file_info_t *file_info = (nettrace_3gpp_32_423_file_info_t *)wth->priv;
 
 	if (file_info != NULL && file_info->buffer != NULL) {
-		g_byte_array_free(file_info->buffer, TRUE);
+		g_byte_array_free(file_info->buffer, true);
 		file_info->buffer = NULL;
 	}
 }
@@ -683,14 +684,14 @@ nettrace_close(wtap *wth)
  * Set in file_access.c as the function to be called for this file type.
  */
 wtap_open_return_val
-nettrace_3gpp_32_423_file_open(wtap *wth, int *err, gchar **err_info)
+nettrace_3gpp_32_423_file_open(wtap *wth, int *err, char **err_info)
 {
 	char magic_buf[MAGIC_BUF_SIZE+1];
 	int bytes_read;
 	const char *curr_pos;
 	nstime_t start_time;
 	nettrace_3gpp_32_423_file_info_t *file_info;
-	gint64 start_offset;
+	int64_t start_offset;
 
 	start_offset = file_tell(wth->fh); // Most likely 0 but doesn't hurt to check
 	bytes_read = file_read(magic_buf, MAGIC_BUF_SIZE, wth->fh);
@@ -736,7 +737,7 @@ nettrace_3gpp_32_423_file_open(wtap *wth, int *err, gchar **err_info)
 	file_info->start_time = start_time;
 	file_info->start_offset = start_offset + (curr_pos - magic_buf);
 	file_info->buffer = g_byte_array_sized_new(RINGBUFFER_START_SIZE);
-	g_byte_array_append(file_info->buffer, curr_pos, (guint)(bytes_read - (curr_pos - magic_buf)));
+	g_byte_array_append(file_info->buffer, curr_pos, (unsigned)(bytes_read - (curr_pos - magic_buf)));
 
 	wth->file_type_subtype = nettrace_3gpp_32_423_file_type_subtype;
 	wth->file_encap = WTAP_ENCAP_WIRESHARK_UPPER_PDU;
@@ -759,7 +760,7 @@ static const struct supported_block_type nettrace_3gpp_32_423_blocks_supported[]
 
 static const struct file_type_subtype_info nettrace_3gpp_32_423_info = {
 	"3GPP TS 32.423 Trace", "3gpp32423", NULL, NULL,
-	FALSE, BLOCKS_SUPPORTED(nettrace_3gpp_32_423_blocks_supported),
+	false, BLOCKS_SUPPORTED(nettrace_3gpp_32_423_blocks_supported),
 	NULL, NULL, NULL
 };
 

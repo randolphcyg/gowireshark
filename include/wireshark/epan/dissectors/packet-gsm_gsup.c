@@ -55,14 +55,12 @@
 #define OSMO_GSUP_PORT 4222
 #define IPAC_PROTO_EXT_GSUP 0x05
 
-/*! Maximum nubmer of PDP inside \ref osmo_gsup_message */
+/*! Maximum number of PDP inside \ref osmo_gsup_message */
 #define OSMO_GSUP_MAX_NUM_PDP_INFO		10 /* GSM 09.02 limits this to 50 */
 /*! Maximum number of auth info inside \ref osmo_gsup_message */
 #define OSMO_GSUP_MAX_NUM_AUTH_INFO		5
 /*! Maximum number of octets encoding MSISDN in BCD format */
 #define OSMO_GSUP_MAX_MSISDN_LEN		9
-
-#define OSMO_GSUP_PDP_TYPE_SIZE			2
 
 /*! Information Element Identifiers for GSUP IEs */
 enum osmo_gsup_iei {
@@ -77,10 +75,11 @@ enum osmo_gsup_iei {
 	OSMO_GSUP_HLR_NUMBER_IE			= 0x09,
 	OSMO_GSUP_MESSAGE_CLASS_IE		= 0x0a,
 	OSMO_GSUP_PDP_CONTEXT_ID_IE		= 0x10,
-	OSMO_GSUP_PDP_TYPE_IE			= 0x11,
+	OSMO_GSUP_PDP_ADDRESS_IE			= 0x11,
 	OSMO_GSUP_ACCESS_POINT_NAME_IE		= 0x12,
 	OSMO_GSUP_PDP_QOS_IE			= 0x13,
 	OSMO_GSUP_CHARG_CHAR_IE			= 0x14,
+	OSMO_GSUP_PCO_IE			= 0x15,
 	OSMO_GSUP_RAND_IE			= 0x20,
 	OSMO_GSUP_SRES_IE			= 0x21,
 	OSMO_GSUP_KC_IE				= 0x22,
@@ -185,6 +184,10 @@ enum osmo_gsup_message_type {
 	OSMO_GSUP_MSGT_E_ABORT					= 0x4b,
 
 	OSMO_GSUP_MSGT_E_ROUTING_ERROR				= 0x4e,
+
+	OSMO_GSUP_MSGT_EPDG_TUNNEL_REQUEST			= 0x50,
+	OSMO_GSUP_MSGT_EPDG_TUNNEL_ERROR			= 0x51,
+	OSMO_GSUP_MSGT_EPDG_TUNNEL_RESULT			= 0x52,
 };
 
 #define OSMO_GSUP_IS_MSGT_REQUEST(msgt) (((msgt) & 0b00000011) == 0b00)
@@ -263,56 +266,61 @@ enum osmo_gsup_an_type {
 void proto_register_gsup(void);
 void proto_reg_handoff_gsup(void);
 
-static int proto_gsup = -1;
+static int proto_gsup;
 
 /* show GSUP source/destination names as text (true) or only binary (false) */
-static gboolean show_name_as_text = TRUE;
+static bool show_name_as_text = true;
 
-static int hf_gsup_msg_type = -1;
-static int hf_gsup_iei = -1;
-static int hf_gsup_ie_len = -1;
-static int hf_gsup_ie_payload = -1;
-static int hf_gsup_cause = -1;
-static int hf_gsup_pdp_info_compl = -1;
-static int hf_gsup_cancel_type = -1;
-static int hf_gsup_freeze_ptmsi = -1;
-static int hf_gsup_pdp_context_id = -1;
-static int hf_gsup_charg_char = -1;
-static int hf_gsup_apn = -1;
-static int hf_gsup_cn_domain = -1;
-static int hf_gsup_rand = -1;
-static int hf_gsup_sres = -1;
-static int hf_gsup_kc = -1;
-static int hf_gsup_ik = -1;
-static int hf_gsup_ck = -1;
-static int hf_gsup_autn = -1;
-static int hf_gsup_auts = -1;
-static int hf_gsup_res = -1;
-static int hf_gsup_session_id = -1;
-static int hf_gsup_session_state = -1;
-static int hf_gsup_sm_rp_mr = -1;
-static int hf_gsup_sm_rp_da_id_type = -1;
-static int hf_gsup_sm_rp_oa_id_type = -1;
-static int hf_gsup_sm_rp_cause = -1;
-static int hf_gsup_sm_rp_mms = -1;
-static int hf_gsup_sm_alert_rsn = -1;
-static int hf_gsup_imei_result = -1;
-static int hf_gsup_num_vectors_req = -1;
-static int hf_gsup_msg_class = -1;
-static int hf_gsup_an_type = -1;
-static int hf_gsup_source_name = -1;
-static int hf_gsup_source_name_text = -1;
-static int hf_gsup_destination_name = -1;
-static int hf_gsup_destination_name_text = -1;
-static int hf_gsup_supported_rat_type = -1;
-static int hf_gsup_current_rat_type = -1;
+static int hf_gsup_msg_type;
+static int hf_gsup_iei;
+static int hf_gsup_ie_len;
+static int hf_gsup_ie_payload;
+static int hf_gsup_cause;
+static int hf_gsup_pdp_info_compl;
+static int hf_gsup_cancel_type;
+static int hf_gsup_freeze_ptmsi;
+static int hf_gsup_pdp_context_id;
+static int hf_gsup_charg_char;
+static int hf_gsup_apn;
+static int hf_gsup_cn_domain;
+static int hf_gsup_rand;
+static int hf_gsup_sres;
+static int hf_gsup_kc;
+static int hf_gsup_ik;
+static int hf_gsup_ck;
+static int hf_gsup_autn;
+static int hf_gsup_auts;
+static int hf_gsup_res;
+static int hf_gsup_session_id;
+static int hf_gsup_session_state;
+static int hf_gsup_sm_rp_mr;
+static int hf_gsup_sm_rp_da_id_type;
+static int hf_gsup_sm_rp_oa_id_type;
+static int hf_gsup_sm_rp_cause;
+static int hf_gsup_sm_rp_mms;
+static int hf_gsup_sm_alert_rsn;
+static int hf_gsup_imei_result;
+static int hf_gsup_num_vectors_req;
+static int hf_gsup_msg_class;
+static int hf_gsup_an_type;
+static int hf_gsup_source_name;
+static int hf_gsup_source_name_text;
+static int hf_gsup_destination_name;
+static int hf_gsup_destination_name_text;
+static int hf_gsup_supported_rat_type;
+static int hf_gsup_current_rat_type;
+static int hf_gsup_pdp_addr_type_org;
+static int hf_gsup_spare_bits;
+static int hf_gsup_pdp_addr_type_nr;
+static int hf_gsup_pdp_addr_v4;
+static int hf_gsup_pdp_addr_v6;
 
-static gint ett_gsup = -1;
-static gint ett_gsup_ie = -1;
+static int ett_gsup;
+static int ett_gsup_ie;
 
-static expert_field ei_sm_rp_da_invalid = EI_INIT;
-static expert_field ei_sm_rp_oa_invalid = EI_INIT;
-static expert_field ei_gsup_ie_len_invalid = EI_INIT;
+static expert_field ei_sm_rp_da_invalid;
+static expert_field ei_sm_rp_oa_invalid;
+static expert_field ei_gsup_ie_len_invalid;
 
 static dissector_handle_t gsm_map_handle;
 static dissector_handle_t gsup_handle;
@@ -332,10 +340,11 @@ static const value_string gsup_iei_types[] = {
 	{ OSMO_GSUP_MSISDN_IE,		"MSISDN" },
 	{ OSMO_GSUP_HLR_NUMBER_IE,	"HLR Number" },
 	{ OSMO_GSUP_PDP_CONTEXT_ID_IE,	"PDP Context ID" },
-	{ OSMO_GSUP_PDP_TYPE_IE,	"PDP Type" },
+	{ OSMO_GSUP_PDP_ADDRESS_IE,	"PDP Address" },
 	{ OSMO_GSUP_ACCESS_POINT_NAME_IE, "Access Point Name (APN)" },
 	{ OSMO_GSUP_PDP_QOS_IE,		"PDP Quality of Service (QoS)" },
 	{ OSMO_GSUP_CHARG_CHAR_IE,	"Charging Character" },
+	{ OSMO_GSUP_PCO_IE,		"Protocol Configuration Options" },
 	{ OSMO_GSUP_RAND_IE,		"RAND" },
 	{ OSMO_GSUP_SRES_IE,		"SRES" },
 	{ OSMO_GSUP_KC_IE,		"Kc" },
@@ -419,6 +428,9 @@ static const value_string gsup_msg_types[] = {
 	{ OSMO_GSUP_MSGT_E_CLOSE,			"E Close"},
 	{ OSMO_GSUP_MSGT_E_ABORT,			"E Abort"},
 	{ OSMO_GSUP_MSGT_E_ROUTING_ERROR,		"E Routing Error"},
+	{ OSMO_GSUP_MSGT_EPDG_TUNNEL_REQUEST,		"ePDG Tunnel Request"},
+	{ OSMO_GSUP_MSGT_EPDG_TUNNEL_ERROR,		"ePDG Tunnel Error"},
+	{ OSMO_GSUP_MSGT_EPDG_TUNNEL_RESULT,		"ePDG Tunnel Result"},
 	{ 0, NULL }
 };
 
@@ -488,20 +500,20 @@ static const value_string gsup_an_type_vals[] = {
 };
 
 
-static void dissect_ss_info_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, guint len, proto_tree *tree)
+static void dissect_ss_info_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, unsigned len, proto_tree *tree)
 {
-	guint saved_offset;
-	gint8 appclass;
+	unsigned saved_offset;
+	int8_t appclass;
 	bool pc;
-	bool ind = FALSE;
-	guint32 component_len = 0;
-	guint32 header_end_offset;
-	guint32 header_len;
+	bool ind = false;
+	uint32_t component_len = 0;
+	uint32_t header_end_offset;
+	uint32_t header_len;
 	asn1_ctx_t asn1_ctx;
 	tvbuff_t *ss_tvb = NULL;
-	static gint comp_type_tag;
+	static int comp_type_tag;
 
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 	saved_offset = offset;
 	col_append_str(pinfo->cinfo, COL_PROTOCOL, "/");
 	col_set_fence(pinfo->cinfo, COL_PROTOCOL);
@@ -520,12 +532,12 @@ static void dissect_ss_info_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset, 
 	}
 }
 
-static void dissect_sm_rp_da_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
-				guint ie_len, proto_tree *tree)
+static void dissect_sm_rp_da_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset,
+				unsigned ie_len, proto_tree *tree)
 {
 	tvbuff_t *addr_tvb;
 	proto_item *ti;
-	guint8 id_type;
+	uint8_t id_type;
 
 	/* Identity type is mandatory */
 	if (ie_len < 1) {
@@ -536,12 +548,12 @@ static void dissect_sm_rp_da_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
 
 	/* Parse ID type */
 	ti = proto_tree_add_item(tree, hf_gsup_sm_rp_da_id_type, tvb, offset, 1, ENC_NA);
-	id_type = tvb_get_guint8(tvb, offset);
+	id_type = tvb_get_uint8(tvb, offset);
 
 	switch (id_type) {
 	case OSMO_GSUP_SMS_SM_RP_ODA_IMSI:
 		dissect_e212_imsi(tvb, pinfo, tree,
-			offset + 1, ie_len - 1, FALSE);
+			offset + 1, ie_len - 1, false);
 		break;
 	case OSMO_GSUP_SMS_SM_RP_ODA_MSISDN:
 	case OSMO_GSUP_SMS_SM_RP_ODA_SMSC_ADDR:
@@ -566,12 +578,12 @@ static void dissect_sm_rp_da_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
 	}
 }
 
-static void dissect_sm_rp_oa_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
-				guint ie_len, proto_tree *tree)
+static void dissect_sm_rp_oa_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset,
+				unsigned ie_len, proto_tree *tree)
 {
 	tvbuff_t *addr_tvb;
 	proto_item *ti;
-	guint8 id_type;
+	uint8_t id_type;
 
 	/* Identity type is mandatory */
 	if (ie_len < 1) {
@@ -582,7 +594,7 @@ static void dissect_sm_rp_oa_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
 
 	/* Parse ID type */
 	ti = proto_tree_add_item(tree, hf_gsup_sm_rp_oa_id_type, tvb, offset, 1, ENC_NA);
-	id_type = tvb_get_guint8(tvb, offset);
+	id_type = tvb_get_uint8(tvb, offset);
 
 	switch (id_type) {
 	case OSMO_GSUP_SMS_SM_RP_ODA_MSISDN:
@@ -608,8 +620,8 @@ static void dissect_sm_rp_oa_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
 	}
 }
 
-static void dissect_sm_rp_ui_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
-				guint ie_len, proto_tree *tree, guint8 msg_type)
+static void dissect_sm_rp_ui_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset,
+				unsigned ie_len, proto_tree *tree, uint8_t msg_type)
 {
 	tvbuff_t *ss_tvb;
 
@@ -635,19 +647,19 @@ static void dissect_sm_rp_ui_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
 	call_dissector(gsm_sms_handle, ss_tvb, pinfo, tree);
 }
 
-static void dissect_imei_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
-			    guint ie_len, proto_tree *tree)
+static void dissect_imei_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset,
+			    unsigned ie_len, proto_tree *tree)
 {
 	tvbuff_t *ss_tvb = tvb_new_subset_length(tvb, offset-1, ie_len+1);
 	if(bssap_imei_handle)
 		call_dissector(bssap_imei_handle, ss_tvb, pinfo, tree);
 }
 
-static void dissect_an_apdu_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
-			       guint ie_len, proto_tree *tree, proto_item *parent_ti)
+static void dissect_an_apdu_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset,
+			       unsigned ie_len, proto_tree *tree, proto_item *parent_ti)
 {
 	tvbuff_t *ss_tvb = tvb_new_subset_length(tvb, offset+1, ie_len-1);
-	guint32 an_type;
+	uint32_t an_type;
 
 	proto_tree_add_item_ret_uint(tree, hf_gsup_an_type, tvb, offset, 1, ENC_NA, &an_type);
 	proto_item_append_text(parent_ti, ": %s", val_to_str_const(an_type, gsup_msg_class_types, "unknown"));
@@ -665,13 +677,13 @@ static void dissect_an_apdu_ie(tvbuff_t *tvb, packet_info *pinfo, guint offset,
 	}
 }
 
-static void dissect_name_ie(tvbuff_t *tvb, packet_info *pinfo _U_, guint offset,
-			    guint ie_len, proto_tree *tree, proto_item *parent_ti, guint8 tag)
+static void dissect_name_ie(tvbuff_t *tvb, packet_info *pinfo _U_, unsigned offset,
+			    unsigned ie_len, proto_tree *tree, proto_item *parent_ti, uint8_t tag)
 {
 	proto_item *ti;
 
 	if (show_name_as_text) {
-		guint8 *str;
+		uint8_t *str;
 		str = tvb_get_stringzpad(pinfo->pool, tvb, offset, ie_len,  ENC_ASCII|ENC_NA);
 		proto_item_append_text(parent_ti, ": %s", (char *)str);
 	}
@@ -695,28 +707,29 @@ static void dissect_name_ie(tvbuff_t *tvb, packet_info *pinfo _U_, guint offset,
 }
 
 
-static gint
+static int
 // NOLINTNEXTLINE(misc-no-recursion)
 dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, proto_tree *tree,
-		  proto_item *gsup_ti, guint8 msg_type)
+		  proto_item *gsup_ti, uint8_t msg_type)
 {
 	int offset = base_offs;
 
 	while (offset - base_offs < length) {
-		guint8 tag;
-		guint8 len;
+		uint8_t tag;
+		uint8_t len;
 		proto_item *ti;
 		proto_tree *att_tree;
-		const gchar *apn;
-		const gchar *str;
-		gint apn_len;
-		guint32 ui32;
-		guint8 i;
+		const char *apn;
+		const char *str;
+		int apn_len;
+		uint32_t ui32;
+		uint8_t i;
+		tvbuff_t *subset_tvb;
 
-		tag = tvb_get_guint8(tvb, offset);
+		tag = tvb_get_uint8(tvb, offset);
 		offset++;
 
-		len = tvb_get_guint8(tvb, offset);
+		len = tvb_get_uint8(tvb, offset);
 		offset++;
 
 		if (offset - base_offs + len > length) {
@@ -778,7 +791,7 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 			proto_tree_add_item(att_tree, hf_gsup_cancel_type, tvb, offset, len, ENC_NA);
 			break;
 		case OSMO_GSUP_IMSI_IE:
-			str = dissect_e212_imsi(tvb, pinfo, att_tree, offset, len, FALSE);
+			str = dissect_e212_imsi(tvb, pinfo, att_tree, offset, len, false);
 			proto_item_append_text(ti, ", %s", str);
 			proto_item_append_text(gsup_ti, ", IMSI: %s", str);
 			break;
@@ -789,7 +802,7 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 			break;
 		case OSMO_GSUP_ACCESS_POINT_NAME_IE:
 			if (len == 1) {
-				guint8 ch = tvb_get_guint8(tvb, offset);
+				uint8_t ch = tvb_get_uint8(tvb, offset);
 				proto_tree_add_item(att_tree, hf_gsup_ie_payload, tvb, offset, len, ENC_NA);
 				if (ch == '*')
 					proto_item_append_text(ti, ", '*' (Wildcard)");
@@ -807,6 +820,23 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 			break;
 		case OSMO_GSUP_CHARG_CHAR_IE:
 			proto_tree_add_item(att_tree, hf_gsup_charg_char, tvb, offset, len, ENC_ASCII);
+			break;
+		case OSMO_GSUP_PCO_IE:
+			switch (msg_type) {
+			case OSMO_GSUP_MSGT_EPDG_TUNNEL_REQUEST:
+				/* PCO options as MS to network direction */
+				pinfo->link_dir = P2P_DIR_UL;
+				break;
+			case OSMO_GSUP_MSGT_EPDG_TUNNEL_ERROR:
+			case OSMO_GSUP_MSGT_EPDG_TUNNEL_RESULT:
+				/* PCO options as Network to MS direction: */
+				pinfo->link_dir = P2P_DIR_DL;
+				break;
+			default:
+				break;
+			}
+			subset_tvb = tvb_new_subset_length(tvb, offset, len);
+			de_sm_pco(subset_tvb, att_tree, pinfo, 0, len, NULL, 0);
 			break;
 		case OSMO_GSUP_CAUSE_IE:
 			proto_tree_add_item(att_tree, hf_gsup_cause, tvb, offset, len, ENC_NA);
@@ -877,9 +907,34 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 		case OSMO_GSUP_CAUSE_SM_IE:
 			de_sm_cause(tvb, att_tree, pinfo, offset, len, NULL, 0);
 			break;
-
+		case OSMO_GSUP_PDP_ADDRESS_IE:
+			proto_tree_add_bits_item(att_tree, hf_gsup_spare_bits, tvb, (offset << 3), 4, ENC_BIG_ENDIAN);
+			proto_tree_add_item(att_tree, hf_gsup_pdp_addr_type_org, tvb, offset, 1, ENC_BIG_ENDIAN);
+			proto_tree_add_item(att_tree, hf_gsup_pdp_addr_type_nr, tvb, offset + 1, 1, ENC_BIG_ENDIAN);
+			if (len > 2) {
+				switch (tvb_get_uint8(tvb, offset) & 0x0f) {
+				case 0x01: /* IETF */
+					switch (tvb_get_uint8(tvb, offset + 1)) {
+					case 0x21:
+						proto_tree_add_item(att_tree, hf_gsup_pdp_addr_v4, tvb, offset + 3, 4, ENC_BIG_ENDIAN);
+						break;
+					case 0x57:
+						proto_tree_add_item(att_tree, hf_gsup_pdp_addr_v6, tvb, offset + 3, 16, ENC_NA);
+						break;
+					case 0x8d:
+						proto_tree_add_item(att_tree, hf_gsup_pdp_addr_v4, tvb, offset + 3, 4, ENC_BIG_ENDIAN);
+						proto_tree_add_item(att_tree, hf_gsup_pdp_addr_v6, tvb, offset + 7, 16, ENC_NA);
+						break;
+					default:
+						break;
+					}
+					break;
+				default:
+					break;
+				}
+			}
+			break;
 		case OSMO_GSUP_HLR_NUMBER_IE:
-		case OSMO_GSUP_PDP_TYPE_IE:
 		case OSMO_GSUP_PDP_QOS_IE:
 		default:
 			/* Unknown/unsupported IE: Print raw payload in addition to IEI + Length printed above */
@@ -900,12 +955,12 @@ dissect_gsup(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	int len, offset = 0;
 	proto_item *ti;
 	proto_tree *gsup_tree = NULL;
-	guint8 msg_type;
+	uint8_t msg_type;
 	const char *str;
 
 
 	len = tvb_reported_length(tvb);
-	msg_type = tvb_get_guint8(tvb, offset + 0);
+	msg_type = tvb_get_uint8(tvb, offset + 0);
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "GSUP");
 
@@ -929,6 +984,22 @@ dissect_gsup(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 void
 proto_register_gsup(void)
 {
+	static const value_string pdp_type[] = {
+		{0x00, "X.25"},
+		{0x01, "PPP"},
+		{0x02, "OSP:IHOSS"},
+		{0x21, "IPv4"},
+		{0x57, "IPv6"},
+		{0x8d, "IPv4v6"},
+		{0, NULL}
+	};
+
+	static const value_string pdp_org_type[] = {
+		{0, "ETSI"},
+		{1, "IETF"},
+		{0, NULL}
+	};
+
 	static hf_register_info hf[] = {
 		{ &hf_gsup_msg_type, { "Message Type", "gsup.msg_type",
 		  FT_UINT8, BASE_DEC, VALS(gsup_msg_types), 0, NULL, HFILL } },
@@ -965,9 +1036,9 @@ proto_register_gsup(void)
 		{ &hf_gsup_cancel_type, { "Cancel Type", "gsup.cancel_type",
 		  FT_UINT8, BASE_DEC, VALS(gsup_cancel_types), 0, NULL, HFILL } },
 		{ &hf_gsup_pdp_info_compl, { "PDP Information Complete", "gsup.pdp_info_compl",
-		  FT_BOOLEAN, BASE_NONE, NULL, 0, NULL, HFILL } },
+		  FT_NONE, BASE_NONE, NULL, 0, NULL, HFILL } },
 		{ &hf_gsup_freeze_ptmsi, { "Freeze P-TMSI", "gsup.freeze_ptmsi",
-		  FT_BOOLEAN, BASE_NONE, NULL, 0, NULL, HFILL } },
+		  FT_NONE, BASE_NONE, NULL, 0, NULL, HFILL } },
 		{ &hf_gsup_apn, { "APN", "gsup.apn",
 		  FT_STRING, BASE_NONE, NULL, 0, "Access Point Name", HFILL } },
 		{ &hf_gsup_pdp_context_id, { "PDP Context ID", "gsup.pdp_context_id",
@@ -1008,8 +1079,18 @@ proto_register_gsup(void)
 		  FT_BYTES, BASE_NONE, NULL, 0, NULL, HFILL } },
 		{ &hf_gsup_destination_name_text, { "Destination Name (Text)", "gsup.dest_name.text",
 		  FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL } },
+		{ &hf_gsup_spare_bits, { "Spare bit(s)", "gsup.spare_bits",
+		  FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+		{ &hf_gsup_pdp_addr_type_org, { "PDP organization", "gsup.pdp_organization",
+		  FT_UINT8, BASE_DEC, VALS(pdp_org_type), 0x0F, NULL, HFILL }},
+		{ &hf_gsup_pdp_addr_type_nr, { "PDP type", "gsup.pdp_type",
+		  FT_UINT8, BASE_DEC, VALS(pdp_type), 0x0, NULL, HFILL }},
+		{ &hf_gsup_pdp_addr_v4, { "PDP address", "gsup.pdp_address.ipv4",
+		  FT_IPv4, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+		{ &hf_gsup_pdp_addr_v6, { "PDP address", "gsup.pdp_address.ipv6",
+		  FT_IPv6, BASE_NONE, NULL, 0x0, NULL, HFILL }},
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_gsup,
 		&ett_gsup_ie,
 	};

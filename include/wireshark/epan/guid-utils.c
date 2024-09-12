@@ -25,7 +25,7 @@
 #include <strsafe.h>
 #endif
 
-static wmem_tree_t *guid_to_name_tree = NULL;
+static wmem_tree_t *guid_to_name_tree;
 
 
 #ifdef _WIN32
@@ -72,10 +72,10 @@ ResolveWin32UUID(e_guid_t if_id, char *uuid_name, int uuid_name_max_len)
 
 /* store a guid to name mapping */
 void
-guids_add_guid(const e_guid_t *guid, const gchar *name)
+guids_add_guid(const e_guid_t *guid, const char *name)
 {
 	wmem_tree_key_t guidkey[2];
-	guint32 g[4];
+	uint32_t g[4];
 
 	g[0]=guid->data1;
 
@@ -103,16 +103,57 @@ guids_add_guid(const e_guid_t *guid, const gchar *name)
 	guidkey[0].length=4;
 	guidkey[1].length=0;
 
-	wmem_tree_insert32_array(guid_to_name_tree, &guidkey[0], (gchar *) name);
+	wmem_tree_insert32_array(guid_to_name_tree, &guidkey[0], (char *) name);
 }
 
+/* remove a guid to name mapping */
+void
+guids_delete_guid(const e_guid_t *guid)
+{
+	wmem_tree_key_t guidkey[2];
+	uint32_t g[4];
+
+	g[0] = guid->data1;
+
+	g[1] = guid->data2;
+	g[1] <<= 16;
+	g[1] |= guid->data3;
+
+	g[2] = guid->data4[0];
+	g[2] <<= 8;
+	g[2] |= guid->data4[1];
+	g[2] <<= 8;
+	g[2] |= guid->data4[2];
+	g[2] <<= 8;
+	g[2] |= guid->data4[3];
+
+	g[3] = guid->data4[4];
+	g[3] <<= 8;
+	g[3] |= guid->data4[5];
+	g[3] <<= 8;
+	g[3] |= guid->data4[6];
+	g[3] <<= 8;
+	g[3] |= guid->data4[7];
+
+	guidkey[0].key = g;
+	guidkey[0].length = 4;
+	guidkey[1].length = 0;
+
+	void *data = wmem_tree_lookup32_array(guid_to_name_tree, &guidkey[0]);
+
+	if (data != NULL) {
+		// This will "remove" the entry by setting its data to NULL
+		wmem_tree_insert32_array(guid_to_name_tree, &guidkey[0], NULL);
+	}
+
+}
 
 /* retrieve the registered name for this GUID; uses the scope for the fallback case only */
-const gchar *
+const char *
 guids_get_guid_name(const e_guid_t *guid, wmem_allocator_t *scope _U_)
 {
 	wmem_tree_key_t guidkey[2];
-	guint32 g[4];
+	uint32_t g[4];
 	char *name;
 #ifdef _WIN32
 	static char *uuid_name;
@@ -173,10 +214,10 @@ guids_init(void)
    Returns the associated string ptr on a match.
    Formats uuid number and returns the resulting string via wmem scope, if name is unknown.
    (derived from val_to_str) */
-const gchar *
+const char *
 guids_resolve_guid_to_str(const e_guid_t *guid, wmem_allocator_t *scope)
 {
-	const gchar *name;
+	const char *name;
 
 	name=guids_get_guid_name(guid, scope);
 	if(name){
@@ -208,9 +249,9 @@ int guid_cmp(const e_guid_t *g1, const e_guid_t *g2)
 	return memcmp(&g1->data4[0], &g2->data4[0], 8);
 }
 
-guint guid_hash(const e_guid_t *guid)
+unsigned guid_hash(const e_guid_t *guid)
 {
-	return g_int64_hash((const gint64 *)guid);
+	return g_int64_hash((const int64_t *)guid);
 }
 
 /*

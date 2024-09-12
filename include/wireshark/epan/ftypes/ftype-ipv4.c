@@ -8,37 +8,35 @@
 
 #include "config.h"
 
-#include <string.h>
-
 #include <ftypes-int.h>
-#include <epan/ipv4.h>
-#include <epan/addr_and_mask.h>
 #include <epan/addr_resolv.h>
 #include <wsutil/bits_count_ones.h>
+#include <wsutil/strtoi.h>
+#include <wsutil/inet_cidr.h>
+#include <wsutil/array.h>
 
 static void
-set_uinteger(fvalue_t *fv, uint32_t value)
+value_set_ipv4(fvalue_t *fv, const ipv4_addr_and_mask *ipv4)
 {
-	fv->value.ipv4.addr = g_ntohl(value);
-	fv->value.ipv4.nmask = ip_get_subnet_mask(32);
+	fv->value.ipv4 = *ipv4;
 }
 
-static uint32_t
-value_get(fvalue_t *fv)
+static const ipv4_addr_and_mask *
+value_get_ipv4(fvalue_t *fv)
 {
-	return g_htonl(fv->value.ipv4.addr);
+	return &fv->value.ipv4;
 }
 
 static bool
 val_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value _U_, char **err_msg)
 {
 	uint32_t	addr;
-	unsigned int nmask_bits;
+	uint32_t nmask_bits;
+	const char *endptr;
 
 	const char *slash, *net_str;
 	const char *addr_str;
 	char *addr_str_to_free = NULL;
-	fvalue_t *nmask_fvalue;
 
 	/* Look for CIDR: Is there a single slash in the string? */
 	slash = strchr(s, '/');
@@ -71,14 +69,12 @@ val_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value _U_, char
 		/* Skip past the slash */
 		net_str = slash + 1;
 
-		/* XXX - this is inefficient */
-		nmask_fvalue = fvalue_from_literal(FT_UINT32, net_str, false, err_msg);
-		if (!nmask_fvalue) {
+		if(!ws_strtou32(net_str, &endptr, &nmask_bits) || *endptr != '\0') {
+			if (err_msg != NULL) {
+				*err_msg = ws_strdup_printf("%s in not a valid mask", slash+1);
+			}
 			return false;
 		}
-		nmask_bits = fvalue_get_uinteger(nmask_fvalue);
-		fvalue_free(nmask_fvalue);
-
 		if (nmask_bits > 32) {
 			if (err_msg != NULL) {
 				*err_msg = ws_strdup_printf("Netmask bits in a CIDR IPv4 address should be <= 32, not %u",
@@ -86,11 +82,11 @@ val_from_literal(fvalue_t *fv, const char *s, bool allow_partial_value _U_, char
 			}
 			return false;
 		}
-		fv->value.ipv4.nmask = ip_get_subnet_mask(nmask_bits);
+		fv->value.ipv4.nmask = ws_ipv4_get_subnet_mask(nmask_bits);
 	}
 	else {
 		/* Not CIDR; mask covers entire address. */
-		fv->value.ipv4.nmask = ip_get_subnet_mask(32);
+		fv->value.ipv4.nmask = ws_ipv4_get_subnet_mask(32);
 	}
 
 	return true;
@@ -102,8 +98,7 @@ val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype _U_, int
 	char buf[WS_INET_ADDRSTRLEN];
 	char *repr;
 
-	uint32_t	ipv4_net_order = g_htonl(fv->value.ipv4.addr);
-	ip_to_str_buf((uint8_t*)&ipv4_net_order, buf, sizeof(buf));
+	ip_num_to_str_buf(fv->value.ipv4.addr, buf, sizeof(buf));
 
 	if (fv->value.ipv4.nmask != 0 && fv->value.ipv4.nmask != 0xffffffff)
 		repr = wmem_strdup_printf(scope, "%s/%d", buf, ws_count_ones(fv->value.ipv4.nmask));
@@ -176,10 +171,8 @@ void
 ftype_register_ipv4(void)
 {
 
-	static ftype_t ipv4_type = {
+	static const ftype_t ipv4_type = {
 		FT_IPv4,			/* ftype */
-		"FT_IPv4",			/* name */
-		"IPv4 address",			/* pretty_name */
 		4,				/* wire_size */
 		NULL,				/* new_value */
 		NULL,				/* copy_value */
@@ -187,13 +180,17 @@ ftype_register_ipv4(void)
 		val_from_literal,		/* val_from_literal */
 		NULL,				/* val_from_string */
 		NULL,				/* val_from_charconst */
+		NULL,				/* val_from_uinteger64 */
+		NULL,				/* val_from_sinteger64 */
+		NULL,				/* val_from_double */
 		val_to_repr,			/* val_to_string_repr */
 
 		NULL,				/* val_to_uinteger64 */
 		NULL,				/* val_to_sinteger64 */
+		NULL,				/* val_to_double */
 
-		{ .set_value_uinteger = set_uinteger },	/* union set_value */
-		{ .get_value_uinteger = value_get },	/* union get_value */
+		{ .set_value_ipv4 = value_set_ipv4 },	/* union set_value */
+		{ .get_value_ipv4 = value_get_ipv4 },	/* union get_value */
 
 		cmp_order,
 		NULL,				/* cmp_contains */

@@ -12,6 +12,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <wsutil/array.h>
 
 #include <asn1.h>
 
@@ -33,12 +34,12 @@ static dissector_handle_t ocsp_request_handle;
 static dissector_handle_t ocsp_response_handle;
 
 /* Initialize the protocol and registered fields */
-int proto_ocsp = -1;
-static int hf_ocsp_responseType_id = -1;
+int proto_ocsp;
+static int hf_ocsp_responseType_id;
 #include "packet-ocsp-hf.c"
 
 /* Initialize the subtree pointers */
-static gint ett_ocsp = -1;
+static int ett_ocsp;
 #include "packet-ocsp-ett.c"
 
 #include "packet-ocsp-fn.c"
@@ -50,7 +51,7 @@ dissect_ocsp_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 	proto_item *item=NULL;
 	proto_tree *tree=NULL;
 	asn1_ctx_t asn1_ctx;
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "OCSP");
 
@@ -62,7 +63,7 @@ dissect_ocsp_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 		tree = proto_item_add_subtree(item, ett_ocsp);
 	}
 
-	return dissect_ocsp_OCSPRequest(FALSE, tvb, 0, &asn1_ctx, tree, -1);
+	return dissect_ocsp_OCSPRequest(false, tvb, 0, &asn1_ctx, tree, -1);
 }
 
 
@@ -72,7 +73,7 @@ dissect_ocsp_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree
 	proto_item *item=NULL;
 	proto_tree *tree=NULL;
 	asn1_ctx_t asn1_ctx;
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "OCSP");
 
@@ -84,7 +85,7 @@ dissect_ocsp_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree
 		tree = proto_item_add_subtree(item, ett_ocsp);
 	}
 
-	return dissect_ocsp_OCSPResponse(FALSE, tvb, 0, &asn1_ctx, tree, -1);
+	return dissect_ocsp_OCSPResponse(false, tvb, 0, &asn1_ctx, tree, -1);
 }
 
 /*--- proto_register_ocsp ----------------------------------------------*/
@@ -100,7 +101,7 @@ void proto_register_ocsp(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_ocsp,
 #include "packet-ocsp-ettarr.c"
   };

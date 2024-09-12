@@ -22,24 +22,24 @@ void proto_reg_handoff_carp(void);
 
 static dissector_handle_t carp_handle;
 
-static gint proto_carp = -1;
-static gint ett_carp = -1;
-static gint ett_carp_ver_type = -1;
+static int proto_carp;
+static int ett_carp;
+static int ett_carp_ver_type;
 
-static gint hf_carp_ver_type = -1;
-static gint hf_carp_version = -1;
-static gint hf_carp_type = -1;
-static gint hf_carp_vhid = -1;
-static gint hf_carp_advskew = -1;
-static gint hf_carp_authlen = -1;
-static gint hf_carp_demotion = -1;
-static gint hf_carp_advbase = -1;
-static gint hf_carp_counter = -1;
-static gint hf_carp_hmac = -1;
-static gint hf_carp_checksum = -1;
-static gint hf_carp_checksum_status = -1;
+static int hf_carp_ver_type;
+static int hf_carp_version;
+static int hf_carp_type;
+static int hf_carp_vhid;
+static int hf_carp_advskew;
+static int hf_carp_authlen;
+static int hf_carp_demotion;
+static int hf_carp_advbase;
+static int hf_carp_counter;
+static int hf_carp_hmac;
+static int hf_carp_checksum;
+static int hf_carp_checksum_status;
 
-static expert_field ei_carp_checksum = EI_INIT;
+static expert_field ei_carp_checksum;
 
 #define CARP_VERSION_MASK 0xf0
 #define CARP_TYPE_MASK 0x0f
@@ -50,40 +50,40 @@ static const value_string carp_type_vals[] = {
     {0, NULL}
 };
 
-static gboolean
+static bool
 test_carp_packet(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_)
 {
-    guint8 ver_type, version, auth_length;
+    uint8_t ver_type, version, auth_length;
 
     /* First some simple check if the data is
        really CARP */
     if (tvb_captured_length(tvb) < 36)
-        return FALSE;
+        return false;
 
     /* Version must be 1 or 2, type must be in carp_type_vals */
-    ver_type = tvb_get_guint8(tvb, 0);
+    ver_type = tvb_get_uint8(tvb, 0);
     version = hi_nibble(ver_type);
     if ((version == 0) || (version > 2) ||
         (try_val_to_str(lo_nibble(ver_type), carp_type_vals) == NULL))
-        return FALSE;
+        return false;
 
-    auth_length = tvb_get_guint8(tvb, 3);
+    auth_length = tvb_get_uint8(tvb, 3);
     if ( auth_length != 7 )
-        return FALSE;
+        return false;
 
-    return TRUE;
+    return true;
 }
 
 static int
 dissect_carp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     int offset = 0;
-    guint carp_len;
-    guint8  vhid;
+    unsigned carp_len;
+    uint8_t vhid;
     vec_t cksum_vec[4];
     proto_item *ti, *tv;
     proto_tree *carp_tree, *ver_type_tree;
-    guint8 ver_type;
+    uint8_t ver_type;
 
     /* Make sure it's a CARP packet */
     if (!test_carp_packet(tvb, pinfo, tree, data))
@@ -92,14 +92,14 @@ dissect_carp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "CARP");
     col_clear(pinfo->cinfo, COL_INFO);
 
-    vhid = tvb_get_guint8(tvb, 1);
+    vhid = tvb_get_uint8(tvb, 1);
     col_add_fstr(pinfo->cinfo, COL_INFO, "%s (Virtual Host ID: %u)",
                  "Announcement", vhid);
 
     ti = proto_tree_add_item(tree, proto_carp, tvb, 0, -1, ENC_NA);
     carp_tree = proto_item_add_subtree(ti, ett_carp);
 
-    ver_type = tvb_get_guint8(tvb, 0);
+    ver_type = tvb_get_uint8(tvb, 0);
     tv = proto_tree_add_uint_format(carp_tree, hf_carp_ver_type,
                     tvb, offset, 1, ver_type,
                     "Version %u, Packet type %u (%s)",
@@ -150,14 +150,14 @@ dissect_carp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 }
 
 /* heuristic dissector */
-static gboolean
+static bool
 dissect_carp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     if (!test_carp_packet(tvb, pinfo, tree, data))
-        return FALSE;
+        return false;
 
     dissect_carp(tvb, pinfo, tree, data);
-    return TRUE;
+    return true;
 }
 
 void proto_register_carp(void)
@@ -166,17 +166,17 @@ void proto_register_carp(void)
         { &hf_carp_ver_type,
           {"CARP message version and type", "carp.typever",
            FT_UINT8, BASE_DEC, NULL, 0x0,
-           "CARP version and type", HFILL }},
+           NULL, HFILL }},
 
         { &hf_carp_version,
           {"CARP protocol version", "carp.version",
            FT_UINT8, BASE_DEC, NULL, CARP_VERSION_MASK,
-           "CARP version", HFILL }},
+           NULL, HFILL }},
 
         { &hf_carp_type,
           {"CARP packet type", "carp.type",
            FT_UINT8, BASE_DEC, VALS(carp_type_vals), CARP_TYPE_MASK,
-           "CARP type", HFILL }},
+           NULL, HFILL }},
 
         { &hf_carp_vhid,
           {"Virtual Host ID", "carp.vhid",
@@ -223,7 +223,7 @@ void proto_register_carp(void)
            NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_carp,
         &ett_carp_ver_type
     };

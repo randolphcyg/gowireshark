@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/tfs.h>
 
 #include "packet-rpc.h"
 #include "packet-gluster.h"
@@ -32,49 +33,49 @@ void proto_register_gluster_cbk(void);
 void proto_reg_handoff_gluster_cbk(void);
 
 /* Initialize the protocol and registered fields */
-static gint proto_gluster_cbk = -1;
-static gint proto_gluster_hndsk = -1;
+static int proto_gluster_cbk;
+static int proto_gluster_hndsk;
 
 /* programs and procedures */
-static gint hf_gluster_cbk_proc = -1;
-static gint hf_gluster_hndsk_proc = -1;
-static gint hf_gluster_hndsk_dict = -1;
-static gint hf_gluster_hndsk_spec = -1;		/* GETSPEC Reply */
-static gint hf_gluster_hndsk_key = -1;		/* GETSPEC Call */
-static gint hf_gluster_hndsk_event_op = -1;	/* EVENT NOTIFY call */
-static gint hf_gluster_hndsk_uid = -1;		/* LOCK VERSION*/
-static gint hf_gluster_hndsk_op_errstr = -1;	/* GETVOLUMEINFO */
-static gint hf_gluster_hndsk_lk_ver= -1;
-static gint hf_gluster_hndsk_flags = -1;
+static int hf_gluster_cbk_proc;
+static int hf_gluster_hndsk_proc;
+static int hf_gluster_hndsk_dict;
+static int hf_gluster_hndsk_spec;		/* GETSPEC Reply */
+static int hf_gluster_hndsk_key;		/* GETSPEC Call */
+static int hf_gluster_hndsk_event_op;	/* EVENT NOTIFY call */
+static int hf_gluster_hndsk_uid;		/* LOCK VERSION*/
+static int hf_gluster_hndsk_op_errstr;	/* GETVOLUMEINFO */
+static int hf_gluster_hndsk_lk_ver;
+static int hf_gluster_hndsk_flags;
 
 /* Initialize the subtree pointers */
-static gint ett_gluster_cbk = -1;
-static gint ett_gluster_cbk_flags = -1;
-static gint ett_gluster_hndsk = -1;
+static int ett_gluster_cbk;
+static int ett_gluster_cbk_flags;
+static int ett_gluster_hndsk;
 
 /* upcall, used for cache-invalidation etc. */
-static gint hf_gluster_cbk_gfid = -1;
-static gint hf_gluster_cbk_upcall_event_type = -1;
-static gint hf_gluster_cbk_ci_flags = -1;
-static gint hf_gluster_cbk_ci_expire_time_attr = -1;
-static gint hf_gluster_cbk_ci_stat = -1;
-static gint hf_gluster_cbk_ci_parent_stat = -1;
-static gint hf_gluster_cbk_ci_oldparent_stat = -1;
-static gint hf_gluster_cbk_xdata = -1;
+static int hf_gluster_cbk_gfid;
+static int hf_gluster_cbk_upcall_event_type;
+static int hf_gluster_cbk_ci_flags;
+static int hf_gluster_cbk_ci_expire_time_attr;
+static int hf_gluster_cbk_ci_stat;
+static int hf_gluster_cbk_ci_parent_stat;
+static int hf_gluster_cbk_ci_oldparent_stat;
+static int hf_gluster_cbk_xdata;
 
 /* flags for upcall */
-static gint hg_gluster_cbk_upcall_flag_nlink = -1;
-static gint hg_gluster_cbk_upcall_flag_mode = -1;
-static gint hg_gluster_cbk_upcall_flag_own = -1;
-static gint hg_gluster_cbk_upcall_flag_size = -1;
-static gint hg_gluster_cbk_upcall_flag_times = -1;
-static gint hg_gluster_cbk_upcall_flag_atime = -1;
-static gint hg_gluster_cbk_upcall_flag_perm = -1;
-static gint hg_gluster_cbk_upcall_flag_rename = -1;
-static gint hg_gluster_cbk_upcall_flag_forget = -1;
-static gint hg_gluster_cbk_upcall_flag_parent_times = -1;
-static gint hg_gluster_cbk_upcall_flag_xattr = -1;
-static gint hg_gluster_cbk_upcall_flag_xattr_rm = -1;
+static int hf_gluster_cbk_upcall_flag_nlink;
+static int hf_gluster_cbk_upcall_flag_mode;
+static int hf_gluster_cbk_upcall_flag_own;
+static int hf_gluster_cbk_upcall_flag_size;
+static int hf_gluster_cbk_upcall_flag_times;
+static int hf_gluster_cbk_upcall_flag_atime;
+static int hf_gluster_cbk_upcall_flag_perm;
+static int hf_gluster_cbk_upcall_flag_rename;
+static int hf_gluster_cbk_upcall_flag_forget;
+static int hf_gluster_cbk_upcall_flag_parent_times;
+static int hf_gluster_cbk_upcall_flag_xattr;
+static int hf_gluster_cbk_upcall_flag_xattr_rm;
 
 /* procedures for GLUSTER_HNDSK_PROGRAM */
 static int
@@ -214,18 +215,18 @@ static int
 glusterfs_rpc_dissect_upcall_flags(proto_tree *tree, tvbuff_t *tvb, int offset)
 {
 	static int * const flag_bits[] = {
-		&hg_gluster_cbk_upcall_flag_nlink,
-		&hg_gluster_cbk_upcall_flag_mode,
-		&hg_gluster_cbk_upcall_flag_own,
-		&hg_gluster_cbk_upcall_flag_size,
-		&hg_gluster_cbk_upcall_flag_times,
-		&hg_gluster_cbk_upcall_flag_atime,
-		&hg_gluster_cbk_upcall_flag_perm,
-		&hg_gluster_cbk_upcall_flag_rename,
-		&hg_gluster_cbk_upcall_flag_forget,
-		&hg_gluster_cbk_upcall_flag_parent_times,
-		&hg_gluster_cbk_upcall_flag_xattr,
-		&hg_gluster_cbk_upcall_flag_xattr_rm,
+		&hf_gluster_cbk_upcall_flag_nlink,
+		&hf_gluster_cbk_upcall_flag_mode,
+		&hf_gluster_cbk_upcall_flag_own,
+		&hf_gluster_cbk_upcall_flag_size,
+		&hf_gluster_cbk_upcall_flag_times,
+		&hf_gluster_cbk_upcall_flag_atime,
+		&hf_gluster_cbk_upcall_flag_perm,
+		&hf_gluster_cbk_upcall_flag_rename,
+		&hf_gluster_cbk_upcall_flag_forget,
+		&hf_gluster_cbk_upcall_flag_parent_times,
+		&hf_gluster_cbk_upcall_flag_xattr,
+		&hf_gluster_cbk_upcall_flag_xattr_rm,
 		NULL
 	};
 
@@ -384,7 +385,7 @@ proto_register_gluster_hndsk(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_gluster_hndsk
 	};
 
@@ -481,62 +482,62 @@ proto_register_gluster_cbk(void)
 		},
 
 		/* upcall flags from libglusterfs/src/upcall-utils.h */
-		{ &hg_gluster_cbk_upcall_flag_nlink,
+		{ &hf_gluster_cbk_upcall_flag_nlink,
 			{ "NLINK", "glusterfs.cbk.cache_invalidation.flag.nlink",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000001,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_mode,
+		{ &hf_gluster_cbk_upcall_flag_mode,
 			{ "MODE", "glusterfs.cbk.cache_invalidation.flag.mode",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000002,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_own,
+		{ &hf_gluster_cbk_upcall_flag_own,
 			{ "OWN", "glusterfs.cbk.cache_invalidation.flag.own",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000004,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_size,
+		{ &hf_gluster_cbk_upcall_flag_size,
 			{ "SIZE", "glusterfs.cbk.cache_invalidation.flag.size",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000008,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_times,
+		{ &hf_gluster_cbk_upcall_flag_times,
 			{ "TIMES", "glusterfs.cbk.cache_invalidation.flag.times",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000010,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_atime,
+		{ &hf_gluster_cbk_upcall_flag_atime,
 			{ "ATIME", "glusterfs.cbk.cache_invalidation.flag.atime",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000020,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_perm,
+		{ &hf_gluster_cbk_upcall_flag_perm,
 			{ "PERM", "glusterfs.cbk.cache_invalidation.flag.perm",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000040,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_rename,
+		{ &hf_gluster_cbk_upcall_flag_rename,
 			{ "RENAME", "glusterfs.cbk.cache_invalidation.flag.rename",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000080,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_forget,
+		{ &hf_gluster_cbk_upcall_flag_forget,
 			{ "FORGET", "glusterfs.cbk.cache_invalidation.flag.forget",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000100,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_parent_times,
+		{ &hf_gluster_cbk_upcall_flag_parent_times,
 			{ "PARENT_TIMES", "glusterfs.cbk.cache_invalidation.flag.parent_times",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000200,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_xattr,
+		{ &hf_gluster_cbk_upcall_flag_xattr,
 			{ "XATTR", "glusterfs.cbk.cache_invalidation.flag.xattr",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000400,
 				NULL, HFILL }
 		},
-		{ &hg_gluster_cbk_upcall_flag_xattr_rm,
+		{ &hf_gluster_cbk_upcall_flag_xattr_rm,
 			{ "XATTR_RM", "glusterfs.cbk.cache_invalidation.flag.xattr_rm",
 				FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000800,
 				NULL, HFILL }
@@ -544,7 +545,7 @@ proto_register_gluster_cbk(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_gluster_cbk,
 		&ett_gluster_cbk_flags
 	};

@@ -70,45 +70,45 @@ static dissector_handle_t pagp_handle;
 
 /* Initialise the protocol and registered fields */
 
-static int proto_pagp = -1;
+static int proto_pagp;
 
-static int hf_pagp_version_number = -1;
+static int hf_pagp_version_number;
 
-static int hf_pagp_flags = -1;
-static int hf_pagp_flags_slow_hello = -1;
-static int hf_pagp_flags_auto_mode = -1;
-static int hf_pagp_flags_consistent_state = -1;
-static int hf_pagp_local_device_id = -1;
-static int hf_pagp_local_learn_cap = -1;
-static int hf_pagp_local_port_priority = -1;
-static int hf_pagp_local_sent_port_ifindex = -1;
-static int hf_pagp_local_group_capability = -1;
-static int hf_pagp_local_group_ifindex = -1;
-static int hf_pagp_partner_device_id = -1;
-static int hf_pagp_partner_learn_cap = -1;
-static int hf_pagp_partner_port_priority = -1;
-static int hf_pagp_partner_sent_port_ifindex = -1;
-static int hf_pagp_partner_group_capability = -1;
-static int hf_pagp_partner_group_ifindex = -1;
-static int hf_pagp_partner_count = -1;
-static int hf_pagp_num_tlvs = -1;
-static int hf_pagp_tlv = -1;
-static int hf_pagp_tlv_length = -1;
-static int hf_pagp_tlv_device_name = -1;
-static int hf_pagp_tlv_port_name = -1;
-static int hf_pagp_tlv_agport_mac = -1;
+static int hf_pagp_flags;
+static int hf_pagp_flags_slow_hello;
+static int hf_pagp_flags_auto_mode;
+static int hf_pagp_flags_consistent_state;
+static int hf_pagp_local_device_id;
+static int hf_pagp_local_learn_cap;
+static int hf_pagp_local_port_priority;
+static int hf_pagp_local_sent_port_ifindex;
+static int hf_pagp_local_group_capability;
+static int hf_pagp_local_group_ifindex;
+static int hf_pagp_partner_device_id;
+static int hf_pagp_partner_learn_cap;
+static int hf_pagp_partner_port_priority;
+static int hf_pagp_partner_sent_port_ifindex;
+static int hf_pagp_partner_group_capability;
+static int hf_pagp_partner_group_ifindex;
+static int hf_pagp_partner_count;
+static int hf_pagp_num_tlvs;
+static int hf_pagp_tlv;
+static int hf_pagp_tlv_length;
+static int hf_pagp_tlv_device_name;
+static int hf_pagp_tlv_port_name;
+static int hf_pagp_tlv_agport_mac;
 
-static int hf_pagp_flush_local_device_id = -1;
-static int hf_pagp_flush_partner_device_id = -1;
-static int hf_pagp_flush_transaction_id = -1;
+static int hf_pagp_flush_local_device_id;
+static int hf_pagp_flush_partner_device_id;
+static int hf_pagp_flush_transaction_id;
 
 /* Initialise the subtree pointers */
 
-static gint ett_pagp = -1;
-static gint ett_pagp_flags = -1;
-static gint ett_pagp_tlvs = -1;
+static int ett_pagp;
+static int ett_pagp_flags;
+static int ett_pagp_tlvs;
 
-static expert_field ei_pagp_tlv_length = EI_INIT;
+static expert_field ei_pagp_tlv_length;
 
 /* General declarations and macros */
 
@@ -141,15 +141,15 @@ static const true_false_string automode = {
 static int
 dissect_pagp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint32 raw_word;
-    guint16 num_tlvs;
-    guint16 tlv;
-    guint16 len;
-    guint16 ii;
-    guint16 offset = PAGP_FIRST_TLV;
-    guint8  raw_octet;
+    uint32_t raw_word;
+    uint16_t num_tlvs;
+    uint16_t tlv;
+    uint16_t len;
+    uint16_t ii;
+    uint16_t offset = PAGP_FIRST_TLV;
+    uint8_t raw_octet;
 
-    guint8  flags;
+    uint8_t flags;
 
     proto_tree *pagp_tree = NULL;
     proto_item *pagp_item, *len_item;
@@ -166,7 +166,7 @@ dissect_pagp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
     col_clear(pinfo->cinfo, COL_INFO);
 
-    raw_octet = tvb_get_guint8(tvb, PAGP_VERSION_NUMBER);
+    raw_octet = tvb_get_uint8(tvb, PAGP_VERSION_NUMBER);
     if (tree) {
         pagp_item = proto_tree_add_protocol_format(tree, proto_pagp, tvb,
                                                    0, -1, "Port Aggregation Protocol");
@@ -201,7 +201,7 @@ dissect_pagp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
     /* Info PDU */
 
-    flags = tvb_get_guint8(tvb, PAGP_FLAGS);
+    flags = tvb_get_uint8(tvb, PAGP_FLAGS);
     col_append_fstr(pinfo->cinfo, COL_INFO, "; Flags 0x%x", flags);
 
     proto_tree_add_bitmask(pagp_tree, tvb, PAGP_FLAGS, hf_pagp_flags, ett_pagp_flags, pagp_flags, ENC_NA);
@@ -452,7 +452,7 @@ proto_register_pagp(void)
 
     /* Setup protocol subtree array */
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_pagp,
         &ett_pagp_flags,
         &ett_pagp_tlvs,

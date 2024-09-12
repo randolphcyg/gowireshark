@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-nist-csor.c                                                         */
-/* asn2wrs.py -b -L -p nist-csor -c ./nist-csor.cnf -s ./packet-nist-csor-template -D . -O ../.. aes1.asn */
+/* asn2wrs.py -b -q -L -p nist-csor -c ./nist-csor.cnf -s ./packet-nist-csor-template -D . -O ../.. aes1.asn */
 
 /* packet-nist-csor.c
  *
@@ -17,6 +17,7 @@
 #include <epan/packet.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-nist-csor.h"
 #include "packet-ber.h"
@@ -31,15 +32,15 @@ void proto_register_nist_csor(void);
 void proto_reg_handoff_nist_csor(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_nist_csor = -1;
-static int hf_nist_csor_CFBParameters_PDU = -1;   /* CFBParameters */
-static int hf_nist_csor_AES_IV_PDU = -1;          /* AES_IV */
-static int hf_nist_csor_ShakeOutputLen_PDU = -1;  /* ShakeOutputLen */
-static int hf_nist_csor_aes_IV = -1;              /* AES_IV */
-static int hf_nist_csor_numberOfBits = -1;        /* NumberOfBits */
+static int proto_nist_csor;
+static int hf_nist_csor_CFBParameters_PDU;        /* CFBParameters */
+static int hf_nist_csor_AES_IV_PDU;               /* AES_IV */
+static int hf_nist_csor_ShakeOutputLen_PDU;       /* ShakeOutputLen */
+static int hf_nist_csor_aes_IV;                   /* AES_IV */
+static int hf_nist_csor_numberOfBits;             /* NumberOfBits */
 
 /* Initialize the subtree pointers */
-static gint ett_nist_csor_CFBParameters = -1;
+static int ett_nist_csor_CFBParameters;
 
 
 int
@@ -90,22 +91,22 @@ dissect_nist_csor_ShakeOutputLen(bool implicit_tag _U_, tvbuff_t *tvb _U_, int o
 static int dissect_CFBParameters_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_nist_csor_CFBParameters(FALSE, tvb, offset, &asn1_ctx, tree, hf_nist_csor_CFBParameters_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_nist_csor_CFBParameters(false, tvb, offset, &asn1_ctx, tree, hf_nist_csor_CFBParameters_PDU);
   return offset;
 }
 static int dissect_AES_IV_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_nist_csor_AES_IV(FALSE, tvb, offset, &asn1_ctx, tree, hf_nist_csor_AES_IV_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_nist_csor_AES_IV(false, tvb, offset, &asn1_ctx, tree, hf_nist_csor_AES_IV_PDU);
   return offset;
 }
 static int dissect_ShakeOutputLen_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_nist_csor_ShakeOutputLen(FALSE, tvb, offset, &asn1_ctx, tree, hf_nist_csor_ShakeOutputLen_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_nist_csor_ShakeOutputLen(false, tvb, offset, &asn1_ctx, tree, hf_nist_csor_ShakeOutputLen_PDU);
   return offset;
 }
 
@@ -139,7 +140,7 @@ void proto_register_nist_csor(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_nist_csor_CFBParameters,
   };
 

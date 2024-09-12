@@ -38,1163 +38,1163 @@
 
 /* packet reassembly */
 static reassembly_table msg_reassembly_table;
-/* end packet reassebly */
+/* end packet reassembly */
 
 /* Initialize the protocol and registered fields */
-static int proto_btatt = -1;
-static int proto_btgatt = -1;
+static int proto_btatt;
+static int proto_btgatt;
 
-static int hf_btatt_opcode = -1;
-static int hf_btatt_handle = -1;
-static int hf_btatt_starting_handle = -1;
-static int hf_btatt_ending_handle = -1;
-static int hf_btatt_group_end_handle = -1;
-static int hf_btatt_value = -1;
-static int hf_btatt_req_opcode_in_error = -1;
-static int hf_btatt_handle_in_error = -1;
-static int hf_btatt_error_code = -1;
-static int hf_btatt_error_code_aios = -1;
-static int hf_btatt_error_code_ans = -1;
-static int hf_btatt_error_code_bms = -1;
-static int hf_btatt_error_code_cgms = -1;
-static int hf_btatt_error_code_cps = -1;
-static int hf_btatt_error_code_cscs = -1;
-static int hf_btatt_error_code_cts = -1;
-static int hf_btatt_error_code_ess = -1;
-static int hf_btatt_error_code_gls = -1;
-static int hf_btatt_error_code_hps = -1;
-static int hf_btatt_error_code_hrs = -1;
-static int hf_btatt_error_code_hts = -1;
-static int hf_btatt_error_code_ips = -1;
-static int hf_btatt_error_code_ots = -1;
-static int hf_btatt_error_code_rscs = -1;
-static int hf_btatt_error_code_uds = -1;
-static int hf_btatt_service_uuid16 = -1;
-static int hf_btatt_service_uuid128 = -1;
-static int hf_btatt_characteristic_uuid16 = -1;
-static int hf_btatt_characteristic_uuid128 = -1;
-static int hf_btatt_uuid16 = -1;
-static int hf_btatt_uuid128 = -1;
-static int hf_btatt_client_rx_mtu = -1;
-static int hf_btatt_server_rx_mtu = -1;
-static int hf_btatt_uuid_format = -1;
-static int hf_btatt_length = -1;
-static int hf_btatt_offset = -1;
-static int hf_btatt_flags = -1;
-static int hf_btatt_sign_counter = -1;
-static int hf_btatt_signature = -1;
-static int hf_btatt_attribute_data = -1;
-static int hf_btatt_handles_info = -1;
-static int hf_btatt_opcode_authentication_signature = -1;
-static int hf_btatt_opcode_command = -1;
-static int hf_btatt_opcode_method = -1;
-static int hf_btatt_characteristic_properties = -1;
-static int hf_btatt_characteristic_value_handle = -1;
-static int hf_btatt_characteristic_properties_extended_properties = -1;
-static int hf_btatt_characteristic_properties_authenticated_signed_writes = -1;
-static int hf_btatt_characteristic_properties_indicate = -1;
-static int hf_btatt_characteristic_properties_notify = -1;
-static int hf_btatt_characteristic_properties_write = -1;
-static int hf_btatt_characteristic_properties_write_without_response = -1;
-static int hf_btatt_characteristic_properties_read = -1;
-static int hf_btatt_characteristic_properties_broadcast = -1;
-static int hf_btatt_information_data = -1;
-static int hf_btatt_included_service_handle = -1;
-static int hf_btatt_characteristic_configuration_client = -1;
-static int hf_btatt_characteristic_configuration_client_reserved = -1;
-static int hf_btatt_characteristic_configuration_client_indication = -1;
-static int hf_btatt_characteristic_configuration_client_notification = -1;
-static int hf_btatt_characteristic_configuration_server = -1;
-static int hf_btatt_characteristic_configuration_server_reserved = -1;
-static int hf_btatt_characteristic_configuration_server_broadcast = -1;
-static int hf_btatt_hogp_protocol_mode = -1;
-static int hf_btatt_hogp_bcd_hid = -1;
-static int hf_btatt_hogp_b_country_code = -1;
-static int hf_btatt_hogp_flags = -1;
-static int hf_btatt_hogp_flags_reserved = -1;
-static int hf_btatt_hogp_flags_normally_connectable = -1;
-static int hf_btatt_hogp_flags_remote_wake = -1;
-static int hf_btatt_hogp_hid_control_point_command = -1;
-static int hf_btatt_report_reference_report_id = -1;
-static int hf_btatt_report_reference_report_type = -1;
-static int hf_btatt_characteristic_user_description = -1;
-static int hf_btatt_characteristic_extended_properties = -1;
-static int hf_btatt_characteristic_extended_properties_reserved = -1;
-static int hf_btatt_characteristic_extended_properties_writable_auxiliaries = -1;
-static int hf_btatt_characteristic_extended_properties_reliable_write = -1;
-static int hf_btatt_characteristic_presentation_format = -1;
-static int hf_btatt_characteristic_presentation_exponent = -1;
-static int hf_btatt_characteristic_presentation_unit = -1;
-static int hf_btatt_characteristic_presentation_namespace = -1;
-static int hf_btatt_characteristic_presentation_namespace_description_btsig = -1;
-static int hf_btatt_characteristic_presentation_namespace_description = -1;
-static int hf_btatt_esp_trigger_logic = -1;
-static int hf_btatt_esp_condition = -1;
-static int hf_btatt_esp_operand = -1;
-static int hf_btatt_esp_flags = -1;
-static int hf_btatt_esp_sampling_function = -1;
-static int hf_btatt_esp_measurement_period = -1;
-static int hf_btatt_esp_update_interval = -1;
-static int hf_btatt_esp_application = -1;
-static int hf_btatt_esp_measurement_uncertainty = -1;
-static int hf_btatt_device_name = -1;
-static int hf_btatt_appearance = -1;
-static int hf_btatt_appearance_category = -1;
-static int hf_btatt_appearance_subcategory = -1;
-static int hf_btatt_appearance_subcategory_watch = -1;
-static int hf_btatt_appearance_subcategory_thermometer = -1;
-static int hf_btatt_appearance_subcategory_heart_rate = -1;
-static int hf_btatt_appearance_subcategory_blood_pressure = -1;
-static int hf_btatt_appearance_subcategory_hid = -1;
-static int hf_btatt_appearance_subcategory_running_walking_sensor = -1;
-static int hf_btatt_appearance_subcategory_cycling = -1;
-static int hf_btatt_appearance_subcategory_pulse_oximeter = -1;
-static int hf_btatt_appearance_subcategory_personal_mobility_device = -1;
-static int hf_btatt_appearance_subcategory_insulin_pump = -1;
-static int hf_btatt_appearance_subcategory_outdoor_sports_activity = -1;
-static int hf_btatt_peripheral_privacy_flag = -1;
-static int hf_btatt_minimum_connection_interval = -1;
-static int hf_btatt_maximum_connection_interval = -1;
-static int hf_btatt_slave_latency = -1;
-static int hf_btatt_connection_supervision_timeout_multiplier = -1;
-static int hf_btatt_reconnection_address = -1;
-static int hf_btatt_alert_level = -1;
-static int hf_btatt_tx_power_level = -1;
-static int hf_btatt_year = -1;
-static int hf_btatt_month = -1;
-static int hf_btatt_day = -1;
-static int hf_btatt_hours = -1;
-static int hf_btatt_minutes = -1;
-static int hf_btatt_seconds = -1;
-static int hf_btatt_day_of_week = -1;
-static int hf_btatt_fractions100 = -1;
-static int hf_btatt_fractions256 = -1;
-static int hf_btatt_dst_offset = -1;
-static int hf_btatt_model_number_string = -1;
-static int hf_btatt_serial_number_string = -1;
-static int hf_btatt_firmware_revision_string = -1;
-static int hf_btatt_hardware_revision_string = -1;
-static int hf_btatt_software_revision_string = -1;
-static int hf_btatt_manufacturer_string = -1;
-static int hf_btatt_system_id_manufacturer_identifier = -1;
-static int hf_btatt_system_id_organizationally_unique_identifier = -1;
-static int hf_btatt_timezone = -1;
-static int hf_btatt_time_accuracy = -1;
-static int hf_btatt_time_source = -1;
-static int hf_btatt_time_days_since_update = -1;
-static int hf_btatt_time_hours_since_update = -1;
-static int hf_btatt_time_update_control_point = -1;
-static int hf_btatt_time_current_state = -1;
-static int hf_btatt_time_result = -1;
-static int hf_btatt_battery_level = -1;
-static int hf_btatt_battery_power_state = -1;
-static int hf_btatt_battery_power_state_present = -1;
-static int hf_btatt_battery_power_state_discharging = -1;
-static int hf_btatt_battery_power_state_charging = -1;
-static int hf_btatt_battery_power_state_level = -1;
-static int hf_btatt_temperature_type = -1;
-static int hf_btatt_measurement_interval = -1;
-static int hf_btatt_time_adjust_reason = -1;
-static int hf_btatt_time_adjust_reason_reserved = -1;
-static int hf_btatt_time_adjust_reason_change_of_dst = -1;
-static int hf_btatt_time_adjust_reason_change_of_timezone = -1;
-static int hf_btatt_time_adjust_reason_external_reference_time_update = -1;
-static int hf_btatt_time_adjust_reason_manual_time_update = -1;
-static int hf_btatt_magnetic_declination = -1;
-static int hf_btatt_scan_refresh = -1;
-static int hf_btatt_body_sensor_location = -1;
-static int hf_btatt_heart_rate_control_point = -1;
-static int hf_btatt_alert_status = -1;
-static int hf_btatt_alert_status_reserved = -1;
-static int hf_btatt_alert_status_display_alert_status = -1;
-static int hf_btatt_alert_status_vibrate_state = -1;
-static int hf_btatt_alert_status_ringer_state = -1;
-static int hf_btatt_ringer_control_point = -1;
-static int hf_btatt_ringer_setting = -1;
-static int hf_btatt_alert_category_id_bitmask_1 = -1;
-static int hf_btatt_alert_category_id_bitmask_1_schedule = -1;
-static int hf_btatt_alert_category_id_bitmask_1_voice_mail = -1;
-static int hf_btatt_alert_category_id_bitmask_1_sms_mms = -1;
-static int hf_btatt_alert_category_id_bitmask_1_missed_call = -1;
-static int hf_btatt_alert_category_id_bitmask_1_call = -1;
-static int hf_btatt_alert_category_id_bitmask_1_news = -1;
-static int hf_btatt_alert_category_id_bitmask_1_email = -1;
-static int hf_btatt_alert_category_id_bitmask_1_simple_alert = -1;
-static int hf_btatt_alert_category_id_bitmask_2 = -1;
-static int hf_btatt_alert_category_id_bitmask_2_reserved = -1;
-static int hf_btatt_alert_category_id_bitmask_2_instant_message = -1;
-static int hf_btatt_alert_category_id_bitmask_2_high_prioritized_alert = -1;
-static int hf_btatt_alert_category_id = -1;
-static int hf_btatt_alert_command_id = -1;
-static int hf_btatt_alert_unread_count = -1;
-static int hf_btatt_alert_number_of_new_alert = -1;
-static int hf_btatt_alert_text_string_information = -1;
-static int hf_btatt_blood_pressure_feature = -1;
-static int hf_btatt_blood_pressure_feature_reserved = -1;
-static int hf_btatt_blood_pressure_feature_multiple_bond = -1;
-static int hf_btatt_blood_pressure_feature_measurement_position_detection = -1;
-static int hf_btatt_blood_pressure_feature_puls_rate_range = -1;
-static int hf_btatt_blood_pressure_feature_irregular_pulse_detection = -1;
-static int hf_btatt_blood_pressure_feature_cuff_fit_detection = -1;
-static int hf_btatt_blood_pressure_feature_body_movement_detection = -1;
-static int hf_btatt_le_scan_interval = -1;
-static int hf_btatt_le_scan_window = -1;
-static int hf_btatt_pnp_id_vendor_id_source = -1;
-static int hf_btatt_pnp_id_vendor_id = -1;
-static int hf_btatt_pnp_id_vendor_id_bluetooth_sig = -1;
-static int hf_btatt_pnp_id_vendor_id_usb_forum = -1;
-static int hf_btatt_pnp_id_product_id = -1;
-static int hf_btatt_pnp_id_product_version = -1;
-static int hf_btatt_glucose_feature = -1;
-static int hf_btatt_glucose_feature_reserved = -1;
-static int hf_btatt_glucose_feature_multiple_bond = -1;
-static int hf_btatt_glucose_feature_time_fault = -1;
-static int hf_btatt_glucose_feature_general_device_fault = -1;
-static int hf_btatt_glucose_feature_sensor_read_interrupt_detection = -1;
-static int hf_btatt_glucose_feature_sensor_temperature_high_low_detection = -1;
-static int hf_btatt_glucose_feature_sensor_result_high_low_detection = -1;
-static int hf_btatt_glucose_feature_sensor_strip_type_error_detection = -1;
-static int hf_btatt_glucose_feature_sensor_strip_insertion_error_detection = -1;
-static int hf_btatt_glucose_feature_sensor_sample_size = -1;
-static int hf_btatt_glucose_feature_sensor_malfunction_detection = -1;
-static int hf_btatt_glucose_feature_low_battery_detection_during_measurement = -1;
-static int hf_btatt_rsc_feature = -1;
-static int hf_btatt_rsc_feature_reserved = -1;
-static int hf_btatt_rsc_feature_multiple_sensor_locations = -1;
-static int hf_btatt_rsc_feature_calibration_procedure = -1;
-static int hf_btatt_rsc_feature_walking_or_running_status = -1;
-static int hf_btatt_rsc_feature_total_distance_measurement = -1;
-static int hf_btatt_rsc_feature_instantaneous_stride_length_measurement = -1;
-static int hf_btatt_csc_feature = -1;
-static int hf_btatt_csc_feature_reserved = -1;
-static int hf_btatt_csc_feature_multiple_sensor_locations = -1;
-static int hf_btatt_csc_feature_crank_revolution_data = -1;
-static int hf_btatt_csc_feature_wheel_revolution_data = -1;
-static int hf_btatt_sensor_location = -1;
-static int hf_btatt_elevation = -1;
-static int hf_btatt_pressure = -1;
-static int hf_btatt_temperature = -1;
-static int hf_btatt_humidity = -1;
-static int hf_btatt_true_wind_speed = -1;
-static int hf_btatt_true_wind_direction = -1;
-static int hf_btatt_apparent_wind_speed = -1;
-static int hf_btatt_apparent_wind_direction = -1;
-static int hf_btatt_gust_factor = -1;
-static int hf_btatt_pollen_concentration = -1;
-static int hf_btatt_uv_index = -1;
-static int hf_btatt_irradiance = -1;
-static int hf_btatt_rainfall = -1;
-static int hf_btatt_wind_chill = -1;
-static int hf_btatt_heart_index = -1;
-static int hf_btatt_dew_point = -1;
-static int hf_btatt_descriptor_value_changed_flags = -1;
-static int hf_btatt_descriptor_value_changed_flags_reserved = -1;
-static int hf_btatt_descriptor_value_changed_flags_change_to_characteristic_user_description_descriptor = -1;
-static int hf_btatt_descriptor_value_changed_flags_change_to_es_measurement_descriptor = -1;
-static int hf_btatt_descriptor_value_changed_flags_change_to_es_configuration_descriptor = -1;
-static int hf_btatt_descriptor_value_changed_flags_change_to_one_or_more_es_trigger_setting_descriptors = -1;
-static int hf_btatt_descriptor_value_changed_flags_source_of_change = -1;
-static int hf_btatt_aerobic_heart_rate_lower_limit = -1;
-static int hf_btatt_aerobic_threshold = -1;
-static int hf_btatt_age = -1;
-static int hf_btatt_anaerobic_heart_rate_lower_limit = -1;
-static int hf_btatt_anaerobic_heart_rate_upper_limit = -1;
-static int hf_btatt_anaerobic_threshold = -1;
-static int hf_btatt_aerobic_heart_rate_upper_limit = -1;
-static int hf_btatt_email_address = -1;
-static int hf_btatt_fat_burn_heart_rate_lower_limit = -1;
-static int hf_btatt_fat_burn_heart_rate_upper_limit = -1;
-static int hf_btatt_first_name = -1;
-static int hf_btatt_five_zone_heart_rate_limits_very_light_light_limit = -1;
-static int hf_btatt_five_zone_heart_rate_limits_light_moderate_limit = -1;
-static int hf_btatt_five_zone_heart_rate_limits_moderate_hard_limit = -1;
-static int hf_btatt_five_zone_heart_rate_limits_hard_maximum_limit = -1;
-static int hf_btatt_gender = -1;
-static int hf_btatt_heart_rate_max = -1;
-static int hf_btatt_height = -1;
-static int hf_btatt_hip_circumference = -1;
-static int hf_btatt_last_name = -1;
-static int hf_btatt_maximum_recommended_heart_rate = -1;
-static int hf_btatt_resting_heart_rate = -1;
-static int hf_btatt_sport_type_for_aerobic_and_anaerobic_thresholds = -1;
-static int hf_btatt_three_zone_heart_rate_limits_light_moderate = -1;
-static int hf_btatt_three_zone_heart_rate_limits_moderate_hard = -1;
-static int hf_btatt_two_zone_heart_rate_limit_fat_burn_fitness = -1;
-static int hf_btatt_vo2_max =-1;
-static int hf_btatt_waist_circumference =-1;
-static int hf_btatt_weight =-1;
-static int hf_btatt_database_change_increment =-1;
-static int hf_btatt_user_index = -1;
-static int hf_btatt_magnetic_flux_density_x = -1;
-static int hf_btatt_magnetic_flux_density_y = -1;
-static int hf_btatt_magnetic_flux_density_z = -1;
-static int hf_btatt_language = -1;
-static int hf_btatt_barometric_pressure_trend = -1;
-static int hf_btatt_central_address_resolution = -1;
-static int hf_btatt_resolvable_private_address = -1;
-static int hf_btatt_cycling_power_feature = -1;
-static int hf_btatt_cycling_power_feature_reserved = -1;
-static int hf_btatt_cycling_power_feature_factory_calibration_date = -1;
-static int hf_btatt_cycling_power_feature_instantaneous_measurement_direction = -1;
-static int hf_btatt_cycling_power_feature_sensor_measurement_context = -1;
-static int hf_btatt_cycling_power_feature_span_length_adjustment = -1;
-static int hf_btatt_cycling_power_feature_chain_weight_adjustment = -1;
-static int hf_btatt_cycling_power_feature_chain_length_adjustment = -1;
-static int hf_btatt_cycling_power_feature_crank_length_adjustment = -1;
-static int hf_btatt_cycling_power_feature_multiple_sensor_locations = -1;
-static int hf_btatt_cycling_power_feature_cycling_power_measurement_characteristic_content_masking = -1;
-static int hf_btatt_cycling_power_feature_offset_compensation = -1;
-static int hf_btatt_cycling_power_feature_offset_compensation_indicator = -1;
-static int hf_btatt_cycling_power_feature_accumulated_energy = -1;
-static int hf_btatt_cycling_power_feature_top_and_bottom_dead_spot_angles = -1;
-static int hf_btatt_cycling_power_feature_extreme_angles = -1;
-static int hf_btatt_cycling_power_feature_extreme_magnitudes = -1;
-static int hf_btatt_cycling_power_feature_crank_revolution_data = -1;
-static int hf_btatt_cycling_power_feature_wheel_revolution_data = -1;
-static int hf_btatt_cycling_power_feature_accumulated_torque = -1;
-static int hf_btatt_cycling_power_feature_pedal_power_balance = -1;
-static int hf_btatt_ln_feature = -1;
-static int hf_btatt_ln_feature_reserved = -1;
-static int hf_btatt_ln_feature_position_status = -1;
-static int hf_btatt_ln_feature_elevation_setting = -1;
-static int hf_btatt_ln_feature_fix_rate_setting = -1;
-static int hf_btatt_ln_feature_location_and_speed_characteristic_content_masking = -1;
-static int hf_btatt_ln_feature_vertical_dilution_of_precision = -1;
-static int hf_btatt_ln_feature_horizontal_dilution_of_precision = -1;
-static int hf_btatt_ln_feature_estimated_vertical_position_error = -1;
-static int hf_btatt_ln_feature_estimated_horizontal_position_error = -1;
-static int hf_btatt_ln_feature_time_to_first_fix = -1;
-static int hf_btatt_ln_feature_number_of_beacons_in_view = -1;
-static int hf_btatt_ln_feature_number_of_beacons_in_solution = -1;
-static int hf_btatt_ln_feature_estimated_time_of_arrival = -1;
-static int hf_btatt_ln_feature_remaining_vertical_distance = -1;
-static int hf_btatt_ln_feature_remaining_distance = -1;
-static int hf_btatt_ln_feature_utc_time = -1;
-static int hf_btatt_ln_feature_rolling_time = -1;
-static int hf_btatt_ln_feature_heading = -1;
-static int hf_btatt_ln_feature_elevation = -1;
-static int hf_btatt_ln_feature_location = -1;
-static int hf_btatt_ln_feature_total_distance = -1;
-static int hf_btatt_ln_feature_instantaneous_speed = -1;
-static int hf_btatt_body_composition_feature = -1;
-static int hf_btatt_body_composition_feature_reserved = -1;
-static int hf_btatt_body_composition_feature_height_measurement_resolution = -1;
-static int hf_btatt_body_composition_feature_mass_measurement_resolution = -1;
-static int hf_btatt_body_composition_feature_height = -1;
-static int hf_btatt_body_composition_feature_weight = -1;
-static int hf_btatt_body_composition_feature_impedance = -1;
-static int hf_btatt_body_composition_feature_body_water_mass = -1;
-static int hf_btatt_body_composition_feature_soft_lean_mass = -1;
-static int hf_btatt_body_composition_feature_fat_free_mass = -1;
-static int hf_btatt_body_composition_feature_muscle_mass = -1;
-static int hf_btatt_body_composition_feature_muscle_percentage = -1;
-static int hf_btatt_body_composition_feature_basal_metabolism = -1;
-static int hf_btatt_body_composition_feature_multiple_users = -1;
-static int hf_btatt_body_composition_feature_timestamp = -1;
-static int hf_btatt_weight_scale_feature = -1;
-static int hf_btatt_weight_scale_feature_reserved = -1;
-static int hf_btatt_weight_scale_feature_height_measurement_resolution = -1;
-static int hf_btatt_weight_scale_feature_weight_measurement_resolution = -1;
-static int hf_btatt_weight_scale_feature_bmi = -1;
-static int hf_btatt_weight_scale_feature_multiple_users = -1;
-static int hf_btatt_weight_scale_feature_timestamp = -1;
-static int hf_btatt_glucose_measurement_flags = -1;
-static int hf_btatt_glucose_measurement_flags_reserved = -1;
-static int hf_btatt_glucose_measurement_flags_context_information_follows = -1;
-static int hf_btatt_glucose_measurement_flags_sensor_status_annunciation_present = -1;
-static int hf_btatt_glucose_measurement_flags_glucose_concentration_units = -1;
-static int hf_btatt_glucose_measurement_flags_glucose_concentration_type_and_sample_location_present = -1;
-static int hf_btatt_glucose_measurement_flags_time_offset_present = -1;
-static int hf_btatt_glucose_measurement_sequence_number = -1;
-static int hf_btatt_glucose_measurement_base_time = -1;
-static int hf_btatt_glucose_measurement_time_offset = -1;
-static int hf_btatt_glucose_measurement_glucose_concentration_kg_per_l = -1;
-static int hf_btatt_glucose_measurement_glucose_concentration_mol_per_l = -1;
-static int hf_btatt_glucose_measurement_type_and_sample_location = -1;
-static int hf_btatt_glucose_measurement_type_and_sample_location_type = -1;
-static int hf_btatt_glucose_measurement_type_and_sample_location_sample_location = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_reserved = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_time_fault = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_general_fault = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_read_interrupted = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_temperature_too_low = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_temperature_too_high = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_result_too_low = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_result_too_high = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_strip_type_incorrect = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_strip_insertion_error = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_size_insufficient = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_fault = -1;
-static int hf_btatt_glucose_measurement_sensor_status_annunciation_battery_low = -1;
-static int hf_btatt_bond_management_feature = -1;
-static int hf_btatt_bond_management_feature_feature_extension = -1;
-static int hf_btatt_bond_management_feature_reserved = -1;
-static int hf_btatt_bond_management_feature_identify_yourself = -1;
-static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_9 = -1;
-static int hf_btatt_bond_management_feature_remove_all_but_the_active_bond_on_le_transport_only_server = -1;
-static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_8 = -1;
-static int hf_btatt_bond_management_feature_remove_all_but_the_active_bond_on_br_edr_transport_only_server = -1;
-static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_7 = -1;
-static int hf_btatt_bond_management_feature_remove_all_but_the_active_bond_on_br_edr_and_le_server = -1;
-static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_6 = -1;
-static int hf_btatt_bond_management_feature_remove_all_bonds_on_le_transport_only_server = -1;
-static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_5 = -1;
-static int hf_btatt_bond_management_feature_remove_all_bonds_on_br_edr_transport_only_server = -1;
-static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_4 = -1;
-static int hf_btatt_bond_management_feature_remove_all_bonds_on_br_edr_and_le_server = -1;
-static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_3 = -1;
-static int hf_btatt_bond_management_feature_delete_bond_of_current_le_transport_only_connection = -1;
-static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_2 = -1;
-static int hf_btatt_bond_management_feature_delete_bond_of_current_br_edr_transport_only_connection = -1;
-static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_1 = -1;
-static int hf_btatt_bond_management_feature_delete_bond_of_current_br_edr_and_le_connection = -1;
-static int hf_btatt_bond_management_feature_nth = -1;
-static int hf_btatt_bond_management_feature_nth_feature_extension = -1;
-static int hf_btatt_bond_management_feature_nth_reserved = -1;
-static int hf_btatt_bond_management_control_point_opcode = -1;
-static int hf_btatt_bond_management_control_point_authorization_code = -1;
-static int hf_btatt_temperature_measurement_flags = -1;
-static int hf_btatt_temperature_measurement_flags_reserved = -1;
-static int hf_btatt_temperature_measurement_flags_temperature_type = -1;
-static int hf_btatt_temperature_measurement_flags_timestamp = -1;
-static int hf_btatt_temperature_measurement_flags_temperature_unit = -1;
-static int hf_btatt_temperature_measurement_value_celsius = -1;
-static int hf_btatt_temperature_measurement_value_fahrenheit = -1;
-static int hf_btatt_temperature_measurement_timestamp = -1;
-static int hf_btatt_glucose_measurement_context_flags = -1;
-static int hf_btatt_glucose_measurement_context_flags_extended_flags = -1;
-static int hf_btatt_glucose_measurement_context_flags_hba1c = -1;
-static int hf_btatt_glucose_measurement_context_flags_medication_value_units = -1;
-static int hf_btatt_glucose_measurement_context_flags_medication_id_and_medication = -1;
-static int hf_btatt_glucose_measurement_context_flags_exercise_duration_and_exercise_intensity = -1;
-static int hf_btatt_glucose_measurement_context_flags_tester_health = -1;
-static int hf_btatt_glucose_measurement_context_flags_meal = -1;
-static int hf_btatt_glucose_measurement_context_flags_carbohydrate_id_and_carbohydrate = -1;
-static int hf_btatt_glucose_measurement_context_sequence_number = -1;
-static int hf_btatt_glucose_measurement_context_extended_flags = -1;
-static int hf_btatt_glucose_measurement_context_extended_flags_reserved = -1;
-static int hf_btatt_glucose_measurement_context_carbohydrate_id = -1;
-static int hf_btatt_glucose_measurement_context_carbohydrate_kg = -1;
-static int hf_btatt_glucose_measurement_context_meal = -1;
-static int hf_btatt_glucose_measurement_context_tester_health = -1;
-static int hf_btatt_glucose_measurement_context_tester = -1;
-static int hf_btatt_glucose_measurement_context_health = -1;
-static int hf_btatt_glucose_measurement_context_exercise_duration = -1;
-static int hf_btatt_glucose_measurement_context_exercise_intensity = -1;
-static int hf_btatt_glucose_measurement_context_medication_id = -1;
-static int hf_btatt_glucose_measurement_context_medication_l = -1;
-static int hf_btatt_glucose_measurement_context_medication_kg = -1;
-static int hf_btatt_glucose_measurement_context_hba1c = -1;
-static int hf_btatt_blood_pressure_measurement_flags = -1;
-static int hf_btatt_blood_pressure_measurement_flags_reserved = -1;
-static int hf_btatt_blood_pressure_measurement_flags_measurement_status = -1;
-static int hf_btatt_blood_pressure_measurement_flags_user_id = -1;
-static int hf_btatt_blood_pressure_measurement_flags_pulse_rate = -1;
-static int hf_btatt_blood_pressure_measurement_flags_timestamp = -1;
-static int hf_btatt_blood_pressure_measurement_flags_unit = -1;
-static int hf_btatt_blood_pressure_measurement_compound_value_systolic_kpa = -1;
-static int hf_btatt_blood_pressure_measurement_compound_value_diastolic_kpa = -1;
-static int hf_btatt_blood_pressure_measurement_compound_value_mean_arterial_pressure_kpa = -1;
-static int hf_btatt_blood_pressure_measurement_compound_value_systolic_mmhg = -1;
-static int hf_btatt_blood_pressure_measurement_compound_value_diastolic_mmhg = -1;
-static int hf_btatt_blood_pressure_measurement_compound_value_mean_arterial_pressure_mmhg = -1;
-static int hf_btatt_blood_pressure_measurement_timestamp = -1;
-static int hf_btatt_blood_pressure_measurement_pulse_rate = -1;
-static int hf_btatt_blood_pressure_measurement_user_id = -1;
-static int hf_btatt_blood_pressure_measurement_status = -1;
-static int hf_btatt_blood_pressure_measurement_status_reserved = -1;
-static int hf_btatt_blood_pressure_measurement_status_improper_measurement_position = -1;
-static int hf_btatt_blood_pressure_measurement_status_pulse_rate_range_detection = -1;
-static int hf_btatt_blood_pressure_measurement_status_irregular_pulse = -1;
-static int hf_btatt_blood_pressure_measurement_status_cuff_fit_too_loose = -1;
-static int hf_btatt_blood_pressure_measurement_status_body_movement = -1;
-static int hf_btatt_heart_rate_measurement_flags = -1;
-static int hf_btatt_heart_rate_measurement_flags_reserved = -1;
-static int hf_btatt_heart_rate_measurement_flags_rr_interval = -1;
-static int hf_btatt_heart_rate_measurement_flags_energy_expended = -1;
-static int hf_btatt_heart_rate_measurement_flags_sensor_contact_status_support = -1;
-static int hf_btatt_heart_rate_measurement_flags_sensor_contact_status_contact = -1;
-static int hf_btatt_heart_rate_measurement_flags_value_16 = -1;
-static int hf_btatt_heart_rate_measurement_value_8 = -1;
-static int hf_btatt_heart_rate_measurement_value_16 = -1;
-static int hf_btatt_heart_rate_measurement_energy_expended = -1;
-static int hf_btatt_heart_rate_measurement_rr_intervals = -1;
-static int hf_btatt_heart_rate_measurement_rr_interval = -1;
-static int hf_btatt_record_access_control_point_opcode = -1;
-static int hf_btatt_record_access_control_point_operator = -1;
-static int hf_btatt_record_access_control_point_operand = -1;
-static int hf_btatt_record_access_control_point_operand_filter_type = -1;
-static int hf_btatt_record_access_control_point_operand_min_time_offset = -1;
-static int hf_btatt_record_access_control_point_operand_max_time_offset = -1;
-static int hf_btatt_record_access_control_point_operand_number_of_records = -1;
-static int hf_btatt_record_access_control_point_request_opcode = -1;
-static int hf_btatt_record_access_control_point_response_code = -1;
-static int hf_btatt_value_trigger_setting_condition = -1;
-static int hf_btatt_value_trigger_setting_analog = -1;
-static int hf_btatt_value_trigger_setting_analog_one = -1;
-static int hf_btatt_value_trigger_setting_analog_two = -1;
-static int hf_btatt_digital = -1;
-static int hf_btatt_digital_output = -1;
-static int hf_btatt_analog = -1;
-static int hf_btatt_analog_output = -1;
-static int hf_btatt_location_name = -1;
-static int hf_btatt_uncertainty = -1;
-static int hf_btatt_uncertainty_reserved = -1;
-static int hf_btatt_uncertainty_precision = -1;
-static int hf_btatt_uncertainty_update_time = -1;
-static int hf_btatt_uncertainty_stationary = -1;
-static int hf_btatt_latitude = -1;
-static int hf_btatt_longitude = -1;
-static int hf_btatt_local_north_coordinate = -1;
-static int hf_btatt_local_east_coordinate = -1;
-static int hf_btatt_floor_number = -1;
-static int hf_btatt_altitude = -1;
-static int hf_btatt_indoor_positioning_configuration = -1;
-static int hf_btatt_indoor_positioning_configuration_reserved = -1;
-static int hf_btatt_indoor_positioning_configuration_location_name = -1;
-static int hf_btatt_indoor_positioning_configuration_uncertainty = -1;
-static int hf_btatt_indoor_positioning_configuration_floor_number = -1;
-static int hf_btatt_indoor_positioning_configuration_altitude = -1;
-static int hf_btatt_indoor_positioning_configuration_tx_power = -1;
-static int hf_btatt_indoor_positioning_configuration_coordinate_system = -1;
-static int hf_btatt_indoor_positioning_configuration_coordinates = -1;
-static int hf_btatt_number_of_digitals = -1;
-static int hf_btatt_time_trigger_setting_condition = -1;
-static int hf_btatt_time_trigger_setting_value = -1;
-static int hf_btatt_time_trigger_setting_value_count = -1;
-static int hf_btatt_time_trigger_setting_value_time_interval = -1;
-static int hf_btatt_rsc_measurement_flags = -1;
-static int hf_btatt_rsc_measurement_flags_reserved = -1;
-static int hf_btatt_rsc_measurement_flags_type_of_movement = -1;
-static int hf_btatt_rsc_measurement_flags_total_distance_present = -1;
-static int hf_btatt_rsc_measurement_flags_instantaneous_stride_length_present = -1;
-static int hf_btatt_rsc_measurement_instantaneous_speed = -1;
-static int hf_btatt_rsc_measurement_instantaneous_cadence = -1;
-static int hf_btatt_rsc_measurement_instantaneous_stride_length = -1;
-static int hf_btatt_rsc_measurement_total_distance = -1;
-static int hf_btatt_sc_control_point_opcode = -1;
-static int hf_btatt_sc_control_point_cumulative_value = -1;
-static int hf_btatt_sc_control_point_request_opcode = -1;
-static int hf_btatt_sc_control_point_response_value = -1;
-static int hf_btatt_cycling_power_measurement_flags = -1;
-static int hf_btatt_cycling_power_measurement_flags_reserved = -1;
-static int hf_btatt_cycling_power_measurement_flags_offset_compensation_indicator = -1;
-static int hf_btatt_cycling_power_measurement_flags_accumulated_energy = -1;
-static int hf_btatt_cycling_power_measurement_flags_bottom_dead_spot_angle = -1;
-static int hf_btatt_cycling_power_measurement_flags_top_dead_spot_angle = -1;
-static int hf_btatt_cycling_power_measurement_flags_extreme_angles = -1;
-static int hf_btatt_cycling_power_measurement_flags_extreme_torque_magnitudes = -1;
-static int hf_btatt_cycling_power_measurement_flags_extreme_force_magnitudes = -1;
-static int hf_btatt_cycling_power_measurement_flags_crank_revolution_data = -1;
-static int hf_btatt_cycling_power_measurement_flags_wheel_revolution_data = -1;
-static int hf_btatt_cycling_power_measurement_flags_accumulated_torque_source = -1;
-static int hf_btatt_cycling_power_measurement_flags_accumulated_torque = -1;
-static int hf_btatt_cycling_power_measurement_flags_pedal_power_balance_reference = -1;
-static int hf_btatt_cycling_power_measurement_flags_pedal_power_balance = -1;
-static int hf_btatt_cycling_power_measurement_instantaneous_power = -1;
-static int hf_btatt_cycling_power_measurement_pedal_power_balance = -1;
-static int hf_btatt_cycling_power_measurement_accumulated_torque = -1;
-static int hf_btatt_cycling_power_measurement_wheel_revolution_data_cumulative_wheel_revolutions = -1;
-static int hf_btatt_cycling_power_measurement_wheel_revolution_data_last_wheel_event_time = -1;
-static int hf_btatt_cycling_power_measurement_crank_revolution_data_cumulative_crank_revolutions = -1;
-static int hf_btatt_cycling_power_measurement_crank_revolution_data_last_crank_event_time = -1;
-static int hf_btatt_cycling_power_measurement_extreme_force_magnitudes_maximum_force_magnitude = -1;
-static int hf_btatt_cycling_power_measurement_extreme_force_magnitudes_minimum_force_magnitude = -1;
-static int hf_btatt_cycling_power_measurement_extreme_torque_magnitudes_maximum_torque_magnitude = -1;
-static int hf_btatt_cycling_power_measurement_extreme_torque_magnitudes_minimum_torque_magnitude = -1;
-static int hf_btatt_cycling_power_measurement_extreme_angles = -1;
-static int hf_btatt_cycling_power_measurement_extreme_angles_maximum = -1;
-static int hf_btatt_cycling_power_measurement_extreme_angles_minimum = -1;
-static int hf_btatt_cycling_power_measurement_top_dead_spot_angle = -1;
-static int hf_btatt_cycling_power_measurement_bottom_dead_spot_angle = -1;
-static int hf_btatt_cycling_power_measurement_accumulated_energy = -1;
-static int hf_btatt_csc_measurement_flags = -1;
-static int hf_btatt_csc_measurement_flags_reserved = -1;
-static int hf_btatt_csc_measurement_flags_crank_revolution_data = -1;
-static int hf_btatt_csc_measurement_flags_wheel_revolution_data = -1;
-static int hf_btatt_csc_measurement_cumulative_wheel_revolutions = -1;
-static int hf_btatt_csc_measurement_cumulative_crank_revolutions = -1;
-static int hf_btatt_csc_measurement_last_event_time = -1;
-static int hf_btatt_cycling_power_vector_flags = -1;
-static int hf_btatt_cycling_power_vector_flags_reserved = -1;
-static int hf_btatt_cycling_power_vector_flags_instantaneous_measurement_direction = -1;
-static int hf_btatt_cycling_power_vector_flags_instantaneous_torque_magnitude_array = -1;
-static int hf_btatt_cycling_power_vector_flags_instantaneous_force_magnitude_array = -1;
-static int hf_btatt_cycling_power_vector_flags_first_crank_measurement_angle = -1;
-static int hf_btatt_cycling_power_vector_flags_crank_revolution_data = -1;
-static int hf_btatt_cycling_power_vector_crank_revolution_data_cumulative_crank_revolutions = -1;
-static int hf_btatt_cycling_power_vector_crank_revolution_data_last_crank_event_time = -1;
-static int hf_btatt_cycling_power_vector_first_crank_measurement_angle = -1;
-static int hf_btatt_cycling_power_vector_instantaneous_force_magnitude_array = -1;
-static int hf_btatt_cycling_power_vector_instantaneous_torque_magnitude_array = -1;
-static int hf_btatt_cycling_power_control_point_opcode = -1;
-static int hf_btatt_cycling_power_control_point_cumulative_value = -1;
-static int hf_btatt_cycling_power_control_point_sensor_location = -1;
-static int hf_btatt_cycling_power_control_point_crank_length = -1;
-static int hf_btatt_cycling_power_control_point_chain_length = -1;
-static int hf_btatt_cycling_power_control_point_chain_weight = -1;
-static int hf_btatt_cycling_power_control_point_span_length = -1;
-static int hf_btatt_cycling_power_control_point_content_mask = -1;
-static int hf_btatt_cycling_power_control_point_content_mask_reserved = -1;
-static int hf_btatt_cycling_power_control_point_content_mask_accumulated_energy = -1;
-static int hf_btatt_cycling_power_control_point_content_mask_bottom_dead_spot_angle = -1;
-static int hf_btatt_cycling_power_control_point_content_mask_top_dead_spot_angle = -1;
-static int hf_btatt_cycling_power_control_point_content_mask_extreme_angles = -1;
-static int hf_btatt_cycling_power_control_point_content_mask_extreme_magnitudes = -1;
-static int hf_btatt_cycling_power_control_point_content_mask_crank_revolution_data = -1;
-static int hf_btatt_cycling_power_control_point_content_mask_wheel_revolution_data = -1;
-static int hf_btatt_cycling_power_control_point_content_mask_accumulated_torque = -1;
-static int hf_btatt_cycling_power_control_point_content_mask_pedal_power_balance = -1;
-static int hf_btatt_cycling_power_control_point_request_opcode = -1;
-static int hf_btatt_cycling_power_control_point_response_value = -1;
-static int hf_btatt_cycling_power_control_point_start_offset_compensation = -1;
-static int hf_btatt_cycling_power_control_point_sampling_rate = -1;
-static int hf_btatt_cycling_power_control_point_factory_calibration_date = -1;
-static int hf_btatt_location_and_speed_flags = -1;
-static int hf_btatt_location_and_speed_flags_reserved = -1;
-static int hf_btatt_location_and_speed_flags_heading_source = -1;
-static int hf_btatt_location_and_speed_flags_elevation_source = -1;
-static int hf_btatt_location_and_speed_flags_speed_and_distance_format = -1;
-static int hf_btatt_location_and_speed_flags_position_status = -1;
-static int hf_btatt_location_and_speed_flags_utc_time = -1;
-static int hf_btatt_location_and_speed_flags_rolling_time = -1;
-static int hf_btatt_location_and_speed_flags_heading = -1;
-static int hf_btatt_location_and_speed_flags_elevation = -1;
-static int hf_btatt_location_and_speed_flags_location = -1;
-static int hf_btatt_location_and_speed_flags_total_distance = -1;
-static int hf_btatt_location_and_speed_flags_instantaneous_speed = -1;
-static int hf_btatt_location_and_speed_instantaneous_speed = -1;
-static int hf_btatt_location_and_speed_total_distance = -1;
-static int hf_btatt_location_and_speed_location_latitude = -1;
-static int hf_btatt_location_and_speed_location_longitude = -1;
-static int hf_btatt_location_and_speed_elevation = -1;
-static int hf_btatt_location_and_speed_heading = -1;
-static int hf_btatt_location_and_speed_rolling_time = -1;
-static int hf_btatt_location_and_speed_utc_time = -1;
-static int hf_btatt_navigation_flags = -1;
-static int hf_btatt_navigation_flags_reserved = -1;
-static int hf_btatt_navigation_flags_destination_reached = -1;
-static int hf_btatt_navigation_flags_waypoint_reached = -1;
-static int hf_btatt_navigation_flags_navigation_indicator_type = -1;
-static int hf_btatt_navigation_flags_heading_source = -1;
-static int hf_btatt_navigation_flags_position_status = -1;
-static int hf_btatt_navigation_flags_estimated_time_of_arrival = -1;
-static int hf_btatt_navigation_flags_remaining_vertical_distance = -1;
-static int hf_btatt_navigation_flags_remaining_distance = -1;
-static int hf_btatt_navigation_bearing = -1;
-static int hf_btatt_navigation_heading = -1;
-static int hf_btatt_navigation_remaining_distance = -1;
-static int hf_btatt_navigation_remaining_vertical_distance = -1;
-static int hf_btatt_navigation_estimated_time_of_arrival = -1;
-static int hf_btatt_position_quality_flags = -1;
-static int hf_btatt_position_quality_flags_reserved = -1;
-static int hf_btatt_position_quality_flags_position_status = -1;
-static int hf_btatt_position_quality_flags_vdop = -1;
-static int hf_btatt_position_quality_flags_hdop = -1;
-static int hf_btatt_position_quality_flags_evpe = -1;
-static int hf_btatt_position_quality_flags_ehpe = -1;
-static int hf_btatt_position_quality_flags_time_to_first_fix = -1;
-static int hf_btatt_position_quality_flags_number_of_beacons_in_view = -1;
-static int hf_btatt_position_quality_flags_number_of_beacons_in_solution = -1;
-static int hf_btatt_position_quality_number_of_beacons_in_solution = -1;
-static int hf_btatt_position_quality_number_of_beacons_in_view = -1;
-static int hf_btatt_position_quality_time_to_first_fix = -1;
-static int hf_btatt_position_quality_ehpe = -1;
-static int hf_btatt_position_quality_evpe = -1;
-static int hf_btatt_position_quality_hdop = -1;
-static int hf_btatt_position_quality_vdop = -1;
-static int hf_btatt_ln_control_point_opcode = -1;
-static int hf_btatt_ln_control_point_cumulative_value = -1;
-static int hf_btatt_ln_control_point_content_mask = -1;
-static int hf_btatt_ln_control_point_content_mask_reserved = -1;
-static int hf_btatt_ln_control_point_content_mask_utc_time = -1;
-static int hf_btatt_ln_control_point_content_mask_rolling_time = -1;
-static int hf_btatt_ln_control_point_content_mask_heading = -1;
-static int hf_btatt_ln_control_point_content_mask_elevation = -1;
-static int hf_btatt_ln_control_point_content_mask_location = -1;
-static int hf_btatt_ln_control_point_content_mask_total_distance = -1;
-static int hf_btatt_ln_control_point_content_mask_instantaneous_speed = -1;
-static int hf_btatt_ln_control_point_navigation_control = -1;
-static int hf_btatt_ln_control_point_route_number = -1;
-static int hf_btatt_ln_control_point_fix_rate = -1;
-static int hf_btatt_ln_control_point_elevation = -1;
-static int hf_btatt_ln_control_point_request_opcode = -1;
-static int hf_btatt_ln_control_point_response_value = -1;
-static int hf_btatt_ln_control_point_response_value_number_of_routes = -1;
-static int hf_btatt_ln_control_point_response_value_name_of_route = -1;
-static int hf_btatt_body_composition_measurement_flags = -1;
-static int hf_btatt_body_composition_measurement_flags_reserved = -1;
-static int hf_btatt_body_composition_measurement_flags_multiple_packet_measurement = -1;
-static int hf_btatt_body_composition_measurement_flags_height = -1;
-static int hf_btatt_body_composition_measurement_flags_weight = -1;
-static int hf_btatt_body_composition_measurement_flags_impedance = -1;
-static int hf_btatt_body_composition_measurement_flags_body_water_mass = -1;
-static int hf_btatt_body_composition_measurement_flags_soft_lean_mass = -1;
-static int hf_btatt_body_composition_measurement_flags_fat_free_mass = -1;
-static int hf_btatt_body_composition_measurement_flags_muscle_mass = -1;
-static int hf_btatt_body_composition_measurement_flags_muscle_percentage = -1;
-static int hf_btatt_body_composition_measurement_flags_basal_metabolism = -1;
-static int hf_btatt_body_composition_measurement_flags_user_id = -1;
-static int hf_btatt_body_composition_measurement_flags_timestamp = -1;
-static int hf_btatt_body_composition_measurement_flags_measurement_units = -1;
-static int hf_btatt_body_composition_measurement_body_fat_percentage = -1;
-static int hf_btatt_body_composition_measurement_timestamp = -1;
-static int hf_btatt_body_composition_measurement_user_id = -1;
-static int hf_btatt_body_composition_measurement_basal_metabolism = -1;
-static int hf_btatt_body_composition_measurement_muscle_percentage = -1;
-static int hf_btatt_body_composition_measurement_muscle_mass_lb = -1;
-static int hf_btatt_body_composition_measurement_muscle_mass_kg = -1;
-static int hf_btatt_body_composition_measurement_fat_free_mass_lb = -1;
-static int hf_btatt_body_composition_measurement_fat_free_mass_kg = -1;
-static int hf_btatt_body_composition_measurement_soft_lean_mass_lb = -1;
-static int hf_btatt_body_composition_measurement_soft_lean_mass_kg = -1;
-static int hf_btatt_body_composition_measurement_body_water_mass_lb = -1;
-static int hf_btatt_body_composition_measurement_body_water_mass_kg = -1;
-static int hf_btatt_body_composition_measurement_impedance = -1;
-static int hf_btatt_body_composition_measurement_weight_lb = -1;
-static int hf_btatt_body_composition_measurement_weight_kg = -1;
-static int hf_btatt_body_composition_measurement_height_inches = -1;
-static int hf_btatt_body_composition_measurement_height_meter = -1;
-static int hf_btatt_weight_measurement_flags = -1;
-static int hf_btatt_weight_measurement_flags_reserved = -1;
-static int hf_btatt_weight_measurement_flags_bmi_and_height = -1;
-static int hf_btatt_weight_measurement_flags_user_id = -1;
-static int hf_btatt_weight_measurement_flags_timestamp = -1;
-static int hf_btatt_weight_measurement_flags_measurement_units = -1;
-static int hf_btatt_weight_measurement_weight_lb = -1;
-static int hf_btatt_weight_measurement_weight_kg = -1;
-static int hf_btatt_weight_measurement_timestamp = -1;
-static int hf_btatt_weight_measurement_user_id = -1;
-static int hf_btatt_weight_measurement_bmi = -1;
-static int hf_btatt_weight_measurement_height_in = -1;
-static int hf_btatt_weight_measurement_height_m = -1;
-static int hf_btatt_user_control_point_opcode = -1;
-static int hf_btatt_user_control_point_request_opcode = -1;
-static int hf_btatt_user_control_point_response_value = -1;
-static int hf_btatt_user_control_point_consent_code = -1;
-static int hf_btatt_cgm_measurement_size = -1;
-static int hf_btatt_cgm_measurement_flags = -1;
-static int hf_btatt_cgm_measurement_flags_cgm_trend_information = -1;
-static int hf_btatt_cgm_measurement_flags_cgm_quality = -1;
-static int hf_btatt_cgm_measurement_flags_reserved = -1;
-static int hf_btatt_cgm_measurement_flags_sensor_status_annunciation_warning = -1;
-static int hf_btatt_cgm_measurement_flags_sensor_status_annunciation_cal_temp = -1;
-static int hf_btatt_cgm_measurement_flags_sensor_status_annunciation_status = -1;
-static int hf_btatt_cgm_measurement_glucose_concentration = -1;
-static int hf_btatt_cgm_measurement_time_offset = -1;
-static int hf_btatt_cgm_sensor_status_annunciation = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_status = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_status_reserved = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_status_general_device_fault_has_occurred_in_the_sensor = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_status_device_specific_alert = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_status_sensor_malfunction = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_status_sensor_type_incorrect_for_device = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_status_device_battery_low = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_status_session_stopped = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_cal_temp = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_reserved = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_sensor_temperature_too_low_for_valid_test_result_at_time_of_measurement = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_sensor_temperature_too_high_for_valid_test_result_at_time_of_measurement = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_calibration_required = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_calibration_recommended = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_calibration_not_allowed = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_time_synchronization_between_sensor_and_collector_required = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_warning = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_higher_than_the_device_can_process = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_lower_than_the_device_can_process = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_rate_of_increase_exceeded = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_rate_of_decrease_exceeded = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_higher_than_the_hyper_level = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_lower_than_the_hypo_level = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_higher_than_the_patient_high_level = -1;
-static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_lower_than_the_patient_low_level = -1;
-static int hf_btatt_cgm_measurement_trend_information = -1;
-static int hf_btatt_cgm_measurement_quality = -1;
-static int hf_btatt_cgm_e2e_crc = -1;
-static int hf_btatt_cgm_feature_feature = -1;
-static int hf_btatt_cgm_feature_feature_reserved = -1;
-static int hf_btatt_cgm_feature_feature_quality = -1;
-static int hf_btatt_cgm_feature_feature_trend_information = -1;
-static int hf_btatt_cgm_feature_feature_multiple_sessions = -1;
-static int hf_btatt_cgm_feature_feature_multiple_bond = -1;
-static int hf_btatt_cgm_feature_feature_e2e_crc = -1;
-static int hf_btatt_cgm_feature_feature_general_device_fault = -1;
-static int hf_btatt_cgm_feature_feature_sensor_type_error_detection = -1;
-static int hf_btatt_cgm_feature_feature_low_battery_detection = -1;
-static int hf_btatt_cgm_feature_feature_sensor_result_high_low_detection = -1;
-static int hf_btatt_cgm_feature_feature_sensor_temperature_high_low_detection = -1;
-static int hf_btatt_cgm_feature_feature_sensor_malfunction_detection = -1;
-static int hf_btatt_cgm_feature_feature_device_specific_alert = -1;
-static int hf_btatt_cgm_feature_feature_rate_of_increase_decrease_alerts = -1;
-static int hf_btatt_cgm_feature_feature_hyper_alerts = -1;
-static int hf_btatt_cgm_feature_feature_hypo_alerts = -1;
-static int hf_btatt_cgm_feature_feature_patient_high_low_alerts = -1;
-static int hf_btatt_cgm_feature_feature_calibration = -1;
-static int hf_btatt_cgm_type_and_sample_location = -1;
-static int hf_btatt_cgm_type = -1;
-static int hf_btatt_cgm_sample_location = -1;
-static int hf_btatt_cgm_time_offset = -1;
-static int hf_btatt_cgm_status = -1;
-static int hf_btatt_cgm_session_start_time = -1;
-static int hf_btatt_cgm_session_run_time = -1;
-static int hf_btatt_cgm_specific_ops_control_point_opcode = -1;
-static int hf_btatt_cgm_specific_ops_control_point_operand = -1;
-static int hf_btatt_cgm_specific_ops_control_point_operand_communication_interval = -1;
-static int hf_btatt_cgm_specific_ops_control_point_calibration_glucose_concentration = -1;
-static int hf_btatt_cgm_specific_ops_control_point_calibration_time = -1;
-static int hf_btatt_cgm_specific_ops_control_point_next_calibration_time = -1;
-static int hf_btatt_cgm_specific_ops_control_point_calibration_data_record_number = -1;
-static int hf_btatt_cgm_specific_ops_control_point_calibration_status = -1;
-static int hf_btatt_cgm_specific_ops_control_point_calibration_status_reserved = -1;
-static int hf_btatt_cgm_specific_ops_control_point_calibration_status_pending = -1;
-static int hf_btatt_cgm_specific_ops_control_point_calibration_status_out_of_range = -1;
-static int hf_btatt_cgm_specific_ops_control_point_calibration_status_rejected = -1;
-static int hf_btatt_cgm_specific_ops_control_point_operand_calibration_data_record_number = -1;
-static int hf_btatt_cgm_specific_ops_control_point_operand_alert_level = -1;
-static int hf_btatt_cgm_specific_ops_control_point_operand_alert_level_rate = -1;
-static int hf_btatt_cgm_specific_ops_control_point_request_opcode = -1;
-static int hf_btatt_cgm_specific_ops_control_point_response_code = -1;
-static int hf_btatt_uri = -1;
-static int hf_btatt_http_headers = -1;
-static int hf_btatt_http_status_code = -1;
-static int hf_btatt_http_data_status = -1;
-static int hf_btatt_http_data_status_reserved = -1;
-static int hf_btatt_http_data_status_body_truncated = -1;
-static int hf_btatt_http_data_status_body_received = -1;
-static int hf_btatt_http_data_status_headers_truncated = -1;
-static int hf_btatt_http_data_status_headers_received = -1;
-static int hf_btatt_http_entity_body = -1;
-static int hf_btatt_http_control_point_opcode = -1;
-static int hf_btatt_https_security = -1;
-static int hf_btatt_tds_opcode = -1;
-static int hf_btatt_tds_result_code = -1;
-static int hf_btatt_tds_organization_id = -1;
-static int hf_btatt_tds_data = -1;
-static int hf_btatt_ots_feature_oacp = -1;
-static int hf_btatt_ots_feature_oacp_reserved = -1;
-static int hf_btatt_ots_feature_oacp_abort = -1;
-static int hf_btatt_ots_feature_oacp_patching_of_object = -1;
-static int hf_btatt_ots_feature_oacp_truncation_of_objects = -1;
-static int hf_btatt_ots_feature_oacp_appending_additional_data_to_object = -1;
-static int hf_btatt_ots_feature_oacp_write = -1;
-static int hf_btatt_ots_feature_oacp_read = -1;
-static int hf_btatt_ots_feature_oacp_execute = -1;
-static int hf_btatt_ots_feature_oacp_calculate_checksum = -1;
-static int hf_btatt_ots_feature_oacp_delete = -1;
-static int hf_btatt_ots_feature_oacp_create = -1;
-static int hf_btatt_ots_feature_olcp = -1;
-static int hf_btatt_ots_feature_olcp_reserved = -1;
-static int hf_btatt_ots_feature_olcp_clear_marking = -1;
-static int hf_btatt_ots_feature_olcp_request_number_of_objects = -1;
-static int hf_btatt_ots_feature_olcp_order = -1;
-static int hf_btatt_ots_feature_olcp_go_to = -1;
-static int hf_btatt_ots_object_name = -1;
-static int hf_btatt_ots_current_size = -1;
-static int hf_btatt_ots_allocated_size = -1;
-static int hf_btatt_ots_object_id = -1;
-static int hf_btatt_ots_properties = -1;
-static int hf_btatt_ots_properties_reserved = -1;
-static int hf_btatt_ots_properties_mark = -1;
-static int hf_btatt_ots_properties_patch = -1;
-static int hf_btatt_ots_properties_truncate = -1;
-static int hf_btatt_ots_properties_append = -1;
-static int hf_btatt_ots_properties_write = -1;
-static int hf_btatt_ots_properties_read = -1;
-static int hf_btatt_ots_properties_execute = -1;
-static int hf_btatt_ots_properties_delete = -1;
-static int hf_btatt_ots_flags = -1;
-static int hf_btatt_ots_flags_reserved = -1;
-static int hf_btatt_ots_flags_object_deletion = -1;
-static int hf_btatt_ots_flags_object_creation = -1;
-static int hf_btatt_ots_flags_change_occurred_to_the_object_metadata = -1;
-static int hf_btatt_ots_flags_change_occurred_to_the_object_contents = -1;
-static int hf_btatt_ots_flags_source_of_change = -1;
-static int hf_btatt_ots_action_opcode = -1;
-static int hf_btatt_ots_size = -1;
-static int hf_btatt_ots_offset = -1;
-static int hf_btatt_ots_length = -1;
-static int hf_btatt_ots_execute_data = -1;
-static int hf_btatt_ots_action_response_opcode = -1;
-static int hf_btatt_ots_action_result_code = -1;
-static int hf_btatt_ots_checksum = -1;
-static int hf_btatt_ots_list_opcode = -1;
-static int hf_btatt_ots_list_order = -1;
-static int hf_btatt_ots_list_response_opcode = -1;
-static int hf_btatt_ots_list_result_code = -1;
-static int hf_btatt_ots_list_total_number_of_objects = -1;
-static int hf_btatt_ots_filter = -1;
-static int hf_btatt_ots_name_string = -1;
-static int hf_btatt_ots_size_from = -1;
-static int hf_btatt_ots_size_to = -1;
-static int hf_btatt_ots_object_first_created = -1;
-static int hf_btatt_ots_object_last_modified = -1;
-static int hf_btatt_plx_spot_check_measurement_flags = -1;
-static int hf_btatt_plx_spot_check_measurement_flags_reserved = -1;
-static int hf_btatt_plx_spot_check_measurement_flags_device_clock_is_not_set = -1;
-static int hf_btatt_plx_spot_check_measurement_flags_pulse_amplitude_index = -1;
-static int hf_btatt_plx_spot_check_measurement_flags_device_and_sensor_status = -1;
-static int hf_btatt_plx_spot_check_measurement_flags_measurement_status = -1;
-static int hf_btatt_plx_spot_check_measurement_flags_timestamp = -1;
-static int hf_btatt_plx_spo2 = -1;
-static int hf_btatt_plx_pulse_rate = -1;
-static int hf_btatt_plx_spot_check_measurement_timestamp = -1;
-static int hf_btatt_plx_measurement_status = -1;
-static int hf_btatt_plx_measurement_status_invalid_measurement_detected = -1;
-static int hf_btatt_plx_measurement_status_questionable_measurement_detected = -1;
-static int hf_btatt_plx_measurement_status_measurement_unavailable = -1;
-static int hf_btatt_plx_measurement_status_calibration_ongoing = -1;
-static int hf_btatt_plx_measurement_status_data_for_testing = -1;
-static int hf_btatt_plx_measurement_status_data_for_demonstration = -1;
-static int hf_btatt_plx_measurement_status_data_from_measurement_storage = -1;
-static int hf_btatt_plx_measurement_status_fully_qualified_data = -1;
-static int hf_btatt_plx_measurement_status_validated_data = -1;
-static int hf_btatt_plx_measurement_status_early_estimated_data = -1;
-static int hf_btatt_plx_measurement_status_measurement_ongoing = -1;
-static int hf_btatt_plx_measurement_status_reserved = -1;
-static int hf_btatt_plx_device_and_sensor_status = -1;
-static int hf_btatt_plx_device_and_sensor_status_reserved = -1;
-static int hf_btatt_plx_device_and_sensor_status_sensor_disconnected = -1;
-static int hf_btatt_plx_device_and_sensor_status_sensor_malfunctioning = -1;
-static int hf_btatt_plx_device_and_sensor_status_sensor_displaced = -1;
-static int hf_btatt_plx_device_and_sensor_status_unknown_sensor_connected = -1;
-static int hf_btatt_plx_device_and_sensor_status_sensor_unconnected_to_user = -1;
-static int hf_btatt_plx_device_and_sensor_status_sensor_interference_detected = -1;
-static int hf_btatt_plx_device_and_sensor_status_signal_analysis_ongoing = -1;
-static int hf_btatt_plx_device_and_sensor_status_questionable_pulse_detected = -1;
-static int hf_btatt_plx_device_and_sensor_status_non_pulsatile_signal_detected = -1;
-static int hf_btatt_plx_device_and_sensor_status_erratic_signal_detected = -1;
-static int hf_btatt_plx_device_and_sensor_status_low_perfusion_detected = -1;
-static int hf_btatt_plx_device_and_sensor_status_poor_signal_detected = -1;
-static int hf_btatt_plx_device_and_sensor_status_inadequate_signal_detected = -1;
-static int hf_btatt_plx_device_and_sensor_status_signal_processing_irregularity_detected = -1;
-static int hf_btatt_plx_device_and_sensor_status_equipment_malfunction_detected = -1;
-static int hf_btatt_plx_device_and_sensor_status_extended_display_update_ongoing = -1;
-static int hf_btatt_plx_pulse_amplitude_index = -1;
-static int hf_btatt_plx_spo2pr_spot_check = -1;
-static int hf_btatt_plx_spo2pr_normal = -1;
-static int hf_btatt_plx_spo2pr_fast = -1;
-static int hf_btatt_plx_spo2pr_slow = -1;
-static int hf_btatt_plx_continuous_measurement_flags = -1;
-static int hf_btatt_plx_continuous_measurement_flags_reserved = -1;
-static int hf_btatt_plx_continuous_measurement_flags_pulse_amplitude_index = -1;
-static int hf_btatt_plx_continuous_measurement_flags_device_and_sensor_status = -1;
-static int hf_btatt_plx_continuous_measurement_flags_measurement_status = -1;
-static int hf_btatt_plx_continuous_measurement_flags_spo2pr_slow = -1;
-static int hf_btatt_plx_continuous_measurement_flags_spo2pr_fast = -1;
-static int hf_btatt_plx_features_supported_features = -1;
-static int hf_btatt_plx_features_supported_features_reserved = -1;
-static int hf_btatt_plx_features_supported_features_multiple_bonds = -1;
-static int hf_btatt_plx_features_supported_features_pulse_amplitude_index = -1;
-static int hf_btatt_plx_features_supported_features_spo2pr_slow = -1;
-static int hf_btatt_plx_features_supported_features_spo2pr_fast = -1;
-static int hf_btatt_plx_features_supported_features_timestamp_storage_for_spot_check = -1;
-static int hf_btatt_plx_features_supported_features_measurement_storage_for_spot_check = -1;
-static int hf_btatt_plx_features_supported_features_device_and_sensor_status = -1;
-static int hf_btatt_plx_features_supported_features_measurement_status = -1;
-static int hf_btatt_regulatory_certification_data_list_count = -1;
-static int hf_btatt_regulatory_certification_data_list_length = -1;
-static int hf_btatt_regulatory_certification_data_list_item = -1;
-static int hf_btatt_regulatory_certification_data_list_item_body = -1;
-static int hf_btatt_regulatory_certification_data_list_item_body_structure_type = -1;
-static int hf_btatt_regulatory_certification_data_list_item_body_structure_length = -1;
-static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data = -1;
-static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_major_ig_version = -1;
-static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_minor_ig_version = -1;
-static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_certification_data_list_count = -1;
-static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_certification_data_list_length = -1;
-static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_certification_data_list = -1;
-static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_certified_device_class = -1;
-static int hf_btatt_regulatory_certification_data_list_item_regulation_bit_field_type = -1;
-static int hf_btatt_regulatory_certification_data_list_item_data = -1;
-static int hf_btatt_timezone_information = -1;
-static int hf_btatt_timezone_information_information = -1;
-static int hf_btatt_timezone_information_information_type = -1;
-static int hf_gatt_nordic_uart_tx = -1;
-static int hf_gatt_nordic_uart_rx = -1;
-static int hf_gatt_nordic_dfu_packet = -1;
-static int hf_gatt_nordic_dfu_control_point_opcode = -1;
-static int hf_gatt_nordic_dfu_control_point_init_packet = -1;
-static int hf_gatt_nordic_dfu_control_point_number_of_bytes = -1;
-static int hf_gatt_nordic_dfu_control_point_image_type = -1;
-static int hf_gatt_nordic_dfu_control_point_number_of_packets = -1;
-static int hf_gatt_nordic_dfu_control_point_request_opcode = -1;
-static int hf_gatt_nordic_dfu_control_point_response_value = -1;
-static int hf_gatt_microbit_accelerometer_data = -1;
-static int hf_gatt_microbit_accelerometer_x = -1;
-static int hf_gatt_microbit_accelerometer_y = -1;
-static int hf_gatt_microbit_accelerometer_z = -1;
-static int hf_gatt_microbit_accelerometer_period = -1;
-static int hf_gatt_microbit_magnetometer_data = -1;
-static int hf_gatt_microbit_magnetometer_x = -1;
-static int hf_gatt_microbit_magnetometer_y = -1;
-static int hf_gatt_microbit_magnetometer_z = -1;
-static int hf_gatt_microbit_magnetometer_period = -1;
-static int hf_gatt_microbit_magnetometer_bearing = -1;
-static int hf_gatt_microbit_button_a_state = -1;
-static int hf_gatt_microbit_button_b_state = -1;
-static int hf_gatt_microbit_pin_data = -1;
-static int hf_gatt_microbit_pin_number = -1;
-static int hf_gatt_microbit_pin_value = -1;
-static int hf_gatt_microbit_pin_ad_config = -1;
-static int hf_gatt_microbit_ad_pin0 = -1;
-static int hf_gatt_microbit_ad_pin1 = -1;
-static int hf_gatt_microbit_ad_pin2 = -1;
-static int hf_gatt_microbit_ad_pin3 = -1;
-static int hf_gatt_microbit_ad_pin4 = -1;
-static int hf_gatt_microbit_ad_pin5 = -1;
-static int hf_gatt_microbit_ad_pin6 = -1;
-static int hf_gatt_microbit_ad_pin7 = -1;
-static int hf_gatt_microbit_ad_pin8 = -1;
-static int hf_gatt_microbit_ad_pin9 = -1;
-static int hf_gatt_microbit_ad_pin10 = -1;
-static int hf_gatt_microbit_ad_pin11 = -1;
-static int hf_gatt_microbit_ad_pin12 = -1;
-static int hf_gatt_microbit_ad_pin13 = -1;
-static int hf_gatt_microbit_ad_pin14 = -1;
-static int hf_gatt_microbit_ad_pin15 = -1;
-static int hf_gatt_microbit_ad_pin16 = -1;
-static int hf_gatt_microbit_ad_pin17 = -1;
-static int hf_gatt_microbit_ad_pin18 = -1;
-static int hf_gatt_microbit_ad_pin19 = -1;
-static int hf_gatt_microbit_pin_io_config = -1;
-static int hf_gatt_microbit_io_pin0 = -1;
-static int hf_gatt_microbit_io_pin1 = -1;
-static int hf_gatt_microbit_io_pin2 = -1;
-static int hf_gatt_microbit_io_pin3 = -1;
-static int hf_gatt_microbit_io_pin4 = -1;
-static int hf_gatt_microbit_io_pin5 = -1;
-static int hf_gatt_microbit_io_pin6 = -1;
-static int hf_gatt_microbit_io_pin7 = -1;
-static int hf_gatt_microbit_io_pin8 = -1;
-static int hf_gatt_microbit_io_pin9 = -1;
-static int hf_gatt_microbit_io_pin10 = -1;
-static int hf_gatt_microbit_io_pin11 = -1;
-static int hf_gatt_microbit_io_pin12 = -1;
-static int hf_gatt_microbit_io_pin13 = -1;
-static int hf_gatt_microbit_io_pin14 = -1;
-static int hf_gatt_microbit_io_pin15 = -1;
-static int hf_gatt_microbit_io_pin16 = -1;
-static int hf_gatt_microbit_io_pin17 = -1;
-static int hf_gatt_microbit_io_pin18 = -1;
-static int hf_gatt_microbit_io_pin19 = -1;
-static int hf_gatt_microbit_pwm_control = -1;
-static int hf_gatt_microbit_led_matrix = -1;
-static int hf_gatt_microbit_led_text = -1;
-static int hf_gatt_microbit_scrolling_delay = -1;
-static int hf_gatt_microbit_microbit_requirements = -1;
-static int hf_gatt_microbit_microbit_event = -1;
-static int hf_gatt_microbit_client_requirements = -1;
-static int hf_gatt_microbit_client_event = -1;
-static int hf_gatt_microbit_dfu_control = -1;
-static int hf_gatt_microbit_temperature_value = -1;
-static int hf_gatt_microbit_temperature_period = -1;
-static int hf_btatt_valid_range_lower_inclusive_value = -1;
-static int hf_btatt_valid_range_upper_inclusive_value = -1;
-static int hf_btatt_temperature_celsius = -1;
-static int hf_btatt_temperature_fahrenheit = -1;
-static int hf_btatt_removable = -1;
-static int hf_btatt_removable_reserved = -1;
-static int hf_btatt_removable_removable = -1;
-static int hf_btatt_service_required = -1;
-static int hf_btatt_service_required_reserved = -1;
-static int hf_btatt_service_required_service_required = -1;
-static int hf_btatt_scientific_temperature_celsius = -1;
-static int hf_btatt_string = -1;
-static int hf_btatt_network_availability = -1;
-static int hf_btatt_fitness_machine_features = -1;
-static int hf_btatt_fitness_machine_features_reserved = -1;
-static int hf_btatt_fitness_machine_features_user_data_retention = -1;
-static int hf_btatt_fitness_machine_features_force_on_belt_and_power_output = -1;
-static int hf_btatt_fitness_machine_features_power_measurement = -1;
-static int hf_btatt_fitness_machine_features_remaining_time = -1;
-static int hf_btatt_fitness_machine_features_elapsed_time = -1;
-static int hf_btatt_fitness_machine_features_metabolic_equivalent = -1;
-static int hf_btatt_fitness_machine_features_heart_rate_measurement = -1;
-static int hf_btatt_fitness_machine_features_expended_energy = -1;
-static int hf_btatt_fitness_machine_features_stride_count = -1;
-static int hf_btatt_fitness_machine_features_resistance_level = -1;
-static int hf_btatt_fitness_machine_features_step_count = -1;
-static int hf_btatt_fitness_machine_features_pace = -1;
-static int hf_btatt_fitness_machine_features_elevation_gain = -1;
-static int hf_btatt_fitness_machine_features_inclination = -1;
-static int hf_btatt_fitness_machine_features_total_distance = -1;
-static int hf_btatt_fitness_machine_features_cadence = -1;
-static int hf_btatt_fitness_machine_features_average_speed = -1;
-static int hf_btatt_target_setting_features = -1;
-static int hf_btatt_target_setting_features_reserved = -1;
-static int hf_btatt_target_setting_features_targeted_cadence_configuration = -1;
-static int hf_btatt_target_setting_features_spin_down_control = -1;
-static int hf_btatt_target_setting_features_wheel_circumference_configuration = -1;
-static int hf_btatt_target_setting_features_indoor_bike_simulation_parameters = -1;
-static int hf_btatt_target_setting_features_targeted_time_in_five_heart_rate_zones_configuration = -1;
-static int hf_btatt_target_setting_features_targeted_time_in_three_heart_rate_zones_configuration = -1;
-static int hf_btatt_target_setting_features_targeted_time_in_two_heart_rate_zones_configuration = -1;
-static int hf_btatt_target_setting_features_targeted_training_time_configuration = -1;
-static int hf_btatt_target_setting_features_targeted_distance_configuration = -1;
-static int hf_btatt_target_setting_features_targeted_stride_number_configuration = -1;
-static int hf_btatt_target_setting_features_targeted_step_number_configuration = -1;
-static int hf_btatt_target_setting_features_targeted_expended_energy_configuration = -1;
-static int hf_btatt_target_setting_features_heart_rate_target_setting = -1;
-static int hf_btatt_target_setting_features_power_target_setting = -1;
-static int hf_btatt_target_setting_features_resistance_target_setting = -1;
-static int hf_btatt_target_setting_features_inclination_target_setting = -1;
-static int hf_btatt_target_setting_features_speed_target_setting = -1;
-static int hf_btatt_training_status_flags = -1;
-static int hf_btatt_training_status_flags_reserved = -1;
-static int hf_btatt_training_status_flags_extended_string = -1;
-static int hf_btatt_training_status_flags_training_status_string = -1;
-static int hf_btatt_training_status_status = -1;
-static int hf_btatt_training_status_status_string = -1;
-static int hf_btatt_supported_speed_range_minimum_speed = -1;
-static int hf_btatt_supported_speed_range_maximum_speed = -1;
-static int hf_btatt_supported_speed_range_minimum_increment = -1;
-static int hf_btatt_supported_inclination_range_minimum_inclination = -1;
-static int hf_btatt_supported_inclination_range_maximum_inclination = -1;
-static int hf_btatt_supported_inclination_range_minimum_increment = -1;
-static int hf_btatt_supported_resistance_level_range_minimum_resistance_level = -1;
-static int hf_btatt_supported_resistance_level_range_maximum_resistance_level = -1;
-static int hf_btatt_supported_resistance_level_range_minimum_increment = -1;
-static int hf_btatt_supported_heart_rate_range_minimum_heart_rate = -1;
-static int hf_btatt_supported_heart_rate_range_maximum_heart_rate = -1;
-static int hf_btatt_supported_heart_rate_range_minimum_increment = -1;
-static int hf_btatt_supported_power_range_minimum_power = -1;
-static int hf_btatt_supported_power_range_maximum_power = -1;
-static int hf_btatt_supported_power_range_minimum_increment = -1;
-static int hf_btatt_fitness_machine_status_opcode = -1;
-static int hf_btatt_fitness_machine_control_information = -1;
-static int hf_btatt_fitness_machine_spin_down_status = -1;
-static int hf_btatt_fitness_machine_speed = -1;
-static int hf_btatt_fitness_machine_incline = -1;
-static int hf_btatt_fitness_machine_resistance_level = -1;
-static int hf_btatt_fitness_machine_power = -1;
-static int hf_btatt_fitness_machine_heart_rate = -1;
-static int hf_btatt_fitness_machine_expended_energy = -1;
-static int hf_btatt_fitness_machine_number_of_steps = -1;
-static int hf_btatt_fitness_machine_number_of_strides = -1;
-static int hf_btatt_fitness_machine_distance = -1;
-static int hf_btatt_fitness_machine_training_time = -1;
-static int hf_btatt_fitness_machine_wheel_circumference = -1;
-static int hf_btatt_fitness_machine_cadence = -1;
-static int hf_btatt_fitness_machine_wind_speed = -1;
-static int hf_btatt_fitness_machine_grade = -1;
-static int hf_btatt_fitness_machine_coefficient_of_rolling_resistance = -1;
-static int hf_btatt_fitness_machine_wind_resistance_coefficient = -1;
-static int hf_btatt_fitness_machine_targeted_time_in_fat_burn_zone = -1;
-static int hf_btatt_fitness_machine_targeted_time_in_fitness_zone = -1;
-static int hf_btatt_fitness_machine_targeted_time_in_very_light_zone = -1;
-static int hf_btatt_fitness_machine_targeted_time_in_light_zone = -1;
-static int hf_btatt_fitness_machine_targeted_time_in_moderate_zone = -1;
-static int hf_btatt_fitness_machine_targeted_time_in_hard_zone = -1;
-static int hf_btatt_fitness_machine_targeted_time_in_maximum_zone = -1;
-static int hf_btatt_volume_setting = -1;
-static int hf_btatt_volume_mute = -1;
-static int hf_btatt_volume_change_counter = -1;
-static int hf_btatt_volume_control_point_procedure = -1;
-static int hf_btatt_volume_flags = -1;
+static int hf_btatt_opcode;
+static int hf_btatt_handle;
+static int hf_btatt_starting_handle;
+static int hf_btatt_ending_handle;
+static int hf_btatt_group_end_handle;
+static int hf_btatt_value;
+static int hf_btatt_req_opcode_in_error;
+static int hf_btatt_handle_in_error;
+static int hf_btatt_error_code;
+static int hf_btatt_error_code_aios;
+static int hf_btatt_error_code_ans;
+static int hf_btatt_error_code_bms;
+static int hf_btatt_error_code_cgms;
+static int hf_btatt_error_code_cps;
+static int hf_btatt_error_code_cscs;
+static int hf_btatt_error_code_cts;
+static int hf_btatt_error_code_ess;
+static int hf_btatt_error_code_gls;
+static int hf_btatt_error_code_hps;
+static int hf_btatt_error_code_hrs;
+static int hf_btatt_error_code_hts;
+static int hf_btatt_error_code_ips;
+static int hf_btatt_error_code_ots;
+static int hf_btatt_error_code_rscs;
+static int hf_btatt_error_code_uds;
+static int hf_btatt_service_uuid16;
+static int hf_btatt_service_uuid128;
+static int hf_btatt_characteristic_uuid16;
+static int hf_btatt_characteristic_uuid128;
+static int hf_btatt_uuid16;
+static int hf_btatt_uuid128;
+static int hf_btatt_client_rx_mtu;
+static int hf_btatt_server_rx_mtu;
+static int hf_btatt_uuid_format;
+static int hf_btatt_length;
+static int hf_btatt_offset;
+static int hf_btatt_flags;
+static int hf_btatt_sign_counter;
+static int hf_btatt_signature;
+static int hf_btatt_attribute_data;
+static int hf_btatt_handles_info;
+static int hf_btatt_opcode_authentication_signature;
+static int hf_btatt_opcode_command;
+static int hf_btatt_opcode_method;
+static int hf_btatt_characteristic_properties;
+static int hf_btatt_characteristic_value_handle;
+static int hf_btatt_characteristic_properties_extended_properties;
+static int hf_btatt_characteristic_properties_authenticated_signed_writes;
+static int hf_btatt_characteristic_properties_indicate;
+static int hf_btatt_characteristic_properties_notify;
+static int hf_btatt_characteristic_properties_write;
+static int hf_btatt_characteristic_properties_write_without_response;
+static int hf_btatt_characteristic_properties_read;
+static int hf_btatt_characteristic_properties_broadcast;
+static int hf_btatt_information_data;
+static int hf_btatt_included_service_handle;
+static int hf_btatt_characteristic_configuration_client;
+static int hf_btatt_characteristic_configuration_client_reserved;
+static int hf_btatt_characteristic_configuration_client_indication;
+static int hf_btatt_characteristic_configuration_client_notification;
+static int hf_btatt_characteristic_configuration_server;
+static int hf_btatt_characteristic_configuration_server_reserved;
+static int hf_btatt_characteristic_configuration_server_broadcast;
+static int hf_btatt_hogp_protocol_mode;
+static int hf_btatt_hogp_bcd_hid;
+static int hf_btatt_hogp_b_country_code;
+static int hf_btatt_hogp_flags;
+static int hf_btatt_hogp_flags_reserved;
+static int hf_btatt_hogp_flags_normally_connectable;
+static int hf_btatt_hogp_flags_remote_wake;
+static int hf_btatt_hogp_hid_control_point_command;
+static int hf_btatt_report_reference_report_id;
+static int hf_btatt_report_reference_report_type;
+static int hf_btatt_characteristic_user_description;
+static int hf_btatt_characteristic_extended_properties;
+static int hf_btatt_characteristic_extended_properties_reserved;
+static int hf_btatt_characteristic_extended_properties_writable_auxiliaries;
+static int hf_btatt_characteristic_extended_properties_reliable_write;
+static int hf_btatt_characteristic_presentation_format;
+static int hf_btatt_characteristic_presentation_exponent;
+static int hf_btatt_characteristic_presentation_unit;
+static int hf_btatt_characteristic_presentation_namespace;
+static int hf_btatt_characteristic_presentation_namespace_description_btsig;
+static int hf_btatt_characteristic_presentation_namespace_description;
+static int hf_btatt_esp_trigger_logic;
+static int hf_btatt_esp_condition;
+static int hf_btatt_esp_operand;
+static int hf_btatt_esp_flags;
+static int hf_btatt_esp_sampling_function;
+static int hf_btatt_esp_measurement_period;
+static int hf_btatt_esp_update_interval;
+static int hf_btatt_esp_application;
+static int hf_btatt_esp_measurement_uncertainty;
+static int hf_btatt_device_name;
+static int hf_btatt_appearance;
+static int hf_btatt_appearance_category;
+static int hf_btatt_appearance_subcategory;
+static int hf_btatt_appearance_subcategory_watch;
+static int hf_btatt_appearance_subcategory_thermometer;
+static int hf_btatt_appearance_subcategory_heart_rate;
+static int hf_btatt_appearance_subcategory_blood_pressure;
+static int hf_btatt_appearance_subcategory_hid;
+static int hf_btatt_appearance_subcategory_running_walking_sensor;
+static int hf_btatt_appearance_subcategory_cycling;
+static int hf_btatt_appearance_subcategory_pulse_oximeter;
+static int hf_btatt_appearance_subcategory_personal_mobility_device;
+static int hf_btatt_appearance_subcategory_insulin_pump;
+static int hf_btatt_appearance_subcategory_outdoor_sports_activity;
+static int hf_btatt_peripheral_privacy_flag;
+static int hf_btatt_minimum_connection_interval;
+static int hf_btatt_maximum_connection_interval;
+static int hf_btatt_peripheral_latency;
+static int hf_btatt_connection_supervision_timeout_multiplier;
+static int hf_btatt_reconnection_address;
+static int hf_btatt_alert_level;
+static int hf_btatt_tx_power_level;
+static int hf_btatt_year;
+static int hf_btatt_month;
+static int hf_btatt_day;
+static int hf_btatt_hours;
+static int hf_btatt_minutes;
+static int hf_btatt_seconds;
+static int hf_btatt_day_of_week;
+static int hf_btatt_fractions100;
+static int hf_btatt_fractions256;
+static int hf_btatt_dst_offset;
+static int hf_btatt_model_number_string;
+static int hf_btatt_serial_number_string;
+static int hf_btatt_firmware_revision_string;
+static int hf_btatt_hardware_revision_string;
+static int hf_btatt_software_revision_string;
+static int hf_btatt_manufacturer_string;
+static int hf_btatt_system_id_manufacturer_identifier;
+static int hf_btatt_system_id_organizationally_unique_identifier;
+static int hf_btatt_timezone;
+static int hf_btatt_time_accuracy;
+static int hf_btatt_time_source;
+static int hf_btatt_time_days_since_update;
+static int hf_btatt_time_hours_since_update;
+static int hf_btatt_time_update_control_point;
+static int hf_btatt_time_current_state;
+static int hf_btatt_time_result;
+static int hf_btatt_battery_level;
+static int hf_btatt_battery_power_state;
+static int hf_btatt_battery_power_state_present;
+static int hf_btatt_battery_power_state_discharging;
+static int hf_btatt_battery_power_state_charging;
+static int hf_btatt_battery_power_state_level;
+static int hf_btatt_temperature_type;
+static int hf_btatt_measurement_interval;
+static int hf_btatt_time_adjust_reason;
+static int hf_btatt_time_adjust_reason_reserved;
+static int hf_btatt_time_adjust_reason_change_of_dst;
+static int hf_btatt_time_adjust_reason_change_of_timezone;
+static int hf_btatt_time_adjust_reason_external_reference_time_update;
+static int hf_btatt_time_adjust_reason_manual_time_update;
+static int hf_btatt_magnetic_declination;
+static int hf_btatt_scan_refresh;
+static int hf_btatt_body_sensor_location;
+static int hf_btatt_heart_rate_control_point;
+static int hf_btatt_alert_status;
+static int hf_btatt_alert_status_reserved;
+static int hf_btatt_alert_status_display_alert_status;
+static int hf_btatt_alert_status_vibrate_state;
+static int hf_btatt_alert_status_ringer_state;
+static int hf_btatt_ringer_control_point;
+static int hf_btatt_ringer_setting;
+static int hf_btatt_alert_category_id_bitmask_1;
+static int hf_btatt_alert_category_id_bitmask_1_schedule;
+static int hf_btatt_alert_category_id_bitmask_1_voice_mail;
+static int hf_btatt_alert_category_id_bitmask_1_sms_mms;
+static int hf_btatt_alert_category_id_bitmask_1_missed_call;
+static int hf_btatt_alert_category_id_bitmask_1_call;
+static int hf_btatt_alert_category_id_bitmask_1_news;
+static int hf_btatt_alert_category_id_bitmask_1_email;
+static int hf_btatt_alert_category_id_bitmask_1_simple_alert;
+static int hf_btatt_alert_category_id_bitmask_2;
+static int hf_btatt_alert_category_id_bitmask_2_reserved;
+static int hf_btatt_alert_category_id_bitmask_2_instant_message;
+static int hf_btatt_alert_category_id_bitmask_2_high_prioritized_alert;
+static int hf_btatt_alert_category_id;
+static int hf_btatt_alert_command_id;
+static int hf_btatt_alert_unread_count;
+static int hf_btatt_alert_number_of_new_alert;
+static int hf_btatt_alert_text_string_information;
+static int hf_btatt_blood_pressure_feature;
+static int hf_btatt_blood_pressure_feature_reserved;
+static int hf_btatt_blood_pressure_feature_multiple_bond;
+static int hf_btatt_blood_pressure_feature_measurement_position_detection;
+static int hf_btatt_blood_pressure_feature_puls_rate_range;
+static int hf_btatt_blood_pressure_feature_irregular_pulse_detection;
+static int hf_btatt_blood_pressure_feature_cuff_fit_detection;
+static int hf_btatt_blood_pressure_feature_body_movement_detection;
+static int hf_btatt_le_scan_interval;
+static int hf_btatt_le_scan_window;
+static int hf_btatt_pnp_id_vendor_id_source;
+static int hf_btatt_pnp_id_vendor_id;
+static int hf_btatt_pnp_id_vendor_id_bluetooth_sig;
+static int hf_btatt_pnp_id_vendor_id_usb_forum;
+static int hf_btatt_pnp_id_product_id;
+static int hf_btatt_pnp_id_product_version;
+static int hf_btatt_glucose_feature;
+static int hf_btatt_glucose_feature_reserved;
+static int hf_btatt_glucose_feature_multiple_bond;
+static int hf_btatt_glucose_feature_time_fault;
+static int hf_btatt_glucose_feature_general_device_fault;
+static int hf_btatt_glucose_feature_sensor_read_interrupt_detection;
+static int hf_btatt_glucose_feature_sensor_temperature_high_low_detection;
+static int hf_btatt_glucose_feature_sensor_result_high_low_detection;
+static int hf_btatt_glucose_feature_sensor_strip_type_error_detection;
+static int hf_btatt_glucose_feature_sensor_strip_insertion_error_detection;
+static int hf_btatt_glucose_feature_sensor_sample_size;
+static int hf_btatt_glucose_feature_sensor_malfunction_detection;
+static int hf_btatt_glucose_feature_low_battery_detection_during_measurement;
+static int hf_btatt_rsc_feature;
+static int hf_btatt_rsc_feature_reserved;
+static int hf_btatt_rsc_feature_multiple_sensor_locations;
+static int hf_btatt_rsc_feature_calibration_procedure;
+static int hf_btatt_rsc_feature_walking_or_running_status;
+static int hf_btatt_rsc_feature_total_distance_measurement;
+static int hf_btatt_rsc_feature_instantaneous_stride_length_measurement;
+static int hf_btatt_csc_feature;
+static int hf_btatt_csc_feature_reserved;
+static int hf_btatt_csc_feature_multiple_sensor_locations;
+static int hf_btatt_csc_feature_crank_revolution_data;
+static int hf_btatt_csc_feature_wheel_revolution_data;
+static int hf_btatt_sensor_location;
+static int hf_btatt_elevation;
+static int hf_btatt_pressure;
+static int hf_btatt_temperature;
+static int hf_btatt_humidity;
+static int hf_btatt_true_wind_speed;
+static int hf_btatt_true_wind_direction;
+static int hf_btatt_apparent_wind_speed;
+static int hf_btatt_apparent_wind_direction;
+static int hf_btatt_gust_factor;
+static int hf_btatt_pollen_concentration;
+static int hf_btatt_uv_index;
+static int hf_btatt_irradiance;
+static int hf_btatt_rainfall;
+static int hf_btatt_wind_chill;
+static int hf_btatt_heart_index;
+static int hf_btatt_dew_point;
+static int hf_btatt_descriptor_value_changed_flags;
+static int hf_btatt_descriptor_value_changed_flags_reserved;
+static int hf_btatt_descriptor_value_changed_flags_change_to_characteristic_user_description_descriptor;
+static int hf_btatt_descriptor_value_changed_flags_change_to_es_measurement_descriptor;
+static int hf_btatt_descriptor_value_changed_flags_change_to_es_configuration_descriptor;
+static int hf_btatt_descriptor_value_changed_flags_change_to_one_or_more_es_trigger_setting_descriptors;
+static int hf_btatt_descriptor_value_changed_flags_source_of_change;
+static int hf_btatt_aerobic_heart_rate_lower_limit;
+static int hf_btatt_aerobic_threshold;
+static int hf_btatt_age;
+static int hf_btatt_anaerobic_heart_rate_lower_limit;
+static int hf_btatt_anaerobic_heart_rate_upper_limit;
+static int hf_btatt_anaerobic_threshold;
+static int hf_btatt_aerobic_heart_rate_upper_limit;
+static int hf_btatt_email_address;
+static int hf_btatt_fat_burn_heart_rate_lower_limit;
+static int hf_btatt_fat_burn_heart_rate_upper_limit;
+static int hf_btatt_first_name;
+static int hf_btatt_five_zone_heart_rate_limits_very_light_light_limit;
+static int hf_btatt_five_zone_heart_rate_limits_light_moderate_limit;
+static int hf_btatt_five_zone_heart_rate_limits_moderate_hard_limit;
+static int hf_btatt_five_zone_heart_rate_limits_hard_maximum_limit;
+static int hf_btatt_gender;
+static int hf_btatt_heart_rate_max;
+static int hf_btatt_height;
+static int hf_btatt_hip_circumference;
+static int hf_btatt_last_name;
+static int hf_btatt_maximum_recommended_heart_rate;
+static int hf_btatt_resting_heart_rate;
+static int hf_btatt_sport_type_for_aerobic_and_anaerobic_thresholds;
+static int hf_btatt_three_zone_heart_rate_limits_light_moderate;
+static int hf_btatt_three_zone_heart_rate_limits_moderate_hard;
+static int hf_btatt_two_zone_heart_rate_limit_fat_burn_fitness;
+static int hf_btatt_vo2_max;
+static int hf_btatt_waist_circumference;
+static int hf_btatt_weight;
+static int hf_btatt_database_change_increment;
+static int hf_btatt_user_index;
+static int hf_btatt_magnetic_flux_density_x;
+static int hf_btatt_magnetic_flux_density_y;
+static int hf_btatt_magnetic_flux_density_z;
+static int hf_btatt_language;
+static int hf_btatt_barometric_pressure_trend;
+static int hf_btatt_central_address_resolution;
+static int hf_btatt_resolvable_private_address;
+static int hf_btatt_cycling_power_feature;
+static int hf_btatt_cycling_power_feature_reserved;
+static int hf_btatt_cycling_power_feature_factory_calibration_date;
+static int hf_btatt_cycling_power_feature_instantaneous_measurement_direction;
+static int hf_btatt_cycling_power_feature_sensor_measurement_context;
+static int hf_btatt_cycling_power_feature_span_length_adjustment;
+static int hf_btatt_cycling_power_feature_chain_weight_adjustment;
+static int hf_btatt_cycling_power_feature_chain_length_adjustment;
+static int hf_btatt_cycling_power_feature_crank_length_adjustment;
+static int hf_btatt_cycling_power_feature_multiple_sensor_locations;
+static int hf_btatt_cycling_power_feature_cycling_power_measurement_characteristic_content_masking;
+static int hf_btatt_cycling_power_feature_offset_compensation;
+static int hf_btatt_cycling_power_feature_offset_compensation_indicator;
+static int hf_btatt_cycling_power_feature_accumulated_energy;
+static int hf_btatt_cycling_power_feature_top_and_bottom_dead_spot_angles;
+static int hf_btatt_cycling_power_feature_extreme_angles;
+static int hf_btatt_cycling_power_feature_extreme_magnitudes;
+static int hf_btatt_cycling_power_feature_crank_revolution_data;
+static int hf_btatt_cycling_power_feature_wheel_revolution_data;
+static int hf_btatt_cycling_power_feature_accumulated_torque;
+static int hf_btatt_cycling_power_feature_pedal_power_balance;
+static int hf_btatt_ln_feature;
+static int hf_btatt_ln_feature_reserved;
+static int hf_btatt_ln_feature_position_status;
+static int hf_btatt_ln_feature_elevation_setting;
+static int hf_btatt_ln_feature_fix_rate_setting;
+static int hf_btatt_ln_feature_location_and_speed_characteristic_content_masking;
+static int hf_btatt_ln_feature_vertical_dilution_of_precision;
+static int hf_btatt_ln_feature_horizontal_dilution_of_precision;
+static int hf_btatt_ln_feature_estimated_vertical_position_error;
+static int hf_btatt_ln_feature_estimated_horizontal_position_error;
+static int hf_btatt_ln_feature_time_to_first_fix;
+static int hf_btatt_ln_feature_number_of_beacons_in_view;
+static int hf_btatt_ln_feature_number_of_beacons_in_solution;
+static int hf_btatt_ln_feature_estimated_time_of_arrival;
+static int hf_btatt_ln_feature_remaining_vertical_distance;
+static int hf_btatt_ln_feature_remaining_distance;
+static int hf_btatt_ln_feature_utc_time;
+static int hf_btatt_ln_feature_rolling_time;
+static int hf_btatt_ln_feature_heading;
+static int hf_btatt_ln_feature_elevation;
+static int hf_btatt_ln_feature_location;
+static int hf_btatt_ln_feature_total_distance;
+static int hf_btatt_ln_feature_instantaneous_speed;
+static int hf_btatt_body_composition_feature;
+static int hf_btatt_body_composition_feature_reserved;
+static int hf_btatt_body_composition_feature_height_measurement_resolution;
+static int hf_btatt_body_composition_feature_mass_measurement_resolution;
+static int hf_btatt_body_composition_feature_height;
+static int hf_btatt_body_composition_feature_weight;
+static int hf_btatt_body_composition_feature_impedance;
+static int hf_btatt_body_composition_feature_body_water_mass;
+static int hf_btatt_body_composition_feature_soft_lean_mass;
+static int hf_btatt_body_composition_feature_fat_free_mass;
+static int hf_btatt_body_composition_feature_muscle_mass;
+static int hf_btatt_body_composition_feature_muscle_percentage;
+static int hf_btatt_body_composition_feature_basal_metabolism;
+static int hf_btatt_body_composition_feature_multiple_users;
+static int hf_btatt_body_composition_feature_timestamp;
+static int hf_btatt_weight_scale_feature;
+static int hf_btatt_weight_scale_feature_reserved;
+static int hf_btatt_weight_scale_feature_height_measurement_resolution;
+static int hf_btatt_weight_scale_feature_weight_measurement_resolution;
+static int hf_btatt_weight_scale_feature_bmi;
+static int hf_btatt_weight_scale_feature_multiple_users;
+static int hf_btatt_weight_scale_feature_timestamp;
+static int hf_btatt_glucose_measurement_flags;
+static int hf_btatt_glucose_measurement_flags_reserved;
+static int hf_btatt_glucose_measurement_flags_context_information_follows;
+static int hf_btatt_glucose_measurement_flags_sensor_status_annunciation_present;
+static int hf_btatt_glucose_measurement_flags_glucose_concentration_units;
+static int hf_btatt_glucose_measurement_flags_glucose_concentration_type_and_sample_location_present;
+static int hf_btatt_glucose_measurement_flags_time_offset_present;
+static int hf_btatt_glucose_measurement_sequence_number;
+static int hf_btatt_glucose_measurement_base_time;
+static int hf_btatt_glucose_measurement_time_offset;
+static int hf_btatt_glucose_measurement_glucose_concentration_kg_per_l;
+static int hf_btatt_glucose_measurement_glucose_concentration_mol_per_l;
+static int hf_btatt_glucose_measurement_type_and_sample_location;
+static int hf_btatt_glucose_measurement_type_and_sample_location_type;
+static int hf_btatt_glucose_measurement_type_and_sample_location_sample_location;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_reserved;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_time_fault;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_general_fault;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_read_interrupted;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_temperature_too_low;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_temperature_too_high;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_result_too_low;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_result_too_high;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_strip_type_incorrect;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_strip_insertion_error;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_size_insufficient;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_fault;
+static int hf_btatt_glucose_measurement_sensor_status_annunciation_battery_low;
+static int hf_btatt_bond_management_feature;
+static int hf_btatt_bond_management_feature_feature_extension;
+static int hf_btatt_bond_management_feature_reserved;
+static int hf_btatt_bond_management_feature_identify_yourself;
+static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_9;
+static int hf_btatt_bond_management_feature_remove_all_but_the_active_bond_on_le_transport_only_server;
+static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_8;
+static int hf_btatt_bond_management_feature_remove_all_but_the_active_bond_on_br_edr_transport_only_server;
+static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_7;
+static int hf_btatt_bond_management_feature_remove_all_but_the_active_bond_on_br_edr_and_le_server;
+static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_6;
+static int hf_btatt_bond_management_feature_remove_all_bonds_on_le_transport_only_server;
+static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_5;
+static int hf_btatt_bond_management_feature_remove_all_bonds_on_br_edr_transport_only_server;
+static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_4;
+static int hf_btatt_bond_management_feature_remove_all_bonds_on_br_edr_and_le_server;
+static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_3;
+static int hf_btatt_bond_management_feature_delete_bond_of_current_le_transport_only_connection;
+static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_2;
+static int hf_btatt_bond_management_feature_delete_bond_of_current_br_edr_transport_only_connection;
+static int hf_btatt_bond_management_feature_authorization_code_required_for_feature_above_1;
+static int hf_btatt_bond_management_feature_delete_bond_of_current_br_edr_and_le_connection;
+static int hf_btatt_bond_management_feature_nth;
+static int hf_btatt_bond_management_feature_nth_feature_extension;
+static int hf_btatt_bond_management_feature_nth_reserved;
+static int hf_btatt_bond_management_control_point_opcode;
+static int hf_btatt_bond_management_control_point_authorization_code;
+static int hf_btatt_temperature_measurement_flags;
+static int hf_btatt_temperature_measurement_flags_reserved;
+static int hf_btatt_temperature_measurement_flags_temperature_type;
+static int hf_btatt_temperature_measurement_flags_timestamp;
+static int hf_btatt_temperature_measurement_flags_temperature_unit;
+static int hf_btatt_temperature_measurement_value_celsius;
+static int hf_btatt_temperature_measurement_value_fahrenheit;
+static int hf_btatt_temperature_measurement_timestamp;
+static int hf_btatt_glucose_measurement_context_flags;
+static int hf_btatt_glucose_measurement_context_flags_extended_flags;
+static int hf_btatt_glucose_measurement_context_flags_hba1c;
+static int hf_btatt_glucose_measurement_context_flags_medication_value_units;
+static int hf_btatt_glucose_measurement_context_flags_medication_id_and_medication;
+static int hf_btatt_glucose_measurement_context_flags_exercise_duration_and_exercise_intensity;
+static int hf_btatt_glucose_measurement_context_flags_tester_health;
+static int hf_btatt_glucose_measurement_context_flags_meal;
+static int hf_btatt_glucose_measurement_context_flags_carbohydrate_id_and_carbohydrate;
+static int hf_btatt_glucose_measurement_context_sequence_number;
+static int hf_btatt_glucose_measurement_context_extended_flags;
+static int hf_btatt_glucose_measurement_context_extended_flags_reserved;
+static int hf_btatt_glucose_measurement_context_carbohydrate_id;
+static int hf_btatt_glucose_measurement_context_carbohydrate_kg;
+static int hf_btatt_glucose_measurement_context_meal;
+static int hf_btatt_glucose_measurement_context_tester_health;
+static int hf_btatt_glucose_measurement_context_tester;
+static int hf_btatt_glucose_measurement_context_health;
+static int hf_btatt_glucose_measurement_context_exercise_duration;
+static int hf_btatt_glucose_measurement_context_exercise_intensity;
+static int hf_btatt_glucose_measurement_context_medication_id;
+static int hf_btatt_glucose_measurement_context_medication_l;
+static int hf_btatt_glucose_measurement_context_medication_kg;
+static int hf_btatt_glucose_measurement_context_hba1c;
+static int hf_btatt_blood_pressure_measurement_flags;
+static int hf_btatt_blood_pressure_measurement_flags_reserved;
+static int hf_btatt_blood_pressure_measurement_flags_measurement_status;
+static int hf_btatt_blood_pressure_measurement_flags_user_id;
+static int hf_btatt_blood_pressure_measurement_flags_pulse_rate;
+static int hf_btatt_blood_pressure_measurement_flags_timestamp;
+static int hf_btatt_blood_pressure_measurement_flags_unit;
+static int hf_btatt_blood_pressure_measurement_compound_value_systolic_kpa;
+static int hf_btatt_blood_pressure_measurement_compound_value_diastolic_kpa;
+static int hf_btatt_blood_pressure_measurement_compound_value_mean_arterial_pressure_kpa;
+static int hf_btatt_blood_pressure_measurement_compound_value_systolic_mmhg;
+static int hf_btatt_blood_pressure_measurement_compound_value_diastolic_mmhg;
+static int hf_btatt_blood_pressure_measurement_compound_value_mean_arterial_pressure_mmhg;
+static int hf_btatt_blood_pressure_measurement_timestamp;
+static int hf_btatt_blood_pressure_measurement_pulse_rate;
+static int hf_btatt_blood_pressure_measurement_user_id;
+static int hf_btatt_blood_pressure_measurement_status;
+static int hf_btatt_blood_pressure_measurement_status_reserved;
+static int hf_btatt_blood_pressure_measurement_status_improper_measurement_position;
+static int hf_btatt_blood_pressure_measurement_status_pulse_rate_range_detection;
+static int hf_btatt_blood_pressure_measurement_status_irregular_pulse;
+static int hf_btatt_blood_pressure_measurement_status_cuff_fit_too_loose;
+static int hf_btatt_blood_pressure_measurement_status_body_movement;
+static int hf_btatt_heart_rate_measurement_flags;
+static int hf_btatt_heart_rate_measurement_flags_reserved;
+static int hf_btatt_heart_rate_measurement_flags_rr_interval;
+static int hf_btatt_heart_rate_measurement_flags_energy_expended;
+static int hf_btatt_heart_rate_measurement_flags_sensor_contact_status_support;
+static int hf_btatt_heart_rate_measurement_flags_sensor_contact_status_contact;
+static int hf_btatt_heart_rate_measurement_flags_value_16;
+static int hf_btatt_heart_rate_measurement_value_8;
+static int hf_btatt_heart_rate_measurement_value_16;
+static int hf_btatt_heart_rate_measurement_energy_expended;
+static int hf_btatt_heart_rate_measurement_rr_intervals;
+static int hf_btatt_heart_rate_measurement_rr_interval;
+static int hf_btatt_record_access_control_point_opcode;
+static int hf_btatt_record_access_control_point_operator;
+static int hf_btatt_record_access_control_point_operand;
+static int hf_btatt_record_access_control_point_operand_filter_type;
+static int hf_btatt_record_access_control_point_operand_min_time_offset;
+static int hf_btatt_record_access_control_point_operand_max_time_offset;
+static int hf_btatt_record_access_control_point_operand_number_of_records;
+static int hf_btatt_record_access_control_point_request_opcode;
+static int hf_btatt_record_access_control_point_response_code;
+static int hf_btatt_value_trigger_setting_condition;
+static int hf_btatt_value_trigger_setting_analog;
+static int hf_btatt_value_trigger_setting_analog_one;
+static int hf_btatt_value_trigger_setting_analog_two;
+static int hf_btatt_digital;
+static int hf_btatt_digital_output;
+static int hf_btatt_analog;
+static int hf_btatt_analog_output;
+static int hf_btatt_location_name;
+static int hf_btatt_uncertainty;
+static int hf_btatt_uncertainty_reserved;
+static int hf_btatt_uncertainty_precision;
+static int hf_btatt_uncertainty_update_time;
+static int hf_btatt_uncertainty_stationary;
+static int hf_btatt_latitude;
+static int hf_btatt_longitude;
+static int hf_btatt_local_north_coordinate;
+static int hf_btatt_local_east_coordinate;
+static int hf_btatt_floor_number;
+static int hf_btatt_altitude;
+static int hf_btatt_indoor_positioning_configuration;
+static int hf_btatt_indoor_positioning_configuration_reserved;
+static int hf_btatt_indoor_positioning_configuration_location_name;
+static int hf_btatt_indoor_positioning_configuration_uncertainty;
+static int hf_btatt_indoor_positioning_configuration_floor_number;
+static int hf_btatt_indoor_positioning_configuration_altitude;
+static int hf_btatt_indoor_positioning_configuration_tx_power;
+static int hf_btatt_indoor_positioning_configuration_coordinate_system;
+static int hf_btatt_indoor_positioning_configuration_coordinates;
+static int hf_btatt_number_of_digitals;
+static int hf_btatt_time_trigger_setting_condition;
+static int hf_btatt_time_trigger_setting_value;
+static int hf_btatt_time_trigger_setting_value_count;
+static int hf_btatt_time_trigger_setting_value_time_interval;
+static int hf_btatt_rsc_measurement_flags;
+static int hf_btatt_rsc_measurement_flags_reserved;
+static int hf_btatt_rsc_measurement_flags_type_of_movement;
+static int hf_btatt_rsc_measurement_flags_total_distance_present;
+static int hf_btatt_rsc_measurement_flags_instantaneous_stride_length_present;
+static int hf_btatt_rsc_measurement_instantaneous_speed;
+static int hf_btatt_rsc_measurement_instantaneous_cadence;
+static int hf_btatt_rsc_measurement_instantaneous_stride_length;
+static int hf_btatt_rsc_measurement_total_distance;
+static int hf_btatt_sc_control_point_opcode;
+static int hf_btatt_sc_control_point_cumulative_value;
+static int hf_btatt_sc_control_point_request_opcode;
+static int hf_btatt_sc_control_point_response_value;
+static int hf_btatt_cycling_power_measurement_flags;
+static int hf_btatt_cycling_power_measurement_flags_reserved;
+static int hf_btatt_cycling_power_measurement_flags_offset_compensation_indicator;
+static int hf_btatt_cycling_power_measurement_flags_accumulated_energy;
+static int hf_btatt_cycling_power_measurement_flags_bottom_dead_spot_angle;
+static int hf_btatt_cycling_power_measurement_flags_top_dead_spot_angle;
+static int hf_btatt_cycling_power_measurement_flags_extreme_angles;
+static int hf_btatt_cycling_power_measurement_flags_extreme_torque_magnitudes;
+static int hf_btatt_cycling_power_measurement_flags_extreme_force_magnitudes;
+static int hf_btatt_cycling_power_measurement_flags_crank_revolution_data;
+static int hf_btatt_cycling_power_measurement_flags_wheel_revolution_data;
+static int hf_btatt_cycling_power_measurement_flags_accumulated_torque_source;
+static int hf_btatt_cycling_power_measurement_flags_accumulated_torque;
+static int hf_btatt_cycling_power_measurement_flags_pedal_power_balance_reference;
+static int hf_btatt_cycling_power_measurement_flags_pedal_power_balance;
+static int hf_btatt_cycling_power_measurement_instantaneous_power;
+static int hf_btatt_cycling_power_measurement_pedal_power_balance;
+static int hf_btatt_cycling_power_measurement_accumulated_torque;
+static int hf_btatt_cycling_power_measurement_wheel_revolution_data_cumulative_wheel_revolutions;
+static int hf_btatt_cycling_power_measurement_wheel_revolution_data_last_wheel_event_time;
+static int hf_btatt_cycling_power_measurement_crank_revolution_data_cumulative_crank_revolutions;
+static int hf_btatt_cycling_power_measurement_crank_revolution_data_last_crank_event_time;
+static int hf_btatt_cycling_power_measurement_extreme_force_magnitudes_maximum_force_magnitude;
+static int hf_btatt_cycling_power_measurement_extreme_force_magnitudes_minimum_force_magnitude;
+static int hf_btatt_cycling_power_measurement_extreme_torque_magnitudes_maximum_torque_magnitude;
+static int hf_btatt_cycling_power_measurement_extreme_torque_magnitudes_minimum_torque_magnitude;
+static int hf_btatt_cycling_power_measurement_extreme_angles;
+static int hf_btatt_cycling_power_measurement_extreme_angles_maximum;
+static int hf_btatt_cycling_power_measurement_extreme_angles_minimum;
+static int hf_btatt_cycling_power_measurement_top_dead_spot_angle;
+static int hf_btatt_cycling_power_measurement_bottom_dead_spot_angle;
+static int hf_btatt_cycling_power_measurement_accumulated_energy;
+static int hf_btatt_csc_measurement_flags;
+static int hf_btatt_csc_measurement_flags_reserved;
+static int hf_btatt_csc_measurement_flags_crank_revolution_data;
+static int hf_btatt_csc_measurement_flags_wheel_revolution_data;
+static int hf_btatt_csc_measurement_cumulative_wheel_revolutions;
+static int hf_btatt_csc_measurement_cumulative_crank_revolutions;
+static int hf_btatt_csc_measurement_last_event_time;
+static int hf_btatt_cycling_power_vector_flags;
+static int hf_btatt_cycling_power_vector_flags_reserved;
+static int hf_btatt_cycling_power_vector_flags_instantaneous_measurement_direction;
+static int hf_btatt_cycling_power_vector_flags_instantaneous_torque_magnitude_array;
+static int hf_btatt_cycling_power_vector_flags_instantaneous_force_magnitude_array;
+static int hf_btatt_cycling_power_vector_flags_first_crank_measurement_angle;
+static int hf_btatt_cycling_power_vector_flags_crank_revolution_data;
+static int hf_btatt_cycling_power_vector_crank_revolution_data_cumulative_crank_revolutions;
+static int hf_btatt_cycling_power_vector_crank_revolution_data_last_crank_event_time;
+static int hf_btatt_cycling_power_vector_first_crank_measurement_angle;
+static int hf_btatt_cycling_power_vector_instantaneous_force_magnitude_array;
+static int hf_btatt_cycling_power_vector_instantaneous_torque_magnitude_array;
+static int hf_btatt_cycling_power_control_point_opcode;
+static int hf_btatt_cycling_power_control_point_cumulative_value;
+static int hf_btatt_cycling_power_control_point_sensor_location;
+static int hf_btatt_cycling_power_control_point_crank_length;
+static int hf_btatt_cycling_power_control_point_chain_length;
+static int hf_btatt_cycling_power_control_point_chain_weight;
+static int hf_btatt_cycling_power_control_point_span_length;
+static int hf_btatt_cycling_power_control_point_content_mask;
+static int hf_btatt_cycling_power_control_point_content_mask_reserved;
+static int hf_btatt_cycling_power_control_point_content_mask_accumulated_energy;
+static int hf_btatt_cycling_power_control_point_content_mask_bottom_dead_spot_angle;
+static int hf_btatt_cycling_power_control_point_content_mask_top_dead_spot_angle;
+static int hf_btatt_cycling_power_control_point_content_mask_extreme_angles;
+static int hf_btatt_cycling_power_control_point_content_mask_extreme_magnitudes;
+static int hf_btatt_cycling_power_control_point_content_mask_crank_revolution_data;
+static int hf_btatt_cycling_power_control_point_content_mask_wheel_revolution_data;
+static int hf_btatt_cycling_power_control_point_content_mask_accumulated_torque;
+static int hf_btatt_cycling_power_control_point_content_mask_pedal_power_balance;
+static int hf_btatt_cycling_power_control_point_request_opcode;
+static int hf_btatt_cycling_power_control_point_response_value;
+static int hf_btatt_cycling_power_control_point_start_offset_compensation;
+static int hf_btatt_cycling_power_control_point_sampling_rate;
+static int hf_btatt_cycling_power_control_point_factory_calibration_date;
+static int hf_btatt_location_and_speed_flags;
+static int hf_btatt_location_and_speed_flags_reserved;
+static int hf_btatt_location_and_speed_flags_heading_source;
+static int hf_btatt_location_and_speed_flags_elevation_source;
+static int hf_btatt_location_and_speed_flags_speed_and_distance_format;
+static int hf_btatt_location_and_speed_flags_position_status;
+static int hf_btatt_location_and_speed_flags_utc_time;
+static int hf_btatt_location_and_speed_flags_rolling_time;
+static int hf_btatt_location_and_speed_flags_heading;
+static int hf_btatt_location_and_speed_flags_elevation;
+static int hf_btatt_location_and_speed_flags_location;
+static int hf_btatt_location_and_speed_flags_total_distance;
+static int hf_btatt_location_and_speed_flags_instantaneous_speed;
+static int hf_btatt_location_and_speed_instantaneous_speed;
+static int hf_btatt_location_and_speed_total_distance;
+static int hf_btatt_location_and_speed_location_latitude;
+static int hf_btatt_location_and_speed_location_longitude;
+static int hf_btatt_location_and_speed_elevation;
+static int hf_btatt_location_and_speed_heading;
+static int hf_btatt_location_and_speed_rolling_time;
+static int hf_btatt_location_and_speed_utc_time;
+static int hf_btatt_navigation_flags;
+static int hf_btatt_navigation_flags_reserved;
+static int hf_btatt_navigation_flags_destination_reached;
+static int hf_btatt_navigation_flags_waypoint_reached;
+static int hf_btatt_navigation_flags_navigation_indicator_type;
+static int hf_btatt_navigation_flags_heading_source;
+static int hf_btatt_navigation_flags_position_status;
+static int hf_btatt_navigation_flags_estimated_time_of_arrival;
+static int hf_btatt_navigation_flags_remaining_vertical_distance;
+static int hf_btatt_navigation_flags_remaining_distance;
+static int hf_btatt_navigation_bearing;
+static int hf_btatt_navigation_heading;
+static int hf_btatt_navigation_remaining_distance;
+static int hf_btatt_navigation_remaining_vertical_distance;
+static int hf_btatt_navigation_estimated_time_of_arrival;
+static int hf_btatt_position_quality_flags;
+static int hf_btatt_position_quality_flags_reserved;
+static int hf_btatt_position_quality_flags_position_status;
+static int hf_btatt_position_quality_flags_vdop;
+static int hf_btatt_position_quality_flags_hdop;
+static int hf_btatt_position_quality_flags_evpe;
+static int hf_btatt_position_quality_flags_ehpe;
+static int hf_btatt_position_quality_flags_time_to_first_fix;
+static int hf_btatt_position_quality_flags_number_of_beacons_in_view;
+static int hf_btatt_position_quality_flags_number_of_beacons_in_solution;
+static int hf_btatt_position_quality_number_of_beacons_in_solution;
+static int hf_btatt_position_quality_number_of_beacons_in_view;
+static int hf_btatt_position_quality_time_to_first_fix;
+static int hf_btatt_position_quality_ehpe;
+static int hf_btatt_position_quality_evpe;
+static int hf_btatt_position_quality_hdop;
+static int hf_btatt_position_quality_vdop;
+static int hf_btatt_ln_control_point_opcode;
+static int hf_btatt_ln_control_point_cumulative_value;
+static int hf_btatt_ln_control_point_content_mask;
+static int hf_btatt_ln_control_point_content_mask_reserved;
+static int hf_btatt_ln_control_point_content_mask_utc_time;
+static int hf_btatt_ln_control_point_content_mask_rolling_time;
+static int hf_btatt_ln_control_point_content_mask_heading;
+static int hf_btatt_ln_control_point_content_mask_elevation;
+static int hf_btatt_ln_control_point_content_mask_location;
+static int hf_btatt_ln_control_point_content_mask_total_distance;
+static int hf_btatt_ln_control_point_content_mask_instantaneous_speed;
+static int hf_btatt_ln_control_point_navigation_control;
+static int hf_btatt_ln_control_point_route_number;
+static int hf_btatt_ln_control_point_fix_rate;
+static int hf_btatt_ln_control_point_elevation;
+static int hf_btatt_ln_control_point_request_opcode;
+static int hf_btatt_ln_control_point_response_value;
+static int hf_btatt_ln_control_point_response_value_number_of_routes;
+static int hf_btatt_ln_control_point_response_value_name_of_route;
+static int hf_btatt_body_composition_measurement_flags;
+static int hf_btatt_body_composition_measurement_flags_reserved;
+static int hf_btatt_body_composition_measurement_flags_multiple_packet_measurement;
+static int hf_btatt_body_composition_measurement_flags_height;
+static int hf_btatt_body_composition_measurement_flags_weight;
+static int hf_btatt_body_composition_measurement_flags_impedance;
+static int hf_btatt_body_composition_measurement_flags_body_water_mass;
+static int hf_btatt_body_composition_measurement_flags_soft_lean_mass;
+static int hf_btatt_body_composition_measurement_flags_fat_free_mass;
+static int hf_btatt_body_composition_measurement_flags_muscle_mass;
+static int hf_btatt_body_composition_measurement_flags_muscle_percentage;
+static int hf_btatt_body_composition_measurement_flags_basal_metabolism;
+static int hf_btatt_body_composition_measurement_flags_user_id;
+static int hf_btatt_body_composition_measurement_flags_timestamp;
+static int hf_btatt_body_composition_measurement_flags_measurement_units;
+static int hf_btatt_body_composition_measurement_body_fat_percentage;
+static int hf_btatt_body_composition_measurement_timestamp;
+static int hf_btatt_body_composition_measurement_user_id;
+static int hf_btatt_body_composition_measurement_basal_metabolism;
+static int hf_btatt_body_composition_measurement_muscle_percentage;
+static int hf_btatt_body_composition_measurement_muscle_mass_lb;
+static int hf_btatt_body_composition_measurement_muscle_mass_kg;
+static int hf_btatt_body_composition_measurement_fat_free_mass_lb;
+static int hf_btatt_body_composition_measurement_fat_free_mass_kg;
+static int hf_btatt_body_composition_measurement_soft_lean_mass_lb;
+static int hf_btatt_body_composition_measurement_soft_lean_mass_kg;
+static int hf_btatt_body_composition_measurement_body_water_mass_lb;
+static int hf_btatt_body_composition_measurement_body_water_mass_kg;
+static int hf_btatt_body_composition_measurement_impedance;
+static int hf_btatt_body_composition_measurement_weight_lb;
+static int hf_btatt_body_composition_measurement_weight_kg;
+static int hf_btatt_body_composition_measurement_height_inches;
+static int hf_btatt_body_composition_measurement_height_meter;
+static int hf_btatt_weight_measurement_flags;
+static int hf_btatt_weight_measurement_flags_reserved;
+static int hf_btatt_weight_measurement_flags_bmi_and_height;
+static int hf_btatt_weight_measurement_flags_user_id;
+static int hf_btatt_weight_measurement_flags_timestamp;
+static int hf_btatt_weight_measurement_flags_measurement_units;
+static int hf_btatt_weight_measurement_weight_lb;
+static int hf_btatt_weight_measurement_weight_kg;
+static int hf_btatt_weight_measurement_timestamp;
+static int hf_btatt_weight_measurement_user_id;
+static int hf_btatt_weight_measurement_bmi;
+static int hf_btatt_weight_measurement_height_in;
+static int hf_btatt_weight_measurement_height_m;
+static int hf_btatt_user_control_point_opcode;
+static int hf_btatt_user_control_point_request_opcode;
+static int hf_btatt_user_control_point_response_value;
+static int hf_btatt_user_control_point_consent_code;
+static int hf_btatt_cgm_measurement_size;
+static int hf_btatt_cgm_measurement_flags;
+static int hf_btatt_cgm_measurement_flags_cgm_trend_information;
+static int hf_btatt_cgm_measurement_flags_cgm_quality;
+static int hf_btatt_cgm_measurement_flags_reserved;
+static int hf_btatt_cgm_measurement_flags_sensor_status_annunciation_warning;
+static int hf_btatt_cgm_measurement_flags_sensor_status_annunciation_cal_temp;
+static int hf_btatt_cgm_measurement_flags_sensor_status_annunciation_status;
+static int hf_btatt_cgm_measurement_glucose_concentration;
+static int hf_btatt_cgm_measurement_time_offset;
+static int hf_btatt_cgm_sensor_status_annunciation;
+static int hf_btatt_cgm_sensor_status_annunciation_status;
+static int hf_btatt_cgm_sensor_status_annunciation_status_reserved;
+static int hf_btatt_cgm_sensor_status_annunciation_status_general_device_fault_has_occurred_in_the_sensor;
+static int hf_btatt_cgm_sensor_status_annunciation_status_device_specific_alert;
+static int hf_btatt_cgm_sensor_status_annunciation_status_sensor_malfunction;
+static int hf_btatt_cgm_sensor_status_annunciation_status_sensor_type_incorrect_for_device;
+static int hf_btatt_cgm_sensor_status_annunciation_status_device_battery_low;
+static int hf_btatt_cgm_sensor_status_annunciation_status_session_stopped;
+static int hf_btatt_cgm_sensor_status_annunciation_cal_temp;
+static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_reserved;
+static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_sensor_temperature_too_low_for_valid_test_result_at_time_of_measurement;
+static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_sensor_temperature_too_high_for_valid_test_result_at_time_of_measurement;
+static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_calibration_required;
+static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_calibration_recommended;
+static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_calibration_not_allowed;
+static int hf_btatt_cgm_sensor_status_annunciation_cal_temp_time_synchronization_between_sensor_and_collector_required;
+static int hf_btatt_cgm_sensor_status_annunciation_warning;
+static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_higher_than_the_device_can_process;
+static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_lower_than_the_device_can_process;
+static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_rate_of_increase_exceeded;
+static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_rate_of_decrease_exceeded;
+static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_higher_than_the_hyper_level;
+static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_lower_than_the_hypo_level;
+static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_higher_than_the_patient_high_level;
+static int hf_btatt_cgm_sensor_status_annunciation_warning_sensor_result_lower_than_the_patient_low_level;
+static int hf_btatt_cgm_measurement_trend_information;
+static int hf_btatt_cgm_measurement_quality;
+static int hf_btatt_cgm_e2e_crc;
+static int hf_btatt_cgm_feature_feature;
+static int hf_btatt_cgm_feature_feature_reserved;
+static int hf_btatt_cgm_feature_feature_quality;
+static int hf_btatt_cgm_feature_feature_trend_information;
+static int hf_btatt_cgm_feature_feature_multiple_sessions;
+static int hf_btatt_cgm_feature_feature_multiple_bond;
+static int hf_btatt_cgm_feature_feature_e2e_crc;
+static int hf_btatt_cgm_feature_feature_general_device_fault;
+static int hf_btatt_cgm_feature_feature_sensor_type_error_detection;
+static int hf_btatt_cgm_feature_feature_low_battery_detection;
+static int hf_btatt_cgm_feature_feature_sensor_result_high_low_detection;
+static int hf_btatt_cgm_feature_feature_sensor_temperature_high_low_detection;
+static int hf_btatt_cgm_feature_feature_sensor_malfunction_detection;
+static int hf_btatt_cgm_feature_feature_device_specific_alert;
+static int hf_btatt_cgm_feature_feature_rate_of_increase_decrease_alerts;
+static int hf_btatt_cgm_feature_feature_hyper_alerts;
+static int hf_btatt_cgm_feature_feature_hypo_alerts;
+static int hf_btatt_cgm_feature_feature_patient_high_low_alerts;
+static int hf_btatt_cgm_feature_feature_calibration;
+static int hf_btatt_cgm_type_and_sample_location;
+static int hf_btatt_cgm_type;
+static int hf_btatt_cgm_sample_location;
+static int hf_btatt_cgm_time_offset;
+static int hf_btatt_cgm_status;
+static int hf_btatt_cgm_session_start_time;
+static int hf_btatt_cgm_session_run_time;
+static int hf_btatt_cgm_specific_ops_control_point_opcode;
+static int hf_btatt_cgm_specific_ops_control_point_operand;
+static int hf_btatt_cgm_specific_ops_control_point_operand_communication_interval;
+static int hf_btatt_cgm_specific_ops_control_point_calibration_glucose_concentration;
+static int hf_btatt_cgm_specific_ops_control_point_calibration_time;
+static int hf_btatt_cgm_specific_ops_control_point_next_calibration_time;
+static int hf_btatt_cgm_specific_ops_control_point_calibration_data_record_number;
+static int hf_btatt_cgm_specific_ops_control_point_calibration_status;
+static int hf_btatt_cgm_specific_ops_control_point_calibration_status_reserved;
+static int hf_btatt_cgm_specific_ops_control_point_calibration_status_pending;
+static int hf_btatt_cgm_specific_ops_control_point_calibration_status_out_of_range;
+static int hf_btatt_cgm_specific_ops_control_point_calibration_status_rejected;
+static int hf_btatt_cgm_specific_ops_control_point_operand_calibration_data_record_number;
+static int hf_btatt_cgm_specific_ops_control_point_operand_alert_level;
+static int hf_btatt_cgm_specific_ops_control_point_operand_alert_level_rate;
+static int hf_btatt_cgm_specific_ops_control_point_request_opcode;
+static int hf_btatt_cgm_specific_ops_control_point_response_code;
+static int hf_btatt_uri;
+static int hf_btatt_http_headers;
+static int hf_btatt_http_status_code;
+static int hf_btatt_http_data_status;
+static int hf_btatt_http_data_status_reserved;
+static int hf_btatt_http_data_status_body_truncated;
+static int hf_btatt_http_data_status_body_received;
+static int hf_btatt_http_data_status_headers_truncated;
+static int hf_btatt_http_data_status_headers_received;
+static int hf_btatt_http_entity_body;
+static int hf_btatt_http_control_point_opcode;
+static int hf_btatt_https_security;
+static int hf_btatt_tds_opcode;
+static int hf_btatt_tds_result_code;
+static int hf_btatt_tds_organization_id;
+static int hf_btatt_tds_data;
+static int hf_btatt_ots_feature_oacp;
+static int hf_btatt_ots_feature_oacp_reserved;
+static int hf_btatt_ots_feature_oacp_abort;
+static int hf_btatt_ots_feature_oacp_patching_of_object;
+static int hf_btatt_ots_feature_oacp_truncation_of_objects;
+static int hf_btatt_ots_feature_oacp_appending_additional_data_to_object;
+static int hf_btatt_ots_feature_oacp_write;
+static int hf_btatt_ots_feature_oacp_read;
+static int hf_btatt_ots_feature_oacp_execute;
+static int hf_btatt_ots_feature_oacp_calculate_checksum;
+static int hf_btatt_ots_feature_oacp_delete;
+static int hf_btatt_ots_feature_oacp_create;
+static int hf_btatt_ots_feature_olcp;
+static int hf_btatt_ots_feature_olcp_reserved;
+static int hf_btatt_ots_feature_olcp_clear_marking;
+static int hf_btatt_ots_feature_olcp_request_number_of_objects;
+static int hf_btatt_ots_feature_olcp_order;
+static int hf_btatt_ots_feature_olcp_go_to;
+static int hf_btatt_ots_object_name;
+static int hf_btatt_ots_current_size;
+static int hf_btatt_ots_allocated_size;
+static int hf_btatt_ots_object_id;
+static int hf_btatt_ots_properties;
+static int hf_btatt_ots_properties_reserved;
+static int hf_btatt_ots_properties_mark;
+static int hf_btatt_ots_properties_patch;
+static int hf_btatt_ots_properties_truncate;
+static int hf_btatt_ots_properties_append;
+static int hf_btatt_ots_properties_write;
+static int hf_btatt_ots_properties_read;
+static int hf_btatt_ots_properties_execute;
+static int hf_btatt_ots_properties_delete;
+static int hf_btatt_ots_flags;
+static int hf_btatt_ots_flags_reserved;
+static int hf_btatt_ots_flags_object_deletion;
+static int hf_btatt_ots_flags_object_creation;
+static int hf_btatt_ots_flags_change_occurred_to_the_object_metadata;
+static int hf_btatt_ots_flags_change_occurred_to_the_object_contents;
+static int hf_btatt_ots_flags_source_of_change;
+static int hf_btatt_ots_action_opcode;
+static int hf_btatt_ots_size;
+static int hf_btatt_ots_offset;
+static int hf_btatt_ots_length;
+static int hf_btatt_ots_execute_data;
+static int hf_btatt_ots_action_response_opcode;
+static int hf_btatt_ots_action_result_code;
+static int hf_btatt_ots_checksum;
+static int hf_btatt_ots_list_opcode;
+static int hf_btatt_ots_list_order;
+static int hf_btatt_ots_list_response_opcode;
+static int hf_btatt_ots_list_result_code;
+static int hf_btatt_ots_list_total_number_of_objects;
+static int hf_btatt_ots_filter;
+static int hf_btatt_ots_name_string;
+static int hf_btatt_ots_size_from;
+static int hf_btatt_ots_size_to;
+static int hf_btatt_ots_object_first_created;
+static int hf_btatt_ots_object_last_modified;
+static int hf_btatt_plx_spot_check_measurement_flags;
+static int hf_btatt_plx_spot_check_measurement_flags_reserved;
+static int hf_btatt_plx_spot_check_measurement_flags_device_clock_is_not_set;
+static int hf_btatt_plx_spot_check_measurement_flags_pulse_amplitude_index;
+static int hf_btatt_plx_spot_check_measurement_flags_device_and_sensor_status;
+static int hf_btatt_plx_spot_check_measurement_flags_measurement_status;
+static int hf_btatt_plx_spot_check_measurement_flags_timestamp;
+static int hf_btatt_plx_spo2;
+static int hf_btatt_plx_pulse_rate;
+static int hf_btatt_plx_spot_check_measurement_timestamp;
+static int hf_btatt_plx_measurement_status;
+static int hf_btatt_plx_measurement_status_invalid_measurement_detected;
+static int hf_btatt_plx_measurement_status_questionable_measurement_detected;
+static int hf_btatt_plx_measurement_status_measurement_unavailable;
+static int hf_btatt_plx_measurement_status_calibration_ongoing;
+static int hf_btatt_plx_measurement_status_data_for_testing;
+static int hf_btatt_plx_measurement_status_data_for_demonstration;
+static int hf_btatt_plx_measurement_status_data_from_measurement_storage;
+static int hf_btatt_plx_measurement_status_fully_qualified_data;
+static int hf_btatt_plx_measurement_status_validated_data;
+static int hf_btatt_plx_measurement_status_early_estimated_data;
+static int hf_btatt_plx_measurement_status_measurement_ongoing;
+static int hf_btatt_plx_measurement_status_reserved;
+static int hf_btatt_plx_device_and_sensor_status;
+static int hf_btatt_plx_device_and_sensor_status_reserved;
+static int hf_btatt_plx_device_and_sensor_status_sensor_disconnected;
+static int hf_btatt_plx_device_and_sensor_status_sensor_malfunctioning;
+static int hf_btatt_plx_device_and_sensor_status_sensor_displaced;
+static int hf_btatt_plx_device_and_sensor_status_unknown_sensor_connected;
+static int hf_btatt_plx_device_and_sensor_status_sensor_unconnected_to_user;
+static int hf_btatt_plx_device_and_sensor_status_sensor_interference_detected;
+static int hf_btatt_plx_device_and_sensor_status_signal_analysis_ongoing;
+static int hf_btatt_plx_device_and_sensor_status_questionable_pulse_detected;
+static int hf_btatt_plx_device_and_sensor_status_non_pulsatile_signal_detected;
+static int hf_btatt_plx_device_and_sensor_status_erratic_signal_detected;
+static int hf_btatt_plx_device_and_sensor_status_low_perfusion_detected;
+static int hf_btatt_plx_device_and_sensor_status_poor_signal_detected;
+static int hf_btatt_plx_device_and_sensor_status_inadequate_signal_detected;
+static int hf_btatt_plx_device_and_sensor_status_signal_processing_irregularity_detected;
+static int hf_btatt_plx_device_and_sensor_status_equipment_malfunction_detected;
+static int hf_btatt_plx_device_and_sensor_status_extended_display_update_ongoing;
+static int hf_btatt_plx_pulse_amplitude_index;
+static int hf_btatt_plx_spo2pr_spot_check;
+static int hf_btatt_plx_spo2pr_normal;
+static int hf_btatt_plx_spo2pr_fast;
+static int hf_btatt_plx_spo2pr_slow;
+static int hf_btatt_plx_continuous_measurement_flags;
+static int hf_btatt_plx_continuous_measurement_flags_reserved;
+static int hf_btatt_plx_continuous_measurement_flags_pulse_amplitude_index;
+static int hf_btatt_plx_continuous_measurement_flags_device_and_sensor_status;
+static int hf_btatt_plx_continuous_measurement_flags_measurement_status;
+static int hf_btatt_plx_continuous_measurement_flags_spo2pr_slow;
+static int hf_btatt_plx_continuous_measurement_flags_spo2pr_fast;
+static int hf_btatt_plx_features_supported_features;
+static int hf_btatt_plx_features_supported_features_reserved;
+static int hf_btatt_plx_features_supported_features_multiple_bonds;
+static int hf_btatt_plx_features_supported_features_pulse_amplitude_index;
+static int hf_btatt_plx_features_supported_features_spo2pr_slow;
+static int hf_btatt_plx_features_supported_features_spo2pr_fast;
+static int hf_btatt_plx_features_supported_features_timestamp_storage_for_spot_check;
+static int hf_btatt_plx_features_supported_features_measurement_storage_for_spot_check;
+static int hf_btatt_plx_features_supported_features_device_and_sensor_status;
+static int hf_btatt_plx_features_supported_features_measurement_status;
+static int hf_btatt_regulatory_certification_data_list_count;
+static int hf_btatt_regulatory_certification_data_list_length;
+static int hf_btatt_regulatory_certification_data_list_item;
+static int hf_btatt_regulatory_certification_data_list_item_body;
+static int hf_btatt_regulatory_certification_data_list_item_body_structure_type;
+static int hf_btatt_regulatory_certification_data_list_item_body_structure_length;
+static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data;
+static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_major_ig_version;
+static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_minor_ig_version;
+static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_certification_data_list_count;
+static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_certification_data_list_length;
+static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_certification_data_list;
+static int hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_certified_device_class;
+static int hf_btatt_regulatory_certification_data_list_item_regulation_bit_field_type;
+static int hf_btatt_regulatory_certification_data_list_item_data;
+static int hf_btatt_timezone_information;
+static int hf_btatt_timezone_information_information;
+static int hf_btatt_timezone_information_information_type;
+static int hf_gatt_nordic_uart_tx;
+static int hf_gatt_nordic_uart_rx;
+static int hf_gatt_nordic_dfu_packet;
+static int hf_gatt_nordic_dfu_control_point_opcode;
+static int hf_gatt_nordic_dfu_control_point_init_packet;
+static int hf_gatt_nordic_dfu_control_point_number_of_bytes;
+static int hf_gatt_nordic_dfu_control_point_image_type;
+static int hf_gatt_nordic_dfu_control_point_number_of_packets;
+static int hf_gatt_nordic_dfu_control_point_request_opcode;
+static int hf_gatt_nordic_dfu_control_point_response_value;
+static int hf_gatt_microbit_accelerometer_data;
+static int hf_gatt_microbit_accelerometer_x;
+static int hf_gatt_microbit_accelerometer_y;
+static int hf_gatt_microbit_accelerometer_z;
+static int hf_gatt_microbit_accelerometer_period;
+static int hf_gatt_microbit_magnetometer_data;
+static int hf_gatt_microbit_magnetometer_x;
+static int hf_gatt_microbit_magnetometer_y;
+static int hf_gatt_microbit_magnetometer_z;
+static int hf_gatt_microbit_magnetometer_period;
+static int hf_gatt_microbit_magnetometer_bearing;
+static int hf_gatt_microbit_button_a_state;
+static int hf_gatt_microbit_button_b_state;
+static int hf_gatt_microbit_pin_data;
+static int hf_gatt_microbit_pin_number;
+static int hf_gatt_microbit_pin_value;
+static int hf_gatt_microbit_pin_ad_config;
+static int hf_gatt_microbit_ad_pin0;
+static int hf_gatt_microbit_ad_pin1;
+static int hf_gatt_microbit_ad_pin2;
+static int hf_gatt_microbit_ad_pin3;
+static int hf_gatt_microbit_ad_pin4;
+static int hf_gatt_microbit_ad_pin5;
+static int hf_gatt_microbit_ad_pin6;
+static int hf_gatt_microbit_ad_pin7;
+static int hf_gatt_microbit_ad_pin8;
+static int hf_gatt_microbit_ad_pin9;
+static int hf_gatt_microbit_ad_pin10;
+static int hf_gatt_microbit_ad_pin11;
+static int hf_gatt_microbit_ad_pin12;
+static int hf_gatt_microbit_ad_pin13;
+static int hf_gatt_microbit_ad_pin14;
+static int hf_gatt_microbit_ad_pin15;
+static int hf_gatt_microbit_ad_pin16;
+static int hf_gatt_microbit_ad_pin17;
+static int hf_gatt_microbit_ad_pin18;
+static int hf_gatt_microbit_ad_pin19;
+static int hf_gatt_microbit_pin_io_config;
+static int hf_gatt_microbit_io_pin0;
+static int hf_gatt_microbit_io_pin1;
+static int hf_gatt_microbit_io_pin2;
+static int hf_gatt_microbit_io_pin3;
+static int hf_gatt_microbit_io_pin4;
+static int hf_gatt_microbit_io_pin5;
+static int hf_gatt_microbit_io_pin6;
+static int hf_gatt_microbit_io_pin7;
+static int hf_gatt_microbit_io_pin8;
+static int hf_gatt_microbit_io_pin9;
+static int hf_gatt_microbit_io_pin10;
+static int hf_gatt_microbit_io_pin11;
+static int hf_gatt_microbit_io_pin12;
+static int hf_gatt_microbit_io_pin13;
+static int hf_gatt_microbit_io_pin14;
+static int hf_gatt_microbit_io_pin15;
+static int hf_gatt_microbit_io_pin16;
+static int hf_gatt_microbit_io_pin17;
+static int hf_gatt_microbit_io_pin18;
+static int hf_gatt_microbit_io_pin19;
+static int hf_gatt_microbit_pwm_control;
+static int hf_gatt_microbit_led_matrix;
+static int hf_gatt_microbit_led_text;
+static int hf_gatt_microbit_scrolling_delay;
+static int hf_gatt_microbit_microbit_requirements;
+static int hf_gatt_microbit_microbit_event;
+static int hf_gatt_microbit_client_requirements;
+static int hf_gatt_microbit_client_event;
+static int hf_gatt_microbit_dfu_control;
+static int hf_gatt_microbit_temperature_value;
+static int hf_gatt_microbit_temperature_period;
+static int hf_btatt_valid_range_lower_inclusive_value;
+static int hf_btatt_valid_range_upper_inclusive_value;
+static int hf_btatt_temperature_celsius;
+static int hf_btatt_temperature_fahrenheit;
+static int hf_btatt_removable;
+static int hf_btatt_removable_reserved;
+static int hf_btatt_removable_removable;
+static int hf_btatt_service_required;
+static int hf_btatt_service_required_reserved;
+static int hf_btatt_service_required_service_required;
+static int hf_btatt_scientific_temperature_celsius;
+static int hf_btatt_string;
+static int hf_btatt_network_availability;
+static int hf_btatt_fitness_machine_features;
+static int hf_btatt_fitness_machine_features_reserved;
+static int hf_btatt_fitness_machine_features_user_data_retention;
+static int hf_btatt_fitness_machine_features_force_on_belt_and_power_output;
+static int hf_btatt_fitness_machine_features_power_measurement;
+static int hf_btatt_fitness_machine_features_remaining_time;
+static int hf_btatt_fitness_machine_features_elapsed_time;
+static int hf_btatt_fitness_machine_features_metabolic_equivalent;
+static int hf_btatt_fitness_machine_features_heart_rate_measurement;
+static int hf_btatt_fitness_machine_features_expended_energy;
+static int hf_btatt_fitness_machine_features_stride_count;
+static int hf_btatt_fitness_machine_features_resistance_level;
+static int hf_btatt_fitness_machine_features_step_count;
+static int hf_btatt_fitness_machine_features_pace;
+static int hf_btatt_fitness_machine_features_elevation_gain;
+static int hf_btatt_fitness_machine_features_inclination;
+static int hf_btatt_fitness_machine_features_total_distance;
+static int hf_btatt_fitness_machine_features_cadence;
+static int hf_btatt_fitness_machine_features_average_speed;
+static int hf_btatt_target_setting_features;
+static int hf_btatt_target_setting_features_reserved;
+static int hf_btatt_target_setting_features_targeted_cadence_configuration;
+static int hf_btatt_target_setting_features_spin_down_control;
+static int hf_btatt_target_setting_features_wheel_circumference_configuration;
+static int hf_btatt_target_setting_features_indoor_bike_simulation_parameters;
+static int hf_btatt_target_setting_features_targeted_time_in_five_heart_rate_zones_configuration;
+static int hf_btatt_target_setting_features_targeted_time_in_three_heart_rate_zones_configuration;
+static int hf_btatt_target_setting_features_targeted_time_in_two_heart_rate_zones_configuration;
+static int hf_btatt_target_setting_features_targeted_training_time_configuration;
+static int hf_btatt_target_setting_features_targeted_distance_configuration;
+static int hf_btatt_target_setting_features_targeted_stride_number_configuration;
+static int hf_btatt_target_setting_features_targeted_step_number_configuration;
+static int hf_btatt_target_setting_features_targeted_expended_energy_configuration;
+static int hf_btatt_target_setting_features_heart_rate_target_setting;
+static int hf_btatt_target_setting_features_power_target_setting;
+static int hf_btatt_target_setting_features_resistance_target_setting;
+static int hf_btatt_target_setting_features_inclination_target_setting;
+static int hf_btatt_target_setting_features_speed_target_setting;
+static int hf_btatt_training_status_flags;
+static int hf_btatt_training_status_flags_reserved;
+static int hf_btatt_training_status_flags_extended_string;
+static int hf_btatt_training_status_flags_training_status_string;
+static int hf_btatt_training_status_status;
+static int hf_btatt_training_status_status_string;
+static int hf_btatt_supported_speed_range_minimum_speed;
+static int hf_btatt_supported_speed_range_maximum_speed;
+static int hf_btatt_supported_speed_range_minimum_increment;
+static int hf_btatt_supported_inclination_range_minimum_inclination;
+static int hf_btatt_supported_inclination_range_maximum_inclination;
+static int hf_btatt_supported_inclination_range_minimum_increment;
+static int hf_btatt_supported_resistance_level_range_minimum_resistance_level;
+static int hf_btatt_supported_resistance_level_range_maximum_resistance_level;
+static int hf_btatt_supported_resistance_level_range_minimum_increment;
+static int hf_btatt_supported_heart_rate_range_minimum_heart_rate;
+static int hf_btatt_supported_heart_rate_range_maximum_heart_rate;
+static int hf_btatt_supported_heart_rate_range_minimum_increment;
+static int hf_btatt_supported_power_range_minimum_power;
+static int hf_btatt_supported_power_range_maximum_power;
+static int hf_btatt_supported_power_range_minimum_increment;
+static int hf_btatt_fitness_machine_status_opcode;
+static int hf_btatt_fitness_machine_control_information;
+static int hf_btatt_fitness_machine_spin_down_status;
+static int hf_btatt_fitness_machine_speed;
+static int hf_btatt_fitness_machine_incline;
+static int hf_btatt_fitness_machine_resistance_level;
+static int hf_btatt_fitness_machine_power;
+static int hf_btatt_fitness_machine_heart_rate;
+static int hf_btatt_fitness_machine_expended_energy;
+static int hf_btatt_fitness_machine_number_of_steps;
+static int hf_btatt_fitness_machine_number_of_strides;
+static int hf_btatt_fitness_machine_distance;
+static int hf_btatt_fitness_machine_training_time;
+static int hf_btatt_fitness_machine_wheel_circumference;
+static int hf_btatt_fitness_machine_cadence;
+static int hf_btatt_fitness_machine_wind_speed;
+static int hf_btatt_fitness_machine_grade;
+static int hf_btatt_fitness_machine_coefficient_of_rolling_resistance;
+static int hf_btatt_fitness_machine_wind_resistance_coefficient;
+static int hf_btatt_fitness_machine_targeted_time_in_fat_burn_zone;
+static int hf_btatt_fitness_machine_targeted_time_in_fitness_zone;
+static int hf_btatt_fitness_machine_targeted_time_in_very_light_zone;
+static int hf_btatt_fitness_machine_targeted_time_in_light_zone;
+static int hf_btatt_fitness_machine_targeted_time_in_moderate_zone;
+static int hf_btatt_fitness_machine_targeted_time_in_hard_zone;
+static int hf_btatt_fitness_machine_targeted_time_in_maximum_zone;
+static int hf_btatt_volume_setting;
+static int hf_btatt_volume_mute;
+static int hf_btatt_volume_change_counter;
+static int hf_btatt_volume_control_point_procedure;
+static int hf_btatt_volume_flags;
 
-static int hf_request_in_frame = -1;
-static int hf_response_in_frame = -1;
+static int hf_request_in_frame;
+static int hf_response_in_frame;
 
 static int btatt_tap_handles = -1;
 
@@ -2107,39 +2107,39 @@ static int * const hfx_btatt_training_status_flags[] = {
 };
 
 /* Initialize the subtree pointers */
-static gint ett_btatt = -1;
-static gint ett_btatt_list = -1;
-static gint ett_btatt_value = -1;
-static gint ett_btatt_opcode = -1;
-static gint ett_btatt_handle = -1;
-static gint ett_btatt_characteristic_properties = -1;
-static gint ett_btgatt = -1;
-static gint ett_btgatt_microbit_accelerometer = -1;
-static gint ett_btgatt_microbit_magnetometer = -1;
-static gint ett_btgatt_microbit_pin_data = -1;
-static gint ett_btgatt_microbit_pin_ad_config = -1;
-static gint ett_btgatt_microbit_pin_io_config = -1;
-static gint ett_btatt_fragment = -1;
-static gint ett_btatt_fragments = -1;
+static int ett_btatt;
+static int ett_btatt_list;
+static int ett_btatt_value;
+static int ett_btatt_opcode;
+static int ett_btatt_handle;
+static int ett_btatt_characteristic_properties;
+static int ett_btgatt;
+static int ett_btgatt_microbit_accelerometer;
+static int ett_btgatt_microbit_magnetometer;
+static int ett_btgatt_microbit_pin_data;
+static int ett_btgatt_microbit_pin_ad_config;
+static int ett_btgatt_microbit_pin_io_config;
+static int ett_btatt_fragment;
+static int ett_btatt_fragments;
 
-static expert_field ei_btatt_uuid_format_unknown = EI_INIT;
-static expert_field ei_btatt_handle_too_few = EI_INIT;
-static expert_field ei_btatt_mtu_exceeded = EI_INIT;
-static expert_field ei_btatt_mtu_full = EI_INIT;
-static expert_field ei_btatt_consent_out_of_bounds = EI_INIT;
-static expert_field ei_btatt_cgm_size_too_small = EI_INIT;
-static expert_field ei_btatt_opcode_invalid_request = EI_INIT;
-static expert_field ei_btatt_opcode_invalid_response = EI_INIT;
-       expert_field ei_btatt_invalid_usage = EI_INIT;
-static expert_field ei_btatt_bad_data = EI_INIT;
-static expert_field ei_btatt_unexpected_data = EI_INIT;
-static expert_field ei_btatt_undecoded = EI_INIT;
-static expert_field ei_btatt_invalid_length = EI_INIT;
+static expert_field ei_btatt_uuid_format_unknown;
+static expert_field ei_btatt_handle_too_few;
+static expert_field ei_btatt_mtu_exceeded;
+static expert_field ei_btatt_mtu_full;
+static expert_field ei_btatt_consent_out_of_bounds;
+static expert_field ei_btatt_cgm_size_too_small;
+static expert_field ei_btatt_opcode_invalid_request;
+static expert_field ei_btatt_opcode_invalid_response;
+       expert_field ei_btatt_invalid_usage;
+static expert_field ei_btatt_bad_data;
+static expert_field ei_btatt_unexpected_data;
+static expert_field ei_btatt_undecoded;
+static expert_field ei_btatt_invalid_length;
 
-static wmem_tree_t *mtus = NULL;
-static wmem_tree_t *requests = NULL;
-static wmem_tree_t *fragments = NULL;
-static wmem_tree_t *handle_to_uuid = NULL;
+static wmem_tree_t *mtus;
+static wmem_tree_t *requests;
+static wmem_tree_t *fragments;
+static wmem_tree_t *handle_to_uuid;
 
 static dissector_handle_t btatt_handle;
 static dissector_handle_t btgatt_handle;
@@ -2150,18 +2150,19 @@ static dissector_handle_t usb_hid_boot_mouse_input_report_handle;
 static dissector_handle_t btmesh_proxy_handle;
 
 static dissector_table_t att_handle_dissector_table;
+static dissector_table_t att_service_dissector_table;
 
-static gint hf_btatt_fragments = -1;
-static gint hf_btatt_fragment = -1;
-static gint hf_btatt_fragment_overlap = -1;
-static gint hf_btatt_fragment_overlap_conflicts = -1;
-static gint hf_btatt_fragment_multiple_tails = -1;
-static gint hf_btatt_fragment_too_long_fragment = -1;
-static gint hf_btatt_fragment_error = -1;
-static gint hf_btatt_fragment_count = -1;
-static gint hf_btatt_reassembled_in = -1;
-static gint hf_btatt_reassembled_length = -1;
-static gint hf_btatt_reassembled_data = -1;
+static int hf_btatt_fragments;
+static int hf_btatt_fragment;
+static int hf_btatt_fragment_overlap;
+static int hf_btatt_fragment_overlap_conflicts;
+static int hf_btatt_fragment_multiple_tails;
+static int hf_btatt_fragment_too_long_fragment;
+static int hf_btatt_fragment_error;
+static int hf_btatt_fragment_count;
+static int hf_btatt_reassembled_in;
+static int hf_btatt_reassembled_length;
+static int hf_btatt_reassembled_data;
 
 static const fragment_items msg_frag_items = {
     /* Fragment subtrees */
@@ -2214,42 +2215,12 @@ static const value_string opcode_vals[] = {
     {0x1B, "Handle Value Notification"},
     {0x1D, "Handle Value Indication"},
     {0x1E, "Handle Value Confirmation"},
+    {0x20, "Read Multiple Variable Request"},
+    {0x21, "Read Multiple Variable Response"},
     {0x52, "Write Command"},
     {0xD2, "Signed Write Command"},
     {0x0, NULL}
 };
-
-#define ATT_OPCODE_ERROR_RESPONSE               0x01
-#define ATT_OPCODE_EXCHANGE_MTU_REQUEST         0x02
-#define ATT_OPCODE_EXCHANGE_MTU_RESPONSE        0x03
-#define ATT_OPCODE_FIND_INFORMATION_REQUEST     0x04
-#define ATT_OPCODE_FIND_INFORMATION_RESPONSE    0x05
-#define ATT_OPCODE_FIND_BY_TYPE_VALUE_REQUEST   0x06
-#define ATT_OPCODE_FIND_BY_TYPE_VALUE_RESPONSE  0x07
-
-#define ATT_OPCODE_READ_BY_TYPE_REQUEST         0x08
-#define ATT_OPCODE_READ_BY_TYPE_RESPONSE        0x09
-#define ATT_OPCODE_READ_REQUEST                 0x0A
-#define ATT_OPCODE_READ_RESPONSE                0x0B
-#define ATT_OPCODE_READ_BLOB_REQUEST            0x0C
-#define ATT_OPCODE_READ_BLOB_RESPONSE           0x0D
-#define ATT_OPCODE_READ_MULTIPLE_REQUEST        0x0E
-#define ATT_OPCODE_READ_MULTIPLE_RESPONSE       0x0F
-#define ATT_OPCODE_READ_BY_GROUP_TYPE_REQUEST   0x10
-#define ATT_OPCODE_READ_BY_GROUP_TYPE_RESPONSE  0x11
-
-#define ATT_OPCODE_WRITE_REQUEST                0x12
-#define ATT_OPCODE_WRITE_RESPONSE               0x13
-#define ATT_OPCODE_WRITE_PREPARE_REQUEST        0x16
-#define ATT_OPCODE_WRITE_PREPARE_RESPONSE       0x17
-#define ATT_OPCODE_WRITE_EXECUTE_REQUEST        0x18
-#define ATT_OPCODE_WRITE_EXECUTE_RESPONSE       0x19
-#define ATT_OPCODE_WRITE_COMMAND                0x52
-#define ATT_OPCODE_WRITE_SIGNED_COMMAND         0xD2
-
-#define ATT_OPCODE_HANDLE_VALUE_NOTIFICATION    0x1B
-#define ATT_OPCODE_HANDLE_VALUE_INDICATION      0x1D
-#define ATT_OPCODE_HANDLE_VALUE_CONFIRMATION    0x1E
 
 #define GATT_SERVICE_GENERIC_ACCESS_PROFILE         0x1800
 #define GATT_SERVICE_GENERIC_ATTRIBUTE_PROFILE      0x1801
@@ -4042,57 +4013,57 @@ static const char *unit_unitless = "";
 
 /* signed area*/
 
-static void helper_base_signed_negative_exponent(gchar * const buf, const gint base, const gchar * const unit, const guint32 value)
+static void helper_base_signed_negative_exponent(char * const buf, const int base, const char * const unit, const uint32_t value)
 {
-    const gint32 signed_value = (const gint32) value;
-    const gint32 fraction = (((signed_value < 0) ? -1 : 1) * signed_value) % base;
+    const int32_t signed_value = (const int32_t) value;
+    const int32_t fraction = (((signed_value < 0) ? -1 : 1) * signed_value) % base;
     snprintf(buf, ITEM_LABEL_LENGTH, "%i.%i%s", signed_value / base, fraction, unit);
 }
 
-static void base_signed_one_tenth_unitless(gchar *buf, guint32 value) {
+static void base_signed_one_tenth_unitless(char *buf, uint32_t value) {
     helper_base_signed_negative_exponent(buf, 10, unit_unitless, value);
 }
 
-static void base_signed_one_tenth_percentage(gchar *buf, guint32 value) {
+static void base_signed_one_tenth_percentage(char *buf, uint32_t value) {
     helper_base_signed_negative_exponent(buf, 10, "%%", value);
 }
 
-static void base_signed_one_thousandth_meters_per_seconds(gchar *buf, guint32 value) {
+static void base_signed_one_thousandth_meters_per_seconds(char *buf, uint32_t value) {
     helper_base_signed_negative_exponent(buf, 1000, "m/s", value);
 }
 
-static void base_signed_one_hundredth_percentage(gchar *buf, guint32 value) {
+static void base_signed_one_hundredth_percentage(char *buf, uint32_t value) {
     helper_base_signed_negative_exponent(buf, 100, "%%", value);
 }
 
 /* unsigned area */
 
-static void base_unsigned_one_tenth_unitless(gchar *buf, guint32 value) {
+static void base_unsigned_one_tenth_unitless(char *buf, uint32_t value) {
     snprintf(buf, ITEM_LABEL_LENGTH, "%u.%u", value / 10, value % 10);
 }
 
-static void base_unsigned_one_hundredth_km_h(gchar *buf, guint32 value) {
+static void base_unsigned_one_hundredth_km_h(char *buf, uint32_t value) {
     snprintf(buf, ITEM_LABEL_LENGTH, "%u.%02u km/h", value / 100, value % 100);
 }
 
-static void base_unsigned_one_tenth_percentage(gchar *buf, guint32 value) {
+static void base_unsigned_one_tenth_percentage(char *buf, uint32_t value) {
     snprintf(buf, ITEM_LABEL_LENGTH, "%u.%u%%", value / 10, value % 10);
 }
 
-static void base_unsigned_one_tenth_milimeters(gchar *buf, guint32 value) {
+static void base_unsigned_one_tenth_milimeters(char *buf, uint32_t value) {
     snprintf(buf, ITEM_LABEL_LENGTH, "%u.%umm", value / 10, value % 10);
 }
 
-static void base_unsigned_one_half_half_minute(gchar *buf, guint32 value) {
+static void base_unsigned_one_half_half_minute(char *buf, uint32_t value) {
     snprintf(buf, ITEM_LABEL_LENGTH, "%u.%um 1/min", value / 2, value % 2);
 }
 
-static void base_unsigned_one_ten_thousandth_unitless(gchar *buf, guint32 value) {
+static void base_unsigned_one_ten_thousandth_unitless(char *buf, uint32_t value) {
     snprintf(buf, ITEM_LABEL_LENGTH, "%u.%u", value / 10000, value % 10000);
 }
 
 
-static void base_unsigned_one_hundredth_kg_per_meter(gchar *buf, guint32 value) {
+static void base_unsigned_one_hundredth_kg_per_meter(char *buf, uint32_t value) {
     snprintf(buf, ITEM_LABEL_LENGTH, "%u.%u Kg/m", value / 100, value % 100);
 }
 
@@ -4101,44 +4072,38 @@ union request_parameters_union {
     void *data;
 
     struct _read_write {
-        guint16  handle;
-        guint16  offset;
+        uint16_t handle;
+        uint16_t offset;
     } read_write;
 
     struct _read_multiple {
-        guint     number_of_handles;
-        guint16  *handle;
+        unsigned  number_of_handles;
+        uint16_t *handle;
     } read_multiple;
 
     struct _mtu {
-        guint16  mtu;
+        uint16_t mtu;
     } mtu;
 
     struct _read_by_type {
-        guint16  starting_handle;
-        guint16  ending_handle;
+        uint16_t starting_handle;
+        uint16_t ending_handle;
         bluetooth_uuid_t uuid;
     } read_by_type;
 
     struct _find_information {
-        guint16  starting_handle;
-        guint16  ending_handle;
+        uint16_t starting_handle;
+        uint16_t ending_handle;
     } find_information;
 };
 
 typedef struct _request_data_t {
-    guint8                          opcode;
-    guint32                         request_in_frame;
-    guint32                         response_in_frame;
+    uint8_t                         opcode;
+    uint32_t                        request_in_frame;
+    uint32_t                        response_in_frame;
 
     union request_parameters_union  parameters;
 } request_data_t;
-
-enum attribute_type {
-    ATTRIBUTE_TYPE_SERVICE,
-    ATTRIBUTE_TYPE_CHARACTERISTIC,
-    ATTRIBUTE_TYPE_OTHER
-};
 
 typedef struct _handle_data_t {
     bluetooth_uuid_t uuid;
@@ -4148,14 +4113,14 @@ typedef struct _handle_data_t {
 
 
 typedef struct _mtu_data_t {
-    guint  mtu;
+    unsigned  mtu;
 } mtu_data_t;
 
 typedef struct _fragment_data_t {
-    guint    length;
-    guint    offset;
-    gint     data_in_frame;
-    guint8  *data;
+    unsigned length;
+    unsigned offset;
+    int      data_in_frame;
+    uint8_t *data;
 } fragment_data_t;
 
 
@@ -4167,30 +4132,30 @@ void proto_reg_handoff_btgatt(void);
 
 #define PROTO_DATA_BTATT_HANDLE   0x00
 
-static void btatt_handle_prompt(packet_info *pinfo, gchar* result)
+static void btatt_handle_prompt(packet_info *pinfo, char* result)
 {
-    guint16 *value_data;
+    uint16_t *value_data;
 
-    value_data = (guint16 *) p_get_proto_data(pinfo->pool, pinfo, proto_btatt, PROTO_DATA_BTATT_HANDLE);
+    value_data = (uint16_t *) p_get_proto_data(pinfo->pool, pinfo, proto_btatt, PROTO_DATA_BTATT_HANDLE);
     if (value_data)
-        snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "ATT Handle 0x%04x as", (guint) *value_data);
+        snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "ATT Handle 0x%04x as", (unsigned) *value_data);
     else
         snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Unknown ATT Handle");
 }
 
-static gpointer btatt_handle_value(packet_info *pinfo)
+static void *btatt_handle_value(packet_info *pinfo)
 {
-    guint16 *value_data;
+    uint16_t *value_data;
 
-    value_data = (guint16 *) p_get_proto_data(pinfo->pool, pinfo, proto_btatt, PROTO_DATA_BTATT_HANDLE);
+    value_data = (uint16_t *) p_get_proto_data(pinfo->pool, pinfo, proto_btatt, PROTO_DATA_BTATT_HANDLE);
 
     if (value_data)
-        return GUINT_TO_POINTER((gulong)*value_data);
+        return GUINT_TO_POINTER((unsigned long)*value_data);
 
     return NULL;
 }
 
-static gboolean is_readable_request(guint8 opcode)
+static bool is_readable_request(uint8_t opcode)
 {
     return (opcode == ATT_OPCODE_READ_REQUEST ||
             opcode == ATT_OPCODE_READ_BLOB_REQUEST ||
@@ -4198,7 +4163,7 @@ static gboolean is_readable_request(guint8 opcode)
             opcode == ATT_OPCODE_READ_MULTIPLE_REQUEST);
 }
 
-static gboolean is_readable_response(guint8 opcode)
+static bool is_readable_response(uint8_t opcode)
 {
     return (opcode == ATT_OPCODE_READ_RESPONSE ||
             opcode == ATT_OPCODE_READ_BLOB_RESPONSE ||
@@ -4206,38 +4171,61 @@ static gboolean is_readable_response(guint8 opcode)
             opcode == ATT_OPCODE_READ_MULTIPLE_RESPONSE);
 }
 
-static gboolean is_writeable_request(guint8 opcode)
+static bool is_writeable_request(uint8_t opcode)
 {
     return (opcode == ATT_OPCODE_WRITE_REQUEST ||
             opcode == ATT_OPCODE_WRITE_PREPARE_REQUEST);
 }
 
-static gboolean is_writeable_response(guint8 opcode)
+static bool is_writeable_response(uint8_t opcode)
 {
     return (opcode == ATT_OPCODE_WRITE_RESPONSE ||
             opcode == ATT_OPCODE_WRITE_PREPARE_RESPONSE);
 }
 
-gboolean bluetooth_gatt_has_no_parameter(guint8 opcode)
+static uint16_t
+get_gatt_service_handle_from_handle(packet_info *pinfo, uint32_t handle,
+    bluetooth_data_t *bluetooth_data);
+
+static uint16_t
+get_gatt_char_decl_handle_from_handle(packet_info *pinfo, uint32_t handle,
+    bluetooth_data_t *bluetooth_data);
+
+bool bluetooth_gatt_has_no_parameter(uint8_t opcode)
 {
     return is_readable_request(opcode) ||
             opcode == ATT_OPCODE_WRITE_RESPONSE ||
             opcode == ATT_OPCODE_HANDLE_VALUE_CONFIRMATION;
 }
 
+static int
+get_handle_db_direction(uint8_t opcode, int direction)
+{
+    if (is_readable_request(opcode) || is_writeable_request(opcode) || opcode == ATT_OPCODE_HANDLE_VALUE_CONFIRMATION || opcode == ATT_OPCODE_WRITE_REQUEST)
+        return !direction;
+    if (is_readable_response(opcode) || is_writeable_response(opcode))
+        return direction;
+    if (opcode == ATT_OPCODE_HANDLE_VALUE_NOTIFICATION || opcode == ATT_OPCODE_HANDLE_VALUE_INDICATION)
+        return direction;
+
+    return direction;
+}
+
 static request_data_t *
-get_request(tvbuff_t *tvb, gint offset, packet_info *pinfo, guint8 opcode,
+get_request(tvbuff_t *tvb, int offset, packet_info *pinfo, uint8_t opcode,
         bluetooth_data_t *bluetooth_data)
 {
     request_data_t  *request_data;
-    wmem_tree_key_t  key[4];
+    wmem_tree_key_t  key[5];
     wmem_tree_t     *sub_wmemtree;
-    guint32          frame_number, curr_layer_num;
+    uint32_t         frame_number, curr_layer_num, direction;
 
     if (!bluetooth_data)
         return NULL;
 
     curr_layer_num = pinfo->curr_layer_num;
+    // Request is always in opposite direction from response
+    direction = pinfo->p2p_dir == P2P_DIR_SENT ? P2P_DIR_RECV : P2P_DIR_SENT;
 
     key[0].length = 1;
     key[0].key    = &bluetooth_data->interface_id;
@@ -4245,8 +4233,10 @@ get_request(tvbuff_t *tvb, gint offset, packet_info *pinfo, guint8 opcode,
     key[1].key    = &bluetooth_data->adapter_id;
     key[2].length = 1;
     key[2].key    = &curr_layer_num;
-    key[3].length = 0;
-    key[3].key    = NULL;
+    key[3].length = 1;
+    key[3].key    = &direction;
+    key[4].length = 0;
+    key[4].key    = NULL;
 
     frame_number = pinfo->num;
 
@@ -4265,7 +4255,7 @@ get_request(tvbuff_t *tvb, gint offset, packet_info *pinfo, guint8 opcode,
       case 0x01: /* Error Response */
           if (tvb_captured_length_remaining(tvb, offset) < 1)
               return NULL;
-          opcode = tvb_get_guint8(tvb, 1) + 1;
+          opcode = tvb_get_uint8(tvb, 1) + 1;
           /* FALL THROUGH */
       case 0x03: /* Exchange MTU Response */
       case 0x05: /* Find Information Response */
@@ -4278,6 +4268,7 @@ get_request(tvbuff_t *tvb, gint offset, packet_info *pinfo, guint8 opcode,
       case 0x13: /* Write Response */
       case 0x17: /* Prepare Write Response */
       case 0x19: /* Execute Write Response */
+      case 0x21: /* Read Multiple Variable Response */
       case 0x1E: /* Handle Value Confirmation */
           if (request_data->opcode == opcode - 1)
               return request_data;
@@ -4298,7 +4289,7 @@ get_request(tvbuff_t *tvb, gint offset, packet_info *pinfo, guint8 opcode,
     case 0x01: /* Error Response */
         if (tvb_captured_length_remaining(tvb, offset) < 1)
             return NULL;
-        opcode = tvb_get_guint8(tvb, 1) + 1;
+        opcode = tvb_get_uint8(tvb, 1) + 1;
         /* FALL THROUGH */
     case 0x03: /* Exchange MTU Response */
     case 0x05: /* Find Information Response */
@@ -4311,6 +4302,7 @@ get_request(tvbuff_t *tvb, gint offset, packet_info *pinfo, guint8 opcode,
     case 0x13: /* Write Response */
     case 0x17: /* Prepare Write Response */
     case 0x19: /* Execute Write Response */
+    case 0x21: /* Read Multiple Variable Response */
     case 0x1E: /* Handle Value Confirmation */
         if (request_data->opcode == opcode -1)
             return request_data;
@@ -4333,6 +4325,7 @@ get_request(tvbuff_t *tvb, gint offset, packet_info *pinfo, guint8 opcode,
     case 0x16: /* Prepare Write Request */
     case 0x18: /* Execute Write Request */
     case 0x1D: /* Handle Value Indication */
+    case 0x20: /* Read Multiple Variable Request */
         /* This should never happen */
     default:
         return NULL;
@@ -4342,15 +4335,16 @@ get_request(tvbuff_t *tvb, gint offset, packet_info *pinfo, guint8 opcode,
 }
 
 static void
-save_request(packet_info *pinfo, guint8 opcode, union request_parameters_union parameters,
+save_request(packet_info *pinfo, uint8_t opcode, union request_parameters_union parameters,
         bluetooth_data_t *bluetooth_data)
 {
-    wmem_tree_key_t  key[5];
-    guint32          frame_number, curr_layer_num;
+    wmem_tree_key_t  key[6];
+    uint32_t         frame_number, curr_layer_num, direction;
     request_data_t  *request_data;
 
     frame_number = pinfo->num;
     curr_layer_num = pinfo->curr_layer_num;
+    direction = pinfo->p2p_dir;
 
     key[0].length = 1;
     key[0].key    = &bluetooth_data->interface_id;
@@ -4359,9 +4353,11 @@ save_request(packet_info *pinfo, guint8 opcode, union request_parameters_union p
     key[2].length = 1;
     key[2].key    = &curr_layer_num;
     key[3].length = 1;
-    key[3].key    = &frame_number;
-    key[4].length = 0;
-    key[4].key    = NULL;
+    key[3].key    = &direction;
+    key[4].length = 1;
+    key[4].key    = &frame_number;
+    key[5].length = 0;
+    key[5].key    = NULL;
 
     request_data = wmem_new0(wmem_file_scope(), request_data_t);
     request_data->opcode = opcode;
@@ -4374,7 +4370,7 @@ save_request(packet_info *pinfo, guint8 opcode, union request_parameters_union p
 }
 
 static void
-save_handle(packet_info *pinfo, bluetooth_uuid_t uuid, guint32 handle,
+save_handle(packet_info *pinfo, bluetooth_uuid_t uuid, uint32_t handle,
         enum attribute_type  attribute_type, bluetooth_data_t *bluetooth_data)
 {
     if (!handle && uuid.size != 2 && uuid.size != 16)
@@ -4386,26 +4382,41 @@ save_handle(packet_info *pinfo, bluetooth_uuid_t uuid, guint32 handle,
         tap_handles = wmem_new(pinfo->pool, tap_handles_t);
         tap_handles->handle = handle;
         tap_handles->uuid = uuid;
+        tap_handles->attribute_type = attribute_type;
+
+        tap_handles->service_handle =
+            get_gatt_service_handle_from_handle(pinfo, handle, bluetooth_data);
+        tap_handles->char_decl_handle =
+            get_gatt_char_decl_handle_from_handle(pinfo, handle, bluetooth_data);
+
         tap_queue_packet(btatt_tap_handles, pinfo, tap_handles);
     }
 
     if (!pinfo->fd->visited && bluetooth_data) {
-        wmem_tree_key_t  key[5];
-        guint32          frame_number;
+        wmem_tree_key_t  key[6];
+        uint32_t         frame_number, direction;
         handle_data_t   *handle_data;
 
         frame_number = pinfo->num;
+        direction = pinfo->p2p_dir;
+        if (uuid.bt_uuid == 0x2ADB || uuid.bt_uuid == 0x2ADD) {
+            // Mesh Provisioning Data In and Mesh Proxy Data In
+            // are in the opposite direction
+            direction = !direction;
+        }
 
         key[0].length = 1;
         key[0].key    = &bluetooth_data->interface_id;
         key[1].length = 1;
         key[1].key    = &bluetooth_data->adapter_id;
         key[2].length = 1;
-        key[2].key    = &handle;
+        key[2].key    = &direction;
         key[3].length = 1;
-        key[3].key    = &frame_number;
-        key[4].length = 0;
-        key[4].key    = NULL;
+        key[3].key    = &handle;
+        key[4].length = 1;
+        key[4].key    = &frame_number;
+        key[5].length = 0;
+        key[5].key    = NULL;
 
         handle_data = wmem_new(wmem_file_scope(), handle_data_t);
         handle_data->uuid = uuid;
@@ -4415,12 +4426,12 @@ save_handle(packet_info *pinfo, bluetooth_uuid_t uuid, guint32 handle,
     }
 }
 
-static bluetooth_uuid_t
-get_bluetooth_uuid_from_handle(packet_info *pinfo, guint32 handle,
-        bluetooth_data_t *bluetooth_data)
+bluetooth_uuid_t
+get_gatt_bluetooth_uuid_from_handle(packet_info *pinfo, uint32_t handle, uint8_t opcode,
+    bluetooth_data_t *bluetooth_data)
 {
-    wmem_tree_key_t  key[4];
-    guint32          frame_number;
+    wmem_tree_key_t  key[5];
+    uint32_t         frame_number, direction;
     handle_data_t   *handle_data;
     wmem_tree_t     *sub_wmemtree;
     bluetooth_uuid_t uuid;
@@ -4429,15 +4440,18 @@ get_bluetooth_uuid_from_handle(packet_info *pinfo, guint32 handle,
 
     if (bluetooth_data) {
         frame_number = pinfo->num;
+        direction = get_handle_db_direction(opcode, pinfo->p2p_dir);
 
         key[0].length = 1;
         key[0].key    = &bluetooth_data->interface_id;
         key[1].length = 1;
         key[1].key    = &bluetooth_data->adapter_id;
         key[2].length = 1;
-        key[2].key    = &handle;
-        key[3].length = 0;
-        key[3].key    = NULL;
+        key[2].key    = &direction;
+        key[3].length = 1;
+        key[3].key    = &handle;
+        key[4].length = 0;
+        key[4].key    = NULL;
 
         sub_wmemtree = (wmem_tree_t *) wmem_tree_lookup32_array(handle_to_uuid, key);
         handle_data = (sub_wmemtree) ? (handle_data_t *) wmem_tree_lookup32_le(sub_wmemtree, frame_number) : NULL;
@@ -4449,12 +4463,93 @@ get_bluetooth_uuid_from_handle(packet_info *pinfo, guint32 handle,
     return uuid;
 }
 
+static uint16_t
+get_gatt_service_handle_from_handle(packet_info *pinfo, uint32_t handle,
+    bluetooth_data_t *bluetooth_data)
+{
+    wmem_tree_key_t  key[5];
+    uint32_t         frame_number, direction;
+    handle_data_t   *handle_data;
+    wmem_tree_t     *sub_wmemtree;
+
+    if (bluetooth_data) {
+        frame_number = pinfo->num;
+        direction = pinfo->p2p_dir;
+
+        key[0].length = 1;
+        key[0].key    = &bluetooth_data->interface_id;
+        key[1].length = 1;
+        key[1].key    = &bluetooth_data->adapter_id;
+        key[2].length = 1;
+        key[2].key    = &direction;
+        key[3].length = 1;
+        key[3].key    = &handle;
+        key[4].length = 0;
+        key[4].key    = NULL;
+
+        while (handle > 0) {
+            sub_wmemtree = (wmem_tree_t *) wmem_tree_lookup32_array(handle_to_uuid, key);
+            handle_data = (sub_wmemtree) ? (handle_data_t *) wmem_tree_lookup32_le(sub_wmemtree, frame_number) : NULL;
+
+            if (handle_data && handle_data->type == ATTRIBUTE_TYPE_SERVICE) {
+                return handle;
+            }
+
+            handle -= 1;
+        }
+    }
+
+    return 0;
+}
+
+static uint16_t
+get_gatt_char_decl_handle_from_handle(packet_info *pinfo, uint32_t handle,
+    bluetooth_data_t *bluetooth_data)
+{
+    wmem_tree_key_t  key[5];
+    uint32_t         frame_number, direction;
+    handle_data_t   *handle_data;
+    wmem_tree_t     *sub_wmemtree;
+
+    if (bluetooth_data) {
+        frame_number = pinfo->num;
+        direction = pinfo->p2p_dir;
+
+        key[0].length = 1;
+        key[0].key    = &bluetooth_data->interface_id;
+        key[1].length = 1;
+        key[1].key    = &bluetooth_data->adapter_id;
+        key[2].length = 1;
+        key[2].key    = &direction;
+        key[3].length = 1;
+        key[3].key    = &handle;
+        key[4].length = 0;
+        key[4].key    = NULL;
+
+        while (handle > 0) {
+            sub_wmemtree = (wmem_tree_t *) wmem_tree_lookup32_array(handle_to_uuid, key);
+            handle_data = (sub_wmemtree) ? (handle_data_t *) wmem_tree_lookup32_le(sub_wmemtree, frame_number) : NULL;
+
+            if (handle_data) {
+                if ((handle_data->uuid.bt_uuid == UUID_GATT_INCLUDE_DECLARATION) ||
+                    (handle_data->uuid.bt_uuid == UUID_GATT_CHARACTERISTIC_DECLARATION)) {
+                    return handle;
+                }
+            }
+
+            handle -= 1;
+        }
+    }
+
+    return 0;
+}
+
 static bluetooth_uuid_t
-get_service_uuid_from_handle(packet_info *pinfo, guint32 handle,
+get_service_uuid_from_handle(packet_info *pinfo, uint32_t handle, uint8_t opcode,
         bluetooth_data_t *bluetooth_data)
 {
-    wmem_tree_key_t  key[4];
-    guint32          frame_number;
+    wmem_tree_key_t  key[5];
+    uint32_t         frame_number, direction;
     handle_data_t   *handle_data;
     wmem_tree_t     *sub_wmemtree;
     bluetooth_uuid_t uuid;
@@ -4463,15 +4558,18 @@ get_service_uuid_from_handle(packet_info *pinfo, guint32 handle,
 
     if (bluetooth_data) {
         frame_number = pinfo->num;
+        direction = get_handle_db_direction(opcode, pinfo->p2p_dir);
 
         key[0].length = 1;
         key[0].key    = &bluetooth_data->interface_id;
         key[1].length = 1;
         key[1].key    = &bluetooth_data->adapter_id;
         key[2].length = 1;
-        key[2].key    = &handle;
-        key[3].length = 0;
-        key[3].key    = NULL;
+        key[2].key    = &direction;
+        key[3].length = 1;
+        key[3].key    = &handle;
+        key[4].length = 0;
+        key[4].key    = NULL;
 
         while (handle > 0) {
             sub_wmemtree = (wmem_tree_t *) wmem_tree_lookup32_array(handle_to_uuid, key);
@@ -4490,11 +4588,11 @@ get_service_uuid_from_handle(packet_info *pinfo, guint32 handle,
 }
 
 static bluetooth_uuid_t
-get_characteristic_uuid_from_handle(packet_info *pinfo, guint32 handle,
+get_characteristic_uuid_from_handle(packet_info *pinfo, uint32_t handle, uint8_t opcode,
         bluetooth_data_t *bluetooth_data)
 {
-    wmem_tree_key_t  key[4];
-    guint32          frame_number;
+    wmem_tree_key_t  key[5];
+    uint32_t         frame_number, direction;
     handle_data_t   *handle_data;
     wmem_tree_t     *sub_wmemtree;
     bluetooth_uuid_t uuid;
@@ -4503,15 +4601,18 @@ get_characteristic_uuid_from_handle(packet_info *pinfo, guint32 handle,
 
     if (bluetooth_data) {
         frame_number = pinfo->num;
+        direction = get_handle_db_direction(opcode, pinfo->p2p_dir);
 
         key[0].length = 1;
         key[0].key    = &bluetooth_data->interface_id;
         key[1].length = 1;
         key[1].key    = &bluetooth_data->adapter_id;
         key[2].length = 1;
-        key[2].key    = &handle;
-        key[3].length = 0;
-        key[3].key    = NULL;
+        key[2].key    = &direction;
+        key[3].length = 1;
+        key[3].key    = &handle;
+        key[4].length = 0;
+        key[4].key    = NULL;
 
         while (handle > 0) {
             sub_wmemtree = (wmem_tree_t *) wmem_tree_lookup32_array(handle_to_uuid, key);
@@ -4532,7 +4633,7 @@ get_characteristic_uuid_from_handle(packet_info *pinfo, guint32 handle,
     return uuid;
 }
 
-static void col_append_info_by_handle(packet_info *pinfo, guint16 handle, bluetooth_data_t *bluetooth_data)
+static void col_append_info_by_handle(packet_info *pinfo, uint16_t handle, uint8_t opcode, bluetooth_data_t *bluetooth_data)
 {
     bluetooth_uuid_t   service_uuid;
     bluetooth_uuid_t   characteristic_uuid;
@@ -4541,9 +4642,10 @@ static void col_append_info_by_handle(packet_info *pinfo, guint16 handle, blueto
     if (!bluetooth_data)
         return;
 
-    service_uuid = get_service_uuid_from_handle(pinfo, handle, bluetooth_data);
-    characteristic_uuid = get_characteristic_uuid_from_handle(pinfo, handle, bluetooth_data);
-    uuid = get_bluetooth_uuid_from_handle(pinfo, handle, bluetooth_data);
+    service_uuid = get_service_uuid_from_handle(pinfo, handle, opcode, bluetooth_data);
+    characteristic_uuid = get_characteristic_uuid_from_handle(pinfo, handle, opcode, bluetooth_data);
+    uuid = get_gatt_bluetooth_uuid_from_handle(pinfo, handle, opcode, bluetooth_data);
+
 
     if (!memcmp(&service_uuid, &uuid, sizeof(uuid))) {
         col_append_fstr(pinfo->cinfo, COL_INFO, ", Handle: 0x%04x (%s)",
@@ -4557,7 +4659,7 @@ static void col_append_info_by_handle(packet_info *pinfo, guint16 handle, blueto
     }
 }
 
-static gint dissect_gatt_uuid(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, gint offset)
+static int dissect_gatt_uuid(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, int offset)
 {
     proto_item       *sub_item;
     bluetooth_uuid_t  sub_uuid;
@@ -4582,9 +4684,9 @@ static gint dissect_gatt_uuid(proto_tree *tree, packet_info *pinfo, tvbuff_t *tv
 }
 
 static int
-dissect_handle(proto_tree *tree, packet_info *pinfo, gint hf,
-        tvbuff_t *tvb, gint offset, bluetooth_data_t *bluetooth_data,
-        bluetooth_uuid_t *uuid, gint32 handle)
+dissect_handle(proto_tree *tree, packet_info *pinfo, int hf,
+        tvbuff_t *tvb, int offset, bluetooth_data_t *bluetooth_data,
+        bluetooth_uuid_t *uuid, int32_t handle, uint8_t opcode)
 {
     proto_item        *handle_item;
     proto_item        *sub_item;
@@ -4595,17 +4697,17 @@ dissect_handle(proto_tree *tree, packet_info *pinfo, gint hf,
 
     if (handle == HANDLE_TVB) {
         handle_item = proto_tree_add_item(tree, hf, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-        handle = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
-    } else if (handle >= 0 && handle <= G_MAXUINT16) {
+        handle = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
+    } else if (handle >= 0 && handle <= UINT16_MAX) {
         handle_item = proto_tree_add_uint(tree, hf, tvb, 0, 0, handle);
         proto_item_set_generated(handle_item);
     } else {
         DISSECTOR_ASSERT_NOT_REACHED();
     }
 
-    service_uuid = get_service_uuid_from_handle(pinfo, (guint16) handle, bluetooth_data);
-    characteristic_uuid = get_characteristic_uuid_from_handle(pinfo, (guint16) handle, bluetooth_data);
-    attribute_uuid = get_bluetooth_uuid_from_handle(pinfo, (guint16) handle, bluetooth_data);
+    service_uuid = get_service_uuid_from_handle(pinfo, (uint16_t) handle, opcode, bluetooth_data);
+    characteristic_uuid = get_characteristic_uuid_from_handle(pinfo, (uint16_t) handle, opcode, bluetooth_data);
+    attribute_uuid = get_gatt_bluetooth_uuid_from_handle(pinfo, (uint16_t) handle, opcode, bluetooth_data);
 
     proto_item_append_text(handle_item, " (");
     if (memcmp(&service_uuid, &attribute_uuid, sizeof(attribute_uuid))) {
@@ -4654,8 +4756,8 @@ dissect_handle(proto_tree *tree, packet_info *pinfo, gint hf,
     return offset + 2;
 }
 
-static gint
-btatt_dissect_attribute_handle(guint16 handle, tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, btatt_data_t *att_data);
+static int
+btatt_dissect_attribute_handle(uint16_t handle, tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, btatt_data_t *att_data);
 
 static int
 btatt_call_dissector_by_dissector_name_with_data(const char *dissector_name,
@@ -4676,8 +4778,8 @@ btatt_call_dissector_by_dissector_name_with_data(const char *dissector_name,
     returns 0 if paket was not handled
     returns #bytes consumed
 */
-static gint
-btatt_dissect_with_reassmbly(guint16 handle, tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, btatt_data_t *att_data){
+static int
+btatt_dissect_with_reassmbly(uint16_t handle, tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, btatt_data_t *att_data){
     /*
      * Cases
      * 1) single paket: deseg_len=0 deseg_offset=pktlen oder 0??
@@ -4687,10 +4789,10 @@ btatt_dissect_with_reassmbly(guint16 handle, tvbuff_t *tvb, packet_info *pinfo, 
      *
      * case 3 can lead to case 2 -> stop fragment stream, create new fragment stream
      * */
-    guint consumed;
-    gboolean save_fragmented;
-    gboolean more_fragments = FALSE;
-    gint         offset = 0;
+    unsigned consumed;
+    bool save_fragmented;
+    bool more_fragments = false;
+    int          offset = 0;
     // do not test for (PINFO_FD_VISITED(pinfo)) otherwise the lua dissector is not added
 
 again:
@@ -4701,32 +4803,32 @@ again:
     //consumed == 0: paket was rejected by subdissector, do not test for fragmentation
     if (!(consumed == 0 && pinfo->desegment_len == 0))
     {
-        guint32 msg_seqid = handle << 16 | ( att_data->opcode & 0xffff);
+        uint32_t msg_seqid = handle << 16 | ( att_data->opcode & 0xffff);
         pinfo->srcport = handle;
         pinfo->destport =  att_data->opcode;
-        if ((guint)pinfo->desegment_offset == tvb_captured_length(tvb))
+        if ((unsigned)pinfo->desegment_offset == tvb_captured_length(tvb))
         {
             // case 1
-            more_fragments = FALSE;
+            more_fragments = false;
         }
-        if (pinfo->desegment_offset > -1 && (guint)pinfo->desegment_offset < tvb_captured_length(tvb))
+        if (pinfo->desegment_offset > -1 && (unsigned)pinfo->desegment_offset < tvb_captured_length(tvb))
         {
             // case 2
             //drop leftovers before a fresh fragment ist started
             tvbuff_t *old_tvb_data = fragment_delete(&msg_reassembly_table, pinfo, msg_seqid, NULL);
             if (old_tvb_data)
                 tvb_free(old_tvb_data);
-            more_fragments = TRUE;
+            more_fragments = true;
         }
         if (pinfo->desegment_offset == -1)
         {
             // case 3
-            more_fragments = FALSE;
+            more_fragments = false;
         }
         if (pinfo->desegment_offset == -1 && consumed == tvb_captured_length(tvb))
         {
             // case 4
-            more_fragments = FALSE;
+            more_fragments = false;
         }
 
         save_fragmented = pinfo->fragmented;
@@ -4735,7 +4837,7 @@ again:
             offset = (pinfo->desegment_offset==-1?0:pinfo->desegment_offset);
             tvbuff_t *new_tvb = NULL;
             fragment_head *frag_msg = NULL;
-            pinfo->fragmented = TRUE;
+            pinfo->fragmented = true;
             frag_msg = fragment_add_seq_next(&msg_reassembly_table,
                                              tvb, offset, pinfo,
                                              msg_seqid, NULL,                            /* ID for fragments belonging together */
@@ -4773,24 +4875,68 @@ again:
 }
 
 
-static gint
+static unsigned
+add_item_btatt_time(proto_tree *tree, tvbuff_t *tvb, unsigned offset)
+{
+    proto_tree_add_item(tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    offset += 2;
+
+    proto_tree_add_item(tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
+    offset += 1;
+
+    proto_tree_add_item(tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
+    offset += 1;
+
+    proto_tree_add_item(tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
+    offset += 1;
+
+    proto_tree_add_item(tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
+    offset += 1;
+
+    proto_tree_add_item(tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
+    offset += 1;
+
+    return offset;
+}
+
+static unsigned
+add_item_btatt_timestamp(proto_tree *tree, int hf_index, tvbuff_t *tvb, unsigned offset)
+{
+    proto_item  *sub_item;
+    proto_tree  *sub_tree;
+
+    sub_item = proto_tree_add_item(tree, hf_index, tvb, offset, 7, ENC_NA);
+    sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
+
+    proto_item_append_text(sub_item, ": %04u-%02u-%02u %02u:%02u:%02u",
+        tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN),
+        tvb_get_uint8(tvb, offset + 2),
+        tvb_get_uint8(tvb, offset + 3),
+        tvb_get_uint8(tvb, offset + 4),
+        tvb_get_uint8(tvb, offset + 5),
+        tvb_get_uint8(tvb, offset + 6));
+
+   return add_item_btatt_time(sub_tree, tvb, offset);
+}
+
+static int
 dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *pinfo, tvbuff_t *old_tvb,
-        gint old_offset, gint length, guint16 handle, bluetooth_uuid_t uuid, btatt_data_t *att_data)
+        int old_offset, int length, uint16_t handle, bluetooth_uuid_t uuid, btatt_data_t *att_data)
 {
     proto_item  *sub_item;
     proto_tree  *sub_tree = NULL;
     tvbuff_t    *tvb;
-    guint        offset = 0;
+    unsigned     offset = 0;
     bluetooth_uuid_t sub_uuid;
     bluetooth_uuid_t service_uuid;
-    guint16      sub_handle;
-    guint32      value;
-    guint32      flags;
-    guint32      operator_value;
-    guint32      opcode;
-    guint32      operand_offset;
-    guint32      interface_id;
-    guint32      adapter_id;
+    uint16_t     sub_handle;
+    uint32_t     value;
+    uint32_t     flags;
+    uint32_t     operator_value;
+    uint32_t     opcode;
+    uint32_t     operand_offset;
+    uint32_t     interface_id;
+    uint32_t     adapter_id;
     int * const *hfs;
     bluetooth_data_t *bluetooth_data = NULL;
 
@@ -4799,11 +4945,12 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
     DISSECTOR_ASSERT(att_data);
 
     bluetooth_data = att_data->bluetooth_data;
+    att_data->handle = handle;
 
     if (p_get_proto_data(pinfo->pool, pinfo, proto_btatt, PROTO_DATA_BTATT_HANDLE) == NULL) {
-        guint16 *value_data;
+        uint16_t *value_data;
 
-        value_data = wmem_new(wmem_file_scope(), guint16);
+        value_data = wmem_new(wmem_file_scope(), uint16_t);
         *value_data = handle;
 
         p_add_proto_data(pinfo->pool, pinfo, proto_btatt, PROTO_DATA_BTATT_HANDLE, value_data);
@@ -4814,14 +4961,20 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         return old_offset + offset;
 
     if (p_get_proto_data(pinfo->pool, pinfo, proto_bluetooth, PROTO_DATA_BLUETOOTH_SERVICE_UUID) == NULL) {
-        guint8 *value_data;
+        uint8_t *value_data;
 
         value_data = wmem_strdup(wmem_file_scope(), print_numeric_bluetooth_uuid(pinfo->pool, &uuid));
 
         p_add_proto_data(pinfo->pool, pinfo, proto_bluetooth, PROTO_DATA_BLUETOOTH_SERVICE_UUID, value_data);
     }
-    /* hier wird subddisector aufgerufen */
-    /* dort wird auch von einem neuen PAket ausgegangen, was es natürlich nicht ist, darum fehelern und kein subddisector aufgerufen*/
+
+    service_uuid = get_service_uuid_from_handle(pinfo, handle, att_data->opcode, bluetooth_data);
+    offset = dissector_try_uint_new(att_service_dissector_table, service_uuid.bt_uuid, tvb, pinfo, tree, true, att_data);
+    if (offset == tvb_captured_length(tvb))
+        return old_offset + offset;
+
+    /* hier wird subdissector aufgerufen */
+    /* dort wird auch von einem neuen PAket ausgegangen, was es natürlich nicht ist, darum fehelern und kein subdissector aufgerufen*/
     if (dissector_try_string(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &uuid), tvb, pinfo, tree, att_data))
         return old_offset + length;
     else if (!uuid.bt_uuid) {
@@ -4832,8 +4985,6 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
 
         return old_offset + tvb_captured_length(tvb);
     }
-
-    service_uuid = get_service_uuid_from_handle(pinfo, handle, bluetooth_data);
 
     switch (uuid.bt_uuid) {
     case 0x2800: /* GATT Primary Service Declaration */
@@ -4886,8 +5037,8 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        offset = dissect_handle(tree, pinfo, hf_btatt_included_service_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB);
-        sub_handle = tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
+        offset = dissect_handle(tree, pinfo, hf_btatt_included_service_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB, att_data->opcode);
+        sub_handle = tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
 
         proto_tree_add_item(tree, hf_btatt_ending_handle, tvb, offset, 2, ENC_LITTLE_ENDIAN);
         offset += 2;
@@ -4915,13 +5066,13 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_characteristic_properties, ett_btatt_characteristic_properties,  hfx_btatt_characteristic_properties, ENC_NA);
         offset += 1;
 
-        offset = dissect_handle(tree, pinfo, hf_btatt_characteristic_value_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB);
-        sub_handle = tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
+        offset = dissect_handle(tree, pinfo, hf_btatt_characteristic_value_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB, att_data->opcode);
+        sub_handle = tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
 
         if (tvb_reported_length_remaining(tvb, offset) == 16) {
             proto_tree_add_item(tree, hf_btatt_uuid128, tvb, offset, 16, ENC_NA);
             sub_uuid = get_bluetooth_uuid(tvb, offset, 16);
-            proto_item_append_text(patron_item, ", Characteristic Handle: 0x%04x, UUID128: %s", tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN), print_bluetooth_uuid(pinfo->pool, &sub_uuid));
+            proto_item_append_text(patron_item, ", Characteristic Handle: 0x%04x, UUID128: %s", tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN), print_bluetooth_uuid(pinfo->pool, &sub_uuid));
             offset += 16;
 
             col_append_fstr(pinfo->cinfo, COL_INFO, ", %s", print_bluetooth_uuid(pinfo->pool, &sub_uuid));
@@ -4984,13 +5135,13 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_characteristic_configuration_client, ett_btatt_value, hfx_btatt_characteristic_configuration_client, ENC_LITTLE_ENDIAN);
-        value = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+        value = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
         offset += 2;
 
         {
         bluetooth_uuid_t   characteristic_uuid;
 
-        characteristic_uuid = get_characteristic_uuid_from_handle(pinfo, handle, bluetooth_data);
+        characteristic_uuid = get_characteristic_uuid_from_handle(pinfo, handle, att_data->opcode, bluetooth_data);
 
         if (value & 0x1) switch (characteristic_uuid.bt_uuid) { /* Notification */
         case 0x2A05: /* Service Changed */
@@ -5204,7 +5355,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         offset += 2;
 
         proto_tree_add_item(tree, hf_btatt_characteristic_presentation_namespace, tvb, offset, 1, ENC_NA);
-        value = tvb_get_guint8(tvb, offset);
+        value = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (value == 0x01) /* Bluetooth SIG */
@@ -5229,19 +5380,19 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
                 tvb_captured_length(tvb) / 2);
         sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
 
-        while (offset < (gint64) tvb_captured_length(tvb)) {
-            offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB);
+        while (offset < (int64_t) tvb_captured_length(tvb)) {
+            offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB, att_data->opcode);
         }
         break;
     case 0x2906: /* Valid Range */ {
         bluetooth_uuid_t     characteristic_uuid;
-        guint8              *characteristic_dissector_name;
+        uint8_t             *characteristic_dissector_name;
         dissector_handle_t   characteristic_dissector;
 
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        characteristic_uuid = get_characteristic_uuid_from_handle(pinfo, handle, bluetooth_data);
+        characteristic_uuid = get_characteristic_uuid_from_handle(pinfo, handle, att_data->opcode, bluetooth_data);
 
         characteristic_dissector_name = wmem_strdup_printf(pinfo->pool, "btgatt.uuid0x%s", print_numeric_bluetooth_uuid(pinfo->pool, &characteristic_uuid));
         characteristic_dissector = find_dissector(characteristic_dissector_name);
@@ -5329,7 +5480,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_value_trigger_setting_condition, tvb, offset, 1, ENC_NA);
-        value = tvb_get_guint8(tvb, offset);
+        value = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (value >= 1 && value <= 3) {
@@ -5399,7 +5550,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_time_trigger_setting_condition, tvb, offset, 1, ENC_NA);
-        value = tvb_get_guint8(tvb, offset);
+        value = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (value == 0) {
@@ -5426,7 +5577,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        switch ((tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN) & 0xFFC0) >> 6) {
+        switch ((tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN) & 0xFFC0) >> 6) {
         case 0x003: /* Watch */
             hfs = hfx_btatt_appearance_watch;
             break;
@@ -5512,7 +5663,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         } else {
             interface_id = adapter_id = 0;
         }
-        offset = dissect_bd_addr(hf_btatt_reconnection_address, pinfo, tree, tvb, offset, FALSE, interface_id, adapter_id, NULL);
+        offset = dissect_bd_addr(hf_btatt_reconnection_address, pinfo, tree, tvb, offset, false, interface_id, adapter_id, NULL);
 
         break;
     case 0x2A04: /* Peripheral Preferred Connection Parameters */
@@ -5530,7 +5681,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         proto_tree_add_item(tree, hf_btatt_maximum_connection_interval, tvb, offset, 2, ENC_LITTLE_ENDIAN);
         offset += 2;
 
-        proto_tree_add_item(tree, hf_btatt_slave_latency, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+        proto_tree_add_item(tree, hf_btatt_peripheral_latency, tvb, offset, 2, ENC_LITTLE_ENDIAN);
         offset += 2;
 
         proto_tree_add_item(tree, hf_btatt_connection_supervision_timeout_multiplier, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -5596,23 +5747,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        proto_tree_add_item(tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-        offset += 2;
-
-        proto_tree_add_item(tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-        offset += 1;
+        offset = add_item_btatt_time(tree, tvb, offset);
 
         break;
     case 0x2A09: /* Day of Week */
@@ -5641,23 +5776,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        proto_tree_add_item(tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-        offset += 2;
-
-        proto_tree_add_item(tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-        offset += 1;
+        offset = add_item_btatt_time(tree, tvb, offset);
 
         proto_tree_add_item(tree, hf_btatt_day_of_week, tvb, offset, 1, ENC_NA);
         offset += 1;
@@ -5730,23 +5849,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        proto_tree_add_item(tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-        offset += 2;
-
-        proto_tree_add_item(tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-        offset += 1;
+        offset = add_item_btatt_time(tree, tvb, offset);
 
         proto_tree_add_item(tree, hf_btatt_dst_offset, tvb, offset, 1, ENC_NA);
         offset += 1;
@@ -5849,32 +5952,13 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_glucose_measurement_flags, ett_btatt_value, hfx_btatt_glucose_measurement_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         proto_tree_add_item(tree, hf_btatt_glucose_measurement_sequence_number, tvb, offset, 2, ENC_LITTLE_ENDIAN);
         offset += 2;
 
-        sub_item = proto_tree_add_item(tree, hf_btatt_glucose_measurement_base_time, tvb, offset, 7, ENC_NA);
-        sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
-
-        proto_tree_add_item(sub_tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-        offset += 2;
-
-        proto_tree_add_item(sub_tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(sub_tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(sub_tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(sub_tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(sub_tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-        offset += 1;
+        offset = add_item_btatt_timestamp(tree, hf_btatt_glucose_measurement_base_time, tvb, offset);
 
         if (flags & 0x01) {
             proto_tree_add_item(tree, hf_btatt_glucose_measurement_time_offset, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -5914,7 +5998,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        guint32 battery_level;
+        uint32_t battery_level;
         sub_item = proto_tree_add_item_ret_uint(tree, hf_btatt_battery_level, tvb, offset, 1, ENC_NA, &battery_level);
         if (battery_level > 100)
             expert_add_info(pinfo, sub_item, &ei_btatt_bad_data);
@@ -5934,7 +6018,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        guint32 battery_level;
+        uint32_t battery_level;
         sub_item = proto_tree_add_item_ret_uint(tree, hf_btatt_battery_level, tvb, offset, 1, ENC_NA, &battery_level);
         if (battery_level > 100)
             expert_add_info(pinfo, sub_item, &ei_btatt_bad_data);
@@ -5968,7 +6052,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_temperature_measurement_flags, ett_btatt_value, hfx_btatt_temperature_measurement_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (flags & 0x01) {
@@ -5979,26 +6063,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         offset += 4;
 
         if (flags & 0x02) {
-            sub_item = proto_tree_add_item(tree, hf_btatt_temperature_measurement_timestamp, tvb, offset, 7, ENC_NA);
-            sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
-
-            proto_tree_add_item(sub_tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-            offset += 2;
-
-            proto_tree_add_item(sub_tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-            offset += 1;
+            offset = add_item_btatt_timestamp(tree, hf_btatt_temperature_measurement_timestamp, tvb, offset);
         }
 
         if (flags & 0x04) {
@@ -6027,7 +6092,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        gint32 temperature;
+        int32_t temperature;
         sub_item = proto_tree_add_item_ret_int(tree, hf_btatt_temperature_celsius, tvb, offset, 2, ENC_LITTLE_ENDIAN, &temperature);
         if (temperature < -2732)
             expert_add_info(pinfo, sub_item, &ei_btatt_bad_data);
@@ -6039,7 +6104,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        gint32 temperature;
+        int32_t temperature;
         sub_item = proto_tree_add_item_ret_int(tree, hf_btatt_temperature_fahrenheit, tvb, offset, 2, ENC_LITTLE_ENDIAN, &temperature);
         if (temperature < -4597)
             expert_add_info(pinfo, sub_item, &ei_btatt_bad_data);
@@ -6194,8 +6259,8 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
 
         break;
     case 0x2A2A: /* IEEE 11073-20601 Regulatory Certification Data List */ {
-        guint16  count;
-        guint16  list_length = 0;
+        uint16_t count;
+        uint16_t list_length = 0;
 
         if (service_uuid.bt_uuid == GATT_SERVICE_DEVICE_INFORMATION) {
             if (is_readable_request(att_data->opcode))
@@ -6209,7 +6274,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_regulatory_certification_data_list_count, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-        count = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+        count = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
         list_length += 2;
         offset += 2;
 
@@ -6220,10 +6285,10 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         while (count--) {
             proto_item  *authorizing_body_data_item;
             proto_tree  *authorizing_body_data_tree;
-            guint8       item_type;
-            guint16      item_length;
-            guint16      certification_data_list_count = 0;
-            guint16      certification_data_list_length = 0;
+            uint8_t      item_type;
+            uint16_t     item_length;
+            uint16_t     certification_data_list_count = 0;
+            uint16_t     certification_data_list_length = 0;
             proto_item  *list_length_item;
 
             sub_item = proto_tree_add_item(tree, hf_btatt_regulatory_certification_data_list_item, tvb, offset, 0, ENC_NA);
@@ -6234,12 +6299,12 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             offset += 1;
 
             proto_tree_add_item(sub_tree, hf_btatt_regulatory_certification_data_list_item_body_structure_type, tvb, offset, 1, ENC_NA);
-            item_type = tvb_get_guint8(tvb, offset);
+            item_type = tvb_get_uint8(tvb, offset);
             list_length += 1;
             offset += 1;
 
             list_length_item = proto_tree_add_item(sub_tree, hf_btatt_regulatory_certification_data_list_item_body_structure_length, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-            item_length = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            item_length = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
             list_length += 2 + item_length;
             offset += 2;
 
@@ -6259,13 +6324,13 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
 
                 if (item_length > 2) {
                     proto_tree_add_item(authorizing_body_data_tree, hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_certification_data_list_count, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-                    certification_data_list_count = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+                    certification_data_list_count = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
                     offset += 2;
                 }
 
                 if (item_length > 4) {
                     proto_tree_add_item(authorizing_body_data_tree, hf_btatt_regulatory_certification_data_list_item_authorizing_body_data_certification_data_list_length, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-                    certification_data_list_length = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+                    certification_data_list_length = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
                     offset += 2;
                 }
 
@@ -6391,7 +6456,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_glucose_measurement_context_flags, ett_btatt_value, hfx_btatt_glucose_measurement_context_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         proto_tree_add_item(tree, hf_btatt_glucose_measurement_context_sequence_number, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -6468,7 +6533,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_blood_pressure_measurement_flags, ett_btatt_value, hfx_btatt_blood_pressure_measurement_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (flags & 0x01) {
@@ -6492,26 +6557,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         }
 
         if (flags & 0x02) {
-            sub_item = proto_tree_add_item(tree, hf_btatt_blood_pressure_measurement_timestamp, tvb, offset, 7, ENC_NA);
-            sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
-
-            proto_tree_add_item(sub_tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-            offset += 2;
-
-            proto_tree_add_item(sub_tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-            offset += 1;
+            offset = add_item_btatt_timestamp(tree, hf_btatt_blood_pressure_measurement_timestamp, tvb, offset);
         }
 
         if (flags & 0x04) {
@@ -6540,7 +6586,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_heart_rate_measurement_flags, ett_btatt_value, hfx_btatt_heart_rate_measurement_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (flags & 0x01) {
@@ -6557,7 +6603,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         }
 
         if (flags & 0x10) {
-            guint interval_count = 0;
+            unsigned interval_count = 0;
 
             sub_item = proto_tree_add_item(tree, hf_btatt_heart_rate_measurement_rr_intervals, tvb, offset, tvb_captured_length_remaining(tvb, offset), ENC_NA);
             sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
@@ -6909,7 +6955,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_pnp_id_vendor_id_source, tvb, offset, 1, ENC_NA);
-        value = tvb_get_guint8(tvb, offset);
+        value = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (value == 1)
@@ -6958,11 +7004,11 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_record_access_control_point_opcode, tvb, offset, 1, ENC_NA);
-        opcode = tvb_get_guint8(tvb, offset);
+        opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         proto_tree_add_item(tree, hf_btatt_record_access_control_point_operator, tvb, offset, 1, ENC_NA);
-        operator_value = tvb_get_guint8(tvb, offset);
+        operator_value = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         sub_item = proto_tree_add_item(tree, hf_btatt_record_access_control_point_operand, tvb, offset, 0, ENC_NA);
@@ -6983,7 +7029,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
                 break;
             case 2: /* Less than or equal to */
                 proto_tree_add_item(sub_tree, hf_btatt_record_access_control_point_operand_filter_type, tvb, offset, 1, ENC_NA);
-                value = tvb_get_guint8(tvb, offset);
+                value = tvb_get_uint8(tvb, offset);
                 offset += 1;
 
                 if (value == 0x01) /* Time offset */ {
@@ -6997,7 +7043,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
                 break;
             case 3: /* Greater than or equal to */
                 proto_tree_add_item(sub_tree, hf_btatt_record_access_control_point_operand_filter_type, tvb, offset, 1, ENC_NA);
-                value = tvb_get_guint8(tvb, offset);
+                value = tvb_get_uint8(tvb, offset);
                 offset += 1;
 
                 if (value == 0x01) /* Time offset */ {
@@ -7011,7 +7057,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
                 break;
             case 4: /* Within range of (inclusive) */
                 proto_tree_add_item(sub_tree, hf_btatt_record_access_control_point_operand_filter_type, tvb, offset, 1, ENC_NA);
-                value = tvb_get_guint8(tvb, offset);
+                value = tvb_get_uint8(tvb, offset);
                 offset += 1;
 
                 if (value == 0x01) /* Time offset */ {
@@ -7062,7 +7108,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_rsc_measurement_flags, ett_btatt_value, hfx_btatt_rsc_measurement_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         proto_tree_add_item(tree, hf_btatt_rsc_measurement_instantaneous_speed, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -7111,7 +7157,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_sc_control_point_opcode, tvb, offset, 1, ENC_NA);
-        opcode = tvb_get_guint8(tvb, offset);
+        opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         switch (opcode) {
@@ -7127,13 +7173,13 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
         case 16: /* Response Code */
             proto_tree_add_item(tree, hf_btatt_sc_control_point_request_opcode, tvb, offset, 1, ENC_NA);
-            value = tvb_get_guint8(tvb, offset);
+            value = tvb_get_uint8(tvb, offset);
             offset += 1;
 
             proto_tree_add_item(tree, hf_btatt_sc_control_point_response_value, tvb, offset, 1, ENC_NA);
             offset += 1;
 
-            if (value == 0x04 && tvb_get_guint8(tvb, offset) == 0x01) { /* Request Supported Sensor Locations */
+            if (value == 0x04 && tvb_get_uint8(tvb, offset) == 0x01) { /* Request Supported Sensor Locations */
                 while (tvb_captured_length_remaining(tvb, offset)) {
                     proto_tree_add_item(tree, hf_btatt_sensor_location, tvb, offset, 1, ENC_NA);
                     offset += 1;
@@ -7228,7 +7274,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_csc_measurement_flags, ett_btatt_value, hfx_btatt_csc_measurement_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (flags & 0x01) {
@@ -7295,7 +7341,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_plx_spot_check_measurement_flags, ett_btatt_value, hfx_btatt_plx_spot_check_measurement_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         sub_item = proto_tree_add_item(tree, hf_btatt_plx_spo2pr_spot_check, tvb, offset, 4, ENC_NA);
@@ -7341,7 +7387,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_plx_continuous_measurement_flags, ett_btatt_value, hfx_btatt_plx_continuous_measurement_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         sub_item = proto_tree_add_item(tree, hf_btatt_plx_spo2pr_normal, tvb, offset, 4, ENC_NA);
@@ -7404,7 +7450,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_plx_features_supported_features, ett_btatt_value, hfx_btatt_plx_features_supported_features, ENC_LITTLE_ENDIAN);
-        flags = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+        flags = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
         offset += 2;
 
         if (flags & 0x01) {
@@ -7428,7 +7474,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_cycling_power_measurement_flags, ett_btatt_value, hfx_btatt_cycling_power_measurement_flags, ENC_LITTLE_ENDIAN);
-        flags = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+        flags = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
         offset += 2;
 
         proto_tree_add_item(tree, hf_btatt_cycling_power_measurement_instantaneous_power, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -7507,7 +7553,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_cycling_power_vector_flags, ett_btatt_value, hfx_btatt_cycling_power_vector_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (flags & 0x01) {
@@ -7567,7 +7613,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_cycling_power_control_point_opcode, tvb, offset, 1, ENC_NA);
-        opcode = tvb_get_guint8(tvb, offset);
+        opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         switch (opcode) {
@@ -7624,7 +7670,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             proto_tree_add_item(tree, hf_btatt_cycling_power_control_point_response_value, tvb, offset, 1, ENC_NA);
             offset += 1;
 
-            switch (tvb_get_guint8(tvb, offset - 2)) {
+            switch (tvb_get_uint8(tvb, offset - 2)) {
             case  1: /* Set Cumulative Value */
             case  2: /* Update Sensor Location */
             case  4: /* Set Crank Length */
@@ -7636,7 +7682,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
 
                 break;
             case  3: /* Request Supported Sensor Locations */
-                if (tvb_get_guint8(tvb, offset - 1) == 0x01) /* Success */ {
+                if (tvb_get_uint8(tvb, offset - 1) == 0x01) /* Success */ {
                     while (tvb_captured_length_remaining(tvb, offset)) {
                         proto_tree_add_item(tree, hf_btatt_sensor_location, tvb, offset, 1, ENC_NA);
                         offset += 1;
@@ -7645,69 +7691,50 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
 
                 break;
             case  5: /* Request Crank Length */
-                if (tvb_get_guint8(tvb, offset - 1) == 0x01) /* Success */ {
+                if (tvb_get_uint8(tvb, offset - 1) == 0x01) /* Success */ {
                     proto_tree_add_item(tree, hf_btatt_cycling_power_control_point_crank_length, tvb, offset, 2, ENC_LITTLE_ENDIAN);
                     offset += 2;
                 }
 
                 break;
             case  7: /* Request Chain Length */
-                if (tvb_get_guint8(tvb, offset - 1) == 0x01) /* Success */ {
+                if (tvb_get_uint8(tvb, offset - 1) == 0x01) /* Success */ {
                     proto_tree_add_item(tree, hf_btatt_cycling_power_control_point_chain_length, tvb, offset, 2, ENC_LITTLE_ENDIAN);
                     offset += 2;
                 }
 
                 break;
             case  9: /* Request Chain Weight */
-                if (tvb_get_guint8(tvb, offset - 1) == 0x01) /* Success */ {
+                if (tvb_get_uint8(tvb, offset - 1) == 0x01) /* Success */ {
                     proto_tree_add_item(tree, hf_btatt_cycling_power_control_point_chain_weight, tvb, offset, 2, ENC_LITTLE_ENDIAN);
                     offset += 2;
                 }
 
                 break;
             case 11: /* Request Span Length */
-                if (tvb_get_guint8(tvb, offset - 1) == 0x01) /* Success */ {
+                if (tvb_get_uint8(tvb, offset - 1) == 0x01) /* Success */ {
                     proto_tree_add_item(tree, hf_btatt_cycling_power_control_point_span_length, tvb, offset, 2, ENC_LITTLE_ENDIAN);
                     offset += 2;
                 }
 
                 break;
             case 12: /* Start Offset Compensation */
-                if (tvb_get_guint8(tvb, offset - 1) == 0x01) /* Success */ {
+                if (tvb_get_uint8(tvb, offset - 1) == 0x01) /* Success */ {
                     proto_tree_add_item(tree, hf_btatt_cycling_power_control_point_start_offset_compensation, tvb, offset, 2, ENC_LITTLE_ENDIAN);
                     offset += 2;
                 }
 
                 break;
             case 14: /* Request Sampling Rate */
-                if (tvb_get_guint8(tvb, offset - 1) == 0x01) /* Success */ {
+                if (tvb_get_uint8(tvb, offset - 1) == 0x01) /* Success */ {
                     proto_tree_add_item(tree, hf_btatt_cycling_power_control_point_sampling_rate, tvb, offset, 1, ENC_NA);
                     offset += 1;
                 }
 
                 break;
             case 15: /* Request Factory Calibration Date */
-                if (tvb_get_guint8(tvb, offset - 1) == 0x01) /* Success */ {
-                    sub_item = proto_tree_add_item(tree, hf_btatt_cycling_power_control_point_factory_calibration_date, tvb, offset, 7, ENC_NA);
-                    sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
-
-                    proto_tree_add_item(sub_tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-                    offset += 2;
-
-                    proto_tree_add_item(sub_tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-                    offset += 1;
-
-                    proto_tree_add_item(sub_tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-                    offset += 1;
-
-                    proto_tree_add_item(sub_tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-                    offset += 1;
-
-                    proto_tree_add_item(sub_tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-                    offset += 1;
-
-                    proto_tree_add_item(sub_tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-                    offset += 1;
+                if (tvb_get_uint8(tvb, offset - 1) == 0x01) /* Success */ {
+                    offset = add_item_btatt_timestamp(tree, hf_btatt_cycling_power_control_point_factory_calibration_date, tvb, offset);
                 }
 
                 break;
@@ -7726,7 +7753,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_location_and_speed_flags, ett_btatt_value, hfx_btatt_location_and_speed_flags, ENC_LITTLE_ENDIAN);
-        flags = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+        flags = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
         offset += 2;
 
         if (flags & 0x01) {
@@ -7763,26 +7790,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         }
 
         if (flags & 0x40) {
-            sub_item = proto_tree_add_item(tree, hf_btatt_location_and_speed_utc_time, tvb, offset, 7, ENC_NA);
-            sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
-
-            proto_tree_add_item(sub_tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-            offset += 2;
-
-            proto_tree_add_item(sub_tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-            offset += 1;
+            offset = add_item_btatt_timestamp(tree, hf_btatt_location_and_speed_utc_time, tvb, offset);
         }
 
         break;
@@ -7796,7 +7804,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_navigation_flags, ett_btatt_value, hfx_btatt_navigation_flags, ENC_LITTLE_ENDIAN);
-        flags = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+        flags = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
         offset += 2;
 
         proto_tree_add_item(tree, hf_btatt_navigation_bearing, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -7816,26 +7824,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         }
 
         if (flags & 0x04) {
-            sub_item = proto_tree_add_item(tree, hf_btatt_navigation_estimated_time_of_arrival, tvb, offset, 7, ENC_NA);
-            sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
-
-            proto_tree_add_item(sub_tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-            offset += 2;
-
-            proto_tree_add_item(sub_tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-            offset += 1;
+            offset = add_item_btatt_timestamp(tree, hf_btatt_navigation_estimated_time_of_arrival, tvb, offset);
         }
 
         break;
@@ -7852,7 +7841,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_position_quality_flags, ett_btatt_value, hfx_btatt_position_quality_flags, ENC_LITTLE_ENDIAN);
-        flags = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+        flags = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
         offset += 2;
 
         if (flags & 0x01) {
@@ -7920,7 +7909,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_ln_control_point_opcode, tvb, offset, 1, ENC_NA);
-        opcode = tvb_get_guint8(tvb, offset);
+        opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         switch (opcode) {
@@ -7966,7 +7955,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             proto_tree_add_item(tree, hf_btatt_ln_control_point_response_value, tvb, offset, 1, ENC_NA);
             offset += 1;
 
-            switch (tvb_get_guint8(tvb, offset - 2)) {
+            switch (tvb_get_uint8(tvb, offset - 2)) {
             case  1: /* Set Cumulative Value */
             case  2: /* Mask Location and Speed Characteristic Content */
             case  3: /* Navigation Control */
@@ -8806,33 +8795,14 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_body_composition_measurement_flags, ett_btatt_value, hfx_btatt_body_composition_measurement_flags, ENC_LITTLE_ENDIAN);
-        flags = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+        flags = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
         offset += 2;
 
         proto_tree_add_item(tree, hf_btatt_body_composition_measurement_body_fat_percentage, tvb, offset, 2, ENC_LITTLE_ENDIAN);
         offset += 2;
 
         if (flags & 0x02) {
-            sub_item = proto_tree_add_item(tree, hf_btatt_body_composition_measurement_timestamp, tvb, offset, 7, ENC_NA);
-            sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
-
-            proto_tree_add_item(sub_tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-            offset += 2;
-
-            proto_tree_add_item(sub_tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-            offset += 1;
+            offset = add_item_btatt_timestamp(tree, hf_btatt_body_composition_measurement_timestamp, tvb, offset);
         }
 
         if (flags & 0x04) {
@@ -8919,7 +8889,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_weight_measurement_flags, ett_btatt_value, hfx_btatt_weight_measurement_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (flags & 0x01)
@@ -8929,26 +8899,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         offset += 2;
 
         if (flags & 0x02) {
-            sub_item = proto_tree_add_item(tree, hf_btatt_weight_measurement_timestamp, tvb, offset, 7, ENC_NA);
-            sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
-
-            proto_tree_add_item(sub_tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-            offset += 2;
-
-            proto_tree_add_item(sub_tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-            offset += 1;
-
-            proto_tree_add_item(sub_tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-            offset += 1;
+            offset = add_item_btatt_timestamp(tree, hf_btatt_weight_measurement_timestamp, tvb, offset);
         }
 
         if (flags & 0x04) {
@@ -8997,13 +8948,13 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_user_control_point_opcode, tvb, offset, 1, ENC_NA);
-        opcode = tvb_get_guint8(tvb, offset);
+        opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         switch (opcode) {
         case 0x01: /* Register New User */
             sub_item = proto_tree_add_item(tree, hf_btatt_user_control_point_consent_code, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-            value =  tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            value =  tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
             if (value > 9999)
                 expert_add_info(pinfo, sub_item, &ei_btatt_consent_out_of_bounds);
             offset += 2;
@@ -9014,7 +8965,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             offset += 1;
 
             sub_item = proto_tree_add_item(tree, hf_btatt_user_control_point_consent_code, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-            value =  tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            value =  tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
             if (value > 9999)
                 expert_add_info(pinfo, sub_item, &ei_btatt_consent_out_of_bounds);
             offset += 2;
@@ -9030,7 +8981,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             proto_tree_add_item(tree, hf_btatt_user_control_point_response_value, tvb, offset, 1, ENC_NA);
             offset += 1;
 
-            if (tvb_get_guint8(tvb, offset - 2) == 0x01 && tvb_get_guint8(tvb, offset - 1) == 0x01) { /* Register New User && Success */
+            if (tvb_get_uint8(tvb, offset - 2) == 0x01 && tvb_get_uint8(tvb, offset - 1) == 0x01) { /* Register New User && Success */
                 proto_tree_add_item(tree, hf_btatt_user_index, tvb, offset, 1, ENC_NA);
                 offset += 1;
             }
@@ -9132,14 +9083,14 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_bond_management_feature, ett_btatt_value, hfx_btatt_bond_management_feature, ENC_LITTLE_ENDIAN);
-        flags = tvb_get_guint24(tvb, offset, ENC_LITTLE_ENDIAN);
+        flags = tvb_get_uint24(tvb, offset, ENC_LITTLE_ENDIAN);
         offset += 3;
 
         if (flags & 0x800000) {
             do {
                 proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_bond_management_feature_nth, ett_btatt_value, hfx_btatt_bond_management_feature_nth, ENC_LITTLE_ENDIAN);
                 offset += 1;
-            } while (tvb_get_guint8(tvb, offset - 1) & 0x80);
+            } while (tvb_get_uint8(tvb, offset - 1) & 0x80);
         }
 
         break;
@@ -9166,12 +9117,12 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         sub_item = proto_tree_add_item(tree, hf_btatt_cgm_measurement_size, tvb, offset, 1, ENC_NA);
-        if (tvb_get_guint8(tvb, offset) >= 6)
+        if (tvb_get_uint8(tvb, offset) >= 6)
             expert_add_info(pinfo, sub_item, &ei_btatt_cgm_size_too_small);
         offset += 1;
 
         proto_tree_add_bitmask(tree, tvb, offset, hf_btatt_cgm_measurement_flags, ett_btatt_value, hfx_btatt_cgm_measurement_flags, ENC_NA);
-        flags = tvb_get_guint8(tvb, offset);
+        flags = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         proto_tree_add_item(tree, hf_btatt_cgm_measurement_glucose_concentration, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -9296,26 +9247,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        sub_item = proto_tree_add_item(tree, hf_btatt_cgm_session_start_time, tvb, offset, 7, ENC_NA);
-        sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
-
-        proto_tree_add_item(sub_tree, hf_btatt_year, tvb, offset, 2, ENC_LITTLE_ENDIAN);
-        offset += 2;
-
-        proto_tree_add_item(sub_tree, hf_btatt_month, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(sub_tree, hf_btatt_day, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(sub_tree, hf_btatt_hours, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(sub_tree, hf_btatt_minutes, tvb, offset, 1, ENC_NA);
-        offset += 1;
-
-        proto_tree_add_item(sub_tree, hf_btatt_seconds, tvb, offset, 1, ENC_NA);
-        offset += 1;
+        offset = add_item_btatt_timestamp(tree, hf_btatt_cgm_session_start_time, tvb, offset);
 
         proto_tree_add_item(tree, hf_btatt_timezone, tvb, offset, 1, ENC_NA);
         offset += 1;
@@ -9366,7 +9298,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_cgm_specific_ops_control_point_opcode, tvb, offset, 1, ENC_NA);
-        opcode = tvb_get_guint8(tvb, offset);
+        opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         sub_item = proto_tree_add_item(tree, hf_btatt_cgm_specific_ops_control_point_operand, tvb, offset, 0, ENC_NA);
@@ -9449,7 +9381,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             proto_tree_add_item(sub_tree, hf_btatt_cgm_specific_ops_control_point_response_code, tvb, offset, 1, ENC_NA);
             offset += 1;
 
-            switch (tvb_get_guint8(tvb, offset - 2)) {
+            switch (tvb_get_uint8(tvb, offset - 2)) {
             case  1: /* Set CGM Communication Interval */
             case  2: /* Get CGM Communication Interval */
             case  4: /* Set Glucose Calibration Value */
@@ -9952,7 +9884,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_ots_action_opcode, tvb, offset, 1, ENC_NA);
-        opcode = tvb_get_guint8(tvb, offset);
+        opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         switch (opcode) {
@@ -9992,7 +9924,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             proto_tree_add_item(tree, hf_btatt_ots_action_result_code, tvb, offset, 1, ENC_NA);
             offset += 1;
 
-            switch (tvb_get_guint8(tvb, offset)) {
+            switch (tvb_get_uint8(tvb, offset)) {
             case 0x01: /* Create  */
             case 0x02: /* Delete  */
             case 0x05: /* Read */
@@ -10030,7 +9962,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_ots_list_opcode, tvb, offset, 1, ENC_NA);
-        opcode = tvb_get_guint8(tvb, offset);
+        opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         switch (opcode) {
@@ -10059,7 +9991,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             proto_tree_add_item(tree, hf_btatt_ots_list_result_code, tvb, offset, 1, ENC_NA);
             offset += 1;
 
-            switch (tvb_get_guint8(tvb, offset - 2)) {
+            switch (tvb_get_uint8(tvb, offset - 2)) {
             case 0x01: /* First */
             case 0x02: /* Last */
             case 0x03: /* Previous */
@@ -10091,7 +10023,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
 
         proto_tree_add_item(tree, hf_btatt_ots_filter, tvb, offset, 1, ENC_NA);
         offset += 1;
-        switch (tvb_get_guint8(tvb, offset - 1)) {
+        switch (tvb_get_uint8(tvb, offset - 1)) {
         case 0x00: /* No Filter */
         case 0x0A: /* Marked Objects */
             /* none */
@@ -10410,7 +10342,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
         if (bluetooth_gatt_has_no_parameter(att_data->opcode))
             break;
 
-        guint32 ftm_status_opcode;
+        uint32_t ftm_status_opcode;
 
         proto_tree_add_item_ret_uint(tree, hf_btatt_fitness_machine_status_opcode, tvb, offset, 1, ENC_NA, &ftm_status_opcode);
         offset += 1;
@@ -10611,7 +10543,7 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
             break;
 
         proto_tree_add_item(tree, hf_btatt_volume_control_point_procedure, tvb, offset, 1, ENC_NA);
-        opcode = tvb_get_guint8(tvb, offset);
+        opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         /* All procedures must have change counter */
@@ -10710,8 +10642,8 @@ dissect_attribute_value(proto_tree *tree, proto_item *patron_item, packet_info *
     return old_offset + offset;
 }
 
-static gint
-btatt_dissect_attribute_handle(guint16 handle, tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, btatt_data_t *att_data)
+static int
+btatt_dissect_attribute_handle(uint16_t handle, tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, btatt_data_t *att_data)
 {
     dissector_handle_t attribute_handler;
     const char* attribute_name;
@@ -10720,7 +10652,6 @@ btatt_dissect_attribute_handle(guint16 handle, tvbuff_t *tvb, packet_info *pinfo
     if (attribute_handler == NULL)
         return 0;
 
-    /* XXX - dissector name, or protocol name? */
     attribute_name = dissector_handle_get_dissector_name(attribute_handler); /* abbrev */
     DISSECTOR_ASSERT(attribute_name);
 
@@ -10733,7 +10664,7 @@ btatt_dissect_attribute_handle(guint16 handle, tvbuff_t *tvb, packet_info *pinfo
      * from its protocol name and then calls dissect_attribute_value().
      */
 
-    return dissector_try_uint_new(att_handle_dissector_table, handle, tvb, pinfo, tree, TRUE, att_data);
+    return dissector_try_uint_new(att_handle_dissector_table, handle, tvb, pinfo, tree, true, att_data);
 }
 
 static int
@@ -10744,12 +10675,12 @@ dissect_btgatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     proto_item  *patron_item = NULL;
     bluetooth_uuid_t uuid;
 
-    main_item = proto_tree_add_item(tree, (gint) GPOINTER_TO_UINT(wmem_list_frame_data(wmem_list_tail(pinfo->layers))), tvb, 0, tvb_captured_length(tvb), ENC_NA);
+    main_item = proto_tree_add_item(tree, (int) GPOINTER_TO_UINT(wmem_list_frame_data(wmem_list_tail(pinfo->layers))), tvb, 0, tvb_captured_length(tvb), ENC_NA);
     main_tree = proto_item_add_subtree(main_item, ett_btgatt);
 
     if (strlen(pinfo->current_proto) > 7) {
         uuid.size = 2;
-        uuid.bt_uuid = (guint16) g_ascii_strtoull(pinfo->current_proto + strlen(pinfo->current_proto) - 7, NULL, 16);
+        uuid.bt_uuid = (uint16_t) g_ascii_strtoull(pinfo->current_proto + strlen(pinfo->current_proto) - 7, NULL, 16);
         uuid.data[1] = uuid.bt_uuid & 0xFF;
         uuid.data[0] = (uuid.bt_uuid >> 8) & 0xFF;
     } else {
@@ -10764,7 +10695,7 @@ dissect_btgatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
 }
 
-static gboolean
+static bool
 is_long_attribute_value(bluetooth_uuid_t uuid)
 {
     switch (uuid.bt_uuid) {
@@ -10785,20 +10716,20 @@ is_long_attribute_value(bluetooth_uuid_t uuid)
     case 0x2AB7: /* HTTP Headers */
     case 0x2AB9: /* HTTP Entity Body */
     case 0x2ABE: /* Object Name */
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
-static guint
+static unsigned
 get_mtu(packet_info *pinfo, bluetooth_data_t *bluetooth_data)
 {
     wmem_tree_key_t  key[3];
-    guint32          frame_number;
+    uint32_t         frame_number;
     mtu_data_t      *mtu_data;
     wmem_tree_t     *sub_wmemtree;
-    guint            mtu = 23;
+    unsigned         mtu = 23;
 
     if (bluetooth_data) {
         frame_number = pinfo->num;
@@ -10821,10 +10752,10 @@ get_mtu(packet_info *pinfo, bluetooth_data_t *bluetooth_data)
 }
 
 static void
-save_mtu(packet_info *pinfo, bluetooth_data_t *bluetooth_data, guint mtu)
+save_mtu(packet_info *pinfo, bluetooth_data_t *bluetooth_data, unsigned mtu)
 {
     wmem_tree_key_t  key[4];
-    guint32          frame_number;
+    uint32_t         frame_number;
     mtu_data_t      *mtu_data;
 
     frame_number = pinfo->num;
@@ -10845,11 +10776,11 @@ save_mtu(packet_info *pinfo, bluetooth_data_t *bluetooth_data, guint mtu)
 }
 
 static void
-save_value_fragment(packet_info *pinfo, tvbuff_t *tvb, gint offset,
-        guint32 handle, guint data_offset, bluetooth_data_t *bluetooth_data)
+save_value_fragment(packet_info *pinfo, tvbuff_t *tvb, int offset,
+        uint32_t handle, unsigned data_offset, bluetooth_data_t *bluetooth_data)
 {
     wmem_tree_key_t   key[5];
-    guint32           frame_number;
+    uint32_t          frame_number;
     fragment_data_t  *fragment_data;
 
     frame_number = pinfo->num;
@@ -10869,22 +10800,22 @@ save_value_fragment(packet_info *pinfo, tvbuff_t *tvb, gint offset,
     fragment_data->length = tvb_captured_length_remaining(tvb, offset);
     fragment_data->offset = data_offset;
     fragment_data->data_in_frame = frame_number;
-    fragment_data->data = (guint8 *) tvb_memdup(wmem_file_scope(), tvb, offset, fragment_data->length);
+    fragment_data->data = (uint8_t *) tvb_memdup(wmem_file_scope(), tvb, offset, fragment_data->length);
 
     wmem_tree_insert32_array(fragments, key, fragment_data);
 }
 
-static guint8 *
-get_value(packet_info *pinfo, guint32 handle, bluetooth_data_t *bluetooth_data, guint *length)
+static uint8_t *
+get_value(packet_info *pinfo, uint32_t handle, bluetooth_data_t *bluetooth_data, unsigned *length)
 {
     wmem_tree_key_t   key[4];
-    guint32           frame_number;
+    uint32_t          frame_number;
     fragment_data_t  *fragment_data;
     wmem_tree_t      *sub_wmemtree;
-    guint             last_offset = G_MAXUINT;
-    guint             size;
-    gboolean          first = TRUE;
-    guint8           *data = NULL;
+    unsigned          last_offset = UINT_MAX;
+    unsigned          size;
+    bool              first = true;
+    uint8_t          *data = NULL;
 
     if (bluetooth_data) {
         frame_number = pinfo->num;
@@ -10906,12 +10837,12 @@ get_value(packet_info *pinfo, guint32 handle, bluetooth_data_t *bluetooth_data, 
 
             if (first) {
                 size = fragment_data->offset + fragment_data->length;
-                data = (guint8 *) wmem_alloc(pinfo->pool, size);
+                data = (uint8_t *) wmem_alloc(pinfo->pool, size);
 
                 if (length)
                     *length = size;
 
-                first = FALSE;
+                first = false;
             } else if (fragment_data->offset + fragment_data->length != last_offset) {
                 break;
             }
@@ -10938,17 +10869,17 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     proto_item        *sub_item;
     proto_tree        *sub_tree;
     int                offset = 0;
-    guint8             opcode;
-    guint8             request_opcode;
+    uint8_t            opcode;
+    uint8_t            request_opcode;
     bluetooth_data_t  *bluetooth_data;
     btatt_data_t       att_data;
     request_data_t    *request_data;
-    guint16            handle;
+    uint16_t           handle;
     bluetooth_uuid_t   uuid;
-    guint              mtu;
+    unsigned           mtu;
 /* desegmentation stuff */
 //    int deseg_offset = 0;
-/*end desgementation stuff */
+/*end desegmentation stuff */
     memset(&uuid, 0, sizeof uuid);
 
     bluetooth_data = (bluetooth_data_t *) data;
@@ -10980,7 +10911,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         expert_add_info(pinfo, main_item, &ei_btatt_mtu_exceeded);
 
     proto_tree_add_bitmask_with_flags(main_tree, tvb, offset, hf_btatt_opcode, ett_btatt_opcode,  hfx_btatt_opcode, ENC_NA, BMT_NO_APPEND);
-    opcode = tvb_get_guint8(tvb, 0);
+    opcode = tvb_get_uint8(tvb, 0);
     att_data.opcode = opcode;
     offset++;
     request_data = get_request(tvb, offset, pinfo, opcode, bluetooth_data);
@@ -10988,22 +10919,22 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     switch (opcode) {
     case 0x01: /* Error Response */
         {
-        guint8               error_code;
+        uint8_t              error_code;
         bluetooth_uuid_t     service_uuid;
         const value_string  *error_vals = error_code_vals;
-        gint                 hfx_btatt_error_code = hf_btatt_error_code;
+        int                  hfx_btatt_error_code = hf_btatt_error_code;
 
         proto_tree_add_bitmask_with_flags(main_tree, tvb, offset, hf_btatt_req_opcode_in_error, ett_btatt_opcode,  hfx_btatt_opcode, ENC_NA, BMT_NO_APPEND);
-        request_opcode = tvb_get_guint8(tvb, offset);
+        request_opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
-        offset = dissect_handle(main_tree, pinfo, hf_btatt_handle_in_error, tvb, offset, bluetooth_data, NULL, HANDLE_TVB);
+        offset = dissect_handle(main_tree, pinfo, hf_btatt_handle_in_error, tvb, offset, bluetooth_data, NULL, HANDLE_TVB, opcode);
         handle = tvb_get_letohs(tvb, offset - 2);
 
-        error_code = tvb_get_guint8(tvb, offset);
+        error_code = tvb_get_uint8(tvb, offset);
 
         if (error_code >= 0x80 && error_code <= 0x9F) {
-            service_uuid = get_service_uuid_from_handle(pinfo, handle, bluetooth_data);
+            service_uuid = get_service_uuid_from_handle(pinfo, handle, opcode, bluetooth_data);
 
             switch (service_uuid.bt_uuid) {
             case GATT_SERVICE_AUTOMATION_IO:
@@ -11094,7 +11025,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         col_append_fstr(pinfo->cinfo, COL_INFO, " - %s",
                         val_to_str_const(error_code, error_vals, "<unknown>"));
 
-        col_append_info_by_handle(pinfo, handle, bluetooth_data);
+        col_append_info_by_handle(pinfo, handle, opcode, bluetooth_data);
 
         proto_tree_add_item(main_tree, hfx_btatt_error_code, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         offset++;
@@ -11114,7 +11045,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         if (!pinfo->fd->visited && bluetooth_data) {
             union request_parameters_union  request_parameters;
 
-            request_parameters.mtu.mtu = tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
+            request_parameters.mtu.mtu = tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
 
             save_request(pinfo, opcode, request_parameters, bluetooth_data);
         }
@@ -11125,9 +11056,9 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         col_append_fstr(pinfo->cinfo, COL_INFO, ", Server Rx MTU: %u", tvb_get_letohs(tvb, offset));
         proto_tree_add_item(main_tree, hf_btatt_server_rx_mtu, tvb, offset, 2, ENC_LITTLE_ENDIAN);
         if (!pinfo->fd->visited && request_data && bluetooth_data) {
-            guint new_mtu;
+            unsigned new_mtu;
 
-            new_mtu = tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN);
+            new_mtu = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
             if (new_mtu > request_data->parameters.mtu.mtu)
                 new_mtu = request_data->parameters.mtu.mtu;
             save_mtu(pinfo, bluetooth_data, new_mtu);
@@ -11147,8 +11078,8 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         if (!pinfo->fd->visited && bluetooth_data) {
             union request_parameters_union  request_parameters;
 
-            request_parameters.find_information.starting_handle = tvb_get_guint16(tvb, offset - 4, ENC_LITTLE_ENDIAN);
-            request_parameters.find_information.ending_handle   = tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
+            request_parameters.find_information.starting_handle = tvb_get_uint16(tvb, offset - 4, ENC_LITTLE_ENDIAN);
+            request_parameters.find_information.ending_handle   = tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
 
             save_request(pinfo, opcode, request_parameters, bluetooth_data);
         }
@@ -11157,10 +11088,10 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     case 0x05: /* Find Information Response */
         {
-            guint8  format;
+            uint8_t format;
 
             sub_item = proto_tree_add_item(main_tree, hf_btatt_uuid_format, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-            format = tvb_get_guint8(tvb, offset);
+            format = tvb_get_uint8(tvb, offset);
             offset += 1;
 
             if (format == 1) {
@@ -11168,8 +11099,8 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
                     sub_item = proto_tree_add_item(main_tree, hf_btatt_information_data, tvb, offset, 4, ENC_NA);
                     sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
 
-                    offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB);
-                    handle = tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
+                    offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB, opcode);
+                    handle = tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
 
                     proto_tree_add_item(sub_tree, hf_btatt_uuid16, tvb, offset, 2, ENC_LITTLE_ENDIAN);
                     uuid = get_bluetooth_uuid(tvb, offset, 2);
@@ -11180,7 +11111,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
                     save_handle(pinfo, uuid, handle, ATTRIBUTE_TYPE_OTHER, bluetooth_data);
 
-                    col_append_info_by_handle(pinfo, handle, bluetooth_data);
+                    col_append_info_by_handle(pinfo, handle, opcode, bluetooth_data);
                 }
             }
             else if (format == 2) {
@@ -11188,8 +11119,8 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
                     sub_item = proto_tree_add_item(main_tree, hf_btatt_information_data, tvb, offset, 4, ENC_NA);
                     sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
 
-                    offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB);
-                    handle = tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
+                    offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB, opcode);
+                    handle = tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
 
                     proto_tree_add_item(sub_tree, hf_btatt_uuid128, tvb, offset, 16, ENC_NA);
                     uuid = get_bluetooth_uuid(tvb, offset, 16);
@@ -11200,7 +11131,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
                     save_handle(pinfo, uuid, handle, ATTRIBUTE_TYPE_OTHER, bluetooth_data);
 
-                    col_append_info_by_handle(pinfo, handle, bluetooth_data);
+                    col_append_info_by_handle(pinfo, handle, opcode, bluetooth_data);
                 }
             }
             else {
@@ -11229,8 +11160,8 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         if (!pinfo->fd->visited && bluetooth_data) {
             union request_parameters_union  request_parameters;
 
-            request_parameters.read_by_type.starting_handle = tvb_get_guint16(tvb, offset - 6, ENC_LITTLE_ENDIAN);
-            request_parameters.read_by_type.ending_handle   = tvb_get_guint16(tvb, offset - 4, ENC_LITTLE_ENDIAN);
+            request_parameters.read_by_type.starting_handle = tvb_get_uint16(tvb, offset - 6, ENC_LITTLE_ENDIAN);
+            request_parameters.read_by_type.ending_handle   = tvb_get_uint16(tvb, offset - 4, ENC_LITTLE_ENDIAN);
             request_parameters.read_by_type.uuid = uuid;
 
             save_request(pinfo, opcode, request_parameters, bluetooth_data);
@@ -11248,14 +11179,14 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
             sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
 
-            offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB);
+            offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB, opcode);
 
             proto_tree_add_item(sub_tree, hf_btatt_group_end_handle, tvb, offset, 2, ENC_LITTLE_ENDIAN);
             offset += 2;
 
             if (request_data)
                 save_handle(pinfo, request_data->parameters.read_by_type.uuid,
-                        tvb_get_guint16(tvb, offset - 4, ENC_LITTLE_ENDIAN),
+                        tvb_get_uint16(tvb, offset - 4, ENC_LITTLE_ENDIAN),
                         ATTRIBUTE_TYPE_OTHER, bluetooth_data);
 
         }
@@ -11279,8 +11210,8 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
             if (!pinfo->fd->visited && bluetooth_data) {
                 union request_parameters_union  request_parameters;
 
-                request_parameters.read_by_type.starting_handle = tvb_get_guint16(tvb, offset - 6, ENC_LITTLE_ENDIAN);
-                request_parameters.read_by_type.ending_handle   = tvb_get_guint16(tvb, offset - 4, ENC_LITTLE_ENDIAN);
+                request_parameters.read_by_type.starting_handle = tvb_get_uint16(tvb, offset - 6, ENC_LITTLE_ENDIAN);
+                request_parameters.read_by_type.ending_handle   = tvb_get_uint16(tvb, offset - 4, ENC_LITTLE_ENDIAN);
                 request_parameters.read_by_type.uuid = get_bluetooth_uuid(tvb, offset - 2, 2);
 
                 save_request(pinfo, opcode, request_parameters, bluetooth_data);
@@ -11294,8 +11225,8 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
             if (!pinfo->fd->visited && bluetooth_data) {
                 union request_parameters_union  request_parameters;
 
-                request_parameters.read_by_type.starting_handle = tvb_get_guint16(tvb, offset - 20, ENC_LITTLE_ENDIAN);
-                request_parameters.read_by_type.ending_handle   = tvb_get_guint16(tvb, offset - 18, ENC_LITTLE_ENDIAN);
+                request_parameters.read_by_type.starting_handle = tvb_get_uint16(tvb, offset - 20, ENC_LITTLE_ENDIAN);
+                request_parameters.read_by_type.ending_handle   = tvb_get_uint16(tvb, offset - 18, ENC_LITTLE_ENDIAN);
                 request_parameters.read_by_type.uuid = get_bluetooth_uuid(tvb, offset - 16, 16);
 
                 save_request(pinfo, opcode, request_parameters, bluetooth_data);
@@ -11310,7 +11241,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     case 0x09: /* Read By Type Response */
         {
-            guint8  length = tvb_get_guint8(tvb, offset);
+            uint8_t length = tvb_get_uint8(tvb, offset);
 
             proto_tree_add_item(main_tree, hf_btatt_length, tvb, offset, 1, ENC_LITTLE_ENDIAN);
             offset++;
@@ -11329,14 +11260,14 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
                     if (request_data) {
                         save_handle(pinfo, request_data->parameters.read_by_type.uuid,
-                                tvb_get_guint16(tvb, offset, ENC_LITTLE_ENDIAN),
+                                tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN),
                                 ATTRIBUTE_TYPE_OTHER, bluetooth_data);
                     }
 
-                    offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB);
+                    offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB, opcode);
 
                     if (request_data) {
-                        offset = dissect_attribute_value(sub_tree, sub_item, pinfo, tvb, offset, length - 2, tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN), request_data->parameters.read_by_type.uuid, &att_data);
+                        offset = dissect_attribute_value(sub_tree, sub_item, pinfo, tvb, offset, length - 2, tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN), request_data->parameters.read_by_type.uuid, &att_data);
                     } else {
                         proto_tree_add_item(sub_tree, hf_btatt_value, tvb, offset, length - 2, ENC_NA);
                         offset += length - 2;
@@ -11352,10 +11283,10 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         break;
 
     case 0x0a: /* Read Request */
-        offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB);
+        offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB, opcode);
         handle = tvb_get_letohs(tvb, offset - 2);
 
-        col_append_info_by_handle(pinfo, handle, bluetooth_data);
+        col_append_info_by_handle(pinfo, handle, opcode, bluetooth_data);
 
         if (!pinfo->fd->visited && bluetooth_data) {
             union request_parameters_union  request_parameters;
@@ -11372,9 +11303,9 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     case 0x0b: /* Read Response */
         if (request_data) {
-            dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_write.handle);
+            dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_write.handle, opcode);
 
-            col_append_info_by_handle(pinfo, request_data->parameters.read_write.handle, bluetooth_data);
+            col_append_info_by_handle(pinfo, request_data->parameters.read_write.handle, opcode, bluetooth_data);
         }
 
         if (is_long_attribute_value(uuid) && tvb_captured_length(tvb) >= mtu) {
@@ -11395,10 +11326,10 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         break;
 
     case 0x0c: /* Read Blob Request */
-        offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB);
+        offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB, opcode);
         handle = tvb_get_letohs(tvb, offset - 2);
 
-        col_append_info_by_handle(pinfo, handle, bluetooth_data);
+        col_append_info_by_handle(pinfo, handle, opcode, bluetooth_data);
         col_append_fstr(pinfo->cinfo, COL_INFO, ", Offset: %u", tvb_get_letohs(tvb, offset));
 
         proto_tree_add_item(main_tree, hf_btatt_offset, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -11411,7 +11342,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
             union request_parameters_union  request_parameters;
 
             request_parameters.read_write.handle = handle;
-            request_parameters.read_write.offset = tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
+            request_parameters.read_write.offset = tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
 
             save_request(pinfo, opcode, request_parameters, bluetooth_data);
         }
@@ -11419,9 +11350,9 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     case 0x0d: /* Read Blob Response */
         if (request_data && request_data->opcode == (opcode - 1)) {
-            dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_write.handle);
+            dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_write.handle, opcode);
 
-            col_append_info_by_handle(pinfo, request_data->parameters.read_write.handle, bluetooth_data);
+            col_append_info_by_handle(pinfo, request_data->parameters.read_write.handle, opcode, bluetooth_data);
 
             if (request_data->parameters.read_write.offset == 0 && !is_long_attribute_value(uuid)) {
                 offset = dissect_attribute_value(main_tree, NULL, pinfo, tvb, offset, tvb_captured_length_remaining(tvb, offset), request_data->parameters.read_write.handle, uuid, &att_data);
@@ -11431,8 +11362,8 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
                 if (tvb_captured_length(tvb) < mtu) {
                     tvbuff_t  *next_tvb;
-                    guint      reassembled_length;
-                    guint8    *reassembled_data;
+                    unsigned   reassembled_length;
+                    uint8_t   *reassembled_data;
 
                     sub_item = proto_tree_add_item(main_tree, hf_btatt_value, tvb, offset, -1, ENC_NA);
                     offset = tvb_captured_length(tvb);
@@ -11459,6 +11390,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         break;
 
     case 0x0e: /* Multiple Read Request */
+    case 0x20: /* Read Multiple Variable Request */
         if(tvb_reported_length_remaining(tvb, offset) < 4) {
             expert_add_info(pinfo, main_item, &ei_btatt_handle_too_few);
             break;
@@ -11466,7 +11398,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
         col_append_str(pinfo->cinfo, COL_INFO, ", Handles: ");
         while (tvb_reported_length_remaining(tvb, offset) >= 2) {
-            offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB);
+            offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB, opcode);
             handle = tvb_get_letohs(tvb, offset - 2);
             col_append_fstr(pinfo->cinfo, COL_INFO, "0x%04x ", handle);
 
@@ -11477,7 +11409,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
             union request_parameters_union  request_parameters;
 
             request_parameters.read_multiple.number_of_handles = (tvb_captured_length(tvb) - 1) / 2;
-            request_parameters.read_multiple.handle = (guint16 *) tvb_memdup(wmem_file_scope(),
+            request_parameters.read_multiple.handle = (uint16_t *) tvb_memdup(wmem_file_scope(),
                     tvb, 1, request_parameters.read_multiple.number_of_handles * 2);
 
             save_request(pinfo, opcode, request_parameters, bluetooth_data);
@@ -11485,12 +11417,35 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         break;
 
     case 0x0f: /* Multiple Read Response */
+    case 0x21: /* Read Multiple Variable Response */
         if (request_data && request_data->opcode == (opcode - 1)) {
-            guint  i_handle;
+            unsigned  i_handle;
 
-            for (i_handle = 0; i_handle < request_data->parameters.read_multiple.number_of_handles; i_handle += 1) {
-                dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_multiple.handle[i_handle]);
-                offset = dissect_attribute_value(main_tree, NULL, pinfo, tvb, offset, tvb_captured_length_remaining(tvb, offset), request_data->parameters.read_multiple.handle[i_handle], uuid, &att_data);
+            if (opcode == 0x0f) {
+                for (i_handle = 0; i_handle < request_data->parameters.read_multiple.number_of_handles; i_handle += 1) {
+                    dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_multiple.handle[i_handle], opcode);
+                    offset = dissect_attribute_value(main_tree, NULL, pinfo, tvb, offset, tvb_captured_length_remaining(tvb, offset), request_data->parameters.read_multiple.handle[i_handle], uuid, &att_data);
+                }
+            } else {
+                i_handle = 0;
+                /* Read Multiple Variable Response */
+                for (;;) {
+                    int remain = tvb_reported_length_remaining(tvb, offset);
+                    uint16_t length;
+                    if (remain < 2)
+                        break;
+                    length = tvb_get_uint16(tvb, offset, ENC_LITTLE_ENDIAN);
+                    offset+=2;
+                    remain-=2;
+                    if (remain < length)
+                        break;
+
+                    dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_multiple.handle[i_handle], opcode);
+                    dissect_attribute_value(main_tree, NULL, pinfo, tvb, offset, length, request_data->parameters.read_multiple.handle[i_handle], uuid, &att_data);
+
+                    i_handle++;
+                    offset += length;
+                }
             }
         } else {
             proto_tree_add_item(main_tree, hf_btatt_value, tvb, offset, -1, ENC_NA);
@@ -11500,7 +11455,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     case 0x11: /* Read By Group Type Response */
         {
-            guint8  length = tvb_get_guint8(tvb, offset);
+            uint8_t length = tvb_get_uint8(tvb, offset);
 
             proto_tree_add_item(main_tree, hf_btatt_length, tvb, offset, 1, ENC_LITTLE_ENDIAN);
             offset++;
@@ -11515,8 +11470,8 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
                     sub_tree = proto_item_add_subtree(sub_item, ett_btatt_list);
 
-                    offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB);
-                    handle = tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
+                    offset = dissect_handle(sub_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, NULL, HANDLE_TVB, opcode);
+                    handle = tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN);
 
                     proto_tree_add_item(sub_tree, hf_btatt_group_end_handle, tvb, offset, 2, ENC_LITTLE_ENDIAN);
                     offset += 2;
@@ -11541,10 +11496,10 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     case 0x1d: /* Handle Value Indication */
     case 0x52: /* Write Command */
     case 0x1b: /* Handle Value Notification */
-        offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB);
+        offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB, opcode);
         handle = tvb_get_letohs(tvb, offset - 2);
-        col_append_info_by_handle(pinfo, handle, bluetooth_data);
-        offset = dissect_attribute_value(main_tree, NULL, pinfo, tvb, offset, tvb_captured_length_remaining(tvb, offset), tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN), uuid, &att_data);
+        col_append_info_by_handle(pinfo, handle, opcode, bluetooth_data);
+        offset = dissect_attribute_value(main_tree, NULL, pinfo, tvb, offset, tvb_captured_length_remaining(tvb, offset), tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN), uuid, &att_data);
         if (!pinfo->fd->visited && bluetooth_data && (opcode == 0x12 || opcode == 0x1d)) {
             union request_parameters_union  request_parameters;
 
@@ -11559,21 +11514,21 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         /* No parameters */
 
         if (request_data && request_data->opcode == (opcode - 1)) {
-            dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_write.handle);
+            dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_write.handle, opcode);
 
             dissect_attribute_value(main_tree, NULL, pinfo, tvb, offset, 0, request_data->parameters.read_write.handle, uuid, &att_data);
 
-            col_append_info_by_handle(pinfo, request_data->parameters.read_write.handle, bluetooth_data);
+            col_append_info_by_handle(pinfo, request_data->parameters.read_write.handle, opcode, bluetooth_data);
         }
 
         break;
 
     case 0x16: /* Prepare Write Request */
     case 0x17: /* Prepare Write Response */
-        offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB);
+        offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB, opcode);
         handle = tvb_get_letohs(tvb, offset - 2);
 
-        col_append_info_by_handle(pinfo, handle, bluetooth_data);
+        col_append_info_by_handle(pinfo, handle, opcode, bluetooth_data);
         col_append_fstr(pinfo->cinfo, COL_INFO, ", Offset: %u", tvb_get_letohs(tvb, offset));
 
         proto_tree_add_item(main_tree, hf_btatt_offset, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -11588,16 +11543,16 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         }
         if (!pinfo->fd->visited && request_data && bluetooth_data && opcode == 0x16)
             save_value_fragment(pinfo, tvb, offset,
-                    tvb_get_guint16(tvb, offset - 4, ENC_LITTLE_ENDIAN),
-                    tvb_get_guint16(tvb, offset - 2, ENC_LITTLE_ENDIAN),
+                    tvb_get_uint16(tvb, offset - 4, ENC_LITTLE_ENDIAN),
+                    tvb_get_uint16(tvb, offset - 2, ENC_LITTLE_ENDIAN),
                     bluetooth_data);
 
         /* XXX: How to detect there is max data in frame and it is last fragment?
         (Execute Write Request/Response is good candidate, but there is no one handle) */
         if (request_data && request_data->opcode == (opcode - 1) && tvb_captured_length(tvb) < mtu) {
             tvbuff_t  *next_tvb;
-            guint      reassembled_length;
-            guint8    *reassembled_data;
+            unsigned   reassembled_length;
+            uint8_t   *reassembled_data;
 
             sub_item = proto_tree_add_item(main_tree, hf_btatt_value, tvb, offset, -1, ENC_NA);
 
@@ -11618,7 +11573,7 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     case 0x18: /* Execute Write Request */
         col_append_fstr(pinfo->cinfo, COL_INFO, ", %s",
-                        val_to_str_const(tvb_get_guint8(tvb, offset), flags_vals, "<unknown>"));
+                        val_to_str_const(tvb_get_uint8(tvb, offset), flags_vals, "<unknown>"));
         proto_tree_add_item(main_tree, hf_btatt_flags, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         offset++;
 
@@ -11638,9 +11593,9 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     case 0x1E: /* Handle Value Confirmation */
         if (request_data && request_data->opcode == (opcode - 1)) {
-            dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_write.handle);
+            dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, request_data->parameters.read_write.handle, opcode);
 
-            col_append_info_by_handle(pinfo, request_data->parameters.read_write.handle, bluetooth_data);
+            col_append_info_by_handle(pinfo, request_data->parameters.read_write.handle, opcode, bluetooth_data);
 
             dissect_attribute_value(main_tree, NULL, pinfo, tvb, offset, 0, request_data->parameters.read_write.handle, uuid, &att_data);
         }
@@ -11648,12 +11603,12 @@ dissect_btatt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     case 0xd2: /* Signed Write Command */
         {
-            guint8 length;
+            uint8_t length;
 
-            offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB);
+            offset = dissect_handle(main_tree, pinfo, hf_btatt_handle, tvb, offset, bluetooth_data, &uuid, HANDLE_TVB, opcode);
             handle = tvb_get_letohs(tvb, offset - 2);
 
-            col_append_info_by_handle(pinfo, handle, bluetooth_data);
+            col_append_info_by_handle(pinfo, handle, opcode, bluetooth_data);
 
             length = tvb_reported_length_remaining(tvb, offset);
             dissect_attribute_value(main_tree, NULL, pinfo, tvb, offset, (length > 12) ? length - 12 : 0, handle, uuid, &att_data);
@@ -11717,17 +11672,17 @@ dissect_btgatt_nordic_uart_rx(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree 
 static int
 dissect_btgatt_nordic_dfu_control_point(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    gint    offset = 0;
-    guint8  opcode;
-    guint8  request_opcode;
-    guint8  status;
+    int     offset = 0;
+    uint8_t opcode;
+    uint8_t request_opcode;
+    uint8_t status;
     btatt_data_t *att_data = (btatt_data_t *) data;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
 
     proto_tree_add_item(tree, hf_gatt_nordic_dfu_control_point_opcode, tvb, offset, 1, ENC_NA);
-    opcode = tvb_get_guint8(tvb, offset);
+    opcode = tvb_get_uint8(tvb, offset);
     offset += 1;
 
     switch (opcode) {
@@ -11758,11 +11713,11 @@ dissect_btgatt_nordic_dfu_control_point(tvbuff_t *tvb, packet_info *pinfo, proto
         break;
     case 0x10: /* Response Code */
         proto_tree_add_item(tree, hf_gatt_nordic_dfu_control_point_request_opcode, tvb, offset, 1, ENC_NA);
-        request_opcode = tvb_get_guint8(tvb, offset);
+        request_opcode = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         proto_tree_add_item(tree, hf_gatt_nordic_dfu_control_point_response_value, tvb, offset, 1, ENC_NA);
-        status = tvb_get_guint8(tvb, offset);
+        status = tvb_get_uint8(tvb, offset);
         offset += 1;
 
         if (request_opcode == 0x07 && status == 0x01) { /* Report Received Image Size && Success */
@@ -11804,15 +11759,15 @@ dissect_btgatt_microbit_accelerometer_data(tvbuff_t *tvb, packet_info *pinfo _U_
     btatt_data_t *att_data = (btatt_data_t *) data;
     proto_item *sub_item;
     proto_tree *sub_tree;
-    gdouble x_axis, y_axis, z_axis;
-    gint offset = 0;
+    double x_axis, y_axis, z_axis;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
 
-    x_axis = (gdouble) (gint) tvb_get_gint16(tvb, offset, ENC_LITTLE_ENDIAN) / 1000.0;
-    y_axis = (gdouble) (gint) tvb_get_gint16(tvb, offset+2, ENC_LITTLE_ENDIAN) / 1000.0;
-    z_axis = (gdouble) (gint) tvb_get_gint16(tvb, offset+4, ENC_LITTLE_ENDIAN) / 1000.0;
+    x_axis = (double) (int) tvb_get_int16(tvb, offset, ENC_LITTLE_ENDIAN) / 1000.0;
+    y_axis = (double) (int) tvb_get_int16(tvb, offset+2, ENC_LITTLE_ENDIAN) / 1000.0;
+    z_axis = (double) (int) tvb_get_int16(tvb, offset+4, ENC_LITTLE_ENDIAN) / 1000.0;
 
     sub_item = proto_tree_add_item(tree, hf_gatt_microbit_accelerometer_data, tvb, 0, tvb_captured_length(tvb), ENC_NA);
     sub_tree = proto_item_add_subtree(sub_item, ett_btgatt_microbit_accelerometer);
@@ -11832,7 +11787,7 @@ static int
 dissect_btgatt_microbit_accelerometer_period(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data)
 {
     btatt_data_t *att_data = (btatt_data_t *) data;
-    gint offset = 0;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
@@ -11849,15 +11804,15 @@ dissect_btgatt_microbit_magnetometer_data(tvbuff_t *tvb, packet_info *pinfo _U_,
     btatt_data_t *att_data = (btatt_data_t *) data;
     proto_item *sub_item;
     proto_tree *sub_tree;
-    gdouble x_axis, y_axis, z_axis;
-    gint offset = 0;
+    double x_axis, y_axis, z_axis;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
 
-    x_axis = (gdouble) (gint) tvb_get_gint16(tvb, offset, ENC_LITTLE_ENDIAN) / 1000.0;
-    y_axis = (gdouble) (gint) tvb_get_gint16(tvb, offset+2, ENC_LITTLE_ENDIAN) / 1000.0;
-    z_axis = (gdouble) (gint) tvb_get_gint16(tvb, offset+4, ENC_LITTLE_ENDIAN) / 1000.0;
+    x_axis = (double) (int) tvb_get_int16(tvb, offset, ENC_LITTLE_ENDIAN) / 1000.0;
+    y_axis = (double) (int) tvb_get_int16(tvb, offset+2, ENC_LITTLE_ENDIAN) / 1000.0;
+    z_axis = (double) (int) tvb_get_int16(tvb, offset+4, ENC_LITTLE_ENDIAN) / 1000.0;
 
     sub_item = proto_tree_add_item(tree, hf_gatt_microbit_magnetometer_data, tvb, 0, tvb_captured_length(tvb), ENC_NA);
     sub_tree = proto_item_add_subtree(sub_item, ett_btgatt_microbit_magnetometer);
@@ -11877,7 +11832,7 @@ static int
 dissect_btgatt_microbit_magnetometer_period(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data)
 {
     btatt_data_t *att_data = (btatt_data_t *) data;
-    gint offset = 0;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
@@ -11892,7 +11847,7 @@ static int
 dissect_btgatt_microbit_magnetometer_bearing(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data)
 {
     btatt_data_t *att_data = (btatt_data_t *) data;
-    gint offset = 0;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
@@ -11907,7 +11862,7 @@ static int
 dissect_btgatt_microbit_button_a_state(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data)
 {
     btatt_data_t *att_data = (btatt_data_t *) data;
-    gint offset = 0;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
@@ -11922,7 +11877,7 @@ static int
 dissect_btgatt_microbit_button_b_state(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data)
 {
     btatt_data_t *att_data = (btatt_data_t *) data;
-    gint offset = 0;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
@@ -11939,15 +11894,15 @@ dissect_btgatt_microbit_pin_data(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
     btatt_data_t *att_data = (btatt_data_t *) data;
     proto_item *sub_item;
     proto_tree *sub_tree;
-    gint offset = 0;
-    gint num_pins;
-    guint32 number, value;
+    int offset = 0;
+    int num_pins;
+    uint32_t number, value;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
 
     num_pins = tvb_captured_length(tvb) / 2;
-    for (gint i = 0; i < num_pins; i++) {
+    for (int i = 0; i < num_pins; i++) {
         sub_item = proto_tree_add_item(tree, hf_gatt_microbit_pin_data, tvb, offset, 2, ENC_NA);
         sub_tree = proto_item_add_subtree(sub_item, ett_btgatt_microbit_pin_data);
 
@@ -11955,7 +11910,7 @@ dissect_btgatt_microbit_pin_data(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
         offset++;
 
         /* The micro:bit has a 10 bit ADC but values are compressed to 8 bits with a loss of resolution. */
-        value = tvb_get_guint8(tvb, offset) * 4;
+        value = tvb_get_uint8(tvb, offset) * 4;
         proto_tree_add_uint(sub_tree, hf_gatt_microbit_pin_value, tvb, offset, 1, value);
         offset++;
 
@@ -12042,7 +11997,7 @@ static int
 dissect_btgatt_microbit_scrolling_delay(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data)
 {
     btatt_data_t *att_data = (btatt_data_t *) data;
-    gint offset = 0;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
@@ -12109,7 +12064,7 @@ static int
 dissect_btgatt_microbit_dfu_control(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data)
 {
     btatt_data_t *att_data = (btatt_data_t *) data;
-    gint offset = 0;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
@@ -12124,7 +12079,7 @@ static int
 dissect_btgatt_microbit_temperature_value(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data)
 {
     btatt_data_t *att_data = (btatt_data_t *) data;
-    gint offset = 0;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
@@ -12139,7 +12094,7 @@ static int
 dissect_btgatt_microbit_temperature_period(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data)
 {
     btatt_data_t *att_data = (btatt_data_t *) data;
-    gint offset = 0;
+    int offset = 0;
 
     if (bluetooth_gatt_has_no_parameter(att_data->opcode))
         return -1;
@@ -12159,7 +12114,7 @@ proto_register_btatt(void)
     module_t         *module;
     expert_module_t  *expert_btatt;
 
-    //src_port will be filled wiht handle
+    //src_port will be filled with handle
     //dst_port will be filled with opcode
     reassembly_table_register(&msg_reassembly_table,
         &addresses_ports_reassembly_table_functions);
@@ -12703,7 +12658,7 @@ proto_register_btatt(void)
         },
         {&hf_btatt_peripheral_privacy_flag,
             {"Peripheral Privacy", "btatt.peripheral_privacy_flag",
-            FT_BOOLEAN, 8, NULL, 0x0,
+            FT_BOOLEAN, BASE_NONE, NULL, 0x0,
             NULL, HFILL}
         },
         { &hf_btatt_reconnection_address,
@@ -12721,8 +12676,8 @@ proto_register_btatt(void)
             FT_UINT16, BASE_DEC, NULL, 0x0,
             NULL, HFILL}
         },
-        {&hf_btatt_slave_latency,
-            {"Slave Latency", "btatt.slave_latency",
+        {&hf_btatt_peripheral_latency,
+            {"Peripheral Latency", "btatt.peripheral_latency",
             FT_UINT16, BASE_DEC, NULL, 0x0,
             NULL, HFILL}
         },
@@ -12873,7 +12828,7 @@ proto_register_btatt(void)
         },
         {&hf_btatt_battery_level,
             {"Battery Level", "btatt.battery_level",
-            FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_percent, 0x0,
+            FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_percent), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_battery_power_state,
@@ -14972,7 +14927,7 @@ proto_register_btatt(void)
             NULL, HFILL}
         },
         {&hf_btatt_cycling_power_measurement_extreme_angles_minimum,
-            {"Miminum", "btatt.cycling_power_measurement.extreme_angles.minimum",
+            {"Minimum", "btatt.cycling_power_measurement.extreme_angles.minimum",
             FT_UINT24, BASE_DEC, NULL, 0x000FFF,
             NULL, HFILL}
         },
@@ -17331,32 +17286,32 @@ proto_register_btatt(void)
         },
         {&hf_btatt_supported_heart_rate_range_minimum_heart_rate,
             {"Minimum Heart Rate", "btatt.supported_heart_rate_range.minimum_heart_rate",
-            FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_bpm, 0x0,
+            FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_bpm), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_supported_heart_rate_range_maximum_heart_rate,
             {"Maximum Heart Rate", "btatt.supported_heart_rate_range.maximum_heart_rate",
-            FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_bpm, 0x0,
+            FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_bpm), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_supported_heart_rate_range_minimum_increment,
             {"Minimum Increment", "btatt.supported_heart_rate_range.minimum_increment",
-            FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_bpm, 0x0,
+            FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_bpm), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_supported_power_range_minimum_power,
             {"Minimum Power", "btatt.supported_power_range.minimum_power",
-            FT_INT16, BASE_DEC | BASE_UNIT_STRING, &units_watt, 0x0,
+            FT_INT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_watt), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_supported_power_range_maximum_power,
             {"Maximum Power", "btatt.supported_power_range.maximum_power",
-            FT_INT16, BASE_DEC | BASE_UNIT_STRING, &units_watt, 0x0,
+            FT_INT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_watt), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_supported_power_range_minimum_increment,
             {"Minimum Increment", "btatt.supported_power_range.minimum_increment",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_watt, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_watt), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_status_opcode,
@@ -17391,17 +17346,17 @@ proto_register_btatt(void)
         },
         {&hf_btatt_fitness_machine_power,
             {"Power", "btatt.fitness_machine.power",
-            FT_INT16, BASE_DEC | BASE_UNIT_STRING, &units_watt, 0x0,
+            FT_INT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_watt), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_heart_rate,
             {"Heart Rate", "btatt.fitness_machine.heart_rate",
-            FT_UINT8, BASE_DEC | BASE_UNIT_STRING, &units_bpm, 0x0,
+            FT_UINT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_bpm), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_expended_energy,
             {"Expended Energy", "btatt.fitness_machine.expended_energy",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_calorie, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_calorie), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_number_of_steps,
@@ -17416,12 +17371,12 @@ proto_register_btatt(void)
         },
         {&hf_btatt_fitness_machine_distance,
             {"Distance", "btatt.fitness_machine.distance",
-            FT_UINT24, BASE_DEC | BASE_UNIT_STRING, &units_meters, 0x0,
+            FT_UINT24, BASE_DEC | BASE_UNIT_STRING, UNS(&units_meters), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_training_time,
             {"Training Time", "btatt.fitness_machine.training_time",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_seconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_seconds), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_wheel_circumference,
@@ -17456,37 +17411,37 @@ proto_register_btatt(void)
         },
         {&hf_btatt_fitness_machine_targeted_time_in_fat_burn_zone,
             {"Targeted Time in Fat Burn Zone", "btatt.fitness_machine.targeted_time_in_fat_burn_zone",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_seconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_seconds), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_targeted_time_in_fitness_zone,
             {"Targeted Time in Fitness Zone", "btatt.fitness_machine.targeted_time_in_fitness_zone",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_seconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_seconds), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_targeted_time_in_very_light_zone,
             {"Targeted Time in Very Light Zone", "btatt.fitness_machine.targeted_time_in_very_light_zone",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_seconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_seconds), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_targeted_time_in_light_zone,
             {"Targeted Time in Light Zone", "btatt.fitness_machine.targeted_time_in_light_zone",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_seconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_seconds), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_targeted_time_in_moderate_zone,
             {"Targeted Time in Moderate Zone", "btatt.fitness_machine.targeted_time_in_moderate_zone",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_seconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_seconds), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_targeted_time_in_hard_zone,
             {"Targeted Time in Hard Zone", "btatt.fitness_machine.targeted_time_in_hard_zone",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_seconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_seconds), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_fitness_machine_targeted_time_in_maximum_zone,
             {"Targeted Time in Maximum Zone", "btatt.fitness_machine.targeted_time_in_maximum_zone",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_seconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_seconds), 0x0,
             NULL, HFILL}
         },
         {&hf_btatt_volume_setting,
@@ -17561,7 +17516,7 @@ proto_register_btatt(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btatt,
         &ett_btatt_list,
         &ett_btatt_value,
@@ -17601,6 +17556,7 @@ proto_register_btatt(void)
     btatt_handle = register_dissector("btatt", dissect_btatt, proto_btatt);
 
     att_handle_dissector_table = register_dissector_table("btatt.handle", "BT ATT Handle", proto_btatt, FT_UINT16, BASE_HEX);
+    att_service_dissector_table = register_dissector_table("btatt.service", "BT ATT Service", proto_btatt, FT_UINT16, BASE_HEX);
 
     /* Required function calls to register the header fields and subtrees used */
     proto_register_field_array(proto_btatt, hf, array_length(hf));
@@ -17619,12 +17575,14 @@ proto_register_btatt(void)
             "Version of protocol supported by this dissector.");
 
     register_decode_as(&btatt_handle_da);
+
+    btatt_tap_handles = register_tap("btatt.handles");
 }
 
 void
 proto_reg_handoff_btatt(void)
 {
-    gint                i_array;
+    int                 i_array;
     GString            *uuid_str = g_string_new("");
 
     http_handle = find_dissector_add_dependency("http", proto_btatt);
@@ -17637,14 +17595,12 @@ proto_reg_handoff_btatt(void)
     dissector_add_uint("btl2cap.psm", BTL2CAP_PSM_EATT, btatt_handle);
     dissector_add_uint("btl2cap.cid", BTL2CAP_FIXED_CID_ATT, btatt_handle);
 
-    btatt_tap_handles = register_tap("btatt.handles");
-
     for (i_array = 0; bluetooth_uuid_vals[i_array].strptr != NULL; i_array += 1) {
-        gchar *name;
-        gchar *short_name;
-        gchar *abbrev;
+        char *name;
+        char *short_name;
+        char *abbrev;
         dissector_handle_t  handle_tmp;
-        gint                proto_tmp;
+        int                 proto_tmp;
 
         if (bluetooth_uuid_vals[i_array].value < 0x1800) {
             continue;
@@ -17748,7 +17704,7 @@ proto_register_btgatt(void)
         },
         {&hf_gatt_microbit_accelerometer_period,
             {"Accelerometer Period", "btgatt.microbit.accelerometer.period",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
             NULL, HFILL}
         },
         {&hf_gatt_microbit_magnetometer_data,
@@ -17773,12 +17729,12 @@ proto_register_btgatt(void)
         },
         {&hf_gatt_microbit_magnetometer_period,
             {"Magnetometer Period", "btgatt.microbit.magnetometer.period",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
             NULL, HFILL}
         },
         {&hf_gatt_microbit_magnetometer_bearing,
             {"Magnetometer Bearing", "btgatt.microbit.magnetometer.bearing",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_degree_bearing, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_degree_bearing), 0x0,
             NULL, HFILL}
         },
         {&hf_gatt_microbit_button_a_state,
@@ -18033,7 +17989,7 @@ proto_register_btgatt(void)
         },
         {&hf_gatt_microbit_scrolling_delay,
             {"Scrolling Delay", "btgatt.microbit.scrolling_delay",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
             NULL, HFILL}
         },
         {&hf_gatt_microbit_microbit_requirements,
@@ -18063,18 +18019,18 @@ proto_register_btgatt(void)
         },
         {&hf_gatt_microbit_temperature_value,
             {"Temperature", "btgatt.microbit.temperature.value",
-            FT_INT8, BASE_DEC | BASE_UNIT_STRING, &units_degree_celsius, 0x0,
+            FT_INT8, BASE_DEC | BASE_UNIT_STRING, UNS(&units_degree_celsius), 0x0,
             NULL, HFILL}
         },
         {&hf_gatt_microbit_temperature_period,
             {"Temperature Period", "btgatt.microbit.temperature.period",
-            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, &units_milliseconds, 0x0,
+            FT_UINT16, BASE_DEC | BASE_UNIT_STRING, UNS(&units_milliseconds), 0x0,
             NULL, HFILL}
         }
     };
 
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_btgatt,
         &ett_btgatt_microbit_accelerometer,
         &ett_btgatt_microbit_magnetometer,
@@ -18095,8 +18051,8 @@ void
 proto_reg_handoff_btgatt(void)
 {
     const struct uuid_dissectors_t {
-        const gchar * const uuid;
-              gchar * const short_name;
+        const char * const uuid;
+              char * const short_name;
 
         int (* const dissect_func)(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data);
     } uuid_dissectors[] = {
@@ -18141,11 +18097,13 @@ proto_reg_handoff_btgatt(void)
         { NULL, NULL, NULL },
     };
 
-    for (gint i = 0; uuid_dissectors[i].uuid; i++) {
+    for (int i = 0; uuid_dissectors[i].uuid; i++) {
         wmem_tree_insert_string(bluetooth_uuids, uuid_dissectors[i].uuid, uuid_dissectors[i].short_name, 0);
 
         if (uuid_dissectors[i].dissect_func) {
-            dissector_handle_t handle = create_dissector_handle(uuid_dissectors[i].dissect_func, proto_btgatt);
+            dissector_handle_t handle = create_dissector_handle_with_name_and_description(
+                uuid_dissectors[i].dissect_func, proto_btgatt,
+                NULL, uuid_dissectors[i].short_name);
             dissector_add_string("bluetooth.uuid", uuid_dissectors[i].uuid, handle);
         }
     }

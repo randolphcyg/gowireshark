@@ -75,31 +75,31 @@ static const value_string sapsnc_qop_vals[] = {
 };
 
 
-static int proto_sapsnc = -1;
+static int proto_sapsnc;
 
 /* SNC Frame */
-static int hf_sapsnc_frame = -1;
-static int hf_sapsnc_eye_catcher = -1;
-static int hf_sapsnc_frame_type = -1;
-static int hf_sapsnc_protocol_version = -1;
-static int hf_sapsnc_header_length = -1;
-static int hf_sapsnc_token_length = -1;
-static int hf_sapsnc_data_length = -1;
-static int hf_sapsnc_mech_id = -1;
-static int hf_sapsnc_flags = -1;
-static int hf_sapsnc_qop_min = -1;
-static int hf_sapsnc_qop_max = -1;
-static int hf_sapsnc_qop_use = -1;
-static int hf_sapsnc_ext_flags = -1;
-static int hf_sapsnc_ext_field_length = -1;
-static int hf_sapsnc_ext_field = -1;
-static int hf_sapsnc_token = -1;
-static int hf_sapsnc_data = -1;
+static int hf_sapsnc_frame;
+static int hf_sapsnc_eye_catcher;
+static int hf_sapsnc_frame_type;
+static int hf_sapsnc_protocol_version;
+static int hf_sapsnc_header_length;
+static int hf_sapsnc_token_length;
+static int hf_sapsnc_data_length;
+static int hf_sapsnc_mech_id;
+static int hf_sapsnc_flags;
+static int hf_sapsnc_qop_min;
+static int hf_sapsnc_qop_max;
+static int hf_sapsnc_qop_use;
+static int hf_sapsnc_ext_flags;
+static int hf_sapsnc_ext_field_length;
+static int hf_sapsnc_ext_field;
+static int hf_sapsnc_token;
+static int hf_sapsnc_data;
 
-static gint ett_sapsnc = -1;
+static int ett_sapsnc;
 
 /* Expert info */
-static expert_field ei_sapsnc_invalid_header_length = EI_INIT;
+static expert_field ei_sapsnc_invalid_header_length;
 
 
 void proto_reg_handoff_sapsnc(void);
@@ -112,11 +112,11 @@ void proto_register_sapsnc(void);
  * from any dissector that wants SNC frames to be decoded.
  */
 tvbuff_t*
-dissect_sapsnc_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset)
+dissect_sapsnc_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset)
 {
 	tvbuff_t *next_tvb = NULL;
-	guint8 frame_type;
-	guint32 header_length, ext_field_length, token_length = 0, data_length = 0;
+	uint8_t frame_type;
+	uint32_t header_length, ext_field_length, token_length = 0, data_length = 0;
 	proto_item *sapsnc_frame = NULL, *sapsnc_flags = NULL, *sapsnc_header_length = NULL;
 	proto_tree *sapsnc_frame_tree = NULL, *sapsnc_flags_tree = NULL;
 
@@ -129,7 +129,7 @@ dissect_sapsnc_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 	offset+=8;
 
 	/* Frame type */
-	frame_type = tvb_get_guint8(tvb, offset);
+	frame_type = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(sapsnc_frame_tree, hf_sapsnc_frame_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset+=1;
 
@@ -146,7 +146,7 @@ dissect_sapsnc_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 	if (header_length < 14){
 		expert_add_info_format(pinfo, sapsnc_header_length, &ei_sapsnc_invalid_header_length, "Invalid header length %u", header_length);
 		header_length = 14;
-	} else if ((guint32)tvb_reported_length_remaining(tvb, offset) < header_length) {
+	} else if ((uint32_t)tvb_reported_length_remaining(tvb, offset) < header_length) {
 		expert_add_info_format(pinfo, sapsnc_header_length, &ei_sapsnc_invalid_header_length, "Invalid captured length %d (reported %u)", tvb_reported_length_remaining(tvb, offset), header_length);
 		header_length = tvb_reported_length_remaining(tvb, offset);
 	}
@@ -225,8 +225,8 @@ dissect_sapsnc_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 static int
 dissect_sapsnc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	/* Add the protocol to the column */
-	col_add_str(pinfo->cinfo, COL_PROTOCOL, ", SAPSNC");
+	/* Add the protocol to the column. TODO: append instead? */
+	col_set_str(pinfo->cinfo, COL_PROTOCOL, ", SAPSNC");
 	/* Clear out stuff in the info column */
 	col_clear(pinfo->cinfo,COL_INFO);
 	/* Call the SNC frame dissection function */
@@ -277,7 +277,7 @@ proto_register_sapsnc(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_sapsnc
 	};
 
@@ -308,11 +308,11 @@ proto_register_sapsnc(void)
 void
 proto_reg_handoff_sapsnc(void)
 {
-	static gboolean initialized = FALSE;
+	static bool initialized = false;
 
 	if (!initialized) {
 		create_dissector_handle(dissect_sapsnc, proto_sapsnc);
-		initialized = TRUE;
+		initialized = true;
 	}
 
 }

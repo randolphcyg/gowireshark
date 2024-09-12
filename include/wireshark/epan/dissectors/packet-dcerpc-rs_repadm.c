@@ -21,20 +21,20 @@
 void proto_register_rs_repadm (void);
 void proto_reg_handoff_rs_repadm (void);
 
-static int proto_rs_repadm = -1;
-static int hf_rs_repadm_opnum = -1;
+static int proto_rs_repadm;
+static int hf_rs_repadm_opnum;
 
 
-static gint ett_rs_repadm = -1;
+static int ett_rs_repadm;
 
 
 static e_guid_t uuid_rs_repadm = { 0x5b8c2fa8, 0xb60b, 0x11c9, { 0xbe, 0x0f, 0x08, 0x00, 0x1e, 0x01, 0x8f, 0xa0 } };
-static guint16  ver_rs_repadm = 1;
+static uint16_t ver_rs_repadm = 1;
 
 
 
 
-static dcerpc_sub_dissector rs_repadm_dissectors[] = {
+static const dcerpc_sub_dissector rs_repadm_dissectors[] = {
 	{ 0, "stop",              NULL, NULL},
 	{ 1, "maint",             NULL, NULL},
 	{ 2, "mkey",              NULL, NULL},
@@ -59,7 +59,7 @@ proto_register_rs_repadm (void)
 		{ "Operation", "rs_repadm.opnum", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }}
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_rs_repadm,
 	};
 	proto_rs_repadm = proto_register_protocol ("Registry server administration operations.", "RS_REPADM", "rs_repadm");

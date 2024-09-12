@@ -26,8 +26,8 @@
  * Per-conversation information
  */
 typedef struct _udt_conversation {
-	gboolean is_dtls;
-	guint32 isn;
+	bool is_dtls;
+	uint32_t isn;
 } udt_conversation;
 
 /*
@@ -76,43 +76,43 @@ static const value_string udt_types[] = {
 	{0, NULL},
 };
 
-static int proto_udt = -1;
-static int hf_udt_iscontrol = -1;
-static int hf_udt_type = -1;
-static int hf_udt_seqno = -1;
-static int hf_udt_ack_seqno = -1;
-static int hf_udt_ackno = -1;
-static int hf_udt_msgno = -1;
-static int hf_udt_msgno_first = -1;
-static int hf_udt_msgno_last = -1;
-static int hf_udt_msgno_inorder = -1;
-static int hf_udt_timestamp = -1;
-static int hf_udt_id = -1;
-static int hf_udt_addinfo = -1;
-static int hf_udt_rtt = -1;
-static int hf_udt_rttvar = -1;
-static int hf_udt_bufavail = -1;
-static int hf_udt_rate = -1;
-static int hf_udt_linkcap = -1;
-static int hf_udt_handshake_version = -1;
-static int hf_udt_handshake_type = -1;
-static int hf_udt_handshake_isn = -1;
-static int hf_udt_handshake_mtu = -1;
-static int hf_udt_handshake_flow_window = -1;
-static int hf_udt_handshake_reqtype = -1;
-static int hf_udt_handshake_id = -1;
-static int hf_udt_handshake_cookie = -1;
-static int hf_udt_handshake_peerip = -1;
+static int proto_udt;
+static int hf_udt_iscontrol;
+static int hf_udt_type;
+static int hf_udt_seqno;
+static int hf_udt_ack_seqno;
+static int hf_udt_ackno;
+static int hf_udt_msgno;
+static int hf_udt_msgno_first;
+static int hf_udt_msgno_last;
+static int hf_udt_msgno_inorder;
+static int hf_udt_timestamp;
+static int hf_udt_id;
+static int hf_udt_addinfo;
+static int hf_udt_rtt;
+static int hf_udt_rttvar;
+static int hf_udt_bufavail;
+static int hf_udt_rate;
+static int hf_udt_linkcap;
+static int hf_udt_handshake_version;
+static int hf_udt_handshake_type;
+static int hf_udt_handshake_isn;
+static int hf_udt_handshake_mtu;
+static int hf_udt_handshake_flow_window;
+static int hf_udt_handshake_reqtype;
+static int hf_udt_handshake_id;
+static int hf_udt_handshake_cookie;
+static int hf_udt_handshake_peerip;
 
-static gint ett_udt = -1;
+static int ett_udt;
 
-static expert_field ei_udt_nak_seqno = EI_INIT;
+static expert_field ei_udt_nak_seqno;
 
 static dissector_handle_t udt_handle;
 
 static heur_dissector_list_t heur_subdissector_list;
 
-static int get_sqn(udt_conversation *udt_conv, guint32 sqn)
+static int get_sqn(udt_conversation *udt_conv, uint32_t sqn)
 {
 	if (udt_conv)
 		sqn -= udt_conv->isn;
@@ -127,7 +127,7 @@ dissect_udt(tvbuff_t *tvb, packet_info* pinfo, proto_tree *parent_tree,
 	proto_tree        *tree;
 	proto_item        *udt_item;
 	int                is_control, type;
-	guint              i;
+	unsigned           i;
 	conversation_t    *conv;
 	udt_conversation  *udt_conv;
 	heur_dtbl_entry_t *hdtbl_entry;
@@ -150,16 +150,16 @@ dissect_udt(tvbuff_t *tvb, packet_info* pinfo, proto_tree *parent_tree,
 				     get_sqn(udt_conv, tvb_get_ntohl(tvb, 16)));
 			break;
 		case UDT_PACKET_TYPE_ACK2:
-			col_add_fstr(pinfo->cinfo, COL_INFO, "UDT type: ack2");
+			col_set_str(pinfo->cinfo, COL_INFO, "UDT type: ack2");
 			break;
 		case UDT_PACKET_TYPE_NAK: {
 			wmem_strbuf_t *nakstr = wmem_strbuf_new(pinfo->pool, "");
-			guint max = tvb_reported_length(tvb);
+			unsigned max = tvb_reported_length(tvb);
 			if (max > UDT_MAX_NAK_LENGTH)
 			    max = UDT_MAX_NAK_LENGTH;
 
 			for (i = UDT_CONTROL_OFFSET; i <= (max-4) ; i = i + 4) {
-				guint32 start, finish;
+				uint32_t start, finish;
 				int     is_range;
 
 				is_range = tvb_get_ntohl(tvb, i) & 0x80000000;
@@ -256,8 +256,8 @@ dissect_udt(tvbuff_t *tvb, packet_info* pinfo, proto_tree *parent_tree,
 		case UDT_PACKET_TYPE_ACK:
 			if (tree) {
 				int len = tvb_reported_length(tvb);
-				guint32 real_sqn = tvb_get_ntohl(tvb, 16);
-				guint32 sqn = get_sqn(udt_conv, real_sqn);
+				uint32_t real_sqn = tvb_get_ntohl(tvb, 16);
+				uint32_t sqn = get_sqn(udt_conv, real_sqn);
 				if (sqn != real_sqn)
 					proto_tree_add_uint_format_value(tree, hf_udt_ack_seqno, tvb, 16, 4, real_sqn,
 									 "%d (relative) [%d]", sqn, real_sqn);
@@ -288,8 +288,8 @@ dissect_udt(tvbuff_t *tvb, packet_info* pinfo, proto_tree *parent_tree,
 			break;
 		case UDT_PACKET_TYPE_NAK:
 			for (i = 16; i <= (tvb_reported_length(tvb)-4); i = i + 4) {
-				guint32 real_start, real_finish;
-				guint32 start, finish;
+				uint32_t real_start, real_finish;
+				uint32_t start, finish;
 				int     is_range;
 
 				is_range = tvb_get_ntohl(tvb, i) & 0x80000000;
@@ -338,8 +338,8 @@ dissect_udt(tvbuff_t *tvb, packet_info* pinfo, proto_tree *parent_tree,
 		tvbuff_t *next_tvb;
 
 		if (tree) {
-			guint32 real_seqno = tvb_get_ntohl(tvb, 0);
-			guint32 seqno = get_sqn(udt_conv, real_seqno);
+			uint32_t real_seqno = tvb_get_ntohl(tvb, 0);
+			uint32_t seqno = get_sqn(udt_conv, real_seqno);
 			if (seqno != real_seqno)
 				proto_tree_add_uint_format_value(tree, hf_udt_seqno, tvb, 0, 4, real_seqno,
 								 "%u (relative) [%u]", seqno, real_seqno);
@@ -370,8 +370,8 @@ dissect_udt(tvbuff_t *tvb, packet_info* pinfo, proto_tree *parent_tree,
 	return tvb_reported_length(tvb);
 }
 
-static gboolean
-dissect_udt_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data, gboolean is_dtls)
+static bool
+dissect_udt_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data, bool is_dtls)
 {
 	conversation_t *conv;
 	udt_conversation *udt_conv;
@@ -383,27 +383,27 @@ dissect_udt_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 		// Already identified conversation as UDT - BUT we might have been called from
 		// the other dissector.
 		if (is_dtls != udt_conv->is_dtls)
-			return FALSE;
+			return false;
 		dissect_udt(tvb, pinfo, tree, data);
 	} else {
 		// Check if this is UDT...
 
 		/* Must have at least 24 captured bytes for heuristic check */
 		if (tvb_captured_length(tvb) < 24)
-			return FALSE;
+			return false;
 
 		/* detect handshake control packet */
 		if (tvb_get_ntohl(tvb, 0) != (0x80000000 | UDT_PACKET_TYPE_HANDSHAKE))
-			return FALSE;
+			return false;
 
 		/* must be version 4 */
 		if ((tvb_get_ntohl(tvb, 16) != 4))
-			return FALSE;
+			return false;
 
 		/* must be datagram or stream */
 		if ((tvb_get_ntohl(tvb, 20) != UDT_HANDSHAKE_TYPE_DGRAM)
 		    && (tvb_get_ntohl(tvb, 20) != UDT_HANDSHAKE_TYPE_STREAM))
-			return FALSE;
+			return false;
 
 		/* This looks like UDT! */
 		udt_conv = wmem_new0(wmem_file_scope(), udt_conversation);
@@ -418,19 +418,19 @@ dissect_udt_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 
 		dissect_udt(tvb, pinfo, tree, data);
 	}
-	return TRUE;
+	return true;
 }
 
-static gboolean
+static bool
 dissect_udt_heur_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-	return dissect_udt_heur(tvb, pinfo, tree, data, FALSE /* Not DTLS */);
+	return dissect_udt_heur(tvb, pinfo, tree, data, false /* Not DTLS */);
 }
 
-static gboolean
+static bool
 dissect_udt_heur_dtls(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-	return dissect_udt_heur(tvb, pinfo, tree, data, TRUE /* Is DTLS */);
+	return dissect_udt_heur(tvb, pinfo, tree, data, true /* Is DTLS */);
 }
 
 void proto_register_udt(void)
@@ -570,7 +570,7 @@ void proto_register_udt(void)
 				NULL, 0, NULL, HFILL}},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_udt,
 	};
 
@@ -589,7 +589,7 @@ void proto_register_udt(void)
 
 	udt_handle = register_dissector("udt", dissect_udt, proto_udt);
 
-	heur_subdissector_list = register_heur_dissector_list("udt", proto_udt);
+	heur_subdissector_list = register_heur_dissector_list_with_description("udt", "UDT data", proto_udt);
 }
 
 void proto_reg_handoff_udt(void)

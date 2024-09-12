@@ -31,8 +31,8 @@ void proto_reg_handoff_netlink_generic(void);
 
 typedef struct {
 	/* Values parsed from the attributes (only valid in this packet). */
-	guint16         family_id;
-	const guint8   *family_name;
+	uint16_t        family_id;
+	const uint8_t  *family_name;
 } genl_ctrl_info_t;
 
 /* from include/uapi/linux/genetlink.h */
@@ -129,37 +129,37 @@ static dissector_table_t genl_dissector_table;
 
 static int proto_netlink_generic;
 
-static int hf_genl_cmd = -1;
-static int hf_genl_ctrl_attr = -1;
-static int hf_genl_ctrl_cmd = -1;
-static int hf_genl_ctrl_family_id = -1;
-static int hf_genl_ctrl_family_name = -1;
-static int hf_genl_ctrl_group_id = -1;
-static int hf_genl_ctrl_group_name = -1;
-static int hf_genl_ctrl_groups_attr = -1;
-static int hf_genl_ctrl_hdrsize = -1;
-static int hf_genl_ctrl_maxattr = -1;
-static int hf_genl_ctrl_op_flags = -1;
-static int hf_genl_ctrl_op_flags_admin_perm = -1;
-static int hf_genl_ctrl_op_flags_cmd_cap_do = -1;
-static int hf_genl_ctrl_op_flags_cmd_cap_dump = -1;
-static int hf_genl_ctrl_op_flags_cmd_cap_haspol = -1;
-static int hf_genl_ctrl_op_flags_uns_admin_perm = -1;
-static int hf_genl_ctrl_op_id = -1;
-static int hf_genl_ctrl_ops_attr = -1;
-static int hf_genl_ctrl_version = -1;
-static int hf_genl_family_id = -1;
-static int hf_genl_reserved = -1;
-static int hf_genl_version = -1;
+static int hf_genl_cmd;
+static int hf_genl_ctrl_attr;
+static int hf_genl_ctrl_cmd;
+static int hf_genl_ctrl_family_id;
+static int hf_genl_ctrl_family_name;
+static int hf_genl_ctrl_group_id;
+static int hf_genl_ctrl_group_name;
+static int hf_genl_ctrl_groups_attr;
+static int hf_genl_ctrl_hdrsize;
+static int hf_genl_ctrl_maxattr;
+static int hf_genl_ctrl_op_flags;
+static int hf_genl_ctrl_op_flags_admin_perm;
+static int hf_genl_ctrl_op_flags_cmd_cap_do;
+static int hf_genl_ctrl_op_flags_cmd_cap_dump;
+static int hf_genl_ctrl_op_flags_cmd_cap_haspol;
+static int hf_genl_ctrl_op_flags_uns_admin_perm;
+static int hf_genl_ctrl_op_id;
+static int hf_genl_ctrl_ops_attr;
+static int hf_genl_ctrl_version;
+static int hf_genl_family_id;
+static int hf_genl_reserved;
+static int hf_genl_version;
 
-static gint ett_netlink_generic = -1;
-static gint ett_genl_ctrl_attr = -1;
-static gint ett_genl_ctrl_ops = -1;
-static gint ett_genl_ctrl_ops_attr = -1;
-static gint ett_genl_ctrl_op_flags = -1;
-static gint ett_genl_ctrl_groups = -1;
-static gint ett_genl_ctrl_groups_attr = -1;
-static gint ett_genl_nested_attr = -1;
+static int ett_netlink_generic;
+static int ett_genl_ctrl_attr;
+static int ett_genl_ctrl_ops;
+static int ett_genl_ctrl_ops_attr;
+static int ett_genl_ctrl_op_flags;
+static int ett_genl_ctrl_groups;
+static int ett_genl_ctrl_groups_attr;
+static int ett_genl_nested_attr;
 
 /*
  * Maps family IDs (integers) to family names (strings) within a capture file.
@@ -180,7 +180,7 @@ dissect_genl_ctrl_ops_attrs(tvbuff_t *tvb, void *data _U_, struct packet_netlink
 {
 	enum ws_genl_ctrl_op_attr type = (enum ws_genl_ctrl_op_attr) nla_type;
 	proto_tree *ptree = proto_tree_get_parent_tree(tree);
-	guint32 value;
+	uint32_t value;
 
 	switch (type) {
 	case WS_CTRL_ATTR_OP_UNSPEC:
@@ -195,12 +195,12 @@ dissect_genl_ctrl_ops_attrs(tvbuff_t *tvb, void *data _U_, struct packet_netlink
 		break;
 	case WS_CTRL_ATTR_OP_FLAGS:
 		if (len == 4) {
-			guint64 op_flags;
+			uint64_t op_flags;
 			/* XXX it would be nice if the flag names are appended to the tree */
 			proto_tree_add_bitmask_with_flags_ret_uint64(tree, tvb, offset, hf_genl_ctrl_op_flags,
 				ett_genl_ctrl_op_flags, genl_ctrl_op_flags_fields, nl_data->encoding, BMT_NO_FALSE, &op_flags);
-			proto_item_append_text(tree, ": 0x%08x", (guint32)op_flags);
-			proto_item_append_text(ptree, ", flags=0x%08x", (guint32)op_flags);
+			proto_item_append_text(tree, ": 0x%08x", (uint32_t)op_flags);
+			proto_item_append_text(ptree, ", flags=0x%08x", (uint32_t)op_flags);
 			offset += 4;
 		}
 		break;
@@ -214,8 +214,8 @@ dissect_genl_ctrl_groups_attrs(tvbuff_t *tvb, void *data _U_, struct packet_netl
 {
 	enum ws_genl_ctrl_group_attr type = (enum ws_genl_ctrl_group_attr) nla_type;
 	proto_tree *ptree = proto_tree_get_parent_tree(tree);
-	guint32 value;
-	const guint8 *strval;
+	uint32_t value;
+	const uint8_t *strval;
 
 	switch (type) {
 	case WS_CTRL_ATTR_MCAST_GRP_UNSPEC:
@@ -244,7 +244,7 @@ dissect_genl_ctrl_attrs(tvbuff_t *tvb, void *data, struct packet_netlink_data *n
 {
 	enum ws_genl_ctrl_attr type = (enum ws_genl_ctrl_attr) nla_type;
 	genl_ctrl_info_t *info = (genl_ctrl_info_t *) data;
-	guint32 value;
+	uint32_t value;
 
 	switch (type) {
 	case WS_CTRL_CMD_UNSPEC:
@@ -336,7 +336,7 @@ int dissect_genl_header(tvbuff_t *tvb, genl_info_t *genl_info, struct packet_net
 {
 	int offset = 0;
 
-	if (hf_cmd < 0) {
+	if (hf_cmd <= 0) {
 		hf_cmd = hf_genl_cmd;
 	}
 	proto_tree_add_item(genl_info->genl_tree, hf_cmd, tvb, offset, 1, ENC_NA);
@@ -376,7 +376,7 @@ dissect_netlink_generic(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	/* Populate info from Generic Netlink message header (genlmsghdr) */
 	info.nl_data = nl_data;
 	info.genl_tree = nlmsg_tree;
-	info.cmd = tvb_get_guint8(tvb, offset);
+	info.cmd = tvb_get_uint8(tvb, offset);
 
 	/* Optional user-specific message header and optional message payload. */
 	next_tvb = tvb_new_subset_remaining(tvb, offset);
@@ -522,7 +522,7 @@ proto_register_netlink_generic(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_netlink_generic,
 		&ett_genl_ctrl_attr,
 		&ett_genl_ctrl_ops,

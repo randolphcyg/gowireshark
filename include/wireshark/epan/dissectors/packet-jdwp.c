@@ -65,38 +65,38 @@ static dissector_handle_t jdwp_handle;
 #define COMMAND_SET_MODULEREFERENCE 18
 #define COMMAND_SET_EVENT 64
 
-static int proto_jdwp = -1;
+static int proto_jdwp;
 
-static int hf_jdwp_type = -1;
-static int hf_jdwp_length = -1;
-static int hf_jdwp_id = -1;
-static int hf_jdwp_flags = -1;
-static int hf_jdwp_commandset = -1;
-static int hf_jdwp_commandset_virtualmachine = -1;
-static int hf_jdwp_commandset_referencetype = -1;
-static int hf_jdwp_commandset_classtype = -1;
-static int hf_jdwp_commandset_arraytype = -1;
-static int hf_jdwp_commandset_interfacetype = -1;
-static int hf_jdwp_commandset_method = -1;
-static int hf_jdwp_commandset_field = -1;
-static int hf_jdwp_commandset_objectreference = -1;
-static int hf_jdwp_commandset_stringreference = -1;
-static int hf_jdwp_commandset_threadreference = -1;
-static int hf_jdwp_commandset_threadgroupreference = -1;
-static int hf_jdwp_commandset_arrayreference = -1;
-static int hf_jdwp_commandset_classloaderreference = -1;
-static int hf_jdwp_commandset_eventrequest = -1;
-static int hf_jdwp_commandset_stackframe = -1;
-static int hf_jdwp_commandset_classobjectreference = -1;
-static int hf_jdwp_commandset_modulereference = -1;
-static int hf_jdwp_commandset_event = -1;
-static int hf_jdwp_errorcode = -1;
-static int hf_jdwp_data = -1;
+static int hf_jdwp_type;
+static int hf_jdwp_length;
+static int hf_jdwp_id;
+static int hf_jdwp_flags;
+static int hf_jdwp_commandset;
+static int hf_jdwp_commandset_virtualmachine;
+static int hf_jdwp_commandset_referencetype;
+static int hf_jdwp_commandset_classtype;
+static int hf_jdwp_commandset_arraytype;
+static int hf_jdwp_commandset_interfacetype;
+static int hf_jdwp_commandset_method;
+static int hf_jdwp_commandset_field;
+static int hf_jdwp_commandset_objectreference;
+static int hf_jdwp_commandset_stringreference;
+static int hf_jdwp_commandset_threadreference;
+static int hf_jdwp_commandset_threadgroupreference;
+static int hf_jdwp_commandset_arrayreference;
+static int hf_jdwp_commandset_classloaderreference;
+static int hf_jdwp_commandset_eventrequest;
+static int hf_jdwp_commandset_stackframe;
+static int hf_jdwp_commandset_classobjectreference;
+static int hf_jdwp_commandset_modulereference;
+static int hf_jdwp_commandset_event;
+static int hf_jdwp_errorcode;
+static int hf_jdwp_data;
 
-static gint ett_jdwp = -1;
+static int ett_jdwp;
 
-static expert_field ei_jdwp_hlen_invalid  = EI_INIT;
-static expert_field ei_jdwp_flags_invalid  = EI_INIT;
+static expert_field ei_jdwp_hlen_invalid;
+static expert_field ei_jdwp_flags_invalid;
 
 // contains the command set names
 static const value_string commandsetnames[] = {
@@ -370,7 +370,7 @@ static const value_string error_codes[] = {
 };
 
 /* determine PDU length of protocol JDWP */
-static guint
+static unsigned
 get_jdwp_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
   /* Handshake messages don't contain the length field and
@@ -385,7 +385,7 @@ get_jdwp_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *da
   /* All other packets are either a Command or a Reply, of different lengths
    * and this length is indicated on the 4 first bytes
    */
-  return (guint)tvb_get_ntohl(tvb, offset);
+  return (unsigned)tvb_get_ntohl(tvb, offset);
 }
 
 static int
@@ -394,17 +394,17 @@ dissect_jdwp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
   int offset = 0;
 
   /* packet type can take 3 values (handshake, command, reply) */
-  gint packet_type;
+  int packet_type;
 
   /* length */
-  gint32 hlen = 0;
+  int32_t hlen = 0;
 
   /* flag can take 2 values (0, 128) */
-  guint32 flags;
+  uint32_t flags;
 
   /* fields that need to be remembered */
-  guint32 mem_commandset = -1;
-  guint32 mem_errorcode = -1;
+  uint32_t mem_commandset = -1;
+  uint32_t mem_errorcode = -1;
 
   /* Check that there's enough data */
   if (tvb_reported_length(tvb) < JDWP_MIN_LENGTH)
@@ -430,7 +430,7 @@ dissect_jdwp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
   packet_type = 1;
   if (tvb_reported_length(tvb) == JDWP_HANDSHAKE_LENGTH) {
     if (tvb_strneql(tvb, offset, JDWP_HANDSHAKE_MSG, JDWP_HANDSHAKE_LENGTH) == 0) {
-      col_append_fstr(pinfo->cinfo, COL_INFO, "JDWP Handshake");
+      col_append_str(pinfo->cinfo, COL_INFO, "JDWP Handshake");
       packet_type = 0;
     }
   }
@@ -459,7 +459,7 @@ dissect_jdwp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
    */
   switch (flags) {
     case PACKET_TYPE_COMMAND:
-      col_append_fstr(pinfo->cinfo, COL_INFO, "Command");
+      col_append_str(pinfo->cinfo, COL_INFO, "Command");
       proto_tree_add_item_ret_uint(jdwp_tree, hf_jdwp_commandset, tvb, offset, 1, ENC_BIG_ENDIAN, &mem_commandset);
       offset += 1;
 
@@ -576,9 +576,9 @@ dissect_jdwp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
       offset += 2;
 
       if(mem_errorcode == 0) {
-        col_append_fstr(pinfo->cinfo, COL_INFO, "Reply (Success)");
+        col_append_str(pinfo->cinfo, COL_INFO, "Reply (Success)");
       } else {
-        col_append_fstr(pinfo->cinfo, COL_INFO, "Reply (Failure)");
+        col_append_str(pinfo->cinfo, COL_INFO, "Reply (Failure)");
       }
 
       /* reply comes with data when the minimal length is 12 */
@@ -601,7 +601,7 @@ dissect_jdwp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 static int
 dissect_jdwp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-  tcp_dissect_pdus(tvb, pinfo, tree, TRUE, FRAME_HEADER_LEN,
+  tcp_dissect_pdus(tvb, pinfo, tree, true, FRAME_HEADER_LEN,
                    get_jdwp_message_len, dissect_jdwp_message, data);
   return tvb_captured_length(tvb);
 }
@@ -614,7 +614,7 @@ proto_register_jdwp(void)
 
   static hf_register_info hf[] = {
     { &hf_jdwp_type,
-      { "Packet Type", "jdwp.type", FT_STRING, BASE_NONE, NULL, 0x0, "Type",
+      { "Packet Type", "jdwp.type", FT_STRING, BASE_NONE, NULL, 0x0, NULL,
         HFILL }
     },
     { &hf_jdwp_length,
@@ -720,7 +720,7 @@ proto_register_jdwp(void)
     { &ei_jdwp_flags_invalid, { "jdwp.flags.invalid", PI_MALFORMED, PI_ERROR, "Decode aborted: invalid flags value", EXPFILL }}
   };
 
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_jdwp
   };
 

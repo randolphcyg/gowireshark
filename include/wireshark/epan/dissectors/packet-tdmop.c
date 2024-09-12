@@ -16,7 +16,7 @@
 #include <epan/conversation.h>
 #include <epan/prefs.h>
 
-/*Using of ethertype 0x0808(assigned to Frame Realy ARP) was implemented in hardware, when ethertype was not assigned*/
+/*Using of ethertype 0x0808(assigned to Frame Relay ARP) was implemented in hardware, when ethertype was not assigned*/
 #define ETHERTYPE_TDMOP       0
 
 #define MAX_DCHANNEL_LEN      128
@@ -26,38 +26,38 @@ void proto_reg_handoff_tdmop(void);
 
 static dissector_handle_t tdmop_handle;
 
-static int proto_tdmop    = -1;
-static gint ett_tdmop     = -1;
-static gint ett_tdmop_channel    = -1;
+static int proto_tdmop;
+static int ett_tdmop;
+static int ett_tdmop_channel;
 
-static int hf_tdmop_TransferID   = -1;
-static int hf_tdmop_DstCh        = -1;
-static int hf_tdmop_SrcCh        = -1;
-static int hf_tdmop_Flags        = -1;
-static int hf_tdmop_Flags_no_data        = -1;
-static int hf_tdmop_Flags_lost_request   = -1;
-static int hf_tdmop_Flags_remote_no_data = -1;
-static int hf_tdmop_Flags_compressed     = -1;
-static int hd_tdmop_SrcDst        = -1;
-static int hd_tdmop_SeqNum        = -1;
-static int hd_tdmop_LastRecv      = -1;
-static int hd_tdmop_Delay         = -1;
-static int hd_tdmop_Reserved      = -1;
-static int hf_tdmop_payload       = -1;
-static int hf_tdmop_Compression_mask    = -1;
+static int hf_tdmop_TransferID;
+static int hf_tdmop_DstCh;
+static int hf_tdmop_SrcCh;
+static int hf_tdmop_Flags;
+static int hf_tdmop_Flags_no_data;
+static int hf_tdmop_Flags_lost_request;
+static int hf_tdmop_Flags_remote_no_data;
+static int hf_tdmop_Flags_compressed;
+static int hf_tdmop_SrcDst;
+static int hf_tdmop_SeqNum;
+static int hf_tdmop_LastRecv;
+static int hf_tdmop_Delay;
+static int hf_tdmop_Reserved;
+static int hf_tdmop_payload;
+static int hf_tdmop_Compression_mask;
 
-static dissector_handle_t lapd_handle    = NULL;
+static dissector_handle_t lapd_handle;
 
-static gint pref_tdmop_d_channel      = 16;
-static guint32 pref_tdmop_mask        = 0xFFFFFFFFUL;
-static guint32 pref_tdmop_ethertype   = ETHERTYPE_TDMOP;
+static int pref_tdmop_d_channel      = 16;
+static uint32_t pref_tdmop_mask        = 0xFFFFFFFFUL;
+static uint32_t pref_tdmop_ethertype   = ETHERTYPE_TDMOP;
 
 #define TDMOP_FLAG_NO_DATA (1<<3)
 #define TDMOP_FLAG_REMOTE_NO_DATA (1<<2)
 #define TDMOP_FLAG_COMPRESSED (1<<4)
 #define TDMOP_FLAG_LOST_REQUEST ((1<<3)|(0x02))
 
-static guint8 reverse_map[256]=
+static uint8_t reverse_map[256]=
 {
 0x00,0x80,0x40,0xC0,0x20,0xA0,0x60,0xE0,0x10,0x90,0x50,0xD0,0x30,0xB0,0x70,0xF0,
 0x08,0x88,0x48,0xC8,0x28,0xA8,0x68,0xE8,0x18,0x98,0x58,0xD8,0x38,0xB8,0x78,0xF8,
@@ -79,20 +79,20 @@ static guint8 reverse_map[256]=
 
 static int dissect_tdmop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint8    dchannel_data[MAX_DCHANNEL_LEN];
-    guint    dchannel_len;
-    guint8    flags;
-    gint offset;
+    uint8_t   dchannel_data[MAX_DCHANNEL_LEN];
+    unsigned dchannel_len;
+    uint8_t   flags;
+    int offset;
     proto_item    *ti;
     proto_tree    *tdmop_tree;
-    guint32 dstch, srcch;
-    flags = tvb_get_guint8(tvb, 4);
+    uint32_t dstch, srcch;
+    flags = tvb_get_uint8(tvb, 4);
     offset = 0;
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "TDMoP");
     col_clear(pinfo->cinfo, COL_INFO);
     if (flags & TDMOP_FLAG_LOST_REQUEST)
     {
-        col_add_fstr(pinfo->cinfo, COL_INFO, "Lost Request");
+        col_set_str(pinfo->cinfo, COL_INFO, "Lost Request");
     }
 
     ti = proto_tree_add_item(tree, proto_tdmop, tvb, 0, -1, ENC_NA);
@@ -116,20 +116,20 @@ static int dissect_tdmop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     proto_tree_add_item(tdmop_tree, hf_tdmop_Flags_compressed, tvb, offset, 1, ENC_NA);
     offset += 1;
     /*sequence and delay info*/
-    proto_tree_add_item(tdmop_tree, hd_tdmop_SrcDst, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tdmop_tree, hf_tdmop_SrcDst, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset += 1;
-    proto_tree_add_item(tdmop_tree, hd_tdmop_SeqNum, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tdmop_tree, hf_tdmop_SeqNum, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
-    proto_tree_add_item(tdmop_tree, hd_tdmop_LastRecv, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tdmop_tree, hf_tdmop_LastRecv, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
-    proto_tree_add_item(tdmop_tree, hd_tdmop_Delay, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tdmop_tree, hf_tdmop_Delay, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
-    proto_tree_add_item(tdmop_tree, hd_tdmop_Reserved, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tdmop_tree, hf_tdmop_Reserved, tvb, offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
     if ((flags & TDMOP_FLAG_NO_DATA)==0)
     {
-        gint len;
-        gint blockid;
+        int len;
+        int blockid;
         dchannel_len=0;
         len=tvb_captured_length_remaining(tvb, 0);
         proto_tree_add_item(tdmop_tree, hf_tdmop_payload, tvb, offset, -1, ENC_NA);
@@ -138,9 +138,9 @@ static int dissect_tdmop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
         while (offset<len)
         {
             proto_tree *currentblock = proto_tree_add_subtree_format(tdmop_tree, tvb, 0, 0, ett_tdmop_channel, 0, "Block %d", blockid);
-            guint32 mask;
-            gint i;
-            gint j;
+            uint32_t mask;
+            int i;
+            int j;
             blockid++;
             mask = pref_tdmop_mask; /*default mask is for timeslots 1-32*/
             if (flags&TDMOP_FLAG_COMPRESSED)
@@ -164,7 +164,7 @@ static int dissect_tdmop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
                         {
                             for (j = 0; j < 4; j++)
                             {
-                                dchannel_data[dchannel_len+j]=reverse_map[tvb_get_guint8(cdata, j)];
+                                dchannel_data[dchannel_len+j]=reverse_map[tvb_get_uint8(cdata, j)];
                             }
                             dchannel_len += 4;
                         }
@@ -178,7 +178,7 @@ static int dissect_tdmop(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
         }
         if (dchannel_len>0)
         {
-            guint8 *buff = (guint8 *)wmem_memdup(pinfo->pool, dchannel_data, dchannel_len);
+            uint8_t *buff = (uint8_t *)wmem_memdup(pinfo->pool, dchannel_data, dchannel_len);
             tvbuff_t *new_tvb;
             new_tvb = tvb_new_child_real_data(tvb, buff, dchannel_len, dchannel_len);
             call_dissector(lapd_handle, new_tvb, pinfo, tree);
@@ -249,35 +249,35 @@ void proto_register_tdmop(void)
                 NULL, HFILL}
         },
         {
-            &hd_tdmop_SrcDst,
+            &hf_tdmop_SrcDst,
             {    "TDMoP Short SrcDst", "tdmop.srcdst",
                 FT_UINT8, BASE_HEX,
                 NULL, 0x0,
                 NULL, HFILL}
         },
         {
-            &hd_tdmop_SeqNum,
+            &hf_tdmop_SeqNum,
             {    "TDMoP Sequence number", "tdmop.seqnum",
                 FT_UINT16, BASE_DEC,
                 NULL, 0x0,
                 NULL, HFILL}
         },
         {
-            &hd_tdmop_LastRecv,
+            &hf_tdmop_LastRecv,
             {    "TDMoP Last Received number", "tdmop.recvnumber",
                 FT_UINT16, BASE_DEC,
                 NULL, 0x0,
                 NULL, HFILL}
         },
         {
-            &hd_tdmop_Delay,
+            &hf_tdmop_Delay,
             {    "TDMoP Delay", "tdmop.delay",
                 FT_UINT16, BASE_DEC,
                 NULL, 0x0,
                 NULL, HFILL}
         },
         {
-            &hd_tdmop_Reserved,
+            &hf_tdmop_Reserved,
             {    "TDMoP Reserved", "tdmop.reserved",
                 FT_UINT16, BASE_DEC,
                 NULL, 0x0,
@@ -298,7 +298,7 @@ void proto_register_tdmop(void)
                 NULL, HFILL}
         }
     };
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_tdmop,
         &ett_tdmop_channel
     };
@@ -323,8 +323,8 @@ void proto_register_tdmop(void)
 
 void proto_reg_handoff_tdmop(void)
 {
-    static gboolean init = FALSE;
-    static guint32 current_tdmop_ethertype;
+    static bool init = false;
+    static uint32_t current_tdmop_ethertype;
     if (!init)
     {
         dissector_add_for_decode_as_with_preference("udp.port", tdmop_handle);
@@ -334,7 +334,7 @@ void proto_reg_handoff_tdmop(void)
         }
         lapd_handle = find_dissector_add_dependency("lapd-bitstream", proto_tdmop);
         current_tdmop_ethertype = pref_tdmop_ethertype;
-        init = TRUE;
+        init = true;
     }
     if (current_tdmop_ethertype != pref_tdmop_ethertype)
     {

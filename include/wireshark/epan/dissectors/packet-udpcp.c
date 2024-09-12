@@ -26,50 +26,50 @@
 
 void proto_register_udpcp(void);
 
-static int proto_udpcp = -1;
+static int proto_udpcp;
 
-static int hf_udpcp_checksum = -1;
-static int hf_udpcp_msg_type = -1;
-static int hf_udpcp_version = -1;
+static int hf_udpcp_checksum;
+static int hf_udpcp_msg_type;
+static int hf_udpcp_version;
 
-static int hf_udpcp_packet_transfer_options = -1;
-static int hf_udpcp_n = -1;
-static int hf_udpcp_c = -1;
-static int hf_udpcp_s = -1;
-static int hf_udpcp_d = -1;
-static int hf_udpcp_reserved = -1;
+static int hf_udpcp_packet_transfer_options;
+static int hf_udpcp_n;
+static int hf_udpcp_c;
+static int hf_udpcp_s;
+static int hf_udpcp_d;
+static int hf_udpcp_reserved;
 
-static int hf_udpcp_fragment_amount = -1;
-static int hf_udpcp_fragment_number = -1;
+static int hf_udpcp_fragment_amount;
+static int hf_udpcp_fragment_number;
 
-static int hf_udpcp_message_id = -1;
-static int hf_udpcp_message_data_length = -1;
+static int hf_udpcp_message_id;
+static int hf_udpcp_message_data_length;
 
-static int hf_udpcp_payload = -1;
+static int hf_udpcp_payload;
 
-static int hf_udpcp_ack_frame = -1;
-static int hf_udpcp_sn_frame = -1;
+static int hf_udpcp_ack_frame;
+static int hf_udpcp_sn_frame;
 
 
 /* For reassembly */
-static int hf_udpcp_fragments = -1;
-static int hf_udpcp_fragment = -1;
-static int hf_udpcp_fragment_overlap = -1;
-static int hf_udpcp_fragment_overlap_conflict = -1;
-static int hf_udpcp_fragment_multiple_tails = -1;
-static int hf_udpcp_fragment_too_long_fragment = -1;
-static int hf_udpcp_fragment_error = -1;
-static int hf_udpcp_fragment_count = -1;
-static int hf_udpcp_reassembled_in = -1;
-static int hf_udpcp_reassembled_length = -1;
-static int hf_udpcp_reassembled_data = -1;
+static int hf_udpcp_fragments;
+static int hf_udpcp_fragment;
+static int hf_udpcp_fragment_overlap;
+static int hf_udpcp_fragment_overlap_conflict;
+static int hf_udpcp_fragment_multiple_tails;
+static int hf_udpcp_fragment_too_long_fragment;
+static int hf_udpcp_fragment_error;
+static int hf_udpcp_fragment_count;
+static int hf_udpcp_reassembled_in;
+static int hf_udpcp_reassembled_length;
+static int hf_udpcp_reassembled_data;
 
 
 /* Subtrees */
-static gint ett_udpcp = -1;
-static gint ett_udpcp_packet_transfer_options = -1;
-static gint ett_udpcp_fragments = -1;
-static gint ett_udpcp_fragment  = -1;
+static int ett_udpcp;
+static int ett_udpcp_packet_transfer_options;
+static int ett_udpcp_fragments;
+static int ett_udpcp_fragment;
 
 static const fragment_items udpcp_frag_items = {
   &ett_udpcp_fragment,
@@ -89,14 +89,14 @@ static const fragment_items udpcp_frag_items = {
 };
 
 
-static expert_field ei_udpcp_checksum_should_be_zero = EI_INIT;
-static expert_field ei_udpcp_d_not_zero_for_data = EI_INIT;
-static expert_field ei_udpcp_reserved_not_zero = EI_INIT;
-static expert_field ei_udpcp_n_s_ack = EI_INIT;
-static expert_field ei_udpcp_payload_wrong_size = EI_INIT;
-static expert_field ei_udpcp_wrong_sequence_number = EI_INIT;
-static expert_field ei_udpcp_no_ack = EI_INIT;
-static expert_field ei_udpcp_no_sn_frame = EI_INIT;
+static expert_field ei_udpcp_checksum_should_be_zero;
+static expert_field ei_udpcp_d_not_zero_for_data;
+static expert_field ei_udpcp_reserved_not_zero;
+static expert_field ei_udpcp_n_s_ack;
+static expert_field ei_udpcp_payload_wrong_size;
+static expert_field ei_udpcp_wrong_sequence_number;
+static expert_field ei_udpcp_no_ack;
+static expert_field ei_udpcp_no_sn_frame;
 
 static dissector_handle_t udpcp_handle;
 
@@ -104,7 +104,7 @@ static dissector_handle_t udpcp_handle;
 void proto_reg_handoff_udpcp (void);
 
 /* User definable values */
-static range_t *global_udpcp_port_range = NULL;
+static range_t *global_udpcp_port_range;
 
 #define DATA_FORMAT 0x01
 #define ACK_FORMAT  0x02
@@ -118,7 +118,7 @@ static const value_string msg_type_vals[] = {
 
 typedef struct {
     /* Protocol is bi-directional, so need to distinguish */
-    guint16 first_dest_port;
+    uint16_t first_dest_port;
     address first_dest_address;
 
     /* Main these so can link between SN frames and ACKs */
@@ -128,34 +128,34 @@ typedef struct {
     wmem_tree_t *ack_table_second;
 
     /* Remember next expected message-id in each direction */
-    guint32 next_message_id_first;
-    guint32 next_message_id_second;
+    uint32_t next_message_id_first;
+    uint32_t next_message_id_second;
 } udpcp_conversation_t;
 
 
 /* Framenum -> expected_sequence_number */
-static wmem_tree_t *sequence_number_result_table = NULL;
+static wmem_tree_t *sequence_number_result_table;
 
 
 /* Reassembly table. */
 static reassembly_table udpcp_reassembly_table;
 
-static gpointer udpcp_temporary_key(const packet_info *pinfo _U_, const guint32 id _U_, const void *data)
+static void *udpcp_temporary_key(const packet_info *pinfo _U_, const uint32_t id _U_, const void *data)
 {
-    return (gpointer)data;
+    return (void *)data;
 }
 
-static gpointer udpcp_persistent_key(const packet_info *pinfo _U_, const guint32 id _U_,
+static void *udpcp_persistent_key(const packet_info *pinfo _U_, const uint32_t id _U_,
                                      const void *data)
 {
-    return (gpointer)data;
+    return (void *)data;
 }
 
-static void udpcp_free_temporary_key(gpointer ptr _U_)
+static void udpcp_free_temporary_key(void *ptr _U_)
 {
 }
 
-static void udpcp_free_persistent_key(gpointer ptr _U_)
+static void udpcp_free_persistent_key(void *ptr _U_)
 {
 }
 
@@ -175,10 +175,10 @@ static reassembly_table_functions udpcp_reassembly_table_functions =
 /**************************************************************************/
 
 /* Reassemble by default */
-static gboolean global_udpcp_reassemble = TRUE;
+static bool global_udpcp_reassemble = true;
 
 /* By default do try to decode payload as XML/SOAP */
-static gboolean global_udpcp_decode_payload_as_soap = TRUE;
+static bool global_udpcp_decode_payload_as_soap = true;
 
 
 static dissector_handle_t xml_handle;
@@ -190,7 +190,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 {
     proto_tree *udpcp_tree;
     proto_item *root_ti;
-    gint offset = 0;
+    int offset = 0;
 
     /* Must be at least 12 bytes */
     if (tvb_reported_length(tvb) < 12) {
@@ -198,7 +198,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     }
 
     /* Has to be Data or Ack format. */
-    guint32 msg_type = tvb_get_guint8(tvb, 4) >> 6;
+    uint32_t msg_type = tvb_get_uint8(tvb, 4) >> 6;
     if ((msg_type != DATA_FORMAT) && (msg_type != ACK_FORMAT)) {
         return 0;
     }
@@ -211,7 +211,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     udpcp_tree = proto_item_add_subtree(root_ti, ett_udpcp);
 
     /* Checksum */
-    guint32 checksum;
+    uint32_t checksum;
     proto_item *checksum_ti = proto_tree_add_item_ret_uint(udpcp_tree, hf_udpcp_checksum, tvb, offset, 4, ENC_BIG_ENDIAN, &checksum);
     offset += 4;
 
@@ -232,7 +232,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
                                          "", "Packet Transfer Options (");
     proto_tree *packet_transfer_options_tree =
             proto_item_add_subtree(packet_transfer_options_ti, ett_udpcp_packet_transfer_options);
-    guint32 n, c, s, d;
+    uint32_t n, c, s, d;
 
     /* N */
     proto_tree_add_item_ret_uint(packet_transfer_options_tree, hf_udpcp_n, tvb, offset, 1, ENC_BIG_ENDIAN, &n);
@@ -268,7 +268,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     }
 
     /* Reserved */
-    guint32 reserved;
+    uint32_t reserved;
     proto_item *reserved_ti = proto_tree_add_item_ret_uint(packet_transfer_options_tree, hf_udpcp_reserved, tvb, offset, 1, ENC_BIG_ENDIAN, &reserved);
     offset++;
     /* Expert info if reserved not 0 */
@@ -281,18 +281,18 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 
 
     /* Fragment Amount & Fragment Number */
-    guint32 fragment_amount, fragment_number;
+    uint32_t fragment_amount, fragment_number;
     proto_tree_add_item_ret_uint(udpcp_tree, hf_udpcp_fragment_amount, tvb, offset, 1, ENC_BIG_ENDIAN, &fragment_amount);
     offset++;
     proto_tree_add_item_ret_uint(udpcp_tree, hf_udpcp_fragment_number, tvb, offset, 1, ENC_BIG_ENDIAN, &fragment_number);
     offset++;
 
     /* Message ID & Message Data Length */
-    guint32 message_id;
+    uint32_t message_id;
     proto_item *message_id_ti = proto_tree_add_item_ret_uint(udpcp_tree, hf_udpcp_message_id, tvb, offset, 2, ENC_BIG_ENDIAN, &message_id);
     col_append_fstr(pinfo->cinfo, COL_INFO, " Msg_ID=%3u", message_id);
     offset += 2;
-    guint32 data_length;
+    uint32_t data_length;
     proto_tree_add_item_ret_uint(udpcp_tree, hf_udpcp_message_data_length, tvb, offset, 2, ENC_BIG_ENDIAN, &data_length);
     offset += 2;
 
@@ -326,7 +326,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
             col_append_fstr(pinfo->cinfo, COL_INFO, "  Data (%u bytes)", data_length);
 
             /* Check length is as signalled */
-            if (data_length != (guint32)tvb_reported_length_remaining(tvb, offset)) {
+            if (data_length != (uint32_t)tvb_reported_length_remaining(tvb, offset)) {
                 expert_add_info_format(pinfo, data_ti, &ei_udpcp_payload_wrong_size, "Data length field was %u but %u bytes found",
                                        data_length, tvb_reported_length_remaining(tvb, offset));
             }
@@ -342,10 +342,10 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
             if (global_udpcp_reassemble && data_length) {
                 /* Reassembly */
                 /* Set fragmented flag. */
-                gboolean save_fragmented = pinfo->fragmented;
-                pinfo->fragmented = TRUE;
+                bool save_fragmented = pinfo->fragmented;
+                pinfo->fragmented = true;
                 fragment_head *fh;
-                guint frag_data_len = tvb_reported_length_remaining(tvb, offset);
+                unsigned frag_data_len = tvb_reported_length_remaining(tvb, offset);
 
                 /* Add this fragment into reassembly */
                 fh = fragment_add_seq_check(&udpcp_reassembly_table, tvb, offset, pinfo,
@@ -356,7 +356,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
                                             (fragment_number < (fragment_amount-1))        /* more_frags */
                                             );
 
-                gboolean update_col_info = TRUE;
+                bool update_col_info = true;
                 /* See if this completes an SDU */
                 tvbuff_t *next_tvb = process_reassembled_data(tvb, offset, pinfo, "Reassembled UDPCP Payload",
                                                               fh, &udpcp_frag_items,
@@ -367,7 +367,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
                     col_append_fstr(pinfo->cinfo, COL_INFO, "  Reassembled Data (%u bytes)", data_length);
 
                     /* Check length is as signalled */
-                    if (data_length != (guint32)tvb_reported_length_remaining(next_tvb, 0)) {
+                    if (data_length != (uint32_t)tvb_reported_length_remaining(next_tvb, 0)) {
                         expert_add_info_format(pinfo, data_ti, &ei_udpcp_payload_wrong_size, "Data length field was %u but %u bytes found (reassembled)",
                                                data_length, tvb_reported_length_remaining(next_tvb, 0));
                     }
@@ -433,7 +433,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
         }
 
         /* Check which direction this is in */
-        gboolean first_dir = (pinfo->destport == p_conv_data->first_dest_port) &&
+        bool first_dir = (pinfo->destport == p_conv_data->first_dest_port) &&
                              addresses_equal(&pinfo->dst, &p_conv_data->first_dest_address);
 
         /* Check for expected sequence number */
@@ -475,9 +475,8 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
             }
         }
     }
-
-    if (PINFO_FD_VISITED(pinfo)) {
-        /* Look up conversation here */
+    else {
+        /* Later passes - look up conversation here */
         conversation_t *p_conv;
         udpcp_conversation_t *p_conv_data;
 
@@ -494,7 +493,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
         }
 
         /* Check which direction this is in */
-        gboolean first_dir = (pinfo->destport == p_conv_data->first_dest_port) &&
+        bool first_dir = (pinfo->destport == p_conv_data->first_dest_port) &&
                              addresses_equal(&pinfo->dst, &p_conv_data->first_dest_address);
 
 
@@ -502,7 +501,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
             /* Check for unexpected sequence number, but not if message_id is still 0 (as it may be repeated) */
             if (message_id > 1) {
                 if (wmem_tree_contains32(sequence_number_result_table, pinfo->num)) {
-                    guint32 seqno = GPOINTER_TO_UINT(wmem_tree_lookup32(sequence_number_result_table, pinfo->num));
+                    uint32_t seqno = GPOINTER_TO_UINT(wmem_tree_lookup32(sequence_number_result_table, pinfo->num));
                     expert_add_info_format(pinfo, message_id_ti, &ei_udpcp_wrong_sequence_number, "SN %u expected, but found %u instead",
                                            seqno, message_id);
                 }
@@ -511,7 +510,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
             /* Look for ACK for this data PDU, link or expert info */
             wmem_tree_t *ack_table = (first_dir) ? p_conv_data->ack_table_second : p_conv_data->ack_table_first;
             if (wmem_tree_contains32(ack_table, message_id)) {
-                guint32 ack = GPOINTER_TO_UINT(wmem_tree_lookup32(ack_table, message_id));
+                uint32_t ack = GPOINTER_TO_UINT(wmem_tree_lookup32(ack_table, message_id));
                 proto_tree_add_uint(udpcp_tree,  hf_udpcp_ack_frame, tvb, 0, 0, ack);
             }
             else {
@@ -525,7 +524,7 @@ dissect_udpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
             /* Look up corresponding Data frame, link or expert info */
             wmem_tree_t *sn_table = (first_dir) ? p_conv_data->sn_table_second : p_conv_data->sn_table_first;
             if (wmem_tree_contains32(sn_table, message_id)) {
-                guint32 sn_frame = GPOINTER_TO_UINT(wmem_tree_lookup32(sn_table, message_id));
+                uint32_t sn_frame = GPOINTER_TO_UINT(wmem_tree_lookup32(sn_table, message_id));
                 proto_tree_add_uint(udpcp_tree,  hf_udpcp_sn_frame, tvb, 0, 0, sn_frame);
             }
             else {
@@ -635,7 +634,7 @@ proto_register_udpcp(void)
           NULL, 0x0, "Data frame ACKd by this one", HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_udpcp,
         &ett_udpcp_packet_transfer_options,
         &ett_udpcp_fragments,

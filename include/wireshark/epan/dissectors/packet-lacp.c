@@ -54,81 +54,81 @@ static const value_string lacp_type_vals[] = {
 #define LACPDU_FLAGS_EXPIRED            0x80
 
 /* Initialise the protocol and registered fields */
-static int proto_lacp = -1;
+static int proto_lacp;
 
-static int hf_lacp_vlacp_subtype = -1;
-static int hf_lacp_version = -1;
-static int hf_lacp_tlv_type = -1;
-static int hf_lacp_tlv_length = -1;
+static int hf_lacp_vlacp_subtype;
+static int hf_lacp_version;
+static int hf_lacp_tlv_type;
+static int hf_lacp_tlv_length;
 
-static int hf_lacp_actor_sysid_priority = -1;
-static int hf_lacp_actor_sysid = -1;
-static int hf_lacp_actor_key = -1;
-static int hf_lacp_actor_port_priority = -1;
-static int hf_lacp_actor_port = -1;
-static int hf_lacp_actor_state = -1;
-static int hf_lacp_actor_state_str = -1;
-static int hf_lacp_flags_a_activity = -1;
-static int hf_lacp_flags_a_timeout = -1;
-static int hf_lacp_flags_a_aggregation = -1;
-static int hf_lacp_flags_a_sync = -1;
-static int hf_lacp_flags_a_collecting = -1;
-static int hf_lacp_flags_a_distrib = -1;
-static int hf_lacp_flags_a_defaulted = -1;
-static int hf_lacp_flags_a_expired = -1;
-static int hf_lacp_actor_reserved = -1;
+static int hf_lacp_actor_sysid_priority;
+static int hf_lacp_actor_sysid;
+static int hf_lacp_actor_key;
+static int hf_lacp_actor_port_priority;
+static int hf_lacp_actor_port;
+static int hf_lacp_actor_state;
+static int hf_lacp_actor_state_str;
+static int hf_lacp_flags_a_activity;
+static int hf_lacp_flags_a_timeout;
+static int hf_lacp_flags_a_aggregation;
+static int hf_lacp_flags_a_sync;
+static int hf_lacp_flags_a_collecting;
+static int hf_lacp_flags_a_distrib;
+static int hf_lacp_flags_a_defaulted;
+static int hf_lacp_flags_a_expired;
+static int hf_lacp_actor_reserved;
 
-static int hf_lacp_partner_sysid_priority = -1;
-static int hf_lacp_partner_sysid = -1;
-static int hf_lacp_partner_key = -1;
-static int hf_lacp_partner_port_priority = -1;
-static int hf_lacp_partner_port = -1;
-static int hf_lacp_partner_state = -1;
-static int hf_lacp_partner_state_str = -1;
-static int hf_lacp_flags_p_activity = -1;
-static int hf_lacp_flags_p_timeout = -1;
-static int hf_lacp_flags_p_aggregation = -1;
-static int hf_lacp_flags_p_sync = -1;
-static int hf_lacp_flags_p_collecting = -1;
-static int hf_lacp_flags_p_distrib = -1;
-static int hf_lacp_flags_p_defaulted = -1;
-static int hf_lacp_flags_p_expired = -1;
-static int hf_lacp_partner_reserved = -1;
+static int hf_lacp_partner_sysid_priority;
+static int hf_lacp_partner_sysid;
+static int hf_lacp_partner_key;
+static int hf_lacp_partner_port_priority;
+static int hf_lacp_partner_port;
+static int hf_lacp_partner_state;
+static int hf_lacp_partner_state_str;
+static int hf_lacp_flags_p_activity;
+static int hf_lacp_flags_p_timeout;
+static int hf_lacp_flags_p_aggregation;
+static int hf_lacp_flags_p_sync;
+static int hf_lacp_flags_p_collecting;
+static int hf_lacp_flags_p_distrib;
+static int hf_lacp_flags_p_defaulted;
+static int hf_lacp_flags_p_expired;
+static int hf_lacp_partner_reserved;
 
-static int hf_lacp_coll_max_delay = -1;
-static int hf_lacp_coll_reserved = -1;
+static int hf_lacp_coll_max_delay;
+static int hf_lacp_coll_reserved;
 
-static int hf_lacp_pad = -1;
+static int hf_lacp_pad;
 
-static int hf_lacp_vendor = -1;
+static int hf_lacp_vendor;
 
-static int hf_lacp_vendor_hp_length = -1;
-static int hf_lacp_vendor_hp_irf_domain = -1;
-static int hf_lacp_vendor_hp_irf_mac = -1;
-static int hf_lacp_vendor_hp_irf_switch = -1;
-static int hf_lacp_vendor_hp_irf_port = -1;
-static int hf_lacp_vendor_hp_unknown = -1;
+static int hf_lacp_vendor_hp_length;
+static int hf_lacp_vendor_hp_irf_domain;
+static int hf_lacp_vendor_hp_irf_mac;
+static int hf_lacp_vendor_hp_irf_switch;
+static int hf_lacp_vendor_hp_irf_port;
+static int hf_lacp_vendor_hp_unknown;
 
 
 /* Initialise the subtree pointers */
-static gint ett_lacp = -1;
-static gint ett_lacp_a_flags = -1;
-static gint ett_lacp_p_flags = -1;
+static int ett_lacp;
+static int ett_lacp_a_flags;
+static int ett_lacp_p_flags;
 
 /* Expert Items */
-static expert_field ei_lacp_wrong_tlv_type = EI_INIT;
-static expert_field ei_lacp_wrong_tlv_length = EI_INIT;
+static expert_field ei_lacp_wrong_tlv_type;
+static expert_field ei_lacp_wrong_tlv_length;
 
 static const true_false_string tfs_active_passive = { "Active", "Passive" };
 static const true_false_string tfs_short_long_timeout = { "Short Timeout", "Long Timeout" };
 static const true_false_string tfs_aggregatable_individual = { "Aggregatable", "Individual" };
 static const true_false_string tfs_in_sync_out_sync = { "In Sync", "Out of Sync" };
 
-static const char * lacp_state_flags_to_str(guint32 value)
+static const char * lacp_state_flags_to_str(wmem_allocator_t *scope, uint32_t value)
 {
-    wmem_strbuf_t *buf = wmem_strbuf_new(wmem_packet_scope(), "");
+    wmem_strbuf_t *buf = wmem_strbuf_new(scope, "");
     const unsigned int flags_count = 8;
-    const char first_letters[] = "EFDCSGSA";
+    static const char first_letters[] = "EFDCSGSA";
     unsigned int i;
 
     for (i = 0; i < flags_count; i++) {
@@ -162,11 +162,11 @@ static int
 dissect_lacp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     int          offset = 0, length_remaining;
-    guint        tlv_type, tlv_length;
-    guint        version, port, key;
-    const gchar  *sysidstr, *flagstr;
-    guint32      protodetect;
-    guint8       is_vlacp;
+    unsigned     tlv_type, tlv_length;
+    unsigned     version, port, key;
+    const char   *sysidstr, *flagstr;
+    uint32_t     protodetect;
+    uint8_t      is_vlacp;
 
     proto_tree *lacp_tree;
     proto_item *lacp_item, *tlv_type_item, *tlv_length_item;
@@ -265,7 +265,7 @@ dissect_lacp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
     proto_tree_add_bitmask_with_flags(lacp_tree, tvb, offset, hf_lacp_actor_state,
                            ett_lacp_a_flags, actor_flags, ENC_NA, BMT_NO_INT|BMT_NO_TFS|BMT_NO_FALSE);
-    flagstr = lacp_state_flags_to_str(tvb_get_guint8(tvb, offset));
+    flagstr = lacp_state_flags_to_str(pinfo->pool, tvb_get_uint8(tvb, offset));
     ti = proto_tree_add_string(lacp_tree, hf_lacp_actor_state_str, tvb, offset, 1, flagstr);
     proto_item_set_generated(ti);
     offset += 1;
@@ -307,7 +307,7 @@ dissect_lacp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     offset += 2;
 
     proto_tree_add_bitmask_with_flags(lacp_tree, tvb, offset, hf_lacp_partner_state, ett_lacp_p_flags, partner_flags, ENC_NA, BMT_NO_INT|BMT_NO_TFS|BMT_NO_FALSE);
-    flagstr = lacp_state_flags_to_str(tvb_get_guint8(tvb, offset));
+    flagstr = lacp_state_flags_to_str(pinfo->pool, tvb_get_uint8(tvb, offset));
     ti = proto_tree_add_string(lacp_tree, hf_lacp_partner_state_str, tvb, offset, 1, flagstr);
     proto_item_set_generated(ti);
     offset += 1;
@@ -376,7 +376,7 @@ dissect_lacp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     if (length_remaining) {
 
         /* HP LACP MAD IRF, first bytes is always 0x64 and second bytes is the rest of length */
-        if (length_remaining > 2 && (tvb_get_guint8(tvb, offset) == 0x64) && ((length_remaining -2) == tvb_get_guint8(tvb, offset+1)) )
+        if (length_remaining > 2 && (tvb_get_uint8(tvb, offset) == 0x64) && ((length_remaining -2) == tvb_get_uint8(tvb, offset+1)) )
         {
             proto_tree_add_item(lacp_tree, hf_lacp_vendor, tvb, offset, length_remaining, ENC_NA);
             proto_tree_add_item(lacp_tree, hf_lacp_vendor_hp_unknown, tvb, offset, 1, ENC_NA);
@@ -649,7 +649,7 @@ proto_register_lacp(void)
 
     /* Setup protocol subtree array */
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_lacp,
         &ett_lacp_a_flags,
         &ett_lacp_p_flags,

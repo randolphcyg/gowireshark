@@ -19,6 +19,8 @@
 #include <epan/sctpppids.h>
 #include <epan/expert.h>
 #include <epan/proto_data.h>
+#include <epan/unit_strings.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-per.h"
@@ -34,25 +36,25 @@ void proto_reg_handoff_m3ap(void);
 
 /* M3AP uses port 36444 as recommended by IANA. */
 #define M3AP_PORT 36444
-static dissector_handle_t m3ap_handle=NULL;
+static dissector_handle_t m3ap_handle;
 
 #include "packet-m3ap-val.h"
 
 /* Initialize the protocol and registered fields */
-static int proto_m3ap = -1;
+static int proto_m3ap;
 
-static int hf_m3ap_Absolute_Time_ofMBMS_Data_value = -1;
-static int hf_m3ap_IPAddress_v4 = -1;
-static int hf_m3ap_IPAddress_v6 = -1;
+static int hf_m3ap_Absolute_Time_ofMBMS_Data_value;
+static int hf_m3ap_IPAddress_v4;
+static int hf_m3ap_IPAddress_v6;
 
 #include "packet-m3ap-hf.c"
 
 /* Initialize the subtree pointers */
-static int ett_m3ap = -1;
-static int ett_m3ap_IPAddress = -1;
+static int ett_m3ap;
+static int ett_m3ap_IPAddress;
 #include "packet-m3ap-ett.c"
 
-static expert_field ei_m3ap_invalid_ip_address_len = EI_INIT;
+static expert_field ei_m3ap_invalid_ip_address_len;
 
 struct m3ap_private_data {
   e212_number_type_t number_type;
@@ -65,11 +67,11 @@ enum{
 };
 
 /* Global variables */
-static guint32 ProcedureCode;
-static guint32 ProtocolIE_ID;
-/*static guint32 ProtocolExtensionID; */
+static uint32_t ProcedureCode;
+static uint32_t ProtocolIE_ID;
+/*static uint32_t ProtocolExtensionID; */
 static int global_m3ap_port = M3AP_PORT;
-static guint32 message_type;
+static uint32_t message_type;
 
 /* Dissector tables */
 static dissector_table_t m3ap_ies_dissector_table;
@@ -99,27 +101,27 @@ m3ap_get_private_data(packet_info *pinfo)
 
 static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(m3ap_ies_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(m3ap_ies_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(m3ap_extension_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(m3ap_extension_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(m3ap_proc_imsg_dissector_table, ProcedureCode, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(m3ap_proc_imsg_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(m3ap_proc_sout_dissector_table, ProcedureCode, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(m3ap_proc_sout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(m3ap_proc_uout_dissector_table, ProcedureCode, tvb, pinfo, tree, FALSE, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_new(m3ap_proc_uout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 
@@ -166,7 +168,7 @@ void proto_register_m3ap(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_m3ap,
     &ett_m3ap_IPAddress,
 #include "packet-m3ap-ettarr.c"
@@ -201,12 +203,12 @@ void proto_register_m3ap(void) {
 void
 proto_reg_handoff_m3ap(void)
 {
-  static gboolean inited = FALSE;
-  static guint SctpPort;
+  static bool inited = false;
+  static unsigned SctpPort;
 
   if( !inited ) {
     dissector_add_uint("sctp.ppi", PROTO_3GPP_M3AP_PROTOCOL_ID, m3ap_handle);
-    inited = TRUE;
+    inited = true;
 #include "packet-m3ap-dis-tab.c"
     dissector_add_uint("m3ap.extension", 17, create_dissector_handle(dissect_AllocationAndRetentionPriority_PDU, proto_m3ap));
   }

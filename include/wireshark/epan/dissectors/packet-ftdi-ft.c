@@ -19,87 +19,87 @@
 #include "packet-usb.h"
 #include "packet-ftdi-ft.h"
 
-static int proto_ftdi_ft = -1;
+static int proto_ftdi_ft;
 
-static gint hf_setup_brequest = -1;
-static gint hf_setup_lvalue = -1;
-static gint hf_setup_lvalue_purge = -1;
-static gint hf_setup_lvalue_dtr = -1;
-static gint hf_setup_lvalue_rts = -1;
-static gint hf_setup_lvalue_xon_char = -1;
-static gint hf_setup_lvalue_baud_low = -1;
-static gint hf_setup_lvalue_data_size = -1;
-static gint hf_setup_lvalue_event_char = -1;
-static gint hf_setup_lvalue_error_char = -1;
-static gint hf_setup_lvalue_latency_time = -1;
-static gint hf_setup_lvalue_bitmask = -1;
-static gint hf_setup_hvalue = -1;
-static gint hf_setup_hvalue_dtr = -1;
-static gint hf_setup_hvalue_rts = -1;
-static gint hf_setup_hvalue_xoff_char = -1;
-static gint hf_setup_hvalue_baud_mid = -1;
-static gint hf_setup_hvalue_parity = -1;
-static gint hf_setup_hvalue_stop_bits = -1;
-static gint hf_setup_hvalue_break_bit = -1;
-static gint hf_setup_hvalue_trigger = -1;
-static gint hf_setup_hvalue_error_replacement = -1;
-static gint hf_setup_hvalue_bitmode = -1;
-static gint hf_setup_lindex = -1;
-static gint hf_setup_lindex_port_ab = -1;
-static gint hf_setup_lindex_port_abcd = -1;
-static gint hf_setup_lindex_baud_high = -1;
-static gint hf_setup_hindex = -1;
-static gint hf_setup_hindex_rts_cts = -1;
-static gint hf_setup_hindex_dtr_dsr = -1;
-static gint hf_setup_hindex_xon_xoff = -1;
-static gint hf_setup_hindex_baud_high = -1;
-static gint hf_setup_hindex_baud_clock_divide = -1;
-static gint hf_setup_wlength = -1;
-static gint hf_response_lat_timer = -1;
-static gint hf_modem_status = -1;
-static gint hf_modem_status_fs_max_packet = -1;
-static gint hf_modem_status_hs_max_packet = -1;
-static gint hf_modem_status_cts = -1;
-static gint hf_modem_status_dsr = -1;
-static gint hf_modem_status_ri = -1;
-static gint hf_modem_status_dcd = -1;
-static gint hf_line_status = -1;
-static gint hf_line_status_receive_overflow = -1;
-static gint hf_line_status_parity_error = -1;
-static gint hf_line_status_framing_error = -1;
-static gint hf_line_status_break_received = -1;
-static gint hf_line_status_tx_holding_reg_empty = -1;
-static gint hf_line_status_tx_empty = -1;
-static gint hf_if_a_rx_payload = -1;
-static gint hf_if_a_tx_payload = -1;
-static gint hf_if_b_rx_payload = -1;
-static gint hf_if_b_tx_payload = -1;
-static gint hf_if_c_rx_payload = -1;
-static gint hf_if_c_tx_payload = -1;
-static gint hf_if_d_rx_payload = -1;
-static gint hf_if_d_tx_payload = -1;
-static gint hf_ftdi_fragments = -1;
-static gint hf_ftdi_fragment = -1;
-static gint hf_ftdi_fragment_overlap = -1;
-static gint hf_ftdi_fragment_overlap_conflicts = -1;
-static gint hf_ftdi_fragment_multiple_tails = -1;
-static gint hf_ftdi_fragment_too_long_fragment = -1;
-static gint hf_ftdi_fragment_error = -1;
-static gint hf_ftdi_fragment_count = -1;
-static gint hf_ftdi_reassembled_in = -1;
-static gint hf_ftdi_reassembled_length = -1;
+static int hf_setup_brequest;
+static int hf_setup_lvalue;
+static int hf_setup_lvalue_purge;
+static int hf_setup_lvalue_dtr;
+static int hf_setup_lvalue_rts;
+static int hf_setup_lvalue_xon_char;
+static int hf_setup_lvalue_baud_low;
+static int hf_setup_lvalue_data_size;
+static int hf_setup_lvalue_event_char;
+static int hf_setup_lvalue_error_char;
+static int hf_setup_lvalue_latency_time;
+static int hf_setup_lvalue_bitmask;
+static int hf_setup_hvalue;
+static int hf_setup_hvalue_dtr;
+static int hf_setup_hvalue_rts;
+static int hf_setup_hvalue_xoff_char;
+static int hf_setup_hvalue_baud_mid;
+static int hf_setup_hvalue_parity;
+static int hf_setup_hvalue_stop_bits;
+static int hf_setup_hvalue_break_bit;
+static int hf_setup_hvalue_trigger;
+static int hf_setup_hvalue_error_replacement;
+static int hf_setup_hvalue_bitmode;
+static int hf_setup_lindex;
+static int hf_setup_lindex_port_ab;
+static int hf_setup_lindex_port_abcd;
+static int hf_setup_lindex_baud_high;
+static int hf_setup_hindex;
+static int hf_setup_hindex_rts_cts;
+static int hf_setup_hindex_dtr_dsr;
+static int hf_setup_hindex_xon_xoff;
+static int hf_setup_hindex_baud_high;
+static int hf_setup_hindex_baud_clock_divide;
+static int hf_setup_wlength;
+static int hf_response_lat_timer;
+static int hf_modem_status;
+static int hf_modem_status_fs_max_packet;
+static int hf_modem_status_hs_max_packet;
+static int hf_modem_status_cts;
+static int hf_modem_status_dsr;
+static int hf_modem_status_ri;
+static int hf_modem_status_dcd;
+static int hf_line_status;
+static int hf_line_status_receive_overflow;
+static int hf_line_status_parity_error;
+static int hf_line_status_framing_error;
+static int hf_line_status_break_received;
+static int hf_line_status_tx_holding_reg_empty;
+static int hf_line_status_tx_empty;
+static int hf_if_a_rx_payload;
+static int hf_if_a_tx_payload;
+static int hf_if_b_rx_payload;
+static int hf_if_b_tx_payload;
+static int hf_if_c_rx_payload;
+static int hf_if_c_tx_payload;
+static int hf_if_d_rx_payload;
+static int hf_if_d_tx_payload;
+static int hf_ftdi_fragments;
+static int hf_ftdi_fragment;
+static int hf_ftdi_fragment_overlap;
+static int hf_ftdi_fragment_overlap_conflicts;
+static int hf_ftdi_fragment_multiple_tails;
+static int hf_ftdi_fragment_too_long_fragment;
+static int hf_ftdi_fragment_error;
+static int hf_ftdi_fragment_count;
+static int hf_ftdi_reassembled_in;
+static int hf_ftdi_reassembled_length;
 
-static gint ett_ftdi_ft = -1;
-static gint ett_modem_ctrl_lvalue = -1;
-static gint ett_modem_ctrl_hvalue = -1;
-static gint ett_flow_ctrl_hindex = -1;
-static gint ett_baudrate_lindex = -1;
-static gint ett_baudrate_hindex = -1;
-static gint ett_setdata_hvalue = -1;
-static gint ett_modem_status = -1;
-static gint ett_line_status = -1;
-static gint ett_ftdi_fragment = -1;
-static gint ett_ftdi_fragments = -1;
+static int ett_ftdi_ft;
+static int ett_modem_ctrl_lvalue;
+static int ett_modem_ctrl_hvalue;
+static int ett_flow_ctrl_hindex;
+static int ett_baudrate_lindex;
+static int ett_baudrate_hindex;
+static int ett_setdata_hvalue;
+static int ett_modem_status;
+static int ett_line_status;
+static int ett_ftdi_fragment;
+static int ett_ftdi_fragments;
 
 static const fragment_items ftdi_frag_items = {
     /* Fragment subtrees */
@@ -126,42 +126,42 @@ static const fragment_items ftdi_frag_items = {
 
 static dissector_handle_t ftdi_mpsse_handle;
 
-static expert_field ei_undecoded = EI_INIT;
+static expert_field ei_undecoded;
 
 static dissector_handle_t ftdi_ft_handle;
 
 static reassembly_table ftdi_reassembly_table;
 
-static wmem_tree_t *request_info = NULL;
-static wmem_tree_t *bitmode_info = NULL;
-static wmem_tree_t *desegment_info = NULL;
+static wmem_tree_t *request_info;
+static wmem_tree_t *bitmode_info;
+static wmem_tree_t *desegment_info;
 
 typedef struct _request_data {
-    guint32  bus_id;
-    guint32  device_address;
-    guint8   request;
-    guint8   hvalue;
-    guint8   lindex;
+    uint32_t bus_id;
+    uint32_t device_address;
+    uint8_t  request;
+    uint8_t  hvalue;
+    uint8_t  lindex;
 } request_data_t;
 
 typedef struct _bitmode_data {
-    guint32        bus_id;
-    guint32        device_address;
+    uint32_t       bus_id;
+    uint32_t       device_address;
     FTDI_INTERFACE interface;
-    guint8         bitmode;
+    uint8_t        bitmode;
 } bitmode_data_t;
 
 typedef struct _desegment_data desegment_data_t;
 struct _desegment_data {
-    guint32           bus_id;
-    guint32           device_address;
+    uint32_t          bus_id;
+    uint32_t          device_address;
     FTDI_INTERFACE    interface;
-    guint8            bitmode;
-    gint              p2p_dir;
+    uint8_t           bitmode;
+    int               p2p_dir;
     /* First frame where the segmented data starts (reassembly key) */
-    guint32           first_frame;
-    guint32           last_frame;
-    gint              first_frame_offset;
+    uint32_t          first_frame;
+    uint32_t          last_frame;
+    int               first_frame_offset;
     /* Points to desegment data if the previous desegment data ends
      * in last_frame that is equal to this desegment data first_frame.
      */
@@ -169,12 +169,12 @@ struct _desegment_data {
 };
 
 typedef struct _ftdi_fragment_key {
-    guint32           bus_id;
-    guint32           device_address;
+    uint32_t          bus_id;
+    uint32_t          device_address;
     FTDI_INTERFACE    interface;
-    guint8            bitmode;
-    gint              p2p_dir;
-    guint32           id;
+    uint8_t           bitmode;
+    int               p2p_dir;
+    uint32_t          id;
 } ftdi_fragment_key_t;
 
 #define REQUEST_RESET           0x00
@@ -305,6 +305,11 @@ void proto_reg_handoff_ftdi_ft(void);
 static FTDI_CHIP
 identify_chip(usb_conv_info_t *usb_conv_info)
 {
+    if (usb_conv_info == NULL)
+    {
+        return FTDI_CHIP_UNKNOWN;
+    }
+
     switch (usb_conv_info->deviceVersion)
     {
     case 0x0200:
@@ -335,9 +340,9 @@ identify_chip(usb_conv_info_t *usb_conv_info)
 }
 
 static FTDI_INTERFACE
-endpoint_to_interface(usb_conv_info_t *usb_conv_info)
+endpoint_to_interface(urb_info_t *urb)
 {
-    switch (usb_conv_info->endpoint)
+    switch (urb->endpoint)
     {
     case 0x01: /* A OUT */
     case 0x02: /* A IN */
@@ -357,7 +362,7 @@ endpoint_to_interface(usb_conv_info_t *usb_conv_info)
 }
 
 static FTDI_INTERFACE
-lindex_to_interface(guint8 lindex)
+lindex_to_interface(uint8_t lindex)
 {
     switch (lindex)
     {
@@ -375,10 +380,10 @@ lindex_to_interface(guint8 lindex)
     }
 }
 
-static gint
-dissect_request_reset(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_request_reset(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_setup_lvalue_purge, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -395,8 +400,8 @@ dissect_request_reset(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_
     return offset - offset_start;
 }
 
-static gint
-dissect_request_modem_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_request_modem_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
     static int * const lvalue_bits[] = {
         &hf_setup_lvalue_dtr,
@@ -408,7 +413,7 @@ dissect_request_modem_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, p
         &hf_setup_hvalue_rts,
         NULL
     };
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_bitmask(tree, tvb, offset, hf_setup_lvalue,
         ett_modem_ctrl_lvalue, lvalue_bits, ENC_LITTLE_ENDIAN);
@@ -427,8 +432,8 @@ dissect_request_modem_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, p
     return offset - offset_start;
 }
 
-static gint
-dissect_request_set_flow_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_request_set_flow_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
     static int * const hindex_bits[] = {
         &hf_setup_hindex_rts_cts,
@@ -436,7 +441,7 @@ dissect_request_set_flow_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset
         &hf_setup_hindex_xon_xoff,
         NULL
     };
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_setup_lvalue_xon_char, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -454,8 +459,8 @@ dissect_request_set_flow_ctrl(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset
     return offset - offset_start;
 }
 
-static gint
-dissect_request_set_baud_rate(tvbuff_t *tvb, packet_info *pinfo, gint offset, proto_tree *tree, FTDI_CHIP chip)
+static int
+dissect_request_set_baud_rate(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_tree *tree, FTDI_CHIP chip)
 {
     static int * const lindex_bits[] = {
         &hf_setup_lindex_baud_high,
@@ -471,7 +476,7 @@ dissect_request_set_baud_rate(tvbuff_t *tvb, packet_info *pinfo, gint offset, pr
         NULL
     };
 
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_setup_lvalue_baud_low, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -525,8 +530,8 @@ dissect_request_set_baud_rate(tvbuff_t *tvb, packet_info *pinfo, gint offset, pr
     return offset - offset_start;
 }
 
-static gint
-dissect_request_set_data(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_request_set_data(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
     static int * const hvalue_bits[] = {
         &hf_setup_hvalue_parity,
@@ -534,7 +539,7 @@ dissect_request_set_data(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, pro
         &hf_setup_hvalue_break_bit,
         NULL
     };
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_setup_lvalue_data_size, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -552,10 +557,10 @@ dissect_request_set_data(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, pro
     return offset - offset_start;
 }
 
-static gint
-dissect_request_get_modem_stat(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_request_get_modem_stat(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_setup_lvalue, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -572,10 +577,10 @@ dissect_request_get_modem_stat(tvbuff_t *tvb, packet_info *pinfo _U_, gint offse
     return offset - offset_start;
 }
 
-static gint
-dissect_request_set_event_char(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_request_set_event_char(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_setup_lvalue_event_char, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -592,10 +597,10 @@ dissect_request_set_event_char(tvbuff_t *tvb, packet_info *pinfo _U_, gint offse
     return offset - offset_start;
 }
 
-static gint
-dissect_request_set_error_char(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_request_set_error_char(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_setup_lvalue_error_char, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -613,10 +618,10 @@ dissect_request_set_error_char(tvbuff_t *tvb, packet_info *pinfo _U_, gint offse
     return offset - offset_start;
 }
 
-static gint
-dissect_request_set_lat_timer(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_request_set_lat_timer(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_setup_lvalue_latency_time, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -633,10 +638,10 @@ dissect_request_set_lat_timer(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset
     return offset - offset_start;
 }
 
-static gint
-dissect_request_get_lat_timer(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_request_get_lat_timer(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_setup_lvalue, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -653,10 +658,10 @@ dissect_request_get_lat_timer(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset
     return offset - offset_start;
 }
 
-static gint
-dissect_response_get_lat_timer(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_response_get_lat_timer(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_response_lat_timer, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -664,10 +669,10 @@ dissect_response_get_lat_timer(tvbuff_t *tvb, packet_info *pinfo _U_, gint offse
     return offset - offset_start;
 }
 
-static gint
-dissect_request_set_bitmode(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree)
+static int
+dissect_request_set_bitmode(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree)
 {
-    gint offset_start = offset;
+    int offset_start = offset;
 
     proto_tree_add_item(tree, hf_setup_lvalue_bitmask, tvb, offset, 1, ENC_LITTLE_ENDIAN);
     offset++;
@@ -684,8 +689,8 @@ dissect_request_set_bitmode(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, 
     return offset - offset_start;
 }
 
-static gint
-dissect_modem_status_bytes(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, proto_tree *tree, gint *out_rx_len)
+static int
+dissect_modem_status_bytes(tvbuff_t *tvb, packet_info *pinfo _U_, int offset, proto_tree *tree, int *out_rx_len)
 {
     static int * const modem_status_bits[] = {
         &hf_modem_status_fs_max_packet,
@@ -705,7 +710,7 @@ dissect_modem_status_bytes(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, p
         &hf_line_status_tx_empty,
         NULL
     };
-    guint64 modem_status;
+    uint64_t modem_status;
 
     proto_tree_add_bitmask_ret_uint64(tree, tvb, offset, hf_modem_status,
         ett_modem_status, modem_status_bits, ENC_LITTLE_ENDIAN, &modem_status);
@@ -734,11 +739,11 @@ dissect_modem_status_bytes(tvbuff_t *tvb, packet_info *pinfo _U_, gint offset, p
 }
 
 static void
-record_interface_mode(packet_info *pinfo, usb_conv_info_t *usb_conv_info, FTDI_INTERFACE interface, guint8 bitmode)
+record_interface_mode(packet_info *pinfo, urb_info_t *urb, FTDI_INTERFACE interface, uint8_t bitmode)
 {
-    guint32         k_bus_id = usb_conv_info->bus_id;
-    guint32         k_device_address = usb_conv_info->device_address;
-    guint32         k_interface = (guint32)interface;
+    uint32_t        k_bus_id = urb->bus_id;
+    uint32_t        k_device_address = urb->device_address;
+    uint32_t        k_interface = (uint32_t)interface;
     wmem_tree_key_t key[] = {
         {1, &k_bus_id},
         {1, &k_device_address},
@@ -749,19 +754,19 @@ record_interface_mode(packet_info *pinfo, usb_conv_info_t *usb_conv_info, FTDI_I
     bitmode_data_t *bitmode_data = NULL;
 
     bitmode_data = wmem_new(wmem_file_scope(), bitmode_data_t);
-    bitmode_data->bus_id = usb_conv_info->bus_id;
-    bitmode_data->device_address = usb_conv_info->device_address;
+    bitmode_data->bus_id = urb->bus_id;
+    bitmode_data->device_address = urb->device_address;
     bitmode_data->interface = interface;
     bitmode_data->bitmode = bitmode;
     wmem_tree_insert32_array(bitmode_info, key, bitmode_data);
 }
 
-static guint8
-get_recorded_interface_mode(packet_info *pinfo, usb_conv_info_t *usb_conv_info, FTDI_INTERFACE interface)
+static uint8_t
+get_recorded_interface_mode(packet_info *pinfo, urb_info_t *urb, FTDI_INTERFACE interface)
 {
-    guint32         k_bus_id = usb_conv_info->bus_id;
-    guint32         k_device_address = usb_conv_info->device_address;
-    guint32         k_interface = (guint32)interface;
+    uint32_t        k_bus_id = urb->bus_id;
+    uint32_t        k_device_address = urb->device_address;
+    uint32_t        k_interface = (uint32_t)interface;
     wmem_tree_key_t key[] = {
         {1, &k_bus_id},
         {1, &k_device_address},
@@ -782,13 +787,13 @@ get_recorded_interface_mode(packet_info *pinfo, usb_conv_info_t *usb_conv_info, 
 }
 
 static desegment_data_t *
-record_desegment_data(packet_info *pinfo, usb_conv_info_t *usb_conv_info,
-                      FTDI_INTERFACE interface, guint8 bitmode)
+record_desegment_data(packet_info *pinfo, urb_info_t *urb,
+                      FTDI_INTERFACE interface, uint8_t bitmode)
 {
-    guint32         k_bus_id = usb_conv_info->bus_id;
-    guint32         k_device_address = usb_conv_info->device_address;
-    guint32         k_interface = (guint32)interface;
-    guint32         k_p2p_dir = (guint32)pinfo->p2p_dir;
+    uint32_t        k_bus_id = urb->bus_id;
+    uint32_t        k_device_address = urb->device_address;
+    uint32_t        k_interface = (uint32_t)interface;
+    uint32_t        k_p2p_dir = (uint32_t)pinfo->p2p_dir;
     wmem_tree_key_t key[] = {
         {1, &k_bus_id},
         {1, &k_device_address},
@@ -800,8 +805,8 @@ record_desegment_data(packet_info *pinfo, usb_conv_info_t *usb_conv_info,
     desegment_data_t *desegment_data = NULL;
 
     desegment_data = wmem_new(wmem_file_scope(), desegment_data_t);
-    desegment_data->bus_id = usb_conv_info->bus_id;
-    desegment_data->device_address = usb_conv_info->device_address;
+    desegment_data->bus_id = urb->bus_id;
+    desegment_data->device_address = urb->device_address;
     desegment_data->interface = interface;
     desegment_data->bitmode = bitmode;
     desegment_data->p2p_dir = pinfo->p2p_dir;
@@ -816,13 +821,13 @@ record_desegment_data(packet_info *pinfo, usb_conv_info_t *usb_conv_info,
 }
 
 static desegment_data_t *
-get_recorded_desegment_data(packet_info *pinfo, usb_conv_info_t *usb_conv_info,
-                            FTDI_INTERFACE interface, guint8 bitmode)
+get_recorded_desegment_data(packet_info *pinfo, urb_info_t *urb,
+                            FTDI_INTERFACE interface, uint8_t bitmode)
 {
-    guint32         k_bus_id = usb_conv_info->bus_id;
-    guint32         k_device_address = usb_conv_info->device_address;
-    guint32         k_interface = (guint32)interface;
-    guint32         k_p2p_dir = (guint32)pinfo->p2p_dir;
+    uint32_t        k_bus_id = urb->bus_id;
+    uint32_t        k_device_address = urb->device_address;
+    uint32_t        k_interface = (uint32_t)interface;
+    uint32_t        k_p2p_dir = (uint32_t)pinfo->p2p_dir;
     wmem_tree_key_t key[] = {
         {1, &k_bus_id},
         {1, &k_device_address},
@@ -848,13 +853,13 @@ get_recorded_desegment_data(packet_info *pinfo, usb_conv_info_t *usb_conv_info,
     return NULL;
 }
 
-static guint ftdi_fragment_key_hash(gconstpointer k)
+static unsigned ftdi_fragment_key_hash(const void *k)
 {
     const ftdi_fragment_key_t *key = (const ftdi_fragment_key_t *)k;
     return key->id;
 }
 
-static gint ftdi_fragment_key_equal(gconstpointer k1, gconstpointer k2)
+static int ftdi_fragment_key_equal(const void *k1, const void *k2)
 {
     const ftdi_fragment_key_t *key1 = (const ftdi_fragment_key_t *)k1;
     const ftdi_fragment_key_t *key2 = (const ftdi_fragment_key_t *)k2;
@@ -868,7 +873,7 @@ static gint ftdi_fragment_key_equal(gconstpointer k1, gconstpointer k2)
            (key1->p2p_dir == key2->p2p_dir);
 }
 
-static gpointer ftdi_fragment_key(const packet_info *pinfo _U_, const guint32 id, const void *data)
+static void *ftdi_fragment_key(const packet_info *pinfo _U_, const uint32_t id, const void *data)
 {
     desegment_data_t *desegment_data = (desegment_data_t *)data;
     ftdi_fragment_key_t *key = g_slice_new(ftdi_fragment_key_t);
@@ -880,10 +885,10 @@ static gpointer ftdi_fragment_key(const packet_info *pinfo _U_, const guint32 id
     key->p2p_dir = desegment_data->p2p_dir;
     key->id = id;
 
-    return (gpointer)key;
+    return (void *)key;
 }
 
-static void ftdi_fragment_free_key(gpointer ptr)
+static void ftdi_fragment_free_key(void *ptr)
 {
     ftdi_fragment_key_t *key = (ftdi_fragment_key_t *)ptr;
     g_slice_free(ftdi_fragment_key_t, key);
@@ -899,21 +904,21 @@ static const reassembly_table_functions ftdi_reassembly_table_functions = {
 };
 
 static void
-dissect_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, usb_conv_info_t *usb_conv_info,
-                FTDI_INTERFACE interface, guint8 bitmode)
+dissect_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, urb_info_t *urb,
+                FTDI_INTERFACE interface, uint8_t bitmode)
 {
-    guint32           k_bus_id;
-    guint32           k_device_address;
+    uint32_t          k_bus_id;
+    uint32_t          k_device_address;
 
-    k_bus_id = usb_conv_info->bus_id;
-    k_device_address = usb_conv_info->device_address;
+    k_bus_id = urb->bus_id;
+    k_device_address = urb->device_address;
 
     if (tvb && ((bitmode == BITMODE_MPSSE) || (bitmode == BITMODE_MCU)))
     {
         ftdi_mpsse_info_t mpsse_info = {
             .bus_id = k_bus_id,
             .device_address = k_device_address,
-            .chip = identify_chip(usb_conv_info),
+            .chip = identify_chip(urb->conv),
             .iface = interface,
             .mcu_mode = (bitmode == BITMODE_MCU),
         };
@@ -921,15 +926,15 @@ dissect_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, usb_conv_in
     }
 }
 
-static gint
+static int
 dissect_serial_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tree *ftdi_tree,
-                       usb_conv_info_t *usb_conv_info, FTDI_INTERFACE interface)
+                       urb_info_t *urb, FTDI_INTERFACE interface)
 {
-    guint16           save_can_desegment;
+    uint16_t          save_can_desegment;
     int               save_desegment_offset;
-    guint32           save_desegment_len;
+    uint32_t          save_desegment_len;
     desegment_data_t *desegment_data;
-    guint32           bytes;
+    uint32_t          bytes;
 
     save_can_desegment = pinfo->can_desegment;
     save_desegment_offset = pinfo->desegment_offset;
@@ -939,17 +944,17 @@ dissect_serial_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, prot
     if (bytes > 0)
     {
         tvbuff_t *payload_tvb = NULL;
-        guint32   reassembled_bytes = 0;
-        guint8    bitmode;
-        guint8    curr_layer_num = pinfo->curr_layer_num;
+        uint32_t  reassembled_bytes = 0;
+        uint8_t   bitmode;
+        uint8_t   curr_layer_num = pinfo->curr_layer_num;
 
-        bitmode = get_recorded_interface_mode(pinfo, usb_conv_info, interface);
+        bitmode = get_recorded_interface_mode(pinfo, urb, interface);
 
         pinfo->can_desegment = 2;
         pinfo->desegment_offset = 0;
         pinfo->desegment_len = 0;
 
-        desegment_data = get_recorded_desegment_data(pinfo, usb_conv_info, interface, bitmode);
+        desegment_data = get_recorded_desegment_data(pinfo, urb, interface, bitmode);
         if (desegment_data)
         {
             fragment_head    *fd_head;
@@ -1004,7 +1009,7 @@ dissect_serial_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, prot
             payload_tvb = tvb;
         }
 
-        dissect_payload(payload_tvb, pinfo, tree, usb_conv_info, interface, bitmode);
+        dissect_payload(payload_tvb, pinfo, tree, urb, interface, bitmode);
 
         if (!PINFO_FD_VISITED(pinfo))
         {
@@ -1025,7 +1030,7 @@ dissect_serial_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, prot
              * or any way to "shorten" the last added fragment. The most problematic case is when current
              * packet is both last packet for previous reassembly and a first packet for next reassembly.
              */
-            guint8 save_curr_layer_num = pinfo->curr_layer_num;
+            uint8_t save_curr_layer_num = pinfo->curr_layer_num;
             pinfo->curr_layer_num = curr_layer_num;
 
             if (!pinfo->desegment_len)
@@ -1034,7 +1039,7 @@ dissect_serial_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, prot
                 {
                     /* Current tvb is really the last fragment */
                     fragment_add_check(&ftdi_reassembly_table, tvb, 0, pinfo, desegment_data->first_frame,
-                                       desegment_data, reassembled_bytes, bytes, FALSE);
+                                       desegment_data, reassembled_bytes, bytes, false);
                     desegment_data->last_frame = pinfo->num;
                 }
             }
@@ -1045,38 +1050,38 @@ dissect_serial_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, prot
                 if (!desegment_data)
                 {
                     /* Start desegmenting */
-                    gint fragment_length = tvb_reported_length_remaining(tvb, pinfo->desegment_offset);
-                    desegment_data = record_desegment_data(pinfo, usb_conv_info, interface, bitmode);
+                    int fragment_length = tvb_reported_length_remaining(tvb, pinfo->desegment_offset);
+                    desegment_data = record_desegment_data(pinfo, urb, interface, bitmode);
                     desegment_data->first_frame_offset = pinfo->desegment_offset;
                     fragment_add_check(&ftdi_reassembly_table, tvb, pinfo->desegment_offset, pinfo,
-                                       desegment_data->first_frame, desegment_data, 0, fragment_length, TRUE);
+                                       desegment_data->first_frame, desegment_data, 0, fragment_length, true);
                 }
                 else if (pinfo->desegment_offset == 0)
                 {
                     /* Continue reassembling */
                     fragment_add_check(&ftdi_reassembly_table, tvb, 0, pinfo, desegment_data->first_frame,
-                                       desegment_data, reassembled_bytes, bytes, TRUE);
+                                       desegment_data, reassembled_bytes, bytes, true);
                 }
                 else
                 {
-                    gint fragment_length;
-                    gint previous_bytes;
+                    int fragment_length;
+                    int previous_bytes;
                     desegment_data_t *previous_desegment_data;
 
                     /* This packet contains both an end from a previous reassembly and start of a new one */
-                    DISSECTOR_ASSERT((guint32)pinfo->desegment_offset > reassembled_bytes);
+                    DISSECTOR_ASSERT((uint32_t)pinfo->desegment_offset > reassembled_bytes);
                     previous_bytes = pinfo->desegment_offset - reassembled_bytes;
                     fragment_add_check(&ftdi_reassembly_table, tvb, 0, pinfo, desegment_data->first_frame,
-                                       desegment_data, reassembled_bytes, previous_bytes, FALSE);
+                                       desegment_data, reassembled_bytes, previous_bytes, false);
                     desegment_data->last_frame = pinfo->num;
 
                     previous_desegment_data = desegment_data;
                     fragment_length = bytes - previous_bytes;
-                    desegment_data = record_desegment_data(pinfo, usb_conv_info, interface, bitmode);
+                    desegment_data = record_desegment_data(pinfo, urb, interface, bitmode);
                     desegment_data->first_frame_offset = previous_bytes;
                     desegment_data->previous = previous_desegment_data;
                     fragment_add_check(&ftdi_reassembly_table, tvb, previous_bytes, pinfo, desegment_data->first_frame,
-                                       desegment_data, 0, fragment_length, TRUE);
+                                       desegment_data, 0, fragment_length, true);
                 }
             }
 
@@ -1091,35 +1096,35 @@ dissect_serial_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, prot
     return bytes;
 }
 
-static gint
+static int
 dissect_ftdi_ft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     proto_item       *main_item;
     proto_tree       *main_tree;
-    gint              offset = 0;
-    usb_conv_info_t  *usb_conv_info = (usb_conv_info_t *)data;
+    int               offset = 0;
+    urb_info_t       *urb = (urb_info_t *)data;
     request_data_t   *request_data = NULL;
     wmem_tree_key_t   key[4];
-    guint32           k_bus_id;
-    guint32           k_device_address;
+    uint32_t          k_bus_id;
+    uint32_t          k_device_address;
 
-    if (!usb_conv_info)
+    if (!urb)
     {
         return offset;
     }
 
-    if (usb_conv_info->is_setup)
+    if (urb->is_setup)
     {
         /* This dissector can only process device Vendor specific setup data */
-        if ((USB_TYPE(usb_conv_info->setup_requesttype) != RQT_SETUP_TYPE_VENDOR) ||
-            (USB_RECIPIENT(usb_conv_info->setup_requesttype) != RQT_SETUP_RECIPIENT_DEVICE))
+        if ((USB_TYPE(urb->setup_requesttype) != RQT_SETUP_TYPE_VENDOR) ||
+            (USB_RECIPIENT(urb->setup_requesttype) != RQT_SETUP_RECIPIENT_DEVICE))
         {
             return offset;
         }
     }
 
-    k_bus_id = usb_conv_info->bus_id;
-    k_device_address = usb_conv_info->device_address;
+    k_bus_id = urb->bus_id;
+    k_device_address = urb->device_address;
 
     key[0].length = 1;
     key[0].key = &k_bus_id;
@@ -1133,27 +1138,27 @@ dissect_ftdi_ft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     main_item = proto_tree_add_item(tree, proto_ftdi_ft, tvb, offset, -1, ENC_NA);
     main_tree = proto_item_add_subtree(main_item, ett_ftdi_ft);
 
-    if (usb_conv_info->transfer_type == URB_CONTROL)
+    if (urb->transfer_type == URB_CONTROL)
     {
         col_set_str(pinfo->cinfo, COL_PROTOCOL, "FTDI FT");
         col_set_str(pinfo->cinfo, COL_INFO, "FTDI FT ");
-        col_append_str(pinfo->cinfo, COL_INFO, usb_conv_info->is_request ? "Request" : "Response");
+        col_append_str(pinfo->cinfo, COL_INFO, urb->is_request ? "Request" : "Response");
 
-        if (usb_conv_info->is_setup)
+        if (urb->is_setup)
         {
-            gint         bytes_dissected;
-            guint8       brequest;
-            guint8       hvalue;
-            guint8       lindex;
+            int          bytes_dissected;
+            uint8_t      brequest;
+            uint8_t      hvalue;
+            uint8_t      lindex;
 
-            brequest = tvb_get_guint8(tvb, offset);
+            brequest = tvb_get_uint8(tvb, offset);
             col_append_fstr(pinfo->cinfo, COL_INFO, ": %s",
                 val_to_str_ext_const(brequest, &request_vals_ext, "Unknown"));
             proto_tree_add_item(main_tree, hf_setup_brequest, tvb, offset, 1, ENC_LITTLE_ENDIAN);
             offset++;
 
-            hvalue = tvb_get_guint8(tvb, offset + 1);
-            lindex = tvb_get_guint8(tvb, offset + 2);
+            hvalue = tvb_get_uint8(tvb, offset + 1);
+            lindex = tvb_get_uint8(tvb, offset + 2);
 
             switch (brequest)
             {
@@ -1168,7 +1173,7 @@ dissect_ftdi_ft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
                 break;
             case REQUEST_SET_BAUD_RATE:
             {
-                FTDI_CHIP chip = identify_chip(usb_conv_info);
+                FTDI_CHIP chip = identify_chip(urb->conv);
                 bytes_dissected = dissect_request_set_baud_rate(tvb, pinfo, offset, main_tree, chip);
                 break;
             }
@@ -1210,8 +1215,8 @@ dissect_ftdi_ft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
             /* Record the request type so we can find it when dissecting response */
             request_data = wmem_new(wmem_file_scope(), request_data_t);
-            request_data->bus_id = usb_conv_info->bus_id;
-            request_data->device_address = usb_conv_info->device_address;
+            request_data->bus_id = urb->bus_id;
+            request_data->device_address = urb->device_address;
             request_data->request = brequest;
             request_data->hvalue = hvalue;
             request_data->lindex = lindex;
@@ -1236,7 +1241,7 @@ dissect_ftdi_ft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
                     break;
                 case REQUEST_SET_BITMODE:
                     /* TODO: Record interface mode only if the control request has succeeded */
-                    record_interface_mode(pinfo, usb_conv_info, lindex_to_interface(request_data->lindex), request_data->hvalue);
+                    record_interface_mode(pinfo, urb, lindex_to_interface(request_data->lindex), request_data->hvalue);
                     break;
                 default:
                     break;
@@ -1258,9 +1263,9 @@ dissect_ftdi_ft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     {
         const char *interface_str;
         FTDI_INTERFACE interface;
-        gint rx_hf, tx_hf;
+        int rx_hf, tx_hf;
 
-        interface = endpoint_to_interface(usb_conv_info);
+        interface = endpoint_to_interface(urb);
         switch (interface)
         {
         case FTDI_INTERFACE_A:
@@ -1290,8 +1295,8 @@ dissect_ftdi_ft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         col_set_str(pinfo->cinfo, COL_PROTOCOL, "FTDI FT");
         if (pinfo->p2p_dir == P2P_DIR_RECV)
         {
-            gint total_rx_len = 0;
-            gint rx_len;
+            int total_rx_len = 0;
+            int rx_len;
             tvbuff_t *rx_tvb = tvb_new_composite();
 
             col_add_fstr(pinfo->cinfo, COL_INFO, "INTERFACE %s RX", interface_str);
@@ -1317,7 +1322,7 @@ dissect_ftdi_ft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
                 tvb_composite_finalize(rx_tvb);
                 col_append_fstr(pinfo->cinfo, COL_INFO, " %d bytes", total_rx_len);
                 add_new_data_source(pinfo, rx_tvb, "RX Payload");
-                dissect_serial_payload(rx_tvb, pinfo, tree, main_tree, usb_conv_info, interface);
+                dissect_serial_payload(rx_tvb, pinfo, tree, main_tree, urb, interface);
             }
             else
             {
@@ -1326,7 +1331,7 @@ dissect_ftdi_ft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         }
         else
         {
-            gint bytes;
+            int bytes;
 
             col_add_fstr(pinfo->cinfo, COL_INFO, "INTERFACE %s TX", interface_str);
             bytes = tvb_reported_length_remaining(tvb, offset);
@@ -1340,7 +1345,7 @@ dissect_ftdi_ft(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
                 tx_tvb = tvb_new_subset_length(tvb, offset, bytes);
                 add_new_data_source(pinfo, tx_tvb, "TX Payload");
-                dissect_serial_payload(tx_tvb, pinfo, tree, main_tree, usb_conv_info, interface);
+                dissect_serial_payload(tx_tvb, pinfo, tree, main_tree, urb, interface);
                 offset += bytes;
             }
         }
@@ -1696,7 +1701,7 @@ proto_register_ftdi_ft(void)
         { &ei_undecoded, { "ftdi-ft.undecoded", PI_UNDECODED, PI_WARN, "Not dissected yet (report to wireshark.org)", EXPFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_ftdi_ft,
         &ett_modem_ctrl_lvalue,
         &ett_modem_ctrl_hvalue,

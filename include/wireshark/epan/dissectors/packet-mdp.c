@@ -24,20 +24,20 @@
 void proto_register_mdp(void);
 void proto_reg_handoff_mdp(void);
 
-static int proto_mdp = -1;
-static int hf_mdp_preamble_data = -1;
-static int hf_mdp_device_info = -1;
-static int hf_mdp_network_info = -1;
-static int hf_mdp_type = -1;
-static int hf_mdp_length = -1;
-static int hf_mdp_longitude = -1;
-static int hf_mdp_latitude = -1;
-static int hf_mdp_type_six = -1;
-static int hf_mdp_type_seven = -1;
-static int hf_mdp_data = -1;
+static int proto_mdp;
+static int hf_mdp_preamble_data;
+static int hf_mdp_device_info;
+static int hf_mdp_network_info;
+static int hf_mdp_type;
+static int hf_mdp_length;
+static int hf_mdp_longitude;
+static int hf_mdp_latitude;
+static int hf_mdp_type_six;
+static int hf_mdp_type_seven;
+static int hf_mdp_data;
 
-static gint ett_mdp = -1;
-static gint ett_mdp_tlv = -1;
+static int ett_mdp;
+static int ett_mdp_tlv;
 
 static dissector_handle_t mdp_handle;
 
@@ -58,12 +58,11 @@ dissect_mdp(tvbuff_t *mdp_tvb, packet_info *pinfo, proto_tree *tree, void *data 
 {
     proto_tree  *mdp_tree, *tlv_tree;
     proto_item  *mdp_item, *tlv_item;
-    guint32     mdp_type, mdp_length;
-    gint offset = 0;
+    uint32_t    mdp_type, mdp_length;
+    int offset = 0;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "MDP");
-    col_clear(pinfo->cinfo, COL_INFO);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "MDP");
+    col_set_str(pinfo->cinfo, COL_INFO, "MDP");
 
     mdp_item = proto_tree_add_item(tree, proto_mdp, mdp_tvb, 0, -1, ENC_NA);
     mdp_tree = proto_item_add_subtree(mdp_item, ett_mdp);
@@ -127,7 +126,7 @@ proto_register_mdp(void)
         { &hf_mdp_data, {"Unknown Data", "mdp.data", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }}
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_mdp,
         &ett_mdp_tlv
     };

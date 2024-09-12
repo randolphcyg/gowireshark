@@ -61,15 +61,15 @@
 void proto_register_mpls(void);
 void proto_reg_handoff_mpls(void);
 
-static gint proto_mpls = -1;
-static gint proto_pw_ach = -1;
-static gint proto_pw_ach_mcc = -1;
-static gint proto_pw_mcw = -1;
+static int proto_mpls;
+static int proto_pw_ach;
+static int proto_pw_ach_mcc;
+static int proto_pw_mcw;
 
-static gint ett_mpls = -1;
-static gint ett_mpls_pw_ach = -1;
-static gint ett_mpls_pw_ach_mcc = -1;
-static gint ett_mpls_pw_mcw = -1;
+static int ett_mpls;
+static int ett_mpls_pw_ach;
+static int ett_mpls_pw_ach_mcc;
+static int ett_mpls_pw_mcw;
 static char PW_ACH[50] = "PW Associated Channel Header";
 
 const value_string special_labels[] = {
@@ -94,29 +94,34 @@ static dissector_handle_t mpls_handle;
 static dissector_handle_t mpls_pwcw_handle;
 static dissector_handle_t mpls_mcc_handle;
 
+/*
+ * RFC 8469 deprecated Ethernet without CW, so default this to false.
+ * https://datatracker.ietf.org/doc/html/rfc8469
+ */
+static bool mpls_try_heuristic_first;
 /* For RFC6391 - Flow aware transport of pseudowire over a mpls PSN*/
-static gboolean mpls_bos_flowlabel = FALSE;
+static bool mpls_bos_flowlabel;
 
-static int hf_mpls_label = -1;
-static int hf_mpls_label_special = -1;
-static int hf_mpls_exp = -1;
-static int hf_mpls_bos = -1;
-static int hf_mpls_ttl = -1;
+static int hf_mpls_label;
+static int hf_mpls_label_special;
+static int hf_mpls_exp;
+static int hf_mpls_bos;
+static int hf_mpls_ttl;
 
-static int hf_mpls_pw_ach_ver = -1;
-static int hf_mpls_pw_ach_res = -1;
-static int hf_mpls_pw_ach_channel_type = -1;
+static int hf_mpls_pw_ach_ver;
+static int hf_mpls_pw_ach_res;
+static int hf_mpls_pw_ach_channel_type;
 
-static int hf_mpls_pw_ach_mcc_proto = -1;
+static int hf_mpls_pw_ach_mcc_proto;
 
-static int hf_mpls_pw_mcw_flags = -1;
-static int hf_mpls_pw_mcw_length = -1;
-static int hf_mpls_pw_mcw_sequence_number = -1;
+static int hf_mpls_pw_mcw_flags;
+static int hf_mpls_pw_mcw_length;
+static int hf_mpls_pw_mcw_sequence_number;
 
-static expert_field ei_mpls_pw_ach_error_processing_message = EI_INIT;
-static expert_field ei_mpls_pw_ach_res = EI_INIT;
-static expert_field ei_mpls_pw_mcw_error_processing_message = EI_INIT;
-static expert_field ei_mpls_invalid_label = EI_INIT;
+static expert_field ei_mpls_pw_ach_error_processing_message;
+static expert_field ei_mpls_pw_ach_res;
+static expert_field ei_mpls_pw_mcw_error_processing_message;
+static expert_field ei_mpls_invalid_label;
 
 #if 0 /*not used yet*/
 /*
@@ -199,25 +204,42 @@ static const value_string mpls_pwac_types[] = {
 static value_string_ext mpls_pwac_types_ext = VALUE_STRING_EXT_INIT(mpls_pwac_types);
 
 static dissector_table_t mpls_subdissector_table;
+/*
+ * Post-stack First Nibble
+ * https://datatracker.ietf.org/doc/html/draft-ietf-mpls-1stnibble-06
+ */
+static dissector_table_t mpls_pfn_subdissector_table;
+static heur_dissector_list_t mpls_heur_subdissector_list;
 
-static void mpls_prompt(packet_info *pinfo, gchar* result)
+static void mpls_prompt(packet_info *pinfo, char* result)
 {
     snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Data after label %u as",
         GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_mpls, 0)));
 }
 
-static gpointer mpls_value(packet_info *pinfo)
+static void *mpls_value(packet_info *pinfo)
 {
     return p_get_proto_data(pinfo->pool, pinfo, proto_mpls, 0);
 }
 
-static void pw_ach_prompt(packet_info *pinfo, gchar* result)
+static void mpls_pfn_prompt(packet_info *pinfo, char* result)
+{
+    snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Data after post-stack first nibble %u as",
+        GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_mpls, 1)));
+}
+
+static void *mpls_pfn_value(packet_info *pinfo)
+{
+    return p_get_proto_data(pinfo->pool, pinfo, proto_mpls, 1);
+}
+
+static void pw_ach_prompt(packet_info *pinfo, char* result)
 {
     snprintf(result, MAX_DECODE_AS_PROMPT_LEN, "Channel type 0x%x as",
         GPOINTER_TO_UINT(p_get_proto_data(pinfo->pool, pinfo, proto_pw_ach, 0)));
 }
 
-static gpointer pw_ach_value(packet_info *pinfo)
+static void *pw_ach_value(packet_info *pinfo)
 {
     return p_get_proto_data(pinfo->pool, pinfo, proto_pw_ach, 0);
 }
@@ -230,17 +252,17 @@ static gpointer pw_ach_value(packet_info *pinfo)
  */
 void
 decode_mpls_label(tvbuff_t *tvb, int offset,
-                       guint32  *label, guint8 *exp,
-                       guint8   *bos, guint8 *ttl)
+                       uint32_t *label, uint8_t *exp,
+                       uint8_t  *bos, uint8_t *ttl)
 {
-    guint8 octet0 = tvb_get_guint8(tvb, offset+0);
-    guint8 octet1 = tvb_get_guint8(tvb, offset+1);
-    guint8 octet2 = tvb_get_guint8(tvb, offset+2);
+    uint8_t octet0 = tvb_get_uint8(tvb, offset+0);
+    uint8_t octet1 = tvb_get_uint8(tvb, offset+1);
+    uint8_t octet2 = tvb_get_uint8(tvb, offset+2);
 
     *label = (octet0 << 12) + (octet1 << 4) + ((octet2 >> 4) & 0xff);
     *exp = (octet2 >> 1) & 0x7;
     *bos = (octet2 & 0x1);
-    *ttl = tvb_get_guint8(tvb, offset+3);
+    *ttl = tvb_get_uint8(tvb, offset+3);
 }
 
 /*
@@ -253,7 +275,7 @@ dissect_pw_ach_mcc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
     tvbuff_t   *next_tvb;
     proto_tree *mpls_pw_ach_mcc_tree;
     proto_item *ti;
-    guint32     pid;
+    uint32_t    pid;
 
     ti = proto_tree_add_item(tree, proto_pw_ach_mcc, tvb, 0,2, ENC_NA);
     mpls_pw_ach_mcc_tree = proto_item_add_subtree(ti, ett_mpls_pw_ach_mcc);
@@ -276,7 +298,7 @@ static int
 dissect_pw_ach(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     tvbuff_t   *next_tvb;
-    guint       channel_type;
+    unsigned    channel_type;
 
     if (tvb_reported_length_remaining(tvb, 0) < 4) {
         proto_tree_add_expert(tree, pinfo, &ei_mpls_pw_ach_error_processing_message, tvb, 0, -1);
@@ -289,7 +311,7 @@ dissect_pw_ach(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
     if (tree) {
         proto_tree *mpls_pw_ach_tree;
         proto_item *ti;
-        guint16     res;
+        uint16_t    res;
 
         ti = proto_tree_add_item(tree, proto_pw_ach, tvb, 0, 4, ENC_NA);
         mpls_pw_ach_tree = proto_item_add_subtree(ti, ett_mpls_pw_ach);
@@ -297,7 +319,7 @@ dissect_pw_ach(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
         proto_tree_add_item(mpls_pw_ach_tree, hf_mpls_pw_ach_ver,
                             tvb, 0, 1, ENC_BIG_ENDIAN);
 
-        res = tvb_get_guint8(tvb, 1);
+        res = tvb_get_uint8(tvb, 1);
         ti = proto_tree_add_uint(mpls_pw_ach_tree, hf_mpls_pw_ach_res,
                                         tvb, 1, 1, res);
         if (res != 0)
@@ -324,12 +346,12 @@ dissect_pw_ach(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
     return tvb_captured_length(tvb);
 }
 
-gboolean
+bool
 dissect_try_cw_first_nibble( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree )
 {
-    guint8 nibble;
+    uint8_t nibble;
 
-    nibble = (tvb_get_guint8(tvb, 0 ) >> 4) & 0x0F;
+    nibble = (tvb_get_uint8(tvb, 0 ) >> 4) & 0x0F;
     switch ( nibble )
     {
         case 6:
@@ -338,25 +360,25 @@ dissect_try_cw_first_nibble( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
              * word, with the packet's first nibble being 6.
              */
             call_dissector(dissector_ipv6, tvb, pinfo, tree);
-            return TRUE;
+            return true;
         case 4:
             /*
              * XXX - this could be from an pseudo-wire without a control
              * word, with the packet's first nibble being 4.
              */
             call_dissector(dissector_ip, tvb, pinfo, tree);
-            return TRUE;
+            return true;
         case 1:
             /*
              * XXX - this could be from an pseudo-wire without a control
              * word, with the packet's first nibble being 1.
              */
             call_dissector(dissector_pw_ach, tvb, pinfo, tree );
-            return TRUE;
+            return true;
         default:
             break;
     }
-    return FALSE;
+    return false;
 }
 
 /*
@@ -399,14 +421,16 @@ static int
 dissect_mpls(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     int       offset = 0;
-    guint32   label  = MPLS_LABEL_INVALID;
-    guint8    exp;
-    guint8    bos;
-    guint8    ttl;
+    uint32_t  label  = MPLS_LABEL_INVALID;
+    uint8_t   exp;
+    uint8_t   bos;
+    uint8_t   ttl;
     tvbuff_t *next_tvb;
     int       found;
-    guint8    first_nibble;
+    uint8_t   first_nibble;
     struct mplsinfo mplsinfo;
+    heur_dtbl_entry_t *hdtbl_entry;
+    dissector_handle_t payload_handle;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "MPLS");
     col_set_str(pinfo->cinfo, COL_INFO, "MPLS Label Switched Packet");
@@ -483,7 +507,8 @@ dissect_mpls(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
             break;
     }
 
-    first_nibble = (tvb_get_guint8(tvb, offset) >> 4) & 0x0F;
+    first_nibble = (tvb_get_uint8(tvb, offset) >> 4) & 0x0F;
+    p_add_proto_data(pinfo->pool, pinfo, proto_mpls, 1, GUINT_TO_POINTER(first_nibble));
 
     next_tvb = tvb_new_subset_remaining(tvb, offset);
 
@@ -492,58 +517,48 @@ dissect_mpls(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
      * If so, use it.
      */
     found = dissector_try_uint_new(mpls_subdissector_table, label,
-                               next_tvb, pinfo, tree, FALSE, &mplsinfo);
+                               next_tvb, pinfo, tree, false, &mplsinfo);
     if (found) {
         /* Yes, there is. */
         return tvb_captured_length(tvb);
     }
 
     /*
-     * No, there isn't, so use the 1st nibble logic (see BCP 4928,
-     * RFC 4385 and 5586).
+     * Do we try heuristic dissectors first? This is necessary for, e.g.,
+     * Ethernet without CW where the address begins with a 4 or 6 nibble.
      */
-    switch(first_nibble) {
-    case 4:
-        /*
-         * XXX - this could be from an Ethernet pseudo-wire without a
-         * control word, with the MAC address's first nibble being 4.
-         */
-        call_dissector(dissector_ip, next_tvb, pinfo, tree);
-        /* IP dissector may reduce the length of the tvb.
-           We need to do the same, so that ethernet trailer is detected. */
-        set_actual_length(tvb, offset+tvb_reported_length(next_tvb));
-        break;
-    case 6:
-        /*
-         * XXX - this could be from an Ethernet pseudo-wire without a
-         * control word, with the MAC address's first nibble being 6.
-         */
-        call_dissector(dissector_ipv6, next_tvb, pinfo, tree);
-        /* IPv6 dissector may reduce the length of the tvb.
-           We need to do the same, so that ethernet trailer is detected. */
-        set_actual_length(tvb, offset+tvb_reported_length(next_tvb));
-        break;
-    case 1:
-        /*
-         * XXX - this could be from an Ethernet pseudo-wire without a
-         * control word, with the MAC address's first nibble being 1.
-         */
-        call_dissector(dissector_pw_ach, next_tvb, pinfo, tree);
-        break;
-    case 0:
-        /*
-         * If this is an Ethernet pseudo-wire, this could either be
-         * Ethernet without a control word and with the first nibble
-         * of the destination MAC address being 0 or it could be
-         * Ethernet with a control word.  Let the "pw_eth_heuristic"
-         * dissector try to figure it out.
-         */
-        call_dissector(dissector_pw_eth_heuristic, next_tvb, pinfo, tree);
-        break;
-    default:
-        call_data_dissector(next_tvb, pinfo, tree);
-        break;
+    if (mpls_try_heuristic_first) {
+        if (dissector_try_heuristic(mpls_heur_subdissector_list, next_tvb, pinfo,
+                                    tree, &hdtbl_entry, NULL)) {
+            return tvb_captured_length(tvb);
+        }
     }
+
+    /*
+     * Use the 1st nibble logic (see BCP 128 (RFC 4928), RFC 4385 and 5586).
+     * https://datatracker.ietf.org/doc/html/draft-ietf-mpls-1stnibble-06
+     */
+    if (dissector_try_uint_new(mpls_pfn_subdissector_table, first_nibble,
+        next_tvb, pinfo, tree, false, &mplsinfo)) {
+
+        payload_handle = dissector_get_uint_handle(mpls_pfn_subdissector_table, first_nibble);
+        if (payload_handle == dissector_ip || payload_handle == dissector_ipv6) {
+            /* IPv4 and IPv6 dissectors may reduce the length of the tvb.
+               We need to do the same, so that any Ethernet trailer is detected.
+             */
+            set_actual_length(tvb, offset+tvb_reported_length(next_tvb));
+        }
+        return tvb_captured_length(tvb);
+    }
+
+    if (!mpls_try_heuristic_first) {
+        if (dissector_try_heuristic(mpls_heur_subdissector_list, next_tvb, pinfo,
+                                    tree, &hdtbl_entry, NULL)) {
+            return tvb_captured_length(tvb);
+        }
+    }
+
+    call_data_dissector(next_tvb, pinfo, tree);
     return tvb_captured_length(tvb);
 }
 
@@ -629,7 +644,7 @@ proto_register_mpls(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_mpls,
         &ett_mpls_pw_ach,
         &ett_mpls_pw_ach_mcc,
@@ -647,6 +662,11 @@ proto_register_mpls(void)
     static build_valid_func mpls_da_build_value[1] = {mpls_value};
     static decode_as_value_t mpls_da_values = {mpls_prompt, 1, mpls_da_build_value};
     static decode_as_t mpls_da = {"mpls", "mpls.label", 1, 0, &mpls_da_values, NULL, NULL,
+                                  decode_as_default_populate_list, decode_as_default_reset, decode_as_default_change, NULL};
+
+    static build_valid_func mpls_pfn_da_build_value[1] = {mpls_pfn_value};
+    static decode_as_value_t mpls_pfn_da_values = {mpls_pfn_prompt, 1, mpls_pfn_da_build_value};
+    static decode_as_t mpls_pfn_da = {"mpls", "mpls.pfn", 1, 0, &mpls_pfn_da_values, NULL, NULL,
                                   decode_as_default_populate_list, decode_as_default_reset, decode_as_default_change, NULL};
 
     static build_valid_func pw_ach_da_build_value[1] = {pw_ach_value};
@@ -674,8 +694,14 @@ proto_register_mpls(void)
 
     /* FF: mpls subdissector table is indexed by label */
     mpls_subdissector_table = register_dissector_table("mpls.label",
-                                                       "MPLS protocol",
+                                                       "MPLS label",
                                                        proto_mpls, FT_UINT32, BASE_DEC);
+
+    mpls_pfn_subdissector_table = register_dissector_table("mpls.pfn",
+                                                           "MPLS post-stack first nibble",
+                                                           proto_mpls, FT_UINT8, BASE_HEX);
+
+    mpls_heur_subdissector_list = register_heur_dissector_list_with_description("mpls", "MPLS payload", proto_mpls);
 
     pw_ach_subdissector_table  = register_dissector_table("pwach.channel_type", "PW Associated Channel Type", proto_pw_ach, FT_UINT16, BASE_HEX);
 
@@ -685,6 +711,13 @@ proto_register_mpls(void)
 
     prefs_register_obsolete_preference(module_mpls, "mplspref.payload");
 
+    prefs_register_bool_preference(module_mpls, "try_heuristic_first",
+                                "Try heuristic sub-dissectors first",
+                                "Try to decode a packet heuristically, e.g. as "
+                                "Ethernet without control word, before trying "
+                                "sub-dissectors based upon the first nibble.",
+                                &mpls_try_heuristic_first);
+
     /* RFC6391: Flow aware transport of pseudowire*/
     prefs_register_bool_preference(module_mpls,
                                     "flowlabel_in_mpls_header",
@@ -693,6 +726,7 @@ proto_register_mpls(void)
                                     &mpls_bos_flowlabel);
 
     register_decode_as(&mpls_da);
+    register_decode_as(&mpls_pfn_da);
     register_decode_as(&pw_ach_da);
 }
 
@@ -726,6 +760,17 @@ proto_reg_handoff_mpls(void)
     dissector_ipv6                  = find_dissector_add_dependency("ipv6", proto_pw_mcw );
     dissector_ip                    = find_dissector_add_dependency("ip", proto_pw_mcw );
     dissector_pw_eth_heuristic      = find_dissector_add_dependency("pw_eth_heuristic", proto_pw_mcw);
+
+    /*
+     * Our previous default behavior has been to try the Eth CW heuristic
+     * on first nibble 0. Continue doing that. For other first nibbles
+     * registered to dissectors, "try heuristic first" can be enabled.
+     */
+    dissector_add_for_decode_as("mpls.pfn", mpls_pwcw_handle);
+    dissector_add_uint("mpls.pfn", 0, dissector_pw_eth_heuristic);
+    dissector_add_uint("mpls.pfn", 1, dissector_pw_ach);
+    dissector_add_uint("mpls.pfn", 4, dissector_ip);
+    dissector_add_uint("mpls.pfn", 6, dissector_ipv6);
 }
 
 /*

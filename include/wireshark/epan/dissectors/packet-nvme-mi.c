@@ -26,59 +26,59 @@
 void proto_register_nvme_mi(void);
 void proto_reg_handoff_nvme_mi(void);
 
-static int proto_nvme_mi = -1;
+static int proto_nvme_mi;
 
-static int hf_nvme_mi_mctp_mt = -1;
-static int hf_nvme_mi_mctp_ic = -1;
-static int hf_nvme_mi_csi = -1;
-static int hf_nvme_mi_type = -1;
-static int hf_nvme_mi_ror = -1;
-static int hf_nvme_mi_meb = -1;
-static int hf_nvme_mi_mic = -1;
+static int hf_nvme_mi_mctp_mt;
+static int hf_nvme_mi_mctp_ic;
+static int hf_nvme_mi_csi;
+static int hf_nvme_mi_type;
+static int hf_nvme_mi_ror;
+static int hf_nvme_mi_meb;
+static int hf_nvme_mi_mic;
 
-static int hf_nvme_mi_mi_opcode = -1;
-static int hf_nvme_mi_mi_cdw0 = -1;
-static int hf_nvme_mi_mi_cdw1 = -1;
-static int hf_nvme_mi_mi_status = -1;
-static int hf_nvme_mi_mi_nmresp = -1;
-static int hf_nvme_mi_mi_data = -1;
+static int hf_nvme_mi_mi_opcode;
+static int hf_nvme_mi_mi_cdw0;
+static int hf_nvme_mi_mi_cdw1;
+static int hf_nvme_mi_mi_status;
+static int hf_nvme_mi_mi_nmresp;
+static int hf_nvme_mi_mi_data;
 
-static int hf_nvme_mi_admin_opcode = -1;
-static int hf_nvme_mi_admin_status = -1;
-static int hf_nvme_mi_admin_flags = -1;
-static int hf_nvme_mi_admin_flags_doff = -1;
-static int hf_nvme_mi_admin_flags_dlen = -1;
-static int hf_nvme_mi_admin_ctrl_id = -1;
-static int hf_nvme_mi_admin_sqe1 = -1;
-static int hf_nvme_mi_admin_sqe2 = -1;
-static int hf_nvme_mi_admin_sqe3 = -1;
-static int hf_nvme_mi_admin_sqe4 = -1;
-static int hf_nvme_mi_admin_sqe5 = -1;
-static int hf_nvme_mi_admin_doff = -1;
-static int hf_nvme_mi_admin_dlen = -1;
-static int hf_nvme_mi_admin_resv0 = -1;
-static int hf_nvme_mi_admin_resv1 = -1;
-static int hf_nvme_mi_admin_sqe10 = -1;
-static int hf_nvme_mi_admin_sqe11 = -1;
-static int hf_nvme_mi_admin_sqe12 = -1;
-static int hf_nvme_mi_admin_sqe13 = -1;
-static int hf_nvme_mi_admin_sqe14 = -1;
-static int hf_nvme_mi_admin_sqe15 = -1;
-static int hf_nvme_mi_admin_data = -1;
-static int hf_nvme_mi_admin_cqe1 = -1;
-static int hf_nvme_mi_admin_cqe2 = -1;
-static int hf_nvme_mi_admin_cqe3 = -1;
+static int hf_nvme_mi_admin_opcode;
+static int hf_nvme_mi_admin_status;
+static int hf_nvme_mi_admin_flags;
+static int hf_nvme_mi_admin_flags_doff;
+static int hf_nvme_mi_admin_flags_dlen;
+static int hf_nvme_mi_admin_ctrl_id;
+static int hf_nvme_mi_admin_sqe1;
+static int hf_nvme_mi_admin_sqe2;
+static int hf_nvme_mi_admin_sqe3;
+static int hf_nvme_mi_admin_sqe4;
+static int hf_nvme_mi_admin_sqe5;
+static int hf_nvme_mi_admin_doff;
+static int hf_nvme_mi_admin_dlen;
+static int hf_nvme_mi_admin_resv0;
+static int hf_nvme_mi_admin_resv1;
+static int hf_nvme_mi_admin_sqe10;
+static int hf_nvme_mi_admin_sqe11;
+static int hf_nvme_mi_admin_sqe12;
+static int hf_nvme_mi_admin_sqe13;
+static int hf_nvme_mi_admin_sqe14;
+static int hf_nvme_mi_admin_sqe15;
+static int hf_nvme_mi_admin_data;
+static int hf_nvme_mi_admin_cqe1;
+static int hf_nvme_mi_admin_cqe2;
+static int hf_nvme_mi_admin_cqe3;
 
-static int hf_nvme_mi_response_in = -1;
-static int hf_nvme_mi_response_to = -1;
-static int hf_nvme_mi_response_time = -1;
+static int hf_nvme_mi_response_in;
+static int hf_nvme_mi_response_to;
+static int hf_nvme_mi_response_time;
 
 
-static gint ett_nvme_mi = -1;
-static gint ett_nvme_mi_hdr = -1;
-static gint ett_nvme_mi_mi = -1;
-static gint ett_nvme_mi_admin = -1;
-static gint ett_nvme_mi_admin_flags = -1;
+static int ett_nvme_mi;
+static int ett_nvme_mi_hdr;
+static int ett_nvme_mi_mi;
+static int ett_nvme_mi_admin;
+static int ett_nvme_mi_admin_flags;
 
 enum nvme_mi_type {
     NVME_MI_TYPE_CONTROL = 0x0,
@@ -88,11 +88,11 @@ enum nvme_mi_type {
 };
 
 struct nvme_mi_command {
-    gboolean            init;
+    bool                init;
     enum nvme_mi_type   type;
-    guint               opcode;
-    guint32             req_frame;
-    guint32             resp_frame;
+    unsigned            opcode;
+    uint32_t            req_frame;
+    uint32_t            resp_frame;
     nstime_t            req_time;
 };
 
@@ -276,13 +276,13 @@ dissect_nvme_mi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
     proto_tree *nvme_mi_tree, *nvme_mi_hdr_tree;
     struct nvme_mi_conv_info *mi_conv;
-    guint len, payload_len, type;
-    gboolean resp, mic_enabled;
+    unsigned len, payload_len, type;
+    bool resp, mic_enabled;
     proto_item *ti, *it2;
     conversation_t *conv;
     tvbuff_t *sub_tvb;
-    guint32 mic = 0;
-    guint csi;
+    uint32_t mic = 0;
+    unsigned csi;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "NVMe-MI");
     col_clear(pinfo->cinfo, COL_INFO);
@@ -612,7 +612,7 @@ proto_register_nvme_mi(void)
     };
 
     /* protocol subtree */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_nvme_mi,
         &ett_nvme_mi_hdr,
         &ett_nvme_mi_mi,

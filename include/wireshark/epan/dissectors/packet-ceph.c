@@ -16,6 +16,7 @@
 #include <epan/conversation.h>
 #include <epan/to_str.h>
 #include <epan/proto_data.h>
+#include <epan/tfs.h>
 
 void proto_reg_handoff_ceph(void);
 void proto_register_ceph(void);
@@ -64,770 +65,770 @@ void proto_register_ceph(void);
 static dissector_handle_t ceph_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_ceph				 = -1;
-static int hf_filter_data			 = -1;
-static int hf_node_id				 = -1;
-static int hf_node_type				 = -1;
-static int hf_node_nonce			 = -1;
-static int hf_entityinst_name			 = -1;
-static int hf_entityinst_addr			 = -1;
-static int hf_EntityName			 = -1;
-static int hf_EntityName_type			 = -1;
-static int hf_EntityName_id			 = -1;
-static int hf_src_slug				 = -1;
-static int hf_src_type				 = -1;
-static int hf_dst_type				 = -1;
-static int hf_dst_slug				 = -1;
-static int hf_banner				 = -1;
-static int hf_client_info			 = -1;
-static int hf_server_info			 = -1;
-static int hf_sockaddr				 = -1;
-static int hf_inet_family			 = -1;
-static int hf_port				 = -1;
-static int hf_addr_ipv4				 = -1;
-static int hf_addr_ipv6				 = -1;
-static int hf_data_data				 = -1;
-static int hf_data_size				 = -1;
-static int hf_string_data			 = -1;
-static int hf_string_size			 = -1;
-static int hf_keepalive_time			 = -1;
-static int hf_encoded_ver			 = -1;
-static int hf_encoded_compat			 = -1;
-static int hf_encoded_size			 = -1;
-static int hf_version				 = -1;
-static int hf_epoch				 = -1;
-static int hf_pool				 = -1;
-static int hf_key				 = -1;
-static int hf_namespace				 = -1;
-static int hf_hash				 = -1;
-static int hf_pgid_ver				 = -1;
-static int hf_pgid_pool				 = -1;
-static int hf_pgid_seed				 = -1;
-static int hf_pgid_preferred			 = -1;
-static int hf_pg_create_epoch			 = -1;
-static int hf_pg_create_parent			 = -1;
-static int hf_pg_create_splitbits		 = -1;
-static int hf_path_ver				 = -1;
-static int hf_path_inode			 = -1;
-static int hf_path_rel				 = -1;
-static int hf_mds_release_inode			 = -1;
-static int hf_mds_release_capid			 = -1;
-static int hf_mds_release_new			 = -1;
-static int hf_mds_release_wanted		 = -1;
-static int hf_mds_release_seq			 = -1;
-static int hf_mds_release_seq_issue		 = -1;
-static int hf_mds_release_mseq			 = -1;
-static int hf_mds_release_dname_seq		 = -1;
-static int hf_mds_release_dname			 = -1;
-static int hf_hitset_params			 = -1;
-static int hf_hitset_params_type		 = -1;
-static int hf_hitset_params_exphash_count	 = -1;
-static int hf_hitset_params_exphash_hit		 = -1;
-static int hf_snapinfo				 = -1;
-static int hf_snapinfo_id			 = -1;
-static int hf_snapinfo_time			 = -1;
-static int hf_snapinfo_name			 = -1;
-static int hf_pgpool				 = -1;
-static int hf_pgpool_type			 = -1;
-static int hf_pgpool_size			 = -1;
-static int hf_pgpool_crush_ruleset		 = -1;
-static int hf_pgpool_hash			 = -1;
-static int hf_pgpool_pgnum			 = -1;
-static int hf_pgpool_pgpnum			 = -1;
-static int hf_pgpool_changed			 = -1;
-static int hf_pgpool_snapseq			 = -1;
-static int hf_pgpool_snapepoch			 = -1;
-static int hf_pgpool_snap			 = -1;
-static int hf_pgpool_snap_id			 = -1;
-static int hf_pgpool_snapdel			 = -1;
-static int hf_pgpool_snapdel_from		 = -1;
-static int hf_pgpool_snapdel_to			 = -1;
-static int hf_pgpool_uid			 = -1;
-static int hf_pgpool_flags_low			 = -1;
-static int hf_pgpool_flags_high			 = -1;
-static int hf_pgpool_crash_reply_interval	 = -1;
-static int hf_pgpool_min_size			 = -1;
-static int hf_pgpool_quota_bytes		 = -1;
-static int hf_pgpool_quota_objects		 = -1;
-static int hf_pgpool_tier			 = -1;
-static int hf_pgpool_tierof			 = -1;
-static int hf_pgpool_cachemode			 = -1;
-static int hf_pgpool_readtier			 = -1;
-static int hf_pgpool_writetier			 = -1;
-static int hf_pgpool_property			 = -1;
-static int hf_pgpool_property_key		 = -1;
-static int hf_pgpool_property_val		 = -1;
-static int hf_pgpool_hitset_period		 = -1;
-static int hf_pgpool_hitset_count		 = -1;
-static int hf_pgpool_stripewidth		 = -1;
-static int hf_pgpool_targetmaxsize		 = -1;
-static int hf_pgpool_targetmaxobj		 = -1;
-static int hf_pgpool_cache_targetdirtyratio	 = -1;
-static int hf_pgpool_cache_targetfullratio	 = -1;
-static int hf_pgpool_cache_flushage_min		 = -1;
-static int hf_pgpool_cache_evictage_min		 = -1;
-static int hf_pgpool_erasurecode_profile	 = -1;
-static int hf_pgpool_lastforceresend		 = -1;
-static int hf_pgpool_flag_hashpool		 = -1;
-static int hf_pgpool_flag_full			 = -1;
-static int hf_pgpool_flag_fake_ec_pool		 = -1;
-static int hf_monmap				 = -1;
-static int hf_monmap_fsid			 = -1;
-static int hf_monmap_epoch			 = -1;
-static int hf_monmap_address			 = -1;
-static int hf_monmap_address_name		 = -1;
-static int hf_monmap_address_addr		 = -1;
-static int hf_monmap_changed			 = -1;
-static int hf_monmap_created			 = -1;
-static int hf_pg_stat_ver			 = -1;
-static int hf_pg_stat_seq			 = -1;
-static int hf_pg_stat_epoch			 = -1;
-static int hf_pg_stat_state			 = -1;
-static int hf_pg_stat_logstart			 = -1;
-static int hf_pg_stat_logstartondisk		 = -1;
-static int hf_pg_stat_created			 = -1;
-static int hf_pg_stat_lastepochclean		 = -1;
-static int hf_pg_stat_parent			 = -1;
-static int hf_pg_stat_parent_splitbits		 = -1;
-static int hf_pg_stat_lastscrub			 = -1;
-static int hf_pg_stat_lastscrubstamp		 = -1;
-static int hf_pg_stat_stats			 = -1;
-static int hf_pg_stat_logsize			 = -1;
-static int hf_pg_stat_logsizeondisk		 = -1;
-static int hf_pg_stat_up			 = -1;
-static int hf_pg_stat_acting			 = -1;
-static int hf_pg_stat_lastfresh			 = -1;
-static int hf_pg_stat_lastchange		 = -1;
-static int hf_pg_stat_lastactive		 = -1;
-static int hf_pg_stat_lastclean			 = -1;
-static int hf_pg_stat_lastunstale		 = -1;
-static int hf_pg_stat_mappingepoch		 = -1;
-static int hf_pg_stat_lastdeepscrub		 = -1;
-static int hf_pg_stat_lastdeepscrubstamp	 = -1;
-static int hf_pg_stat_statsinvalid		 = -1;
-static int hf_pg_stat_lastcleanscrubstamp	 = -1;
-static int hf_pg_stat_lastbecameactive		 = -1;
-static int hf_pg_stat_dirtystatsinvalid		 = -1;
-static int hf_pg_stat_upprimary			 = -1;
-static int hf_pg_stat_actingprimary		 = -1;
-static int hf_pg_stat_omapstatsinvalid		 = -1;
-static int hf_pg_stat_hitsetstatsinvalid	 = -1;
-static int hf_crush				 = -1;
-static int hf_osd_peerstat			 = -1;
-static int hf_osd_peerstat_timestamp		 = -1;
-static int hf_featureset_mask			 = -1;
-static int hf_featureset_name			 = -1;
-static int hf_featureset_name_val		 = -1;
-static int hf_featureset_name_name		 = -1;
-static int hf_compatset				 = -1;
-static int hf_compatset_compat			 = -1;
-static int hf_compatset_compatro		 = -1;
-static int hf_compatset_incompat		 = -1;
-static int hf_osd_superblock			 = -1;
-static int hf_osd_superblock_clusterfsid	 = -1;
-static int hf_osd_superblock_role		 = -1;
-static int hf_osd_superblock_epoch		 = -1;
-static int hf_osd_superblock_map_old		 = -1;
-static int hf_osd_superblock_map_new		 = -1;
-static int hf_osd_superblock_weight		 = -1;
-static int hf_osd_superblock_mounted		 = -1;
-static int hf_osd_superblock_osdfsid		 = -1;
-static int hf_osd_superblock_clean		 = -1;
-static int hf_osd_superblock_full		 = -1;
-static int hf_osdinfo_ver			 = -1;
-static int hf_osdinfo_lastclean_begin		 = -1;
-static int hf_osdinfo_lastclean_end		 = -1;
-static int hf_osdinfo_up_from			 = -1;
-static int hf_osdinfo_up_through		 = -1;
-static int hf_osdinfo_downat			 = -1;
-static int hf_osdinfo_lostat			 = -1;
-static int hf_osdxinfo_down			 = -1;
-static int hf_osdxinfo_laggy_probability	 = -1;
-static int hf_osdxinfo_laggy_interval		 = -1;
-static int hf_osdxinfo_oldweight		 = -1;
-static int hf_perfstat_commitlatency		 = -1;
-static int hf_perfstat_applylatency		 = -1;
-static int hf_osdstat				 = -1;
-static int hf_osdstat_kb			 = -1;
-static int hf_osdstat_kbused			 = -1;
-static int hf_osdstat_kbavail			 = -1;
-static int hf_osdstat_trimqueue			 = -1;
-static int hf_osdstat_trimming			 = -1;
-static int hf_osdstat_hbin			 = -1;
-static int hf_osdstat_hbout			 = -1;
-static int hf_osdstat_opqueue			 = -1;
-static int hf_osdstat_fsperf			 = -1;
-static int hf_osdmap				 = -1;
-static int hf_osdmap_client			 = -1;
-static int hf_osdmap_fsid			 = -1;
-static int hf_osdmap_epoch			 = -1;
-static int hf_osdmap_created			 = -1;
-static int hf_osdmap_modified			 = -1;
-static int hf_osdmap_pool			 = -1;
-static int hf_osdmap_pool_id			 = -1;
-static int hf_osdmap_poolname_item		 = -1;
-static int hf_osdmap_poolname			 = -1;
-static int hf_osdmap_poolmax			 = -1;
-static int hf_osdmap_flags			 = -1;
-static int hf_osdmap_osdmax			 = -1;
-static int hf_osdmap_osd_state			 = -1;
-static int hf_osdmap_osd_weight			 = -1;
-static int hf_osdmap_osd_addr			 = -1;
-static int hf_osdmap_pgtmp			 = -1;
-static int hf_osdmap_pgtmp_pg			 = -1;
-static int hf_osdmap_pgtmp_val			 = -1;
-static int hf_osdmap_primarytmp			 = -1;
-static int hf_osdmap_primarytmp_pg		 = -1;
-static int hf_osdmap_primarytmp_val		 = -1;
-static int hf_osdmap_osd_primaryaffinity	 = -1;
-static int hf_osdmap_erasurecodeprofile		 = -1;
-static int hf_osdmap_erasurecodeprofile_name	 = -1;
-static int hf_osdmap_erasurecodeprofile_prop	 = -1;
-static int hf_osdmap_erasurecodeprofile_k	 = -1;
-static int hf_osdmap_erasurecodeprofile_v	 = -1;
-static int hf_osdmap_osd			 = -1;
-static int hf_osdmap_hbaddr_back		 = -1;
-static int hf_osdmap_osd_info			 = -1;
-static int hf_osdmap_blacklist			 = -1;
-static int hf_osdmap_blacklist_addr		 = -1;
-static int hf_osdmap_blacklist_time		 = -1;
-static int hf_osdmap_cluster_addr		 = -1;
-static int hf_osdmap_cluster_snapepoch		 = -1;
-static int hf_osdmap_cluster_snap		 = -1;
-static int hf_osdmap_osd_uuid			 = -1;
-static int hf_osdmap_osd_xinfo			 = -1;
-static int hf_osdmap_hbaddr_front		 = -1;
-static int hf_osdmap_inc			 = -1;
-static int hf_osdmap_inc_client			 = -1;
-static int hf_osdmap_inc_fsid			 = -1;
-static int hf_osdmap_inc_osd			 = -1;
-static int hf_features_high			 = -1;
-static int hf_features_low			 = -1;
-static int hf_feature_uid			 = -1;
-static int hf_feature_nosrcaddr			 = -1;
-static int hf_feature_monclockcheck		 = -1;
-static int hf_feature_flock			 = -1;
-static int hf_feature_subscribe2		 = -1;
-static int hf_feature_monnames			 = -1;
-static int hf_feature_reconnect_seq		 = -1;
-static int hf_feature_dirlayouthash		 = -1;
-static int hf_feature_objectlocator		 = -1;
-static int hf_feature_pgid64			 = -1;
-static int hf_feature_incsubosdmap		 = -1;
-static int hf_feature_pgpool3			 = -1;
-static int hf_feature_osdreplymux		 = -1;
-static int hf_feature_osdenc			 = -1;
-static int hf_feature_omap			 = -1;
-static int hf_feature_monenc			 = -1;
-static int hf_feature_query_t			 = -1;
-static int hf_feature_indep_pg_map		 = -1;
-static int hf_feature_crush_tunables		 = -1;
-static int hf_feature_chunky_scrub		 = -1;
-static int hf_feature_mon_nullroute		 = -1;
-static int hf_feature_mon_gv			 = -1;
-static int hf_feature_backfill_reservation	 = -1;
-static int hf_feature_msg_auth			 = -1;
-static int hf_feature_recovery_reservation	 = -1;
-static int hf_feature_crush_tunables2		 = -1;
-static int hf_feature_createpoolid		 = -1;
-static int hf_feature_reply_create_inode	 = -1;
-static int hf_feature_osd_hbmsgs		 = -1;
-static int hf_feature_mdsenc			 = -1;
-static int hf_feature_osdhashpspool		 = -1;
-static int hf_feature_mon_single_paxos		 = -1;
-static int hf_feature_osd_snapmapper		 = -1;
-static int hf_feature_mon_scrub			 = -1;
-static int hf_feature_osd_packed_recovery	 = -1;
-static int hf_feature_osd_cachepool		 = -1;
-static int hf_feature_crush_v2			 = -1;
-static int hf_feature_export_peer		 = -1;
-static int hf_feature_osd_erasure_codes		 = -1;
-static int hf_feature_osd_tmap2omap		 = -1;
-static int hf_feature_osdmap_enc		 = -1;
-static int hf_feature_mds_inline_data		 = -1;
-static int hf_feature_crush_tunables3		 = -1;
-static int hf_feature_osd_primary_affinity	 = -1;
-static int hf_feature_msgr_keepalive2		 = -1;
-static int hf_feature_reserved			 = -1;
-static int hf_connect_host_type			 = -1;
-static int hf_connect_seq_global		 = -1;
-static int hf_connect_seq			 = -1;
-static int hf_connect_proto_ver			 = -1;
-static int hf_connect_auth_proto		 = -1;
-static int hf_connect_auth_size			 = -1;
-static int hf_connect_auth			 = -1;
-static int hf_flags				 = -1;
-static int hf_flag_lossy			 = -1;
-static int hf_osd_flags				 = -1;
-static int hf_osd_flag_ack			 = -1;
-static int hf_osd_flag_onnvram			 = -1;
-static int hf_osd_flag_ondisk			 = -1;
-static int hf_osd_flag_retry			 = -1;
-static int hf_osd_flag_read			 = -1;
-static int hf_osd_flag_write			 = -1;
-static int hf_osd_flag_ordersnap		 = -1;
-static int hf_osd_flag_peerstat_old		 = -1;
-static int hf_osd_flag_balance_reads		 = -1;
-static int hf_osd_flag_parallelexec		 = -1;
-static int hf_osd_flag_pgop			 = -1;
-static int hf_osd_flag_exec			 = -1;
-static int hf_osd_flag_exec_public		 = -1;
-static int hf_osd_flag_localize_reads		 = -1;
-static int hf_osd_flag_rwordered		 = -1;
-static int hf_osd_flag_ignore_cache		 = -1;
-static int hf_osd_flag_skiprwlocks		 = -1;
-static int hf_osd_flag_ignore_overlay		 = -1;
-static int hf_osd_flag_flush			 = -1;
-static int hf_osd_flag_map_snap_clone		 = -1;
-static int hf_osd_flag_enforce_snapc		 = -1;
-static int hf_osd_op_type			 = -1;
-static int hf_osd_op_data			 = -1;
-static int hf_osd_op_extent_off			 = -1;
-static int hf_osd_op_extent_size		 = -1;
-static int hf_osd_op_extent_trunc_size		 = -1;
-static int hf_osd_op_extent_trunc_seq		 = -1;
-static int hf_osd_op_payload_size		 = -1;
-static int hf_osd_redirect_oloc			 = -1;
-static int hf_osd_redirect_obj			 = -1;
-static int hf_osd_redirect_osdinstr		 = -1;
-static int hf_osd_redirect_osdinstr_data	 = -1;
-static int hf_osd_redirect_osdinstr_len		 = -1;
-static int hf_statsum_bytes			 = -1;
-static int hf_statsum_objects			 = -1;
-static int hf_statsum_clones			 = -1;
-static int hf_statsum_copies			 = -1;
-static int hf_statsum_missing			 = -1;
-static int hf_statsum_degraded			 = -1;
-static int hf_statsum_unfound			 = -1;
-static int hf_statsum_read_bytes		 = -1;
-static int hf_statsum_read_kbytes		 = -1;
-static int hf_statsum_written_bytes		 = -1;
-static int hf_statsum_written_kbytes		 = -1;
-static int hf_statsum_scrub_errors		 = -1;
-static int hf_statsum_recovered			 = -1;
-static int hf_statsum_bytes_recovered		 = -1;
-static int hf_statsum_keys_recovered		 = -1;
-static int hf_statsum_shallow_scrub_errors	 = -1;
-static int hf_statsum_deep_scrub_errors		 = -1;
-static int hf_statsum_dirty			 = -1;
-static int hf_statsum_whiteouts			 = -1;
-static int hf_statsum_omap			 = -1;
-static int hf_statsum_hitset_archive		 = -1;
-static int hf_connect				 = -1;
-static int hf_connect_reply			 = -1;
-static int hf_tag				 = -1;
-static int hf_ack				 = -1;
-static int hf_seq_existing			 = -1;
-static int hf_seq_new				 = -1;
-static int hf_head				 = -1;
-static int hf_head_seq				 = -1;
-static int hf_head_tid				 = -1;
-static int hf_head_type				 = -1;
-static int hf_head_priority			 = -1;
-static int hf_head_version			 = -1;
-static int hf_head_front_size			 = -1;
-static int hf_head_middle_size			 = -1;
-static int hf_head_data_size			 = -1;
-static int hf_head_data_off			 = -1;
-static int hf_head_srcname			 = -1;
-static int hf_head_compat_version		 = -1;
-static int hf_head_reserved			 = -1;
-static int hf_head_crc				 = -1;
-static int hf_foot				 = -1;
-static int hf_foot_front_crc			 = -1;
-static int hf_foot_middle_crc			 = -1;
-static int hf_foot_data_crc			 = -1;
-static int hf_foot_signature			 = -1;
-static int hf_msg_front				 = -1;
-static int hf_msg_middle			 = -1;
-static int hf_msg_data				 = -1;
-static int hf_statcollection			 = -1;
-static int hf_paxos				 = -1;
-static int hf_paxos_ver				 = -1;
-static int hf_paxos_mon				 = -1;
-static int hf_paxos_mon_tid			 = -1;
-static int hf_msg_mon_map			 = -1;
-static int hf_msg_statfs			 = -1;
-static int hf_msg_statfs_fsid			 = -1;
-static int hf_msg_statfsreply			 = -1;
-static int hf_msg_statfsreply_fsid		 = -1;
-static int hf_msg_statfsreply_ver		 = -1;
-static int hf_msg_statfsreply_kb		 = -1;
-static int hf_msg_statfsreply_kbused		 = -1;
-static int hf_msg_statfsreply_kbavail		 = -1;
-static int hf_msg_statfsreply_obj		 = -1;
-static int hf_msg_mon_sub			 = -1;
-static int hf_msg_mon_sub_item			 = -1;
-static int hf_msg_mon_sub_item_len		 = -1;
-static int hf_msg_mon_sub_what			 = -1;
-static int hf_msg_mon_sub_start			 = -1;
-static int hf_msg_mon_sub_flags			 = -1;
-static int hf_msg_mon_sub_flags_onetime		 = -1;
-static int hf_msg_mon_sub_ack			 = -1;
-static int hf_msg_mon_sub_ack_interval		 = -1;
-static int hf_msg_mon_sub_ack_fsid		 = -1;
-static int hf_msg_auth				 = -1;
-static int hf_msg_auth_proto			 = -1;
-static int hf_msg_auth_supportedproto		 = -1;
-static int hf_msg_auth_supportedproto_ver	 = -1;
-static int hf_msg_auth_supportedproto_proto	 = -1;
-static int hf_msg_auth_supportedproto_gid	 = -1;
-static int hf_msg_auth_cephx			 = -1;
-static int hf_msg_auth_cephx_req_type		 = -1;
-static int hf_msg_auth_monmap_epoch		 = -1;
-static int hf_msg_auth_reply			 = -1;
-static int hf_msg_auth_reply_proto		 = -1;
-static int hf_msg_auth_reply_result		 = -1;
-static int hf_msg_auth_reply_global_id		 = -1;
-static int hf_msg_auth_reply_msg		 = -1;
-static int hf_msg_mon_getversion		 = -1;
-static int hf_msg_mon_getversion_tid		 = -1;
-static int hf_msg_mon_getversion_what		 = -1;
-static int hf_msg_mon_getversionreply		 = -1;
-static int hf_msg_mon_getversionreply_tid	 = -1;
-static int hf_msg_mon_getversionreply_ver	 = -1;
-static int hf_msg_mon_getversionreply_veroldest	 = -1;
-static int hf_msg_mds_map			 = -1;
-static int hf_msg_mds_map_fsid			 = -1;
-static int hf_msg_mds_map_epoch			 = -1;
-static int hf_msg_mds_map_datai			 = -1;
-static int hf_msg_mds_map_data			 = -1;
-static int hf_msg_mds_map_data_size		 = -1;
-static int hf_msg_client_sess			 = -1;
-static int hf_msg_client_sess_op		 = -1;
-static int hf_msg_client_sess_seq		 = -1;
-static int hf_msg_client_sess_time		 = -1;
-static int hf_msg_client_sess_caps_max		 = -1;
-static int hf_msg_client_sess_leases_max	 = -1;
-static int hf_msg_client_req			 = -1;
-static int hf_msg_client_req_oldest_tid		 = -1;
-static int hf_msg_client_req_mdsmap_epoch	 = -1;
-static int hf_msg_client_req_flags		 = -1;
-static int hf_msg_client_req_retry		 = -1;
-static int hf_msg_client_req_forward		 = -1;
-static int hf_msg_client_req_releases		 = -1;
-static int hf_msg_client_req_op			 = -1;
-static int hf_msg_client_req_caller_uid		 = -1;
-static int hf_msg_client_req_caller_gid		 = -1;
-static int hf_msg_client_req_inode		 = -1;
-static int hf_msg_client_req_path_src		 = -1;
-static int hf_msg_client_req_path_dst		 = -1;
-static int hf_msg_client_req_release		 = -1;
-static int hf_msg_client_req_time		 = -1;
-static int hf_msg_client_reqfwd			 = -1;
-static int hf_msg_client_reqfwd_dst		 = -1;
-static int hf_msg_client_reqfwd_fwd		 = -1;
-static int hf_msg_client_reqfwd_resend		 = -1;
-static int hf_msg_client_reply			 = -1;
-static int hf_msg_client_reply_op		 = -1;
-static int hf_msg_client_reply_result		 = -1;
-static int hf_msg_client_reply_mdsmap_epoch	 = -1;
-static int hf_msg_client_reply_safe		 = -1;
-static int hf_msg_client_reply_isdentry		 = -1;
-static int hf_msg_client_reply_istarget		 = -1;
-static int hf_msg_client_reply_trace		 = -1;
-static int hf_msg_client_reply_extra		 = -1;
-static int hf_msg_client_reply_snaps		 = -1;
-static int hf_msg_osd_map			 = -1;
-static int hf_msg_osd_map_fsid			 = -1;
-static int hf_msg_osd_map_inc			 = -1;
-static int hf_msg_osd_map_inc_len		 = -1;
-static int hf_msg_osd_map_map			 = -1;
-static int hf_msg_osd_map_map_len		 = -1;
-static int hf_msg_osd_map_epoch			 = -1;
-static int hf_msg_osd_map_oldest		 = -1;
-static int hf_msg_osd_map_newest		 = -1;
-static int hf_msg_osd_op			 = -1;
-static int hf_msg_osd_op_client_inc		 = -1;
-static int hf_msg_osd_op_osdmap_epoch		 = -1;
-static int hf_msg_osd_op_mtime			 = -1;
-static int hf_msg_osd_op_reassert_version	 = -1;
-static int hf_msg_osd_op_oloc			 = -1;
-static int hf_msg_osd_op_pgid			 = -1;
-static int hf_msg_osd_op_oid			 = -1;
-static int hf_msg_osd_op_ops_len		 = -1;
-static int hf_msg_osd_op_op			 = -1;
-static int hf_msg_osd_op_snap_id		 = -1;
-static int hf_msg_osd_op_snap_seq		 = -1;
-static int hf_msg_osd_op_snaps_len		 = -1;
-static int hf_msg_osd_op_snap			 = -1;
-static int hf_msg_osd_op_retry_attempt		 = -1;
-static int hf_msg_osd_op_payload		 = -1;
-static int hf_msg_osd_opreply			 = -1;
-static int hf_msg_osd_opreply_oid		 = -1;
-static int hf_msg_osd_opreply_pgid		 = -1;
-static int hf_msg_osd_opreply_result		 = -1;
-static int hf_msg_osd_opreply_bad_replay_ver	 = -1;
-static int hf_msg_osd_opreply_osdmap_epoch	 = -1;
-static int hf_msg_osd_opreply_ops_len		 = -1;
-static int hf_msg_osd_opreply_op		 = -1;
-static int hf_msg_osd_opreply_retry_attempt	 = -1;
-static int hf_msg_osd_opreply_rval		 = -1;
-static int hf_msg_osd_opreply_replay_ver	 = -1;
-static int hf_msg_osd_opreply_user_ver		 = -1;
-static int hf_msg_osd_opreply_redirect		 = -1;
-static int hf_msg_osd_opreply_payload		 = -1;
-static int hf_msg_poolopreply			 = -1;
-static int hf_msg_poolopreply_fsid		 = -1;
-static int hf_msg_poolopreply_code		 = -1;
-static int hf_msg_poolopreply_epoch		 = -1;
-static int hf_msg_poolopreply_datai		 = -1;
-static int hf_msg_poolopreply_data		 = -1;
-static int hf_msg_poolopreply_data_size		 = -1;
-static int hf_msg_poolop			 = -1;
-static int hf_msg_poolop_fsid			 = -1;
-static int hf_msg_poolop_pool			 = -1;
-static int hf_msg_poolop_type			 = -1;
-static int hf_msg_poolop_auid			 = -1;
-static int hf_msg_poolop_snapid			 = -1;
-static int hf_msg_poolop_name			 = -1;
-static int hf_msg_poolop_crush_rule		 = -1;
-static int hf_msg_poolop_crush_rule8		 = -1;
-static int hf_msg_mon_cmd			 = -1;
-static int hf_msg_mon_cmd_fsid			 = -1;
-static int hf_msg_mon_cmd_arg			 = -1;
-static int hf_msg_mon_cmd_arg_len		 = -1;
-static int hf_msg_mon_cmd_str			 = -1;
-static int hf_msg_mon_cmd_ack			 = -1;
-static int hf_msg_mon_cmd_ack_code		 = -1;
-static int hf_msg_mon_cmd_ack_res		 = -1;
-static int hf_msg_mon_cmd_ack_arg		 = -1;
-static int hf_msg_mon_cmd_ack_arg_len		 = -1;
-static int hf_msg_mon_cmd_ack_arg_str		 = -1;
-static int hf_msg_mon_cmd_ack_data		 = -1;
-static int hf_msg_poolstats			 = -1;
-static int hf_msg_poolstats_fsid		 = -1;
-static int hf_msg_poolstats_pool		 = -1;
-static int hf_msg_poolstatsreply		 = -1;
-static int hf_msg_poolstatsreply_fsid		 = -1;
-static int hf_msg_poolstatsreply_stat		 = -1;
-static int hf_msg_poolstatsreply_pool		 = -1;
-static int hf_msg_poolstatsreply_log_size	 = -1;
-static int hf_msg_poolstatsreply_log_size_ondisk = -1;
-static int hf_msg_mon_globalid_max		 = -1;
-static int hf_msg_mon_election			 = -1;
-static int hf_msg_mon_election_fsid		 = -1;
-static int hf_msg_mon_election_op		 = -1;
-static int hf_msg_mon_election_epoch		 = -1;
-static int hf_msg_mon_election_quorum		 = -1;
-static int hf_msg_mon_election_quorum_features	 = -1;
-static int hf_msg_mon_election_defunct_one	 = -1;
-static int hf_msg_mon_election_defunct_two	 = -1;
-static int hf_msg_mon_election_sharing		 = -1;
-static int hf_msg_mon_election_sharing_data	 = -1;
-static int hf_msg_mon_election_sharing_size	 = -1;
-static int hf_msg_mon_paxos			 = -1;
-static int hf_msg_mon_paxos_epoch		 = -1;
-static int hf_msg_mon_paxos_op			 = -1;
-static int hf_msg_mon_paxos_first		 = -1;
-static int hf_msg_mon_paxos_last		 = -1;
-static int hf_msg_mon_paxos_pnfrom		 = -1;
-static int hf_msg_mon_paxos_pn			 = -1;
-static int hf_msg_mon_paxos_pnuncommitted	 = -1;
-static int hf_msg_mon_paxos_lease		 = -1;
-static int hf_msg_mon_paxos_sent		 = -1;
-static int hf_msg_mon_paxos_latest_ver		 = -1;
-static int hf_msg_mon_paxos_latest_val		 = -1;
-static int hf_msg_mon_paxos_latest_val_data	 = -1;
-static int hf_msg_mon_paxos_latest_val_size	 = -1;
-static int hf_msg_mon_paxos_value		 = -1;
-static int hf_msg_mon_paxos_ver			 = -1;
-static int hf_msg_mon_paxos_val			 = -1;
-static int hf_msg_mon_paxos_val_data		 = -1;
-static int hf_msg_mon_paxos_val_size		 = -1;
-static int hf_msg_mon_probe			 = -1;
-static int hf_msg_mon_probe_fsid		 = -1;
-static int hf_msg_mon_probe_type		 = -1;
-static int hf_msg_mon_probe_name		 = -1;
-static int hf_msg_mon_probe_quorum		 = -1;
-static int hf_msg_mon_probe_paxos_first_ver	 = -1;
-static int hf_msg_mon_probe_paxos_last_ver	 = -1;
-static int hf_msg_mon_probe_ever_joined		 = -1;
-static int hf_msg_mon_probe_req_features	 = -1;
-static int hf_msg_osd_ping			 = -1;
-static int hf_msg_osd_ping_fsid			 = -1;
-static int hf_msg_osd_ping_mapepoch		 = -1;
-static int hf_msg_osd_ping_peerepoch		 = -1;
-static int hf_msg_osd_ping_op			 = -1;
-static int hf_msg_osd_ping_time			 = -1;
-static int hf_msg_osd_boot			 = -1;
-static int hf_msg_osd_boot_addr_back		 = -1;
-static int hf_msg_osd_boot_addr_cluster		 = -1;
-static int hf_msg_osd_boot_epoch		 = -1;
-static int hf_msg_osd_boot_addr_front		 = -1;
-static int hf_msg_osd_boot_metadata		 = -1;
-static int hf_msg_osd_boot_metadata_k		 = -1;
-static int hf_msg_osd_boot_metadata_v		 = -1;
-static int hf_msg_pgstats			 = -1;
-static int hf_msg_pgstats_fsid			 = -1;
-static int hf_msg_pgstats_pgstat		 = -1;
-static int hf_msg_pgstats_pgstat_pg		 = -1;
-static int hf_msg_pgstats_pgstat_stat		 = -1;
-static int hf_msg_pgstats_epoch			 = -1;
-static int hf_msg_pgstats_mapfor		 = -1;
-static int hf_msg_osd_pg_create			 = -1;
-static int hf_msg_osd_pg_create_epoch		 = -1;
-static int hf_msg_osd_pg_create_mkpg		 = -1;
-static int hf_msg_osd_pg_create_mkpg_pg		 = -1;
-static int hf_msg_osd_pg_create_mkpg_create	 = -1;
-static int hf_msg_client_caps			 = -1;
-static int hf_msg_client_caps_op		 = -1;
-static int hf_msg_client_caps_inode		 = -1;
-static int hf_msg_client_caps_relam		 = -1;
-static int hf_msg_client_caps_cap_id		 = -1;
-static int hf_msg_client_caps_seq		 = -1;
-static int hf_msg_client_caps_seq_issue		 = -1;
-static int hf_msg_client_caps_new		 = -1;
-static int hf_msg_client_caps_wanted		 = -1;
-static int hf_msg_client_caps_dirty		 = -1;
-static int hf_msg_client_caps_seq_migrate	 = -1;
-static int hf_msg_client_caps_snap_follows	 = -1;
-static int hf_msg_client_caps_uid		 = -1;
-static int hf_msg_client_caps_gid		 = -1;
-static int hf_msg_client_caps_mode		 = -1;
-static int hf_msg_client_caps_nlink		 = -1;
-static int hf_msg_client_caps_xattr_ver		 = -1;
-static int hf_msg_client_caps_snap		 = -1;
-static int hf_msg_client_caps_flock		 = -1;
-static int hf_msg_client_caps_inline_ver	 = -1;
-static int hf_msg_client_caps_inline_data	 = -1;
-static int hf_msg_client_caps_xattr		 = -1;
-static int hf_msg_client_caprel			 = -1;
-static int hf_msg_client_caprel_cap		 = -1;
-static int hf_msg_client_caprel_cap_inode	 = -1;
-static int hf_msg_client_caprel_cap_id		 = -1;
-static int hf_msg_client_caprel_cap_migrate	 = -1;
-static int hf_msg_client_caprel_cap_seq		 = -1;
-static int hf_msg_timecheck			 = -1;
-static int hf_msg_timecheck_op			 = -1;
-static int hf_msg_timecheck_epoch		 = -1;
-static int hf_msg_timecheck_round		 = -1;
-static int hf_msg_timecheck_time		 = -1;
-static int hf_msg_timecheck_skew		 = -1;
-static int hf_msg_timecheck_skew_node		 = -1;
-static int hf_msg_timecheck_skew_skew		 = -1;
-static int hf_msg_timecheck_latency		 = -1;
-static int hf_msg_timecheck_latency_node	 = -1;
-static int hf_msg_timecheck_latency_latency	 = -1;
+static int proto_ceph;
+static int hf_filter_data;
+static int hf_node_id;
+static int hf_node_type;
+static int hf_node_nonce;
+static int hf_entityinst_name;
+static int hf_entityinst_addr;
+static int hf_EntityName;
+static int hf_EntityName_type;
+static int hf_EntityName_id;
+static int hf_src_slug;
+static int hf_src_type;
+static int hf_dst_type;
+static int hf_dst_slug;
+static int hf_banner;
+static int hf_client_info;
+static int hf_server_info;
+static int hf_sockaddr;
+static int hf_inet_family;
+static int hf_port;
+static int hf_addr_ipv4;
+static int hf_addr_ipv6;
+static int hf_data_data;
+static int hf_data_size;
+static int hf_string_data;
+static int hf_string_size;
+static int hf_keepalive_time;
+static int hf_encoded_ver;
+static int hf_encoded_compat;
+static int hf_encoded_size;
+static int hf_version;
+static int hf_epoch;
+static int hf_pool;
+static int hf_key;
+static int hf_namespace;
+static int hf_hash;
+static int hf_pgid_ver;
+static int hf_pgid_pool;
+static int hf_pgid_seed;
+static int hf_pgid_preferred;
+static int hf_pg_create_epoch;
+static int hf_pg_create_parent;
+static int hf_pg_create_splitbits;
+static int hf_path_ver;
+static int hf_path_inode;
+static int hf_path_rel;
+static int hf_mds_release_inode;
+static int hf_mds_release_capid;
+static int hf_mds_release_new;
+static int hf_mds_release_wanted;
+static int hf_mds_release_seq;
+static int hf_mds_release_seq_issue;
+static int hf_mds_release_mseq;
+static int hf_mds_release_dname_seq;
+static int hf_mds_release_dname;
+static int hf_hitset_params;
+static int hf_hitset_params_type;
+static int hf_hitset_params_exphash_count;
+static int hf_hitset_params_exphash_hit;
+static int hf_snapinfo;
+static int hf_snapinfo_id;
+static int hf_snapinfo_time;
+static int hf_snapinfo_name;
+static int hf_pgpool;
+static int hf_pgpool_type;
+static int hf_pgpool_size;
+static int hf_pgpool_crush_ruleset;
+static int hf_pgpool_hash;
+static int hf_pgpool_pgnum;
+static int hf_pgpool_pgpnum;
+static int hf_pgpool_changed;
+static int hf_pgpool_snapseq;
+static int hf_pgpool_snapepoch;
+static int hf_pgpool_snap;
+static int hf_pgpool_snap_id;
+static int hf_pgpool_snapdel;
+static int hf_pgpool_snapdel_from;
+static int hf_pgpool_snapdel_to;
+static int hf_pgpool_uid;
+static int hf_pgpool_flags_low;
+static int hf_pgpool_flags_high;
+static int hf_pgpool_crash_reply_interval;
+static int hf_pgpool_min_size;
+static int hf_pgpool_quota_bytes;
+static int hf_pgpool_quota_objects;
+static int hf_pgpool_tier;
+static int hf_pgpool_tierof;
+static int hf_pgpool_cachemode;
+static int hf_pgpool_readtier;
+static int hf_pgpool_writetier;
+static int hf_pgpool_property;
+static int hf_pgpool_property_key;
+static int hf_pgpool_property_val;
+static int hf_pgpool_hitset_period;
+static int hf_pgpool_hitset_count;
+static int hf_pgpool_stripewidth;
+static int hf_pgpool_targetmaxsize;
+static int hf_pgpool_targetmaxobj;
+static int hf_pgpool_cache_targetdirtyratio;
+static int hf_pgpool_cache_targetfullratio;
+static int hf_pgpool_cache_flushage_min;
+static int hf_pgpool_cache_evictage_min;
+static int hf_pgpool_erasurecode_profile;
+static int hf_pgpool_lastforceresend;
+static int hf_pgpool_flag_hashpool;
+static int hf_pgpool_flag_full;
+static int hf_pgpool_flag_fake_ec_pool;
+static int hf_monmap;
+static int hf_monmap_fsid;
+static int hf_monmap_epoch;
+static int hf_monmap_address;
+static int hf_monmap_address_name;
+static int hf_monmap_address_addr;
+static int hf_monmap_changed;
+static int hf_monmap_created;
+static int hf_pg_stat_ver;
+static int hf_pg_stat_seq;
+static int hf_pg_stat_epoch;
+static int hf_pg_stat_state;
+static int hf_pg_stat_logstart;
+static int hf_pg_stat_logstartondisk;
+static int hf_pg_stat_created;
+static int hf_pg_stat_lastepochclean;
+static int hf_pg_stat_parent;
+static int hf_pg_stat_parent_splitbits;
+static int hf_pg_stat_lastscrub;
+static int hf_pg_stat_lastscrubstamp;
+static int hf_pg_stat_stats;
+static int hf_pg_stat_logsize;
+static int hf_pg_stat_logsizeondisk;
+static int hf_pg_stat_up;
+static int hf_pg_stat_acting;
+static int hf_pg_stat_lastfresh;
+static int hf_pg_stat_lastchange;
+static int hf_pg_stat_lastactive;
+static int hf_pg_stat_lastclean;
+static int hf_pg_stat_lastunstale;
+static int hf_pg_stat_mappingepoch;
+static int hf_pg_stat_lastdeepscrub;
+static int hf_pg_stat_lastdeepscrubstamp;
+static int hf_pg_stat_statsinvalid;
+static int hf_pg_stat_lastcleanscrubstamp;
+static int hf_pg_stat_lastbecameactive;
+static int hf_pg_stat_dirtystatsinvalid;
+static int hf_pg_stat_upprimary;
+static int hf_pg_stat_actingprimary;
+static int hf_pg_stat_omapstatsinvalid;
+static int hf_pg_stat_hitsetstatsinvalid;
+static int hf_crush;
+static int hf_osd_peerstat;
+static int hf_osd_peerstat_timestamp;
+static int hf_featureset_mask;
+static int hf_featureset_name;
+static int hf_featureset_name_val;
+static int hf_featureset_name_name;
+static int hf_compatset;
+static int hf_compatset_compat;
+static int hf_compatset_compatro;
+static int hf_compatset_incompat;
+static int hf_osd_superblock;
+static int hf_osd_superblock_clusterfsid;
+static int hf_osd_superblock_role;
+static int hf_osd_superblock_epoch;
+static int hf_osd_superblock_map_old;
+static int hf_osd_superblock_map_new;
+static int hf_osd_superblock_weight;
+static int hf_osd_superblock_mounted;
+static int hf_osd_superblock_osdfsid;
+static int hf_osd_superblock_clean;
+static int hf_osd_superblock_full;
+static int hf_osdinfo_ver;
+static int hf_osdinfo_lastclean_begin;
+static int hf_osdinfo_lastclean_end;
+static int hf_osdinfo_up_from;
+static int hf_osdinfo_up_through;
+static int hf_osdinfo_downat;
+static int hf_osdinfo_lostat;
+static int hf_osdxinfo_down;
+static int hf_osdxinfo_laggy_probability;
+static int hf_osdxinfo_laggy_interval;
+static int hf_osdxinfo_oldweight;
+static int hf_perfstat_commitlatency;
+static int hf_perfstat_applylatency;
+static int hf_osdstat;
+static int hf_osdstat_kb;
+static int hf_osdstat_kbused;
+static int hf_osdstat_kbavail;
+static int hf_osdstat_trimqueue;
+static int hf_osdstat_trimming;
+static int hf_osdstat_hbin;
+static int hf_osdstat_hbout;
+static int hf_osdstat_opqueue;
+static int hf_osdstat_fsperf;
+static int hf_osdmap;
+static int hf_osdmap_client;
+static int hf_osdmap_fsid;
+static int hf_osdmap_epoch;
+static int hf_osdmap_created;
+static int hf_osdmap_modified;
+static int hf_osdmap_pool;
+static int hf_osdmap_pool_id;
+static int hf_osdmap_poolname_item;
+static int hf_osdmap_poolname;
+static int hf_osdmap_poolmax;
+static int hf_osdmap_flags;
+static int hf_osdmap_osdmax;
+static int hf_osdmap_osd_state;
+static int hf_osdmap_osd_weight;
+static int hf_osdmap_osd_addr;
+static int hf_osdmap_pgtmp;
+static int hf_osdmap_pgtmp_pg;
+static int hf_osdmap_pgtmp_val;
+static int hf_osdmap_primarytmp;
+static int hf_osdmap_primarytmp_pg;
+static int hf_osdmap_primarytmp_val;
+static int hf_osdmap_osd_primaryaffinity;
+static int hf_osdmap_erasurecodeprofile;
+static int hf_osdmap_erasurecodeprofile_name;
+static int hf_osdmap_erasurecodeprofile_prop;
+static int hf_osdmap_erasurecodeprofile_k;
+static int hf_osdmap_erasurecodeprofile_v;
+static int hf_osdmap_osd;
+static int hf_osdmap_hbaddr_back;
+static int hf_osdmap_osd_info;
+static int hf_osdmap_blacklist;
+static int hf_osdmap_blacklist_addr;
+static int hf_osdmap_blacklist_time;
+static int hf_osdmap_cluster_addr;
+static int hf_osdmap_cluster_snapepoch;
+static int hf_osdmap_cluster_snap;
+static int hf_osdmap_osd_uuid;
+static int hf_osdmap_osd_xinfo;
+static int hf_osdmap_hbaddr_front;
+static int hf_osdmap_inc;
+static int hf_osdmap_inc_client;
+static int hf_osdmap_inc_fsid;
+static int hf_osdmap_inc_osd;
+static int hf_features_high;
+static int hf_features_low;
+static int hf_feature_uid;
+static int hf_feature_nosrcaddr;
+static int hf_feature_monclockcheck;
+static int hf_feature_flock;
+static int hf_feature_subscribe2;
+static int hf_feature_monnames;
+static int hf_feature_reconnect_seq;
+static int hf_feature_dirlayouthash;
+static int hf_feature_objectlocator;
+static int hf_feature_pgid64;
+static int hf_feature_incsubosdmap;
+static int hf_feature_pgpool3;
+static int hf_feature_osdreplymux;
+static int hf_feature_osdenc;
+static int hf_feature_omap;
+static int hf_feature_monenc;
+static int hf_feature_query_t;
+static int hf_feature_indep_pg_map;
+static int hf_feature_crush_tunables;
+static int hf_feature_chunky_scrub;
+static int hf_feature_mon_nullroute;
+static int hf_feature_mon_gv;
+static int hf_feature_backfill_reservation;
+static int hf_feature_msg_auth;
+static int hf_feature_recovery_reservation;
+static int hf_feature_crush_tunables2;
+static int hf_feature_createpoolid;
+static int hf_feature_reply_create_inode;
+static int hf_feature_osd_hbmsgs;
+static int hf_feature_mdsenc;
+static int hf_feature_osdhashpspool;
+static int hf_feature_mon_single_paxos;
+static int hf_feature_osd_snapmapper;
+static int hf_feature_mon_scrub;
+static int hf_feature_osd_packed_recovery;
+static int hf_feature_osd_cachepool;
+static int hf_feature_crush_v2;
+static int hf_feature_export_peer;
+static int hf_feature_osd_erasure_codes;
+static int hf_feature_osd_tmap2omap;
+static int hf_feature_osdmap_enc;
+static int hf_feature_mds_inline_data;
+static int hf_feature_crush_tunables3;
+static int hf_feature_osd_primary_affinity;
+static int hf_feature_msgr_keepalive2;
+static int hf_feature_reserved;
+static int hf_connect_host_type;
+static int hf_connect_seq_global;
+static int hf_connect_seq;
+static int hf_connect_proto_ver;
+static int hf_connect_auth_proto;
+static int hf_connect_auth_size;
+static int hf_connect_auth;
+static int hf_flags;
+static int hf_flag_lossy;
+static int hf_osd_flags;
+static int hf_osd_flag_ack;
+static int hf_osd_flag_onnvram;
+static int hf_osd_flag_ondisk;
+static int hf_osd_flag_retry;
+static int hf_osd_flag_read;
+static int hf_osd_flag_write;
+static int hf_osd_flag_ordersnap;
+static int hf_osd_flag_peerstat_old;
+static int hf_osd_flag_balance_reads;
+static int hf_osd_flag_parallelexec;
+static int hf_osd_flag_pgop;
+static int hf_osd_flag_exec;
+static int hf_osd_flag_exec_public;
+static int hf_osd_flag_localize_reads;
+static int hf_osd_flag_rwordered;
+static int hf_osd_flag_ignore_cache;
+static int hf_osd_flag_skiprwlocks;
+static int hf_osd_flag_ignore_overlay;
+static int hf_osd_flag_flush;
+static int hf_osd_flag_map_snap_clone;
+static int hf_osd_flag_enforce_snapc;
+static int hf_osd_op_type;
+static int hf_osd_op_data;
+static int hf_osd_op_extent_off;
+static int hf_osd_op_extent_size;
+static int hf_osd_op_extent_trunc_size;
+static int hf_osd_op_extent_trunc_seq;
+static int hf_osd_op_payload_size;
+static int hf_osd_redirect_oloc;
+static int hf_osd_redirect_obj;
+static int hf_osd_redirect_osdinstr;
+static int hf_osd_redirect_osdinstr_data;
+static int hf_osd_redirect_osdinstr_len;
+static int hf_statsum_bytes;
+static int hf_statsum_objects;
+static int hf_statsum_clones;
+static int hf_statsum_copies;
+static int hf_statsum_missing;
+static int hf_statsum_degraded;
+static int hf_statsum_unfound;
+static int hf_statsum_read_bytes;
+static int hf_statsum_read_kbytes;
+static int hf_statsum_written_bytes;
+static int hf_statsum_written_kbytes;
+static int hf_statsum_scrub_errors;
+static int hf_statsum_recovered;
+static int hf_statsum_bytes_recovered;
+static int hf_statsum_keys_recovered;
+static int hf_statsum_shallow_scrub_errors;
+static int hf_statsum_deep_scrub_errors;
+static int hf_statsum_dirty;
+static int hf_statsum_whiteouts;
+static int hf_statsum_omap;
+static int hf_statsum_hitset_archive;
+static int hf_connect;
+static int hf_connect_reply;
+static int hf_tag;
+static int hf_ack;
+static int hf_seq_existing;
+static int hf_seq_new;
+static int hf_head;
+static int hf_head_seq;
+static int hf_head_tid;
+static int hf_head_type;
+static int hf_head_priority;
+static int hf_head_version;
+static int hf_head_front_size;
+static int hf_head_middle_size;
+static int hf_head_data_size;
+static int hf_head_data_off;
+static int hf_head_srcname;
+static int hf_head_compat_version;
+static int hf_head_reserved;
+static int hf_head_crc;
+static int hf_foot;
+static int hf_foot_front_crc;
+static int hf_foot_middle_crc;
+static int hf_foot_data_crc;
+static int hf_foot_signature;
+static int hf_msg_front;
+static int hf_msg_middle;
+static int hf_msg_data;
+static int hf_statcollection;
+static int hf_paxos;
+static int hf_paxos_ver;
+static int hf_paxos_mon;
+static int hf_paxos_mon_tid;
+static int hf_msg_mon_map;
+static int hf_msg_statfs;
+static int hf_msg_statfs_fsid;
+static int hf_msg_statfsreply;
+static int hf_msg_statfsreply_fsid;
+static int hf_msg_statfsreply_ver;
+static int hf_msg_statfsreply_kb;
+static int hf_msg_statfsreply_kbused;
+static int hf_msg_statfsreply_kbavail;
+static int hf_msg_statfsreply_obj;
+static int hf_msg_mon_sub;
+static int hf_msg_mon_sub_item;
+static int hf_msg_mon_sub_item_len;
+static int hf_msg_mon_sub_what;
+static int hf_msg_mon_sub_start;
+static int hf_msg_mon_sub_flags;
+static int hf_msg_mon_sub_flags_onetime;
+static int hf_msg_mon_sub_ack;
+static int hf_msg_mon_sub_ack_interval;
+static int hf_msg_mon_sub_ack_fsid;
+static int hf_msg_auth;
+static int hf_msg_auth_proto;
+static int hf_msg_auth_supportedproto;
+static int hf_msg_auth_supportedproto_ver;
+static int hf_msg_auth_supportedproto_proto;
+static int hf_msg_auth_supportedproto_gid;
+static int hf_msg_auth_cephx;
+static int hf_msg_auth_cephx_req_type;
+static int hf_msg_auth_monmap_epoch;
+static int hf_msg_auth_reply;
+static int hf_msg_auth_reply_proto;
+static int hf_msg_auth_reply_result;
+static int hf_msg_auth_reply_global_id;
+static int hf_msg_auth_reply_msg;
+static int hf_msg_mon_getversion;
+static int hf_msg_mon_getversion_tid;
+static int hf_msg_mon_getversion_what;
+static int hf_msg_mon_getversionreply;
+static int hf_msg_mon_getversionreply_tid;
+static int hf_msg_mon_getversionreply_ver;
+static int hf_msg_mon_getversionreply_veroldest;
+static int hf_msg_mds_map;
+static int hf_msg_mds_map_fsid;
+static int hf_msg_mds_map_epoch;
+static int hf_msg_mds_map_datai;
+static int hf_msg_mds_map_data;
+static int hf_msg_mds_map_data_size;
+static int hf_msg_client_sess;
+static int hf_msg_client_sess_op;
+static int hf_msg_client_sess_seq;
+static int hf_msg_client_sess_time;
+static int hf_msg_client_sess_caps_max;
+static int hf_msg_client_sess_leases_max;
+static int hf_msg_client_req;
+static int hf_msg_client_req_oldest_tid;
+static int hf_msg_client_req_mdsmap_epoch;
+static int hf_msg_client_req_flags;
+static int hf_msg_client_req_retry;
+static int hf_msg_client_req_forward;
+static int hf_msg_client_req_releases;
+static int hf_msg_client_req_op;
+static int hf_msg_client_req_caller_uid;
+static int hf_msg_client_req_caller_gid;
+static int hf_msg_client_req_inode;
+static int hf_msg_client_req_path_src;
+static int hf_msg_client_req_path_dst;
+static int hf_msg_client_req_release;
+static int hf_msg_client_req_time;
+static int hf_msg_client_reqfwd;
+static int hf_msg_client_reqfwd_dst;
+static int hf_msg_client_reqfwd_fwd;
+static int hf_msg_client_reqfwd_resend;
+static int hf_msg_client_reply;
+static int hf_msg_client_reply_op;
+static int hf_msg_client_reply_result;
+static int hf_msg_client_reply_mdsmap_epoch;
+static int hf_msg_client_reply_safe;
+static int hf_msg_client_reply_isdentry;
+static int hf_msg_client_reply_istarget;
+static int hf_msg_client_reply_trace;
+static int hf_msg_client_reply_extra;
+static int hf_msg_client_reply_snaps;
+static int hf_msg_osd_map;
+static int hf_msg_osd_map_fsid;
+static int hf_msg_osd_map_inc;
+static int hf_msg_osd_map_inc_len;
+static int hf_msg_osd_map_map;
+static int hf_msg_osd_map_map_len;
+static int hf_msg_osd_map_epoch;
+static int hf_msg_osd_map_oldest;
+static int hf_msg_osd_map_newest;
+static int hf_msg_osd_op;
+static int hf_msg_osd_op_client_inc;
+static int hf_msg_osd_op_osdmap_epoch;
+static int hf_msg_osd_op_mtime;
+static int hf_msg_osd_op_reassert_version;
+static int hf_msg_osd_op_oloc;
+static int hf_msg_osd_op_pgid;
+static int hf_msg_osd_op_oid;
+static int hf_msg_osd_op_ops_len;
+static int hf_msg_osd_op_op;
+static int hf_msg_osd_op_snap_id;
+static int hf_msg_osd_op_snap_seq;
+static int hf_msg_osd_op_snaps_len;
+static int hf_msg_osd_op_snap;
+static int hf_msg_osd_op_retry_attempt;
+static int hf_msg_osd_op_payload;
+static int hf_msg_osd_opreply;
+static int hf_msg_osd_opreply_oid;
+static int hf_msg_osd_opreply_pgid;
+static int hf_msg_osd_opreply_result;
+static int hf_msg_osd_opreply_bad_replay_ver;
+static int hf_msg_osd_opreply_osdmap_epoch;
+static int hf_msg_osd_opreply_ops_len;
+static int hf_msg_osd_opreply_op;
+static int hf_msg_osd_opreply_retry_attempt;
+static int hf_msg_osd_opreply_rval;
+static int hf_msg_osd_opreply_replay_ver;
+static int hf_msg_osd_opreply_user_ver;
+static int hf_msg_osd_opreply_redirect;
+static int hf_msg_osd_opreply_payload;
+static int hf_msg_poolopreply;
+static int hf_msg_poolopreply_fsid;
+static int hf_msg_poolopreply_code;
+static int hf_msg_poolopreply_epoch;
+static int hf_msg_poolopreply_datai;
+static int hf_msg_poolopreply_data;
+static int hf_msg_poolopreply_data_size;
+static int hf_msg_poolop;
+static int hf_msg_poolop_fsid;
+static int hf_msg_poolop_pool;
+static int hf_msg_poolop_type;
+static int hf_msg_poolop_auid;
+static int hf_msg_poolop_snapid;
+static int hf_msg_poolop_name;
+static int hf_msg_poolop_crush_rule;
+static int hf_msg_poolop_crush_rule8;
+static int hf_msg_mon_cmd;
+static int hf_msg_mon_cmd_fsid;
+static int hf_msg_mon_cmd_arg;
+static int hf_msg_mon_cmd_arg_len;
+static int hf_msg_mon_cmd_str;
+static int hf_msg_mon_cmd_ack;
+static int hf_msg_mon_cmd_ack_code;
+static int hf_msg_mon_cmd_ack_res;
+static int hf_msg_mon_cmd_ack_arg;
+static int hf_msg_mon_cmd_ack_arg_len;
+static int hf_msg_mon_cmd_ack_arg_str;
+static int hf_msg_mon_cmd_ack_data;
+static int hf_msg_poolstats;
+static int hf_msg_poolstats_fsid;
+static int hf_msg_poolstats_pool;
+static int hf_msg_poolstatsreply;
+static int hf_msg_poolstatsreply_fsid;
+static int hf_msg_poolstatsreply_stat;
+static int hf_msg_poolstatsreply_pool;
+static int hf_msg_poolstatsreply_log_size;
+static int hf_msg_poolstatsreply_log_size_ondisk;
+static int hf_msg_mon_globalid_max;
+static int hf_msg_mon_election;
+static int hf_msg_mon_election_fsid;
+static int hf_msg_mon_election_op;
+static int hf_msg_mon_election_epoch;
+static int hf_msg_mon_election_quorum;
+static int hf_msg_mon_election_quorum_features;
+static int hf_msg_mon_election_defunct_one;
+static int hf_msg_mon_election_defunct_two;
+static int hf_msg_mon_election_sharing;
+static int hf_msg_mon_election_sharing_data;
+static int hf_msg_mon_election_sharing_size;
+static int hf_msg_mon_paxos;
+static int hf_msg_mon_paxos_epoch;
+static int hf_msg_mon_paxos_op;
+static int hf_msg_mon_paxos_first;
+static int hf_msg_mon_paxos_last;
+static int hf_msg_mon_paxos_pnfrom;
+static int hf_msg_mon_paxos_pn;
+static int hf_msg_mon_paxos_pnuncommitted;
+static int hf_msg_mon_paxos_lease;
+static int hf_msg_mon_paxos_sent;
+static int hf_msg_mon_paxos_latest_ver;
+static int hf_msg_mon_paxos_latest_val;
+static int hf_msg_mon_paxos_latest_val_data;
+static int hf_msg_mon_paxos_latest_val_size;
+static int hf_msg_mon_paxos_value;
+static int hf_msg_mon_paxos_ver;
+static int hf_msg_mon_paxos_val;
+static int hf_msg_mon_paxos_val_data;
+static int hf_msg_mon_paxos_val_size;
+static int hf_msg_mon_probe;
+static int hf_msg_mon_probe_fsid;
+static int hf_msg_mon_probe_type;
+static int hf_msg_mon_probe_name;
+static int hf_msg_mon_probe_quorum;
+static int hf_msg_mon_probe_paxos_first_ver;
+static int hf_msg_mon_probe_paxos_last_ver;
+static int hf_msg_mon_probe_ever_joined;
+static int hf_msg_mon_probe_req_features;
+static int hf_msg_osd_ping;
+static int hf_msg_osd_ping_fsid;
+static int hf_msg_osd_ping_mapepoch;
+static int hf_msg_osd_ping_peerepoch;
+static int hf_msg_osd_ping_op;
+static int hf_msg_osd_ping_time;
+static int hf_msg_osd_boot;
+static int hf_msg_osd_boot_addr_back;
+static int hf_msg_osd_boot_addr_cluster;
+static int hf_msg_osd_boot_epoch;
+static int hf_msg_osd_boot_addr_front;
+static int hf_msg_osd_boot_metadata;
+static int hf_msg_osd_boot_metadata_k;
+static int hf_msg_osd_boot_metadata_v;
+static int hf_msg_pgstats;
+static int hf_msg_pgstats_fsid;
+static int hf_msg_pgstats_pgstat;
+static int hf_msg_pgstats_pgstat_pg;
+static int hf_msg_pgstats_pgstat_stat;
+static int hf_msg_pgstats_epoch;
+static int hf_msg_pgstats_mapfor;
+static int hf_msg_osd_pg_create;
+static int hf_msg_osd_pg_create_epoch;
+static int hf_msg_osd_pg_create_mkpg;
+static int hf_msg_osd_pg_create_mkpg_pg;
+static int hf_msg_osd_pg_create_mkpg_create;
+static int hf_msg_client_caps;
+static int hf_msg_client_caps_op;
+static int hf_msg_client_caps_inode;
+static int hf_msg_client_caps_relam;
+static int hf_msg_client_caps_cap_id;
+static int hf_msg_client_caps_seq;
+static int hf_msg_client_caps_seq_issue;
+static int hf_msg_client_caps_new;
+static int hf_msg_client_caps_wanted;
+static int hf_msg_client_caps_dirty;
+static int hf_msg_client_caps_seq_migrate;
+static int hf_msg_client_caps_snap_follows;
+static int hf_msg_client_caps_uid;
+static int hf_msg_client_caps_gid;
+static int hf_msg_client_caps_mode;
+static int hf_msg_client_caps_nlink;
+static int hf_msg_client_caps_xattr_ver;
+static int hf_msg_client_caps_snap;
+static int hf_msg_client_caps_flock;
+static int hf_msg_client_caps_inline_ver;
+static int hf_msg_client_caps_inline_data;
+static int hf_msg_client_caps_xattr;
+static int hf_msg_client_caprel;
+static int hf_msg_client_caprel_cap;
+static int hf_msg_client_caprel_cap_inode;
+static int hf_msg_client_caprel_cap_id;
+static int hf_msg_client_caprel_cap_migrate;
+static int hf_msg_client_caprel_cap_seq;
+static int hf_msg_timecheck;
+static int hf_msg_timecheck_op;
+static int hf_msg_timecheck_epoch;
+static int hf_msg_timecheck_round;
+static int hf_msg_timecheck_time;
+static int hf_msg_timecheck_skew;
+static int hf_msg_timecheck_skew_node;
+static int hf_msg_timecheck_skew_skew;
+static int hf_msg_timecheck_latency;
+static int hf_msg_timecheck_latency_node;
+static int hf_msg_timecheck_latency_latency;
 
 /* Initialize the expert items. */
-static expert_field ei_unused	      = EI_INIT;
-static expert_field ei_overrun	      = EI_INIT;
-static expert_field ei_tag_unknown    = EI_INIT;
-static expert_field ei_msg_unknown    = EI_INIT;
-static expert_field ei_union_unknown  = EI_INIT;
-static expert_field ei_ver_tooold     = EI_INIT;
-static expert_field ei_ver_toonew     = EI_INIT;
-static expert_field ei_oloc_both      = EI_INIT;
-/* static expert_field ei_banner_invalid = EI_INIT; */
-static expert_field ei_sizeillogical  = EI_INIT;
+static expert_field ei_unused;
+static expert_field ei_overrun;
+static expert_field ei_tag_unknown;
+static expert_field ei_msg_unknown;
+static expert_field ei_union_unknown;
+static expert_field ei_ver_tooold;
+static expert_field ei_ver_toonew;
+static expert_field ei_oloc_both;
+/* static expert_field ei_banner_invalid; */
+static expert_field ei_sizeillogical;
 
 /* Initialize the subtree pointers */
-static gint ett_ceph			   = -1;
-static gint ett_data			   = -1;
-static gint ett_str			   = -1;
-static gint ett_blob			   = -1;
-static gint ett_sockaddr		   = -1;
-static gint ett_entityaddr		   = -1;
-static gint ett_entityname		   = -1;
-static gint ett_EntityName		   = -1;
-static gint ett_entityinst		   = -1;
-static gint ett_kv			   = -1;
-static gint ett_eversion		   = -1;
-static gint ett_objectlocator		   = -1;
-static gint ett_pg			   = -1;
-static gint ett_pg_create		   = -1;
-static gint ett_filepath		   = -1;
-static gint ett_mds_release		   = -1;
-static gint ett_hitset_params		   = -1;
-static gint ett_snapinfo		   = -1;
-static gint ett_pgpool			   = -1;
-static gint ett_pgpool_snap		   = -1;
-static gint ett_pgpool_snapdel		   = -1;
-static gint ett_pgpool_property		   = -1;
-static gint ett_mon_map			   = -1;
-static gint ett_mon_map_address		   = -1;
-static gint ett_osd_peerstat		   = -1;
-static gint ett_featureset		   = -1;
-static gint ett_featureset_name		   = -1;
-static gint ett_compatset		   = -1;
-static gint ett_osd_superblock		   = -1;
-static gint ett_osd_info		   = -1;
-static gint ett_osd_xinfo		   = -1;
-static gint ett_perfstat		   = -1;
-static gint ett_osdstat			   = -1;
-static gint ett_pg_stat			   = -1;
-static gint ett_osd_map			   = -1;
-static gint ett_osd_map_client		   = -1;
-static gint ett_osd_map_pool		   = -1;
-static gint ett_osd_map_poolname	   = -1;
-static gint ett_osd_map_pgtmp		   = -1;
-static gint ett_osd_map_primarytmp	   = -1;
-static gint ett_osd_map_erasurecodeprofile = -1;
-static gint ett_osd_map_osd		   = -1;
-static gint ett_osd_map_blacklist	   = -1;
-static gint ett_osd_map_inc		   = -1;
-static gint ett_osd_map_inc_client	   = -1;
-static gint ett_osd_map_inc_osd		   = -1;
-static gint ett_osd_op			   = -1;
-static gint ett_redirect		   = -1;
-static gint ett_statcollection		   = -1;
-static gint ett_paxos			   = -1;
-static gint ett_msg_mon_map		   = -1;
-static gint ett_msg_statfs		   = -1;
-static gint ett_msg_statfsreply		   = -1;
-static gint ett_msg_mon_sub		   = -1;
-static gint ett_msg_mon_sub_item	   = -1;
-static gint ett_msg_mon_sub_flags	   = -1;
-static gint ett_msg_mon_sub_ack		   = -1;
-static gint ett_msg_auth		   = -1;
-static gint ett_msg_auth_supportedproto	   = -1;
-static gint ett_msg_auth_cephx		   = -1;
-static gint ett_msg_authreply		   = -1;
-static gint ett_msg_mon_getversion	   = -1;
-static gint ett_msg_mon_getversionreply	   = -1;
-static gint ett_msg_mds_map		   = -1;
-static gint ett_msg_client_sess		   = -1;
-static gint ett_msg_client_req		   = -1;
-static gint ett_msg_client_reqfwd	   = -1;
-static gint ett_msg_client_reply	   = -1;
-static gint ett_msg_osd_map		   = -1;
-static gint ett_msg_osd_map_inc		   = -1;
-static gint ett_msg_osd_map_full	   = -1;
-static gint ett_msg_osd_op		   = -1;
-static gint ett_msg_osd_opreply		   = -1;
-static gint ett_msg_poolopreply		   = -1;
-static gint ett_msg_poolop		   = -1;
-static gint ett_msg_mon_cmd		   = -1;
-static gint ett_msg_mon_cmd_arg		   = -1;
-static gint ett_msg_mon_cmdack		   = -1;
-static gint ett_msg_mon_cmdack_arg	   = -1;
-static gint ett_msg_poolstats		   = -1;
-static gint ett_msg_poolstatsreply	   = -1;
-static gint ett_msg_poolstatsreply_stat	   = -1;
-static gint ett_msg_mon_election	   = -1;
-static gint ett_msg_mon_paxos		   = -1;
-static gint ett_msg_mon_paxos_value	   = -1;
-static gint ett_msg_mon_probe		   = -1;
-static gint ett_msg_osd_ping		   = -1;
-static gint ett_msg_osd_boot		   = -1;
-static gint ett_msg_pgstats		   = -1;
-static gint ett_msg_pgstats_pgstat	   = -1;
-static gint ett_msg_osd_pg_create	   = -1;
-static gint ett_msg_osd_pg_create_mkpg	   = -1;
-static gint ett_msg_client_caps		   = -1;
-static gint ett_msg_client_caprel	   = -1;
-static gint ett_msg_client_caprel_cap	   = -1;
-static gint ett_msg_timecheck		   = -1;
-static gint ett_msg_timecheck_skew	   = -1;
-static gint ett_msg_timecheck_latency	   = -1;
-static gint ett_head			   = -1;
-static gint ett_foot			   = -1;
-static gint ett_connect			   = -1;
-static gint ett_connect_reply		   = -1;
-static gint ett_filter_data		   = -1;
+static int ett_ceph;
+static int ett_data;
+static int ett_str;
+static int ett_blob;
+static int ett_sockaddr;
+static int ett_entityaddr;
+static int ett_entityname;
+static int ett_EntityName;
+static int ett_entityinst;
+static int ett_kv;
+static int ett_eversion;
+static int ett_objectlocator;
+static int ett_pg;
+static int ett_pg_create;
+static int ett_filepath;
+static int ett_mds_release;
+static int ett_hitset_params;
+static int ett_snapinfo;
+static int ett_pgpool;
+static int ett_pgpool_snap;
+static int ett_pgpool_snapdel;
+static int ett_pgpool_property;
+static int ett_mon_map;
+static int ett_mon_map_address;
+static int ett_osd_peerstat;
+static int ett_featureset;
+static int ett_featureset_name;
+static int ett_compatset;
+static int ett_osd_superblock;
+static int ett_osd_info;
+static int ett_osd_xinfo;
+static int ett_perfstat;
+static int ett_osdstat;
+static int ett_pg_stat;
+static int ett_osd_map;
+static int ett_osd_map_client;
+static int ett_osd_map_pool;
+static int ett_osd_map_poolname;
+static int ett_osd_map_pgtmp;
+static int ett_osd_map_primarytmp;
+static int ett_osd_map_erasurecodeprofile;
+static int ett_osd_map_osd;
+static int ett_osd_map_blacklist;
+static int ett_osd_map_inc;
+static int ett_osd_map_inc_client;
+static int ett_osd_map_inc_osd;
+static int ett_osd_op;
+static int ett_redirect;
+static int ett_statcollection;
+static int ett_paxos;
+static int ett_msg_mon_map;
+static int ett_msg_statfs;
+static int ett_msg_statfsreply;
+static int ett_msg_mon_sub;
+static int ett_msg_mon_sub_item;
+static int ett_msg_mon_sub_flags;
+static int ett_msg_mon_sub_ack;
+static int ett_msg_auth;
+static int ett_msg_auth_supportedproto;
+static int ett_msg_auth_cephx;
+static int ett_msg_authreply;
+static int ett_msg_mon_getversion;
+static int ett_msg_mon_getversionreply;
+static int ett_msg_mds_map;
+static int ett_msg_client_sess;
+static int ett_msg_client_req;
+static int ett_msg_client_reqfwd;
+static int ett_msg_client_reply;
+static int ett_msg_osd_map;
+static int ett_msg_osd_map_inc;
+static int ett_msg_osd_map_full;
+static int ett_msg_osd_op;
+static int ett_msg_osd_opreply;
+static int ett_msg_poolopreply;
+static int ett_msg_poolop;
+static int ett_msg_mon_cmd;
+static int ett_msg_mon_cmd_arg;
+static int ett_msg_mon_cmdack;
+static int ett_msg_mon_cmdack_arg;
+static int ett_msg_poolstats;
+static int ett_msg_poolstatsreply;
+static int ett_msg_poolstatsreply_stat;
+static int ett_msg_mon_election;
+static int ett_msg_mon_paxos;
+static int ett_msg_mon_paxos_value;
+static int ett_msg_mon_probe;
+static int ett_msg_osd_ping;
+static int ett_msg_osd_boot;
+static int ett_msg_pgstats;
+static int ett_msg_pgstats_pgstat;
+static int ett_msg_osd_pg_create;
+static int ett_msg_osd_pg_create_mkpg;
+static int ett_msg_client_caps;
+static int ett_msg_client_caprel;
+static int ett_msg_client_caprel_cap;
+static int ett_msg_timecheck;
+static int ett_msg_timecheck_skew;
+static int ett_msg_timecheck_latency;
+static int ett_head;
+static int ett_foot;
+static int ett_connect;
+static int ett_connect_reply;
+static int ett_filter_data;
 
-static const guint8 *C_BANNER = (const guint8*)"ceph v";
+static const uint8_t *C_BANNER = (const uint8_t*)"ceph v";
 
 #define C_BANNER_SIZE     9
 #define C_BANNER_SIZE_MIN 6
@@ -904,7 +905,7 @@ static const guint8 *C_BANNER = (const guint8*)"ceph v";
  *		this is generally 2*bytes.
  */
 #define C_MAKE_STRINGS(base, chars) \
-	typedef gint base; \
+	typedef int base; \
 	VALUE_STRING_ENUM(base##_strings); \
 	VALUE_STRING_ARRAY(base##_strings); \
 	static const char *base##_string(base val) { \
@@ -912,7 +913,7 @@ static const guint8 *C_BANNER = (const guint8*)"ceph v";
 	}
 
 #define C_MAKE_STRINGS_EXT(base, chars) \
-	typedef gint base; \
+	typedef int base; \
 	VALUE_STRING_ENUM(base##_strings); \
 	VALUE_STRING_ARRAY(base##_strings); \
 	\
@@ -927,7 +928,7 @@ static const guint8 *C_BANNER = (const guint8*)"ceph v";
 	V(C_IPv4, 0x0002, "IPv4") \
 	V(C_IPv6, 0x000A, "IPv6")
 
-typedef gint c_inet;
+typedef int c_inet;
 VALUE_STRING_ENUM(c_inet_strings);
 VALUE_STRING_ARRAY(c_inet_strings);
 
@@ -949,7 +950,7 @@ VALUE_STRING_ARRAY(c_inet_strings);
 	V(C_TAG_KEEPALIVE2,	0x0E, "keepalive2")					     \
 	V(C_TAG_KEEPALIVE2_ACK, 0x0F, "keepalive2 reply")				     \
 
-typedef gint c_tag;
+typedef int c_tag;
 VALUE_STRING_ENUM(c_tag_strings);
 VALUE_STRING_ARRAY(c_tag_strings);
 static value_string_ext c_tag_strings_ext = VALUE_STRING_EXT_INIT(c_tag_strings);
@@ -1386,7 +1387,7 @@ typedef enum _c_state {
 typedef struct _c_node_name {
 	const char *slug;
 	const char *type_str;
-	guint64 id;
+	uint64_t id;
 	c_node_type type;
 } c_entityname;
 
@@ -1395,7 +1396,7 @@ void c_node_name_init(c_entityname *d)
 {
 	d->slug	    = NULL;
 	d->type_str = NULL;
-	d->id	    = G_MAXUINT64;
+	d->id	    = UINT64_MAX;
 	d->type	    = C_NODE_TYPE_UNKNOWN;
 }
 
@@ -1403,7 +1404,7 @@ typedef struct _c_node {
 	address addr;
 	c_entityname name;
 	c_state state;
-	guint16 port;
+	uint16_t port;
 } c_node;
 
 static
@@ -1463,11 +1464,11 @@ c_conv_data *c_conv_data_new(void)
 }
 
 typedef struct _c_header {
-	guint64 seq;
-	guint64 tid;
+	uint64_t seq;
+	uint64_t tid;
 	c_msg_type type;
-	guint16 ver;
-	guint16 priority;
+	uint16_t ver;
+	uint16_t priority;
 	c_entityname src;
 } c_header;
 
@@ -1507,7 +1508,7 @@ typedef struct _c_pkt_data {
  * it was dissected initially.
  */
 static void
-c_pkt_data_init(c_pkt_data *d, packet_info *pinfo, guint off)
+c_pkt_data_init(c_pkt_data *d, packet_info *pinfo, unsigned off)
 {
 	/* Get conversation to store/retrieve connection data. */
 	d->conv = find_or_create_conversation(pinfo);
@@ -1520,7 +1521,7 @@ c_pkt_data_init(c_pkt_data *d, packet_info *pinfo, guint off)
 							  proto_ceph, off);
 		DISSECTOR_ASSERT_HINT(d->convd, "Frame visited, but no saved state.");
 		/* Make a copy and use that so we don't mess up the original. */
-		d->convd = c_conv_data_copy(d->convd, wmem_new(wmem_packet_scope(), c_conv_data));
+		d->convd = c_conv_data_copy(d->convd, wmem_new(pinfo->pool, c_conv_data));
 	}
 	else
 	{
@@ -1571,7 +1572,7 @@ c_pkt_data_init(c_pkt_data *d, packet_info *pinfo, guint off)
  * This function only actually saves the state when necessary.
  */
 static
-void c_pkt_data_save(c_pkt_data *d, packet_info *pinfo, guint off)
+void c_pkt_data_save(c_pkt_data *d, packet_info *pinfo, unsigned off)
 {
 	if (!pinfo->fd->visited)
 	{
@@ -1588,7 +1589,7 @@ void c_pkt_data_save(c_pkt_data *d, packet_info *pinfo, guint off)
  * Returns true iff the packet is from the client.
  */
 static
-gboolean c_from_client(c_pkt_data *d)
+bool c_from_client(c_pkt_data *d)
 {
 	return d->src == &d->convd->client;
 }
@@ -1598,7 +1599,7 @@ gboolean c_from_client(c_pkt_data *d)
  * See c_from_client()
  */
 static
-gboolean c_from_server(c_pkt_data *d)
+bool c_from_server(c_pkt_data *d)
 {
 	return d->src == &d->convd->server;
 }
@@ -1621,7 +1622,7 @@ void c_set_type(c_pkt_data *data, const char *type)
  * The returned string has packet lifetime.
  */
 static
-char *c_format_timespec(tvbuff_t *tvb, guint off)
+char *c_format_timespec(tvbuff_t *tvb, unsigned off)
 {
 	nstime_t t;
 	t.secs	= tvb_get_letohl(tvb, off);
@@ -1634,14 +1635,14 @@ char *c_format_timespec(tvbuff_t *tvb, guint off)
  * The returned string has packet lifetime.
  */
 static
-char *c_format_uuid(tvbuff_t *tvb, guint off)
+char *c_format_uuid(tvbuff_t *tvb, unsigned off)
 {
 	e_guid_t uuid;
 	tvb_get_guid(tvb, off, &uuid, ENC_BIG_ENDIAN);
 	return guid_to_str(wmem_packet_scope(), &uuid);
 }
 
-#define C_NEEDMORE      G_MAXUINT
+#define C_NEEDMORE      UINT_MAX
 #define C_INVALID       0
 
 /*** Expert info warning functions. ***/
@@ -1658,21 +1659,21 @@ char *c_format_uuid(tvbuff_t *tvb, guint off)
  * @return True iff there was unused data.
  */
 static
-gboolean c_warn_unused(proto_tree *tree,
-		       tvbuff_t *tvb, guint start, guint end, c_pkt_data *data)
+bool c_warn_unused(proto_tree *tree,
+		       tvbuff_t *tvb, unsigned start, unsigned end, c_pkt_data *data)
 {
-	guint diff;
+	unsigned diff;
 
 	DISSECTOR_ASSERT_CMPUINT(start, <=, end);
 
 	diff = end - start;
-	if (!diff) return FALSE; /* no unused space. */
+	if (!diff) return false; /* no unused space. */
 
 	proto_tree_add_expert_format(tree, data->pinfo, &ei_unused,
 				     tvb, start, diff,
 				     "%u unused byte%s", diff, diff == 1? "":"s");
 
-	return TRUE;
+	return true;
 }
 
 /** Warn about dissection using more data then expected.
@@ -1687,21 +1688,21 @@ gboolean c_warn_unused(proto_tree *tree,
  * @return True iff there was an overrun.
  */
 static
-gboolean c_warn_overrun(proto_tree *tree,
-			tvbuff_t *tvb, guint start, guint end, c_pkt_data *data)
+bool c_warn_overrun(proto_tree *tree,
+			tvbuff_t *tvb, unsigned start, unsigned end, c_pkt_data *data)
 {
-	guint diff;
+	unsigned diff;
 
 	DISSECTOR_ASSERT_CMPUINT(start, <=, end);
 
 	diff = end - start;
-	if (!diff) return FALSE; /* no unused space. */
+	if (!diff) return false; /* no unused space. */
 
 	proto_tree_add_expert_format(tree, data->pinfo, &ei_overrun,
 				     tvb, start, diff,
 				     "%u overrun byte%s", diff, diff == 1? "":"s");
 
-	return TRUE;
+	return true;
 }
 
 /** Warn about incorrect offset.
@@ -1716,8 +1717,8 @@ gboolean c_warn_overrun(proto_tree *tree,
  * @return True iff there was a mismatch.
  */
 static
-gboolean c_warn_size(proto_tree *tree,
-		     tvbuff_t *tvb, guint act, guint exp, c_pkt_data *data)
+bool c_warn_size(proto_tree *tree,
+		     tvbuff_t *tvb, unsigned act, unsigned exp, c_pkt_data *data)
 {
 	if (act < exp) return c_warn_unused (tree, tvb, act, exp, data);
 	else	       return c_warn_overrun(tree, tvb, exp, act, data);
@@ -1736,8 +1737,8 @@ gboolean c_warn_size(proto_tree *tree,
  *	   then zero if the version is too new.	 Otherwise return zero.
  */
 static
-gshort c_warn_ver(proto_item *ti,
-		  gint act, gint min, gint max, c_pkt_data *data)
+int c_warn_ver(proto_item *ti,
+	       int act, int min, int max, c_pkt_data *data)
 {
 	DISSECTOR_ASSERT_CMPINT(min, <=, max);
 
@@ -1766,12 +1767,12 @@ gshort c_warn_ver(proto_item *ti,
 /** Dissect a length-delimited binary blob.
  */
 static
-guint c_dissect_blob(proto_tree *root, int hf, int hf_data, int hf_len,
-		     tvbuff_t *tvb, guint off)
+unsigned c_dissect_blob(proto_tree *root, int hf, int hf_data, int hf_len,
+		     tvbuff_t *tvb, unsigned off)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint32 size;
+	uint32_t size;
 
 	size = tvb_get_letohl(tvb, off);
 
@@ -1800,15 +1801,15 @@ guint c_dissect_blob(proto_tree *root, int hf, int hf_data, int hf_len,
  * This is intended for data that is not yet being dissected but will be later.
  */
 static
-guint c_dissect_data(proto_tree *tree, int hf,
-		     tvbuff_t *tvb, guint off)
+unsigned c_dissect_data(proto_tree *tree, int hf,
+		     tvbuff_t *tvb, unsigned off)
 {
 	return c_dissect_blob(tree, hf, hf_data_data, hf_data_size, tvb, off);
 }
 
 typedef struct _c_str {
 	char	*str;  /** The string data ('\0' terminated). */
-	guint32	 size; /** The number of bytes in the string. */
+	uint32_t	 size; /** The number of bytes in the string. */
 } c_str;
 
 /** Dissect a length-delimited string.
@@ -1816,8 +1817,8 @@ typedef struct _c_str {
  * If \a out is provided the string will be stored there.
  */
 static
-guint c_dissect_str(proto_tree *root, int hf, c_str *out,
-		     tvbuff_t *tvb, guint off)
+unsigned c_dissect_str(proto_tree *root, int hf, c_str *out,
+		     tvbuff_t *tvb, unsigned off)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -1845,11 +1846,11 @@ guint c_dissect_str(proto_tree *root, int hf, c_str *out,
 #define C_SIZE_SOCKADDR_STORAGE 128
 
 typedef struct _c_sockaddr {
-	const gchar *str;      /** A string representing the entire address. */
-	const gchar *addr_str; /** A string representing the address portion. */
+	const char *str;      /** A string representing the entire address. */
+	const char *addr_str; /** A string representing the address portion. */
 
 	c_inet af;	       /** Address family. */
-	guint16 port;	       /** Network Port. */
+	uint16_t port;	       /** Network Port. */
 } c_sockaddr;
 
 /** Dissect sockaddr structure.
@@ -1857,8 +1858,8 @@ typedef struct _c_sockaddr {
  * If \a out is provided the data will be stored there.
  */
 static
-guint c_dissect_sockaddr(proto_tree *root, c_sockaddr *out,
-			 tvbuff_t *tvb, guint off)
+unsigned c_dissect_sockaddr(proto_tree *root, c_sockaddr *out,
+			 tvbuff_t *tvb, unsigned off)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -1866,21 +1867,21 @@ guint c_dissect_sockaddr(proto_tree *root, c_sockaddr *out,
 
 	/*
 	struct sockaddr_storage {
-		guint16 family;
-		guint8	pad[???]; // Implementation defined.
+		uint16_t family;
+		uint8_t	pad[???]; // Implementation defined.
 	};
 	struct sockaddr_in {
-		guint16 family;
-		guint16 port;
-		guint32 addr;
-		guint8	pad[8];
+		uint16_t family;
+		uint16_t port;
+		uint32_t addr;
+		uint8_t	pad[8];
 	};
 	struct sockaddr_in6 {
-		guint16 family;
-		guint16 port;
-		guint32 flow;
-		guint8	addr[16];
-		guint32 scope;
+		uint16_t family;
+		uint16_t port;
+		uint32_t flow;
+		uint8_t	addr[16];
+		uint32_t scope;
 	};
 	*/
 
@@ -1932,8 +1933,8 @@ typedef struct _c_entity_addr {
 } c_entityaddr;
 
 static
-guint c_dissect_entityaddr(proto_tree *root, int hf, c_entityaddr *out,
-			   tvbuff_t *tvb, guint off)
+unsigned c_dissect_entityaddr(proto_tree *root, int hf, c_entityaddr *out,
+			   tvbuff_t *tvb, unsigned off)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -1969,8 +1970,8 @@ guint c_dissect_entityaddr(proto_tree *root, int hf, c_entityaddr *out,
  * If \a out is provided the data is stored there.
  */
 static
-guint c_dissect_entityname(proto_tree *root, int hf, c_entityname *out,
-			   tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+unsigned c_dissect_entityname(proto_tree *root, int hf, c_entityname *out,
+			   tvbuff_t *tvb, unsigned off, c_pkt_data *data _U_)
 {
 	/* From ceph:/src/include/msgr.h
 	struct ceph_entity_name {
@@ -1987,7 +1988,7 @@ guint c_dissect_entityname(proto_tree *root, int hf, c_entityname *out,
 				 tvb, off, C_SIZE_ENTITY_NAME, ENC_NA);
 	tree = proto_item_add_subtree(ti, ett_entityname);
 
-	d.type	   = (c_node_type)tvb_get_guint8(tvb, off);
+	d.type	   = (c_node_type)tvb_get_uint8(tvb, off);
 	d.type_str = c_node_type_abbr_string(d.type);
 	proto_tree_add_item(tree, hf_node_type,
 			    tvb, off, 1, ENC_LITTLE_ENDIAN);
@@ -1998,7 +1999,7 @@ guint c_dissect_entityname(proto_tree *root, int hf, c_entityname *out,
 			    tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
 
-	if (d.id == G_MAXUINT64)
+	if (d.id == UINT64_MAX)
 	{
 		d.slug = d.type_str;
 	}
@@ -2023,8 +2024,8 @@ typedef struct _c_entityinst {
 /** Dissect an entity_inst_t.
  */
 static
-guint c_dissect_entityinst(proto_tree *root, int hf, c_entityinst *out,
-			   tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_entityinst(proto_tree *root, int hf, c_entityinst *out,
+			   tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -2052,8 +2053,8 @@ guint c_dissect_entityinst(proto_tree *root, int hf, c_entityinst *out,
  * \note This is different then c_dissect_entityname()
  */
 static
-guint c_dissect_EntityName(proto_tree *root,
-			   tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+unsigned c_dissect_EntityName(proto_tree *root,
+			   tvbuff_t *tvb, unsigned off, c_pkt_data *data _U_)
 {
 	/* EntityName from ceph:/src/common/entity_name.h */
 
@@ -2082,8 +2083,8 @@ guint c_dissect_EntityName(proto_tree *root,
 
 /** Dissect a connection features list. */
 static
-guint c_dissect_features(proto_tree *tree,
-			 tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+unsigned c_dissect_features(proto_tree *tree,
+			 tvbuff_t *tvb, unsigned off, c_pkt_data *data _U_)
 {
 	static int * const lowword[] = {
 		&hf_feature_uid,
@@ -2154,8 +2155,8 @@ guint c_dissect_features(proto_tree *tree,
 
 /** Dissect message flags. */
 static
-guint c_dissect_flags(proto_tree *tree,
-		      tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+unsigned c_dissect_flags(proto_tree *tree,
+		      tvbuff_t *tvb, unsigned off, c_pkt_data *data _U_)
 {
 	static int * const flags[] = {
 		&hf_flag_lossy,
@@ -2192,8 +2193,8 @@ guint c_dissect_flags(proto_tree *tree,
 
 /** Dissect OSD flags. */
 static
-guint c_dissect_osd_flags(proto_tree *tree,
-			  tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+unsigned c_dissect_osd_flags(proto_tree *tree,
+			  tvbuff_t *tvb, unsigned off, c_pkt_data *data _U_)
 {
 	static int * const flags[] = {
 		&hf_osd_flag_ack,
@@ -2229,8 +2230,8 @@ guint c_dissect_osd_flags(proto_tree *tree,
 /** Dissect a map<string,string>
  */
 static
-guint c_dissect_kv(proto_tree *root, int hf, int hf_k, int hf_v,
-		   tvbuff_t *tvb, guint off)
+unsigned c_dissect_kv(proto_tree *root, int hf, int hf_k, int hf_v,
+		   tvbuff_t *tvb, unsigned off)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -2249,10 +2250,10 @@ guint c_dissect_kv(proto_tree *root, int hf, int hf_k, int hf_v,
 }
 
 typedef struct _c_encoded {
-	guint8	version; /** The version of the struct. */
-	guint8	compat;	 /** The oldest compatible version. */
-	guint32 size;	 /** The size of the struct in bytes */
-	guint	end;	 /** The end of the structure's data. */
+	uint8_t	version; /** The version of the struct. */
+	uint8_t	compat;	 /** The oldest compatible version. */
+	uint32_t size;	 /** The size of the struct in bytes */
+	unsigned	end;	 /** The end of the structure's data. */
 } c_encoded;
 
 /** Dissect and 'encoded' struct.
@@ -2263,19 +2264,20 @@ typedef struct _c_encoded {
  * @return The offset of the data.
  */
 static
-guint c_dissect_encoded(proto_tree *tree, c_encoded *enc,
-			guint8 minver, guint8 maxver,
-			tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_encoded(proto_tree *tree, c_encoded *enc,
+			uint8_t minver, uint8_t maxver,
+			tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 
 	DISSECTOR_ASSERT_HINT(enc, "enc out parameter must be non-null.");
 
-	enc->version = tvb_get_guint8(tvb, off);
+	enc->version = tvb_get_uint8(tvb, off);
 	ti = proto_tree_add_item(tree, hf_encoded_ver,
 				 tvb, off++, 1, ENC_LITTLE_ENDIAN);
+	/* XXX - should we quit if this doesn't return 0? */
 	c_warn_ver(ti, enc->version, minver, maxver, data);
-	enc->compat = tvb_get_guint8(tvb, off);
+	enc->compat = tvb_get_uint8(tvb, off);
 	proto_tree_add_item(tree, hf_encoded_compat,
 			    tvb, off++, 1, ENC_LITTLE_ENDIAN);
 
@@ -2295,13 +2297,13 @@ guint c_dissect_encoded(proto_tree *tree, c_encoded *enc,
 
 /** Dissect a eversion_t */
 static
-guint c_dissect_eversion(proto_tree *root, gint hf,
-			 tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+unsigned c_dissect_eversion(proto_tree *root, int hf,
+			 tvbuff_t *tvb, unsigned off, c_pkt_data *data _U_)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint64 ver;
-	guint32 epoch;
+	uint64_t ver;
+	uint32_t epoch;
 
 	/** eversion_t from ceph:/src/osd/osd_types.h */
 
@@ -2329,14 +2331,14 @@ guint c_dissect_eversion(proto_tree *root, gint hf,
 
 /** Dissect an object locator. */
 static
-guint c_dissect_object_locator(proto_tree *root, gint hf,
-			       tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_object_locator(proto_tree *root, int hf,
+			       tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
 	c_encoded enchdr;
 	c_str key, nspace;
-	gint64 hash;
+	int64_t hash;
 
 	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
 	tree = proto_item_add_subtree(ti, ett_objectlocator);
@@ -2391,21 +2393,22 @@ guint c_dissect_object_locator(proto_tree *root, gint hf,
 
 /** Dissect a placement group. */
 static
-guint c_dissect_pg(proto_tree *root, gint hf,
-		   tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_pg(proto_tree *root, int hf,
+		   tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree;
-	guint8 ver;
-	gint32 preferred;
+	uint8_t ver;
+	int32_t preferred;
 
 	/** pg_t from ceph:/src/osd/osd_types.h */
 
 	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
 	tree = proto_item_add_subtree(ti, ett_pg);
 
-	ver = tvb_get_guint8(tvb, off);
+	ver = tvb_get_uint8(tvb, off);
 	ti2 = proto_tree_add_item(tree, hf_pgid_ver, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	/* XXX - should we quit if this doesn't return 0? */
 	c_warn_ver(ti2, ver, 1, 1, data);
 	off += 1;
 
@@ -2431,8 +2434,8 @@ guint c_dissect_pg(proto_tree *root, gint hf,
 
 /** Dissect a placement group creation. */
 static
-guint c_dissect_pg_create(proto_tree *root, gint hf,
-			  tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_pg_create(proto_tree *root, int hf,
+			  tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -2464,22 +2467,23 @@ guint c_dissect_pg_create(proto_tree *root, gint hf,
 
 /** Dissect a filepath. */
 static
-guint c_dissect_path(proto_tree *root, gint hf,
-		     tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_path(proto_tree *root, int hf,
+		     tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree;
-	guint64 inode;
+	uint64_t inode;
 	c_str rel;
-	guint v;
+	unsigned v;
 
 	/** filepath from ceph:/src/include/filepath.h */
 
 	ti   = proto_tree_add_item(root, hf, tvb, off, -1, ENC_NA);
 	tree = proto_item_add_subtree(ti, ett_filepath);
 
-	v = tvb_get_guint8(tvb, off);
+	v = tvb_get_uint8(tvb, off);
 	ti2 = proto_tree_add_item(tree, hf_path_ver, tvb, off, 1, ENC_LITTLE_ENDIAN);
+	/* XXX - should we quit if this doesn't return 0? */
 	c_warn_ver(ti2, v, 1, 1, data);
 	off += 1;
 
@@ -2500,12 +2504,12 @@ guint c_dissect_path(proto_tree *root, gint hf,
 
 /** Dissect a capability release. */
 static
-guint c_dissect_mds_release(proto_tree *root, gint hf,
-			    tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+unsigned c_dissect_mds_release(proto_tree *root, int hf,
+			    tvbuff_t *tvb, unsigned off, c_pkt_data *data _U_)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint64 inode;
+	uint64_t inode;
 
 	/** MClientRequest::Release from ceph:/src/messages/MClientRequest.h */
 
@@ -2555,14 +2559,14 @@ guint c_dissect_mds_release(proto_tree *root, gint hf,
 
 /** Dissect a HitSet::Params */
 static
-guint c_dissect_hitset_params(proto_tree *root,
-			      tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_hitset_params(proto_tree *root,
+			      tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree;
 	c_encoded enc, encimpl;
 	c_hitset_params_type type;
-	guint32 i;
+	uint32_t i;
 
 	/** HitSet::Params from ceph:/src/osd/HitSet.h */
 
@@ -2571,7 +2575,7 @@ guint c_dissect_hitset_params(proto_tree *root,
 
 	off = c_dissect_encoded(tree, &enc, 1, 1, tvb, off, data);
 
-	type = (c_hitset_params_type)tvb_get_guint8(tvb, off);
+	type = (c_hitset_params_type)tvb_get_uint8(tvb, off);
 	proto_item_append_text(ti, ", Type: %s", c_hitset_params_type_string(type));
 	ti2 = proto_tree_add_item(tree, hf_hitset_params_type,
 				  tvb, off, 1, ENC_LITTLE_ENDIAN);
@@ -2614,13 +2618,13 @@ guint c_dissect_hitset_params(proto_tree *root,
 
 /** Dissect a pool_snap_info_t */
 static
-guint c_dissect_snapinfo(proto_tree *root,
-			 tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_snapinfo(proto_tree *root,
+			 tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
 	c_encoded enc;
-	guint64 id;
+	uint64_t id;
 	c_str name;
 	char *date;
 
@@ -2657,13 +2661,13 @@ guint c_dissect_snapinfo(proto_tree *root,
 
 /** Dissect a pg pool. */
 static
-guint c_dissect_pgpool(proto_tree *root,
-		       tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_pgpool(proto_tree *root,
+		       tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree, *subtree;
 	c_encoded enc;
-	guint32 i;
+	uint32_t i;
 	c_pgpool_type type;
 	c_pgpool_cachemode cachemode;
 
@@ -2684,7 +2688,7 @@ guint c_dissect_pgpool(proto_tree *root,
 
 	off = c_dissect_encoded(tree, &enc, 5, 15, tvb, off, data);
 
-	type = (c_pgpool_type)tvb_get_guint8(tvb, off);
+	type = (c_pgpool_type)tvb_get_uint8(tvb, off);
 	proto_tree_add_item(tree, hf_pgpool_type,
 			    tvb, off, 1, ENC_LITTLE_ENDIAN);
 	off += 1;
@@ -2798,7 +2802,7 @@ guint c_dissect_pgpool(proto_tree *root,
 			    tvb, off, 8, ENC_LITTLE_ENDIAN);
 	off += 8;
 
-	cachemode = (c_pgpool_cachemode)tvb_get_guint8(tvb, off);
+	cachemode = (c_pgpool_cachemode)tvb_get_uint8(tvb, off);
 	proto_tree_add_item(tree, hf_pgpool_cachemode,
 			    tvb, off, 1, ENC_LITTLE_ENDIAN);
 	off += 1;
@@ -2884,13 +2888,13 @@ guint c_dissect_pgpool(proto_tree *root,
 
 /** Dissect a MonMap. */
 static
-guint c_dissect_monmap(proto_tree *root,
-		       tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_monmap(proto_tree *root,
+		       tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree, *subtree;
-	guint size, end;
-	guint32 i;
+	unsigned size, end;
+	uint32_t i;
 	c_encoded enc;
 	c_str str;
 	c_entityaddr addr;
@@ -2950,8 +2954,8 @@ guint c_dissect_monmap(proto_tree *root,
 
 /** Dissect an osd_peer_stat_t */
 static
-guint c_dissect_osd_peerstat(proto_tree *root,
-			     tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_osd_peerstat(proto_tree *root,
+			     tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -2977,13 +2981,13 @@ guint c_dissect_osd_peerstat(proto_tree *root,
 
 /** Dissect a CompatSet::FeatureSet */
 static
-guint c_dissect_featureset(proto_tree *root, int hf,
-			   tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+unsigned c_dissect_featureset(proto_tree *root, int hf,
+			   tvbuff_t *tvb, unsigned off, c_pkt_data *data _U_)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint32 i;
-	guint64 features;
+	uint32_t i;
+	uint64_t features;
 
 	/* CompatSet::FeatureSet from ceph:/src/include/FeatureSet.h */
 
@@ -3001,7 +3005,7 @@ guint c_dissect_featureset(proto_tree *root, int hf,
 	{
 		proto_item *ti2;
 		proto_tree *subtree;
-		guint64 val;
+		uint64_t val;
 		c_str name;
 
 		ti2 = proto_tree_add_item(tree, hf_featureset_name, tvb, off, -1, ENC_NA);
@@ -3026,8 +3030,8 @@ guint c_dissect_featureset(proto_tree *root, int hf,
 
 /** Dissect a CompatSet */
 static
-guint c_dissect_compatset(proto_tree *root,
-			  tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_compatset(proto_tree *root,
+			  tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -3047,13 +3051,13 @@ guint c_dissect_compatset(proto_tree *root,
 
 /** Dissect an OSDSuperblock */
 static
-guint c_dissect_osd_superblock(proto_tree *root,
-			       tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_osd_superblock(proto_tree *root,
+			       tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
 	c_encoded enc;
-	guint32 role, epoch;
+	uint32_t role, epoch;
 	double weight;
 
 	/* OSDSuperblock from ceph:/src/osd/osd_types.h */
@@ -3128,21 +3132,22 @@ guint c_dissect_osd_superblock(proto_tree *root,
 
 /** Dissect an osd_info_t. */
 static
-guint c_dissect_osdinfo(proto_tree *root, int hf,
-			tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_osdinfo(proto_tree *root, int hf,
+			tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree;
-	guint8 ver;
+	uint8_t ver;
 
 	/* osd_info_t from ceph:/src/osd/OSDMap.h */
 
 	ti   = proto_tree_add_item(root, hf, tvb, off, 25, ENC_NA);
 	tree = proto_item_add_subtree(ti, ett_osd_info);
 
-	ver = tvb_get_guint8(tvb, off);
+	ver = tvb_get_uint8(tvb, off);
 	ti2 = proto_tree_add_item(tree, hf_osdinfo_ver,
 				  tvb, off, 1, ENC_LITTLE_ENDIAN);
+	/* XXX - should we quit if this doesn't return 0? */
 	c_warn_ver(ti2, ver, 1, 1, data);
 	off += 1;
 
@@ -3175,8 +3180,8 @@ guint c_dissect_osdinfo(proto_tree *root, int hf,
 
 /** Dissect an osd_xinfo_t. */
 static
-guint c_dissect_osd_xinfo(proto_tree *root, int hf,
-			  tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_osd_xinfo(proto_tree *root, int hf,
+			  tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -3221,8 +3226,8 @@ guint c_dissect_osd_xinfo(proto_tree *root, int hf,
 
 /** Dissect an objectstore_perfstat_t. */
 static
-guint c_dissect_perfstat(proto_tree *root, int hf,
-			 tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_perfstat(proto_tree *root, int hf,
+			 tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -3252,13 +3257,13 @@ guint c_dissect_perfstat(proto_tree *root, int hf,
 
 /** Dissect an osd_stat_t. */
 static
-guint c_dissect_osd_stat(proto_tree *root,
-			 tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_osd_stat(proto_tree *root,
+			 tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
 	c_encoded enc, enc2;
-	guint32 i;
+	uint32_t i;
 
 	/* osd_stat_t from ceph:/src/osd/osd_types.h */
 
@@ -3330,8 +3335,8 @@ guint c_dissect_osd_stat(proto_tree *root,
 
 /** Dissect a CRUSH Ruleset. */
 static
-guint c_dissect_crush(proto_tree *root,
-		      tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+unsigned c_dissect_crush(proto_tree *root,
+		      tvbuff_t *tvb, unsigned off, c_pkt_data *data _U_)
 {
 	off = c_dissect_data(root, hf_crush, tvb, off);
 
@@ -3340,13 +3345,13 @@ guint c_dissect_crush(proto_tree *root,
 
 /** Dissect an OSDMap. */
 static
-guint c_dissect_osdmap(proto_tree *root,
-		       tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_osdmap(proto_tree *root,
+		       tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree, *subtree;
-	guint size, end;
-	guint32 i;
+	unsigned size, end;
+	uint32_t i;
 	c_encoded enc, enc2; /* There is an outer one, and multiple inner ones. */
 
 	/*** Storage for values that will be formatted and
@@ -3400,7 +3405,7 @@ guint c_dissect_osdmap(proto_tree *root,
 	{
 		proto_item *poolti;
 		proto_tree *pooltree;
-		guint64 id;
+		uint64_t id;
 
 		poolti = proto_tree_add_item(subtree, hf_osdmap_pool,
 					     tvb, off, -1, ENC_NA);
@@ -3424,7 +3429,7 @@ guint c_dissect_osdmap(proto_tree *root,
 	{
 		proto_item *nameti;
 		proto_tree *nametree;
-		guint64 id;
+		uint64_t id;
 		c_str name;
 
 		nameti = proto_tree_add_item(subtree, hf_osdmap_poolname_item,
@@ -3486,7 +3491,7 @@ guint c_dissect_osdmap(proto_tree *root,
 	off += 4;
 	while (i--)
 	{
-		guint32 j;
+		uint32_t j;
 		proto_item *pgtti;
 		proto_tree *pgttree;
 
@@ -3548,7 +3553,7 @@ guint c_dissect_osdmap(proto_tree *root,
 		off += 4;
 		while (i--)
 		{
-			guint32 j;
+			uint32_t j;
 			proto_item *ecti;
 			proto_tree *ectree;
 			c_str profile;
@@ -3675,12 +3680,12 @@ guint c_dissect_osdmap(proto_tree *root,
 
 /** Dissect an incremental OSDMap. */
 static
-guint c_dissect_osdmap_inc(proto_tree *root,
-			   tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_osdmap_inc(proto_tree *root,
+			   tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree, *subtree;
-	guint size, end;
+	unsigned size, end;
 	c_encoded enc, enc2; /* There is an outer one, and multiple inner ones. */
 
 	/** OSDMap::Incremental from ceph:/src/osd/OSDMap.cc */
@@ -3734,22 +3739,22 @@ guint c_dissect_osdmap_inc(proto_tree *root,
 typedef struct _c_osd_op {
 	c_osd_optype type;    /** The type of operation. */
 	const char *type_str; /** The type of operation as a string. */
-	guint32 payload_size; /** The size of the operation payload. */
+	uint32_t payload_size; /** The size of the operation payload. */
 } c_osd_op;
 
 #define C_SIZE_OSD_OP_MIN 34
 
 /** Dissect OSD Operation. */
 static
-guint c_dissect_osd_op(proto_tree *root, gint hf, c_osd_op *out,
-		       tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_osd_op(proto_tree *root, int hf, c_osd_op *out,
+		       tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree;
 	c_osd_op d;
 
-	guint64 offset, size;
-	guint64 trunc_size, trunc_seq;
+	uint64_t offset, size;
+	uint64_t trunc_size, trunc_seq;
 
 	/* From ceph:/src/include/rados.h
 	struct ceph_osd_op {
@@ -3884,8 +3889,8 @@ guint c_dissect_osd_op(proto_tree *root, gint hf, c_osd_op *out,
 
 /** Dissect a redirect. */
 static
-guint c_dissect_redirect(proto_tree *root, gint hf,
-			 tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_redirect(proto_tree *root, int hf,
+			 tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -3919,8 +3924,8 @@ guint c_dissect_redirect(proto_tree *root, gint hf,
 
 /** Dissect a statsum object. */
 static
-guint c_dissect_statsum(proto_tree *tree,
-			tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_statsum(proto_tree *tree,
+			tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	c_encoded enc;
 
@@ -4016,13 +4021,13 @@ guint c_dissect_statsum(proto_tree *tree,
 
 /** Dissect a object_stat_collection_t object. */
 static
-guint c_dissect_statcollection(proto_tree *root, int key,
-			       tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_statcollection(proto_tree *root, int key,
+			       tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
 	c_encoded enc;
-	guint32 i;
+	uint32_t i;
 
 	/** object_stat_collection_t from ceph:/src/osd/osd_types.h */
 
@@ -4049,13 +4054,13 @@ guint c_dissect_statcollection(proto_tree *root, int key,
 
 /** Dissect an pg_stat_t. */
 static
-guint c_dissect_pg_stats(proto_tree *root, int hf,
-			 tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_pg_stats(proto_tree *root, int hf,
+			 tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
 	c_encoded enc;
-	guint32 i;
+	uint32_t i;
 
 	/* pg_stat_t from ceph:/src/osd/osd_types.h */
 
@@ -4221,8 +4226,8 @@ guint c_dissect_pg_stats(proto_tree *root, int hf,
 
 /** Dissect a Paxos Service Message */
 static
-guint c_dissect_paxos(proto_tree *root,
-		      tvbuff_t *tvb, guint off, c_pkt_data *data _U_)
+unsigned c_dissect_paxos(proto_tree *root,
+		      tvbuff_t *tvb, unsigned off, c_pkt_data *data _U_)
 {
 	proto_item *ti;
 	proto_tree *tree;
@@ -4253,12 +4258,12 @@ guint c_dissect_paxos(proto_tree *root,
  * Simply displays the front, middle and data portions as binary strings.
  */
 static
-guint c_dissect_msg_unknown(proto_tree *tree,
+unsigned c_dissect_msg_unknown(proto_tree *tree,
 			    tvbuff_t *tvb,
-			    guint front_len, guint middle_len, guint data_len,
+			    unsigned front_len, unsigned middle_len, unsigned data_len,
 			    c_pkt_data *data)
 {
-	guint off = 0;
+	unsigned off = 0;
 
 	c_set_type(data, c_msg_type_string(data->header.type));
 	proto_item_append_text(data->item_root,
@@ -4288,9 +4293,9 @@ guint c_dissect_msg_unknown(proto_tree *tree,
 
 /** Dissect ping 0x0002 */
 static
-guint c_dissect_msg_ping(proto_tree *root _U_,
+unsigned c_dissect_msg_ping(proto_tree *root _U_,
 			 tvbuff_t *tvb _U_,
-			 guint front_len _U_, guint middle_len _U_, guint data_len _U_,
+			 unsigned front_len _U_, unsigned middle_len _U_, unsigned data_len _U_,
 			 c_pkt_data *data)
 {
 	/* ceph:/src/messages/MPing.h */
@@ -4300,9 +4305,9 @@ guint c_dissect_msg_ping(proto_tree *root _U_,
 
 /** Dissect monmap message 0x0004 */
 static
-guint c_dissect_msg_mon_map(proto_tree *root,
+unsigned c_dissect_msg_mon_map(proto_tree *root,
 			    tvbuff_t *tvb,
-			    guint front_len, guint middle_len _U_, guint data_len _U_,
+			    unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			    c_pkt_data *data)
 {
 	proto_item *ti;
@@ -4320,14 +4325,14 @@ guint c_dissect_msg_mon_map(proto_tree *root,
 
 /** Stat FS 0x000D */
 static
-guint c_dissect_msg_statfs(proto_tree *root,
+unsigned c_dissect_msg_statfs(proto_tree *root,
 			   tvbuff_t *tvb,
-			   guint front_len, guint middle_len _U_, guint data_len _U_,
+			   unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			   c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
+	unsigned off = 0;
 
 	/* ceph:/src/messages/MStatfs.h */
 
@@ -4347,14 +4352,14 @@ guint c_dissect_msg_statfs(proto_tree *root,
 
 /** Stat FS Reply 0x000E */
 static
-guint c_dissect_msg_statfsreply(proto_tree *root,
+unsigned c_dissect_msg_statfsreply(proto_tree *root,
 				tvbuff_t *tvb,
-				guint front_len, guint middle_len _U_, guint data_len _U_,
+				unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
+	unsigned off = 0;
 
 	/* ceph:/src/messages/MStatfsReply.h */
 
@@ -4392,15 +4397,15 @@ guint c_dissect_msg_statfsreply(proto_tree *root,
 
 /** Mon subscribe message 0x000F */
 static
-guint c_dissect_msg_mon_sub(proto_tree *root,
+unsigned c_dissect_msg_mon_sub(proto_tree *root,
 			    tvbuff_t *tvb,
-			    guint front_len, guint middle_len _U_, guint data_len _U_,
+			    unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			    c_pkt_data *data)
 {
 	proto_item *ti, *subti, *subti2;
 	proto_tree *tree, *subtree;
-	guint off = 0;
-	guint len;
+	unsigned off = 0;
+	unsigned len;
 	c_str str;
 
 	/* ceph:/src/messages/MMonSubscribe.h */
@@ -4458,14 +4463,14 @@ guint c_dissect_msg_mon_sub(proto_tree *root,
 
 /** Mon subscription ack 0x0010 */
 static
-guint c_dissect_msg_mon_sub_ack(proto_tree *root,
+unsigned c_dissect_msg_mon_sub_ack(proto_tree *root,
 				tvbuff_t *tvb,
-				guint front_len, guint middle_len _U_, guint data_len _U_,
+				unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
+	unsigned off = 0;
 
 	/* ceph:/src/messages/MMonSubscribeAck.h */
 
@@ -4486,16 +4491,16 @@ guint c_dissect_msg_mon_sub_ack(proto_tree *root,
 
 /** Authentication Request 0x0011. */
 static
-guint c_dissect_msg_auth(proto_tree *root,
+unsigned c_dissect_msg_auth(proto_tree *root,
 			 tvbuff_t *tvb,
-			 guint front_len, guint middle_len _U_, guint data_len _U_,
+			 unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			 c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree, *subtree;
-	guint off = 0, expectedoff;
-	guint8 ver;
-	guint32 i, len;
+	unsigned off = 0, expectedoff;
+	uint8_t ver;
+	uint32_t i, len;
 	c_auth_proto proto;
 
 	/* ceph:/src/messages/MAuth.h */
@@ -4523,7 +4528,8 @@ guint c_dissect_msg_auth(proto_tree *root,
 					  tvb, off, -1, ENC_NA);
 		subtree = proto_item_add_subtree(ti2, ett_msg_auth_supportedproto);
 
-		ver = tvb_get_guint8(tvb, off);
+		ver = tvb_get_uint8(tvb, off);
+		/* XXX - should we quit if this doesn't return 0? */
 		c_warn_ver(ti2, ver, 1, 1, data);
 		proto_tree_add_item(tree, hf_msg_auth_supportedproto_ver,
 				    tvb, off, 1, ENC_LITTLE_ENDIAN);
@@ -4589,14 +4595,14 @@ guint c_dissect_msg_auth(proto_tree *root,
 
 /** Authentication response. 0x0012 */
 static
-guint c_dissect_msg_auth_reply(proto_tree *root,
+unsigned c_dissect_msg_auth_reply(proto_tree *root,
 			       tvbuff_t *tvb,
-			       guint front_len, guint middle_len _U_, guint data_len _U_,
+			       unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			       c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0, expectedoff;
+	unsigned off = 0, expectedoff;
 	c_auth_proto proto;
 
 	/* ceph:/src/messages/MAuthReply.h */
@@ -4638,15 +4644,15 @@ guint c_dissect_msg_auth_reply(proto_tree *root,
 
 /** Get map versions. 0x0013 */
 static
-guint c_dissect_msg_mon_getversion(proto_tree *root,
+unsigned c_dissect_msg_mon_getversion(proto_tree *root,
 				   tvbuff_t *tvb,
-				   guint front_len, guint middle_len _U_, guint data_len _U_,
+				   unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				   c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint64 tid;
+	unsigned off = 0;
+	uint64_t tid;
 	c_str what;
 
 	/* ceph:/src/messages/MMonGetVersion.h */
@@ -4673,18 +4679,18 @@ guint c_dissect_msg_mon_getversion(proto_tree *root,
 
 /** Get map versions response. 0x0014 */
 static
-guint c_dissect_msg_mon_getversionreply(proto_tree *root,
+unsigned c_dissect_msg_mon_getversionreply(proto_tree *root,
 					tvbuff_t *tvb,
-					guint front_len,
-					guint middle_len _U_,
-					guint data_len _U_,
+					unsigned front_len,
+					unsigned middle_len _U_,
+					unsigned data_len _U_,
 					c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint64 tid;
-	guint64 ver, veroldest;
+	unsigned off = 0;
+	uint64_t tid;
+	uint64_t ver, veroldest;
 
 	/* ceph:/src/messages/MMonGetVersionReply.h */
 
@@ -4718,14 +4724,14 @@ guint c_dissect_msg_mon_getversionreply(proto_tree *root,
 
 /** MDS Map 0x0015 */
 static
-guint c_dissect_msg_mds_map(proto_tree *root,
+unsigned c_dissect_msg_mds_map(proto_tree *root,
 			    tvbuff_t *tvb,
-			    guint front_len, guint middle_len _U_, guint data_len _U_,
+			    unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			    c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
+	unsigned off = 0;
 
 	/* ceph:/src/messages/MMDSMap.h */
 
@@ -4753,14 +4759,14 @@ guint c_dissect_msg_mds_map(proto_tree *root,
 
 /** Client Session 0x0016 */
 static
-guint c_dissect_msg_client_sess(proto_tree *root,
+unsigned c_dissect_msg_client_sess(proto_tree *root,
 				tvbuff_t *tvb,
-				guint front_len, guint middle_len _U_, guint data_len _U_,
+				unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
+	unsigned off = 0;
 	c_session_op_type op;
 
 	/* ceph:/src/messages/MClientSession.h */
@@ -4798,15 +4804,15 @@ guint c_dissect_msg_client_sess(proto_tree *root,
 
 /** Client Request 0x0018 */
 static
-guint c_dissect_msg_client_req(proto_tree *root,
+unsigned c_dissect_msg_client_req(proto_tree *root,
 			       tvbuff_t *tvb,
-			       guint front_len, guint middle_len _U_, guint data_len _U_,
+			       unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			       c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 	c_mds_op_type type;
 
 	/* ceph:/src/messages/MClientRequest.h */
@@ -4883,16 +4889,16 @@ guint c_dissect_msg_client_req(proto_tree *root,
 
 /** Client Request Forward 0x0019 */
 static
-guint c_dissect_msg_client_reqfwd(proto_tree *root,
+unsigned c_dissect_msg_client_reqfwd(proto_tree *root,
 				  tvbuff_t *tvb,
-				  guint front_len, guint middle_len _U_, guint data_len _U_,
+				  unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				  c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint32 to, fwd;
-	guint8 resend;
+	unsigned off = 0;
+	uint32_t to, fwd;
+	uint8_t resend;
 
 	/* ceph:/src/messages/MClientRequestForward.h */
 
@@ -4911,7 +4917,7 @@ guint c_dissect_msg_client_reqfwd(proto_tree *root,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
 
-	resend = tvb_get_guint8(tvb, off);
+	resend = tvb_get_uint8(tvb, off);
 	proto_tree_add_item(tree, hf_msg_client_reqfwd_resend,
 			    tvb, off, 1, ENC_LITTLE_ENDIAN);
 	off += 1;
@@ -4925,14 +4931,14 @@ guint c_dissect_msg_client_reqfwd(proto_tree *root,
 
 /** Client Reply 0x001A */
 static
-guint c_dissect_msg_client_reply(proto_tree *root,
+unsigned c_dissect_msg_client_reply(proto_tree *root,
 				 tvbuff_t *tvb,
-				 guint front_len, guint middle_len _U_, guint data_len _U_,
+				 unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				 c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
+	unsigned off = 0;
 	c_mds_op_type type;
 
 	/* ceph:/src/messages/MClientReply.h */
@@ -4979,16 +4985,16 @@ guint c_dissect_msg_client_reply(proto_tree *root,
 
 /** OSD Map 0x0029 */
 static
-guint c_dissect_msg_osd_map(proto_tree *root,
+unsigned c_dissect_msg_osd_map(proto_tree *root,
 			    tvbuff_t *tvb,
-			    guint front_len, guint middle_len _U_, guint data_len _U_,
+			    unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			    c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree, *subtree;
-	guint off = 0;
-	guint32 i;
-	guint32 epoch;
+	unsigned off = 0;
+	uint32_t i;
+	uint32_t epoch;
 
 	/* ceph:/src/messages/MOSDMap.h */
 
@@ -5064,15 +5070,15 @@ guint c_dissect_msg_osd_map(proto_tree *root,
 /** OSD Operation (0x002A)
  */
 static
-guint c_dissect_msg_osd_op(proto_tree *root,
+unsigned c_dissect_msg_osd_op(proto_tree *root,
 			   tvbuff_t *tvb,
-			   guint front_len, guint middle_len _U_, guint data_len _U_,
+			   unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			   c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree;
-	guint off = 0;
-	guint16 opslen, i;
+	unsigned off = 0;
+	uint16_t opslen, i;
 	c_osd_op *ops;
 	c_str str;
 
@@ -5168,17 +5174,17 @@ guint c_dissect_msg_osd_op(proto_tree *root,
 /** OSD Operation Reply (0x002B)
  */
 static
-guint c_dissect_msg_osd_opreply(proto_tree *root,
+unsigned c_dissect_msg_osd_opreply(proto_tree *root,
 				tvbuff_t *tvb,
-				guint front_len, guint middle_len _U_, guint data_len _U_,
+				unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree;
-	guint off = 0;
+	unsigned off = 0;
 	c_str str;
-	guint32 i;
-	guint32 opslen;
+	uint32_t i;
+	uint32_t opslen;
 	c_osd_op *ops;
 
 	/* ceph:/src/messages/MOSDOpReply.h */
@@ -5278,16 +5284,16 @@ guint c_dissect_msg_osd_opreply(proto_tree *root,
 
 /** Pool Op Reply 0x0030 */
 static
-guint c_dissect_msg_poolopreply(proto_tree *root,
+unsigned c_dissect_msg_poolopreply(proto_tree *root,
 				tvbuff_t *tvb,
-				guint front_len, guint middle_len _U_, guint data_len _U_,
+				unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	gint32 code;
-	guint8 b;
+	unsigned off = 0;
+	int32_t code;
+	uint8_t b;
 
 	/* ceph:/src/messages/MPoolOpReply.h */
 
@@ -5311,7 +5317,7 @@ guint c_dissect_msg_poolopreply(proto_tree *root,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
 
-	b = tvb_get_guint8(tvb, off);
+	b = tvb_get_uint8(tvb, off);
 	off += 1;
 	if (b)
 		off = c_dissect_blob(tree, hf_msg_poolopreply_datai,
@@ -5327,15 +5333,15 @@ guint c_dissect_msg_poolopreply(proto_tree *root,
  * Why this is a higher value than the reply?  Who knows?
  */
 static
-guint c_dissect_msg_poolop(proto_tree *root,
+unsigned c_dissect_msg_poolop(proto_tree *root,
 			   tvbuff_t *tvb,
-			   guint front_len, guint middle_len _U_, guint data_len _U_,
+			   unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			   c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	gint32 pool;
+	unsigned off = 0;
+	int32_t pool;
 	c_poolop_type type;
 	c_str name;
 
@@ -5401,15 +5407,15 @@ guint c_dissect_msg_poolop(proto_tree *root,
 
 /** Monitor Command 0x0032 */
 static
-guint c_dissect_msg_mon_cmd(proto_tree *root,
+unsigned c_dissect_msg_mon_cmd(proto_tree *root,
 			    tvbuff_t *tvb,
-			    guint front_len, guint middle_len _U_, guint data_len _U_,
+			    unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			    c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree, *subtree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 	c_str str;
 
 	/* ceph:/src/messages/MMonCommand.h */
@@ -5447,15 +5453,15 @@ guint c_dissect_msg_mon_cmd(proto_tree *root,
 
 /** Mon Command ACK 0x0033 */
 static
-guint c_dissect_msg_mon_cmd_ack(proto_tree *root,
+unsigned c_dissect_msg_mon_cmd_ack(proto_tree *root,
 				tvbuff_t *tvb,
-				guint front_len, guint middle_len _U_, guint data_len,
+				unsigned front_len, unsigned middle_len _U_, unsigned data_len,
 				c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree, *subtree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 
 	/* ceph:/src/messages/MMonCommandAck.h */
 
@@ -5497,15 +5503,15 @@ guint c_dissect_msg_mon_cmd_ack(proto_tree *root,
 
 /** Get Pool Stats 0x003A */
 static
-guint c_dissect_msg_poolstats(proto_tree *root,
+unsigned c_dissect_msg_poolstats(proto_tree *root,
 			      tvbuff_t *tvb,
-			      guint front_len, guint middle_len _U_, guint data_len _U_,
+			      unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			      c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 	c_str str;
 
 	/* ceph:/src/messages/MGetPoolStats.h */
@@ -5536,15 +5542,15 @@ guint c_dissect_msg_poolstats(proto_tree *root,
 
 /** Pool Stats Reply 0x003B */
 static
-guint c_dissect_msg_poolstatsreply(proto_tree *root,
+unsigned c_dissect_msg_poolstatsreply(proto_tree *root,
 				   tvbuff_t *tvb,
-				   guint front_len, guint middle_len _U_, guint data_len _U_,
+				   unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				   c_pkt_data *data)
 {
 	proto_item *ti, *ti2;
 	proto_tree *tree, *subtree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 	c_str str;
 	c_encoded encstat;
 
@@ -5596,12 +5602,12 @@ guint c_dissect_msg_poolstatsreply(proto_tree *root,
 
 /** Monitor Global ID 0x003C */
 static
-guint c_dissect_msg_mon_globalid(proto_tree *root,
+unsigned c_dissect_msg_mon_globalid(proto_tree *root,
 				 tvbuff_t *tvb,
-				 guint front_len _U_, guint middle_len _U_, guint data_len _U_,
+				 unsigned front_len _U_, unsigned middle_len _U_, unsigned data_len _U_,
 				 c_pkt_data *data)
 {
-	guint off = 0;
+	unsigned off = 0;
 
 	/* ceph:/src/messages/MMonGlobalID.h */
 
@@ -5617,15 +5623,15 @@ guint c_dissect_msg_mon_globalid(proto_tree *root,
 
 /** Monitor Election 0x0041 */
 static
-guint c_dissect_msg_mon_election(proto_tree *root,
+unsigned c_dissect_msg_mon_election(proto_tree *root,
 				 tvbuff_t *tvb,
-				 guint front_len, guint middle_len _U_, guint data_len _U_,
+				 unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				 c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 	c_mon_election_type type;
 
 	/* ceph:/src/messages/MMonElection.h */
@@ -5682,16 +5688,16 @@ guint c_dissect_msg_mon_election(proto_tree *root,
 
 /** Monitor Paxos 0x0042 */
 static
-guint c_dissect_msg_mon_paxos(proto_tree *root,
+unsigned c_dissect_msg_mon_paxos(proto_tree *root,
 			      tvbuff_t *tvb,
-			      guint front_len, guint middle_len _U_, guint data_len _U_,
+			      unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			      c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint32 i;
-	guint64 pn;
+	unsigned off = 0;
+	uint32_t i;
+	uint64_t pn;
 	c_mon_paxos_op op;
 
 	/* ceph:/src/messages/MMonPaxos.h */
@@ -5757,7 +5763,7 @@ guint c_dissect_msg_mon_paxos(proto_tree *root,
 	{
 		proto_item *ti2;
 		proto_tree *subtree;
-		guint64 ver;
+		uint64_t ver;
 
 		ti2 = proto_tree_add_item(tree, hf_msg_mon_paxos_value, tvb, off, -1, ENC_NA);
 		subtree = proto_item_add_subtree(ti2, ett_msg_mon_paxos_value);
@@ -5783,15 +5789,15 @@ guint c_dissect_msg_mon_paxos(proto_tree *root,
 
 /** Monitor Probe 0x0043 */
 static
-guint c_dissect_msg_mon_probe(proto_tree *root,
+unsigned c_dissect_msg_mon_probe(proto_tree *root,
 			     tvbuff_t *tvb,
-			     guint front_len, guint middle_len _U_, guint data_len _U_,
+			     unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			     c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 	c_mon_probe_type type;
 	c_str name;
 
@@ -5850,14 +5856,14 @@ guint c_dissect_msg_mon_probe(proto_tree *root,
 
 /** OSD Ping (0x0046) */
 static
-guint c_dissect_msg_osd_ping(proto_tree *root,
+unsigned c_dissect_msg_osd_ping(proto_tree *root,
 			     tvbuff_t *tvb,
-			     guint front_len, guint middle_len _U_, guint data_len _U_,
+			     unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			     c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
+	unsigned off = 0;
 	c_osd_ping_op op;
 
 	/* ceph:/src/messages/MOSDPing.h */
@@ -5879,7 +5885,7 @@ guint c_dissect_msg_osd_ping(proto_tree *root,
 			    tvb, off, 4, ENC_LITTLE_ENDIAN);
 	off += 4;
 
-	op = (c_osd_ping_op)tvb_get_guint8(tvb, off);
+	op = (c_osd_ping_op)tvb_get_uint8(tvb, off);
 	proto_tree_add_item(tree, hf_msg_osd_ping_op,
 			    tvb, off, 1, ENC_LITTLE_ENDIAN);
 	off += 1;
@@ -5899,15 +5905,15 @@ guint c_dissect_msg_osd_ping(proto_tree *root,
 
 /** OSD Boot (0x0047) */
 static
-guint c_dissect_msg_osd_boot(proto_tree *root,
+unsigned c_dissect_msg_osd_boot(proto_tree *root,
 			     tvbuff_t *tvb,
-			     guint front_len, guint middle_len _U_, guint data_len _U_,
+			     unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			     c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 
 	/* ceph:/src/messages/MOSDBoot.h */
 
@@ -5953,15 +5959,15 @@ guint c_dissect_msg_osd_boot(proto_tree *root,
 
 /** PG Stats (0x0057) */
 static
-guint c_dissect_msg_pgstats(proto_tree *root,
+unsigned c_dissect_msg_pgstats(proto_tree *root,
 			    tvbuff_t *tvb,
-			    guint front_len, guint middle_len _U_, guint data_len _U_,
+			    unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			    c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 
 	/* ceph:/src/messages/MPGStats.h */
 
@@ -6007,15 +6013,15 @@ guint c_dissect_msg_pgstats(proto_tree *root,
 
 /** OSD PG Create (0x0059) */
 static
-guint c_dissect_msg_osd_pg_create(proto_tree *root,
+unsigned c_dissect_msg_osd_pg_create(proto_tree *root,
 				  tvbuff_t *tvb,
-				  guint front_len, guint middle_len _U_, guint data_len _U_,
+				  unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 				  c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 
 	/* ceph:/src/messages/MOSDPGCreate.h */
 
@@ -6050,17 +6056,17 @@ guint c_dissect_msg_osd_pg_create(proto_tree *root,
 
 /** Client Caps 0x0310 */
 static
-guint c_dissect_msg_client_caps(proto_tree *root,
+unsigned c_dissect_msg_client_caps(proto_tree *root,
 				tvbuff_t *tvb,
-				guint front_len, guint middle_len, guint data_len _U_,
+				unsigned front_len, unsigned middle_len, unsigned data_len _U_,
 				c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
+	unsigned off = 0;
 	c_cap_op_type op;
-	guint64 inode, relam;
-	guint32 snap_trace_len, xattr_len;
+	uint64_t inode, relam;
+	uint32_t snap_trace_len, xattr_len;
 
 	/* ceph:/src/messages/MClientCaps.h */
 
@@ -6193,15 +6199,15 @@ guint c_dissect_msg_client_caps(proto_tree *root,
 
 /** Client Cap Release 0x0310 */
 static
-guint c_dissect_msg_client_caprel(proto_tree *root,
+unsigned c_dissect_msg_client_caprel(proto_tree *root,
 				  tvbuff_t *tvb,
-				  guint front_len, guint middle_len, guint data_len _U_,
+				  unsigned front_len, unsigned middle_len, unsigned data_len _U_,
 				  c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree, *subtree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 
 	/* ceph:/src/messages/MClientCapRelease.h */
 
@@ -6242,17 +6248,17 @@ guint c_dissect_msg_client_caprel(proto_tree *root,
 
 /** Time Check 0x0600 */
 static
-guint c_dissect_msg_timecheck(proto_tree *root,
+unsigned c_dissect_msg_timecheck(proto_tree *root,
 			      tvbuff_t *tvb,
-			      guint front_len, guint middle_len _U_, guint data_len _U_,
+			      unsigned front_len, unsigned middle_len _U_, unsigned data_len _U_,
 			      c_pkt_data *data)
 {
 	proto_item *ti;
 	proto_tree *tree;
-	guint off = 0;
-	guint32 i;
+	unsigned off = 0;
+	uint32_t i;
 	c_timecheck_op op;
-	guint64 epoch, round;
+	uint64_t epoch, round;
 
 	/* ceph:/src/messages/MTimeCheck.h */
 
@@ -6361,15 +6367,15 @@ guint c_dissect_msg_timecheck(proto_tree *root,
  * node types.
  */
 static
-guint c_dissect_msg(proto_tree *tree,
-		    tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_msg(proto_tree *tree,
+		    tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	tvbuff_t *subtvb;
 	proto_item *ti;
 	proto_tree *subtree;
 	c_msg_type type;
-	guint32 front_len, middle_len, data_len;
-	guint size, parsedsize;
+	uint32_t front_len, middle_len, data_len;
+	unsigned size, parsedsize;
 
 	front_len  = tvb_get_letohl(tvb, off + C_OFF_HEAD1 + 0);
 	middle_len = tvb_get_letohl(tvb, off + C_OFF_HEAD1 + 4);
@@ -6572,8 +6578,8 @@ guint c_dissect_msg(proto_tree *tree,
 
 /** Dissect a connection request. */
 static
-guint c_dissect_connect(proto_tree *root,
-			tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_connect(proto_tree *root,
+			tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	/* From ceph:/src/include/msgr.h
 	struct ceph_msg_connect {
@@ -6590,7 +6596,7 @@ guint c_dissect_connect(proto_tree *root,
 
 	proto_item *ti;
 	proto_tree *tree;
-	guint32 authsize;
+	uint32_t authsize;
 
 	authsize = tvb_get_letohl(tvb, off+28);
 
@@ -6630,8 +6636,8 @@ guint c_dissect_connect(proto_tree *root,
 
 /** Dissect a connection reply. */
 static
-guint c_dissect_connect_reply(proto_tree *root,
-			      tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_connect_reply(proto_tree *root,
+			      tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	/* From ceph:/src/include/msgr.h
 	struct ceph_msg_connect_reply {
@@ -6647,7 +6653,7 @@ guint c_dissect_connect_reply(proto_tree *root,
 
 	proto_item *ti;
 	proto_tree *tree;
-	guint32 authsize;
+	uint32_t authsize;
 
 	authsize = tvb_get_letohl(tvb, off+C_CONNECT_REPLY_OFF_OFFLEN);
 
@@ -6687,10 +6693,10 @@ guint c_dissect_connect_reply(proto_tree *root,
  * This handles the data that is sent before the protocol is actually started.
  */
 static
-guint c_dissect_new(proto_tree *tree,
-		    tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_new(proto_tree *tree,
+		    tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
-	gint bansize;
+	int bansize;
 
 	/*
 		Since the packet is larger than the max banner length we can read it
@@ -6725,11 +6731,11 @@ guint c_dissect_new(proto_tree *tree,
 }
 
 static
-gboolean c_unknowntagnext(tvbuff_t *tvb, guint off)
+bool c_unknowntagnext(tvbuff_t *tvb, unsigned off)
 {
-	if (!tvb_bytes_exist(tvb, off, 1)) return FALSE;
+	if (!tvb_bytes_exist(tvb, off, 1)) return false;
 
-	return (try_val_to_str_ext(tvb_get_guint8(tvb, off), &c_tag_strings_ext) == NULL);
+	return (try_val_to_str_ext(tvb_get_uint8(tvb, off), &c_tag_strings_ext) == NULL);
 }
 
 /* Dissect a MSGR message.
@@ -6737,14 +6743,14 @@ gboolean c_unknowntagnext(tvbuff_t *tvb, guint off)
  * MSGR is Ceph's outer message protocol.
  */
 static
-guint c_dissect_msgr(proto_tree *tree,
-		     tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_msgr(proto_tree *tree,
+		     tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti;
 	c_tag tag;
-	guint unknowntagcount = 1;
+	unsigned unknowntagcount = 1;
 
-	tag = (c_tag)tvb_get_guint8(tvb, off);
+	tag = (c_tag)tvb_get_uint8(tvb, off);
 	ti = proto_tree_add_item(tree, hf_tag, tvb, off, 1, ENC_LITTLE_ENDIAN);
 	off += 1;
 
@@ -6833,8 +6839,8 @@ guint c_dissect_msgr(proto_tree *tree,
 /* Dissect a Protocol Data Unit
  */
 static
-guint c_dissect_pdu(proto_tree *root,
-		    tvbuff_t *tvb, guint off, c_pkt_data *data)
+unsigned c_dissect_pdu(proto_tree *root,
+		    tvbuff_t *tvb, unsigned off, c_pkt_data *data)
 {
 	proto_item *ti, *tif;
 	proto_tree *tree, *tree_filter;
@@ -6895,7 +6901,7 @@ guint c_dissect_pdu(proto_tree *root,
 }
 
 static
-guint c_pdu_end(tvbuff_t *tvb, packet_info *pinfo, guint off, c_pkt_data *data)
+unsigned c_pdu_end(tvbuff_t *tvb, packet_info *pinfo, unsigned off, c_pkt_data *data)
 {
 	c_inet	af;
 
@@ -6945,7 +6951,7 @@ guint c_pdu_end(tvbuff_t *tvb, packet_info *pinfo, guint off, c_pkt_data *data)
 	case C_STATE_SEQ:
 		return off + 8;
 	default:
-		switch ((c_tag)tvb_get_guint8(tvb, off++))
+		switch ((c_tag)tvb_get_uint8(tvb, off++))
 		{
 		case C_TAG_READY:
 		case C_TAG_RESETSESSION:
@@ -6966,10 +6972,9 @@ guint c_pdu_end(tvbuff_t *tvb, packet_info *pinfo, guint off, c_pkt_data *data)
 				   + tvb_get_letohl(tvb, off+C_CONNECT_REPLY_OFF_OFFLEN);
 		case C_TAG_CLOSE:
 			return off;
-			break;
 		case C_TAG_MSG:
 		{
-			guint32 front_len, middle_len, data_len;
+			uint32_t front_len, middle_len, data_len;
 
 			if (!tvb_bytes_exist(tvb, off+C_OFF_HEAD1, C_SIZE_HEAD1))
 				return C_NEEDMORE;
@@ -7000,7 +7005,7 @@ static
 int dissect_ceph(tvbuff_t *tvb, packet_info *pinfo,
 		 proto_tree *tree, void *pdata _U_)
 {
-	guint off, offt, offt2;
+	unsigned off, offt, offt2;
 	c_pkt_data data;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "Ceph");
@@ -7070,12 +7075,12 @@ int dissect_ceph_old(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
 }
 
 static
-gboolean dissect_ceph_heur(tvbuff_t *tvb, packet_info *pinfo,
+bool dissect_ceph_heur(tvbuff_t *tvb, packet_info *pinfo,
 			   proto_tree *tree, void *data)
 {
 	conversation_t *conv;
 
-	if (tvb_memeql(tvb, 0, C_BANNER, C_BANNER_SIZE_MIN) != 0) return FALSE;
+	if (tvb_memeql(tvb, 0, C_BANNER, C_BANNER_SIZE_MIN) != 0) return false;
 
 	/*** It's ours! ***/
 
@@ -7084,7 +7089,7 @@ gboolean dissect_ceph_heur(tvbuff_t *tvb, packet_info *pinfo,
 	conversation_set_dissector(conv, ceph_handle);
 
 	dissect_ceph(tvb, pinfo, tree, data);
-	return TRUE;
+	return true;
 }
 
 /* Register the protocol with Wireshark.
@@ -10326,7 +10331,7 @@ proto_register_ceph(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_ceph,
 		&ett_data,
 		&ett_str,

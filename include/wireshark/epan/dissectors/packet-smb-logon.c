@@ -19,64 +19,64 @@
 
 void proto_register_smb_logon(void);
 
-static int proto_smb_logon = -1;
-static int hf_command = -1;
-static int hf_computer_name = -1;
-static int hf_unicode_computer_name = -1;
-static int hf_server_name = -1;
-static int hf_user_name = -1;
-static int hf_domain_name = -1;
-static int hf_server_dns_name = -1;
-static int hf_forest_dns_name = -1;
-static int hf_domain_dns_name = -1;
-static int hf_mailslot_name = -1;
-static int hf_pdc_name = -1;
-static int hf_unicode_pdc_name = -1;
-static int hf_script_name = -1;
-static int hf_nt_version = -1;
-static int hf_lmnt_token = -1;
-static int hf_lm_token = -1;
-static int hf_major_version = -1;
-static int hf_minor_version = -1;
-static int hf_os_version = -1;
-static int hf_signature = -1;
-static int hf_date_time = -1;
-static int hf_update_type = -1;
-static int hf_request_count = -1;
-static int hf_account_control = -1;
-static int hf_flags_autolock = -1;
-static int hf_flags_expire = -1;
-static int hf_flags_server_trust = -1;
-static int hf_flags_workstation_trust = -1;
-static int hf_flags_interdomain_trust = -1;
-static int hf_flags_mns_user = -1;
-static int hf_flags_normal_user = -1;
-static int hf_flags_temp_dup_user = -1;
-static int hf_flags_password_required = -1;
-static int hf_flags_homedir_required = -1;
-static int hf_flags_enabled = -1;
-static int hf_domain_sid_size = -1;
-static int hf_low_serial = -1;
-static int hf_pulse = -1;
-static int hf_random = -1;
-static int hf_db_count = -1;
-static int hf_db_index = -1;
-static int hf_large_serial = -1;
-static int hf_nt_date_time = -1;
+static int proto_smb_logon;
+static int hf_command;
+static int hf_computer_name;
+static int hf_unicode_computer_name;
+static int hf_server_name;
+static int hf_user_name;
+static int hf_domain_name;
+static int hf_server_dns_name;
+static int hf_forest_dns_name;
+static int hf_domain_dns_name;
+static int hf_mailslot_name;
+static int hf_pdc_name;
+static int hf_unicode_pdc_name;
+static int hf_script_name;
+static int hf_nt_version;
+static int hf_lmnt_token;
+static int hf_lm_token;
+static int hf_major_version;
+static int hf_minor_version;
+static int hf_os_version;
+static int hf_signature;
+static int hf_date_time;
+static int hf_update_type;
+static int hf_request_count;
+static int hf_account_control;
+static int hf_flags_autolock;
+static int hf_flags_expire;
+static int hf_flags_server_trust;
+static int hf_flags_workstation_trust;
+static int hf_flags_interdomain_trust;
+static int hf_flags_mns_user;
+static int hf_flags_normal_user;
+static int hf_flags_temp_dup_user;
+static int hf_flags_password_required;
+static int hf_flags_homedir_required;
+static int hf_flags_enabled;
+static int hf_domain_sid_size;
+static int hf_low_serial;
+static int hf_pulse;
+static int hf_random;
+static int hf_db_count;
+static int hf_db_index;
+static int hf_large_serial;
+static int hf_nt_date_time;
 
-static int hf_unknown8 = -1;
-static int hf_unknown32 = -1;
+static int hf_unknown8;
+static int hf_unknown32;
 
-static int hf_domain_guid = -1;
-static int hf_server_ip = -1;
+static int hf_domain_guid;
+static int hf_server_ip;
 
-static int hf_server_site_name = -1;
-static int hf_client_site_name = -1;
-static int hf_data = -1;
+static int hf_server_site_name;
+static int hf_client_site_name;
+static int hf_data;
 
-static int ett_smb_logon = -1;
-static int ett_smb_account_flags = -1;
-static int ett_smb_db_info = -1;
+static int ett_smb_logon;
+static int ett_smb_account_flags;
+static int ett_smb_db_info;
 
 #define ACC_FLAG_AUTO_LOCKED        0x00000400
 #define ACC_FLAG_EXPIRE             0x00000200
@@ -165,7 +165,7 @@ dissect_account_control(tvbuff_t *tvb, proto_tree *tree, int offset)
 static int
 display_LM_token(tvbuff_t *tvb, int offset, proto_tree *tree)
 {
-	guint16 Token;
+	uint16_t Token;
 
 	Token = tvb_get_letohs(tvb, offset);
 
@@ -192,7 +192,7 @@ display_LM_token(tvbuff_t *tvb, int offset, proto_tree *tree)
 static int
 display_LMNT_token(tvbuff_t *tvb, int offset, proto_tree *tree)
 {
-	guint16 Token;
+	uint16_t Token;
 
 	Token = tvb_get_letohs(tvb, offset);
 
@@ -420,10 +420,10 @@ static int
 dissect_announce_change(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset)
 {
 	/*** 0x0A ( Announce change to UAS or SAM ) ***/
-	guint32 info_count;
+	uint32_t info_count;
 	proto_tree *info_tree;
-	guint32 db_index;
-	guint32 domain_sid_size;
+	uint32_t db_index;
+	uint32_t domain_sid_size;
 
 	/* low serial number */
 	proto_tree_add_item(tree, hf_low_serial, tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -479,8 +479,9 @@ dissect_announce_change(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
 			    ENC_LITTLE_ENDIAN);
 			offset += 8;
 
-			offset = dissect_nt_64bit_time(tvb, info_tree, offset,
-			    hf_nt_date_time);
+			dissect_nttime(tvb, info_tree, offset,
+			    hf_nt_date_time, ENC_LITTLE_ENDIAN);
+			offset += 8;
 
 			info_count--;
 		}
@@ -520,7 +521,7 @@ dissect_smb_sam_logon_req(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, i
 {
 	/* Netlogon command 0x12 - decode the SAM logon request from client */
 
-	guint32 domain_sid_size;
+	uint32_t domain_sid_size;
 
 	/* Request count */
 	proto_tree_add_item(tree, hf_request_count, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -883,7 +884,7 @@ static int
 dissect_smb_logon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	int        offset = 0;
-	guint8     cmd;
+	uint8_t    cmd;
 	proto_tree *smb_logon_tree = NULL;
 	proto_item *item = NULL;
 
@@ -891,7 +892,7 @@ dissect_smb_logon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 	col_clear(pinfo->cinfo, COL_INFO);
 
 	/* get the Command field */
-	cmd = tvb_get_guint8(tvb, offset);
+	cmd = tvb_get_uint8(tvb, offset);
 
 	col_add_str(pinfo->cinfo, COL_INFO, val_to_str(cmd, commands, "Unknown Command:%02x") );
 
@@ -1127,7 +1128,7 @@ proto_register_smb_logon( void)
 			  NULL, 0, NULL, HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_smb_logon,
 		&ett_smb_account_flags,
 		&ett_smb_db_info

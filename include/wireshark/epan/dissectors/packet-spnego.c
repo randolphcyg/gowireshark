@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-spnego.c                                                            */
-/* asn2wrs.py -b -L -p spnego -c ./spnego.cnf -s ./packet-spnego-template -D . -O ../.. spnego.asn */
+/* asn2wrs.py -b -q -L -p spnego -c ./spnego.cnf -s ./packet-spnego-template -D . -O ../.. spnego.asn */
 
 /* packet-spnego-template.c
  * Routines for the simple and protected GSS-API negotiation mechanism
@@ -30,6 +30,7 @@
 #include <epan/conversation.h>
 #include <epan/proto_data.h>
 #include <wsutil/wsgcrypt.h>
+#include <wsutil/array.h>
 #include "packet-gssapi.h"
 #include "packet-kerberos.h"
 #include "packet-ber.h"
@@ -44,77 +45,80 @@ void proto_reg_handoff_spnego(void);
 static dissector_handle_t spnego_wrap_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_spnego = -1;
-static int proto_spnego_krb5 = -1;
+static int proto_spnego;
+static int proto_spnego_krb5;
 
 
-static int hf_spnego_wraptoken = -1;
+static int hf_spnego_wraptoken;
 static int hf_spnego_krb5_oid;
-static int hf_spnego_krb5 = -1;
-static int hf_spnego_krb5_tok_id = -1;
-static int hf_spnego_krb5_sgn_alg = -1;
-static int hf_spnego_krb5_seal_alg = -1;
-static int hf_spnego_krb5_snd_seq = -1;
-static int hf_spnego_krb5_sgn_cksum = -1;
-static int hf_spnego_krb5_confounder = -1;
-static int hf_spnego_krb5_filler = -1;
-static int hf_spnego_krb5_cfx_flags = -1;
-static int hf_spnego_krb5_cfx_flags_01 = -1;
-static int hf_spnego_krb5_cfx_flags_02 = -1;
-static int hf_spnego_krb5_cfx_flags_04 = -1;
-static int hf_spnego_krb5_cfx_ec = -1;
-static int hf_spnego_krb5_cfx_rrc = -1;
-static int hf_spnego_krb5_cfx_seq = -1;
+static int hf_spnego_krb5;
+static int hf_spnego_krb5_tok_id;
+static int hf_spnego_krb5_sgn_alg;
+static int hf_spnego_krb5_seal_alg;
+static int hf_spnego_krb5_snd_seq;
+static int hf_spnego_krb5_sgn_cksum;
+static int hf_spnego_krb5_confounder;
+static int hf_spnego_krb5_filler;
+static int hf_spnego_krb5_cfx_flags;
+static int hf_spnego_krb5_cfx_flags_01;
+static int hf_spnego_krb5_cfx_flags_02;
+static int hf_spnego_krb5_cfx_flags_04;
+static int hf_spnego_krb5_cfx_ec;
+static int hf_spnego_krb5_cfx_rrc;
+static int hf_spnego_krb5_cfx_seq;
 
-static int hf_spnego_negTokenInit = -1;           /* T_negTokenInit */
-static int hf_spnego_negTokenTarg = -1;           /* NegTokenTarg */
-static int hf_spnego_MechTypeList_item = -1;      /* MechType */
-static int hf_spnego_mechTypes = -1;              /* MechTypeList */
-static int hf_spnego_reqFlags = -1;               /* ContextFlags */
-static int hf_spnego_mechToken = -1;              /* T_mechToken */
-static int hf_spnego_mechListMIC = -1;            /* OCTET_STRING */
-static int hf_spnego_hintName = -1;               /* GeneralString */
-static int hf_spnego_hintAddress = -1;            /* OCTET_STRING */
-static int hf_spnego_mechToken_01 = -1;           /* OCTET_STRING */
-static int hf_spnego_negHints = -1;               /* NegHints */
-static int hf_spnego_negResult = -1;              /* T_negResult */
-static int hf_spnego_supportedMech = -1;          /* T_supportedMech */
-static int hf_spnego_responseToken = -1;          /* T_responseToken */
-static int hf_spnego_mechListMIC_01 = -1;         /* T_mechListMIC */
-static int hf_spnego_thisMech = -1;               /* MechType */
-static int hf_spnego_innerContextToken = -1;      /* InnerContextToken */
+static int hf_spnego_negTokenInit;                /* T_negTokenInit */
+static int hf_spnego_negTokenTarg;                /* NegTokenTarg */
+static int hf_spnego_MechTypeList_item;           /* MechType */
+static int hf_spnego_mechTypes;                   /* MechTypeList */
+static int hf_spnego_reqFlags;                    /* ContextFlags */
+static int hf_spnego_mechToken;                   /* T_mechToken */
+static int hf_spnego_mechListMIC;                 /* OCTET_STRING */
+static int hf_spnego_hintName;                    /* GeneralString */
+static int hf_spnego_hintAddress;                 /* OCTET_STRING */
+static int hf_spnego_mechToken_01;                /* OCTET_STRING */
+static int hf_spnego_negHints;                    /* NegHints */
+static int hf_spnego_negResult;                   /* T_negResult */
+static int hf_spnego_supportedMech;               /* T_supportedMech */
+static int hf_spnego_responseToken;               /* T_responseToken */
+static int hf_spnego_mechListMIC_01;              /* T_mechListMIC */
+static int hf_spnego_thisMech;                    /* MechType */
+static int hf_spnego_innerContextToken;           /* InnerContextToken */
+static int hf_spnego_target_realm;                /* T_target_realm */
+static int hf_spnego_cookie;                      /* OCTET_STRING */
 /* named bits */
-static int hf_spnego_ContextFlags_delegFlag = -1;
-static int hf_spnego_ContextFlags_mutualFlag = -1;
-static int hf_spnego_ContextFlags_replayFlag = -1;
-static int hf_spnego_ContextFlags_sequenceFlag = -1;
-static int hf_spnego_ContextFlags_anonFlag = -1;
-static int hf_spnego_ContextFlags_confFlag = -1;
-static int hf_spnego_ContextFlags_integFlag = -1;
+static int hf_spnego_ContextFlags_delegFlag;
+static int hf_spnego_ContextFlags_mutualFlag;
+static int hf_spnego_ContextFlags_replayFlag;
+static int hf_spnego_ContextFlags_sequenceFlag;
+static int hf_spnego_ContextFlags_anonFlag;
+static int hf_spnego_ContextFlags_confFlag;
+static int hf_spnego_ContextFlags_integFlag;
 
 /* Global variables */
 static const char *MechType_oid;
 gssapi_oid_value *next_level_value;
-gboolean saw_mechanism = FALSE;
+bool saw_mechanism;
 
 
 /* Initialize the subtree pointers */
-static gint ett_spnego = -1;
-static gint ett_spnego_wraptoken = -1;
-static gint ett_spnego_krb5 = -1;
-static gint ett_spnego_krb5_cfx_flags = -1;
+static int ett_spnego;
+static int ett_spnego_wraptoken;
+static int ett_spnego_krb5;
+static int ett_spnego_krb5_cfx_flags;
 
-static gint ett_spnego_NegotiationToken = -1;
-static gint ett_spnego_MechTypeList = -1;
-static gint ett_spnego_NegTokenInit = -1;
-static gint ett_spnego_NegHints = -1;
-static gint ett_spnego_NegTokenInit2 = -1;
-static gint ett_spnego_ContextFlags = -1;
-static gint ett_spnego_NegTokenTarg = -1;
-static gint ett_spnego_InitialContextToken_U = -1;
+static int ett_spnego_NegotiationToken;
+static int ett_spnego_MechTypeList;
+static int ett_spnego_NegTokenInit;
+static int ett_spnego_NegHints;
+static int ett_spnego_NegTokenInit2;
+static int ett_spnego_ContextFlags;
+static int ett_spnego_NegTokenTarg;
+static int ett_spnego_InitialContextToken_U;
+static int ett_spnego_IAKERB_HEADER;
 
-static expert_field ei_spnego_decrypted_keytype = EI_INIT;
-static expert_field ei_spnego_unknown_header = EI_INIT;
+static expert_field ei_spnego_decrypted_keytype;
+static expert_field ei_spnego_unknown_header;
 
 static dissector_handle_t spnego_handle;
 static dissector_handle_t spnego_krb5_handle;
@@ -158,7 +162,7 @@ dissect_spnego_MechType(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_
   if (!saw_mechanism) {
     if (value)
       next_level_value = value;
-    saw_mechanism = TRUE;
+    saw_mechanism = true;
   }
 
 
@@ -175,7 +179,7 @@ dissect_spnego_MechTypeList(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset
 
   conversation_t *conversation;
 
-  saw_mechanism = FALSE;
+  saw_mechanism = false;
 
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
                                       MechTypeList_sequence_of, hf_index, ett_spnego_MechTypeList);
@@ -312,7 +316,7 @@ dissect_spnego_T_supportedMech(bool implicit_tag _U_, tvbuff_t *tvb _U_, int off
 
   conversation_t *conversation;
 
-  saw_mechanism = FALSE;
+  saw_mechanism = false;
 
   offset = dissect_spnego_MechType(implicit_tag, tvb, offset, actx, tree, hf_index);
 
@@ -390,6 +394,7 @@ dissect_spnego_T_mechListMIC(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offse
       call_dissector(value->handle, mechListMIC_tvb, actx->pinfo, tree);
     }
   }
+
 
 
   return offset;
@@ -542,7 +547,61 @@ dissect_spnego_InitialContextToken_U(bool implicit_tag _U_, tvbuff_t *tvb _U_, i
 static int
 dissect_spnego_InitialContextToken(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
-                                      hf_index, BER_CLASS_APP, 0, TRUE, dissect_spnego_InitialContextToken_U);
+                                      hf_index, BER_CLASS_APP, 0, true, dissect_spnego_InitialContextToken_U);
+
+  return offset;
+}
+
+
+
+static int
+dissect_spnego_T_target_realm(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+
+  int8_t ber_class;
+  bool pc;
+  int32_t tag;
+
+  /*
+   * MIT Kerberos sends an IAKERB-HEADER like this:
+   *
+   * <30 2B A1 29 04 27 53 32 2D 57 32 30 31 32 2D 4C 34 2E 53 31 2D 57 32 30>
+   * 0  43: SEQUENCE {
+   * <A1 29 04 27 53 32 2D 57 32 30 31 32 2D 4C 34 2E 53 31 2D 57 32 30 31 32>
+   * 2  41:   [1] {
+   * <04 27 53 32 2D 57 32 30 31 32 2D 4C 34 2E 53 31 2D 57 32 30 31 32 2D 4C>
+   * 4  39:     OCTET STRING 'S2-W2012-L4.S1-W2012-L4.W2012R2-L4.BASE'
+   *    :     }
+   *    :   }
+   */
+
+  get_ber_identifier(tvb, offset, &ber_class, &pc, &tag);
+  if (ber_class == BER_CLASS_UNI && pc == false && tag == BER_UNI_TAG_OCTETSTRING) {
+     proto_tree_add_text_internal(tree, tvb, offset, 1,
+                                  "target-realm encoded as OCTET STRING: MIT Kerberos?");
+     offset = dissect_ber_restricted_string(implicit_tag, BER_UNI_TAG_OCTETSTRING,
+                                            actx, tree, tvb, offset, hf_index,
+                                            NULL);
+  } else {
+     offset = dissect_ber_restricted_string(implicit_tag, BER_UNI_TAG_UTF8String,
+                                            actx, tree, tvb, offset, hf_index,
+                                            NULL);
+  }
+
+
+  return offset;
+}
+
+
+static const ber_sequence_t IAKERB_HEADER_sequence[] = {
+  { &hf_spnego_target_realm , BER_CLASS_CON, 1, 0, dissect_spnego_T_target_realm },
+  { &hf_spnego_cookie       , BER_CLASS_CON, 2, BER_FLAGS_OPTIONAL, dissect_spnego_OCTET_STRING },
+  { NULL, 0, 0, 0, NULL }
+};
+
+static int
+dissect_spnego_IAKERB_HEADER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
+                                   IAKERB_HEADER_sequence, hf_index, ett_spnego_IAKERB_HEADER);
 
   return offset;
 }
@@ -561,6 +620,7 @@ dissect_spnego_InitialContextToken(bool implicit_tag _U_, tvbuff_t *tvb _U_, int
 #define KRB_TOKEN_DELETE_SEC_CONTEXT  0x0201
 #define KRB_TOKEN_TGT_REQ             0x0004
 #define KRB_TOKEN_TGT_REP             0x0104
+#define KRB_TOKEN_IAKERB_PROXY        0x0105
 #define KRB_TOKEN_CFX_GETMIC          0x0404
 #define KRB_TOKEN_CFX_WRAP            0x0405
 
@@ -573,8 +633,9 @@ static const value_string spnego_krb5_tok_id_vals[] = {
   { KRB_TOKEN_DELETE_SEC_CONTEXT, "KRB5_GSS_Delete_sec_context" },
   { KRB_TOKEN_TGT_REQ,            "KERB_TGT_REQUEST" },
   { KRB_TOKEN_TGT_REP,            "KERB_TGT_REPLY" },
+  { KRB_TOKEN_IAKERB_PROXY,       "KRB_TOKEN_IAKERB_PROXY" },
   { KRB_TOKEN_CFX_GETMIC,         "KRB_TOKEN_CFX_GetMic" },
-  { KRB_TOKEN_CFX_WRAP,            "KRB_TOKEN_CFX_WRAP" },
+  { KRB_TOKEN_CFX_WRAP,           "KRB_TOKEN_CFX_WRAP" },
   { 0, NULL}
 };
 
@@ -612,11 +673,11 @@ static const value_string spnego_krb5_seal_alg_vals[] = {
 static int
 dissect_spnego_krb5_getmic_base(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree);
 static int
-dissect_spnego_krb5_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, guint16 token_id, gssapi_encrypt_info_t* gssapi_encrypt);
+dissect_spnego_krb5_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, uint16_t token_id, gssapi_encrypt_info_t* gssapi_encrypt);
 static int
 dissect_spnego_krb5_cfx_getmic_base(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree);
 static int
-dissect_spnego_krb5_cfx_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, guint16 token_id, gssapi_encrypt_info_t* gssapi_encrypt);
+dissect_spnego_krb5_cfx_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, uint16_t token_id, gssapi_encrypt_info_t* gssapi_encrypt);
 
 static int
 dissect_spnego_krb5(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
@@ -624,16 +685,16 @@ dissect_spnego_krb5(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
   proto_item *item;
   proto_tree *subtree;
   int offset = 0;
-  guint16 token_id;
+  uint16_t token_id;
   const char *oid;
   tvbuff_t *krb5_tvb;
-  gint8 ber_class;
+  int8_t ber_class;
   bool pc, ind = 0;
-  gint32 tag;
-  guint32 len;
+  int32_t tag;
+  uint32_t len;
   gssapi_encrypt_info_t* encrypt_info = (gssapi_encrypt_info_t*)data;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
   item = proto_tree_add_item(tree, hf_spnego_krb5, tvb, offset, -1, ENC_NA);
 
@@ -685,7 +746,7 @@ dissect_spnego_krb5(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
          */
 
         /* Next, the OID */
-        offset=dissect_ber_object_identifier_str(FALSE, &asn1_ctx, subtree, tvb, offset, hf_spnego_krb5_oid, &oid);
+        offset=dissect_ber_object_identifier_str(false, &asn1_ctx, subtree, tvb, offset, hf_spnego_krb5_oid, &oid);
 
         token_id = tvb_get_letohs(tvb, offset);
         proto_tree_add_uint(subtree, hf_spnego_krb5_tok_id, tvb, offset, 2, token_id);
@@ -700,7 +761,7 @@ dissect_spnego_krb5(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
          * No token ID - just dissect as a Kerberos message and
          * return.
          */
-        dissect_kerberos_main(tvb, pinfo, subtree, FALSE, NULL);
+        dissect_kerberos_main(tvb, pinfo, subtree, false, NULL);
         return tvb_captured_length(tvb);
 
       default:
@@ -720,17 +781,17 @@ dissect_spnego_krb5(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
   switch (token_id) {
 
     case KRB_TOKEN_TGT_REQ:
-       offset = dissect_kerberos_TGT_REQ(FALSE, tvb, offset, &asn1_ctx, subtree, -1);
+       offset = dissect_kerberos_TGT_REQ(false, tvb, offset, &asn1_ctx, subtree, -1);
        break;
     case KRB_TOKEN_TGT_REP:
-       offset = dissect_kerberos_TGT_REP(FALSE, tvb, offset, &asn1_ctx, subtree, -1);
+       offset = dissect_kerberos_TGT_REP(false, tvb, offset, &asn1_ctx, subtree, -1);
        break;
 
     case KRB_TOKEN_AP_REQ:
     case KRB_TOKEN_AP_REP:
     case KRB_TOKEN_AP_ERR:
       krb5_tvb = tvb_new_subset_remaining(tvb, offset);
-      offset += dissect_kerberos_main(krb5_tvb, pinfo, subtree, FALSE, NULL);
+      offset += dissect_kerberos_main(krb5_tvb, pinfo, subtree, false, NULL);
       break;
 
     case KRB_TOKEN_GETMIC:
@@ -753,6 +814,11 @@ dissect_spnego_krb5(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
       offset = dissect_spnego_krb5_cfx_wrap_base(tvb, offset, pinfo, subtree, token_id, encrypt_info);
       break;
 
+    case KRB_TOKEN_IAKERB_PROXY:
+      offset = dissect_spnego_IAKERB_HEADER(false, tvb, offset, &asn1_ctx, subtree, -1);
+      krb5_tvb = tvb_new_subset_remaining(tvb, offset);
+      offset += dissect_kerberos_main(krb5_tvb, pinfo, subtree, false, NULL);
+      break;
     default:
 
       break;
@@ -776,15 +842,15 @@ dissect_spnego_krb5(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 #endif
 
 static int
-arcfour_mic_key(const guint8 *key_data, size_t key_size, int key_type,
-                const guint8 *cksum_data, size_t cksum_size,
-                guint8 *key6_data)
+arcfour_mic_key(const uint8_t *key_data, size_t key_size, int key_type,
+                const uint8_t *cksum_data, size_t cksum_size,
+                uint8_t *key6_data)
 {
-  guint8 k5_data[HASH_MD5_LENGTH];
-  guint8 T[4] = { 0 };
+  uint8_t k5_data[HASH_MD5_LENGTH];
+  uint8_t T[4] = { 0 };
 
   if (key_type == KEYTYPE_ARCFOUR_56) {
-    guint8 L40[14] = "fortybits";
+    uint8_t L40[14] = "fortybits";
     memcpy(L40 + 10, T, sizeof(T));
     if (ws_hmac_buffer(GCRY_MD_MD5, k5_data, L40, 14, key_data, key_size)) {
       return 0;
@@ -821,19 +887,19 @@ usage2arcfour(int usage)
 }
 
 static int
-arcfour_mic_cksum(guint8 *key_data, int key_length,
+arcfour_mic_cksum(uint8_t *key_data, int key_length,
                   unsigned int usage,
-                  guint8 sgn_cksum[8],
-                  const guint8 *v1, size_t l1,
-                  const guint8 *v2, size_t l2,
-                  const guint8 *v3, size_t l3)
+                  uint8_t sgn_cksum[8],
+                  const uint8_t *v1, size_t l1,
+                  const uint8_t *v2, size_t l2,
+                  const uint8_t *v3, size_t l3)
 {
-  static const guint8 signature[] = "signaturekey";
-  guint8 ksign_c[HASH_MD5_LENGTH];
-  guint8 t[4];
-  guint8 digest[HASH_MD5_LENGTH];
+  static const uint8_t signature[] = "signaturekey";
+  uint8_t ksign_c[HASH_MD5_LENGTH];
+  uint8_t t[4];
+  uint8_t digest[HASH_MD5_LENGTH];
   int rc4_usage;
-  guint8 cksum[HASH_MD5_LENGTH];
+  uint8_t cksum[HASH_MD5_LENGTH];
   gcry_md_hd_t md5_handle;
 
   rc4_usage=usage2arcfour(usage);
@@ -868,11 +934,11 @@ arcfour_mic_cksum(guint8 *key_data, int key_length,
  * Verify padding of a gss wrapped message and return its length.
  */
 static int
-gssapi_verify_pad(guint8 *wrapped_data, int wrapped_length,
+gssapi_verify_pad(uint8_t *wrapped_data, int wrapped_length,
                   int datalen,
                   int *padlen)
 {
-  guint8 *pad;
+  uint8_t *pad;
   int padlength;
   int i;
 
@@ -892,16 +958,16 @@ gssapi_verify_pad(guint8 *wrapped_data, int wrapped_length,
 }
 
 static int
-decrypt_arcfour(gssapi_encrypt_info_t* gssapi_encrypt, guint8 *input_message_buffer, guint8 *output_message_buffer,
-                guint8 *key_value, int key_size, int key_type)
+decrypt_arcfour(gssapi_encrypt_info_t* gssapi_encrypt, uint8_t *input_message_buffer, uint8_t *output_message_buffer,
+                uint8_t *key_value, int key_size, int key_type)
 {
-  guint8 Klocaldata[16];
+  uint8_t Klocaldata[16];
   int ret;
   int datalen;
-  guint8 k6_data[16];
-  guint32 SND_SEQ[2];
-  guint8 Confounder[8];
-  guint8 cksum_data[8];
+  uint8_t k6_data[16];
+  uint32_t SND_SEQ[2];
+  uint8_t Confounder[8];
+  uint8_t cksum_data[8];
   int cmp;
   int conf_flag;
   int padlen = 0;
@@ -938,7 +1004,7 @@ decrypt_arcfour(gssapi_encrypt_info_t* gssapi_encrypt, guint8 *input_message_buf
     gcry_cipher_close(rc4_handle);
     return -13;
   }
-  gcry_cipher_decrypt(rc4_handle, (guint8 *)SND_SEQ, 8, NULL, 0);
+  gcry_cipher_decrypt(rc4_handle, (uint8_t *)SND_SEQ, 8, NULL, 0);
   gcry_cipher_close(rc4_handle);
 
   memset(k6_data, 0, sizeof(k6_data));
@@ -951,10 +1017,10 @@ decrypt_arcfour(gssapi_encrypt_info_t* gssapi_encrypt, guint8 *input_message_buf
 
 
   for (i = 0; i < 16; i++)
-    Klocaldata[i] = ((guint8 *)key_value)[i] ^ 0xF0;
+    Klocaldata[i] = ((uint8_t *)key_value)[i] ^ 0xF0;
 
   ret = arcfour_mic_key(Klocaldata,sizeof(Klocaldata),key_type,
-                        (const guint8 *)SND_SEQ, 4,
+                        (const uint8_t *)SND_SEQ, 4,
                         k6_data);
   memset(Klocaldata, 0, sizeof(Klocaldata));
   if (ret) {
@@ -1020,10 +1086,10 @@ decrypt_gssapi_krb_arcfour_wrap(proto_tree *tree _U_, packet_info *pinfo, tvbuff
   int ret;
   enc_key_t *ek;
   int length;
-  const guint8 *original_data;
+  const uint8_t *original_data;
 
-  guint8 *cryptocopy=NULL; /* workaround for pre-0.6.1 heimdal bug */
-  guint8 *output_message_buffer;
+  uint8_t *cryptocopy=NULL; /* workaround for pre-0.6.1 heimdal bug */
+  uint8_t *output_message_buffer;
 
   length=tvb_captured_length(gssapi_encrypt->gssapi_encrypted_tvb);
   original_data=tvb_get_ptr(gssapi_encrypt->gssapi_encrypted_tvb, 0, length);
@@ -1037,8 +1103,8 @@ decrypt_gssapi_krb_arcfour_wrap(proto_tree *tree _U_, packet_info *pinfo, tvbuff
   /* XXX we should only do this for first time, then store somewhere */
   /* XXX We also need to re-read the keytab when the preference changes */
 
-  cryptocopy=(guint8 *)wmem_alloc(pinfo->pool, length);
-  output_message_buffer=(guint8 *)wmem_alloc(pinfo->pool, length);
+  cryptocopy=(uint8_t *)wmem_alloc(pinfo->pool, length);
+  output_message_buffer=(uint8_t *)wmem_alloc(pinfo->pool, length);
 
   for(ek=enc_key_list;ek;ek=ek->next){
     /* shortcircuit and bail out if enctypes are not matching */
@@ -1073,9 +1139,9 @@ decrypt_gssapi_krb_arcfour_wrap(proto_tree *tree _U_, packet_info *pinfo, tvbuff
 
 /* borrowed from heimdal */
 static int
-rrc_rotate(guint8 *data, int len, guint16 rrc, int unrotate)
+rrc_rotate(uint8_t *data, int len, uint16_t rrc, int unrotate)
 {
-  guint8 *tmp, buf[256];
+  uint8_t *tmp, buf[256];
   size_t left;
 
   if (len == 0)
@@ -1091,7 +1157,7 @@ rrc_rotate(guint8 *data, int len, guint16 rrc, int unrotate)
   if (rrc <= sizeof(buf)) {
     tmp = buf;
   } else {
-    tmp = (guint8 *)g_malloc(rrc);
+    tmp = (uint8_t *)g_malloc(rrc);
     if (tmp == NULL)
       return -1;
   }
@@ -1118,13 +1184,13 @@ decrypt_gssapi_krb_cfx_wrap(proto_tree *tree,
                             packet_info *pinfo,
                             tvbuff_t *checksum_tvb,
                             gssapi_encrypt_info_t* gssapi_encrypt,
-                            guint16 ec _U_,
-                            guint16 rrc,
+                            uint16_t ec _U_,
+                            uint16_t rrc,
                             int keytype,
                             unsigned int usage)
 {
-  guint8 *rotated;
-  guint8 *output;
+  uint8_t *rotated;
+  uint8_t *output;
   int datalen;
   tvbuff_t *next_tvb;
 
@@ -1150,13 +1216,13 @@ decrypt_gssapi_krb_cfx_wrap(proto_tree *tree,
 
   datalen = tvb_captured_length(checksum_tvb) + tvb_captured_length(gssapi_encrypt->gssapi_encrypted_tvb);
 
-  rotated = (guint8 *)wmem_alloc(pinfo->pool, datalen);
+  rotated = (uint8_t *)wmem_alloc(pinfo->pool, datalen);
 
   tvb_memcpy(checksum_tvb, rotated, 0, tvb_captured_length(checksum_tvb));
   tvb_memcpy(gssapi_encrypt->gssapi_encrypted_tvb, rotated + tvb_captured_length(checksum_tvb),
              0, tvb_captured_length(gssapi_encrypt->gssapi_encrypted_tvb));
 
-  rrc_rotate(rotated, datalen, rrc, TRUE);
+  rrc_rotate(rotated, datalen, rrc, true);
 
   next_tvb=tvb_new_child_real_data(gssapi_encrypt->gssapi_encrypted_tvb, rotated,
                                    datalen, datalen);
@@ -1165,9 +1231,9 @@ decrypt_gssapi_krb_cfx_wrap(proto_tree *tree,
   output = decrypt_krb5_data(tree, pinfo, usage, next_tvb, keytype, &datalen);
 
   if (output) {
-    guint8 *outdata;
+    uint8_t *outdata;
 
-    outdata = (guint8 *)wmem_memdup(pinfo->pool, output, tvb_captured_length(gssapi_encrypt->gssapi_encrypted_tvb));
+    outdata = (uint8_t *)wmem_memdup(pinfo->pool, output, tvb_captured_length(gssapi_encrypt->gssapi_encrypted_tvb));
 
     gssapi_encrypt->gssapi_decrypted_tvb=tvb_new_child_real_data(gssapi_encrypt->gssapi_encrypted_tvb,
       outdata,
@@ -1186,9 +1252,9 @@ decrypt_gssapi_krb_cfx_wrap(proto_tree *tree,
  * This is for GSSAPI Wrap tokens ...
  */
 static int
-dissect_spnego_krb5_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, guint16 token_id, gssapi_encrypt_info_t* gssapi_encrypt)
+dissect_spnego_krb5_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, uint16_t token_id, gssapi_encrypt_info_t* gssapi_encrypt)
 {
-  guint16 sgn_alg, seal_alg;
+  uint16_t sgn_alg, seal_alg;
 #ifdef HAVE_KERBEROS
   int start_offset=offset;
 #else
@@ -1309,7 +1375,7 @@ dissect_spnego_krb5_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo, pro
 static int
 dissect_spnego_krb5_getmic_base(tvbuff_t *tvb, int offset, packet_info *pinfo _U_, proto_tree *tree)
 {
-  guint16 sgn_alg;
+  uint16_t sgn_alg;
 
   /*
    * The KRB5 blob conforms to RFC1964:
@@ -1372,7 +1438,7 @@ dissect_spnego_krb5_getmic_base(tvbuff_t *tvb, int offset, packet_info *pinfo _U
 static int
 dissect_spnego_krb5_cfx_flags(tvbuff_t *tvb, int offset,
                               proto_tree *spnego_krb5_tree,
-                              guint8 cfx_flags _U_)
+                              uint8_t cfx_flags _U_)
 {
   static int * const flags[] = {
     &hf_spnego_krb5_cfx_flags_04,
@@ -1389,12 +1455,12 @@ dissect_spnego_krb5_cfx_flags(tvbuff_t *tvb, int offset,
  * This is for GSSAPI CFX Wrap tokens ...
  */
 static int
-dissect_spnego_krb5_cfx_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, guint16 token_id _U_, gssapi_encrypt_info_t* gssapi_encrypt)
+dissect_spnego_krb5_cfx_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree, uint16_t token_id _U_, gssapi_encrypt_info_t* gssapi_encrypt)
 {
-  guint8 flags;
-  guint16 ec;
+  uint8_t flags;
+  uint16_t ec;
 #if defined(HAVE_HEIMDAL_KERBEROS) || defined(HAVE_MIT_KERBEROS)
-  guint16 rrc;
+  uint16_t rrc;
 #else
   (void) pinfo;
 #endif
@@ -1409,7 +1475,7 @@ dissect_spnego_krb5_cfx_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo,
 
   /* Now, the sign and seal algorithms ... */
 
-  flags = tvb_get_guint8(tvb, offset);
+  flags = tvb_get_uint8(tvb, offset);
   offset = dissect_spnego_krb5_cfx_flags(tvb, offset, tree, flags);
 
   if (gssapi_encrypt != NULL)
@@ -1437,7 +1503,7 @@ dissect_spnego_krb5_cfx_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo,
   proto_tree_add_item(tree, hf_spnego_krb5_cfx_seq, tvb, offset, 8, ENC_BIG_ENDIAN);
   offset += 8;
 
-  if (gssapi_encrypt == NULL) /* Probably shoudn't happen, but just protect ourselves */
+  if (gssapi_encrypt == NULL) /* Probably shouldn't happen, but just protect ourselves */
     return offset;
 
   /* Checksum of plaintext padded data */
@@ -1478,6 +1544,8 @@ dissect_spnego_krb5_cfx_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo,
 
     returned_offset = offset;
     gssapi_encrypt->gssapi_wrap_tvb = tvb_new_subset_length(tvb, offset,
+            inner_token_len);
+    gssapi_encrypt->gssapi_decrypted_tvb = tvb_new_subset_length(tvb, offset,
             inner_token_len);
 
     offset += inner_token_len;
@@ -1565,7 +1633,7 @@ dissect_spnego_krb5_cfx_wrap_base(tvbuff_t *tvb, int offset, packet_info *pinfo,
 static int
 dissect_spnego_krb5_cfx_getmic_base(tvbuff_t *tvb, int offset, packet_info *pinfo _U_, proto_tree *tree)
 {
-  guint8 flags;
+  uint8_t flags;
   int checksum_size;
 
   /*
@@ -1574,7 +1642,7 @@ dissect_spnego_krb5_cfx_getmic_base(tvbuff_t *tvb, int offset, packet_info *pinf
    *   and so on }
    */
 
-  flags = tvb_get_guint8(tvb, offset);
+  flags = tvb_get_uint8(tvb, offset);
   offset = dissect_spnego_krb5_cfx_flags(tvb, offset, tree, flags);
 
   /* Skip the filler */
@@ -1617,7 +1685,7 @@ dissect_spnego_krb5_wrap(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
   proto_item *item;
   proto_tree *subtree;
   int offset = 0;
-  guint16 token_id;
+  uint16_t token_id;
   gssapi_encrypt_info_t* encrypt_info = (gssapi_encrypt_info_t*)data;
 
   item = proto_tree_add_item(tree, hf_spnego_krb5, tvb, 0, -1, ENC_NA);
@@ -1678,7 +1746,7 @@ dissect_spnego_wrap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
   proto_tree *subtree;
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
   MechType_oid = NULL;
 
@@ -1700,7 +1768,7 @@ dissect_spnego_wrap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
    * ASN1 code addet to spnego.asn to handle this.
    */
 
-  offset = dissect_spnego_InitialContextToken(FALSE, tvb, offset, &asn1_ctx , subtree, -1);
+  offset = dissect_spnego_InitialContextToken(false, tvb, offset, &asn1_ctx , subtree, -1);
 
   return offset;
 }
@@ -1714,7 +1782,7 @@ dissect_spnego(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void*
   int offset = 0;
   conversation_t *conversation;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
   /*
    * We need this later, so lets get it now ...
@@ -1769,7 +1837,7 @@ dissect_spnego(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void*
    * as well. Naughty, naughty.
    *
    */
-  dissect_spnego_NegotiationToken(FALSE, tvb, offset, &asn1_ctx, subtree, -1);
+  dissect_spnego_NegotiationToken(false, tvb, offset, &asn1_ctx, subtree, -1);
   return tvb_captured_length(tvb);
 }
 
@@ -1899,6 +1967,14 @@ void proto_register_spnego(void) {
       { "innerContextToken", "spnego.innerContextToken_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
+    { &hf_spnego_target_realm,
+      { "target-realm", "spnego.target_realm",
+        FT_STRING, BASE_NONE, NULL, 0,
+        "T_target_realm", HFILL }},
+    { &hf_spnego_cookie,
+      { "cookie", "spnego.cookie",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "OCTET_STRING", HFILL }},
     { &hf_spnego_ContextFlags_delegFlag,
       { "delegFlag", "spnego.ContextFlags.delegFlag",
         FT_BOOLEAN, 8, NULL, 0x80,
@@ -1930,7 +2006,7 @@ void proto_register_spnego(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_spnego,
     &ett_spnego_wraptoken,
     &ett_spnego_krb5,
@@ -1944,6 +2020,7 @@ void proto_register_spnego(void) {
     &ett_spnego_ContextFlags,
     &ett_spnego_NegTokenTarg,
     &ett_spnego_InitialContextToken_U,
+    &ett_spnego_IAKERB_HEADER,
   };
 
   static ei_register_info ei[] = {
@@ -1999,7 +2076,9 @@ void proto_reg_handoff_spnego(void) {
   gssapi_init_oid("1.2.840.113554.1.2.2.3", proto_spnego_krb5, ett_spnego_krb5,
                   spnego_krb5_handle, spnego_krb5_wrap_handle,
                   "KRB5 - Kerberos 5 - User to User");
-
+  gssapi_init_oid("1.3.6.1.5.2.5", proto_spnego_krb5, ett_spnego_krb5,
+                  spnego_krb5_handle, spnego_krb5_wrap_handle,
+                  "KRB5 - IAKERB");
 }
 
 /*

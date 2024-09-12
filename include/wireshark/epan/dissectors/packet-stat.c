@@ -38,29 +38,29 @@ static const value_string stat_res[] =
 	{ 0, NULL }
 };
 
-static int proto_stat = -1;
+static int proto_stat;
 
-static int hf_stat_mon = -1;
-static int hf_stat_mon_id_name = -1;
-static int hf_stat_mon_name = -1;
-static int hf_stat_my_id = -1;
-static int hf_stat_my_id_hostname = -1;
-static int hf_stat_my_id_proc = -1;
-static int hf_stat_my_id_prog = -1;
-static int hf_stat_my_id_vers = -1;
-static int hf_stat_priv = -1;
-static int hf_stat_procedure_v1 = -1;
-static int hf_stat_stat_chge = -1;
-static int hf_stat_stat_res = -1;
-static int hf_stat_stat_res_res = -1;
-static int hf_stat_stat_res_state = -1;
-static int hf_stat_state = -1;
+static int hf_stat_mon;
+static int hf_stat_mon_id_name;
+static int hf_stat_mon_name;
+static int hf_stat_my_id;
+static int hf_stat_my_id_hostname;
+static int hf_stat_my_id_proc;
+static int hf_stat_my_id_prog;
+static int hf_stat_my_id_vers;
+static int hf_stat_priv;
+static int hf_stat_procedure_v1;
+static int hf_stat_stat_chge;
+static int hf_stat_stat_res;
+static int hf_stat_stat_res_res;
+static int hf_stat_stat_res_state;
+static int hf_stat_state;
 
-static gint ett_stat = -1;
-static gint ett_stat_stat_res = -1;
-static gint ett_stat_mon = -1;
-static gint ett_stat_my_id = -1;
-static gint ett_stat_stat_chge = -1;
+static int ett_stat;
+static int ett_stat_stat_res;
+static int ett_stat_mon;
+static int ett_stat_my_id;
+static int ett_stat_stat_chge;
 
 #define STAT_SUCC	0
 #define STAT_FAIL	1
@@ -113,7 +113,7 @@ dissect_stat_stat_res(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, v
 {
 	proto_item *sub_item;
 	proto_tree *sub_tree;
-	gint32 res;
+	int32_t res;
 	int offset = 0;
 
 	sub_item = proto_tree_add_item(tree, hf_stat_stat_res, tvb,
@@ -327,7 +327,7 @@ proto_register_stat(void)
 		},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_stat,
 		&ett_stat_stat_res,
 		&ett_stat_mon,

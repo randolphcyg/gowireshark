@@ -11,6 +11,7 @@
  */
 
 #include "config.h"
+#define WS_LOG_DOMAIN LOG_DOMAIN_WSLUA
 
 /* WSLUA_MODULE Utility Utility Functions */
 
@@ -22,15 +23,15 @@
 
 
 WSLUA_FUNCTION wslua_get_version(lua_State* L) { /* Gets the Wireshark version as a string. */
-    const gchar* str = VERSION;
+    const char* str = VERSION;
     lua_pushstring(L,str);
     WSLUA_RETURN(1); /* The version string, e.g. "3.2.5". */
 }
 
 
-static gchar* current_plugin_version = NULL;
+static char* current_plugin_version = NULL;
 
-const gchar* get_current_plugin_version(void) {
+const char* get_current_plugin_version(void) {
     return current_plugin_version ? current_plugin_version : "";
 }
 
@@ -69,8 +70,6 @@ WSLUA_FUNCTION wslua_set_plugin_info(lua_State* L) {
 
     set_plugin_info(my_info)
     ----
-
-    @since 1.99.8
     */
 #define WSLUA_ARG_set_plugin_info_TABLE 1 /* The Lua table of information. */
 
@@ -99,11 +98,11 @@ WSLUA_FUNCTION wslua_format_date(lua_State* LS) { /* Formats an absolute timesta
 #define WSLUA_ARG_format_date_TIMESTAMP 1 /* A timestamp value to convert. */
     lua_Number timestamp = luaL_checknumber(LS,WSLUA_ARG_format_date_TIMESTAMP);
     nstime_t then;
-    gchar* str;
+    char* str;
 
     then.secs = (time_t)(floor(timestamp));
-    then.nsecs = (guint32) ( (timestamp-(double)(then.secs))*1000000000);
-    str = abs_time_to_str(NULL, &then, ABSOLUTE_TIME_LOCAL, TRUE);
+    then.nsecs = (uint32_t) ( (timestamp-(double)(then.secs))*1000000000);
+    str = abs_time_to_str(NULL, &then, ABSOLUTE_TIME_LOCAL, true);
     lua_pushstring(LS,str);
     wmem_free(NULL, str);
 
@@ -114,10 +113,10 @@ WSLUA_FUNCTION wslua_format_time(lua_State* LS) { /* Formats a relative timestam
 #define WSLUA_ARG_format_time_TIMESTAMP 1 /* A timestamp value to convert. */
     lua_Number timestamp = luaL_checknumber(LS,WSLUA_ARG_format_time_TIMESTAMP);
     nstime_t then;
-    gchar* str;
+    char* str;
 
     then.secs = (time_t)(floor(timestamp));
-    then.nsecs = (guint32) ( (timestamp-(double)(then.secs))*1000000000);
+    then.nsecs = (uint32_t) ( (timestamp-(double)(then.secs))*1000000000);
     str = rel_time_to_str(NULL, &then);
     lua_pushstring(LS,str);
     wmem_free(NULL, str);
@@ -126,13 +125,13 @@ WSLUA_FUNCTION wslua_format_time(lua_State* LS) { /* Formats a relative timestam
 }
 
 WSLUA_FUNCTION wslua_get_preference(lua_State *L) {
-    /* Get a preference value. @since 3.5.0 */
+    /* Get a preference value. */
 #define WSLUA_ARG_get_preference_PREFERENCE 1 /* The name of the preference. */
-    const gchar* preference = luaL_checkstring(L,WSLUA_ARG_get_preference_PREFERENCE);
+    const char* preference = luaL_checkstring(L,WSLUA_ARG_get_preference_PREFERENCE);
 
     /* Split preference from module.preference */
-    gchar *module_name = g_strdup(preference);
-    gchar *preference_name = strchr(module_name, '.');
+    char *module_name = g_strdup(preference);
+    char *preference_name = strchr(module_name, '.');
     pref_t *pref = NULL;
 
     if (preference_name) {
@@ -148,20 +147,20 @@ WSLUA_FUNCTION wslua_get_preference(lua_State *L) {
         switch (prefs_get_type(pref)) {
             case PREF_UINT:
             {
-                guint uint_value = prefs_get_uint_value_real(pref, pref_current);
+                unsigned uint_value = prefs_get_uint_value_real(pref, pref_current);
                 lua_pushinteger(L, uint_value);
                 break;
             }
             case PREF_BOOL:
             {
-                gboolean bool_value = prefs_get_bool_value(pref, pref_current);
+                bool bool_value = prefs_get_bool_value(pref, pref_current);
                 lua_pushboolean(L, bool_value);
                 break;
             }
             case PREF_ENUM:
             {
                 const enum_val_t *enums;
-                gint enum_value = prefs_get_enum_value(pref, pref_current);
+                int enum_value = prefs_get_enum_value(pref, pref_current);
 
                 for (enums = prefs_get_enumvals(pref); enums->name; enums++) {
                     if (enums->value == enum_value) {
@@ -180,8 +179,9 @@ WSLUA_FUNCTION wslua_get_preference(lua_State *L) {
             case PREF_SAVE_FILENAME:
             case PREF_OPEN_FILENAME:
             case PREF_DIRNAME:
+            case PREF_DISSECTOR:
             {
-                const gchar *string_value = prefs_get_string_value(pref, pref_current);
+                const char *string_value = prefs_get_string_value(pref, pref_current);
                 lua_pushstring(L,string_value);
                 break;
             }
@@ -205,14 +205,14 @@ WSLUA_FUNCTION wslua_get_preference(lua_State *L) {
 }
 
 WSLUA_FUNCTION wslua_set_preference(lua_State *L) {
-    /* Set a preference value. @since 3.5.0 */
+    /* Set a preference value. */
 #define WSLUA_ARG_set_preference_PREFERENCE 1 /* The name of the preference. */
 #define WSLUA_ARG_set_preference_VALUE 2 /* The preference value to set. */
-    const gchar* preference = luaL_checkstring(L,WSLUA_ARG_set_preference_PREFERENCE);
+    const char* preference = luaL_checkstring(L,WSLUA_ARG_set_preference_PREFERENCE);
 
     /* Split preference from module.preference */
-    gchar *module_name = g_strdup(preference);
-    gchar *preference_name = strchr(module_name, '.');
+    char *module_name = g_strdup(preference);
+    char *preference_name = strchr(module_name, '.');
     module_t *module = NULL;
     pref_t *pref = NULL;
 
@@ -230,7 +230,7 @@ WSLUA_FUNCTION wslua_set_preference(lua_State *L) {
         switch (prefs_get_type(pref)) {
             case PREF_UINT:
             {
-                guint uint_value = (guint)luaL_checkinteger(L,WSLUA_ARG_set_preference_VALUE);
+                unsigned uint_value = (unsigned)luaL_checkinteger(L,WSLUA_ARG_set_preference_VALUE);
                 changed = prefs_set_uint_value(pref, uint_value, pref_current);
                 module->prefs_changed_flags |= changed;
                 lua_pushboolean(L, changed);
@@ -238,7 +238,7 @@ WSLUA_FUNCTION wslua_set_preference(lua_State *L) {
             }
             case PREF_BOOL:
             {
-                gboolean bool_value = wslua_checkboolean(L, WSLUA_ARG_set_preference_VALUE);
+                bool bool_value = wslua_checkboolean(L, WSLUA_ARG_set_preference_VALUE);
                 changed = prefs_set_bool_value(pref, bool_value, pref_current);
                 module->prefs_changed_flags |= changed;
                 lua_pushboolean(L, changed);
@@ -246,7 +246,7 @@ WSLUA_FUNCTION wslua_set_preference(lua_State *L) {
             }
             case PREF_ENUM:
             {
-                const gchar *enum_value = luaL_checkstring(L,WSLUA_ARG_set_preference_VALUE);
+                const char *enum_value = luaL_checkstring(L,WSLUA_ARG_set_preference_VALUE);
                 changed = prefs_set_enum_string_value(pref, enum_value, pref_current);
                 module->prefs_changed_flags |= changed;
                 lua_pushboolean(L, changed);
@@ -256,8 +256,9 @@ WSLUA_FUNCTION wslua_set_preference(lua_State *L) {
             case PREF_SAVE_FILENAME:
             case PREF_OPEN_FILENAME:
             case PREF_DIRNAME:
+            case PREF_DISSECTOR:
             {
-                const gchar *string_value = luaL_checkstring(L,WSLUA_ARG_set_preference_VALUE);
+                const char *string_value = luaL_checkstring(L,WSLUA_ARG_set_preference_VALUE);
                 changed = prefs_set_string_value(pref, string_value, pref_current);
                 module->prefs_changed_flags |= changed;
                 lua_pushboolean(L, changed);
@@ -265,7 +266,7 @@ WSLUA_FUNCTION wslua_set_preference(lua_State *L) {
             }
             case PREF_RANGE:
             {
-                const gchar *range_value = luaL_checkstring(L,WSLUA_ARG_set_preference_VALUE);
+                const char *range_value = luaL_checkstring(L,WSLUA_ARG_set_preference_VALUE);
                 range_t *range = NULL;
                 convert_ret_t ret = range_convert_str(NULL, &range, range_value, prefs_get_max_value(pref));
                 if (ret == CVT_NUMBER_TOO_BIG) {
@@ -292,13 +293,13 @@ WSLUA_FUNCTION wslua_set_preference(lua_State *L) {
 }
 
 WSLUA_FUNCTION wslua_reset_preference(lua_State *L) {
-    /* Reset a preference to default value. @since 3.5.0 */
+    /* Reset a preference to default value. */
 #define WSLUA_ARG_reset_preference_PREFERENCE 1 /* The name of the preference. */
-    const gchar* preference = luaL_checkstring(L,WSLUA_ARG_reset_preference_PREFERENCE);
+    const char* preference = luaL_checkstring(L,WSLUA_ARG_reset_preference_PREFERENCE);
 
     // Split preference from module.preference
-    gchar *module_name = g_strdup(preference);
-    gchar *preference_name = strchr(module_name, '.');
+    char *module_name = g_strdup(preference);
+    char *preference_name = strchr(module_name, '.');
     pref_t *pref = NULL;
 
     if (preference_name) {
@@ -311,7 +312,7 @@ WSLUA_FUNCTION wslua_reset_preference(lua_State *L) {
 
     if (pref) {
         reset_pref(pref);
-        lua_pushboolean(L, TRUE);
+        lua_pushboolean(L, true);
     } else {
         /* No such preference. */
         lua_pushnil(L);
@@ -322,13 +323,13 @@ WSLUA_FUNCTION wslua_reset_preference(lua_State *L) {
 }
 
 WSLUA_FUNCTION wslua_apply_preferences(lua_State *L) {
-    /* Write preferences to file and apply changes. @since 3.5.0 */
+    /* Write preferences to file and apply changes. */
     char *pf_path = NULL;
     int err = write_prefs(&pf_path);
 
     if (err) {
         /* Make a copy of pf_path because luaL_error() will return */
-        gchar pf_path_copy[256];
+        char pf_path_copy[256];
         (void) g_strlcpy(pf_path_copy, pf_path, sizeof pf_path_copy);
         g_free(pf_path);
 
@@ -343,7 +344,7 @@ WSLUA_FUNCTION wslua_apply_preferences(lua_State *L) {
 
 WSLUA_FUNCTION wslua_report_failure(lua_State* LS) { /* Reports a failure to the user. */
 #define WSLUA_ARG_report_failure_TEXT 1 /* Message text to report. */
-    const gchar* s = luaL_checkstring(LS,WSLUA_ARG_report_failure_TEXT);
+    const char* s = luaL_checkstring(LS,WSLUA_ARG_report_failure_TEXT);
     report_failure("%s",s);
     return 0;
 }
@@ -372,7 +373,7 @@ char* wslua_get_actual_filename(const char* fname) {
         return g_strdup(fname_clean);
     }
 
-    filename = get_persconffile_path(fname_clean,FALSE);
+    filename = get_persconffile_path(fname_clean,false);
 
     if ( file_exists(filename) ) {
         return filename;
@@ -393,10 +394,48 @@ char* wslua_get_actual_filename(const char* fname) {
     return NULL;
 }
 
+WSLUA_FUNCTION wslua_dofile(lua_State* L) {
+    /*
+    Loads a Lua file and executes it as a Lua chunk, similar to the standard
+    https://www.lua.org/manual/5.4/manual.html#pdf-dofile[dofile]
+    but searches additional directories.
+    The search order is the current directory, followed by the user's
+    https://www.wireshark.org/docs/wsug_html_chunked/ChAppFilesConfigurationSection.html[personal configuration]
+    directory, and finally the
+    https://www.wireshark.org/docs/wsug_html_chunked/ChAppFilesConfigurationSection.html[global configuration]
+    directory.
+
+    [TIP]
+    .The configuration directories are not the plugin directories.
+    ====
+    The configuration directories searched are not the global and personal plugin
+    directories. All Lua files in the plugin directories are loaded at startup;
+    `dofile` is for loading files from additional locations.
+    The file path can be absolute or relative to one of the search directories.
+    ====
+
+    */
+#define WSLUA_ARG_dofile_FILENAME 1 /* Name of the file to be run. If the file does not exist in the current directory, the user and system directories are searched. */
+    const char *given_fname = luaL_checkstring(L, WSLUA_ARG_dofile_FILENAME);
+    char* filename = wslua_get_actual_filename(given_fname);
+    int n;
+
+    if (!filename) {
+        WSLUA_ARG_ERROR(dofile,FILENAME,"file does not exist");
+        return 0;
+    }
+
+    n = lua_gettop(L);
+    if (luaL_loadfile(L, filename) != 0) lua_error(L);
+    g_free(filename);
+    lua_call(L, 0, LUA_MULTRET);
+    return lua_gettop(L) - n;
+}
+
 WSLUA_FUNCTION wslua_loadfile(lua_State* L) {
     /*
     Loads a Lua file and compiles it into a Lua chunk, similar to the standard
-    https://www.lua.org/manual/5.1/manual.html#pdf-loadfile[loadfile]
+    https://www.lua.org/manual/5.4/manual.html#pdf-loadfile[loadfile]
     but searches additional directories.
     The search order is the current directory, followed by the user's
     https://www.wireshark.org/docs/wsug_html_chunked/ChAppFilesConfigurationSection.html[personal configuration]
@@ -439,35 +478,6 @@ WSLUA_FUNCTION wslua_loadfile(lua_State* L) {
         return 2;
     }
 }
-
-WSLUA_FUNCTION wslua_dofile(lua_State* L) {
-    /*
-    Loads a Lua file and executes it as a Lua chunk, similar to the standard
-    https://www.lua.org/manual/5.1/manual.html#pdf-dofile[dofile]
-    but searches additional directories.
-    The search order is the current directory, followed by the user's
-    https://www.wireshark.org/docs/wsug_html_chunked/ChAppFilesConfigurationSection.html[personal configuration]
-    directory, and finally the
-    https://www.wireshark.org/docs/wsug_html_chunked/ChAppFilesConfigurationSection.html[global configuration]
-    directory.
-    */
-#define WSLUA_ARG_dofile_FILENAME 1 /* Name of the file to be run. If the file does not exist in the current directory, the user and system directories are searched. */
-    const char *given_fname = luaL_checkstring(L, WSLUA_ARG_dofile_FILENAME);
-    char* filename = wslua_get_actual_filename(given_fname);
-    int n;
-
-    if (!filename) {
-        WSLUA_ARG_ERROR(dofile,FILENAME,"file does not exist");
-        return 0;
-    }
-
-    n = lua_gettop(L);
-    if (luaL_loadfile(L, filename) != 0) lua_error(L);
-    g_free(filename);
-    lua_call(L, 0, LUA_MULTRET);
-    return lua_gettop(L) - n;
-}
-
 
 typedef struct _statcmd_t {
     lua_State* L;

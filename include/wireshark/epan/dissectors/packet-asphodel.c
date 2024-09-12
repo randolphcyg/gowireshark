@@ -17,6 +17,7 @@
 #include <config.h>
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 
 #include "packet-tcp.h"
 
@@ -100,7 +101,7 @@ static const value_string asphodel_cmd_vals[] = {
     { 0x65, "GET_CUSTOM_ENUM_VALUE_NAME" },
     { 0x66, "GET_SETTING_CATEGORY_COUNT" },
     { 0x67, "GET_SETTING_CATEGORY_NAME" },
-    { 0x68, "GET_SETTING_CATERORY_SETTINGS" },
+    { 0x68, "GET_SETTING_CATEGORY_SETTINGS" },
     { 0x70, "SET_DEVICE_MODE" },
     { 0x71, "GET_DEVICE_MODE" },
     { 0x80, "ENABLE_RF_POWER" },
@@ -175,63 +176,63 @@ static const true_false_string notify_connect_disconnect = {
     "Disconnect"
 };
 
-static int proto_asphodel = -1;
+static int proto_asphodel;
 
 // asphodel inquiry fields
-static int hf_asphodel_version = -1;
-static int hf_asphodel_identifier = -1;
+static int hf_asphodel_version;
+static int hf_asphodel_identifier;
 
 // asphodel response fields
-static int hf_asphodel_tcp_version = -1;
-static int hf_asphodel_connected = -1;
-static int hf_asphodel_max_incoming_param_length = -1;
-static int hf_asphodel_max_outgoing_param_length = -1;
-static int hf_asphodel_stream_packet_length = -1;
-static int hf_asphodel_protocol_type = -1;
-static int hf_asphodel_protocol_type_rf_power = -1;
-static int hf_asphodel_protocol_type_radio = -1;
-static int hf_asphodel_protocol_type_remote = -1;
-static int hf_asphodel_protocol_type_bootloader = -1;
-static int hf_asphodel_serial_number = -1;
-static int hf_asphodel_board_rev = -1;
-static int hf_asphodel_board_type = -1;
-static int hf_asphodel_build_info = -1;
-static int hf_asphodel_build_date = -1;
-static int hf_asphodel_user_tag1 = -1;
-static int hf_asphodel_user_tag2 = -1;
-static int hf_asphodel_remote_max_incoming_param_length = -1;
-static int hf_asphodel_remote_max_outgoing_param_length = -1;
-static int hf_asphodel_remote_stream_packet_length = -1;
+static int hf_asphodel_tcp_version;
+static int hf_asphodel_connected;
+static int hf_asphodel_max_incoming_param_length;
+static int hf_asphodel_max_outgoing_param_length;
+static int hf_asphodel_stream_packet_length;
+static int hf_asphodel_protocol_type;
+static int hf_asphodel_protocol_type_rf_power;
+static int hf_asphodel_protocol_type_radio;
+static int hf_asphodel_protocol_type_remote;
+static int hf_asphodel_protocol_type_bootloader;
+static int hf_asphodel_serial_number;
+static int hf_asphodel_board_rev;
+static int hf_asphodel_board_type;
+static int hf_asphodel_build_info;
+static int hf_asphodel_build_date;
+static int hf_asphodel_user_tag1;
+static int hf_asphodel_user_tag2;
+static int hf_asphodel_remote_max_incoming_param_length;
+static int hf_asphodel_remote_max_outgoing_param_length;
+static int hf_asphodel_remote_stream_packet_length;
 
 // asphodel tcp fields
-static int hf_asphodel_length = -1;
-static int hf_asphodel_type = -1;
-static int hf_asphodel_seq = -1;
-static int hf_asphodel_cmd = -1;
-static int hf_asphodel_err_code = -1;
-static int hf_asphodel_params = -1;
-static int hf_asphodel_stream_data = -1;
-static int hf_asphodel_notify = -1;
-static int hf_asphodel_notify_serial = -1;
+static int hf_asphodel_length;
+static int hf_asphodel_type;
+static int hf_asphodel_seq;
+static int hf_asphodel_cmd;
+static int hf_asphodel_err_code;
+static int hf_asphodel_params;
+static int hf_asphodel_stream_data;
+static int hf_asphodel_notify;
+static int hf_asphodel_notify_serial;
 
-static gint ett_asphodel = -1;
-static gint ett_asphodel_protocol_type = -1;
+static int ett_asphodel;
+static int ett_asphodel_protocol_type;
 
-static expert_field ei_asphodel_bad_param_length = EI_INIT;
-static expert_field ei_asphodel_bad_length = EI_INIT;
-static expert_field ei_asphodel_cmd_error = EI_INIT;
-static expert_field ei_asphodel_unknown_type = EI_INIT;
+static expert_field ei_asphodel_bad_param_length;
+static expert_field ei_asphodel_bad_length;
+static expert_field ei_asphodel_cmd_error;
+static expert_field ei_asphodel_unknown_type;
 
 static dissector_handle_t asphodel_inquiry_handle;
 static dissector_handle_t asphodel_response_handle;
 static dissector_handle_t asphodel_tcp_handle;
 
 static void
-asphodel_fmt_version(gchar *result, guint32 version)
+asphodel_fmt_version(char *result, uint32_t version)
 {
-    guint8 major = version >> 8;
-    guint8 minor = (version >> 4) & 0x0F;
-    guint8 subminor = version & 0x0F;
+    uint8_t major = version >> 8;
+    uint8_t minor = (version >> 4) & 0x0F;
+    uint8_t subminor = version & 0x0F;
     snprintf(result, ITEM_LABEL_LENGTH, "%d.%d.%d", major, minor, subminor);
 }
 
@@ -240,7 +241,7 @@ dissect_asphodel_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 {
     proto_item *ti;
     proto_tree *asphodel_tree;
-    guint32 length;
+    uint32_t length;
 
     ti = proto_tree_add_item(tree, proto_asphodel, tvb, 0, -1, ENC_NA);
     asphodel_tree = proto_item_add_subtree(ti, ett_asphodel);
@@ -254,7 +255,7 @@ dissect_asphodel_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     }
     else
     {
-        guint32 type;
+        uint32_t type;
         proto_tree_add_item_ret_uint(asphodel_tree, hf_asphodel_type, tvb, 2, 1, ENC_NA, &type);
 
         // handle the text
@@ -286,7 +287,7 @@ dissect_asphodel_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
         case ASPHODEL_TCP_MSG_TYPE_REMOTE_CMD:
             if (length >= 3)
             {
-                guint32 cmd;
+                uint32_t cmd;
                 proto_tree_add_item(asphodel_tree, hf_asphodel_seq, tvb, 3, 1, ENC_NA);
                 proto_tree_add_item_ret_uint(asphodel_tree, hf_asphodel_cmd, tvb, 4, 1, ENC_NA, &cmd);
 
@@ -381,10 +382,10 @@ dissect_asphodel_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     return tvb_captured_length(tvb);
 }
 
-static guint
+static unsigned
 get_asphodel_tcp_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    return ((guint)tvb_get_ntohs(tvb, offset)) + 2;
+    return ((unsigned)tvb_get_ntohs(tvb, offset)) + 2;
 }
 
 static int
@@ -393,7 +394,7 @@ dissect_asphodel_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "Asphodel");
     col_clear(pinfo->cinfo, COL_INFO);
 
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, 2, get_asphodel_tcp_pdu_len, dissect_asphodel_tcp_pdu, data);
+    tcp_dissect_pdus(tvb, pinfo, tree, true, 2, get_asphodel_tcp_pdu_len, dissect_asphodel_tcp_pdu, data);
     return tvb_reported_length(tvb);
 }
 
@@ -404,14 +405,14 @@ dissect_asphodel_response(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     proto_tree *asphodel_tree;
     proto_tree *protocol_type_tree;
     conversation_t *conversation;
-    guint offset;
-    guint len;
-    guint protocol_type;
-    guint16 incoming_cmd_buffer_size;
-    guint16 outgoing_cmd_buffer_size;
-    guint16 remote_incoming_cmd_buffer_size;
-    guint16 remote_outgoing_cmd_buffer_size;
-    guint8 *serial_number;
+    unsigned offset;
+    unsigned len;
+    unsigned protocol_type;
+    uint16_t incoming_cmd_buffer_size;
+    uint16_t outgoing_cmd_buffer_size;
+    uint16_t remote_incoming_cmd_buffer_size;
+    uint16_t remote_outgoing_cmd_buffer_size;
+    uint8_t *serial_number;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "Asphodel");
 
@@ -548,22 +549,22 @@ dissect_asphodel_inquiry(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
     return tvb_reported_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_asphodel_heur_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     if (tvb_captured_length(tvb) < 11)
     {
-        return FALSE;
+        return false;
     }
 
-    if (tvb_memeql(tvb, 2, (const guint8*)"Asphodel", 9) != 0)
+    if (tvb_memeql(tvb, 2, (const uint8_t*)"Asphodel", 9) != 0)
     {
-        return FALSE;
+        return false;
     }
 
     dissect_asphodel_inquiry(tvb, pinfo, tree, data);
 
-    return TRUE;
+    return true;
 }
 
 void
@@ -729,7 +730,7 @@ proto_register_asphodel(void)
         },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_asphodel,
         &ett_asphodel_protocol_type,
     };

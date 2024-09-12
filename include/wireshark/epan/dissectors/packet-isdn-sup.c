@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-isdn-sup.c                                                          */
-/* asn2wrs.py -b -L -p isdn-sup -c ./isdn-sup.cnf -s ./packet-isdn-sup-template -D . -O ../.. Addressing-Data-Elements.asn Basic-Service-Elements.asn Embedded-Q931-Types.asn General-Errors.asn Advice-of-Charge-Operations.asn Closed-User-Group-Service-Operations.asn Conference-Add-On-Operations.asn Diversion-Operations.asn MCID-Operations.asn User-To-User-Signalling-Operations.asn Freephone-Operations.asn MLPP-Operations-And-Errors.asn */
+/* asn2wrs.py -b -q -L -p isdn-sup -c ./isdn-sup.cnf -s ./packet-isdn-sup-template -D . -O ../.. Addressing-Data-Elements.asn Basic-Service-Elements.asn Embedded-Q931-Types.asn General-Errors.asn Advice-of-Charge-Operations.asn Closed-User-Group-Service-Operations.asn Conference-Add-On-Operations.asn Diversion-Operations.asn MCID-Operations.asn User-To-User-Signalling-Operations.asn Freephone-Operations.asn MLPP-Operations-And-Errors.asn */
 
 /* packet-isdn-sup-template.c
  * Routines for ETSI Integrated Services Digital Network (ISDN)
@@ -20,6 +20,7 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 
@@ -37,9 +38,9 @@ static dissector_handle_t isdn_sup_err_handle;
 #define fPHOID                         "0.4.0.210.1"
 
 /* Initialize the protocol and registered fields */
-static int proto_isdn_sup = -1;
-static int hf_isdn_sup_operation = -1;
-static int hf_isdn_sup_error = -1;
+static int proto_isdn_sup;
+static int hf_isdn_sup_operation;
+static int hf_isdn_sup_error;
 
 /* Global variables */
 
@@ -49,7 +50,7 @@ static rose_ctx_t isdn_sup_rose_ctx;
 #endif
 
 typedef struct _isdn_sup_op_t {
-  gint32 opcode;
+  int32_t opcode;
   dissector_t arg_pdu;
   dissector_t res_pdu;
 } isdn_sup_op_t;
@@ -62,7 +63,7 @@ typedef struct _isdn_global_sup_op_t {
 
 
 typedef struct isdn_sup_err_t {
-  gint32 errcode;
+  int32_t errcode;
   dissector_t err_pdu;
 } isdn_sup_err_t;
 
@@ -138,252 +139,252 @@ static const value_string isdn_sup_str_error[] = {
   {   0, NULL}
 };
 
-static int hf_isdn_sup = -1;
+static int hf_isdn_sup;
 
-static int hf_isdn_sup_ChargingRequestArg_PDU = -1;  /* ChargingRequestArg */
-static int hf_isdn_sup_ChargingRequestRes_PDU = -1;  /* ChargingRequestRes */
-static int hf_isdn_sup_AOCSCurrencyArg_PDU = -1;  /* AOCSCurrencyArg */
-static int hf_isdn_sup_AOCSSpecialArrArg_PDU = -1;  /* AOCSSpecialArrArg */
-static int hf_isdn_sup_AOCDCurrencyArg_PDU = -1;  /* AOCDCurrencyArg */
-static int hf_isdn_sup_AOCDChargingUnitArg_PDU = -1;  /* AOCDChargingUnitArg */
-static int hf_isdn_sup_AOCECurrencyArg_PDU = -1;  /* AOCECurrencyArg */
-static int hf_isdn_sup_AOCEChargingUnitArg_PDU = -1;  /* AOCEChargingUnitArg */
-static int hf_isdn_sup_CUGcallArg_PDU = -1;       /* CUGcallArg */
-static int hf_isdn_sup_BeginCONFArg_PDU = -1;     /* BeginCONFArg */
-static int hf_isdn_sup_BeginCONFRes_PDU = -1;     /* BeginCONFRes */
-static int hf_isdn_sup_AddCONFArg_PDU = -1;       /* AddCONFArg */
-static int hf_isdn_sup_AddCONFRes_PDU = -1;       /* AddCONFRes */
-static int hf_isdn_sup_SplitCONFArg_PDU = -1;     /* SplitCONFArg */
-static int hf_isdn_sup_DropCONFArg_PDU = -1;      /* DropCONFArg */
-static int hf_isdn_sup_IsolateCONFArg_PDU = -1;   /* IsolateCONFArg */
-static int hf_isdn_sup_ReattachCONFArg_PDU = -1;  /* ReattachCONFArg */
-static int hf_isdn_sup_PartyDISCArg_PDU = -1;     /* PartyDISCArg */
-static int hf_isdn_sup_ActivationDiversionArg_PDU = -1;  /* ActivationDiversionArg */
-static int hf_isdn_sup_DeactivationDiversionArg_PDU = -1;  /* DeactivationDiversionArg */
-static int hf_isdn_sup_ActivationStatusNotificationDivArg_PDU = -1;  /* ActivationStatusNotificationDivArg */
-static int hf_isdn_sup_DeactivationStatusNotificationDivArg_PDU = -1;  /* DeactivationStatusNotificationDivArg */
-static int hf_isdn_sup_InterrogationDiversionArg_PDU = -1;  /* InterrogationDiversionArg */
-static int hf_isdn_sup_InterrogationDiversionRes_PDU = -1;  /* InterrogationDiversionRes */
-static int hf_isdn_sup_InterrogateServedUserNumbersRes_PDU = -1;  /* InterrogateServedUserNumbersRes */
-static int hf_isdn_sup_DiversionInformationArg_PDU = -1;  /* DiversionInformationArg */
-static int hf_isdn_sup_CallDeflectionArg_PDU = -1;  /* CallDeflectionArg */
-static int hf_isdn_sup_CallRerouteingArg_PDU = -1;  /* CallRerouteingArg */
-static int hf_isdn_sup_DivertingLegInformation1Arg_PDU = -1;  /* DivertingLegInformation1Arg */
-static int hf_isdn_sup_DivertingLegInformation2Arg_PDU = -1;  /* DivertingLegInformation2Arg */
-static int hf_isdn_sup_DivertingLegInformation3Arg_PDU = -1;  /* DivertingLegInformation3Arg */
-static int hf_isdn_sup_UserUserServiceArg_PDU = -1;  /* UserUserServiceArg */
-static int hf_isdn_sup_CalledFreephoneNrArg_PDU = -1;  /* CalledFreephoneNrArg */
-static int hf_isdn_sup_Monitor_T_FPHArg_PDU = -1;  /* Monitor_T_FPHArg */
-static int hf_isdn_sup_Free_T_FPHArg_PDU = -1;    /* Free_T_FPHArg */
-static int hf_isdn_sup_Call_T_FPHArg_PDU = -1;    /* Call_T_FPHArg */
-static int hf_isdn_sup_MLPPLFBArg_PDU = -1;       /* MLPPLFBArg */
-static int hf_isdn_sup_MLPPLFBResp_PDU = -1;      /* MLPPLFBResp */
-static int hf_isdn_sup_MLPPParams_PDU = -1;       /* MLPPParams */
-static int hf_isdn_sup_StatusRequest_PDU = -1;    /* StatusRequest */
-static int hf_isdn_sup_PreemptParams_PDU = -1;    /* PreemptParams */
-static int hf_isdn_sup_presentationallowedaddressscreened = -1;  /* AddressScreened */
-static int hf_isdn_sup_presentationRestricted = -1;  /* NULL */
-static int hf_isdn_sup_numberNotAvailableDueToInterworking = -1;  /* NULL */
-static int hf_isdn_sup_presentationrestrictedaddressscreened = -1;  /* AddressScreened */
-static int hf_isdn_sup_presentationAllowedAddress = -1;  /* Address */
-static int hf_isdn_sup_presentationRestrictedAddress = -1;  /* Address */
-static int hf_isdn_sup_presentationallowednumberscreened = -1;  /* NumberScreened */
-static int hf_isdn_sup_presentationrestrictednumberscreened = -1;  /* NumberScreened */
-static int hf_isdn_sup_presentationAllowedNumber = -1;  /* PartyNumber */
-static int hf_isdn_sup_presentationRestrictedNumber = -1;  /* PartyNumber */
-static int hf_isdn_sup_partyNumber = -1;          /* PartyNumber */
-static int hf_isdn_sup_screeningIndicator = -1;   /* ScreeningIndicator */
-static int hf_isdn_sup_partySubaddress = -1;      /* PartySubaddress */
-static int hf_isdn_sup_unknownPartyNumber = -1;   /* NumberDigits */
-static int hf_isdn_sup_publicPartyNumber = -1;    /* PublicPartyNumber */
-static int hf_isdn_sup_nsapEncodedNumber = -1;    /* NsapEncodedNumber */
-static int hf_isdn_sup_dataPartyNumber = -1;      /* NumberDigits */
-static int hf_isdn_sup_telexPartyNumber = -1;     /* NumberDigits */
-static int hf_isdn_sup_privatePartyNumber = -1;   /* PrivatePartyNumber */
-static int hf_isdn_sup_nationalStandardPartyNumber = -1;  /* NumberDigits */
-static int hf_isdn_sup_publicTypeOfNumber = -1;   /* PublicTypeOfNumber */
-static int hf_isdn_sup_publicNumberDigits = -1;   /* NumberDigits */
-static int hf_isdn_sup_privateTypeOfNumber = -1;  /* PrivateTypeOfNumber */
-static int hf_isdn_sup_privateNumberDigits = -1;  /* NumberDigits */
-static int hf_isdn_sup_userSpecifiedSubaddress = -1;  /* UserSpecifiedSubaddress */
-static int hf_isdn_sup_nSAPSubaddress = -1;       /* NSAPSubaddress */
-static int hf_isdn_sup_subaddressInformation = -1;  /* SubaddressInformation */
-static int hf_isdn_sup_oddCountIndicator = -1;    /* BOOLEAN */
-static int hf_isdn_sup_aOCSCurrencyInfoList = -1;  /* AOCSCurrencyInfoList */
-static int hf_isdn_sup_aOCSSpecialArrInfo = -1;   /* AOCSSpecialArrInfo */
-static int hf_isdn_sup_chargingInfoFollows = -1;  /* NULL */
-static int hf_isdn_sup_chargeNotAvailable = -1;   /* NULL */
-static int hf_isdn_sup_aOCDCurrencyInfo = -1;     /* AOCDCurrencyInfo */
-static int hf_isdn_sup_aOCDChargingUnitInfo = -1;  /* AOCDChargingUnitInfo */
-static int hf_isdn_sup_aOCECurrencyInfo = -1;     /* AOCECurrencyInfo */
-static int hf_isdn_sup_aOCEChargingUnitInfo = -1;  /* AOCEChargingUnitInfo */
-static int hf_isdn_sup_AOCSCurrencyInfoList_item = -1;  /* AOCSCurrencyInfo */
-static int hf_isdn_sup_chargedItem = -1;          /* ChargedItem */
-static int hf_isdn_sup_chargingtype = -1;         /* T_chargingtype */
-static int hf_isdn_sup_aocschargingtypespecificCurrency = -1;  /* AOCSChargingTypeSpecificCurrency */
-static int hf_isdn_sup_durationCurrency = -1;     /* DurationCurrency */
-static int hf_isdn_sup_flatRateCurrency = -1;     /* FlatRateCurrency */
-static int hf_isdn_sup_volumeRateCurrency = -1;   /* VolumeRateCurrency */
-static int hf_isdn_sup_specialChargingCode = -1;  /* SpecialChargingCode */
-static int hf_isdn_sup_freeOfCharge = -1;         /* NULL */
-static int hf_isdn_sup_currencyInfoNotAvailable = -1;  /* NULL */
-static int hf_isdn_sup_dCurrency = -1;            /* Currency */
-static int hf_isdn_sup_dAmount = -1;              /* Amount */
-static int hf_isdn_sup_dChargingType = -1;        /* ChargingType */
-static int hf_isdn_sup_dTime = -1;                /* Time */
-static int hf_isdn_sup_dGranularity = -1;         /* Time */
-static int hf_isdn_sup_fRCurrency = -1;           /* Currency */
-static int hf_isdn_sup_fRAmount = -1;             /* Amount */
-static int hf_isdn_sup_vRCurrency = -1;           /* Currency */
-static int hf_isdn_sup_vRAmount = -1;             /* Amount */
-static int hf_isdn_sup_vRVolumeUnit = -1;         /* VolumeUnit */
-static int hf_isdn_sup_aocdspecificCurrency = -1;  /* AOCDSpecificCurrency */
-static int hf_isdn_sup_recordedCurrency = -1;     /* RecordedCurrency */
-static int hf_isdn_sup_typeOfChargingInfo = -1;   /* TypeOfChargingInfo */
-static int hf_isdn_sup_aOCDBillingId = -1;        /* AOCDBillingId */
-static int hf_isdn_sup_aocdspecificchargingunits = -1;  /* AOCDSpecificChargingUnits */
-static int hf_isdn_sup_recordedUnitsList = -1;    /* RecordedUnitsList */
-static int hf_isdn_sup_rCurrency = -1;            /* Currency */
-static int hf_isdn_sup_rAmount = -1;              /* Amount */
-static int hf_isdn_sup_RecordedUnitsList_item = -1;  /* RecordedUnits */
-static int hf_isdn_sup_recoredunitscc = -1;       /* RecoredUnitsCc */
-static int hf_isdn_sup_recordedNumberOfUnits = -1;  /* NumberOfUnits */
-static int hf_isdn_sup_notAvailable = -1;         /* NULL */
-static int hf_isdn_sup_recordedTypeOfUnits = -1;  /* TypeOfUnit */
-static int hf_isdn_sup_aocecurrencycc = -1;       /* AOCECurrencyCc */
-static int hf_isdn_sup_aoceccspecificCurrency = -1;  /* AOCECcSpecificCurrency */
-static int hf_isdn_sup_aOCEBillingId = -1;        /* AOCEBillingId */
-static int hf_isdn_sup_chargingAssociation = -1;  /* ChargingAssociation */
-static int hf_isdn_sup_aocechargingunitcc = -1;   /* AOCEChargingUnitCc */
-static int hf_isdn_sup_aoceccspecificchargingunits = -1;  /* AOCECcSpecificChargingUnits */
-static int hf_isdn_sup_currencyAmount = -1;       /* CurrencyAmount */
-static int hf_isdn_sup_multiplier = -1;           /* Multiplier */
-static int hf_isdn_sup_lengthOfTimeUnit = -1;     /* LengthOfTimeUnit */
-static int hf_isdn_sup_scale = -1;                /* Scale */
-static int hf_isdn_sup_chargeNumber = -1;         /* PartyNumber */
-static int hf_isdn_sup_chargeIdentifier = -1;     /* ChargeIdentifier */
-static int hf_isdn_sup_oARequested = -1;          /* OARequested */
-static int hf_isdn_sup_cUGIndex = -1;             /* CUGIndex */
-static int hf_isdn_sup_conferenceId = -1;         /* ConferenceId */
-static int hf_isdn_sup_partyId = -1;              /* PartyId */
-static int hf_isdn_sup_procedure = -1;            /* Procedure */
-static int hf_isdn_sup_basicService = -1;         /* BasicService */
-static int hf_isdn_sup_forwardedToAddress = -1;   /* Address */
-static int hf_isdn_sup_servedUserNr = -1;         /* ServedUserNr */
-static int hf_isdn_sup_noReplyTimer = -1;         /* NoReplyTimer */
-static int hf_isdn_sup_forwardedToAddresss = -1;  /* Address */
-static int hf_isdn_sup_diversionReason = -1;      /* DiversionReason */
-static int hf_isdn_sup_servedUserSubaddress = -1;  /* PartySubaddress */
-static int hf_isdn_sup_callingAddress = -1;       /* PresentedAddressScreened */
-static int hf_isdn_sup_originalCalledNr = -1;     /* PresentedNumberUnscreened */
-static int hf_isdn_sup_lastDivertingNr = -1;      /* PresentedNumberUnscreened */
-static int hf_isdn_sup_lastDivertingReason = -1;  /* DiversionReason */
-static int hf_isdn_sup_userInfo = -1;             /* Q931InformationElement */
-static int hf_isdn_sup_deflectionAddress = -1;    /* Address */
-static int hf_isdn_sup_presentationAllowedDivertedToUser = -1;  /* PresentationAllowedIndicator */
-static int hf_isdn_sup_rerouteingReason = -1;     /* DiversionReason */
-static int hf_isdn_sup_calledAddress = -1;        /* Address */
-static int hf_isdn_sup_rerouteingCounter = -1;    /* DiversionCounter */
-static int hf_isdn_sup_q931InfoElement = -1;      /* Q931InformationElement */
-static int hf_isdn_sup_lastRerouteingNr = -1;     /* PresentedNumberUnscreened */
-static int hf_isdn_sup_subscriptionOption = -1;   /* SubscriptionOption */
-static int hf_isdn_sup_callingPartySubaddress = -1;  /* PartySubaddress */
-static int hf_isdn_sup_divertedToNumber = -1;     /* PresentedNumberUnscreened */
-static int hf_isdn_sup_diversionCounter = -1;     /* DiversionCounter */
-static int hf_isdn_sup_divertingNr = -1;          /* PresentedNumberUnscreened */
-static int hf_isdn_sup_IntResultList_item = -1;   /* IntResult */
-static int hf_isdn_sup_individualNumber = -1;     /* PartyNumber */
-static int hf_isdn_sup_allNumbers = -1;           /* NULL */
-static int hf_isdn_sup_ServedUserNumberList_item = -1;  /* PartyNumber */
-static int hf_isdn_sup_service = -1;              /* Service */
-static int hf_isdn_sup_preferred = -1;            /* Preferred */
-static int hf_isdn_sup_servedUserDestination = -1;  /* PartyNumber */
-static int hf_isdn_sup_queueIdentity = -1;        /* QueueIdentity */
-static int hf_isdn_sup_fPHReference = -1;         /* FPHReference */
-static int hf_isdn_sup_calledFreephoneNr = -1;    /* CalledFreephoneNr */
-static int hf_isdn_sup_mlppParams = -1;           /* MLPPParams */
-static int hf_isdn_sup_ieArg = -1;                /* IEArg */
-static int hf_isdn_sup_precLevel = -1;            /* PrecLevel */
-static int hf_isdn_sup_lfbIndictn = -1;           /* LFBIndictn */
-static int hf_isdn_sup_mlppSvcDomn = -1;          /* MLPPSvcDomn */
-static int hf_isdn_sup_statusQuery = -1;          /* StatusQuery */
-static int hf_isdn_sup_location = -1;             /* Location */
+static int hf_isdn_sup_ChargingRequestArg_PDU;    /* ChargingRequestArg */
+static int hf_isdn_sup_ChargingRequestRes_PDU;    /* ChargingRequestRes */
+static int hf_isdn_sup_AOCSCurrencyArg_PDU;       /* AOCSCurrencyArg */
+static int hf_isdn_sup_AOCSSpecialArrArg_PDU;     /* AOCSSpecialArrArg */
+static int hf_isdn_sup_AOCDCurrencyArg_PDU;       /* AOCDCurrencyArg */
+static int hf_isdn_sup_AOCDChargingUnitArg_PDU;   /* AOCDChargingUnitArg */
+static int hf_isdn_sup_AOCECurrencyArg_PDU;       /* AOCECurrencyArg */
+static int hf_isdn_sup_AOCEChargingUnitArg_PDU;   /* AOCEChargingUnitArg */
+static int hf_isdn_sup_CUGcallArg_PDU;            /* CUGcallArg */
+static int hf_isdn_sup_BeginCONFArg_PDU;          /* BeginCONFArg */
+static int hf_isdn_sup_BeginCONFRes_PDU;          /* BeginCONFRes */
+static int hf_isdn_sup_AddCONFArg_PDU;            /* AddCONFArg */
+static int hf_isdn_sup_AddCONFRes_PDU;            /* AddCONFRes */
+static int hf_isdn_sup_SplitCONFArg_PDU;          /* SplitCONFArg */
+static int hf_isdn_sup_DropCONFArg_PDU;           /* DropCONFArg */
+static int hf_isdn_sup_IsolateCONFArg_PDU;        /* IsolateCONFArg */
+static int hf_isdn_sup_ReattachCONFArg_PDU;       /* ReattachCONFArg */
+static int hf_isdn_sup_PartyDISCArg_PDU;          /* PartyDISCArg */
+static int hf_isdn_sup_ActivationDiversionArg_PDU;  /* ActivationDiversionArg */
+static int hf_isdn_sup_DeactivationDiversionArg_PDU;  /* DeactivationDiversionArg */
+static int hf_isdn_sup_ActivationStatusNotificationDivArg_PDU;  /* ActivationStatusNotificationDivArg */
+static int hf_isdn_sup_DeactivationStatusNotificationDivArg_PDU;  /* DeactivationStatusNotificationDivArg */
+static int hf_isdn_sup_InterrogationDiversionArg_PDU;  /* InterrogationDiversionArg */
+static int hf_isdn_sup_InterrogationDiversionRes_PDU;  /* InterrogationDiversionRes */
+static int hf_isdn_sup_InterrogateServedUserNumbersRes_PDU;  /* InterrogateServedUserNumbersRes */
+static int hf_isdn_sup_DiversionInformationArg_PDU;  /* DiversionInformationArg */
+static int hf_isdn_sup_CallDeflectionArg_PDU;     /* CallDeflectionArg */
+static int hf_isdn_sup_CallRerouteingArg_PDU;     /* CallRerouteingArg */
+static int hf_isdn_sup_DivertingLegInformation1Arg_PDU;  /* DivertingLegInformation1Arg */
+static int hf_isdn_sup_DivertingLegInformation2Arg_PDU;  /* DivertingLegInformation2Arg */
+static int hf_isdn_sup_DivertingLegInformation3Arg_PDU;  /* DivertingLegInformation3Arg */
+static int hf_isdn_sup_UserUserServiceArg_PDU;    /* UserUserServiceArg */
+static int hf_isdn_sup_CalledFreephoneNrArg_PDU;  /* CalledFreephoneNrArg */
+static int hf_isdn_sup_Monitor_T_FPHArg_PDU;      /* Monitor_T_FPHArg */
+static int hf_isdn_sup_Free_T_FPHArg_PDU;         /* Free_T_FPHArg */
+static int hf_isdn_sup_Call_T_FPHArg_PDU;         /* Call_T_FPHArg */
+static int hf_isdn_sup_MLPPLFBArg_PDU;            /* MLPPLFBArg */
+static int hf_isdn_sup_MLPPLFBResp_PDU;           /* MLPPLFBResp */
+static int hf_isdn_sup_MLPPParams_PDU;            /* MLPPParams */
+static int hf_isdn_sup_StatusRequest_PDU;         /* StatusRequest */
+static int hf_isdn_sup_PreemptParams_PDU;         /* PreemptParams */
+static int hf_isdn_sup_presentationallowedaddressscreened;  /* AddressScreened */
+static int hf_isdn_sup_presentationRestricted;    /* NULL */
+static int hf_isdn_sup_numberNotAvailableDueToInterworking;  /* NULL */
+static int hf_isdn_sup_presentationrestrictedaddressscreened;  /* AddressScreened */
+static int hf_isdn_sup_presentationAllowedAddress;  /* Address */
+static int hf_isdn_sup_presentationRestrictedAddress;  /* Address */
+static int hf_isdn_sup_presentationallowednumberscreened;  /* NumberScreened */
+static int hf_isdn_sup_presentationrestrictednumberscreened;  /* NumberScreened */
+static int hf_isdn_sup_presentationAllowedNumber;  /* PartyNumber */
+static int hf_isdn_sup_presentationRestrictedNumber;  /* PartyNumber */
+static int hf_isdn_sup_partyNumber;               /* PartyNumber */
+static int hf_isdn_sup_screeningIndicator;        /* ScreeningIndicator */
+static int hf_isdn_sup_partySubaddress;           /* PartySubaddress */
+static int hf_isdn_sup_unknownPartyNumber;        /* NumberDigits */
+static int hf_isdn_sup_publicPartyNumber;         /* PublicPartyNumber */
+static int hf_isdn_sup_nsapEncodedNumber;         /* NsapEncodedNumber */
+static int hf_isdn_sup_dataPartyNumber;           /* NumberDigits */
+static int hf_isdn_sup_telexPartyNumber;          /* NumberDigits */
+static int hf_isdn_sup_privatePartyNumber;        /* PrivatePartyNumber */
+static int hf_isdn_sup_nationalStandardPartyNumber;  /* NumberDigits */
+static int hf_isdn_sup_publicTypeOfNumber;        /* PublicTypeOfNumber */
+static int hf_isdn_sup_publicNumberDigits;        /* NumberDigits */
+static int hf_isdn_sup_privateTypeOfNumber;       /* PrivateTypeOfNumber */
+static int hf_isdn_sup_privateNumberDigits;       /* NumberDigits */
+static int hf_isdn_sup_userSpecifiedSubaddress;   /* UserSpecifiedSubaddress */
+static int hf_isdn_sup_nSAPSubaddress;            /* NSAPSubaddress */
+static int hf_isdn_sup_subaddressInformation;     /* SubaddressInformation */
+static int hf_isdn_sup_oddCountIndicator;         /* BOOLEAN */
+static int hf_isdn_sup_aOCSCurrencyInfoList;      /* AOCSCurrencyInfoList */
+static int hf_isdn_sup_aOCSSpecialArrInfo;        /* AOCSSpecialArrInfo */
+static int hf_isdn_sup_chargingInfoFollows;       /* NULL */
+static int hf_isdn_sup_chargeNotAvailable;        /* NULL */
+static int hf_isdn_sup_aOCDCurrencyInfo;          /* AOCDCurrencyInfo */
+static int hf_isdn_sup_aOCDChargingUnitInfo;      /* AOCDChargingUnitInfo */
+static int hf_isdn_sup_aOCECurrencyInfo;          /* AOCECurrencyInfo */
+static int hf_isdn_sup_aOCEChargingUnitInfo;      /* AOCEChargingUnitInfo */
+static int hf_isdn_sup_AOCSCurrencyInfoList_item;  /* AOCSCurrencyInfo */
+static int hf_isdn_sup_chargedItem;               /* ChargedItem */
+static int hf_isdn_sup_chargingtype;              /* T_chargingtype */
+static int hf_isdn_sup_aocschargingtypespecificCurrency;  /* AOCSChargingTypeSpecificCurrency */
+static int hf_isdn_sup_durationCurrency;          /* DurationCurrency */
+static int hf_isdn_sup_flatRateCurrency;          /* FlatRateCurrency */
+static int hf_isdn_sup_volumeRateCurrency;        /* VolumeRateCurrency */
+static int hf_isdn_sup_specialChargingCode;       /* SpecialChargingCode */
+static int hf_isdn_sup_freeOfCharge;              /* NULL */
+static int hf_isdn_sup_currencyInfoNotAvailable;  /* NULL */
+static int hf_isdn_sup_dCurrency;                 /* Currency */
+static int hf_isdn_sup_dAmount;                   /* Amount */
+static int hf_isdn_sup_dChargingType;             /* ChargingType */
+static int hf_isdn_sup_dTime;                     /* Time */
+static int hf_isdn_sup_dGranularity;              /* Time */
+static int hf_isdn_sup_fRCurrency;                /* Currency */
+static int hf_isdn_sup_fRAmount;                  /* Amount */
+static int hf_isdn_sup_vRCurrency;                /* Currency */
+static int hf_isdn_sup_vRAmount;                  /* Amount */
+static int hf_isdn_sup_vRVolumeUnit;              /* VolumeUnit */
+static int hf_isdn_sup_aocdspecificCurrency;      /* AOCDSpecificCurrency */
+static int hf_isdn_sup_recordedCurrency;          /* RecordedCurrency */
+static int hf_isdn_sup_typeOfChargingInfo;        /* TypeOfChargingInfo */
+static int hf_isdn_sup_aOCDBillingId;             /* AOCDBillingId */
+static int hf_isdn_sup_aocdspecificchargingunits;  /* AOCDSpecificChargingUnits */
+static int hf_isdn_sup_recordedUnitsList;         /* RecordedUnitsList */
+static int hf_isdn_sup_rCurrency;                 /* Currency */
+static int hf_isdn_sup_rAmount;                   /* Amount */
+static int hf_isdn_sup_RecordedUnitsList_item;    /* RecordedUnits */
+static int hf_isdn_sup_recoredunitscc;            /* RecoredUnitsCc */
+static int hf_isdn_sup_recordedNumberOfUnits;     /* NumberOfUnits */
+static int hf_isdn_sup_notAvailable;              /* NULL */
+static int hf_isdn_sup_recordedTypeOfUnits;       /* TypeOfUnit */
+static int hf_isdn_sup_aocecurrencycc;            /* AOCECurrencyCc */
+static int hf_isdn_sup_aoceccspecificCurrency;    /* AOCECcSpecificCurrency */
+static int hf_isdn_sup_aOCEBillingId;             /* AOCEBillingId */
+static int hf_isdn_sup_chargingAssociation;       /* ChargingAssociation */
+static int hf_isdn_sup_aocechargingunitcc;        /* AOCEChargingUnitCc */
+static int hf_isdn_sup_aoceccspecificchargingunits;  /* AOCECcSpecificChargingUnits */
+static int hf_isdn_sup_currencyAmount;            /* CurrencyAmount */
+static int hf_isdn_sup_multiplier;                /* Multiplier */
+static int hf_isdn_sup_lengthOfTimeUnit;          /* LengthOfTimeUnit */
+static int hf_isdn_sup_scale;                     /* Scale */
+static int hf_isdn_sup_chargeNumber;              /* PartyNumber */
+static int hf_isdn_sup_chargeIdentifier;          /* ChargeIdentifier */
+static int hf_isdn_sup_oARequested;               /* OARequested */
+static int hf_isdn_sup_cUGIndex;                  /* CUGIndex */
+static int hf_isdn_sup_conferenceId;              /* ConferenceId */
+static int hf_isdn_sup_partyId;                   /* PartyId */
+static int hf_isdn_sup_procedure;                 /* Procedure */
+static int hf_isdn_sup_basicService;              /* BasicService */
+static int hf_isdn_sup_forwardedToAddress;        /* Address */
+static int hf_isdn_sup_servedUserNr;              /* ServedUserNr */
+static int hf_isdn_sup_noReplyTimer;              /* NoReplyTimer */
+static int hf_isdn_sup_forwardedToAddresss;       /* Address */
+static int hf_isdn_sup_diversionReason;           /* DiversionReason */
+static int hf_isdn_sup_servedUserSubaddress;      /* PartySubaddress */
+static int hf_isdn_sup_callingAddress;            /* PresentedAddressScreened */
+static int hf_isdn_sup_originalCalledNr;          /* PresentedNumberUnscreened */
+static int hf_isdn_sup_lastDivertingNr;           /* PresentedNumberUnscreened */
+static int hf_isdn_sup_lastDivertingReason;       /* DiversionReason */
+static int hf_isdn_sup_userInfo;                  /* Q931InformationElement */
+static int hf_isdn_sup_deflectionAddress;         /* Address */
+static int hf_isdn_sup_presentationAllowedDivertedToUser;  /* PresentationAllowedIndicator */
+static int hf_isdn_sup_rerouteingReason;          /* DiversionReason */
+static int hf_isdn_sup_calledAddress;             /* Address */
+static int hf_isdn_sup_rerouteingCounter;         /* DiversionCounter */
+static int hf_isdn_sup_q931InfoElement;           /* Q931InformationElement */
+static int hf_isdn_sup_lastRerouteingNr;          /* PresentedNumberUnscreened */
+static int hf_isdn_sup_subscriptionOption;        /* SubscriptionOption */
+static int hf_isdn_sup_callingPartySubaddress;    /* PartySubaddress */
+static int hf_isdn_sup_divertedToNumber;          /* PresentedNumberUnscreened */
+static int hf_isdn_sup_diversionCounter;          /* DiversionCounter */
+static int hf_isdn_sup_divertingNr;               /* PresentedNumberUnscreened */
+static int hf_isdn_sup_IntResultList_item;        /* IntResult */
+static int hf_isdn_sup_individualNumber;          /* PartyNumber */
+static int hf_isdn_sup_allNumbers;                /* NULL */
+static int hf_isdn_sup_ServedUserNumberList_item;  /* PartyNumber */
+static int hf_isdn_sup_service;                   /* Service */
+static int hf_isdn_sup_preferred;                 /* Preferred */
+static int hf_isdn_sup_servedUserDestination;     /* PartyNumber */
+static int hf_isdn_sup_queueIdentity;             /* QueueIdentity */
+static int hf_isdn_sup_fPHReference;              /* FPHReference */
+static int hf_isdn_sup_calledFreephoneNr;         /* CalledFreephoneNr */
+static int hf_isdn_sup_mlppParams;                /* MLPPParams */
+static int hf_isdn_sup_ieArg;                     /* IEArg */
+static int hf_isdn_sup_precLevel;                 /* PrecLevel */
+static int hf_isdn_sup_lfbIndictn;                /* LFBIndictn */
+static int hf_isdn_sup_mlppSvcDomn;               /* MLPPSvcDomn */
+static int hf_isdn_sup_statusQuery;               /* StatusQuery */
+static int hf_isdn_sup_location;                  /* Location */
 
 
 /* Initialize the subtree pointers */
-static gint ett_isdn_sup = -1;
+static int ett_isdn_sup;
 
-static gint ett_isdn_sup_PresentedAddressScreened = -1;
-static gint ett_isdn_sup_PresentedAddressUnscreened = -1;
-static gint ett_isdn_sup_PresentedNumberScreened = -1;
-static gint ett_isdn_sup_PresentedNumberUnscreened = -1;
-static gint ett_isdn_sup_AddressScreened = -1;
-static gint ett_isdn_sup_NumberScreened = -1;
-static gint ett_isdn_sup_Address = -1;
-static gint ett_isdn_sup_PartyNumber = -1;
-static gint ett_isdn_sup_PublicPartyNumber = -1;
-static gint ett_isdn_sup_PrivatePartyNumber = -1;
-static gint ett_isdn_sup_PartySubaddress = -1;
-static gint ett_isdn_sup_UserSpecifiedSubaddress = -1;
-static gint ett_isdn_sup_ChargingRequestRes = -1;
-static gint ett_isdn_sup_AOCSCurrencyArg = -1;
-static gint ett_isdn_sup_AOCSSpecialArrArg = -1;
-static gint ett_isdn_sup_AOCDCurrencyArg = -1;
-static gint ett_isdn_sup_AOCDChargingUnitArg = -1;
-static gint ett_isdn_sup_AOCECurrencyArg = -1;
-static gint ett_isdn_sup_AOCEChargingUnitArg = -1;
-static gint ett_isdn_sup_AOCSCurrencyInfoList = -1;
-static gint ett_isdn_sup_AOCSCurrencyInfo = -1;
-static gint ett_isdn_sup_T_chargingtype = -1;
-static gint ett_isdn_sup_AOCSChargingTypeSpecificCurrency = -1;
-static gint ett_isdn_sup_DurationCurrency = -1;
-static gint ett_isdn_sup_FlatRateCurrency = -1;
-static gint ett_isdn_sup_VolumeRateCurrency = -1;
-static gint ett_isdn_sup_AOCDCurrencyInfo = -1;
-static gint ett_isdn_sup_AOCDSpecificCurrency = -1;
-static gint ett_isdn_sup_AOCDChargingUnitInfo = -1;
-static gint ett_isdn_sup_AOCDSpecificChargingUnits = -1;
-static gint ett_isdn_sup_RecordedCurrency = -1;
-static gint ett_isdn_sup_RecordedUnitsList = -1;
-static gint ett_isdn_sup_RecordedUnits = -1;
-static gint ett_isdn_sup_RecoredUnitsCc = -1;
-static gint ett_isdn_sup_AOCECurrencyInfo = -1;
-static gint ett_isdn_sup_AOCECurrencyCc = -1;
-static gint ett_isdn_sup_AOCECcSpecificCurrency = -1;
-static gint ett_isdn_sup_AOCEChargingUnitInfo = -1;
-static gint ett_isdn_sup_AOCEChargingUnitCc = -1;
-static gint ett_isdn_sup_AOCECcSpecificChargingUnits = -1;
-static gint ett_isdn_sup_Amount = -1;
-static gint ett_isdn_sup_Time = -1;
-static gint ett_isdn_sup_ChargingAssociation = -1;
-static gint ett_isdn_sup_CUGcallArg = -1;
-static gint ett_isdn_sup_BeginCONFRes = -1;
-static gint ett_isdn_sup_SplitCONFArg = -1;
-static gint ett_isdn_sup_ActivationDiversionArg = -1;
-static gint ett_isdn_sup_DeactivationDiversionArg = -1;
-static gint ett_isdn_sup_ActivationStatusNotificationDivArg = -1;
-static gint ett_isdn_sup_DeactivationStatusNotificationDivArg = -1;
-static gint ett_isdn_sup_InterrogationDiversionArg = -1;
-static gint ett_isdn_sup_DiversionInformationArg = -1;
-static gint ett_isdn_sup_CallDeflectionArg = -1;
-static gint ett_isdn_sup_CallRerouteingArg = -1;
-static gint ett_isdn_sup_DivertingLegInformation1Arg = -1;
-static gint ett_isdn_sup_DivertingLegInformation2Arg = -1;
-static gint ett_isdn_sup_IntResultList = -1;
-static gint ett_isdn_sup_IntResult = -1;
-static gint ett_isdn_sup_ServedUserNr = -1;
-static gint ett_isdn_sup_ServedUserNumberList = -1;
-static gint ett_isdn_sup_UserUserServiceArg = -1;
-static gint ett_isdn_sup_Monitor_T_FPHArg = -1;
-static gint ett_isdn_sup_Free_T_FPHArg = -1;
-static gint ett_isdn_sup_Call_T_FPHArg = -1;
-static gint ett_isdn_sup_MLPPLFBArg = -1;
-static gint ett_isdn_sup_MLPPParams = -1;
-static gint ett_isdn_sup_MLPPLFBResp = -1;
+static int ett_isdn_sup_PresentedAddressScreened;
+static int ett_isdn_sup_PresentedAddressUnscreened;
+static int ett_isdn_sup_PresentedNumberScreened;
+static int ett_isdn_sup_PresentedNumberUnscreened;
+static int ett_isdn_sup_AddressScreened;
+static int ett_isdn_sup_NumberScreened;
+static int ett_isdn_sup_Address;
+static int ett_isdn_sup_PartyNumber;
+static int ett_isdn_sup_PublicPartyNumber;
+static int ett_isdn_sup_PrivatePartyNumber;
+static int ett_isdn_sup_PartySubaddress;
+static int ett_isdn_sup_UserSpecifiedSubaddress;
+static int ett_isdn_sup_ChargingRequestRes;
+static int ett_isdn_sup_AOCSCurrencyArg;
+static int ett_isdn_sup_AOCSSpecialArrArg;
+static int ett_isdn_sup_AOCDCurrencyArg;
+static int ett_isdn_sup_AOCDChargingUnitArg;
+static int ett_isdn_sup_AOCECurrencyArg;
+static int ett_isdn_sup_AOCEChargingUnitArg;
+static int ett_isdn_sup_AOCSCurrencyInfoList;
+static int ett_isdn_sup_AOCSCurrencyInfo;
+static int ett_isdn_sup_T_chargingtype;
+static int ett_isdn_sup_AOCSChargingTypeSpecificCurrency;
+static int ett_isdn_sup_DurationCurrency;
+static int ett_isdn_sup_FlatRateCurrency;
+static int ett_isdn_sup_VolumeRateCurrency;
+static int ett_isdn_sup_AOCDCurrencyInfo;
+static int ett_isdn_sup_AOCDSpecificCurrency;
+static int ett_isdn_sup_AOCDChargingUnitInfo;
+static int ett_isdn_sup_AOCDSpecificChargingUnits;
+static int ett_isdn_sup_RecordedCurrency;
+static int ett_isdn_sup_RecordedUnitsList;
+static int ett_isdn_sup_RecordedUnits;
+static int ett_isdn_sup_RecoredUnitsCc;
+static int ett_isdn_sup_AOCECurrencyInfo;
+static int ett_isdn_sup_AOCECurrencyCc;
+static int ett_isdn_sup_AOCECcSpecificCurrency;
+static int ett_isdn_sup_AOCEChargingUnitInfo;
+static int ett_isdn_sup_AOCEChargingUnitCc;
+static int ett_isdn_sup_AOCECcSpecificChargingUnits;
+static int ett_isdn_sup_Amount;
+static int ett_isdn_sup_Time;
+static int ett_isdn_sup_ChargingAssociation;
+static int ett_isdn_sup_CUGcallArg;
+static int ett_isdn_sup_BeginCONFRes;
+static int ett_isdn_sup_SplitCONFArg;
+static int ett_isdn_sup_ActivationDiversionArg;
+static int ett_isdn_sup_DeactivationDiversionArg;
+static int ett_isdn_sup_ActivationStatusNotificationDivArg;
+static int ett_isdn_sup_DeactivationStatusNotificationDivArg;
+static int ett_isdn_sup_InterrogationDiversionArg;
+static int ett_isdn_sup_DiversionInformationArg;
+static int ett_isdn_sup_CallDeflectionArg;
+static int ett_isdn_sup_CallRerouteingArg;
+static int ett_isdn_sup_DivertingLegInformation1Arg;
+static int ett_isdn_sup_DivertingLegInformation2Arg;
+static int ett_isdn_sup_IntResultList;
+static int ett_isdn_sup_IntResult;
+static int ett_isdn_sup_ServedUserNr;
+static int ett_isdn_sup_ServedUserNumberList;
+static int ett_isdn_sup_UserUserServiceArg;
+static int ett_isdn_sup_Monitor_T_FPHArg;
+static int ett_isdn_sup_Free_T_FPHArg;
+static int ett_isdn_sup_Call_T_FPHArg;
+static int ett_isdn_sup_MLPPLFBArg;
+static int ett_isdn_sup_MLPPParams;
+static int ett_isdn_sup_MLPPLFBResp;
 
-/* static expert_field ei_isdn_sup_unsupported_arg_type = EI_INIT; */
-static expert_field ei_isdn_sup_unsupported_result_type = EI_INIT;
-static expert_field ei_isdn_sup_unsupported_error_type = EI_INIT;
+/* static expert_field ei_isdn_sup_unsupported_arg_type; */
+static expert_field ei_isdn_sup_unsupported_result_type;
+static expert_field ei_isdn_sup_unsupported_error_type;
 
 /* Preference settings default */
 
@@ -746,7 +747,7 @@ dissect_isdn_sup_OCTET_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offs
 static int
 dissect_isdn_sup_Q931InformationElement(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
-                                      hf_index, BER_CLASS_APP, 0, TRUE, dissect_isdn_sup_OCTET_STRING);
+                                      hf_index, BER_CLASS_APP, 0, true, dissect_isdn_sup_OCTET_STRING);
 
   return offset;
 }
@@ -1592,7 +1593,7 @@ dissect_isdn_sup_AOCEChargingUnitArg(bool implicit_tag _U_, tvbuff_t *tvb _U_, i
 static int
 dissect_isdn_sup_OARequested(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
-                                      hf_index, BER_CLASS_CON, 1, TRUE, dissect_isdn_sup_BOOLEAN);
+                                      hf_index, BER_CLASS_CON, 1, true, dissect_isdn_sup_BOOLEAN);
 
   return offset;
 }
@@ -1612,7 +1613,7 @@ dissect_isdn_sup_INTEGER_0_32767(bool implicit_tag _U_, tvbuff_t *tvb _U_, int o
 static int
 dissect_isdn_sup_CUGIndex(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_tagged_type(implicit_tag, actx, tree, tvb, offset,
-                                      hf_index, BER_CLASS_CON, 2, TRUE, dissect_isdn_sup_INTEGER_0_32767);
+                                      hf_index, BER_CLASS_CON, 2, true, dissect_isdn_sup_INTEGER_0_32767);
 
   return offset;
 }
@@ -2387,288 +2388,288 @@ dissect_isdn_sup_PreemptParams(bool implicit_tag _U_, tvbuff_t *tvb _U_, int off
 static int dissect_ChargingRequestArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_ChargingRequestArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_ChargingRequestArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_ChargingRequestArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_ChargingRequestArg_PDU);
   return offset;
 }
 static int dissect_ChargingRequestRes_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_ChargingRequestRes(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_ChargingRequestRes_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_ChargingRequestRes(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_ChargingRequestRes_PDU);
   return offset;
 }
 static int dissect_AOCSCurrencyArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_AOCSCurrencyArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCSCurrencyArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_AOCSCurrencyArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCSCurrencyArg_PDU);
   return offset;
 }
 static int dissect_AOCSSpecialArrArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_AOCSSpecialArrArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCSSpecialArrArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_AOCSSpecialArrArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCSSpecialArrArg_PDU);
   return offset;
 }
 static int dissect_AOCDCurrencyArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_AOCDCurrencyArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCDCurrencyArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_AOCDCurrencyArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCDCurrencyArg_PDU);
   return offset;
 }
 static int dissect_AOCDChargingUnitArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_AOCDChargingUnitArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCDChargingUnitArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_AOCDChargingUnitArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCDChargingUnitArg_PDU);
   return offset;
 }
 static int dissect_AOCECurrencyArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_AOCECurrencyArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCECurrencyArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_AOCECurrencyArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCECurrencyArg_PDU);
   return offset;
 }
 static int dissect_AOCEChargingUnitArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_AOCEChargingUnitArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCEChargingUnitArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_AOCEChargingUnitArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AOCEChargingUnitArg_PDU);
   return offset;
 }
 static int dissect_CUGcallArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_CUGcallArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_CUGcallArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_CUGcallArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_CUGcallArg_PDU);
   return offset;
 }
 static int dissect_BeginCONFArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_BeginCONFArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_BeginCONFArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_BeginCONFArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_BeginCONFArg_PDU);
   return offset;
 }
 static int dissect_BeginCONFRes_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_BeginCONFRes(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_BeginCONFRes_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_BeginCONFRes(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_BeginCONFRes_PDU);
   return offset;
 }
 static int dissect_AddCONFArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_AddCONFArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AddCONFArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_AddCONFArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AddCONFArg_PDU);
   return offset;
 }
 static int dissect_AddCONFRes_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_AddCONFRes(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AddCONFRes_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_AddCONFRes(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_AddCONFRes_PDU);
   return offset;
 }
 static int dissect_SplitCONFArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_SplitCONFArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_SplitCONFArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_SplitCONFArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_SplitCONFArg_PDU);
   return offset;
 }
 static int dissect_DropCONFArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_DropCONFArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DropCONFArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_DropCONFArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DropCONFArg_PDU);
   return offset;
 }
 static int dissect_IsolateCONFArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_IsolateCONFArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_IsolateCONFArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_IsolateCONFArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_IsolateCONFArg_PDU);
   return offset;
 }
 static int dissect_ReattachCONFArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_ReattachCONFArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_ReattachCONFArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_ReattachCONFArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_ReattachCONFArg_PDU);
   return offset;
 }
 static int dissect_PartyDISCArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_PartyDISCArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_PartyDISCArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_PartyDISCArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_PartyDISCArg_PDU);
   return offset;
 }
 static int dissect_ActivationDiversionArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_ActivationDiversionArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_ActivationDiversionArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_ActivationDiversionArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_ActivationDiversionArg_PDU);
   return offset;
 }
 static int dissect_DeactivationDiversionArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_DeactivationDiversionArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DeactivationDiversionArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_DeactivationDiversionArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DeactivationDiversionArg_PDU);
   return offset;
 }
 static int dissect_ActivationStatusNotificationDivArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_ActivationStatusNotificationDivArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_ActivationStatusNotificationDivArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_ActivationStatusNotificationDivArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_ActivationStatusNotificationDivArg_PDU);
   return offset;
 }
 static int dissect_DeactivationStatusNotificationDivArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_DeactivationStatusNotificationDivArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DeactivationStatusNotificationDivArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_DeactivationStatusNotificationDivArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DeactivationStatusNotificationDivArg_PDU);
   return offset;
 }
 static int dissect_InterrogationDiversionArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_InterrogationDiversionArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_InterrogationDiversionArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_InterrogationDiversionArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_InterrogationDiversionArg_PDU);
   return offset;
 }
 static int dissect_InterrogationDiversionRes_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_InterrogationDiversionRes(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_InterrogationDiversionRes_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_InterrogationDiversionRes(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_InterrogationDiversionRes_PDU);
   return offset;
 }
 static int dissect_InterrogateServedUserNumbersRes_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_InterrogateServedUserNumbersRes(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_InterrogateServedUserNumbersRes_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_InterrogateServedUserNumbersRes(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_InterrogateServedUserNumbersRes_PDU);
   return offset;
 }
 static int dissect_DiversionInformationArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_DiversionInformationArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DiversionInformationArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_DiversionInformationArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DiversionInformationArg_PDU);
   return offset;
 }
 static int dissect_CallDeflectionArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_CallDeflectionArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_CallDeflectionArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_CallDeflectionArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_CallDeflectionArg_PDU);
   return offset;
 }
 static int dissect_CallRerouteingArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_CallRerouteingArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_CallRerouteingArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_CallRerouteingArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_CallRerouteingArg_PDU);
   return offset;
 }
 static int dissect_DivertingLegInformation1Arg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_DivertingLegInformation1Arg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DivertingLegInformation1Arg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_DivertingLegInformation1Arg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DivertingLegInformation1Arg_PDU);
   return offset;
 }
 static int dissect_DivertingLegInformation2Arg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_DivertingLegInformation2Arg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DivertingLegInformation2Arg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_DivertingLegInformation2Arg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DivertingLegInformation2Arg_PDU);
   return offset;
 }
 static int dissect_DivertingLegInformation3Arg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_DivertingLegInformation3Arg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DivertingLegInformation3Arg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_DivertingLegInformation3Arg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_DivertingLegInformation3Arg_PDU);
   return offset;
 }
 static int dissect_UserUserServiceArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_UserUserServiceArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_UserUserServiceArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_UserUserServiceArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_UserUserServiceArg_PDU);
   return offset;
 }
 static int dissect_CalledFreephoneNrArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_CalledFreephoneNrArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_CalledFreephoneNrArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_CalledFreephoneNrArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_CalledFreephoneNrArg_PDU);
   return offset;
 }
 static int dissect_Monitor_T_FPHArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_Monitor_T_FPHArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_Monitor_T_FPHArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_Monitor_T_FPHArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_Monitor_T_FPHArg_PDU);
   return offset;
 }
 static int dissect_Free_T_FPHArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_Free_T_FPHArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_Free_T_FPHArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_Free_T_FPHArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_Free_T_FPHArg_PDU);
   return offset;
 }
 static int dissect_Call_T_FPHArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_Call_T_FPHArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_Call_T_FPHArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_Call_T_FPHArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_Call_T_FPHArg_PDU);
   return offset;
 }
 static int dissect_MLPPLFBArg_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_MLPPLFBArg(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_MLPPLFBArg_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_MLPPLFBArg(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_MLPPLFBArg_PDU);
   return offset;
 }
 static int dissect_MLPPLFBResp_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_MLPPLFBResp(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_MLPPLFBResp_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_MLPPLFBResp(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_MLPPLFBResp_PDU);
   return offset;
 }
 static int dissect_MLPPParams_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_MLPPParams(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_MLPPParams_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_MLPPParams(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_MLPPParams_PDU);
   return offset;
 }
 static int dissect_StatusRequest_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_StatusRequest(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_StatusRequest_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_StatusRequest(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_StatusRequest_PDU);
   return offset;
 }
 static int dissect_PreemptParams_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_isdn_sup_PreemptParams(FALSE, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_PreemptParams_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_isdn_sup_PreemptParams(false, tvb, offset, &asn1_ctx, tree, hf_isdn_sup_PreemptParams_PDU);
   return offset;
 }
 
@@ -2752,7 +2753,7 @@ static const isdn_sup_err_t isdn_sup_err_tab[] = {
 };
 
 
-static const isdn_sup_op_t *get_op(gint32 opcode) {
+static const isdn_sup_op_t *get_op(int32_t opcode) {
   int i;
 
   /* search from the end to get the last occurrence if the operation is redefined in some newer specification */
@@ -2762,7 +2763,7 @@ static const isdn_sup_op_t *get_op(gint32 opcode) {
   return NULL;
 }
 
-static const isdn_sup_err_t *get_err(gint32 errcode) {
+static const isdn_sup_err_t *get_err(int32_t errcode) {
   int i;
 
   /* search from the end to get the last occurrence if the operation is redefined in some newer specification */
@@ -2777,8 +2778,8 @@ static int
 dissect_isdn_sup_arg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
   int offset = 0;
   rose_ctx_t *rctx;
-  gint32 opcode = 0;
-  const gchar *p;
+  int32_t opcode = 0;
+  const char *p;
   const isdn_sup_op_t *op_ptr;
   proto_item *ti;
   proto_tree *isdn_sup_tree;
@@ -2826,10 +2827,10 @@ dissect_isdn_sup_arg(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 /*--- dissect_isdn_sup_res -------------------------------------------------------*/
 static int
 dissect_isdn_sup_res(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
-  gint offset = 0;
+  int offset = 0;
   rose_ctx_t *rctx;
-  gint32 opcode = 0;
-  const gchar *p;
+  int32_t opcode = 0;
+  const char *p;
   const isdn_sup_op_t *op_ptr;
   proto_item *ti;
   proto_tree *isdn_sup_tree;
@@ -2878,9 +2879,9 @@ static int
 dissect_isdn_sup_err(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
   int offset = 0;
   rose_ctx_t *rctx;
-  gint32 errcode;
+  int32_t errcode;
   const isdn_sup_err_t *err_ptr;
-  const gchar *p;
+  const char *p;
   proto_item *ti;
   proto_tree *isdn_sup_tree;
 
@@ -3646,7 +3647,7 @@ void proto_register_isdn_sup(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_isdn_sup,
 
     &ett_isdn_sup_PresentedAddressScreened,

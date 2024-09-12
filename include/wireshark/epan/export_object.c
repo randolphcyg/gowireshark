@@ -23,7 +23,7 @@ struct register_eo {
     export_object_gui_reset_cb reset_cb; /* function to parse parameters of optional arguments of tap string */
 };
 
-static wmem_tree_t *registered_eo_tables = NULL;
+static wmem_tree_t *registered_eo_tables;
 
 int
 register_export_object(const int proto_id, tap_packet_cb export_packet_func, export_object_gui_reset_cb reset_cb)
@@ -73,15 +73,15 @@ register_eo_t* get_eo_by_name(const char* name)
     return (register_eo_t*)wmem_tree_lookup_string(registered_eo_tables, name, 0);
 }
 
-void eo_iterate_tables(wmem_foreach_func func, gpointer user_data)
+void eo_iterate_tables(wmem_foreach_func func, void *user_data)
 {
     wmem_tree_foreach(registered_eo_tables, func, user_data);
 }
 
-static GString *eo_rename(GString *gstr, gsize maxlen, int dupn)
+static GString *eo_rename(GString *gstr, size_t maxlen, int dupn)
 {
     GString *gstr_tmp;
-    gchar *tmp_ptr;
+    char *tmp_ptr;
     GString *ext_str = NULL;
 
     gstr_tmp = g_string_new("");
@@ -111,14 +111,14 @@ static GString *eo_rename(GString *gstr, gsize maxlen, int dupn)
 }
 
 GString *
-eo_massage_str(const gchar *in_str, gsize maxlen, int dupn)
+eo_massage_str(const char *in_str, size_t maxlen, int dupn)
 {
-    gchar *tmp_ptr;
+    char *tmp_ptr;
     /* The characters in "reject" come from:
      * https://docs.microsoft.com/en-us/windows/win32/fileio/naming-a-file#naming-conventions.
      * Add to the list as necessary for other OS's.
      */
-    const gchar *reject = "<>:\"/\\|?*"
+    const char *reject = "<>:\"/\\|?*"
         "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a"
     "\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14"
     "\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f";

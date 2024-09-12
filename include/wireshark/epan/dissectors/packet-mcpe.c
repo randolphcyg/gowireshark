@@ -22,6 +22,8 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 
+#include <wsutil/array.h>
+
 #include "packet-raknet.h"
 
 /* Minecraft Pocket Edition Protocol
@@ -31,54 +33,54 @@
  */
 
 #define MCPE_UDP_PORT_DEFAULT 19132 /* Not IANA registered */
-static guint mcpe_udp_port_requested = MCPE_UDP_PORT_DEFAULT;
+static unsigned mcpe_udp_port_requested = MCPE_UDP_PORT_DEFAULT;
 
-static int proto_mcpe = -1;
-static gint ett_mcpe = -1; /* Should this node be expanded */
-static gint ett_mcpe_batch = -1;
-static gint ett_mcpe_batch_record = -1;
-static gint ett_mcpe_login = -1;
-static gint ett_mcpe_string = -1;
+static int proto_mcpe;
+static int ett_mcpe; /* Should this node be expanded */
+static int ett_mcpe_batch;
+static int ett_mcpe_batch_record;
+static int ett_mcpe_login;
+static int ett_mcpe_string;
 
 /*
  * Dissectors
  */
-static dissector_handle_t mcpe_handle = NULL;
-static dissector_table_t mcpe_packet_dissectors = NULL;
+static dissector_handle_t mcpe_handle;
+static dissector_table_t mcpe_packet_dissectors;
 
 /*
  * Expert fields
  */
-static expert_field ei_mcpe_unknown_packet_id = EI_INIT;
-static expert_field ei_mcpe_decompression_failed = EI_INIT;
-static expert_field ei_mcpe_encrypted_packet = EI_INIT;
+static expert_field ei_mcpe_unknown_packet_id;
+static expert_field ei_mcpe_decompression_failed;
+static expert_field ei_mcpe_encrypted_packet;
 
 /*
  * Common Header fields
  */
-static int hf_mcpe_message_id = -1;
-static int hf_mcpe_packet_id = -1;
-static int hf_mcpe_string_length = -1;
-static int hf_mcpe_UTF8_string = -1;
-static int hf_mcpe_byte_string = -1;
+static int hf_mcpe_message_id;
+static int hf_mcpe_packet_id;
+static int hf_mcpe_string_length;
+static int hf_mcpe_UTF8_string;
+static int hf_mcpe_byte_string;
 
 /*
  * Fields specific to a packet ID
  */
-static int hf_mcpe_protocol_version = -1;
-static int hf_mcpe_login_data_length = -1;
-static int hf_mcpe_login_data = -1;
-static int hf_mcpe_login = -1;
-static int hf_mcpe_chain_JSON = -1;
-static int hf_mcpe_client_data_JWT = -1;
-static int hf_mcpe_public_key = -1;
-static int hf_mcpe_server_token = -1;
+static int hf_mcpe_protocol_version;
+static int hf_mcpe_login_data_length;
+static int hf_mcpe_login_data;
+static int hf_mcpe_login;
+static int hf_mcpe_chain_JSON;
+static int hf_mcpe_client_data_JWT;
+static int hf_mcpe_public_key;
+static int hf_mcpe_server_token;
 
-static int hf_mcpe_batch_length = -1;
-static int hf_mcpe_batch_body = -1;
-static int hf_mcpe_batch_records = -1;
-static int hf_mcpe_batch_record_length = -1;
-static int hf_mcpe_batch_record = -1;
+static int hf_mcpe_batch_length;
+static int hf_mcpe_batch_body;
+static int hf_mcpe_batch_records;
+static int hf_mcpe_batch_record_length;
+static int hf_mcpe_batch_record;
 
 /*
  * RakNet Message ID
@@ -123,8 +125,8 @@ static value_string mcpe_packet_names[array_length(mcpe_packet_handlers)+1];
  * Session state
  */
 typedef struct mcpe_session_state {
-    gboolean encrypted;
-    guint32 encryption_starts_after; /* Frame number */
+    bool encrypted;
+    uint32_t encryption_starts_after; /* Frame number */
 } mcpe_session_state_t;
 
 static mcpe_session_state_t*
@@ -137,7 +139,7 @@ mcpe_get_session_state(packet_info *pinfo) {
 
     if (state == NULL) {
         state = wmem_new(wmem_file_scope(), mcpe_session_state_t);
-        state->encrypted = FALSE;
+        state->encrypted = false;
         state->encryption_starts_after = 0;
 
         conversation_add_proto_data(conversation, proto_mcpe, state);
@@ -150,11 +152,11 @@ mcpe_get_session_state(packet_info *pinfo) {
  * Packet dissectors
  */
 static void
-mcpe_dissect_string(packet_info *pinfo, proto_tree *tree, int hf, tvbuff_t *tvb, gint *offset, guint encoding) {
+mcpe_dissect_string(packet_info *pinfo, proto_tree *tree, int hf, tvbuff_t *tvb, int *offset, unsigned encoding) {
     proto_item *ti;
     proto_tree *string_tree;
-    guint32 length;
-    guint32 length_width;
+    uint32_t length;
+    uint32_t length_width;
 
     if (encoding & ENC_LITTLE_ENDIAN) {
         /*
@@ -170,7 +172,7 @@ mcpe_dissect_string(packet_info *pinfo, proto_tree *tree, int hf, tvbuff_t *tvb,
     }
 
     if (encoding & ENC_UTF_8) {
-        guint8 *string;
+        uint8_t *string;
 
         string = tvb_get_string_enc(pinfo->pool, tvb, *offset + length_width, length, ENC_UTF_8);
 
@@ -186,9 +188,9 @@ mcpe_dissect_string(packet_info *pinfo, proto_tree *tree, int hf, tvbuff_t *tvb,
         *offset += length;
     }
     else {
-        guint8 *bytes;
+        uint8_t *bytes;
 
-        bytes = (guint8*)tvb_memdup(pinfo->pool, tvb, *offset + length_width, length);
+        bytes = (uint8_t*)tvb_memdup(pinfo->pool, tvb, *offset + length_width, length);
 
         ti = proto_tree_add_bytes_with_length(tree, hf, tvb, *offset, length + length_width, bytes, length);
         string_tree = proto_item_add_subtree(ti, ett_mcpe_string);
@@ -207,9 +209,9 @@ static int
 mcpe_dissect_login(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     if (tree) {
-        gint item_size;
-        gint offset = 1;
-        guint32 comp_length;
+        int item_size;
+        int offset = 1;
+        uint32_t comp_length;
         proto_item *ti;
         tvbuff_t *login_tvb;
 
@@ -227,9 +229,9 @@ mcpe_dissect_login(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
         ti = proto_tree_add_item(tree, hf_mcpe_login_data, tvb,
                                  offset, item_size, ENC_NA);
 
-        login_tvb = tvb_child_uncompress(tvb, tvb, offset, comp_length);
+        login_tvb = tvb_child_uncompress_zlib(tvb, tvb, offset, comp_length);
         if (login_tvb) {
-            guint32 decomp_length;
+            uint32_t decomp_length;
             proto_tree *login_tree;
 
             add_new_data_source(pinfo, login_tvb, "MCPE Decompressed login data");
@@ -257,7 +259,7 @@ static int
 mcpe_dissect_server_to_client_handshake(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
     if (tree) {
-        gint offset = 1;
+        int offset = 1;
         mcpe_session_state_t *state;
 
         mcpe_dissect_string(pinfo, tree, hf_mcpe_public_key, tvb, &offset, ENC_BIG_ENDIAN | ENC_UTF_8);
@@ -267,7 +269,7 @@ mcpe_dissect_server_to_client_handshake(tvbuff_t *tvb, packet_info *pinfo, proto
          * Everything will be encrypted once the server sends this.
          */
         state = mcpe_get_session_state(pinfo);
-        state->encrypted = TRUE;
+        state->encrypted = true;
         state->encryption_starts_after = pinfo->num;
     }
     return tvb_reported_length(tvb);
@@ -277,10 +279,10 @@ static int
 mcpe_dissect_batch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
     if (tree) {
-        guint32 item_size;
-        guint32 offset = 1;
+        uint32_t item_size;
+        uint32_t offset = 1;
         proto_item *ti;
-        guint32 comp_length;
+        uint32_t comp_length;
         tvbuff_t *batch_tvb;
 
         item_size = 4;
@@ -292,9 +294,9 @@ mcpe_dissect_batch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
         ti = proto_tree_add_item(tree, hf_mcpe_batch_body, tvb,
                                  offset, item_size, ENC_NA);
 
-        batch_tvb = tvb_child_uncompress(tvb, tvb, offset, comp_length);
+        batch_tvb = tvb_child_uncompress_zlib(tvb, tvb, offset, comp_length);
         if (batch_tvb) {
-            guint32 decomp_length;
+            uint32_t decomp_length;
             proto_tree *batch_tree;
 
             add_new_data_source(pinfo, batch_tvb, "MCPE Decompressed batch");
@@ -310,12 +312,12 @@ mcpe_dissect_batch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 
             col_append_str(pinfo->cinfo, COL_INFO, " [");
 
-            while (TRUE) {
-                guint32 record_length;
+            while (true) {
+                uint32_t record_length;
                 tvbuff_t *record_tvb;
                 proto_tree *record_tree;
-                guint32 packet_id;
-                gint dissected;
+                uint32_t packet_id;
+                int dissected;
 
                 item_size = 4;
                 proto_tree_add_item_ret_uint(batch_tree, hf_mcpe_batch_record_length, batch_tvb,
@@ -345,7 +347,7 @@ mcpe_dissect_batch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 
                 dissected =
                     dissector_try_uint_new(mcpe_packet_dissectors, packet_id,
-                                           record_tvb, pinfo, record_tree, TRUE, data);
+                                           record_tvb, pinfo, record_tree, true, data);
                 if (!dissected) {
                     expert_add_info(pinfo, ti, &ei_mcpe_unknown_packet_id);
                 }
@@ -380,8 +382,8 @@ mcpe_init_message_names(void)
     mcpe_packet_names[array_length(mcpe_packet_handlers)].strptr = NULL;
 }
 
-static gboolean
-test_mcpe_heur(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, void* data _U_)
+static bool
+test_mcpe_heur(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, void* data)
 {
     /*
      * 0xFE "Wrapper" is the only message ID that MCPE uses. The sole
@@ -397,20 +399,20 @@ test_mcpe_heur(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, void
              * Inspect the packet ID. If it's known to us the message
              * can be considered to be an MCPE packet.
              */
-            gint8 packet_id = tvb_get_guint8(tvb, 1);
+            int8_t packet_id = tvb_get_uint8(tvb, 1);
 
             *(dissector_handle_t*)data =
                 dissector_get_uint_handle(mcpe_packet_dissectors, packet_id);
 
             if (*(dissector_handle_t*)data) {
-                return TRUE;
+                return true;
             }
         }
     }
-    return FALSE;
+    return false;
 }
 
-static gboolean
+static bool
 dissect_mcpe_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     dissector_handle_t handle;
@@ -418,8 +420,8 @@ dissect_mcpe_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
     if (test_mcpe_heur(tvb, pinfo, tree, &handle)) {
         proto_item *ti;
         proto_tree *mcpe_tree;
-        guint32 message_id;
-        guint32 packet_id;
+        uint32_t message_id;
+        uint32_t packet_id;
         tvbuff_t *packet_tvb;
 
         raknet_conversation_set_dissector(pinfo, mcpe_handle);
@@ -456,7 +458,7 @@ dissect_mcpe_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
         return call_dissector_only(handle, packet_tvb, pinfo, mcpe_tree, data) > 0;
     }
     else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -473,10 +475,10 @@ dissect_mcpe(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
          * use.
          */
         proto_item *ti;
-        gint packet_size;
+        int packet_size;
 
         col_set_str(pinfo->cinfo, COL_PROTOCOL, "MCPE");
-        col_add_str(pinfo->cinfo, COL_INFO, "Encrypted packet");
+        col_set_str(pinfo->cinfo, COL_INFO, "Encrypted packet");
 
         packet_size = tvb_reported_length(tvb);
         ti = proto_tree_add_item(tree, proto_mcpe, tvb, 0, packet_size, ENC_NA);
@@ -622,7 +624,7 @@ proto_register_mcpe(void)
     /*
      * Setup protocol subtree array
      */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_mcpe,
         &ett_mcpe_batch,
         &ett_mcpe_batch_record,
@@ -698,8 +700,8 @@ proto_register_mcpe(void)
 void
 proto_reg_handoff_mcpe(void)
 {
-    static guint last_server_port;
-    static gboolean init_done = FALSE;
+    static unsigned last_server_port;
+    static bool init_done = false;
 
     if (init_done) {
         raknet_delete_udp_dissector(last_server_port, mcpe_handle);
@@ -720,7 +722,7 @@ proto_reg_handoff_mcpe(void)
     }
 
     last_server_port = mcpe_udp_port_requested;
-    init_done = TRUE;
+    init_done = true;
 
     /* MCPE is a protocol that carries RakNet packets over UDP */
     raknet_add_udp_dissector(mcpe_udp_port_requested, mcpe_handle);

@@ -129,60 +129,60 @@ static const value_string vals_tpi_opt[] = {
 };
 
 /* File scoped variables for the protocol and registered fields */
-static int proto_wtp = -1;
+static int proto_wtp;
 
 /* These fields used by fixed part of header */
-static int hf_wtp_header_sub_pdu_size      = -1;
-static int hf_wtp_header_flag_continue     = -1;
-static int hf_wtp_header_pdu_type          = -1;
-static int hf_wtp_header_flag_Trailer      = -1;
-static int hf_wtp_header_flag_RID          = -1;
-static int hf_wtp_header_flag_TID          = -1;
-static int hf_wtp_header_flag_TID_response = -1;
+static int hf_wtp_header_sub_pdu_size;
+static int hf_wtp_header_flag_continue;
+static int hf_wtp_header_pdu_type;
+static int hf_wtp_header_flag_Trailer;
+static int hf_wtp_header_flag_RID;
+static int hf_wtp_header_flag_TID;
+static int hf_wtp_header_flag_TID_response;
 
 /* These fields used by Invoke packets */
-static int hf_wtp_header_Inv_version          = -1;
-static int hf_wtp_header_Inv_flag_TIDNew      = -1;
-static int hf_wtp_header_Inv_flag_UP          = -1;
-static int hf_wtp_header_Inv_Reserved         = -1;
-static int hf_wtp_header_Inv_TransactionClass = -1;
+static int hf_wtp_header_Inv_version;
+static int hf_wtp_header_Inv_flag_TIDNew;
+static int hf_wtp_header_Inv_flag_UP;
+static int hf_wtp_header_Inv_Reserved;
+static int hf_wtp_header_Inv_TransactionClass;
 
-/* static int hf_wtp_header_variable_part = -1; */
-/* static int hf_wtp_data                 = -1; */
+/* static int hf_wtp_header_variable_part; */
+/* static int hf_wtp_data; */
 
-static int hf_wtp_tpi_type   = -1;
-static int hf_wtp_tpi_psn    = -1;
-static int hf_wtp_tpi_opt    = -1;
-static int hf_wtp_tpi_optval = -1;
-static int hf_wtp_tpi_info   = -1;
+static int hf_wtp_tpi_type;
+static int hf_wtp_tpi_psn;
+static int hf_wtp_tpi_opt;
+static int hf_wtp_tpi_optval;
+static int hf_wtp_tpi_info;
 
-static int hf_wtp_header_Ack_flag_TVETOK       = -1;
-static int hf_wtp_header_Abort_type            = -1;
-static int hf_wtp_header_Abort_reason_provider = -1;
-static int hf_wtp_header_Abort_reason_user     = -1;
-static int hf_wtp_header_sequence_number       = -1;
-static int hf_wtp_header_missing_packets       = -1;
-static int hf_wtp_payload                      = -1;
+static int hf_wtp_header_Ack_flag_TVETOK;
+static int hf_wtp_header_Abort_type;
+static int hf_wtp_header_Abort_reason_provider;
+static int hf_wtp_header_Abort_reason_user;
+static int hf_wtp_header_sequence_number;
+static int hf_wtp_header_missing_packets;
+static int hf_wtp_payload;
 
 /* These fields used when reassembling WTP fragments */
-static int hf_wtp_fragments                  = -1;
-static int hf_wtp_fragment                   = -1;
-static int hf_wtp_fragment_overlap           = -1;
-static int hf_wtp_fragment_overlap_conflict  = -1;
-static int hf_wtp_fragment_multiple_tails    = -1;
-static int hf_wtp_fragment_too_long_fragment = -1;
-static int hf_wtp_fragment_error             = -1;
-static int hf_wtp_fragment_count             = -1;
-static int hf_wtp_reassembled_in             = -1;
-static int hf_wtp_reassembled_length         = -1;
+static int hf_wtp_fragments;
+static int hf_wtp_fragment;
+static int hf_wtp_fragment_overlap;
+static int hf_wtp_fragment_overlap_conflict;
+static int hf_wtp_fragment_multiple_tails;
+static int hf_wtp_fragment_too_long_fragment;
+static int hf_wtp_fragment_error;
+static int hf_wtp_fragment_count;
+static int hf_wtp_reassembled_in;
+static int hf_wtp_reassembled_length;
 
 /* Initialize the subtree pointers */
-static gint ett_wtp              = -1;
-static gint ett_wtp_sub_pdu_tree = -1;
-static gint ett_header           = -1;
-static gint ett_tpilist          = -1;
-static gint ett_wsp_fragments    = -1;
-static gint ett_wtp_fragment     = -1;
+static int ett_wtp;
+static int ett_wtp_sub_pdu_tree;
+static int ett_header;
+static int ett_tpilist;
+static int ett_wsp_fragments;
+static int ett_wtp_fragment;
 
 static const fragment_items wtp_frag_items = {
     &ett_wtp_fragment,
@@ -246,10 +246,10 @@ wtp_handle_tpi(proto_tree *tree, tvbuff_t *tvb)
     proto_tree    *subTree = NULL;
     proto_item    *pi;
 
-    tByte = tvb_get_guint8(tvb, offset++);
+    tByte = tvb_get_uint8(tvb, offset++);
     tType = (tByte & 0x78) >> 3;
     if (tByte & 0x04)                /* Long TPI    */
-        tLen = tvb_get_guint8(tvb, offset++);
+        tLen = tvb_get_uint8(tvb, offset++);
     else
         tLen = tByte & 0x03;
     pi = proto_tree_add_uint(tree, hf_wtp_tpi_type,
@@ -292,7 +292,7 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
     char          *szInfo;
     int            offCur        = 0;   /* current offset from start of WTP data */
-    gint           returned_length, str_index = 0;
+    int            returned_length, str_index = 0;
 
     unsigned char  b0;
 
@@ -300,8 +300,8 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     unsigned char  fCon;            /* Continue flag    */
     unsigned char  fRID;            /* Re-transmission indicator*/
     unsigned char  fTTR = '\0';        /* Transmission trailer    */
-    guint          cbHeader       = 0;    /* Fixed header length    */
-    guint          vHeader       = 0;    /* Variable header length*/
+    unsigned       cbHeader       = 0;    /* Fixed header length    */
+    unsigned       vHeader       = 0;    /* Variable header length*/
     int            abortType      = 0;
 
     /* Set up structures we'll need to add the protocol subtree and manage it */
@@ -313,19 +313,19 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     int            numMissing = 0;        /* Number of missing packets in a negative ack */
     int            i;
     tvbuff_t      *wsp_tvb = NULL;
-    guint8         psn = 0;        /* Packet sequence number*/
-    guint16        TID = 0;        /* Transaction-Id    */
+    uint8_t        psn = 0;        /* Packet sequence number*/
+    uint16_t       TID = 0;        /* Transaction-Id    */
     int            dataOffset;
-    gint           dataLen;
+    int            dataLen;
 
 #define SZINFO_SIZE 256
     szInfo=(char *)wmem_alloc(pinfo->pool, SZINFO_SIZE);
 
-    b0 = tvb_get_guint8 (tvb, offCur + 0);
+    b0 = tvb_get_uint8 (tvb, offCur + 0);
     /* Discover Concatenated PDUs */
     if (b0 == 0) {
-        guint    c_fieldlen = 0;        /* Length of length-field    */
-        guint    c_pdulen = 0;        /* Length of conc. PDU    */
+        unsigned c_fieldlen = 0;        /* Length of length-field    */
+        unsigned c_pdulen = 0;        /* Length of conc. PDU    */
 
         if (tree) {
             ti = proto_tree_add_item(tree, proto_wtp,
@@ -343,10 +343,10 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
              *      if the 1st octet has its highest bit == 1.
              * This means that this is NOT encoded as an uintvar-integer!!!
              */
-            b0 = tvb_get_guint8(tvb, offCur + 0);
+            b0 = tvb_get_uint8(tvb, offCur + 0);
             if (b0 & 0x80) {
                 c_fieldlen = 2;
-                c_pdulen = ((b0 & 0x7f) << 8) | tvb_get_guint8(tvb, offCur + 1);
+                c_pdulen = ((b0 & 0x7f) << 8) | tvb_get_uint8(tvb, offCur + 1);
             } else {
                 c_fieldlen = 1;
                 c_pdulen = b0;
@@ -392,7 +392,7 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
             fTTR = transmission_trailer(b0);
             TID = tvb_get_ntohs(tvb, offCur + 1);
             psn = 0;
-            clsTransaction = transaction_class(tvb_get_guint8(tvb, offCur + 3));
+            clsTransaction = transaction_class(tvb_get_uint8(tvb, offCur + 3));
             returned_length = snprintf(&szInfo[str_index], SZINFO_SIZE-str_index,
                     " Class %d", clsTransaction);
             str_index += MIN(returned_length, SZINFO_SIZE-str_index);
@@ -403,7 +403,7 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
         case SEGMENTED_RESULT:
             fTTR = transmission_trailer(b0);
             TID = tvb_get_ntohs(tvb, offCur + 1);
-            psn = tvb_get_guint8(tvb, offCur + 3);
+            psn = tvb_get_uint8(tvb, offCur + 3);
             if (psn != 0) {
                 returned_length = snprintf(&szInfo[str_index], SZINFO_SIZE-str_index,
                         " (%u)", psn);
@@ -429,7 +429,7 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 
         case NEGATIVE_ACK:
             /* Variable number of missing packets */
-            numMissing = tvb_get_guint8(tvb, offCur + 3);
+            numMissing = tvb_get_uint8(tvb, offCur + 3);
             cbHeader = numMissing + 4;
             break;
 
@@ -507,13 +507,13 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
                 break;
 
             case ABORT:
-                abortType = tvb_get_guint8 (tvb, offCur) & 0x07;
+                abortType = tvb_get_uint8 (tvb, offCur) & 0x07;
                 proto_tree_add_item(wtp_tree, hf_wtp_header_Abort_type , tvb, offCur , 1, ENC_LITTLE_ENDIAN);
                 proto_tree_add_item(wtp_tree, hf_wtp_header_flag_TID_response, tvb, offCur + 1, 2, ENC_BIG_ENDIAN);
                 proto_tree_add_item(wtp_tree, hf_wtp_header_flag_TID, tvb, offCur + 1, 2, ENC_BIG_ENDIAN);
 
                 if (abortType == PROVIDER) {
-                    guint8 reason = tvb_get_guint8(tvb, offCur + 3);
+                    uint8_t reason = tvb_get_uint8(tvb, offCur + 3);
                     proto_tree_add_item( wtp_tree, hf_wtp_header_Abort_reason_provider , tvb, offCur + 3 , 1, ENC_LITTLE_ENDIAN);
                     proto_item_append_text(ti,
                             ", PDU: Abort (%u)"
@@ -525,7 +525,7 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
                             reason);
                 }
                 else if (abortType == USER) {
-                    guint8 reason = tvb_get_guint8(tvb, offCur + 3);
+                    uint8_t reason = tvb_get_uint8(tvb, offCur + 3);
                     proto_tree_add_item(wtp_tree, hf_wtp_header_Abort_reason_user , tvb, offCur + 3 , 1, ENC_LITTLE_ENDIAN);
                     proto_item_append_text(ti,
                             ", PDU: Abort (%u)"
@@ -594,18 +594,18 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     }
     /* Process the variable part */
     if (fCon) {            /* Now, analyze variable part    */
-        guint8    tCon;
-        guint8    tByte;
-        guint     tpiLen;
+        uint8_t   tCon;
+        uint8_t   tByte;
+        unsigned  tpiLen;
         tvbuff_t *tmp_tvb;
 
         vHeader = 0;        /* Start scan all over    */
 
         do {
-            tByte = tvb_get_guint8(tvb, offCur + cbHeader + vHeader);
+            tByte = tvb_get_uint8(tvb, offCur + cbHeader + vHeader);
             tCon = tByte & 0x80;
             if (tByte & 0x04)    /* Long TPI    */
-                tpiLen = 2 + tvb_get_guint8(tvb, offCur + cbHeader + vHeader + 1);
+                tpiLen = 2 + tvb_get_uint8(tvb, offCur + cbHeader + vHeader + 1);
             else
                 tpiLen = 1 + (tByte & 0x03);
             if (tree)
@@ -639,7 +639,7 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
      * for packets other than the last packet?)
      *
      * Try calling a subdissector only if:
-     *    - The WTP payload is ressembled in this very packet,
+     *    - The WTP payload is resembled in this very packet,
      *    - The WTP payload is not fragmented across packets.
      */
     dataOffset = offCur + cbHeader + vHeader;
@@ -660,10 +660,10 @@ dissect_wtp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
         {
             /* Try reassembling fragments */
             fragment_head *fd_wtp = NULL;
-            guint32 reassembled_in = 0;
-            gboolean save_fragmented = pinfo->fragmented;
+            uint32_t reassembled_in = 0;
+            bool save_fragmented = pinfo->fragmented;
 
-            pinfo->fragmented = TRUE;
+            pinfo->fragmented = true;
             fd_wtp = fragment_add_seq(&wtp_reassembly_table, tvb, dataOffset,
                     pinfo, TID, NULL, psn, dataLen, !fTTR, 0);
             /* XXX - fragment_add_seq() yields NULL unless Wireshark knows
@@ -1011,7 +1011,7 @@ proto_register_wtp(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_wtp,
         &ett_wtp_sub_pdu_tree,
         &ett_header,

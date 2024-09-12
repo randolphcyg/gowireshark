@@ -22,12 +22,12 @@
 void proto_register_fmtp(void);
 void proto_reg_handoff_fmtp(void);
 
-static int proto_fmtp = -1;
-static int hf_fmtp_pdu_version = -1;
-static int hf_fmtp_pdu_reserved = -1;
-static int hf_fmtp_pdu_type = -1;
-static int hf_fmtp_pdu_length = -1;
-static gint ett_fmtp = -1;
+static int proto_fmtp;
+static int hf_fmtp_pdu_version;
+static int hf_fmtp_pdu_reserved;
+static int hf_fmtp_pdu_type;
+static int hf_fmtp_pdu_length;
+static int ett_fmtp;
 
 /* #define TCP_PORT_FMTP       8500 */
 #define FMTP_HEADER_LEN     5
@@ -59,13 +59,13 @@ static const value_string system_message_names[] = {
 static int
 dissect_fmtp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
-    guint8      packet_type;
-    guint16     packet_len;
+    uint8_t     packet_type;
+    uint16_t    packet_len;
     tvbuff_t   *next_tvb;
     proto_item *ti = NULL;
     proto_tree *fmtp_tree = NULL;
 
-    packet_type = tvb_get_guint8(tvb, 4);
+    packet_type = tvb_get_uint8(tvb, 4);
     packet_len  = tvb_get_ntohs(tvb, 2);
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "FMTP");
@@ -96,7 +96,7 @@ dissect_fmtp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
             break;
 
         default:
-            col_add_fstr(pinfo->cinfo, COL_INFO, "%s",
+            col_add_str(pinfo->cinfo, COL_INFO,
                 val_to_str(packet_type, packet_type_names, "Unknown (0x%02x)"));
             break;
     }
@@ -114,36 +114,36 @@ dissect_fmtp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     return tvb_captured_length(tvb);
 }
 
-static guint
+static unsigned
 get_fmtp_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-    return (guint)tvb_get_ntohs(tvb, offset+2);
+    return (unsigned)tvb_get_ntohs(tvb, offset+2);
 }
 
-static gboolean
+static bool
 dissect_fmtp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
-    guint16 length;
+    uint16_t length;
 
     if (tvb_captured_length(tvb) < 5)
-        return FALSE;
+        return false;
     /*
      * Check that packet looks like FMTP before going further
      */
     /* VERSION must currently be 0x02 */
-    if (tvb_get_guint8(tvb, 0) != 0x02) return (FALSE);
+    if (tvb_get_uint8(tvb, 0) != 0x02) return false;
     /* RESERVED must currently be 0x00 */
-    if (tvb_get_guint8(tvb, 1) != 0x00) return (FALSE);
+    if (tvb_get_uint8(tvb, 1) != 0x00) return false;
     length = tvb_get_ntohs(tvb, 2);
     /* LENGTH must currently not exceed 5 (header) + 10240 (data) */
-    if ((length > FMTP_MAX_LEN) || (length < FMTP_HEADER_LEN)) return (FALSE);
+    if ((length > FMTP_MAX_LEN) || (length < FMTP_HEADER_LEN)) return false;
     /* TYP must currently be in range 0x01-0x04 */
-    if ((tvb_get_guint8(tvb, 4) < 0x01) || (tvb_get_guint8(tvb, 4) > 0x04))
-        return (FALSE);
+    if ((tvb_get_uint8(tvb, 4) < 0x01) || (tvb_get_uint8(tvb, 4) > 0x04))
+        return false;
 
-    tcp_dissect_pdus(tvb, pinfo, tree, TRUE, FMTP_HEADER_LEN,
+    tcp_dissect_pdus(tvb, pinfo, tree, true, FMTP_HEADER_LEN,
                      get_fmtp_message_len, dissect_fmtp_message, data);
-    return (TRUE);
+    return true;
 }
 
 void
@@ -177,7 +177,7 @@ proto_register_fmtp(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_fmtp
     };
 

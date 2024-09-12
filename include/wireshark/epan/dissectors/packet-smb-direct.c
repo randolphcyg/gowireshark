@@ -27,43 +27,43 @@ void proto_reg_handoff_smb_direct(void);
 
 static dissector_handle_t smb_direct_handle;
 
-static int proto_smb_direct = -1;
+static int proto_smb_direct;
 
-static gint ett_smb_direct = -1;
-static gint ett_smb_direct_hdr = -1;
-static gint ett_smb_direct_flags = -1;
-static gint ett_smb_direct_fragment = -1;
-static gint ett_smb_direct_fragments = -1;
+static int ett_smb_direct;
+static int ett_smb_direct_hdr;
+static int ett_smb_direct_flags;
+static int ett_smb_direct_fragment;
+static int ett_smb_direct_fragments;
 
-static int hf_smb_direct_negotiate_request = -1;
-static int hf_smb_direct_negotiate_response = -1;
-static int hf_smb_direct_data_message = -1;
-static int hf_smb_direct_min_version = -1;
-static int hf_smb_direct_max_version = -1;
-static int hf_smb_direct_negotiated_version = -1;
-static int hf_smb_direct_credits_requested = -1;
-static int hf_smb_direct_credits_granted = -1;
-static int hf_smb_direct_status = -1;
-static int hf_smb_direct_max_read_write_size = -1;
-static int hf_smb_direct_preferred_send_size = -1;
-static int hf_smb_direct_max_receive_size = -1;
-static int hf_smb_direct_max_fragmented_size = -1;
-static int hf_smb_direct_flags = -1;
-static int hf_smb_direct_flags_response_requested = -1;
-static int hf_smb_direct_remaining_length = -1;
-static int hf_smb_direct_data_offset = -1;
-static int hf_smb_direct_data_length = -1;
-static int hf_smb_direct_fragments = -1;
-static int hf_smb_direct_fragment = -1;
-static int hf_smb_direct_fragment_overlap = -1;
-static int hf_smb_direct_fragment_overlap_conflict = -1;
-static int hf_smb_direct_fragment_multiple_tails = -1;
-static int hf_smb_direct_fragment_too_long_fragment = -1;
-static int hf_smb_direct_fragment_error = -1;
-static int hf_smb_direct_fragment_count = -1;
-static int hf_smb_direct_reassembled_in = -1;
-static int hf_smb_direct_reassembled_length = -1;
-static int hf_smb_direct_reassembled_data = -1;
+static int hf_smb_direct_negotiate_request;
+static int hf_smb_direct_negotiate_response;
+static int hf_smb_direct_data_message;
+static int hf_smb_direct_min_version;
+static int hf_smb_direct_max_version;
+static int hf_smb_direct_negotiated_version;
+static int hf_smb_direct_credits_requested;
+static int hf_smb_direct_credits_granted;
+static int hf_smb_direct_status;
+static int hf_smb_direct_max_read_write_size;
+static int hf_smb_direct_preferred_send_size;
+static int hf_smb_direct_max_receive_size;
+static int hf_smb_direct_max_fragmented_size;
+static int hf_smb_direct_flags;
+static int hf_smb_direct_flags_response_requested;
+static int hf_smb_direct_remaining_length;
+static int hf_smb_direct_data_offset;
+static int hf_smb_direct_data_length;
+static int hf_smb_direct_fragments;
+static int hf_smb_direct_fragment;
+static int hf_smb_direct_fragment_overlap;
+static int hf_smb_direct_fragment_overlap_conflict;
+static int hf_smb_direct_fragment_multiple_tails;
+static int hf_smb_direct_fragment_too_long_fragment;
+static int hf_smb_direct_fragment_error;
+static int hf_smb_direct_fragment_count;
+static int hf_smb_direct_reassembled_in;
+static int hf_smb_direct_reassembled_length;
+static int hf_smb_direct_reassembled_data;
 
 static const fragment_items smb_direct_frag_items = {
 	&ett_smb_direct_fragment,
@@ -93,20 +93,20 @@ enum SMB_DIRECT_HDR_TYPE {
 
 static heur_dissector_list_t smb_direct_heur_subdissector_list;
 
-static gboolean smb_direct_reassemble = TRUE;
+static bool smb_direct_reassemble = true;
 static reassembly_table smb_direct_reassembly_table;
 
 static void
 dissect_smb_direct_payload(tvbuff_t *tvb, packet_info *pinfo,
-			   proto_tree *tree, guint32 remaining_length)
+			   proto_tree *tree, uint32_t remaining_length)
 {
-	gboolean save_fragmented = pinfo->fragmented;
+	bool save_fragmented = pinfo->fragmented;
 	int save_visited = pinfo->fd->visited;
 	conversation_t *conversation = NULL;
 	fragment_head *fd_head = NULL;
 	tvbuff_t *payload_tvb = NULL;
-	gboolean more_frags = FALSE;
-	gboolean fd_head_not_cached = FALSE;
+	bool more_frags = false;
+	bool fd_head_not_cached = false;
 	heur_dtbl_entry_t *hdtbl_entry;
 
 	if (!smb_direct_reassemble) {
@@ -117,12 +117,12 @@ dissect_smb_direct_payload(tvbuff_t *tvb, packet_info *pinfo,
 	conversation = find_or_create_conversation(pinfo);
 
 	if (remaining_length > 0) {
-		more_frags = TRUE;
+		more_frags = true;
 	}
 
 	fd_head = (fragment_head *)p_get_proto_data(wmem_file_scope(), pinfo, proto_smb_direct, 0);
 	if (fd_head == NULL) {
-		fd_head_not_cached = TRUE;
+		fd_head_not_cached = true;
 
 		pinfo->fd->visited = 0;
 		fd_head = fragment_add_seq_next(&smb_direct_reassembly_table,
@@ -171,7 +171,7 @@ dissect_smb_direct_payload(tvbuff_t *tvb, packet_info *pinfo,
 	}
 
 dissect_payload:
-	pinfo->fragmented = FALSE;
+	pinfo->fragmented = false;
 	if (!dissector_try_heuristic(smb_direct_heur_subdissector_list,
 				     payload_tvb, pinfo, tree, &hdtbl_entry, NULL)) {
 		call_data_dissector(payload_tvb, pinfo, tree);
@@ -193,12 +193,12 @@ dissect_smb_direct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 	proto_tree *neg_rep_tree = NULL;
 	proto_tree *data_tree = NULL;
 	int offset = 0;
-	guint32 status = 0;
-	guint32 remaining_length = 0;
-	guint32 data_offset = 0;
-	guint32 data_length = 0;
-	guint rlen = tvb_reported_length(tvb);
-	gint len = 0;
+	uint32_t status = 0;
+	uint32_t remaining_length = 0;
+	uint32_t data_offset = 0;
+	uint32_t data_length = 0;
+	unsigned rlen = tvb_reported_length(tvb);
+	int len = 0;
 	tvbuff_t *next_tvb = NULL;
 	static int * const flags[] = {
 		&hf_smb_direct_flags_response_requested,
@@ -262,7 +262,7 @@ dissect_smb_direct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 		if (status != 0) {
 			col_append_fstr(
 				pinfo->cinfo, COL_INFO, ", Error: %s",
-				val_to_str(status, NT_errors, "Unknown (0x%08X)"));
+				val_to_str_ext(status, &NT_errors_ext, "Unknown (0x%08X)"));
 		}
 
 		if (tree == NULL) {
@@ -354,11 +354,11 @@ dissect_smb_direct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 				    tvb, offset, 4, ENC_LITTLE_ENDIAN);
 		offset += 4;
 
-		if (data_length > 0 && data_offset > (guint32)offset) {
+		if (data_length > 0 && data_offset > (uint32_t)offset) {
 			len = tvb_reported_length_remaining(tvb, data_offset);
 		}
 
-		if (data_length <= (guint32)len) {
+		if (data_length <= (uint32_t)len) {
 			next_tvb = tvb_new_subset_length(tvb, data_offset,
 						  data_length);
 		}
@@ -378,9 +378,9 @@ dissect_smb_direct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 static enum SMB_DIRECT_HDR_TYPE
 is_smb_direct(tvbuff_t *tvb, packet_info *pinfo _U_)
 {
-	gboolean maybe_neg_req = FALSE;
-	gboolean maybe_data = FALSE;
-	guint len = tvb_reported_length(tvb);
+	bool maybe_neg_req = false;
+	bool maybe_data = false;
+	unsigned len = tvb_reported_length(tvb);
 
 	if (len < 20) {
 		return SMB_DIRECT_HDR_UNKNOWN;
@@ -400,7 +400,7 @@ is_smb_direct(tvbuff_t *tvb, packet_info *pinfo _U_)
 	    tvb_get_letohs(tvb, 2) == 0x0100 && /* max version */
 	    tvb_get_letohs(tvb, 4) == 0x0000)   /* reserved */
 	{
-		maybe_neg_req = TRUE;
+		maybe_neg_req = true;
 	}
 
 	if (tvb_get_letohs(tvb, 0) <= 255 &&    /* credits up to 255 */
@@ -408,25 +408,25 @@ is_smb_direct(tvbuff_t *tvb, packet_info *pinfo _U_)
 	    tvb_get_letohs(tvb, 4) <= 1   &&    /* flags 0 or 1 */
 	    tvb_get_letohs(tvb, 6) == 0)    /* reserved */
 	{
-		maybe_data = TRUE;
+		maybe_data = true;
 	}
 
 	if (len == 20) {
 		if (tvb_get_letohl(tvb, 8) != 0) { /* remaining */
-			maybe_data = FALSE;
+			maybe_data = false;
 		}
 		if (tvb_get_letohl(tvb, 12) != 0) { /* data offset */
-			maybe_data = FALSE;
+			maybe_data = false;
 		}
 		if (tvb_get_letohl(tvb, 16) != 0) { /* data length */
-			maybe_data = FALSE;
+			maybe_data = false;
 		}
 
 		if (maybe_neg_req && !maybe_data) {
 			/* Negotiate Request */
 			return SMB_DIRECT_HDR_NEG_REQ;
 		}
-		/* maybe_neg_req = FALSE; */
+		/* maybe_neg_req = false; */
 		if (maybe_data) {
 			/* Data Message */
 			return SMB_DIRECT_HDR_DATA;
@@ -457,7 +457,7 @@ is_smb_direct(tvbuff_t *tvb, packet_info *pinfo _U_)
 	return SMB_DIRECT_HDR_UNKNOWN;
 }
 
-static gboolean
+static bool
 dissect_smb_direct_iwarp_heur(tvbuff_t *tvb, packet_info *pinfo,
 			      proto_tree *parent_tree, void *data)
 {
@@ -465,7 +465,7 @@ dissect_smb_direct_iwarp_heur(tvbuff_t *tvb, packet_info *pinfo,
 	enum SMB_DIRECT_HDR_TYPE hdr_type;
 
 	if (info == NULL) {
-		return FALSE;
+		return false;
 	}
 
 	switch (info->opcode) {
@@ -475,16 +475,16 @@ dissect_smb_direct_iwarp_heur(tvbuff_t *tvb, packet_info *pinfo,
 	case RDMA_SEND_SE_INVALIDATE:
 		break;
 	default:
-		return FALSE;
+		return false;
 	}
 
 	hdr_type = is_smb_direct(tvb, pinfo);
 	if (hdr_type == SMB_DIRECT_HDR_UNKNOWN) {
-		return FALSE;
+		return false;
 	}
 
 	dissect_smb_direct(tvb, pinfo, parent_tree, hdr_type);
-	return TRUE;
+	return true;
 }
 
 static int
@@ -521,7 +521,7 @@ dissect_smb_direct_infiniband(tvbuff_t *tvb, packet_info *pinfo,
 	return tvb_captured_length(tvb);
 }
 
-static gboolean
+static bool
 dissect_smb_direct_infiniband_heur(tvbuff_t *tvb, packet_info *pinfo,
 				proto_tree *parent_tree, void *data)
 {
@@ -530,7 +530,7 @@ dissect_smb_direct_infiniband_heur(tvbuff_t *tvb, packet_info *pinfo,
 
 void proto_register_smb_direct(void)
 {
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_smb_direct,
 		&ett_smb_direct_hdr,
 		&ett_smb_direct_flags,
@@ -573,7 +573,7 @@ void proto_register_smb_direct(void)
 
 	{ &hf_smb_direct_status,
 		{ "Status", "smb_direct.status",
-		FT_UINT32, BASE_HEX, VALS(NT_errors), 0,
+		FT_UINT32, BASE_HEX|BASE_EXT_STRING, &NT_errors_ext, 0,
 		"NT Status code", HFILL }},
 
 	{ &hf_smb_direct_max_read_write_size,
@@ -666,7 +666,7 @@ void proto_register_smb_direct(void)
 
 	smb_direct_handle = register_dissector("smb_direct", dissect_smb_direct_infiniband, proto_smb_direct);
 
-	smb_direct_heur_subdissector_list = register_heur_dissector_list("smb_direct", proto_smb_direct);
+	smb_direct_heur_subdissector_list = register_heur_dissector_list_with_description("smb_direct", "SMB-Direct payload", proto_smb_direct);
 
 	smb_direct_module = prefs_register_protocol(proto_smb_direct, NULL);
 	prefs_register_bool_preference(smb_direct_module,

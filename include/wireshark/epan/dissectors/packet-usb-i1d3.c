@@ -28,6 +28,10 @@
 #include <epan/conversation.h>
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
 
 void proto_register_usb_i1d3(void);
 void proto_reg_handoff_usb_i1d3(void);
@@ -40,60 +44,60 @@ static dissector_handle_t usb_i1d3_dissector;
 #define USB_I1D3_LED_ONTIME_FACTOR (USB_I1D3_CLOCK_FREQUENCY / (1 << 19))
 #define USB_I1D3_LED_ONTIME_FADE_FACTOR (USB_I1D3_CLOCK_FREQUENCY / (1 << 23))
 
-static int proto_usb_i1d3 = -1;
-static int ett_usb_i1d3 = -1;
-static int ett_usb_i1d3_measured_duration = -1;
-static int ett_usb_i1d3_requested_edge_count = -1;
+static int proto_usb_i1d3;
+static int ett_usb_i1d3;
+static int ett_usb_i1d3_measured_duration;
+static int ett_usb_i1d3_requested_edge_count;
 
-static int hf_usb_i1d3_challenge_response = -1;
-static int hf_usb_i1d3_challenge_data = -1;
-static int hf_usb_i1d3_challenge_decode_key = -1;
-static int hf_usb_i1d3_challenge_encode_key = -1;
-static int hf_usb_i1d3_command_code = -1;
-static int hf_usb_i1d3_diffuser_position = -1;
-static int hf_usb_i1d3_echoed_command_code = -1;
-static int hf_usb_i1d3_firmdate = -1;
-static int hf_usb_i1d3_firmver = -1;
-static int hf_usb_i1d3_information = -1;
-static int hf_usb_i1d3_measured_duration = -1;
-static int hf_usb_i1d3_measured_duration_red = -1;
-static int hf_usb_i1d3_measured_duration_green = -1;
-static int hf_usb_i1d3_measured_duration_blue = -1;
-static int hf_usb_i1d3_measured_edge_count = -1;
-static int hf_usb_i1d3_measured_edge_count_red = -1;
-static int hf_usb_i1d3_measured_edge_count_green = -1;
-static int hf_usb_i1d3_measured_edge_count_blue = -1;
-static int hf_usb_i1d3_led_mode = -1;
-static int hf_usb_i1d3_led_offtime = -1;
-static int hf_usb_i1d3_led_ontime = -1;
-static int hf_usb_i1d3_led_pulse_count = -1;
-static int hf_usb_i1d3_locked = -1;
-static int hf_usb_i1d3_prodname = -1;
-static int hf_usb_i1d3_prodtype = -1;
-static int hf_usb_i1d3_request_in = -1;
-static int hf_usb_i1d3_requested_edge_count = -1;
-static int hf_usb_i1d3_requested_edge_count_red = -1;
-static int hf_usb_i1d3_requested_edge_count_green = -1;
-static int hf_usb_i1d3_requested_edge_count_blue = -1;
-static int hf_usb_i1d3_requested_integration_time = -1;
-static int hf_usb_i1d3_response_code = -1;
-static int hf_usb_i1d3_response_in = -1;
-static int hf_usb_i1d3_readextee_data = -1;
-static int hf_usb_i1d3_readextee_offset = -1;
-static int hf_usb_i1d3_readextee_length = -1;
-static int hf_usb_i1d3_readintee_data = -1;
-static int hf_usb_i1d3_readintee_offset = -1;
-static int hf_usb_i1d3_readintee_length = -1;
-static int hf_usb_i1d3_status = -1;
-static int hf_usb_i1d3_unlock_result = -1;
+static int hf_usb_i1d3_challenge_response;
+static int hf_usb_i1d3_challenge_data;
+static int hf_usb_i1d3_challenge_decode_key;
+static int hf_usb_i1d3_challenge_encode_key;
+static int hf_usb_i1d3_command_code;
+static int hf_usb_i1d3_diffuser_position;
+static int hf_usb_i1d3_echoed_command_code;
+static int hf_usb_i1d3_firmdate;
+static int hf_usb_i1d3_firmver;
+static int hf_usb_i1d3_information;
+static int hf_usb_i1d3_measured_duration;
+static int hf_usb_i1d3_measured_duration_red;
+static int hf_usb_i1d3_measured_duration_green;
+static int hf_usb_i1d3_measured_duration_blue;
+static int hf_usb_i1d3_measured_edge_count;
+static int hf_usb_i1d3_measured_edge_count_red;
+static int hf_usb_i1d3_measured_edge_count_green;
+static int hf_usb_i1d3_measured_edge_count_blue;
+static int hf_usb_i1d3_led_mode;
+static int hf_usb_i1d3_led_offtime;
+static int hf_usb_i1d3_led_ontime;
+static int hf_usb_i1d3_led_pulse_count;
+static int hf_usb_i1d3_locked;
+static int hf_usb_i1d3_prodname;
+static int hf_usb_i1d3_prodtype;
+static int hf_usb_i1d3_request_in;
+static int hf_usb_i1d3_requested_edge_count;
+static int hf_usb_i1d3_requested_edge_count_red;
+static int hf_usb_i1d3_requested_edge_count_green;
+static int hf_usb_i1d3_requested_edge_count_blue;
+static int hf_usb_i1d3_requested_integration_time;
+static int hf_usb_i1d3_response_code;
+static int hf_usb_i1d3_response_in;
+static int hf_usb_i1d3_readextee_data;
+static int hf_usb_i1d3_readextee_offset;
+static int hf_usb_i1d3_readextee_length;
+static int hf_usb_i1d3_readintee_data;
+static int hf_usb_i1d3_readintee_offset;
+static int hf_usb_i1d3_readintee_length;
+static int hf_usb_i1d3_status;
+static int hf_usb_i1d3_unlock_result;
 
-static expert_field ei_usb_i1d3_echoed_command_code_mismatch = EI_INIT;
-static expert_field ei_usb_i1d3_error = EI_INIT;
-static expert_field ei_usb_i1d3_unexpected_response = EI_INIT;
-static expert_field ei_usb_i1d3_unknown_command = EI_INIT;
-static expert_field ei_usb_i1d3_unknown_diffuser_position = EI_INIT;
-static expert_field ei_usb_i1d3_unlock_failed = EI_INIT;
-static expert_field ei_usb_i1d3_unusual_length = EI_INIT;
+static expert_field ei_usb_i1d3_echoed_command_code_mismatch;
+static expert_field ei_usb_i1d3_error;
+static expert_field ei_usb_i1d3_unexpected_response;
+static expert_field ei_usb_i1d3_unknown_command;
+static expert_field ei_usb_i1d3_unknown_diffuser_position;
+static expert_field ei_usb_i1d3_unlock_failed;
+static expert_field ei_usb_i1d3_unusual_length;
 
 // Derived from ArgyllCMS spectro/i1d3.c.
 typedef enum _usb_i1d3_command_code {
@@ -157,20 +161,19 @@ static const value_string usb_i1d3_diffuser_position_strings[] = {
 };
 
 typedef struct _usb_i1d3_transaction_t {
-    guint32 request;
-    guint32 response;
-    guint32 command_code;
-    guint32 offset;
-    guint32 length;
+    uint32_t request;
+    uint32_t response;
+    uint32_t command_code;
+    uint32_t offset;
+    uint32_t length;
 } usb_i1d3_transaction_t;
 
 typedef struct _usb_i1d3_conversation_t {
     wmem_map_t *request_to_transaction;
     wmem_map_t *response_to_transaction;
-    guint32 previous_packet;
+    uint32_t previous_packet;
 } usb_i1d3_conversation_t;
 
-static const unit_name_string units_cycle_cycles = { " cycle", " cycles" };
 static const unit_name_string units_edge_edges = { " edge", " edges" };
 static const unit_name_string units_pulse_pulses = { " pulse", " pulses" };
 
@@ -193,7 +196,7 @@ static usb_i1d3_conversation_t *usb_i1d3_get_conversation(packet_info *pinfo) {
 }
 
 static usb_i1d3_transaction_t *usb_i1d3_create_transaction(
-        usb_i1d3_conversation_t *conversation, guint32 request) {
+        usb_i1d3_conversation_t *conversation, uint32_t request) {
     usb_i1d3_transaction_t *transaction = wmem_new0(
             wmem_file_scope(), usb_i1d3_transaction_t);
     transaction->request = request;
@@ -209,9 +212,9 @@ static void dissect_usb_i1d3_command(
     // Parsing the command code is a bit tricky: if the most significant
     // byte is non-zero, the command code is the most significant byte,
     // *and* the next byte is the first byte of the payload.
-    guint32 command_code = tvb_get_ntohs(tvb, 0);
-    guint32 command_code_msb = command_code & 0xff00;
-    gint command_code_length = 2;
+    uint32_t command_code = tvb_get_ntohs(tvb, 0);
+    uint32_t command_code_msb = command_code & 0xff00;
+    int command_code_length = 2;
     if (command_code_msb) {
         command_code = command_code_msb;
         command_code_length = 1;
@@ -238,7 +241,7 @@ static void dissect_usb_i1d3_command(
         proto_item_set_generated(response_item);
     }
 
-    const gchar *command_code_string = try_val_to_str(
+    const char *command_code_string = try_val_to_str(
             command_code, usb_i1d3_command_code_strings);
     if (command_code_string) {
         col_set_str(pinfo->cinfo, COL_INFO, command_code_string);
@@ -257,7 +260,7 @@ static void dissect_usb_i1d3_command(
         }
 
         case USB_I1D3_READINTEE: {
-            guint32 offset, length;
+            uint32_t offset, length;
             proto_tree_add_item_ret_uint(
                     tree, hf_usb_i1d3_readintee_offset, tvb,
                     1, 1, ENC_NA, &offset);
@@ -274,7 +277,7 @@ static void dissect_usb_i1d3_command(
         }
 
         case USB_I1D3_READEXTEE: {
-            guint32 offset, length;
+            uint32_t offset, length;
             proto_tree_add_item_ret_uint(
                     tree, hf_usb_i1d3_readextee_offset, tvb,
                     1, 2, ENC_BIG_ENDIAN, &offset);
@@ -291,7 +294,7 @@ static void dissect_usb_i1d3_command(
         }
 
         case USB_I1D3_MEASURE1: {
-            guint32 integration_time;
+            uint32_t integration_time;
             proto_item *integration_time_item = proto_tree_add_item_ret_uint(
                     tree, hf_usb_i1d3_requested_integration_time, tvb, 1, 4,
                     ENC_LITTLE_ENDIAN, &integration_time);
@@ -309,7 +312,7 @@ static void dissect_usb_i1d3_command(
                     tree, hf_usb_i1d3_requested_edge_count, tvb, 1, 6, ENC_NA);
             proto_tree *edge_count_tree = proto_item_add_subtree(
                     edge_count_item, ett_usb_i1d3_requested_edge_count);
-            guint32 edge_count_red, edge_count_green, edge_count_blue;
+            uint32_t edge_count_red, edge_count_green, edge_count_blue;
             proto_tree_add_item_ret_uint(
                     edge_count_tree, hf_usb_i1d3_requested_edge_count_red, tvb,
                     1, 2, ENC_LITTLE_ENDIAN, &edge_count_red);
@@ -327,7 +330,7 @@ static void dissect_usb_i1d3_command(
             break;
         }
         case USB_I1D3_SETLED: {
-            guint32 led_mode, led_offtime, led_ontime, pulse_count;
+            uint32_t led_mode, led_offtime, led_ontime, pulse_count;
             proto_tree_add_item_ret_uint(
                     tree, hf_usb_i1d3_led_mode, tvb, 1, 1, ENC_NA, &led_mode);
             proto_item *led_offtime_item = proto_tree_add_item_ret_uint(
@@ -417,11 +420,11 @@ static void dissect_usb_i1d3_response(
         proto_item_set_generated(command_code_item);
     }
 
-    const gchar *command_string = transaction ? try_val_to_str(
+    const char *command_string = transaction ? try_val_to_str(
             transaction->command_code, usb_i1d3_command_code_strings) : NULL;
     if (!command_string) command_string = "unknown";
 
-    guint32 response_code;
+    uint32_t response_code;
     proto_item *response_code_item = proto_tree_add_item_ret_uint(
             tree, hf_usb_i1d3_response_code, tvb, 0, 1, ENC_NA, &response_code);
     proto_item_append_text(
@@ -441,11 +444,11 @@ static void dissect_usb_i1d3_response(
     // As mentioned in ArgyllCMS spectro/i1d3.c, the second byte is usually the
     // first byte of the command code, except for GET_DIFF.
     if (transaction->command_code != USB_I1D3_GET_DIFF) {
-        guint32 echoed_command_code;
+        uint32_t echoed_command_code;
         proto_item *echoed_command_code_item = proto_tree_add_item_ret_uint(
                 tree, hf_usb_i1d3_echoed_command_code, tvb, 1, 1, ENC_NA,
                 &echoed_command_code);
-        guint8 expected_command_code = transaction->command_code >> 8;
+        uint8_t expected_command_code = transaction->command_code >> 8;
         proto_item_append_text(
                 echoed_command_code_item, " [expected 0x%02x]",
                 expected_command_code);
@@ -458,7 +461,7 @@ static void dissect_usb_i1d3_response(
 
     switch (transaction->command_code) {
         case USB_I1D3_GET_INFO: {
-            const guint8 *information;
+            const uint8_t *information;
             proto_tree_add_item_ret_string(
                     tree, hf_usb_i1d3_information, tvb, 2, -1,
                     ENC_ASCII | ENC_NA, pinfo->pool, &information);
@@ -467,11 +470,11 @@ static void dissect_usb_i1d3_response(
             break;
         }
         case USB_I1D3_STATUS: {
-            guint32 status;
+            uint32_t status;
             proto_item *status_item = proto_tree_add_item_ret_uint(
                     tree, hf_usb_i1d3_status, tvb, 2, 3, ENC_BIG_ENDIAN,
                     &status);
-            const gchar *status_string =
+            const char *status_string =
                 ((status & 0xff00ff) != 0 || (status & 0x00ff00) >= 5) ?
                 "OK" : "Bad";
             proto_item_append_text(status_item, " [%s]", status_string);
@@ -481,7 +484,7 @@ static void dissect_usb_i1d3_response(
             break;
         }
         case USB_I1D3_PRODNAME: {
-            const guint8 *prodname;
+            const uint8_t *prodname;
             proto_tree_add_item_ret_string(
                     tree, hf_usb_i1d3_prodname, tvb, 2, -1,
                     ENC_ASCII | ENC_NA, pinfo->pool, &prodname);
@@ -489,7 +492,7 @@ static void dissect_usb_i1d3_response(
             break;
         }
         case USB_I1D3_PRODTYPE: {
-            guint32 prodtype;
+            uint32_t prodtype;
             proto_tree_add_item_ret_uint(
                     tree, hf_usb_i1d3_prodtype, tvb, 3, 2, ENC_BIG_ENDIAN,
                     &prodtype);
@@ -499,7 +502,7 @@ static void dissect_usb_i1d3_response(
             break;
         }
         case USB_I1D3_FIRMVER: {
-            const guint8 *firmver;
+            const uint8_t *firmver;
             proto_tree_add_item_ret_string(
                     tree, hf_usb_i1d3_firmver, tvb, 2, -1,
                     ENC_ASCII | ENC_NA, pinfo->pool, &firmver);
@@ -508,7 +511,7 @@ static void dissect_usb_i1d3_response(
             break;
         }
         case USB_I1D3_FIRMDATE: {
-            const guint8 *firmdate;
+            const uint8_t *firmdate;
             proto_tree_add_item_ret_string(
                     tree, hf_usb_i1d3_firmdate, tvb, 2, -1,
                     ENC_ASCII | ENC_NA, pinfo->pool, &firmdate);
@@ -516,11 +519,11 @@ static void dissect_usb_i1d3_response(
             break;
         }
         case USB_I1D3_LOCKED: {
-            guint32 locked;
+            uint32_t locked;
             proto_item *locked_item = proto_tree_add_item_ret_uint(
                     tree, hf_usb_i1d3_locked, tvb, 2, 2, ENC_BIG_ENDIAN,
                     &locked);
-            const gchar *locked_string =
+            const char *locked_string =
                 ((locked & 0xff00) != 0 || (locked & 0x00ff) == 0) ?
                 "Unlocked" : "Locked";
             proto_item_append_text(locked_item, " [%s]", locked_string);
@@ -534,7 +537,7 @@ static void dissect_usb_i1d3_response(
                     tree, hf_usb_i1d3_measured_edge_count, tvb, 2, 12, ENC_NA);
             proto_tree *edge_count_tree = proto_item_add_subtree(
                     edge_count_item, ett_usb_i1d3_requested_edge_count);
-            guint32 edge_count_red, edge_count_green, edge_count_blue;
+            uint32_t edge_count_red, edge_count_green, edge_count_blue;
             proto_tree_add_item_ret_uint(
                     edge_count_tree, hf_usb_i1d3_measured_edge_count_red, tvb,
                     2, 4, ENC_LITTLE_ENDIAN, &edge_count_red);
@@ -556,7 +559,7 @@ static void dissect_usb_i1d3_response(
                     tree, hf_usb_i1d3_measured_duration, tvb, 2, 12, ENC_NA);
             proto_tree *duration_tree = proto_item_add_subtree(
                     duration_item, ett_usb_i1d3_measured_duration);
-            guint32 duration_red, duration_green, duration_blue;
+            uint32_t duration_red, duration_green, duration_blue;
             proto_item *duration_red_item = proto_tree_add_item_ret_uint(
                     duration_tree, hf_usb_i1d3_measured_duration_red,
                     tvb, 2, 4, ENC_LITTLE_ENDIAN, &duration_red);
@@ -628,7 +631,7 @@ static void dissect_usb_i1d3_response(
             break;
         }
         case USB_I1D3_GET_DIFF: {
-            guint32 diffuser_position;
+            uint32_t diffuser_position;
             proto_item *diffuser_position_item = proto_tree_add_item_ret_uint(
                     tree, hf_usb_i1d3_diffuser_position, tvb,
                     1, 1, ENC_NA, &diffuser_position);
@@ -655,12 +658,12 @@ static void dissect_usb_i1d3_response(
             break;
         }
         case USB_I1D3_LOCKRESP: {
-            guint32 unlock_result;
+            uint32_t unlock_result;
             proto_item *unlock_result_item = proto_tree_add_item_ret_uint(
                     tree, hf_usb_i1d3_unlock_result, tvb, 2, 1, ENC_NA,
                     &unlock_result);
             int unlock_successful = unlock_result == 0x77;
-            const gchar *unlock_result_string = unlock_successful ?
+            const char *unlock_result_string = unlock_successful ?
                 "Successfully unlocked" : "Failed to unlock";
             proto_item_append_text(
                     unlock_result_item, " [%s]", unlock_result_string);
@@ -668,7 +671,7 @@ static void dissect_usb_i1d3_response(
                 expert_add_info(
                         pinfo, unlock_result_item, &ei_usb_i1d3_unlock_failed);
             }
-            col_add_fstr(pinfo->cinfo, COL_INFO, "%s", unlock_result_string);
+            col_add_str(pinfo->cinfo, COL_INFO, unlock_result_string);
             break;
         }
     }
@@ -722,7 +725,7 @@ void proto_register_usb_i1d3(void)
 {
     proto_usb_i1d3 = proto_register_protocol("X-Rite i1 Display Pro (and derivatives) USB protocol", "X-Rite i1 Display Pro", "i1d3");
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_usb_i1d3,
         &ett_usb_i1d3_measured_duration,
         &ett_usb_i1d3_requested_edge_count,
@@ -775,19 +778,19 @@ void proto_register_usb_i1d3(void)
         { &hf_usb_i1d3_measured_duration_red,
             { "Red channel",
                 "i1d3.measured_duration.red", FT_UINT32,
-                BASE_DEC|BASE_UNIT_STRING, &units_cycle_cycles,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_cycle_cycles),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_measured_duration_green,
             { "Green channel",
                 "i1d3.measured_duration.green", FT_UINT32,
-                BASE_DEC|BASE_UNIT_STRING, &units_cycle_cycles,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_cycle_cycles),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_measured_duration_blue,
             { "Blue channel",
                 "i1d3.measured_duration.blue", FT_UINT32,
-                BASE_DEC|BASE_UNIT_STRING, &units_cycle_cycles,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_cycle_cycles),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_measured_edge_count,
@@ -797,19 +800,19 @@ void proto_register_usb_i1d3(void)
         { &hf_usb_i1d3_measured_edge_count_red,
             { "Red channel",
                 "i1d3.measured_edge_count.red", FT_UINT32,
-                BASE_DEC|BASE_UNIT_STRING, &units_edge_edges,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_edge_edges),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_measured_edge_count_green,
             { "Green channel",
                 "i1d3.measured_edge_count.green", FT_UINT32,
-                BASE_DEC|BASE_UNIT_STRING, &units_edge_edges,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_edge_edges),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_measured_edge_count_blue,
             { "Blue channel",
                 "i1d3.measured_edge_count.blue", FT_UINT32,
-                BASE_DEC|BASE_UNIT_STRING, &units_edge_edges,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_edge_edges),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_led_mode,
@@ -826,7 +829,7 @@ void proto_register_usb_i1d3(void)
         },
         { &hf_usb_i1d3_led_pulse_count,
             { "LED pulse count", "i1d3.led_pulse_count", FT_UINT8,
-                BASE_DEC|BASE_UNIT_STRING, &units_pulse_pulses,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_pulse_pulses),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_locked,
@@ -853,25 +856,25 @@ void proto_register_usb_i1d3(void)
         { &hf_usb_i1d3_requested_edge_count_red,
             { "Red channel",
                 "i1d3.requested_edge_count.red", FT_UINT16,
-                BASE_DEC|BASE_UNIT_STRING, &units_edge_edges,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_edge_edges),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_requested_edge_count_green,
             { "Green channel",
                 "i1d3.requested_edge_count.green", FT_UINT16,
-                BASE_DEC|BASE_UNIT_STRING, &units_edge_edges,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_edge_edges),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_requested_edge_count_blue,
             { "Blue channel",
                 "i1d3.requested_edge_count.blue", FT_UINT16,
-                BASE_DEC|BASE_UNIT_STRING, &units_edge_edges,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_edge_edges),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_requested_integration_time,
             { "Requested integration time",
                 "i1d3.requested_integration_time", FT_UINT32,
-                BASE_DEC|BASE_UNIT_STRING, &units_cycle_cycles,
+                BASE_DEC|BASE_UNIT_STRING, UNS(&units_cycle_cycles),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_response_code,
@@ -890,12 +893,12 @@ void proto_register_usb_i1d3(void)
         },
         { &hf_usb_i1d3_readintee_offset,
             { "Internal EEPROM read offset", "i1d3.readintee_offset",
-                FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes,
+                FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_readintee_length,
             { "Internal EEPROM read length", "i1d3.readintee_length",
-                FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes,
+                FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_readextee_data,
@@ -904,12 +907,12 @@ void proto_register_usb_i1d3(void)
         },
         { &hf_usb_i1d3_readextee_offset,
             { "External EEPROM read offset", "i1d3.readextee_offset",
-                FT_UINT16, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes,
+                FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_readextee_length,
             { "External EEPROM read length", "i1d3.readextee_length",
-                FT_UINT8, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes,
+                FT_UINT8, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes),
                 0, NULL, HFILL },
         },
         { &hf_usb_i1d3_status,

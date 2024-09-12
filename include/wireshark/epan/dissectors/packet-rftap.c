@@ -25,7 +25,9 @@
 #include <config.h>
 
 #include <epan/packet.h>
-#include <epan/prefs.h>
+#include <epan/unit_strings.h>
+
+#include <wsutil/array.h>
 
 /* Prototypes */
 /* (Required to prevent [-Wmissing-prototypes] warnings */
@@ -33,56 +35,56 @@ void proto_reg_handoff_rftap(void);
 void proto_register_rftap(void);
 
 /* protocols */
-static int proto_rftap = -1;
+static int proto_rftap;
 
 /* rftap fixed fields */
-static int hf_rftap_fixed_header = -1;
-static int hf_rftap_magic = -1;
-static int hf_rftap_len = -1;    /* length in bytes */
-static int hf_rftap_flags = -1;
+static int hf_rftap_fixed_header;
+static int hf_rftap_magic;
+static int hf_rftap_len;    /* length in bytes */
+static int hf_rftap_flags;
 
 /* rftap flags bit-field (16 bits) */
-static int hf_rftap_present_dlt = -1;
-static int hf_rftap_present_freq = -1;
-static int hf_rftap_present_nomfreq = -1;
-static int hf_rftap_present_freqofs = -1;
-static int hf_rftap_power_is_in_dbm = -1;
-static int hf_rftap_present_signal_power = -1;
-static int hf_rftap_present_noise_power = -1;
-static int hf_rftap_present_snr = -1;
-static int hf_rftap_present_signal_quality = -1;
-static int hf_rftap_time_is_unix_time = -1;
-static int hf_rftap_present_time = -1;
-static int hf_rftap_present_duration = -1;
-static int hf_rftap_present_location = -1;
-static int hf_rftap_present_reserved_field_13 = -1;
-static int hf_rftap_present_reserved_field_14 = -1;
-static int hf_rftap_present_reserved_field_15 = -1;
+static int hf_rftap_present_dlt;
+static int hf_rftap_present_freq;
+static int hf_rftap_present_nomfreq;
+static int hf_rftap_present_freqofs;
+static int hf_rftap_power_is_in_dbm;
+static int hf_rftap_present_signal_power;
+static int hf_rftap_present_noise_power;
+static int hf_rftap_present_snr;
+static int hf_rftap_present_signal_quality;
+static int hf_rftap_time_is_unix_time;
+static int hf_rftap_present_time;
+static int hf_rftap_present_duration;
+static int hf_rftap_present_location;
+static int hf_rftap_present_reserved_field_13;
+static int hf_rftap_present_reserved_field_14;
+static int hf_rftap_present_reserved_field_15;
 
 /* rftap optional fields */
-static int hf_rftap_dlt = -1;
-static int hf_rftap_freq = -1;
-static int hf_rftap_nomfreq = -1;
-static int hf_rftap_freqofs = -1;
-static int hf_rftap_signal_power = -1;
-static int hf_rftap_noise_power = -1;
-static int hf_rftap_snr = -1;
-static int hf_rftap_signal_quality = -1;
-static int hf_rftap_time_int = -1;
-static int hf_rftap_time_frac = -1;
-static int hf_rftap_time = -1;
-static int hf_rftap_duration = -1;
-static int hf_rftap_latitude = -1;
-static int hf_rftap_longitude = -1;
-static int hf_rftap_altitude = -1;
+static int hf_rftap_dlt;
+static int hf_rftap_freq;
+static int hf_rftap_nomfreq;
+static int hf_rftap_freqofs;
+static int hf_rftap_signal_power;
+static int hf_rftap_noise_power;
+static int hf_rftap_snr;
+static int hf_rftap_signal_quality;
+static int hf_rftap_time_int;
+static int hf_rftap_time_frac;
+static int hf_rftap_time;
+static int hf_rftap_duration;
+static int hf_rftap_latitude;
+static int hf_rftap_longitude;
+static int hf_rftap_altitude;
 
 /* rftap tag IDs >= 16 */
-static int hf_rftap_subdissector_name = -1;
+static int hf_rftap_subdissector_name;
 
 /* subtree pointers */
-static gint ett_rftap = -1;
-static gint ett_rftap_fixed_header = -1;
-static gint ett_rftap_flags = -1;
+static int ett_rftap;
+static int ett_rftap_fixed_header;
+static int ett_rftap_flags;
 
 static dissector_handle_t pcap_pktdata_handle;
 
@@ -122,19 +124,19 @@ struct rftap_hdr {
  * returns Data Link Type (dlt) and subdissector name
  */
 static void
-dissect_rftap_header(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint32 *dlt, const guint8 **subdissector_name)
+dissect_rftap_header(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t *dlt, const uint8_t **subdissector_name)
 {
     proto_item *ti_header;
     proto_tree *header_tree;
-    gint32  offset;
-    gint32  len;
-    guint64 flags;
-    guint32 flag_bit;
-    guint32 tag_id;
-    gint32  tag_len;
-    guint32 tag_flags;
-    gdouble double_val;
-    gfloat  float_val;
+    int32_t offset;
+    int32_t len;
+    uint64_t flags;
+    uint32_t flag_bit;
+    uint32_t tag_id;
+    int32_t tag_len;
+    uint32_t tag_flags;
+    double double_val;
+    float   float_val;
     char    *power_units;
 
     static int * const flag_fields[] = {
@@ -166,7 +168,7 @@ dissect_rftap_header(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
     header_tree = proto_item_add_subtree(ti_header, ett_rftap_fixed_header);
 
     proto_tree_add_item(header_tree, hf_rftap_magic, tvb, 0, 4, ENC_LITTLE_ENDIAN);
-    len = 4 * (gint32) tvb_get_letohs(tvb, 4);  /* convert to length in bytes */
+    len = 4 * (int32_t) tvb_get_letohs(tvb, 4);  /* convert to length in bytes */
     proto_tree_add_uint(header_tree, hf_rftap_len, tvb, 4, 2, len);  /* show length in bytes */
     proto_tree_add_bitmask_ret_uint64(header_tree, tvb, 6, hf_rftap_flags,
         ett_rftap_flags, flag_fields, ENC_LITTLE_ENDIAN, &flags);
@@ -255,8 +257,8 @@ dissect_rftap_header(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, guint3
     /* rftap tagged parameter fields */
 
     tag_id = tvb_get_letohs(tvb, offset);
-    tag_len = tvb_get_guint8(tvb, offset+2);
-    tag_flags = tvb_get_guint8(tvb, offset+3);
+    tag_len = tvb_get_uint8(tvb, offset+2);
+    tag_flags = tvb_get_uint8(tvb, offset+3);
 
     if ((tag_id != RFTAP_TAG_DISSECTOR_NAME) || (tag_len == 0) || (tag_len == 255) || (tag_flags != 255))
         return;  /* we've hit a tagged parameter we can't decode, abort */
@@ -281,10 +283,10 @@ dissect_rftap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     tvbuff_t   *rftap_tvb;  /* the first part of the packet */
     tvbuff_t   *subdissector_tvb;  /* the second part of the packet */
 
-    gint32      rftap_len;  /* length in bytes */
+    int32_t     rftap_len;  /* length in bytes */
     dissector_handle_t subdissector_handle;
-    guint32     subdissector_dlt;
-    const guint8 *subdissector_name;
+    uint32_t    subdissector_dlt;
+    const uint8_t *subdissector_name;
 
     /* heuristics */
 
@@ -303,7 +305,7 @@ dissect_rftap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     /* dissect part 1: rftap header */
 
-    rftap_len = 4 * (gint32) tvb_get_letohs(tvb, 4);
+    rftap_len = 4 * (int32_t) tvb_get_letohs(tvb, 4);
     rftap_tvb = tvb_new_subset_length_caplen(tvb, 0, rftap_len, rftap_len);
 
     ti = proto_tree_add_protocol_format(tree, proto_rftap, rftap_tvb, 0, -1,
@@ -336,8 +338,8 @@ dissect_rftap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     return tvb_captured_length(tvb);
 }
 
-static gboolean
-dissect_rftap_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
+static bool
+dissect_rftap_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     return dissect_rftap(tvb, pinfo, tree, data) != 0;
 }
@@ -347,7 +349,7 @@ void
 proto_register_rftap(void)
 {
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_rftap,
         &ett_rftap_fixed_header,
         &ett_rftap_flags
@@ -473,17 +475,17 @@ proto_register_rftap(void)
         { &hf_rftap_freq, {
             "Frequency",
             "rftap.freq",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_hz, 0,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_hz), 0,
             "Actual (measured) carrier frequency, in Hertz (not necessarily center frequency)", HFILL }},
         { &hf_rftap_nomfreq, {
             "Nominal Frequency",
             "rftap.nomfreq",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_hz, 0,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_hz), 0,
             "Nominal carrier frequency, in Hertz (the ideal frequency, ignoring freq errors)", HFILL }},
         { &hf_rftap_freqofs, {
             "Frequency Offset",
             "rftap.freqofs",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_hz, 0,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_hz), 0,
             "Carrier frequency offset, in Hertz: wikipedia.org/wiki/Carrier_frequency_offset", HFILL }},
         { &hf_rftap_signal_power, {
             "Signal Power",
@@ -523,22 +525,22 @@ proto_register_rftap(void)
         { &hf_rftap_duration, {
             "Duration",
             "rftap.duration",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_second_seconds, 0,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_second_seconds), 0,
             "The duration of the event (packet), in seconds", HFILL }},
         { &hf_rftap_latitude, {
             "Latitude",
             "rftap.lat",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_degree_degrees, 0,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_degree_degrees), 0,
             "Latitude of receiver (-90..90 degrees), using WGS 84 datum: wikipedia.org/wiki/World_Geodetic_System", HFILL }},
         { &hf_rftap_longitude, {
             "Longitude",
             "rftap.lon",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_degree_degrees, 0,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_degree_degrees), 0,
             "Longitude of receiver (-180..180 degrees), using WGS 84 datum: wikipedia.org/wiki/World_Geodetic_System", HFILL }},
         { &hf_rftap_altitude, {
             "Altitude",
             "rftap.alt",
-            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, &units_meter_meters, 0,
+            FT_DOUBLE, BASE_NONE|BASE_UNIT_STRING, UNS(&units_meter_meters), 0,
             "Altitude of receiver, in meters, using WGS 84 datum: wikipedia.org/wiki/World_Geodetic_System", HFILL }},
 
         /* rftap tagged parameters */

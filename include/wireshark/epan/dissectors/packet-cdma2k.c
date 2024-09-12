@@ -22,516 +22,516 @@ void proto_register_cdma2k(void);
 static dissector_handle_t cdma2k_handle;
 
 /* Function handlers for each message/information fields */
-static void cdma2k_message_decode(proto_item *item,tvbuff_t *tvb, proto_tree *tree, guint *offset, proto_tree *mainTree, guint16 *noerror, packet_info *pinfo);
-static void cdma2k_message_REGISTRATION(proto_item *item,  tvbuff_t *tvb,  proto_tree *tree,  guint *offset,  guint16 oneXPrev);
-static void cdma2k_message_ORDER_IND(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint *offset);
-static void cdma2k_message_DATA_BURST_IND(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint *offset);
-static void cdma2k_message_ORIGINATION(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint *offset, guint16 authIncl, guint16 oneXPrev);
-static void cdma2k_message_PAGE_RESPONSE(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint *offset, guint16 authIncl, guint16 oneXPrev);
-static void cdma2k_message_AUTH_CHALL_RSP(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint *offset);
-static void cdma2k_message_ORDER_CMD(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint *offset);
-static void cdma2k_message_DATA_BURST_CMD(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint *offset);
-static void cdma2k_message_AUTH_CHALL_REQ(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint *offset);
-static void cdma2k_message_GEN_PAGE_REQ(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint *offset, guint16 l3PduLen);
+static void cdma2k_message_decode(proto_item *item,tvbuff_t *tvb, proto_tree *tree, unsigned *offset, proto_tree *mainTree, uint16_t *noerror, packet_info *pinfo);
+static void cdma2k_message_REGISTRATION(proto_item *item,  tvbuff_t *tvb,  proto_tree *tree,  unsigned *offset,  uint16_t oneXPrev);
+static void cdma2k_message_ORDER_IND(proto_item *item, tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
+static void cdma2k_message_DATA_BURST_IND(proto_item *item, tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
+static void cdma2k_message_ORIGINATION(proto_item *item, tvbuff_t *tvb, proto_tree *tree, unsigned *offset, uint16_t authIncl, uint16_t oneXPrev);
+static void cdma2k_message_PAGE_RESPONSE(proto_item *item, tvbuff_t *tvb, proto_tree *tree, unsigned *offset, uint16_t authIncl, uint16_t oneXPrev);
+static void cdma2k_message_AUTH_CHALL_RSP(proto_item *item, tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
+static void cdma2k_message_ORDER_CMD(proto_item *item, tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
+static void cdma2k_message_DATA_BURST_CMD(proto_item *item, tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
+static void cdma2k_message_AUTH_CHALL_REQ(proto_item *item, tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
+static void cdma2k_message_GEN_PAGE_REQ(proto_item *item, tvbuff_t *tvb, proto_tree *tree, unsigned *offset, uint16_t l3PduLen);
 
-static void cdma2k_message_ADDR_FIELDS(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint16 *l_offset,  guint16 headerRecLen);
-static void cdma2k_message_AUTH_FIELDS(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint16 *l_offset,  guint16 headerRecLen);
-static void cdma2k_message_IMSI_CLASS_SUBFIELDS(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint16 *l_offset);
-static void cdma2k_message_ALERT_WITH_INFO(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset);
-static void cdma2k_message_HANDOFF_DIR(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset, guint16 msgType);
-static void cdma2k_message_ACTIVE_SET_RECORD_FIELDS(proto_item *item,tvbuff_t *tvb,proto_tree *subtree,guint16 *l_offset, guint16 chInd,guint16 schIncl);
+static void cdma2k_message_ADDR_FIELDS(proto_item *item, tvbuff_t *tvb, proto_tree *tree, uint16_t *l_offset,  uint16_t headerRecLen);
+static void cdma2k_message_AUTH_FIELDS(proto_item *item, tvbuff_t *tvb, proto_tree *tree, uint16_t *l_offset,  uint16_t headerRecLen);
+static void cdma2k_message_IMSI_CLASS_SUBFIELDS(proto_item *item, tvbuff_t *tvb, proto_tree *tree, uint16_t *l_offset);
+static void cdma2k_message_ALERT_WITH_INFO(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset);
+static void cdma2k_message_HANDOFF_DIR(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset, uint16_t msgType);
+static void cdma2k_message_ACTIVE_SET_RECORD_FIELDS(proto_item *item,tvbuff_t *tvb,proto_tree *subtree,uint16_t *l_offset, uint16_t chInd,uint16_t schIncl);
 
 
 /*Initialize all the header parameters that are to be displayed*/
 
-static int proto_cdma2k = -1;
-static int hf_cdma2k_msghdr = -1;
+static int proto_cdma2k;
+static int hf_cdma2k_msghdr;
 
 /* Tlac Parameters */
-static int hf_cdma2k_tlac_Record = -1;
-static int hf_cdma2k_tlac_Header = -1;
-static int hf_cdma2k_tlac_Channel = -1;
-static int hf_cdma2k_tlac_1x_Protocol_Revision = -1;
-static int hf_cdma2k_tlac_msgType = -1;
-static int hf_cdma2k_tlac_Header_Record = -1;
-static int hf_cdma2k_tlac_Header_Records_Count = -1;
-static int hf_cdma2k_tlac_Header_Record_Type = -1;
-static int hf_cdma2k_tlac_Header_Record_Length = -1;
-static int hf_cdma2k_tlac_Header_Record_Values = -1;
-static int hf_cdma2k_tlac_Header_Record_Reserved = -1;
-static int hf_cdma2k_tlac_Pdu = -1;
-static int hf_cdma2k_tlac_Pdu_Length = -1;
+static int hf_cdma2k_tlac_Record;
+static int hf_cdma2k_tlac_Header;
+static int hf_cdma2k_tlac_Channel;
+static int hf_cdma2k_tlac_1x_Protocol_Revision;
+static int hf_cdma2k_tlac_msgType;
+static int hf_cdma2k_tlac_Header_Record;
+static int hf_cdma2k_tlac_Header_Records_Count;
+static int hf_cdma2k_tlac_Header_Record_Type;
+static int hf_cdma2k_tlac_Header_Record_Length;
+static int hf_cdma2k_tlac_Header_Record_Values;
+static int hf_cdma2k_tlac_Header_Record_Reserved;
+static int hf_cdma2k_tlac_Pdu;
+static int hf_cdma2k_tlac_Pdu_Length;
 
 /* Addressing Fileds */
-static int hf_cdma2k_tlac_Header_Record_MsId_Type = -1;
-static int hf_cdma2k_tlac_Header_Record_Ext_MsId_Type = -1;
-static int hf_cdma2k_tlac_Header_Record_MsId_Length = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_M_S1 = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_M_S1_sec_3_dig = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_M_S1_thousand_dig = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_M_S1_last_3_dig = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_M_S2 = -1;
-static int hf_cdma2k_tlac_Header_Record_Esn = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_Class = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_Class0_Type = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_Class1_Type = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_S2 = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_S1 = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_11_12 = -1;
-static int hf_cdma2k_tlac_Header_Record_MCC = -1;
-static int hf_cdma2k_tlac_Header_Record_Imsi_Addr_Num = -1;
-static int hf_cdma2k_tlac_Header_Record_Ext_MsId_MeId = -1;
-static int hf_cdma2k_tlac_Header_Record_Tmsi_Code_Addr = -1;
-static int hf_cdma2k_tlac_Header_Record_Tmsi_Zone = -1;
+static int hf_cdma2k_tlac_Header_Record_MsId_Type;
+static int hf_cdma2k_tlac_Header_Record_Ext_MsId_Type;
+static int hf_cdma2k_tlac_Header_Record_MsId_Length;
+static int hf_cdma2k_tlac_Header_Record_Imsi_M_S1;
+static int hf_cdma2k_tlac_Header_Record_Imsi_M_S1_sec_3_dig;
+static int hf_cdma2k_tlac_Header_Record_Imsi_M_S1_thousand_dig;
+static int hf_cdma2k_tlac_Header_Record_Imsi_M_S1_last_3_dig;
+static int hf_cdma2k_tlac_Header_Record_Imsi_M_S2;
+static int hf_cdma2k_tlac_Header_Record_Esn;
+static int hf_cdma2k_tlac_Header_Record_Imsi_Class;
+static int hf_cdma2k_tlac_Header_Record_Imsi_Class0_Type;
+static int hf_cdma2k_tlac_Header_Record_Imsi_Class1_Type;
+static int hf_cdma2k_tlac_Header_Record_Imsi_S2;
+static int hf_cdma2k_tlac_Header_Record_Imsi_S1;
+static int hf_cdma2k_tlac_Header_Record_Imsi_11_12;
+static int hf_cdma2k_tlac_Header_Record_MCC;
+static int hf_cdma2k_tlac_Header_Record_Imsi_Addr_Num;
+static int hf_cdma2k_tlac_Header_Record_Ext_MsId_MeId;
+static int hf_cdma2k_tlac_Header_Record_Tmsi_Code_Addr;
+static int hf_cdma2k_tlac_Header_Record_Tmsi_Zone;
 
 /* Authentication Fields */
-static int hf_cdma2k_tlac_Header_Record_Mac_Incl = -1;
-static int hf_cdma2k_tlac_Header_Record_Auth_Incl = -1;
-static int hf_cdma2k_tlac_Header_Record_Authr = -1;
-static int hf_cdma2k_tlac_Header_Record_Randc = -1;
-static int hf_cdma2k_tlac_Header_Record_Count = -1;
-static int hf_cdma2k_tlac_Header_Record_Sdu_KeyId = -1;
-static int hf_cdma2k_tlac_Header_Record_Sdu_Algo = -1;
-static int hf_cdma2k_tlac_Header_Record_Sdu_Sseq = -1;
-static int hf_cdma2k_tlac_Header_Record_Sdu_Sseqh = -1;
-static int hf_cdma2k_tlac_Header_Record_Sdu_Sseq_Or_Sseqh = -1;
+static int hf_cdma2k_tlac_Header_Record_Mac_Incl;
+static int hf_cdma2k_tlac_Header_Record_Auth_Incl;
+static int hf_cdma2k_tlac_Header_Record_Authr;
+static int hf_cdma2k_tlac_Header_Record_Randc;
+static int hf_cdma2k_tlac_Header_Record_Count;
+static int hf_cdma2k_tlac_Header_Record_Sdu_KeyId;
+static int hf_cdma2k_tlac_Header_Record_Sdu_Algo;
+static int hf_cdma2k_tlac_Header_Record_Sdu_Sseq;
+static int hf_cdma2k_tlac_Header_Record_Sdu_Sseqh;
+static int hf_cdma2k_tlac_Header_Record_Sdu_Sseq_Or_Sseqh;
 
 /* Msg Types */
-static int hf_cdma2k_RegMsg = -1;
-static int hf_cdma2k_OrderIndMsg = -1;
-static int hf_cdma2k_DataBurstIndMsg = -1;
-static int hf_cdma2k_OrigMsg = -1;
-static int hf_cdma2k_PageRspMsg = -1;
-static int hf_cdma2k_AuthChallRspMsg = -1;
-static int hf_cdma2k_DataBurstCmdMsg = -1;
-static int hf_cdma2k_AuthChallReqMsg = -1;
-static int hf_cdma2k_GenPageReqMsg = -1;
-static int hf_cdma2k_AlertWithInfoMsg = -1;
-static int hf_cdma2k_UhdmMsg = -1;
-static int hf_cdma2k_MeIdUhdmMsg = -1;
-static int hf_cdma2k_ext_scm_ind = -1;
+static int hf_cdma2k_RegMsg;
+static int hf_cdma2k_OrderIndMsg;
+static int hf_cdma2k_DataBurstIndMsg;
+static int hf_cdma2k_OrigMsg;
+static int hf_cdma2k_PageRspMsg;
+static int hf_cdma2k_AuthChallRspMsg;
+static int hf_cdma2k_DataBurstCmdMsg;
+static int hf_cdma2k_AuthChallReqMsg;
+static int hf_cdma2k_GenPageReqMsg;
+static int hf_cdma2k_AlertWithInfoMsg;
+static int hf_cdma2k_UhdmMsg;
+static int hf_cdma2k_MeIdUhdmMsg;
+static int hf_cdma2k_ext_scm_ind;
 
 /* Registration Msg Parms */
-static int hf_cdma2k_Reg_Type = -1;
-static int hf_cdma2k_Slot_Cycle_Index = -1;
-static int hf_cdma2k_Mob_P_Rev = -1;
-static int hf_cdma2k_Ext_Scm = -1;
-static int hf_cdma2k_Sloted_Mode = -1;
-static int hf_cdma2k_Mob_Term = -1;
-static int hf_cdma2k_Return_Cause = -1;
-static int hf_cdma2k_Qpch_Supported = -1;
-static int hf_cdma2k_Enhanced_Rc = -1;
-static int hf_cdma2k_Uzid_Incl = -1;
-static int hf_cdma2k_Uzid = -1;
-static int hf_cdma2k_GeoLoc_Incl = -1;
-static int hf_cdma2k_GeoLoc_Type = -1;
+static int hf_cdma2k_Reg_Type;
+static int hf_cdma2k_Slot_Cycle_Index;
+static int hf_cdma2k_Mob_P_Rev;
+static int hf_cdma2k_Ext_Scm;
+static int hf_cdma2k_Sloted_Mode;
+static int hf_cdma2k_Mob_Term;
+static int hf_cdma2k_Return_Cause;
+static int hf_cdma2k_Qpch_Supported;
+static int hf_cdma2k_Enhanced_Rc;
+static int hf_cdma2k_Uzid_Incl;
+static int hf_cdma2k_Uzid;
+static int hf_cdma2k_GeoLoc_Incl;
+static int hf_cdma2k_GeoLoc_Type;
 
 /* Order Ind Msg Parms */
-static int hf_cdma2k_Order_Ind = -1;
-static int hf_cdma2k_Randbs = -1;
-static int hf_cdma2k_Rejected_Type = -1;
-static int hf_cdma2k_Rejected_Order = -1;
-static int hf_cdma2k_Rejected_Ordq = -1;
-static int hf_cdma2k_Rejected_Parm_Id = -1;
-static int hf_cdma2k_Rejected_Record = -1;
-static int hf_cdma2k_Tag = -1;
+static int hf_cdma2k_Order_Ind;
+static int hf_cdma2k_Randbs;
+static int hf_cdma2k_Rejected_Type;
+static int hf_cdma2k_Rejected_Order;
+static int hf_cdma2k_Rejected_Ordq;
+static int hf_cdma2k_Rejected_Parm_Id;
+static int hf_cdma2k_Rejected_Record;
+static int hf_cdma2k_Tag;
 
-static int hf_cdma2k_Rsc_Mode_Ind = -1;
-static int hf_cdma2k_Rsci = -1;
-static int hf_cdma2k_Rsc_End_Time_Unit = -1;
-static int hf_cdma2k_Rsc_End_Time_Value = -1;
+static int hf_cdma2k_Rsc_Mode_Ind;
+static int hf_cdma2k_Rsci;
+static int hf_cdma2k_Rsc_End_Time_Unit;
+static int hf_cdma2k_Rsc_End_Time_Value;
 
 /* Order Cmd Msg Parms */
-static int hf_cdma2k_Order_Cmd = -1;
-static int hf_cdma2k_Authbs = -1;
-static int hf_cdma2k_Roam_Ind = -1;
-static int hf_cdma2k_C_Sig_Encrypt_Mode = -1;
-static int hf_cdma2k_Enc_Key_Size = -1;
-static int hf_cdma2k_Msg_Int_Info_Incl = -1;
-static int hf_cdma2k_Change_Keys = -1;
-static int hf_cdma2k_Use_Uak = -1;
+static int hf_cdma2k_Order_Cmd;
+static int hf_cdma2k_Authbs;
+static int hf_cdma2k_Roam_Ind;
+static int hf_cdma2k_C_Sig_Encrypt_Mode;
+static int hf_cdma2k_Enc_Key_Size;
+static int hf_cdma2k_Msg_Int_Info_Incl;
+static int hf_cdma2k_Change_Keys;
+static int hf_cdma2k_Use_Uak;
 
-static int hf_cdma2k_Retry_Type = -1;
-static int hf_cdma2k_Retry_Delay = -1;
-static int hf_cdma2k_Reject_Reason = -1;
-static int hf_cdma2k_Rejected_Msg_Type = -1;
-static int hf_cdma2k_Rejected_Msg_Seq = -1;
+static int hf_cdma2k_Retry_Type;
+static int hf_cdma2k_Retry_Delay;
+static int hf_cdma2k_Reject_Reason;
+static int hf_cdma2k_Rejected_Msg_Type;
+static int hf_cdma2k_Rejected_Msg_Seq;
 
 /* BCMC Order type */
-static int hf_cdma2k_All_Bcmc_Flows_Ind = -1;
-static int hf_cdma2k_Clear_All_Retry_Delay = -1;
-static int hf_cdma2k_All_Bcmc_Reason = -1;
-static int hf_cdma2k_All_Bcmc_Retry_Delay = -1;
-static int hf_cdma2k_Num_Bcmc_Programs = -1;
-static int hf_cdma2k_Bcmc_Program_Id_Len = -1;
-static int hf_cdma2k_Bcmc_Program_Id = -1;
-static int hf_cdma2k_Bcmc_Flow_Discriminator_Len = -1;
-static int hf_cdma2k_Num_Flow_Discriminator = -1;
-static int hf_cdma2k_Bcmc_Flow_Discriminator = -1;
-static int hf_cdma2k_Same_As_Previous_Bcmc_Flow = -1;
-static int hf_cdma2k_Bcmc_Reason = -1;
-static int hf_cdma2k_Bcmc_Retry_Delay = -1;
+static int hf_cdma2k_All_Bcmc_Flows_Ind;
+static int hf_cdma2k_Clear_All_Retry_Delay;
+static int hf_cdma2k_All_Bcmc_Reason;
+static int hf_cdma2k_All_Bcmc_Retry_Delay;
+static int hf_cdma2k_Num_Bcmc_Programs;
+static int hf_cdma2k_Bcmc_Program_Id_Len;
+static int hf_cdma2k_Bcmc_Program_Id;
+static int hf_cdma2k_Bcmc_Flow_Discriminator_Len;
+static int hf_cdma2k_Num_Flow_Discriminator;
+static int hf_cdma2k_Bcmc_Flow_Discriminator;
+static int hf_cdma2k_Same_As_Previous_Bcmc_Flow;
+static int hf_cdma2k_Bcmc_Reason;
+static int hf_cdma2k_Bcmc_Retry_Delay;
 
-static int hf_cdma2k_Rsc_Mode_Supported = -1;
-static int hf_cdma2k_Max_Rsc_End_Time_Unit = -1;
-static int hf_cdma2k_Max_Rsc_End_Time_Value = -1;
-static int hf_cdma2k_Req_Rsci = -1;
-static int hf_cdma2k_Ignore_Qpch = -1;
-static int hf_cdma2k_Rer_Mode_Incl = -1;
-static int hf_cdma2k_Rer_Mode_Enabled = -1;
-static int hf_cdma2k_Rer_Max_Num_Msg_Idx = -1;
-static int hf_cdma2k_Rer_Time = -1;
-static int hf_cdma2k_Rer_Time_Unit = -1;
-static int hf_cdma2k_Max_Rer_Pilot_List_Size = -1;
-static int hf_cdma2k_Tkz_Mode_Incl = -1;
-static int hf_cdma2k_Tkz_Mode_Enabled = -1;
-static int hf_cdma2k_Tkz_Max_Num_Msg_Idx = -1;
-static int hf_cdma2k_Tkz_Update_Prd = -1;
-static int hf_cdma2k_Tkz_List_Len = -1;
-static int hf_cdma2k_Tkz_Timer = -1;
+static int hf_cdma2k_Rsc_Mode_Supported;
+static int hf_cdma2k_Max_Rsc_End_Time_Unit;
+static int hf_cdma2k_Max_Rsc_End_Time_Value;
+static int hf_cdma2k_Req_Rsci;
+static int hf_cdma2k_Ignore_Qpch;
+static int hf_cdma2k_Rer_Mode_Incl;
+static int hf_cdma2k_Rer_Mode_Enabled;
+static int hf_cdma2k_Rer_Max_Num_Msg_Idx;
+static int hf_cdma2k_Rer_Time;
+static int hf_cdma2k_Rer_Time_Unit;
+static int hf_cdma2k_Max_Rer_Pilot_List_Size;
+static int hf_cdma2k_Tkz_Mode_Incl;
+static int hf_cdma2k_Tkz_Mode_Enabled;
+static int hf_cdma2k_Tkz_Max_Num_Msg_Idx;
+static int hf_cdma2k_Tkz_Update_Prd;
+static int hf_cdma2k_Tkz_List_Len;
+static int hf_cdma2k_Tkz_Timer;
 
 /* Service Status Order */
-static int hf_cdma2k_Sr_Id_Bitmap = -1;
-static int hf_cdma2k_Service_Status = -1;
+static int hf_cdma2k_Sr_Id_Bitmap;
+static int hf_cdma2k_Service_Status;
 
 /* Location Service Order */
-static int hf_cdma2k_Regulatory_Ind_Incl = -1;
-static int hf_cdma2k_Regulatory_Ind = -1;
+static int hf_cdma2k_Regulatory_Ind_Incl;
+static int hf_cdma2k_Regulatory_Ind;
 /* Order Msg Parms */
-static int hf_cdma2k_Add_Record_Len = -1;
-static int hf_cdma2k_Order_Specific_Fields = -1;
-static int hf_cdma2k_Ordq = -1;
-static int hf_cdma2k_Con_Ref = -1;
+static int hf_cdma2k_Add_Record_Len;
+static int hf_cdma2k_Order_Specific_Fields;
+static int hf_cdma2k_Ordq;
+static int hf_cdma2k_Con_Ref;
 
 /* Data Burst Msg Parms */
-static int hf_cdma2k_Msg_Number = -1;
-static int hf_cdma2k_Burst_Type = -1;
-static int hf_cdma2k_Num_Msgs = -1;
-static int hf_cdma2k_Num_Fields = -1;
-static int hf_cdma2k_Chari_Data = -1;
-static int hf_cdma2k_Msg_Identifier = -1;
-static int hf_cdma2k_Parm_Id = -1;
-static int hf_cdma2k_Parm_Length = -1;
-static int hf_cdma2k_Parm_Value = -1;
+static int hf_cdma2k_Msg_Number;
+static int hf_cdma2k_Burst_Type;
+static int hf_cdma2k_Num_Msgs;
+static int hf_cdma2k_Num_Fields;
+static int hf_cdma2k_Chari_Data;
+static int hf_cdma2k_Msg_Identifier;
+static int hf_cdma2k_Parm_Id;
+static int hf_cdma2k_Parm_Length;
+static int hf_cdma2k_Parm_Value;
 
 /* Origination and Page Response Msg Parms */
-static int hf_cdma2k_Request_Mode = -1;
-static int hf_cdma2k_Special_Service = -1;
-static int hf_cdma2k_pm = -1;
-static int hf_cdma2k_digit_mode = -1;
-static int hf_cdma2k_More_Fields = -1;
-static int hf_cdma2k_Nar_An_Cap = -1;
-static int hf_cdma2k_Paca_Reorig = -1;
-static int hf_cdma2k_More_Records = -1;
-static int hf_cdma2k_encryption_supported = -1;
-static int hf_cdma2k_Paca_Supported = -1;
-static int hf_cdma2k_num_alt_so = -1;
-static int hf_cdma2k_DRS = -1;
-static int hf_cdma2k_SR_ID = -1;
-static int hf_cdma2k_Otd_Supported = -1;
-static int hf_cdma2k_For_Rc_Pref = -1;
-static int hf_cdma2k_Rev_Rc_Pref = -1;
-static int hf_cdma2k_Fch_Supported = -1;
-static int hf_cdma2k_Fch_capability_type_specific_Fields = -1;
-static int hf_cdma2k_Fch_Frame_Size = -1;
-static int hf_cdma2k_For_Fch_Len = -1;
-static int hf_cdma2k_For_Fch_Rc_Map = -1;
-static int hf_cdma2k_Rev_Fch_Len = -1;
-static int hf_cdma2k_Rev_Fch_Rc_Map = -1;
-static int hf_cdma2k_Dcch_capability_type_specific_Fields = -1;
-static int hf_cdma2k_Dcch_Frame_Size = -1;
-static int hf_cdma2k_For_Dcch_Len = -1;
-static int hf_cdma2k_For_Dcch_Rc_Map = -1;
-static int hf_cdma2k_Rev_Dcch_Len = -1;
-static int hf_cdma2k_Rev_Dcch_Rc_Map = -1;
-static int hf_cdma2k_Rev_Fch_Gating_Req = -1;
-static int hf_cdma2k_Orig_Reason = -1;
-static int hf_cdma2k_Orig_Count = -1;
-static int hf_cdma2k_Sts_Supported = -1;
-static int hf_cdma2k_ThreeXCchSupported = -1;
-static int hf_cdma2k_Wll_Incl = -1;
-static int hf_cdma2k_Wll_Device_Type = -1;
-static int hf_cdma2k_Global_Emergency_Call = -1;
-static int hf_cdma2k_Ms_Init_Pos_Loc_Ind = -1;
-static int hf_cdma2k_Qos_Parms_Incl = -1;
-static int hf_cdma2k_Qos_Parms_Length = -1;
-static int hf_cdma2k_Qos_Parms = -1;
-static int hf_cdma2k_Enc_Info_Incl = -1;
-static int hf_cdma2k_Sig_Encrypt_Supp = -1;
-static int hf_cdma2k_DSig_Encrypt_Req = -1;
-static int hf_cdma2k_CSig_Encrypt_Req = -1;
-static int hf_cdma2k_New_Sseq_H = -1;
-static int hf_cdma2k_New_Sseq_H_Sig = -1;
-static int hf_cdma2k_Ui_Encrypt_Req = -1;
-static int hf_cdma2k_Prev_Sid_Incl = -1;
-static int hf_cdma2k_Prev_Sid = -1;
-static int hf_cdma2k_Prev_Nid_Incl = -1;
-static int hf_cdma2k_Prev_Nid = -1;
-static int hf_cdma2k_Prev_Pzid_Incl = -1;
-static int hf_cdma2k_Prev_Pzid = -1;
-static int hf_cdma2k_So_Bitmap_Ind = -1;
-static int hf_cdma2k_So_Group_Num = -1;
-static int hf_cdma2k_So_Bitmap = -1;
-static int hf_cdma2k_Alt_So = -1;
-static int hf_cdma2k_Dcch_Supported = -1;
-static int hf_cdma2k_Hook_Status = -1;
+static int hf_cdma2k_Request_Mode;
+static int hf_cdma2k_Special_Service;
+static int hf_cdma2k_pm;
+static int hf_cdma2k_digit_mode;
+static int hf_cdma2k_More_Fields;
+static int hf_cdma2k_Nar_An_Cap;
+static int hf_cdma2k_Paca_Reorig;
+static int hf_cdma2k_More_Records;
+static int hf_cdma2k_encryption_supported;
+static int hf_cdma2k_Paca_Supported;
+static int hf_cdma2k_num_alt_so;
+static int hf_cdma2k_DRS;
+static int hf_cdma2k_SR_ID;
+static int hf_cdma2k_Otd_Supported;
+static int hf_cdma2k_For_Rc_Pref;
+static int hf_cdma2k_Rev_Rc_Pref;
+static int hf_cdma2k_Fch_Supported;
+static int hf_cdma2k_Fch_capability_type_specific_Fields;
+static int hf_cdma2k_Fch_Frame_Size;
+static int hf_cdma2k_For_Fch_Len;
+static int hf_cdma2k_For_Fch_Rc_Map;
+static int hf_cdma2k_Rev_Fch_Len;
+static int hf_cdma2k_Rev_Fch_Rc_Map;
+static int hf_cdma2k_Dcch_capability_type_specific_Fields;
+static int hf_cdma2k_Dcch_Frame_Size;
+static int hf_cdma2k_For_Dcch_Len;
+static int hf_cdma2k_For_Dcch_Rc_Map;
+static int hf_cdma2k_Rev_Dcch_Len;
+static int hf_cdma2k_Rev_Dcch_Rc_Map;
+static int hf_cdma2k_Rev_Fch_Gating_Req;
+static int hf_cdma2k_Orig_Reason;
+static int hf_cdma2k_Orig_Count;
+static int hf_cdma2k_Sts_Supported;
+static int hf_cdma2k_ThreeXCchSupported;
+static int hf_cdma2k_Wll_Incl;
+static int hf_cdma2k_Wll_Device_Type;
+static int hf_cdma2k_Global_Emergency_Call;
+static int hf_cdma2k_Ms_Init_Pos_Loc_Ind;
+static int hf_cdma2k_Qos_Parms_Incl;
+static int hf_cdma2k_Qos_Parms_Length;
+static int hf_cdma2k_Qos_Parms;
+static int hf_cdma2k_Enc_Info_Incl;
+static int hf_cdma2k_Sig_Encrypt_Supp;
+static int hf_cdma2k_DSig_Encrypt_Req;
+static int hf_cdma2k_CSig_Encrypt_Req;
+static int hf_cdma2k_New_Sseq_H;
+static int hf_cdma2k_New_Sseq_H_Sig;
+static int hf_cdma2k_Ui_Encrypt_Req;
+static int hf_cdma2k_Prev_Sid_Incl;
+static int hf_cdma2k_Prev_Sid;
+static int hf_cdma2k_Prev_Nid_Incl;
+static int hf_cdma2k_Prev_Nid;
+static int hf_cdma2k_Prev_Pzid_Incl;
+static int hf_cdma2k_Prev_Pzid;
+static int hf_cdma2k_So_Bitmap_Ind;
+static int hf_cdma2k_So_Group_Num;
+static int hf_cdma2k_So_Bitmap;
+static int hf_cdma2k_Alt_So;
+static int hf_cdma2k_Dcch_Supported;
+static int hf_cdma2k_Hook_Status;
 
 /* Auth Chall Rsp Msg Parms */
-static int hf_cdma2k_Authu = -1;
+static int hf_cdma2k_Authu;
 
 /* Auth Chall Req Msg Parms */
-static int hf_cdma2k_Randu = -1;
-static int hf_cdma2k_Gen_Cmea_Key = -1;
+static int hf_cdma2k_Randu;
+static int hf_cdma2k_Gen_Cmea_Key;
 
 /* Gen Page Req Msg Parms */
-static int hf_cdma2k_service_option = -1;
+static int hf_cdma2k_service_option;
 
 /* Handoff Dir Msg Parms */
-static int hf_cdma2k_Use_Time = -1;
-static int hf_cdma2k_Action_Time = -1;
-static int hf_cdma2k_Hdm_Seq = -1;
-static int hf_cdma2k_Parms_Incl = -1;
-static int hf_cdma2k_P_Rev = -1;
-static int hf_cdma2k_Serv_Neg_Type = -1;
-static int hf_cdma2k_Search_Incl = -1;
-static int hf_cdma2k_Pilot_Search = -1;
-static int hf_cdma2k_Srch_Win_A = -1;
-static int hf_cdma2k_Srch_Win_N = -1;
-static int hf_cdma2k_Srch_Win_R = -1;
-static int hf_cdma2k_T_Add = -1;
-static int hf_cdma2k_T_Drop = -1;
-static int hf_cdma2k_T_Comp = -1;
-static int hf_cdma2k_T_Tdrop = -1;
-static int hf_cdma2k_Soft_Slope = -1;
-static int hf_cdma2k_Add_Intercept = -1;
-static int hf_cdma2k_Drop_Intercept = -1;
-static int hf_cdma2k_Extra_Parms_Incl = -1;
-static int hf_cdma2k_Extra_Parms = -1;
-static int hf_cdma2k_Packet_Zone_Id = -1;
-static int hf_cdma2k_Frame_Offset = -1;
-static int hf_cdma2k_Private_Lcm = -1;
-static int hf_cdma2k_Reset_L2 = -1;
-static int hf_cdma2k_Reset_Fpc = -1;
-static int hf_cdma2k_Encrypt_Mode = -1;
-static int hf_cdma2k_Nom_Pwr_Ext = -1;
-static int hf_cdma2k_Nom_Pwr = -1;
-static int hf_cdma2k_Rlgain_Traffic_Pilot = -1;
-static int hf_cdma2k_Default_Rlag = -1;
-static int hf_cdma2k_Num_Preamble = -1;
-static int hf_cdma2k_Band_Class = -1;
-static int hf_cdma2k_Cdma_Freq = -1;
-static int hf_cdma2k_Return_If_Handoff_Fail = -1;
-static int hf_cdma2k_Complete_Search = -1;
-static int hf_cdma2k_Periodic_Search = -1;
-static int hf_cdma2k_Scr_Incl = -1;
-static int hf_cdma2k_Scr = -1;
-static int hf_cdma2k_Serv_Con_Seq = -1;
-static int hf_cdma2k_Record_Type = -1;
-static int hf_cdma2k_Record_Len = -1;
-static int hf_cdma2k_Type_Specific_Fields = -1;
-static int hf_cdma2k_Nnscr_Incl = -1;
-static int hf_cdma2k_Nnscr = -1;
-static int hf_cdma2k_Use_Pwr_Cntl_Step = -1;
-static int hf_cdma2k_Pwr_Cntl_Step = -1;
-static int hf_cdma2k_Clear_Retry_Delay = -1;
-static int hf_cdma2k_Sch_Incl = -1;
-static int hf_cdma2k_Sch = -1;
-static int hf_cdma2k_Num_For_Assign = -1;
-static int hf_cdma2k_Record_For_Assign = -1;
-static int hf_cdma2k_Sch_Id = -1;
-static int hf_cdma2k_Sch_Duration = -1;
-static int hf_cdma2k_Sch_Start_Time_Incl = -1;
-static int hf_cdma2k_Sch_Start_Time = -1;
-static int hf_cdma2k_Sccl_Index = -1;
-static int hf_cdma2k_Num_Rev_Assign = -1;
-static int hf_cdma2k_Record_Rev_Assign = -1;
-static int hf_cdma2k_Sch_Num_Bits_Idx = -1;
-static int hf_cdma2k_Fpc_Subchain_Gain = -1;
-static int hf_cdma2k_Use_Pc_Time = -1;
-static int hf_cdma2k_Pc_Action_Time = -1;
-static int hf_cdma2k_Ch_Ind = -1;
-static int hf_cdma2k_Active_Set_Rec_Len = -1;
-static int hf_cdma2k_Active_Set_Rec_Fields = -1;
-static int hf_cdma2k_Rev_Fch_Gating_Mode = -1;
-static int hf_cdma2k_Rev_Pwr_Cntl_Delay_Incl = -1;
-static int hf_cdma2k_Rev_Pwr_Cntl_Delay = -1;
-static int hf_cdma2k_D_Sig_Encrypt_Mode = -1;
-static int hf_cdma2k_3xfl_1xrl_Incl = -1;
-static int hf_cdma2k_1xrl_Freq_Offset = -1;
-static int hf_cdma2k_Sync_Id_Incl = -1;
-static int hf_cdma2k_Sync_Id_Len = -1;
-static int hf_cdma2k_Sync_Id = -1;
-static int hf_cdma2k_Cc_Info_Incl = -1;
-static int hf_cdma2k_Num_Calls_Assign = -1;
-static int hf_cdma2k_Record_Calls_Assign = -1;
-static int hf_cdma2k_Response_Ind = -1;
-static int hf_cdma2k_Bypass_Alert_Answer = -1;
-static int hf_cdma2k_Cs_Supported = -1;
-static int hf_cdma2k_Chm_Supported = -1;
-static int hf_cdma2k_Cdma_Off_Time_Rep_Sup_Ind = -1;
-static int hf_cdma2k_Cdma_Off_Time_Rep_Threshold_Unit = -1;
-static int hf_cdma2k_Cdma_Off_Time_Rep_Threshold = -1;
-static int hf_cdma2k_Release_To_Idle_Ind = -1;
-static int hf_cdma2k_Msg_Integrity_Sup = -1;
-static int hf_cdma2k_Gen_2g_Key = -1;
-static int hf_cdma2k_Register_In_Idle = -1;
-static int hf_cdma2k_Plcm_Type_Incl = -1;
-static int hf_cdma2k_Plcm_Type = -1;
-static int hf_cdma2k_Plcm_39 = -1;
-static int hf_cdma2k_T_Tdrop_Range_Incl = -1;
-static int hf_cdma2k_T_Tdrop_Range = -1;
-static int hf_cdma2k_For_Pdch_Supported = -1;
-static int hf_cdma2k_Pdch_Chm_Supported = -1;
-static int hf_cdma2k_Pilot_Info_Req_Supported = -1;
-static int hf_cdma2k_Enc_Supported = -1;
-static int hf_cdma2k_Sig_Encrypt_Sup = -1;
-static int hf_cdma2k_Ui_Encrypt_Sup = -1;
-static int hf_cdma2k_Use_Sync_Id = -1;
-static int hf_cdma2k_Sid_Incl = -1;
-static int hf_cdma2k_Sid = -1;
-static int hf_cdma2k_Nid_Incl = -1;
-static int hf_cdma2k_Nid = -1;
-static int hf_cdma2k_Sdb_Supported = -1;
-static int hf_cdma2k_Mob_Qos = -1;
-static int hf_cdma2k_Ms_Init_Pos_Loc_Sup_Ind = -1;
-static int hf_cdma2k_Rev_Pdch_Supported = -1;
-static int hf_cdma2k_Pz_Hyst_Enabled = -1;
-static int hf_cdma2k_Pz_Hyst_Info_Incl = -1;
-static int hf_cdma2k_Pz_Hyst_List_Len = -1;
-static int hf_cdma2k_Pz_Hyst_Act_Timer = -1;
-static int hf_cdma2k_Pz_Hyst_Timer_Mul = -1;
-static int hf_cdma2k_Pz_Hyst_Timer_Exp = -1;
-static int hf_cdma2k_Bcmc_On_Traffic_Sup = -1;
-static int hf_cdma2k_Auto_Re_Traffic_Allowed_Ind = -1;
-static int hf_cdma2k_Sch_Bcmc_Ind = -1;
-static int hf_cdma2k_Add_Plcm_For_Sch_Incl = -1;
-static int hf_cdma2k_Add_Plcm_For_Sch_Type = -1;
-static int hf_cdma2k_Add_Plcm_For_Sch_35 = -1;
-static int hf_cdma2k_Record_Sch_Bcmc = -1;
-static int hf_cdma2k_Use_Add_Plcm_For_Sch = -1;
-static int hf_cdma2k_Fsch_Outercode_Incl = -1;
-static int hf_cdma2k_Fsch_Outercode_Rate = -1;
-static int hf_cdma2k_Fsch_Outercode_Offset = -1;
-static int hf_cdma2k_Max_Add_Serv_Instance = -1;
-static int hf_cdma2k_Use_Ch_Cfg_Rrm = -1;
-static int hf_cdma2k_Tx_Pwr_Limit_Incl = -1;
-static int hf_cdma2k_Tx_Pwr_Limit_Default = -1;
-static int hf_cdma2k_Tx_Pwr_Limit = -1;
+static int hf_cdma2k_Use_Time;
+static int hf_cdma2k_Action_Time;
+static int hf_cdma2k_Hdm_Seq;
+static int hf_cdma2k_Parms_Incl;
+static int hf_cdma2k_P_Rev;
+static int hf_cdma2k_Serv_Neg_Type;
+static int hf_cdma2k_Search_Incl;
+static int hf_cdma2k_Pilot_Search;
+static int hf_cdma2k_Srch_Win_A;
+static int hf_cdma2k_Srch_Win_N;
+static int hf_cdma2k_Srch_Win_R;
+static int hf_cdma2k_T_Add;
+static int hf_cdma2k_T_Drop;
+static int hf_cdma2k_T_Comp;
+static int hf_cdma2k_T_Tdrop;
+static int hf_cdma2k_Soft_Slope;
+static int hf_cdma2k_Add_Intercept;
+static int hf_cdma2k_Drop_Intercept;
+static int hf_cdma2k_Extra_Parms_Incl;
+static int hf_cdma2k_Extra_Parms;
+static int hf_cdma2k_Packet_Zone_Id;
+static int hf_cdma2k_Frame_Offset;
+static int hf_cdma2k_Private_Lcm;
+static int hf_cdma2k_Reset_L2;
+static int hf_cdma2k_Reset_Fpc;
+static int hf_cdma2k_Encrypt_Mode;
+static int hf_cdma2k_Nom_Pwr_Ext;
+static int hf_cdma2k_Nom_Pwr;
+static int hf_cdma2k_Rlgain_Traffic_Pilot;
+static int hf_cdma2k_Default_Rlag;
+static int hf_cdma2k_Num_Preamble;
+static int hf_cdma2k_Band_Class;
+static int hf_cdma2k_Cdma_Freq;
+static int hf_cdma2k_Return_If_Handoff_Fail;
+static int hf_cdma2k_Complete_Search;
+static int hf_cdma2k_Periodic_Search;
+static int hf_cdma2k_Scr_Incl;
+static int hf_cdma2k_Scr;
+static int hf_cdma2k_Serv_Con_Seq;
+static int hf_cdma2k_Record_Type;
+static int hf_cdma2k_Record_Len;
+static int hf_cdma2k_Type_Specific_Fields;
+static int hf_cdma2k_Nnscr_Incl;
+static int hf_cdma2k_Nnscr;
+static int hf_cdma2k_Use_Pwr_Cntl_Step;
+static int hf_cdma2k_Pwr_Cntl_Step;
+static int hf_cdma2k_Clear_Retry_Delay;
+static int hf_cdma2k_Sch_Incl;
+static int hf_cdma2k_Sch;
+static int hf_cdma2k_Num_For_Assign;
+static int hf_cdma2k_Record_For_Assign;
+static int hf_cdma2k_Sch_Id;
+static int hf_cdma2k_Sch_Duration;
+static int hf_cdma2k_Sch_Start_Time_Incl;
+static int hf_cdma2k_Sch_Start_Time;
+static int hf_cdma2k_Sccl_Index;
+static int hf_cdma2k_Num_Rev_Assign;
+static int hf_cdma2k_Record_Rev_Assign;
+static int hf_cdma2k_Sch_Num_Bits_Idx;
+static int hf_cdma2k_Fpc_Subchain_Gain;
+static int hf_cdma2k_Use_Pc_Time;
+static int hf_cdma2k_Pc_Action_Time;
+static int hf_cdma2k_Ch_Ind;
+static int hf_cdma2k_Active_Set_Rec_Len;
+static int hf_cdma2k_Active_Set_Rec_Fields;
+static int hf_cdma2k_Rev_Fch_Gating_Mode;
+static int hf_cdma2k_Rev_Pwr_Cntl_Delay_Incl;
+static int hf_cdma2k_Rev_Pwr_Cntl_Delay;
+static int hf_cdma2k_D_Sig_Encrypt_Mode;
+static int hf_cdma2k_3xfl_1xrl_Incl;
+static int hf_cdma2k_1xrl_Freq_Offset;
+static int hf_cdma2k_Sync_Id_Incl;
+static int hf_cdma2k_Sync_Id_Len;
+static int hf_cdma2k_Sync_Id;
+static int hf_cdma2k_Cc_Info_Incl;
+static int hf_cdma2k_Num_Calls_Assign;
+static int hf_cdma2k_Record_Calls_Assign;
+static int hf_cdma2k_Response_Ind;
+static int hf_cdma2k_Bypass_Alert_Answer;
+static int hf_cdma2k_Cs_Supported;
+static int hf_cdma2k_Chm_Supported;
+static int hf_cdma2k_Cdma_Off_Time_Rep_Sup_Ind;
+static int hf_cdma2k_Cdma_Off_Time_Rep_Threshold_Unit;
+static int hf_cdma2k_Cdma_Off_Time_Rep_Threshold;
+static int hf_cdma2k_Release_To_Idle_Ind;
+static int hf_cdma2k_Msg_Integrity_Sup;
+static int hf_cdma2k_Gen_2g_Key;
+static int hf_cdma2k_Register_In_Idle;
+static int hf_cdma2k_Plcm_Type_Incl;
+static int hf_cdma2k_Plcm_Type;
+static int hf_cdma2k_Plcm_39;
+static int hf_cdma2k_T_Tdrop_Range_Incl;
+static int hf_cdma2k_T_Tdrop_Range;
+static int hf_cdma2k_For_Pdch_Supported;
+static int hf_cdma2k_Pdch_Chm_Supported;
+static int hf_cdma2k_Pilot_Info_Req_Supported;
+static int hf_cdma2k_Enc_Supported;
+static int hf_cdma2k_Sig_Encrypt_Sup;
+static int hf_cdma2k_Ui_Encrypt_Sup;
+static int hf_cdma2k_Use_Sync_Id;
+static int hf_cdma2k_Sid_Incl;
+static int hf_cdma2k_Sid;
+static int hf_cdma2k_Nid_Incl;
+static int hf_cdma2k_Nid;
+static int hf_cdma2k_Sdb_Supported;
+static int hf_cdma2k_Mob_Qos;
+static int hf_cdma2k_Ms_Init_Pos_Loc_Sup_Ind;
+static int hf_cdma2k_Rev_Pdch_Supported;
+static int hf_cdma2k_Pz_Hyst_Enabled;
+static int hf_cdma2k_Pz_Hyst_Info_Incl;
+static int hf_cdma2k_Pz_Hyst_List_Len;
+static int hf_cdma2k_Pz_Hyst_Act_Timer;
+static int hf_cdma2k_Pz_Hyst_Timer_Mul;
+static int hf_cdma2k_Pz_Hyst_Timer_Exp;
+static int hf_cdma2k_Bcmc_On_Traffic_Sup;
+static int hf_cdma2k_Auto_Re_Traffic_Allowed_Ind;
+static int hf_cdma2k_Sch_Bcmc_Ind;
+static int hf_cdma2k_Add_Plcm_For_Sch_Incl;
+static int hf_cdma2k_Add_Plcm_For_Sch_Type;
+static int hf_cdma2k_Add_Plcm_For_Sch_35;
+static int hf_cdma2k_Record_Sch_Bcmc;
+static int hf_cdma2k_Use_Add_Plcm_For_Sch;
+static int hf_cdma2k_Fsch_Outercode_Incl;
+static int hf_cdma2k_Fsch_Outercode_Rate;
+static int hf_cdma2k_Fsch_Outercode_Offset;
+static int hf_cdma2k_Max_Add_Serv_Instance;
+static int hf_cdma2k_Use_Ch_Cfg_Rrm;
+static int hf_cdma2k_Tx_Pwr_Limit_Incl;
+static int hf_cdma2k_Tx_Pwr_Limit_Default;
+static int hf_cdma2k_Tx_Pwr_Limit;
 
 /* Active Set Record Fields of Handoff Direction Message*/
-static int hf_cdma2k_Num_For_Sch = -1;
-static int hf_cdma2k_Record_For_Sch = -1;
-static int hf_cdma2k_Num_Rev_Sch = -1;
-static int hf_cdma2k_Record_Rev_Sch = -1;
-static int hf_cdma2k_Walsh_Id = -1;
-static int hf_cdma2k_Num_Pilots = -1;
-static int hf_cdma2k_Srch_Offset_Incl = -1;
-static int hf_cdma2k_Record_Pilots = -1;
-static int hf_cdma2k_Pilot_Pn = -1;
-static int hf_cdma2k_Srch_Offset = -1;
-static int hf_cdma2k_Add_Pilot_Rec_Incl = -1;
-static int hf_cdma2k_Pilot_Rec_Type = -1;
-static int hf_cdma2k_Pwr_Comb_Ind = -1;
-static int hf_cdma2k_Code_Chan_Fch = -1;
-static int hf_cdma2k_Qof_Mask_Id_Fch = -1;
-static int hf_cdma2k_Num_Sch = -1;
-static int hf_cdma2k_Record_Sch = -1;
-static int hf_cdma2k_Pilot_Incl = -1;
-static int hf_cdma2k_Code_Chan_Sch = -1;
-static int hf_cdma2k_Qof_Mask_Id_Sch = -1;
-static int hf_cdma2k_3xFch_Info_Incl = -1;
-static int hf_cdma2k_3xFch_Low_Incl = -1;
-static int hf_cdma2k_Qof_Mask_Id_Fch_Low = -1;
-static int hf_cdma2k_Code_Chan_Fch_Low = -1;
-static int hf_cdma2k_3xFch_High_Incl = -1;
-static int hf_cdma2k_Qof_Mask_Id_Fch_High = -1;
-static int hf_cdma2k_Code_Chan_Fch_High = -1;
-static int hf_cdma2k_3xSch_Info_Incl = -1;
-static int hf_cdma2k_3xSch_Low_Incl = -1;
-static int hf_cdma2k_Qof_Mask_Id_Sch_Low = -1;
-static int hf_cdma2k_Code_Chan_Sch_Low = -1;
-static int hf_cdma2k_3xSch_High_Incl = -1;
-static int hf_cdma2k_Qof_Mask_Id_Sch_High = -1;
-static int hf_cdma2k_Code_Chan_Sch_High = -1;
-static int hf_cdma2k_Ccsh_Included = -1;
-static int hf_cdma2k_Use_Ccsh_Encoder_Time = -1;
-static int hf_cdma2k_Ccsh_Encoder_Action_Time = -1;
-static int hf_cdma2k_Ccsh_Encoder_Type = -1;
-static int hf_cdma2k_Code_Chan_Dcch = -1;
-static int hf_cdma2k_Qof_Mask_Id_Dcch = -1;
-static int hf_cdma2k_3xDcch_Info_Incl = -1;
-static int hf_cdma2k_3xDcch_Low_Incl = -1;
-static int hf_cdma2k_Qof_Mask_Id_Dcch_Low = -1;
-static int hf_cdma2k_Code_Chan_Dcch_Low = -1;
-static int hf_cdma2k_3xDcch_High_Incl = -1;
-static int hf_cdma2k_Qof_Mask_Id_Dcch_High = -1;
-static int hf_cdma2k_Code_Chan_Dcch_High = -1;
-static int hf_cdma2k_Fundicated_Bcmc_Ind = -1;
-static int hf_cdma2k_For_Cpcch_Walsh = -1;
-static int hf_cdma2k_For_Cpcsch = -1;
-static int hf_cdma2k_Rev_Fch_Assigned = -1;
-static int hf_cdma2k_Add_Plcm_For_Fch_Incl = -1;
-static int hf_cdma2k_Add_Plcm_For_Fch_Type = -1;
-static int hf_cdma2k_Add_Plcm_For_Fch_39 = -1;
-static int hf_cdma2k_For_Cpcch_Info_Incl = -1;
+static int hf_cdma2k_Num_For_Sch;
+static int hf_cdma2k_Record_For_Sch;
+static int hf_cdma2k_Num_Rev_Sch;
+static int hf_cdma2k_Record_Rev_Sch;
+static int hf_cdma2k_Walsh_Id;
+static int hf_cdma2k_Num_Pilots;
+static int hf_cdma2k_Srch_Offset_Incl;
+static int hf_cdma2k_Record_Pilots;
+static int hf_cdma2k_Pilot_Pn;
+static int hf_cdma2k_Srch_Offset;
+static int hf_cdma2k_Add_Pilot_Rec_Incl;
+static int hf_cdma2k_Pilot_Rec_Type;
+static int hf_cdma2k_Pwr_Comb_Ind;
+static int hf_cdma2k_Code_Chan_Fch;
+static int hf_cdma2k_Qof_Mask_Id_Fch;
+static int hf_cdma2k_Num_Sch;
+static int hf_cdma2k_Record_Sch;
+static int hf_cdma2k_Pilot_Incl;
+static int hf_cdma2k_Code_Chan_Sch;
+static int hf_cdma2k_Qof_Mask_Id_Sch;
+static int hf_cdma2k_3xFch_Info_Incl;
+static int hf_cdma2k_3xFch_Low_Incl;
+static int hf_cdma2k_Qof_Mask_Id_Fch_Low;
+static int hf_cdma2k_Code_Chan_Fch_Low;
+static int hf_cdma2k_3xFch_High_Incl;
+static int hf_cdma2k_Qof_Mask_Id_Fch_High;
+static int hf_cdma2k_Code_Chan_Fch_High;
+static int hf_cdma2k_3xSch_Info_Incl;
+static int hf_cdma2k_3xSch_Low_Incl;
+static int hf_cdma2k_Qof_Mask_Id_Sch_Low;
+static int hf_cdma2k_Code_Chan_Sch_Low;
+static int hf_cdma2k_3xSch_High_Incl;
+static int hf_cdma2k_Qof_Mask_Id_Sch_High;
+static int hf_cdma2k_Code_Chan_Sch_High;
+static int hf_cdma2k_Ccsh_Included;
+static int hf_cdma2k_Use_Ccsh_Encoder_Time;
+static int hf_cdma2k_Ccsh_Encoder_Action_Time;
+static int hf_cdma2k_Ccsh_Encoder_Type;
+static int hf_cdma2k_Code_Chan_Dcch;
+static int hf_cdma2k_Qof_Mask_Id_Dcch;
+static int hf_cdma2k_3xDcch_Info_Incl;
+static int hf_cdma2k_3xDcch_Low_Incl;
+static int hf_cdma2k_Qof_Mask_Id_Dcch_Low;
+static int hf_cdma2k_Code_Chan_Dcch_Low;
+static int hf_cdma2k_3xDcch_High_Incl;
+static int hf_cdma2k_Qof_Mask_Id_Dcch_High;
+static int hf_cdma2k_Code_Chan_Dcch_High;
+static int hf_cdma2k_Fundicated_Bcmc_Ind;
+static int hf_cdma2k_For_Cpcch_Walsh;
+static int hf_cdma2k_For_Cpcsch;
+static int hf_cdma2k_Rev_Fch_Assigned;
+static int hf_cdma2k_Add_Plcm_For_Fch_Incl;
+static int hf_cdma2k_Add_Plcm_For_Fch_Type;
+static int hf_cdma2k_Add_Plcm_For_Fch_39;
+static int hf_cdma2k_For_Cpcch_Info_Incl;
 
 /* Alert With Info Msg Parms */
 
-static int hf_cdma2k_Info_Rec = -1;
-static int hf_cdma2k_Chari = -1;
-static int hf_cdma2k_Number_Type = -1;
-static int hf_cdma2k_Number_Plan = -1;
-static int hf_cdma2k_Pres_Indicator = -1;
-static int hf_cdma2k_Scr_Indicator = -1;
-static int hf_cdma2k_Signal_Type = -1;
-static int hf_cdma2k_Alert_Pitch = -1;
-static int hf_cdma2k_Signal = -1;
-static int hf_cdma2k_Msg_Count = -1;
-static int hf_cdma2k_Extension_Bit = -1;
-static int hf_cdma2k_Subaddress_Type = -1;
-static int hf_cdma2k_Odd_Even_Ind = -1;
-static int hf_cdma2k_Redirection_Reason = -1;
-static int hf_cdma2k_Pulse_Freq = -1;
-static int hf_cdma2k_Pulse_On_Time = -1;
-static int hf_cdma2k_Pulse_Off_Time = -1;
-static int hf_cdma2k_Pulse_Count = -1;
-static int hf_cdma2k_Cadence_Count = -1;
-static int hf_cdma2k_Num_Grps = -1;
-static int hf_cdma2k_Amplitude = -1;
-static int hf_cdma2k_Freq = -1;
-static int hf_cdma2k_On_Time = -1;
-static int hf_cdma2k_Off_Time = -1;
-static int hf_cdma2k_Repeat = -1;
-static int hf_cdma2k_Delay = -1;
-static int hf_cdma2k_Cadence_Type = -1;
-static int hf_cdma2k_Polarity_Incl = -1;
-static int hf_cdma2k_Toggle_Mode = -1;
-static int hf_cdma2k_Reverse_Polarity = -1;
-static int hf_cdma2k_Pwr_Denial_Time = -1;
-static int hf_cdma2k_Call_Waiting_Ind = -1;
+static int hf_cdma2k_Info_Rec;
+static int hf_cdma2k_Chari;
+static int hf_cdma2k_Number_Type;
+static int hf_cdma2k_Number_Plan;
+static int hf_cdma2k_Pres_Indicator;
+static int hf_cdma2k_Scr_Indicator;
+static int hf_cdma2k_Signal_Type;
+static int hf_cdma2k_Alert_Pitch;
+static int hf_cdma2k_Signal;
+static int hf_cdma2k_Msg_Count;
+static int hf_cdma2k_Extension_Bit;
+static int hf_cdma2k_Subaddress_Type;
+static int hf_cdma2k_Odd_Even_Ind;
+static int hf_cdma2k_Redirection_Reason;
+static int hf_cdma2k_Pulse_Freq;
+static int hf_cdma2k_Pulse_On_Time;
+static int hf_cdma2k_Pulse_Off_Time;
+static int hf_cdma2k_Pulse_Count;
+static int hf_cdma2k_Cadence_Count;
+static int hf_cdma2k_Num_Grps;
+static int hf_cdma2k_Amplitude;
+static int hf_cdma2k_Freq;
+static int hf_cdma2k_On_Time;
+static int hf_cdma2k_Off_Time;
+static int hf_cdma2k_Repeat;
+static int hf_cdma2k_Delay;
+static int hf_cdma2k_Cadence_Type;
+static int hf_cdma2k_Polarity_Incl;
+static int hf_cdma2k_Toggle_Mode;
+static int hf_cdma2k_Reverse_Polarity;
+static int hf_cdma2k_Pwr_Denial_Time;
+static int hf_cdma2k_Call_Waiting_Ind;
 
-static int hf_cdma2k_Reserved = -1;
+static int hf_cdma2k_Reserved;
 
-static int hf_cdma2k_Cmea = -1;
-static int hf_cdma2k_Ecmea = -1;
-static int hf_cdma2k_Rea = -1;
+static int hf_cdma2k_Cmea;
+static int hf_cdma2k_Ecmea;
+static int hf_cdma2k_Rea;
 
-static int hf_cdma2k_scm_dual_mode = -1;
-static int hf_cdma2k_scm_slotted_class = -1;
-static int hf_cdma2k_scm_meid_sup = -1;
-static int hf_cdma2k_scm_25mhz_bw = -1;
-static int hf_cdma2k_scm_trans = -1;
-static int hf_cdma2k_scm_pow_class = -1;
+static int hf_cdma2k_scm_dual_mode;
+static int hf_cdma2k_scm_slotted_class;
+static int hf_cdma2k_scm_meid_sup;
+static int hf_cdma2k_scm_25mhz_bw;
+static int hf_cdma2k_scm_trans;
+static int hf_cdma2k_scm_pow_class;
 
-static expert_field ei_cdma2k_error = EI_INIT;
+static expert_field ei_cdma2k_error;
 
 /* Toggle sub-tree items */
-static gint ett_cdma2k_msghdr = -1;
-static gint ett_cdma2k_subtree = -1;
-static gint ett_cdma2k_subtree1 = -1;
-static gint ett_cdma2k_subtree2 = -1;
-static guint ett_cdma2k_m_s1 = -1;
-static guint ett_cdma2000_scm = -1;
+static int ett_cdma2k_msghdr;
+static int ett_cdma2k_subtree;
+static int ett_cdma2k_subtree1;
+static int ett_cdma2k_subtree2;
+static int ett_cdma2k_m_s1;
+static int ett_cdma2000_scm;
 
 #define CDMA2KRegIndMsg       0x01
 #define CDMA2KOrderIndMsg     0x02
@@ -1180,10 +1180,10 @@ static const value_string l3dpu_ORM_ch_ind_values[] = {
 };
 
 /* Decoder for all the information elements of CDMA2K Message Type */
-static void cdma2k_message_decode(proto_item *item _U_, tvbuff_t *tvb,proto_tree *tree, guint *offset, proto_tree *mainTree _U_, guint16 *noerror _U_ , packet_info *pinfo _U_)
+static void cdma2k_message_decode(proto_item *item _U_, tvbuff_t *tvb,proto_tree *tree, unsigned *offset, proto_tree *mainTree _U_, uint16_t *noerror _U_ , packet_info *pinfo _U_)
 {
-    guint16 channel = -1, msgtype = -1, headerRecCnt = -1, headerRecLen = -1, l_offset = -1;
-    guint16 headerRecType = -1, inc = -1, count = -1, l3PduLen = -1, authIncl = -1, oneXPrev = -1;
+    uint16_t channel = -1, msgtype = -1, headerRecCnt = -1, headerRecLen = -1, l_offset = -1;
+    uint16_t headerRecType = -1, inc = -1, count = -1, l3PduLen = -1, authIncl = -1, oneXPrev = -1;
     proto_item *item1 = NULL;
     proto_tree *subtree = NULL, *subtree1 = NULL, *subtree2 = NULL, *subtree3 = NULL;
 
@@ -1368,7 +1368,7 @@ static const value_string l3dpu_SCM_field_values2[] = {
 };
 
 static void
-dissect_cdma2000_scm(tvbuff_t* tvb, proto_tree* tree, guint bit_offset)
+dissect_cdma2000_scm(tvbuff_t* tvb, proto_tree* tree, unsigned bit_offset)
 {
     proto_tree *sub_tree = proto_tree_add_subtree(tree, tvb, bit_offset >> 3, 2, ett_cdma2000_scm, NULL, "SCM - Station Class Mark");
 
@@ -1395,10 +1395,10 @@ dissect_cdma2000_scm(tvbuff_t* tvb, proto_tree* tree, guint bit_offset)
 
 }
 
-static void cdma2k_message_REGISTRATION(proto_item *item, tvbuff_t *tvb, proto_tree *tree, guint *offset, guint16 oneXPrev)
+static void cdma2k_message_REGISTRATION(proto_item *item, tvbuff_t *tvb, proto_tree *tree, unsigned *offset, uint16_t oneXPrev)
 {
-    guint16 mob_P_Rev_Value = -1, mob_P_Rev_Rx = -1;
-    guint16 uzid_Incl = -1, geoLoc_Incl = -1, l_offset = -1;
+    uint16_t mob_P_Rev_Value = -1, mob_P_Rev_Rx = -1;
+    uint16_t uzid_Incl = -1, geoLoc_Incl = -1, l_offset = -1;
     proto_tree *subtree = NULL;
 
     /*iws_Mob_P_Rev_In_Use = 7;*/
@@ -1477,10 +1477,10 @@ static void cdma2k_message_REGISTRATION(proto_item *item, tvbuff_t *tvb, proto_t
 
 
 /* Decode Order Indication Message Parameters */
-static void cdma2k_message_ORDER_IND(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset)
+static void cdma2k_message_ORDER_IND(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset)
 {
-    guint16 addRecLen = -1, ordq = -1, rejectedtype = -1;
-    guint16  l_offset = -1, rsc_mode_ind = -1, ordertype = -1;
+    uint16_t addRecLen = -1, ordq = -1, rejectedtype = -1;
+    uint16_t l_offset = -1, rsc_mode_ind = -1, ordertype = -1;
     proto_tree *subtree = NULL, *subtree1 = NULL;
 
     item = proto_tree_add_item(tree,hf_cdma2k_OrderIndMsg, tvb, *offset, -1, ENC_NA);
@@ -1653,21 +1653,21 @@ static void cdma2k_message_ORDER_IND(proto_item *item,tvbuff_t *tvb,proto_tree *
 }
 
 /* Decode Order Command Message Parameters */
-static void cdma2k_message_ORDER_CMD(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset)
+static void cdma2k_message_ORDER_CMD(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset)
 {
-    guint16 addRecLen = -1, ordq = -1, csig = -1;
-    guint16 l_offset = -1, MsgIntInfoIncl = -1, retrytype = -1, allbcmcflowind = -1, clearallretrydelay = -1;
-    guint16 numbcmcprograms = -1, bcmc_program_id = -1;
-    guint16 bcmcflowdiscriminatorlen = -1, regulatoryindincl = -1;
-    guint16 rsc_mode_supported = -1, rer_mode_incl = -1, rer_mode_enabled = -1, tkz_mode_incl = -1;
-    guint16 sameaspreviousbcmcflow = -1, ordertype = -1, clearretrydelay = -1, rer_time = -1;
-    guint16 rsc_mode_ind = -1;
+    uint16_t addRecLen = -1, ordq = -1, csig = -1;
+    uint16_t l_offset = -1, MsgIntInfoIncl = -1, retrytype = -1, allbcmcflowind = -1, clearallretrydelay = -1;
+    uint16_t numbcmcprograms = -1, bcmc_program_id = -1;
+    uint16_t bcmcflowdiscriminatorlen = -1, regulatoryindincl = -1;
+    uint16_t rsc_mode_supported = -1, rer_mode_incl = -1, rer_mode_enabled = -1, tkz_mode_incl = -1;
+    uint16_t sameaspreviousbcmcflow = -1, ordertype = -1, clearretrydelay = -1, rer_time = -1;
+    uint16_t rsc_mode_ind = -1;
     proto_tree *subtree = NULL, *subtree1 = NULL;
 
     subtree = proto_tree_add_subtree(tree, tvb, *offset, -1, ett_cdma2k_subtree1, NULL, "Order Command Message");
 
     proto_tree_add_item(subtree, hf_cdma2k_Order_Cmd, tvb, *offset,1, ENC_BIG_ENDIAN);
-    ordertype = tvb_get_guint8(tvb,*offset) >> 2;
+    ordertype = tvb_get_uint8(tvb,*offset) >> 2;
 
     proto_tree_add_bits_item(subtree, hf_cdma2k_Add_Record_Len, tvb, *offset*8 + 6,3, ENC_BIG_ENDIAN);
     addRecLen = tvb_get_bits8(tvb,*offset*8 + 6,3);
@@ -2055,10 +2055,10 @@ static void cdma2k_message_ORDER_CMD(proto_item *item,tvbuff_t *tvb,proto_tree *
 
 
 /* Helper function to decode Data Burst Indication Message Parameters */
-static void cdma2k_message_DATA_BURST_IND(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset)
+static void cdma2k_message_DATA_BURST_IND(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset)
 {
-    guint16 numOfFields = -1, parmLen = -1;
-    guint16 inc = -1, cnt = -1, disp_cnt = -1;
+    uint16_t numOfFields = -1, parmLen = -1;
+    uint16_t inc = -1, cnt = -1, disp_cnt = -1;
     proto_tree *subtree = NULL, *subtree1 = NULL, *subtree2 = NULL;
     cnt = 1;
 
@@ -2130,15 +2130,15 @@ static void cdma2k_message_DATA_BURST_IND(proto_item *item,tvbuff_t *tvb,proto_t
     *offset+=1;
 }
 
-static void cdma2k_message_ORIGINATION(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset,guint16 authIncl,guint16 oneXPrev)
+static void cdma2k_message_ORIGINATION(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset,uint16_t authIncl,uint16_t oneXPrev)
 {
-    guint16 prevInUse = -1, mob_P_Rev_Rx = -1, Prev_Nid_Incl = -1;
-    guint16 Sync_Id_Len = -1, Prev_Pzid_Incl= -1, For_FchLen = -1,Rev_FchLen = -1;
-    guint16 uzid_Incl = -1, GeoLoc_Incl = -1, l_offset = -1, numOfFields = -1, Map_Length = -1, Qos_Parms_Incl= -1;
-    guint16 specialService = -1, Wll_Incl = -1,Global_Emergency_call = -1,Sync_Id_Incl = -1,Prev_Sid_Incl = -1;
-    guint16 DigitMode = -1, Num_Alt_So = -1, Qos_Parms_Length = -1, Enc_Info_Incl = -1;
-    guint16 digitSize = -1, So_Bitmap_Ind = -1, Dcch_supported = -1;
-    guint16 Fch_supported = -1, Rev_DcchLen = -1, rea = -1, ecmea = -1, For_DcchLen = -1;
+    uint16_t prevInUse = -1, mob_P_Rev_Rx = -1, Prev_Nid_Incl = -1;
+    uint16_t Sync_Id_Len = -1, Prev_Pzid_Incl= -1, For_FchLen = -1,Rev_FchLen = -1;
+    uint16_t uzid_Incl = -1, GeoLoc_Incl = -1, l_offset = -1, numOfFields = -1, Map_Length = -1, Qos_Parms_Incl= -1;
+    uint16_t specialService = -1, Wll_Incl = -1,Global_Emergency_call = -1,Sync_Id_Incl = -1,Prev_Sid_Incl = -1;
+    uint16_t DigitMode = -1, Num_Alt_So = -1, Qos_Parms_Length = -1, Enc_Info_Incl = -1;
+    uint16_t digitSize = -1, So_Bitmap_Ind = -1, Dcch_supported = -1;
+    uint16_t Fch_supported = -1, Rev_DcchLen = -1, rea = -1, ecmea = -1, For_DcchLen = -1;
 
     proto_tree *subtree = NULL,*subtree1 = NULL, *subtree4 = NULL,*subtree3 = NULL;
     proto_item *item1 = NULL, *item2 = NULL, *item4 = NULL;
@@ -2561,7 +2561,7 @@ static void cdma2k_message_ORIGINATION(proto_item *item,tvbuff_t *tvb,proto_tree
 
 
 /* Helper function to decode Authentication Challenge Response Message Parameters */
-static void cdma2k_message_AUTH_CHALL_RSP(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset)
+static void cdma2k_message_AUTH_CHALL_RSP(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset)
 {
     proto_tree *subtree = NULL;
     item = proto_tree_add_item(tree,hf_cdma2k_AuthChallRspMsg, tvb, *offset,-1, ENC_NA);
@@ -2572,10 +2572,10 @@ static void cdma2k_message_AUTH_CHALL_RSP(proto_item *item,tvbuff_t *tvb,proto_t
 
 
 /* Helper function to decode Data Burst Command Message Parameters */
-static void cdma2k_message_DATA_BURST_CMD(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset)
+static void cdma2k_message_DATA_BURST_CMD(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset)
 {
-    guint16 numOfFields = -1, parmLen = -1;
-    guint16 inc = -1, cnt = -1, disp_cnt = -1;
+    uint16_t numOfFields = -1, parmLen = -1;
+    uint16_t inc = -1, cnt = -1, disp_cnt = -1;
     proto_tree *subtree = NULL, *subtree1 = NULL, *subtree2 = NULL;
     cnt = 1;
 
@@ -2649,7 +2649,7 @@ static void cdma2k_message_DATA_BURST_CMD(proto_item *item,tvbuff_t *tvb,proto_t
 
 
 /* Helper function to decode Authentication Challenge Request Message Parameters */
-static void cdma2k_message_AUTH_CHALL_REQ(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset)
+static void cdma2k_message_AUTH_CHALL_REQ(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset)
 {
     proto_tree *subtree = NULL;
     item = proto_tree_add_item(tree,hf_cdma2k_AuthChallReqMsg, tvb, *offset,-1, ENC_NA);
@@ -2662,7 +2662,7 @@ static void cdma2k_message_AUTH_CHALL_REQ(proto_item *item,tvbuff_t *tvb,proto_t
 
 
 /* Helper function to decode General Page Request Message Parameters */
-static void cdma2k_message_GEN_PAGE_REQ(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset,guint16 l3PduLen)
+static void cdma2k_message_GEN_PAGE_REQ(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset,uint16_t l3PduLen)
 {
     proto_tree *subtree = NULL;
     item = proto_tree_add_item(tree,hf_cdma2k_GenPageReqMsg, tvb, *offset,-1, ENC_NA);
@@ -2677,13 +2677,13 @@ static void cdma2k_message_GEN_PAGE_REQ(proto_item *item,tvbuff_t *tvb,proto_tre
 
 
 /* Helper Function to decode Page Response Message Parameters */
-static void cdma2k_message_PAGE_RESPONSE(proto_item *item, tvbuff_t *tvb,proto_tree *tree,guint *offset,guint16 authIncl,guint16 oneXPrev)
+static void cdma2k_message_PAGE_RESPONSE(proto_item *item, tvbuff_t *tvb,proto_tree *tree,unsigned *offset,uint16_t authIncl,uint16_t oneXPrev)
 {
-    guint16 fchSupported = -1, dcchSupported = -1,numAltSo = -1, soBitmapInd = -1;
-    guint16 forFchLen = -1, revFchLen = -1, forDcchLen = -1, revDcchLen = -1 , syncIdLen =-1;
-    guint16 uzidIncl = -1, wllIncl = -1, encInfoIncl = -1, syncIdIncl = -1;
-    guint16 l_offset = -1, rea = -1, ecmea = -1;
-    guint16 prevInUse = -1, mob_P_Rev_Rx = -1;
+    uint16_t fchSupported = -1, dcchSupported = -1,numAltSo = -1, soBitmapInd = -1;
+    uint16_t forFchLen = -1, revFchLen = -1, forDcchLen = -1, revDcchLen = -1 , syncIdLen =-1;
+    uint16_t uzidIncl = -1, wllIncl = -1, encInfoIncl = -1, syncIdIncl = -1;
+    uint16_t l_offset = -1, rea = -1, ecmea = -1;
+    uint16_t prevInUse = -1, mob_P_Rev_Rx = -1;
 
     proto_tree *subtree = NULL, *subtree1 = NULL;
     proto_item *item1 = NULL;
@@ -3004,18 +3004,18 @@ static void cdma2k_message_PAGE_RESPONSE(proto_item *item, tvbuff_t *tvb,proto_t
 
 
 /* Helper function to decode Handoff Direction Message Parameters */
-static void cdma2k_message_HANDOFF_DIR(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset, guint16 msgType)
+static void cdma2k_message_HANDOFF_DIR(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset, uint16_t msgType)
 {
-    guint16 useTime = -1, parmsIncl = -1, searchIncl = -1, extraParmsIncl = -1;
-    guint16 l_offset = -1, returnIfHandoffFail = -1, scrIncl = -1, nnscrIncl = -1;
-    guint16 recLen= -1, pwrCntlStepIncl = -1, schIncl = -1, startTimeIncl = -1;
-    guint16 loop = -1, usePcTime = -1, chInd = -1, gatMode = -1, pwrCntlDelayIncl = -1;
-    guint16 encryptMode = -1, linkIncl = -1, pRev = -1, syncIdIncl = -1, syncIdLen = -1;
-    guint16 ccInfoIncl = -1, noCallAssign = -1, resInd = -1, cdmaRepSup = -1, plcmIncl = -1;
-    guint16 plcmType = -1, dropTRangeIncl = -1, fwdPDChSup = -1, encIncl = -1, sidIncl = -1;
-    guint16 nidIncl = -1, csSup = -1, pacZoneId = -1, pzHysEnabled = -1, pzHysInfoIncl = -1;
-    guint16 bcmcTchSup = -1, numForAssign = -1, schBcmc = -1, addPlcmSchIncl = -1;
-    guint16 addPlcmSchType = -1, fSchOuterCodeIncl = -1, txPwrIncl = -1, txPwrDflt = -1;
+    uint16_t useTime = -1, parmsIncl = -1, searchIncl = -1, extraParmsIncl = -1;
+    uint16_t l_offset = -1, returnIfHandoffFail = -1, scrIncl = -1, nnscrIncl = -1;
+    uint16_t recLen= -1, pwrCntlStepIncl = -1, schIncl = -1, startTimeIncl = -1;
+    uint16_t loop = -1, usePcTime = -1, chInd = -1, gatMode = -1, pwrCntlDelayIncl = -1;
+    uint16_t encryptMode = -1, linkIncl = -1, pRev = -1, syncIdIncl = -1, syncIdLen = -1;
+    uint16_t ccInfoIncl = -1, noCallAssign = -1, resInd = -1, cdmaRepSup = -1, plcmIncl = -1;
+    uint16_t plcmType = -1, dropTRangeIncl = -1, fwdPDChSup = -1, encIncl = -1, sidIncl = -1;
+    uint16_t nidIncl = -1, csSup = -1, pacZoneId = -1, pzHysEnabled = -1, pzHysInfoIncl = -1;
+    uint16_t bcmcTchSup = -1, numForAssign = -1, schBcmc = -1, addPlcmSchIncl = -1;
+    uint16_t addPlcmSchType = -1, fSchOuterCodeIncl = -1, txPwrIncl = -1, txPwrDflt = -1;
     proto_tree *subtree = NULL, *subtree1 = NULL, *subtree2 = NULL;
     proto_item *item1 = NULL, *item2 = NULL, *item3 = NULL;
 
@@ -3627,10 +3627,10 @@ static void cdma2k_message_HANDOFF_DIR(proto_item *item,tvbuff_t *tvb,proto_tree
 
 
 /* Helper function to decode Alert With Info Message Parameters */
-static void cdma2k_message_ALERT_WITH_INFO(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint *offset)
+static void cdma2k_message_ALERT_WITH_INFO(proto_item *item,tvbuff_t *tvb,proto_tree *tree,unsigned *offset)
 {
-    guint16 recType = -1, recLen = -1, extBit = -1, numGrps = -1;
-    guint16 polIncl = -1, inc = -1;
+    uint16_t recType = -1, recLen = -1, extBit = -1, numGrps = -1;
+    uint16_t polIncl = -1, inc = -1;
     proto_tree *subtree = NULL, *subtree1 = NULL;
     proto_item *item1 = NULL, *item2 = NULL;
 
@@ -3930,13 +3930,13 @@ static void cdma2k_message_ALERT_WITH_INFO(proto_item *item,tvbuff_t *tvb,proto_
 
 
 /* Helper function to decode Active Set Record Field Parameters */
-static void cdma2k_message_ACTIVE_SET_RECORD_FIELDS(proto_item *item _U_, tvbuff_t *tvb, proto_tree *subtree, guint16 *l_offset, guint16 chInd, guint16 schIncl)
+static void cdma2k_message_ACTIVE_SET_RECORD_FIELDS(proto_item *item _U_, tvbuff_t *tvb, proto_tree *subtree, uint16_t *l_offset, uint16_t chInd, uint16_t schIncl)
 {
-    guint16 loop = -1, numForSch = -1, numRevSch = -1, pilotCnt = -1, srchOffsetIncl = -1;
-    guint16 pilotInfoIncl = -1, recLen = -1, schCnt = -1, fchInfoIncl = -1, fchLowIncl = -1;
-    guint16 fchHighIncl = -1, schInfoIncl = -1, schLowIncl = -1, ccshIncl = -1, ccshEncIncl = -1;
-    guint16 pilotIncl = -1, schHighIncl = -1, dcchInfoIncl = -1, dcchLowIncl = -1, dcchHighIncl = -1;
-    guint16 bcmcFunIncl = -1, addPlcmFchIncl = -1, cpcchInfoIncl = -1, addPlcmFchType = -1;
+    uint16_t loop = -1, numForSch = -1, numRevSch = -1, pilotCnt = -1, srchOffsetIncl = -1;
+    uint16_t pilotInfoIncl = -1, recLen = -1, schCnt = -1, fchInfoIncl = -1, fchLowIncl = -1;
+    uint16_t fchHighIncl = -1, schInfoIncl = -1, schLowIncl = -1, ccshIncl = -1, ccshEncIncl = -1;
+    uint16_t pilotIncl = -1, schHighIncl = -1, dcchInfoIncl = -1, dcchLowIncl = -1, dcchHighIncl = -1;
+    uint16_t bcmcFunIncl = -1, addPlcmFchIncl = -1, cpcchInfoIncl = -1, addPlcmFchType = -1;
     proto_tree *subtree1 = NULL, *subtree2 = NULL;
     proto_item *item1 = NULL, *item2 = NULL;
 
@@ -4246,9 +4246,9 @@ static void cdma2k_message_ACTIVE_SET_RECORD_FIELDS(proto_item *item _U_, tvbuff
 
 
 /* Helper function to decode Authentication Field Parameters */
-static void cdma2k_message_AUTH_FIELDS(proto_item *item,tvbuff_t *tvb,proto_tree *subtree,guint16 *l_offset, guint16 headerRecLen)
+static void cdma2k_message_AUTH_FIELDS(proto_item *item,tvbuff_t *tvb,proto_tree *subtree,uint16_t *l_offset, uint16_t headerRecLen)
 {
-    guint16 macIncl = -1, authIncl = -1, sduSseqOrSseqh = -1, endOffset = -1;
+    uint16_t macIncl = -1, authIncl = -1, sduSseqOrSseqh = -1, endOffset = -1;
     endOffset = *l_offset + (headerRecLen*8);
 
     proto_tree_add_bits_item(subtree, hf_cdma2k_tlac_Header_Record_Mac_Incl, tvb, *l_offset, 1, ENC_BIG_ENDIAN);
@@ -4310,11 +4310,11 @@ static void cdma2k_message_AUTH_FIELDS(proto_item *item,tvbuff_t *tvb,proto_tree
 
 
 /* Helper function to decode Addressing Field Parameters */
-static void cdma2k_message_ADDR_FIELDS(proto_item *item,tvbuff_t *tvb,proto_tree *tree,guint16 *l_offset, guint16 headerRecLen)
+static void cdma2k_message_ADDR_FIELDS(proto_item *item,tvbuff_t *tvb,proto_tree *tree,uint16_t *l_offset, uint16_t headerRecLen)
 {
     proto_item* ti;
     proto_tree *sub_tree;
-    guint16 msIdType = -1, extMsIdType = -1, msIdLen = -1, endOffset = -1;
+    uint16_t msIdType = -1, extMsIdType = -1, msIdLen = -1, endOffset = -1;
 
     endOffset = *l_offset + (headerRecLen*8);
     proto_tree_add_bits_item(tree, hf_cdma2k_tlac_Header_Record_MsId_Type, tvb, *l_offset, 3, ENC_BIG_ENDIAN);
@@ -4427,9 +4427,9 @@ static void cdma2k_message_ADDR_FIELDS(proto_item *item,tvbuff_t *tvb,proto_tree
 }
 
 /* Helper function to decode Imsi Class and SubField Parameters */
-static void cdma2k_message_IMSI_CLASS_SUBFIELDS(proto_item *item,tvbuff_t *tvb, proto_tree *subtree, guint16 *l_offset)
+static void cdma2k_message_IMSI_CLASS_SUBFIELDS(proto_item *item,tvbuff_t *tvb, proto_tree *subtree, uint16_t *l_offset)
 {
-    guint16 imsi_class = -1, classType = -1;
+    uint16_t imsi_class = -1, classType = -1;
 
     proto_tree_add_bits_item(subtree, hf_cdma2k_tlac_Header_Record_Imsi_Class, tvb, *l_offset, 1, ENC_BIG_ENDIAN);
     imsi_class = tvb_get_bits8(tvb,*l_offset, 1);
@@ -4546,12 +4546,12 @@ dissect_cdma2k(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 
     proto_item *item = NULL;
 
-    guint32 offset = 0;
-    guint16 noerror = 1;
+    uint32_t offset = 0;
+    uint16_t noerror = 1;
 
     /*Add the protocol name to display*/
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "CDMA2K");
-    col_add_fstr(pinfo->cinfo, COL_INFO, "[CDMA2K]");
+    col_set_str(pinfo->cinfo, COL_INFO, "[CDMA2K]");
 
     item = proto_tree_add_item(tree, hf_cdma2k_msghdr, tvb, 0, -1, ENC_NA);
     cdma2k_msghdr_tree_start =  proto_item_add_subtree(item, ett_cdma2k_msghdr);
@@ -5298,39 +5298,39 @@ void proto_register_cdma2k(void)
             { &hf_cdma2k_Request_Mode,
             { "Request Mode", "cdma2k.Request_Mode", FT_UINT8, BASE_DEC, VALS(l3dpu_ORM_PRM_req_mode_values), 0x0, NULL, HFILL } },
             { &hf_cdma2k_Special_Service,
-            { "Special Service", "cdma2k.Special_Service", FT_BOOLEAN, 8, NULL, 0x0, NULL, HFILL } },
+            { "Special Service", "cdma2k.Special_Service", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             { &hf_cdma2k_pm,
-            { "Privacy Mode", "cdma2k.PM", FT_BOOLEAN, 8, NULL, 0x0, NULL, HFILL } },
+            { "Privacy Mode", "cdma2k.PM", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_digit_mode,
-            { "Digit Mode", "cdma2k.Digit_Mode", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Digit Mode", "cdma2k.Digit_Mode", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_More_Fields,
-            { "More Fields", "cdma2k.More_Fields", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "More Fields", "cdma2k.More_Fields", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Nar_An_Cap,
-            { "NAR AN CAP", "cdma2k.Nar_An_Cap", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "NAR AN CAP", "cdma2k.Nar_An_Cap", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Paca_Reorig,
-            { "PACA REORIG", "cdma2k.Paca_Reorig", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "PACA REORIG", "cdma2k.Paca_Reorig", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_More_Records,
-            { "More Records", "cdma2k.More_Records", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "More Records", "cdma2k.More_Records", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_encryption_supported,
             { "Encryption Supported", "cdma2k.Encryption_Supported", FT_UINT8, BASE_DEC, VALS(l3dpu_ORM_encryption_algo_values), 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Paca_Supported,
-            { "Paca Supported", "cdma2k.Paca_Supported", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Paca Supported", "cdma2k.Paca_Supported", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_num_alt_so,
             { "NUM ALT SO", "cdma2k.NUM_ALT_SO", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Alt_So,
             { "Alt So", "cdma2k.Alt_So", FT_UINT16, BASE_HEX_DEC, VALS(Page_Req_Service_Option_Types), 0x0, NULL, HFILL } },
             {  &hf_cdma2k_DRS,
-            { "Data ready to send", "cdma2k.DRS", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Data ready to send", "cdma2k.DRS", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_SR_ID,
             { "SR ID", "cdma2k.SR_ID", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Otd_Supported,
-            { "OTD Supported", "cdma2k.OTD_Supported", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "OTD Supported", "cdma2k.OTD_Supported", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_For_Rc_Pref,
             { "Forward Rc Pref", "cdma2k.For_Rc_Pref", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Rev_Rc_Pref,
             { "Reverse Rc Pref", "cdma2k.Rev_Rc_Pref", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Fch_Supported,
-            { "Fch Supported","cdma2k.Fch_Supported", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Fch Supported","cdma2k.Fch_Supported", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Fch_capability_type_specific_Fields,
             { "Fch capability type specific Fields","cdma2k.Fch_cap_type_specific_Fields", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Fch_Frame_Size,
@@ -5346,7 +5346,7 @@ void proto_register_cdma2k(void)
             {  &hf_cdma2k_Dcch_capability_type_specific_Fields,
             { "Dcch cap type specific Fields","cdma2k.Dcch_cap_type_specific_Fields", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Dcch_Supported,
-            { "Dcch Supported","cdma2k.Dcch_Supported", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Dcch Supported","cdma2k.Dcch_Supported", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Dcch_Frame_Size,
             { "Frame Size", "cdma2k.Dcch_Frame_Size", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_For_Dcch_Len,
@@ -5358,53 +5358,53 @@ void proto_register_cdma2k(void)
             { &hf_cdma2k_Rev_Dcch_Rc_Map,
             { "Reverse Dcch Rc Map", "cdma2k.Rev_Dcch_Rc_Map", FT_UINT8, BASE_HEX_DEC , NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Rev_Fch_Gating_Req,
-            { "RevFch GatingReq","cdma2k.Rev_Fch_GatingReq", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+            { "RevFch GatingReq","cdma2k.Rev_Fch_GatingReq", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Orig_Reason,
-                { "Orig Reason","cdma2k.Orig_Reason", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+                { "Orig Reason","cdma2k.Orig_Reason", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Orig_Count,
             { "Orig Count", "cdma2k.Orig_Count", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
             {  &hf_cdma2k_Sts_Supported,
-        { "Sts Supported","cdma2k.Sts_Supported", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "Sts Supported","cdma2k.Sts_Supported", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_ThreeXCchSupported,
-        { "ThreeXCch Supported","cdma2k.ThreeXCch_Supported", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "ThreeXCch Supported","cdma2k.ThreeXCch_Supported", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Wll_Incl,
-        { "Wll Incl","cdma2k.Wll_Incl", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "Wll Incl","cdma2k.Wll_Incl", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Wll_Device_Type,
         { "Wll Device Type", "cdma2k.Wll_Device_Type", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Global_Emergency_Call,
-                { "Global Emergency Call","cdma2k.Global_Emergency_Call", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+                { "Global Emergency Call","cdma2k.Global_Emergency_Call", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Ms_Init_Pos_Loc_Ind,
-        { "Ms Init Pos Loc Ind","cdma2k.Ms_Init_Pos_Loc_Ind", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "Ms Init Pos Loc Ind","cdma2k.Ms_Init_Pos_Loc_Ind", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Qos_Parms_Incl,
-        { "Qos Parms Incl","cdma2k.Qos_Parms_Incl", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "Qos Parms Incl","cdma2k.Qos_Parms_Incl", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Qos_Parms_Length,
         { "Qos Parms Length", "cdma2k.Qos_Parms_Length", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Qos_Parms,
         { "Qos Parms", "cdma2k.Qos_Parms", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Enc_Info_Incl,
-        { "Enc Info Incl","cdma2k.EncInfo_Incl", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "Enc Info Incl","cdma2k.EncInfo_Incl", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Sig_Encrypt_Supp,
         { "Sig Encrypt Supported", "cdma2k.Sig_Encrypt_Supp", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_DSig_Encrypt_Req,
-        { "DSig Encrypt Req","cdma2k.DSig_Encrypt_Req", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "DSig Encrypt Req","cdma2k.DSig_Encrypt_Req", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_CSig_Encrypt_Req,
-        { "CSig Encrypt Req","cdma2k.CSig_Encrypt_Req", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "CSig Encrypt Req","cdma2k.CSig_Encrypt_Req", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_New_Sseq_H,
                 { "New SseqH", "cdma2k.New_Sseq_H", FT_UINT32, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_New_Sseq_H_Sig,
                 { "New SseqH Sig", "cdma2k.New_Sseq_H_Sig", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Ui_Encrypt_Req,
-        { "Ui Encrypt Req","cdma2k.Ui_Encrypt_Req", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "Ui Encrypt Req","cdma2k.Ui_Encrypt_Req", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Prev_Sid_Incl,
-        { "Prev Sid Incl","cdma2k.Prev_Sid_Incl", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "Prev Sid Incl","cdma2k.Prev_Sid_Incl", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Prev_Sid,
         { "Prev Sid", "cdma2k.Prev_Sid", FT_UINT16, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Prev_Nid_Incl,
-        { "Prev Nid_Incl","cdma2k.Prev_Nid_Incl", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "Prev Nid_Incl","cdma2k.Prev_Nid_Incl", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Prev_Nid,
         { "Prev Nid", "cdma2k.Prev_Nid", FT_UINT16, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Prev_Pzid_Incl,
-        { "Prev Pzid Incl","cdma2k.Prev_Pzid_Incl", FT_BOOLEAN, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
+        { "Prev Pzid Incl","cdma2k.Prev_Pzid_Incl", FT_BOOLEAN, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_Prev_Pzid,
         { "Prev Pzid", "cdma2k.Prev_Pzid", FT_UINT8, BASE_HEX_DEC, NULL, 0x0, NULL, HFILL } },
         {  &hf_cdma2k_So_Bitmap_Ind,
@@ -5447,7 +5447,7 @@ void proto_register_cdma2k(void)
             { "Power Class for Band Class 0 Analog Operation", "cdma2k.scm.pow_class", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_cdma2k_msghdr,
             &ett_cdma2k_subtree,
             &ett_cdma2k_subtree1,

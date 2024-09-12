@@ -11,10 +11,11 @@
 #define __COMMVIEW_H__
 #include <glib.h>
 #include "include/ws_symbol_export.h"
+#include "wtap.h"
 
-wtap_open_return_val commview_ncf_open(wtap *wth, int *err, gchar **err_info);
+wtap_open_return_val commview_ncf_open(wtap *wth, int *err, char **err_info);
 
-wtap_open_return_val commview_ncfx_open(wtap *wth, int *err, gchar **err_info);
+wtap_open_return_val commview_ncfx_open(wtap *wth, int *err, char **err_info);
 
 #endif /* __COMMVIEW_H__ */
 

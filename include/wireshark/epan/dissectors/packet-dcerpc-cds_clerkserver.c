@@ -22,19 +22,19 @@
 void proto_register_cds_clerkserver (void);
 void proto_reg_handoff_cds_clerkserver (void);
 
-static int proto_cds_clerkserver = -1;
-static int hf_cds_clerkserver_opnum = -1;
+static int proto_cds_clerkserver;
+static int hf_cds_clerkserver_opnum;
 
 
-static gint ett_cds_clerkserver = -1;
+static int ett_cds_clerkserver;
 
 
 static e_guid_t uuid_cds_clerkserver = { 0x257df1c9, 0xc6d3, 0x11ca, { 0x85, 0x54, 0x08, 0x00, 0x2b, 0x1c, 0x8f, 0x1f } };
-static guint16  ver_cds_clerkserver = 1;
+static uint16_t ver_cds_clerkserver = 1;
 
 
 
-static dcerpc_sub_dissector cds_clerkserver_dissectors[] = {
+static const dcerpc_sub_dissector cds_clerkserver_dissectors[] = {
 	{  0, "AddReplica",             NULL, NULL},
 	{  1, "AllowClearinghouses",    NULL, NULL},
 	{  2, "Combine",                NULL, NULL},
@@ -74,7 +74,7 @@ proto_register_cds_clerkserver (void)
 	      NULL, 0x0, NULL, HFILL }}
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_cds_clerkserver,
 	};
 	proto_cds_clerkserver = proto_register_protocol ("CDS Clerk Server Calls", "CDS_CLERK", "cds_clerkserver");

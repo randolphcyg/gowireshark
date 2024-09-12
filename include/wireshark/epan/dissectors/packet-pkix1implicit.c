@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-pkix1implicit.c                                                     */
-/* asn2wrs.py -b -L -p pkix1implicit -c ./pkix1implicit.cnf -s ./packet-pkix1implicit-template -D . -O ../.. PKIX1IMPLICIT93.asn */
+/* asn2wrs.py -b -q -L -p pkix1implicit -c ./pkix1implicit.cnf -s ./packet-pkix1implicit-template -D . -O ../.. PKIX1IMPLICIT93.asn */
 
 /* packet-pkix1implicit.c
  * Routines for PKIX1Implitic packet dissection
@@ -16,6 +16,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <wsutil/array.h>
 
 #include <epan/asn1.h>
 #include "packet-ber.h"
@@ -23,7 +24,7 @@
 #include "packet-pkix1explicit.h"
 #include "packet-x509ce.h"
 
-#define PNAME  "PKIX1Implitit"
+#define PNAME  "PKIX1Implicit"
 #define PSNAME "PKIX1IMPLICIT"
 #define PFNAME "pkix1implicit"
 
@@ -31,30 +32,30 @@ void proto_register_pkix1implicit(void);
 void proto_reg_handoff_pkix1implicit(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_pkix1implicit = -1;
-static int hf_pkix1implicit_Dummy_PDU = -1;       /* Dummy */
-static int hf_pkix1implicit_AuthorityInfoAccessSyntax_PDU = -1;  /* AuthorityInfoAccessSyntax */
-static int hf_pkix1implicit_UserNotice_PDU = -1;  /* UserNotice */
-static int hf_pkix1implicit_AuthorityInfoAccessSyntax_item = -1;  /* AccessDescription */
-static int hf_pkix1implicit_accessMethod = -1;    /* OBJECT_IDENTIFIER */
-static int hf_pkix1implicit_accessLocation = -1;  /* GeneralName */
-static int hf_pkix1implicit_noticeRef = -1;       /* NoticeReference */
-static int hf_pkix1implicit_explicitText = -1;    /* DisplayText */
-static int hf_pkix1implicit_organization = -1;    /* DisplayText */
-static int hf_pkix1implicit_noticeNumbers = -1;   /* T_noticeNumbers */
-static int hf_pkix1implicit_noticeNumbers_item = -1;  /* INTEGER */
-static int hf_pkix1implicit_ia5String = -1;       /* IA5String */
-static int hf_pkix1implicit_visibleString = -1;   /* VisibleString */
-static int hf_pkix1implicit_bmpString = -1;       /* BMPString */
-static int hf_pkix1implicit_utf8String = -1;      /* UTF8String */
+static int proto_pkix1implicit;
+static int hf_pkix1implicit_Dummy_PDU;            /* Dummy */
+static int hf_pkix1implicit_AuthorityInfoAccessSyntax_PDU;  /* AuthorityInfoAccessSyntax */
+static int hf_pkix1implicit_UserNotice_PDU;       /* UserNotice */
+static int hf_pkix1implicit_AuthorityInfoAccessSyntax_item;  /* AccessDescription */
+static int hf_pkix1implicit_accessMethod;         /* OBJECT_IDENTIFIER */
+static int hf_pkix1implicit_accessLocation;       /* GeneralName */
+static int hf_pkix1implicit_noticeRef;            /* NoticeReference */
+static int hf_pkix1implicit_explicitText;         /* DisplayText */
+static int hf_pkix1implicit_organization;         /* DisplayText */
+static int hf_pkix1implicit_noticeNumbers;        /* T_noticeNumbers */
+static int hf_pkix1implicit_noticeNumbers_item;   /* INTEGER */
+static int hf_pkix1implicit_ia5String;            /* IA5String */
+static int hf_pkix1implicit_visibleString;        /* VisibleString */
+static int hf_pkix1implicit_bmpString;            /* BMPString */
+static int hf_pkix1implicit_utf8String;           /* UTF8String */
 
 /* Initialize the subtree pointers */
-static gint ett_pkix1implicit_AuthorityInfoAccessSyntax = -1;
-static gint ett_pkix1implicit_AccessDescription = -1;
-static gint ett_pkix1implicit_UserNotice = -1;
-static gint ett_pkix1implicit_NoticeReference = -1;
-static gint ett_pkix1implicit_T_noticeNumbers = -1;
-static gint ett_pkix1implicit_DisplayText = -1;
+static int ett_pkix1implicit_AuthorityInfoAccessSyntax;
+static int ett_pkix1implicit_AccessDescription;
+static int ett_pkix1implicit_UserNotice;
+static int ett_pkix1implicit_NoticeReference;
+static int ett_pkix1implicit_T_noticeNumbers;
+static int ett_pkix1implicit_DisplayText;
 
 
 int
@@ -254,22 +255,22 @@ dissect_pkix1implicit_UserNotice(bool implicit_tag _U_, tvbuff_t *tvb _U_, int o
 static int dissect_Dummy_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_pkix1implicit_Dummy(FALSE, tvb, offset, &asn1_ctx, tree, hf_pkix1implicit_Dummy_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_pkix1implicit_Dummy(false, tvb, offset, &asn1_ctx, tree, hf_pkix1implicit_Dummy_PDU);
   return offset;
 }
 static int dissect_AuthorityInfoAccessSyntax_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_pkix1implicit_AuthorityInfoAccessSyntax(FALSE, tvb, offset, &asn1_ctx, tree, hf_pkix1implicit_AuthorityInfoAccessSyntax_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_pkix1implicit_AuthorityInfoAccessSyntax(false, tvb, offset, &asn1_ctx, tree, hf_pkix1implicit_AuthorityInfoAccessSyntax_PDU);
   return offset;
 }
 static int dissect_UserNotice_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_pkix1implicit_UserNotice(FALSE, tvb, offset, &asn1_ctx, tree, hf_pkix1implicit_UserNotice_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_pkix1implicit_UserNotice(false, tvb, offset, &asn1_ctx, tree, hf_pkix1implicit_UserNotice_PDU);
   return offset;
 }
 
@@ -343,7 +344,7 @@ void proto_register_pkix1implicit(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_pkix1implicit_AuthorityInfoAccessSyntax,
     &ett_pkix1implicit_AccessDescription,
     &ett_pkix1implicit_UserNotice,

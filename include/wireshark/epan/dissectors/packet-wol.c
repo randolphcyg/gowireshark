@@ -13,7 +13,9 @@
  * as needed.
  *
  * The "Wake On LAN" dissector was written based primarily on the AMD white
- * paper, available from: http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/20213.pdf.
+ * paper, available from:
+ *
+ *    https://web.archive.org/web/20100601154907/http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/20213.pdf
  *
  * In addition, testing of the dissector was conducted using 2 utilities
  * downloaded from http://www.moldaner.de/wakeonlan/wakeonlan.html and
@@ -52,24 +54,24 @@ void proto_reg_handoff_wol(void);
 static dissector_handle_t wol_handle;
 
 /* Initialize the protocol and registered fields */
-static int proto_wol = -1;
-static int hf_wol_sync = -1;
-static int hf_wol_mac = -1;
-static int hf_wol_passwd = -1;
+static int proto_wol;
+static int hf_wol_sync;
+static int hf_wol_mac;
+static int hf_wol_passwd;
 
 /* Initialize the subtree pointers */
-static gint ett_wol = -1;
-static gint ett_wol_macblock = -1;
+static int ett_wol;
+static int ett_wol_macblock;
 
 /* Code to actually dissect the packets */
 static int
 dissect_wol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-    guint         len;
-    gint          offset;
-    guint8       *mac;
-    const guint8 *passwd;
-    guint64       qword;
+    unsigned      len;
+    int           offset;
+    uint8_t      *mac;
+    const uint8_t *passwd;
+    uint64_t      qword;
     address      mac_addr;
 
 /* Set up structures needed to add the protocol subtree and manage it */
@@ -88,7 +90,7 @@ dissect_wol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
     /* Check that there's enough data */
     len = tvb_reported_length(tvb);
     if ( len < 102 )    /* wol's smallest packet size is 102 */
-        return (0);
+        return 0;
 
     /* Get some values from the packet header, probably using tvb_get_*() */
 
@@ -97,16 +99,16 @@ dissect_wol_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
      * quite expensive and seriously hinder Wireshark performance.  For now,
      * unless we need to change it later, just compare the 1st 6 bytes. */
     qword = tvb_get_ntoh48(tvb,0);
-    if(qword != G_GUINT64_CONSTANT(0xffffffffffff))
-        return (0);
+    if(qword != UINT64_C(0xffffffffffff))
+        return 0;
 
     /* So far so good.  Now get the next 6 bytes, which we'll assume is the
      * target's MAC address, and do 15 memory chunk comparisons, since if this
      * is a real MagicPacket, the target's MAC will be duplicated 16 times. */
-    mac = (guint8 *)tvb_memdup(pinfo->pool, tvb, 6, 6);
+    mac = (uint8_t *)tvb_memdup(pinfo->pool, tvb, 6, 6);
     for ( offset = 12; offset < 102; offset += 6 )
         if ( tvb_memeql(tvb, offset, mac, 6) != 0 )
-            return (0);
+            return 0;
 
     /* OK, we're going to assume it's a MagicPacket.  If there's a password,
      * grab it now, and in case there's any extra bytes after the only 3 valid
@@ -251,13 +253,13 @@ dissect_wol(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     return dissect_wol_pdu(tvb, pinfo, tree, data);
 }
 
-static gboolean
+static bool
 dissect_wolheur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     if (dissect_wol_pdu(tvb, pinfo, tree, data) > 0)
-        return TRUE;
+        return true;
 
-    return FALSE;
+    return false;
 }
 
 
@@ -284,7 +286,7 @@ proto_register_wol(void)
     };
 
 /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_wol,
         &ett_wol_macblock
     };

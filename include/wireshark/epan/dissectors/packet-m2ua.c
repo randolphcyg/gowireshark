@@ -30,48 +30,48 @@ void proto_reg_handoff_m2ua(void);
 #define SCTP_PORT_M2UA                  2904
 
 /* Initialize the protocol and registered fields */
-static int proto_m2ua =                 -1;
-static int hf_version =                 -1;
-static int hf_reserved =                -1;
-static int hf_message_class =           -1;
-static int hf_message_type =            -1;
-static int hf_message_length =          -1;
-static int hf_parameter_tag =           -1;
-static int hf_parameter_length =        -1;
-static int hf_parameter_value =         -1;
-static int hf_parameter_padding =       -1;
-static int hf_interface_id_int =        -1;
-static int hf_interface_id_text =       -1;
-static int hf_info_string =             -1;
-static int hf_diagnostic_information =  -1;
-static int hf_interface_id_start =      -1;
-static int hf_interface_id_stop =       -1;
-static int hf_heartbeat_data =          -1;
-static int hf_traffic_mode_type =       -1;
-static int hf_error_code =              -1;
-static int hf_status_type =             -1;
-static int hf_status_ident =            -1;
-static int hf_asp_id =                  -1;
-static int hf_correlation_id =          -1;
-static int hf_data_2_li =               -1;
-static int hf_state =                   -1;
-static int hf_event =                   -1;
-static int hf_congestion_status =       -1;
-static int hf_discard_status =          -1;
-static int hf_action =                  -1;
-static int hf_sequence_number =         -1;
-static int hf_retrieval_result =        -1;
-static int hf_local_lk_id =             -1;
-static int hf_sdt_reserved =            -1;
-static int hf_sdt_id =                  -1;
-static int hf_sdl_reserved =            -1;
-static int hf_sdl_id =                  -1;
-static int hf_registration_status =     -1;
-static int hf_deregistration_status =   -1;
+static int proto_m2ua;
+static int hf_version;
+static int hf_reserved;
+static int hf_message_class;
+static int hf_message_type;
+static int hf_message_length;
+static int hf_parameter_tag;
+static int hf_parameter_length;
+static int hf_parameter_value;
+static int hf_parameter_padding;
+static int hf_interface_id_int;
+static int hf_interface_id_text;
+static int hf_info_string;
+static int hf_diagnostic_information;
+static int hf_interface_id_start;
+static int hf_interface_id_stop;
+static int hf_heartbeat_data;
+static int hf_traffic_mode_type;
+static int hf_error_code;
+static int hf_status_type;
+static int hf_status_ident;
+static int hf_asp_id;
+static int hf_correlation_id;
+static int hf_data_2_li;
+static int hf_state;
+static int hf_event;
+static int hf_congestion_status;
+static int hf_discard_status;
+static int hf_action;
+static int hf_sequence_number;
+static int hf_retrieval_result;
+static int hf_local_lk_id;
+static int hf_sdt_reserved;
+static int hf_sdt_id;
+static int hf_sdl_reserved;
+static int hf_sdl_id;
+static int hf_registration_status;
+static int hf_deregistration_status;
 
 /* Initialize the subtree pointers */
-static gint ett_m2ua =                  -1;
-static gint ett_m2ua_parameter =        -1;
+static int ett_m2ua;
+static int ett_m2ua_parameter;
 
 static dissector_handle_t mtp3_handle;
 static dissector_handle_t m2ua_handle;
@@ -225,11 +225,11 @@ static const value_string message_class_type_acro_values[] = {
 static void
 dissect_common_header(tvbuff_t *common_header_tvb, packet_info *pinfo, proto_tree *m2ua_tree)
 {
-  guint8  message_class, message_type;
+  uint8_t message_class, message_type;
 
   /* Extract the common header */
-  message_class  = tvb_get_guint8(common_header_tvb, MESSAGE_CLASS_OFFSET);
-  message_type   = tvb_get_guint8(common_header_tvb, MESSAGE_TYPE_OFFSET);
+  message_class  = tvb_get_uint8(common_header_tvb, MESSAGE_CLASS_OFFSET);
+  message_type   = tvb_get_uint8(common_header_tvb, MESSAGE_TYPE_OFFSET);
 
   col_add_fstr(pinfo->cinfo, COL_INFO, "%s ", val_to_str_const(message_class * 256 + message_type, message_class_type_acro_values, "reserved"));
 
@@ -268,28 +268,28 @@ dissect_interface_identifier_int_parameter(tvbuff_t *parameter_tvb, proto_tree *
 #define TEXT_INTERFACE_ID_OFFSET PARAMETER_VALUE_OFFSET
 
 static void
-dissect_interface_identifier_text_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_interface_identifier_text_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 interface_id_length;
+  uint16_t interface_id_length;
 
   interface_id_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
 
   proto_tree_add_item(parameter_tree, hf_interface_id_text, parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length, ENC_ASCII);
   proto_item_append_text(parameter_item, " (%s)",
-                         tvb_format_text(wmem_packet_scope(), parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length));
+                         tvb_format_text(pinfo->pool, parameter_tvb, TEXT_INTERFACE_ID_OFFSET, interface_id_length));
 }
 
 #define INFO_STRING_OFFSET PARAMETER_VALUE_OFFSET
 
 static void
-dissect_info_string_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_info_string_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 info_string_length;
+  uint16_t info_string_length;
 
   info_string_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   proto_tree_add_item(parameter_tree, hf_info_string, parameter_tvb, INFO_STRING_OFFSET, info_string_length, ENC_ASCII);
   proto_item_append_text(parameter_item, " (%s)",
-                         tvb_format_text(wmem_packet_scope(), parameter_tvb, INFO_STRING_OFFSET, info_string_length));
+                         tvb_format_text(pinfo->pool, parameter_tvb, INFO_STRING_OFFSET, info_string_length));
 }
 
 #define DIAGNOSTIC_INFO_OFFSET PARAMETER_VALUE_OFFSET
@@ -297,7 +297,7 @@ dissect_info_string_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tre
 static void
 dissect_diagnostic_information_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 diag_info_length;
+  uint16_t diag_info_length;
 
   diag_info_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   proto_tree_add_item(parameter_tree, hf_diagnostic_information, parameter_tvb, DIAGNOSTIC_INFO_OFFSET, diag_info_length, ENC_NA);
@@ -314,8 +314,8 @@ dissect_diagnostic_information_parameter(tvbuff_t *parameter_tvb, proto_tree *pa
 static void
 dissect_interface_identifier_range_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 number_of_ranges, range_number;
-  gint offset;
+  uint16_t number_of_ranges, range_number;
+  int offset;
 
   number_of_ranges = (tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH) / INTERVAL_LENGTH;
   offset = PARAMETER_VALUE_OFFSET;
@@ -333,7 +333,7 @@ dissect_interface_identifier_range_parameter(tvbuff_t *parameter_tvb, proto_tree
 static void
 dissect_heartbeat_data_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 heartbeat_data_length;
+  uint16_t heartbeat_data_length;
 
   heartbeat_data_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   proto_tree_add_item(parameter_tree, hf_heartbeat_data, parameter_tvb, HEARTBEAT_DATA_OFFSET, heartbeat_data_length, ENC_NA);
@@ -446,7 +446,7 @@ static const value_string status_type_id_values[] = {
 static void
 dissect_status_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 status_type, status_id;
+  uint16_t status_type, status_id;
 
   status_type = tvb_get_ntohs(parameter_tvb, STATUS_TYPE_OFFSET);
   status_id   = tvb_get_ntohs(parameter_tvb, STATUS_IDENT_OFFSET);
@@ -486,7 +486,7 @@ static void
 dissect_protocol_data_1_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *tree, proto_item *parameter_item)
 {
   tvbuff_t *payload_tvb;
-  guint32 payload_length;
+  uint32_t payload_length;
 
   payload_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
 
@@ -505,7 +505,7 @@ static void
 dissect_protocol_data_2_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *tree, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   tvbuff_t *payload_tvb;
-  guint32 payload_length;
+  uint32_t payload_length;
 
   payload_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH - DATA_2_LI_LENGTH;
 
@@ -659,7 +659,7 @@ static void
 dissect_link_key_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *tree, proto_tree *parameter_tree)
 {
   tvbuff_t *parameters_tvb;
-  guint16 parameters_length;
+  uint16_t parameters_length;
 
   parameters_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   parameters_tvb    = tvb_new_subset_length(parameter_tvb, PARAMETER_VALUE_OFFSET, parameters_length);
@@ -707,7 +707,7 @@ static void
 dissect_registration_result_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *tree, proto_tree *parameter_tree)
 {
   tvbuff_t *parameters_tvb;
-  guint16  parameters_length;
+  uint16_t parameters_length;
 
   parameters_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   parameters_tvb    = tvb_new_subset_length(parameter_tvb, PARAMETER_VALUE_OFFSET, parameters_length);
@@ -751,7 +751,7 @@ static void
 dissect_deregistration_result_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *tree, proto_tree *parameter_tree)
 {
   tvbuff_t *parameters_tvb;
-  guint16  parameters_length;
+  uint16_t parameters_length;
 
   parameters_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   parameters_tvb    = tvb_new_subset_length(parameter_tvb, PARAMETER_VALUE_OFFSET, parameters_length);
@@ -785,7 +785,7 @@ dissect_deregistration_status_parameter(tvbuff_t *parameter_tvb, proto_tree *par
 static void
 dissect_unknown_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
 {
-  guint16 parameter_value_length;
+  uint16_t parameter_value_length;
 
   parameter_value_length = tvb_get_ntohs(parameter_tvb, PARAMETER_LENGTH_OFFSET) - PARAMETER_HEADER_LENGTH;
   if (parameter_value_length > 0)
@@ -864,13 +864,13 @@ static const value_string parameter_tag_values[] = {
  * The other option is the old Draft 7 value defined below.
  */
 #define PROTOCOL_DATA_1_DRAFT_7  0x000e
-static gint protocol_data_1_global = PROTOCOL_DATA_1_PARAMETER_TAG;
+static int protocol_data_1_global = PROTOCOL_DATA_1_PARAMETER_TAG;
 
 static void
 // NOLINTNEXTLINE(misc-no-recursion)
 dissect_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *tree, proto_tree *m2ua_tree)
 {
-  guint16 tag, length, padding_length;
+  uint16_t tag, length, padding_length;
   proto_item *parameter_item;
   proto_tree *parameter_tree;
 
@@ -907,10 +907,10 @@ dissect_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *tree,
     dissect_interface_identifier_int_parameter(parameter_tvb, parameter_tree, parameter_item);
     break;
   case INTERFACE_IDENTIFIER_TEXT_PARAMETER_TAG:
-    dissect_interface_identifier_text_parameter(parameter_tvb, parameter_tree, parameter_item);
+    dissect_interface_identifier_text_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
     break;
   case INFO_STRING_PARAMETER_TAG:
-    dissect_info_string_parameter(parameter_tvb, parameter_tree, parameter_item);
+    dissect_info_string_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
     break;
   case DIAGNOSTIC_INFORMATION_PARAMETER_TAG:
     dissect_diagnostic_information_parameter(parameter_tvb, parameter_tree, parameter_item);
@@ -1001,7 +1001,7 @@ static void
 // NOLINTNEXTLINE(misc-no-recursion)
 dissect_parameters(tvbuff_t *parameters_tvb, packet_info *pinfo, proto_tree *tree, proto_tree *m2ua_tree)
 {
-  gint offset, length, total_length, remaining_length;
+  int offset, length, total_length, remaining_length;
   tvbuff_t *parameter_tvb;
 
   offset = 0;
@@ -1097,7 +1097,7 @@ proto_register_m2ua(void)
   };
 
   /* Setup protocol subtree array */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_m2ua,
     &ett_m2ua_parameter,
   };
@@ -1126,7 +1126,7 @@ proto_register_m2ua(void)
     "The value of the parameter tag for protocol data 1",
     &protocol_data_1_global,
     protocol_data_1_options,
-    FALSE);
+    false);
 }
 
 void

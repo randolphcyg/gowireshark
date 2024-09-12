@@ -17,6 +17,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/tfs.h>
 #include <epan/prefs.h>
 
 #include "packet-gsm_rlcmac.h"
@@ -36,51 +37,51 @@ static dissector_handle_t pgsl_handle;
 static dissector_handle_t sub_handles[SUB_MAX];
 
 /* initialize the protocol and registered fields */
-static int proto_abis_pgsl = -1;
+static int proto_abis_pgsl;
 
 /* P-GSL header */
-static int hf_pgsl_version = -1;
-static int hf_pgsl_msg_disc = -1;
-static int hf_pgsl_tn_bitmap = -1;
-static int hf_pgsl_trx_seqno = -1;
-static int hf_pgsl_afnd = -1;
-static int hf_pgsl_afnu = -1;
-static int hf_pgsl_ccu_ta = -1;
-static int hf_pgsl_ack_req = -1;
-static int hf_pgsl_tn_resource = -1;
-static int hf_pgsl_tn_seqno = -1;
-static int hf_pgsl_data_len = -1;
-static int hf_pgsl_cause = -1;
-static int hf_pgsl_addl_info = -1;
-static int hf_pgsl_ack_ind = -1;
-static int hf_pgsl_data_ind = -1;
-static int hf_pgsl_ucm = -1;
-static int hf_pgsl_cs = -1;
-static int hf_pgsl_timing_offset = -1;
-static int hf_pgsl_power_control = -1;
-static int hf_pgsl_ir_tfi = -1;
-static int hf_pgsl_ir_sign_type = -1;
-static int hf_pgsl_codec_delay = -1;
-static int hf_pgsl_codec_cs = -1;
-static int hf_pgsl_codec_rxlev = -1;
-static int hf_pgsl_codec_parity = -1;
-static int hf_pgsl_codec_bqm = -1;
-static int hf_pgsl_codec_mean_bep = -1;
-static int hf_pgsl_codec_cv_bep = -1;
-static int hf_pgsl_codec_q = -1;
-static int hf_pgsl_codec_q1 = -1;
-static int hf_pgsl_codec_q2 = -1;
-static int hf_pgsl_pacch = -1;
-static int hf_pgsl_ab_rxlev = -1;
-static int hf_pgsl_ab_acc_delay = -1;
-static int hf_pgsl_ab_abi = -1;
-static int hf_pgsl_ab_ab_type = -1;
+static int hf_pgsl_version;
+static int hf_pgsl_msg_disc;
+static int hf_pgsl_tn_bitmap;
+static int hf_pgsl_trx_seqno;
+static int hf_pgsl_afnd;
+static int hf_pgsl_afnu;
+static int hf_pgsl_ccu_ta;
+static int hf_pgsl_ack_req;
+static int hf_pgsl_tn_resource;
+static int hf_pgsl_tn_seqno;
+static int hf_pgsl_data_len;
+static int hf_pgsl_cause;
+static int hf_pgsl_addl_info;
+static int hf_pgsl_ack_ind;
+static int hf_pgsl_data_ind;
+static int hf_pgsl_ucm;
+static int hf_pgsl_cs;
+static int hf_pgsl_timing_offset;
+static int hf_pgsl_power_control;
+static int hf_pgsl_ir_tfi;
+static int hf_pgsl_ir_sign_type;
+static int hf_pgsl_codec_delay;
+static int hf_pgsl_codec_cs;
+static int hf_pgsl_codec_rxlev;
+static int hf_pgsl_codec_parity;
+static int hf_pgsl_codec_bqm;
+static int hf_pgsl_codec_mean_bep;
+static int hf_pgsl_codec_cv_bep;
+static int hf_pgsl_codec_q;
+static int hf_pgsl_codec_q1;
+static int hf_pgsl_codec_q2;
+static int hf_pgsl_pacch;
+static int hf_pgsl_ab_rxlev;
+static int hf_pgsl_ab_acc_delay;
+static int hf_pgsl_ab_abi;
+static int hf_pgsl_ab_ab_type;
 
 /* initialize the subtree pointers */
-static int ett_pgsl = -1;
-static int ett_pacch = -1;
+static int ett_pgsl;
+static int ett_pacch;
 
-static gboolean abis_pgsl_ir = FALSE;
+static bool abis_pgsl_ir;
 
 #define PGSL_MSG_DLDATA_REQ	1
 #define PGSL_MSG_DLDATA_IND	2
@@ -150,7 +151,7 @@ static const value_string pgsl_ab_abi_vals[] = {
 	{ 0, NULL }
 };
 
-static RLCMAC_block_format_t pgsl_cs_to_rlcmac_cs(guint8 pgsl_cs)
+static RLCMAC_block_format_t pgsl_cs_to_rlcmac_cs(uint8_t pgsl_cs)
 {
 	static const RLCMAC_block_format_t tbl[8] = {
 		RLCMAC_PRACH,
@@ -170,7 +171,7 @@ static RLCMAC_block_format_t pgsl_cs_to_rlcmac_cs(guint8 pgsl_cs)
 }
 
 /* length of an EGPRS RLC data block for given MCS */
-static const guint data_block_len_by_mcs[] = {
+static const unsigned data_block_len_by_mcs[] = {
 	0,	/* MCS0 */
 	22,	/* MCS1 */
 	28,
@@ -186,10 +187,10 @@ static const guint data_block_len_by_mcs[] = {
 
 /* determine the number of rlc data blocks and their size / offsets */
 static void
-setup_rlc_mac_priv(RlcMacPrivateData_t *rm, gboolean is_uplink,
-	guint *n_calls, guint *data_block_bits, guint *data_block_offsets)
+setup_rlc_mac_priv(RlcMacPrivateData_t *rm, bool is_uplink,
+	unsigned *n_calls, unsigned *data_block_bits, unsigned *data_block_offsets)
 {
-	guint nc, dbl = 0, dbo[2] = {0,0};
+	unsigned nc, dbl = 0, dbo[2] = {0,0};
 
 	DISSECTOR_ASSERT(rm->mcs < G_N_ELEMENTS(data_block_len_by_mcs));
 	dbl = data_block_len_by_mcs[rm->mcs];
@@ -222,15 +223,15 @@ setup_rlc_mac_priv(RlcMacPrivateData_t *rm, gboolean is_uplink,
 /* bit-shift the entire 'src' of length 'length_bytes' by 'offset_bits'
  * and store the reuslt to caller-allocated 'buffer'.  The shifting is
  * done lsb-first, unlike tvb_new_octet_aligned() */
-static void clone_aligned_buffer_lsbf(guint offset_bits, guint length_bytes,
-	const guint8 *src, guint8 *buffer)
+static void clone_aligned_buffer_lsbf(unsigned offset_bits, unsigned length_bytes,
+	const uint8_t *src, uint8_t *buffer)
 {
-	guint hdr_bytes;
-	guint extra_bits;
-	guint i;
+	unsigned hdr_bytes;
+	unsigned extra_bits;
+	unsigned i;
 
-	guint8 c, last_c;
-	guint8 *dst;
+	uint8_t c, last_c;
+	uint8_t *dst;
 
 	hdr_bytes = offset_bits / 8;
 	extra_bits = offset_bits % 8;
@@ -254,18 +255,18 @@ static void clone_aligned_buffer_lsbf(guint offset_bits, guint length_bytes,
 
 /* obtain an (aligned) EGPRS data block with given bit-offset and
  * bit-length from the parent TVB */
-static tvbuff_t *get_egprs_data_block(tvbuff_t *tvb, guint offset_bits,
-	guint length_bits, packet_info *pinfo)
+static tvbuff_t *get_egprs_data_block(tvbuff_t *tvb, unsigned offset_bits,
+	unsigned length_bits, packet_info *pinfo)
 {
 	tvbuff_t *aligned_tvb;
-	const guint initial_spare_bits = 6;
-	guint8 *aligned_buf;
-	guint min_src_length_bytes = (offset_bits + length_bits + 7) / 8;
-	guint length_bytes = (initial_spare_bits + length_bits + 7) / 8;
+	const unsigned initial_spare_bits = 6;
+	uint8_t *aligned_buf;
+	unsigned min_src_length_bytes = (offset_bits + length_bits + 7) / 8;
+	unsigned length_bytes = (initial_spare_bits + length_bits + 7) / 8;
 
 	tvb_ensure_bytes_exist(tvb, 0, min_src_length_bytes);
 
-	aligned_buf = (guint8 *) wmem_alloc(pinfo->pool, length_bytes);
+	aligned_buf = (uint8_t *) wmem_alloc(pinfo->pool, length_bytes);
 
 	/* Copy the data out of the tvb to an aligned buffer */
 	clone_aligned_buffer_lsbf(
@@ -285,14 +286,14 @@ static tvbuff_t *get_egprs_data_block(tvbuff_t *tvb, guint offset_bits,
 
 /* Dissect a P-GSL ACess Burst Message */
 static void
-dissect_pgsl_access_burst(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_tree *tree,
+dissect_pgsl_access_burst(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree,
 			  RlcMacPrivateData_t *rlcmac_data)
 {
 	proto_item *ti;
 	proto_tree *pacch_tree;
 	tvbuff_t *data_tvb;
-	guint rxlev, abtype, abi;
-	guint16 acc_delay;
+	unsigned rxlev, abtype, abi;
+	uint16_t acc_delay;
 
 	ti = proto_tree_add_item(tree, hf_pgsl_pacch, tvb, offset, 5, ENC_NA);
 	pacch_tree = proto_item_add_subtree(ti, ett_pacch);
@@ -301,7 +302,7 @@ dissect_pgsl_access_burst(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_
 	/* Access Delay is encoded as 10-bit field with the lowest 8
 	 * bits in the first octet, with the two highest bits in the
 	 * lowest bits of the second octet */
-	acc_delay = tvb_get_guint8(tvb, offset);
+	acc_delay = tvb_get_uint8(tvb, offset);
 	acc_delay |= tvb_get_bits8(tvb, (offset+1)*8+6, 2) << 8;
 	proto_tree_add_uint(pacch_tree, hf_pgsl_ab_acc_delay, tvb, offset, 2, acc_delay);
 	/* ABI and AB Type are in the same octet as the acc_dely msb's */
@@ -323,13 +324,13 @@ dissect_pgsl_access_burst(tvbuff_t *tvb, gint offset, packet_info *pinfo, proto_
 
 /* Dissect a given (E)GPRS RLC/MAC block */
 static void
-dissect_gprs_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gboolean uplink,
+dissect_gprs_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, bool uplink,
 		  RlcMacPrivateData_t *rlcmac_data)
 {
 	dissector_handle_t rlcmac_dissector;
 	tvbuff_t *data_tvb;
-	guint data_block_bits, data_block_offsets[2];
-	guint num_calls;
+	unsigned data_block_bits, data_block_offsets[2];
+	unsigned num_calls;
 
 	if (uplink)
 		rlcmac_dissector = sub_handles[SUB_RLCMAC_UL];
@@ -390,7 +391,7 @@ dissect_abis_pgsl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 	proto_tree *pgsl_tree;
 	int offset = 0;
 	tvbuff_t *next_tvb;
-	guint32 msg_disc, len, ack_data_ind, cs, fn;
+	uint32_t msg_disc, len, ack_data_ind, cs, fn;
 	RlcMacPrivateData_t rlcmac_data = {0};
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "P-GSL");
@@ -421,7 +422,7 @@ dissect_abis_pgsl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
 		proto_tree_add_item_ret_uint(pgsl_tree, hf_pgsl_afnd, tvb, offset, 3, ENC_LITTLE_ENDIAN, &fn);
 		rlcmac_data.frame_number = fn;
 		offset += 3;
-		ack_data_ind = tvb_get_guint8(tvb, offset);
+		ack_data_ind = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(pgsl_tree, hf_pgsl_ack_ind, tvb, offset, 1, ENC_NA);
 		proto_tree_add_item(pgsl_tree, hf_pgsl_data_ind, tvb, offset++, 1, ENC_NA);
 		if (ack_data_ind & 1) {
@@ -675,7 +676,7 @@ proto_register_abis_pgsl(void)
 			  NULL, HFILL }
 		},
 	};
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_pgsl,
 		&ett_pacch,
 	};

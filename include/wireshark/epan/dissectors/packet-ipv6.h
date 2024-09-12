@@ -7,20 +7,16 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-#ifndef __INET_IPV6_H__
-#define __INET_IPV6_H__
+#ifndef __PACKET_IPV6_H__
+#define __PACKET_IPV6_H__
 
 #include <inttypes.h>
-#include <stdbool.h>
+#include <wsutil/inet_addr.h>
+#include <epan/conversation.h>
 
-#define IPv6_ADDR_SIZE  16
-
+#define IPv6_ADDR_SIZE          16
 #define IPv6_HDR_SIZE           40
 #define IPv6_FRAGMENT_HDR_SIZE  8
-
-typedef struct e_in6_addr {
-    uint8_t bytes[16];           /* 128 bit IPv6 address */
-} ws_in6_addr;
 
 /*
  * Definition for internet protocol version 6.
@@ -39,13 +35,13 @@ struct ws_ip6_hdr {
  * Extension Headers
  */
 
-struct ip6_ext {
+struct ws_ip6_ext {
     unsigned char ip6e_nxt;
     unsigned char ip6e_len;
 };
 
 /* Routing header */
-struct ip6_rthdr {
+struct ws_ip6_rthdr {
     uint8_t ip6r_nxt;        /* next header */
     uint8_t ip6r_len;        /* length in units of 8 octets */
     uint8_t ip6r_type;       /* routing type */
@@ -54,7 +50,7 @@ struct ip6_rthdr {
 };
 
 /* Type 0 Routing header */
-struct ip6_rthdr0 {
+struct ws_ip6_rthdr0 {
     uint8_t ip6r0_nxt;       /* next header */
     uint8_t ip6r0_len;       /* length in units of 8 octets */
     uint8_t ip6r0_type;      /* always zero */
@@ -66,7 +62,7 @@ struct ip6_rthdr0 {
 };
 
 /* Fragment header */
-struct ip6_frag {
+struct ws_ip6_frag {
     uint8_t ip6f_nxt;       /* next header */
     uint8_t ip6f_reserved;  /* reserved field */
     uint16_t ip6f_offlg;     /* offset, reserved, and flag */
@@ -77,27 +73,16 @@ struct ip6_frag {
 #define IP6F_RESERVED_MASK      0x0006 /* reserved bits in ip6f_offlg */
 #define IP6F_MORE_FRAG          0x0001 /* more-fragments flag */
 
+struct ipv6_analysis {
 
-/**
- * Unicast Scope
- * Note that we must check topmost 10 bits only, not 16 bits (see RFC2373).
- */
-static inline bool in6_addr_is_linklocal(const ws_in6_addr *a)
-{
-    return (a->bytes[0] == 0xfe) && ((a->bytes[1] & 0xc0) == 0x80);
-}
+    /* Initial frame starting this conversation
+     */
+    uint32_t initial_frame;
 
-static inline bool in6_addr_is_sitelocal(const ws_in6_addr *a)
-{
-    return (a->bytes[0] == 0xfe) && ((a->bytes[1] & 0xc0) == 0xc0);
-}
+    uint32_t stream;
+};
 
-/**
- * Multicast
- */
-static inline bool in6_addr_is_multicast(const ws_in6_addr *a)
-{
-    return a->bytes[0] == 0xff;
-}
+WS_DLL_PUBLIC struct ipv6_analysis *get_ipv6_conversation_data(conversation_t *conv,
+                                packet_info *pinfo);
 
 #endif

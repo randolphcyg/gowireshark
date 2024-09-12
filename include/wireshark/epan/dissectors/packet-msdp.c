@@ -119,42 +119,42 @@ static const value_string sa_unspec_error_vals[] = {
 #define MSDP_PORT  639
 
 /* Initialize the protocol and registered fields */
-static int proto_msdp = -1;
-static int hf_msdp_type = -1;
-static int hf_msdp_length = -1;
+static int proto_msdp;
+static int hf_msdp_type;
+static int hf_msdp_length;
 
-static int hf_msdp_sa_entry_count = -1;
-static int hf_msdp_sa_rp_addr = -1;
-static int hf_msdp_sa_reserved = -1;
-static int hf_msdp_sa_sprefix_len = -1;
-static int hf_msdp_sa_group_addr = -1;
-static int hf_msdp_sa_src_addr = -1;
+static int hf_msdp_sa_entry_count;
+static int hf_msdp_sa_rp_addr;
+static int hf_msdp_sa_reserved;
+static int hf_msdp_sa_sprefix_len;
+static int hf_msdp_sa_group_addr;
+static int hf_msdp_sa_src_addr;
 
-static int hf_msdp_sa_req_res = -1;
-static int hf_msdp_sa_req_group = -1;
+static int hf_msdp_sa_req_res;
+static int hf_msdp_sa_req_group;
 
-static int hf_msdp_not_o = -1;
-static int hf_msdp_not_error = -1;
-static int hf_msdp_not_error_sub = -1;
+static int hf_msdp_not_o;
+static int hf_msdp_not_error;
+static int hf_msdp_not_error_sub;
 
-static int hf_msdp_not_group_address = -1;
-static int hf_msdp_not_rp_address = -1;
-static int hf_msdp_not_source_address = -1;
-static int hf_msdp_not_res = -1;
-static int hf_msdp_not_entry_count = -1;
-static int hf_msdp_not_sprefix_len = -1;
+static int hf_msdp_not_group_address;
+static int hf_msdp_not_rp_address;
+static int hf_msdp_not_source_address;
+static int hf_msdp_not_res;
+static int hf_msdp_not_entry_count;
+static int hf_msdp_not_sprefix_len;
 
-static int hf_msdp_tlv_contents = -1;
-static int hf_msdp_trailing_junk = -1;
-static int hf_msdp_unknown_data = -1;
+static int hf_msdp_tlv_contents;
+static int hf_msdp_trailing_junk;
+static int hf_msdp_unknown_data;
 
-static gint ett_msdp = -1;
-static gint ett_msdp_sa_entry = -1;
-static gint ett_msdp_sa_enc_data = -1;
-static gint ett_msdp_not_data = -1;
+static int ett_msdp;
+static int ett_msdp_sa_entry;
+static int ett_msdp_sa_enc_data;
+static int ett_msdp_not_data;
 
-static expert_field ei_msdp_tlv_len_too_short = EI_INIT;
-static expert_field ei_msdp_tlv_len_too_long = EI_INIT;
+static expert_field ei_msdp_tlv_len_too_short;
+static expert_field ei_msdp_tlv_len_too_long;
 
 static dissector_handle_t msdp_handle;
 static dissector_handle_t ip_handle;
@@ -165,7 +165,7 @@ dissect_msdp_sa(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     int *offset, int length, proto_item *length_item);
 static void
 dissect_msdp_notification(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
-    int *offset, guint16 tlv_len, proto_item *length_item);
+    int *offset, uint16_t tlv_len, proto_item *length_item);
 
 
 static int
@@ -176,13 +176,13 @@ dissect_msdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
         proto_tree *msdp_tree;
         proto_item *length_item;
         int         offset;
-        guint32     type;
-        guint32     length;
+        uint32_t    type;
+        uint32_t    length;
 
 
         col_set_str(pinfo->cinfo, COL_PROTOCOL, "MSDP");
 
-        col_set_str(pinfo->cinfo, COL_INFO, val_to_str_const(tvb_get_guint8(tvb, 0),
+        col_set_str(pinfo->cinfo, COL_INFO, val_to_str_const(tvb_get_uint8(tvb, 0),
                                                                      msdp_types,
                                                                      "<Unknown MSDP TLV type>"));
 
@@ -283,7 +283,7 @@ dissect_msdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 static void dissect_msdp_sa(tvbuff_t *tvb, packet_info *pinfo,
     proto_tree *tree, int *offset, int length, proto_item *length_item)
 {
-        guint32 entries;
+        uint32_t entries;
 
         if (length < 1) {
                 expert_add_info_format(pinfo, length_item,
@@ -322,7 +322,7 @@ static void dissect_msdp_sa(tvbuff_t *tvb, packet_info *pinfo,
                 entry_tree = proto_tree_add_subtree_format(tree, tvb, *offset, 12, ett_msdp_sa_entry, NULL,
                                          "(S,G) block: %s/%u -> %s",
                                          tvb_ip_to_str(pinfo->pool, tvb, *offset + 8),
-                                         tvb_get_guint8(tvb, *offset + 3),
+                                         tvb_get_uint8(tvb, *offset + 3),
                                          tvb_ip_to_str(pinfo->pool, tvb, *offset + 4));
 
                 proto_tree_add_item(entry_tree, hf_msdp_sa_reserved, tvb, *offset, 3, ENC_BIG_ENDIAN);
@@ -344,7 +344,7 @@ static void dissect_msdp_sa(tvbuff_t *tvb, packet_info *pinfo,
          */
         if (length > 0) {
                 proto_tree *enc_tree;
-                gint reported_length;
+                int reported_length;
                 tvbuff_t *next_tvb;
 
                 enc_tree = proto_tree_add_subtree_format(tree, tvb, *offset, length,
@@ -361,8 +361,8 @@ static void dissect_msdp_sa(tvbuff_t *tvb, packet_info *pinfo,
                  * that they reflect the MSDP packet rather than the
                  * encapsulated packet.
                  */
-                col_set_writable(pinfo->cinfo, COL_PROTOCOL, FALSE);
-                col_set_writable(pinfo->cinfo, COL_INFO, FALSE);
+                col_set_writable(pinfo->cinfo, COL_PROTOCOL, false);
+                col_set_writable(pinfo->cinfo, COL_INFO, false);
                 call_dissector(ip_handle, next_tvb, pinfo, enc_tree);
         }
         *offset += length;
@@ -382,11 +382,11 @@ static void add_notification_data_ipv4addr(tvbuff_t *tvb, proto_tree *tree, int 
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-static void dissect_msdp_notification(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int *offset, guint16 tlv_len, proto_item *length_item)
+static void dissect_msdp_notification(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int *offset, uint16_t tlv_len, proto_item *length_item)
 {
-        guint8              error, error_sub;
+        uint8_t             error, error_sub;
         const value_string *vals;
-        gint reported_length;
+        int reported_length;
         tvbuff_t *next_tvb;
 
         if (tlv_len < 1) {
@@ -397,7 +397,7 @@ static void dissect_msdp_notification(tvbuff_t *tvb, packet_info *pinfo, proto_t
         }
         proto_tree_add_item(tree, hf_msdp_not_o, tvb, *offset, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(tree, hf_msdp_not_error, tvb, *offset, 1, ENC_BIG_ENDIAN);
-        error = tvb_get_guint8(tvb, *offset);
+        error = tvb_get_uint8(tvb, *offset);
         error &= 0x7F;             /* Error is 7-bit field. O-bit is bit 8 */
         *offset += 1;
         tlv_len -= 1;
@@ -434,7 +434,7 @@ static void dissect_msdp_notification(tvbuff_t *tvb, packet_info *pinfo, proto_t
                     "TLV length for Notification < 5");
                 return;
         }
-        error_sub = tvb_get_guint8(tvb, *offset);
+        error_sub = tvb_get_uint8(tvb, *offset);
         proto_tree_add_uint_format_value(tree, hf_msdp_not_error_sub, tvb, *offset, 1,
                                    error_sub, "%s (%u)",
                                    val_to_str_const(error_sub, vals, "<Unknown Error subcode>"),
@@ -705,7 +705,7 @@ proto_register_msdp(void)
                 },
         };
 
-        static gint *ett[] = {
+        static int *ett[] = {
                 &ett_msdp,
                 &ett_msdp_sa_entry,
                 &ett_msdp_sa_enc_data,

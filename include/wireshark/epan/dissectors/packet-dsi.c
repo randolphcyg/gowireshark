@@ -15,6 +15,7 @@
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
+#include <epan/unit_strings.h>
 
 #include "packet-tcp.h"
 #include "packet-afp.h"
@@ -59,34 +60,34 @@ void proto_reg_handoff_dsi(void);
 
 static dissector_handle_t dsi_handle;
 
-static int proto_dsi = -1;
-static int hf_dsi_flags = -1;
-static int hf_dsi_command = -1;
-static int hf_dsi_requestid = -1;
-static int hf_dsi_offset = -1;
-static int hf_dsi_error = -1;
-static int hf_dsi_length = -1;
-static int hf_dsi_reserved = -1;
+static int proto_dsi;
+static int hf_dsi_flags;
+static int hf_dsi_command;
+static int hf_dsi_requestid;
+static int hf_dsi_offset;
+static int hf_dsi_error;
+static int hf_dsi_length;
+static int hf_dsi_reserved;
 
-static gint ett_dsi = -1;
+static int ett_dsi;
 
-static int hf_dsi_open_type     = -1;
-static int hf_dsi_open_len      = -1;
-static int hf_dsi_open_quantum  = -1;
-static int hf_dsi_replay_cache_size = -1;
-static int hf_dsi_open_option   = -1;
+static int hf_dsi_open_type;
+static int hf_dsi_open_len;
+static int hf_dsi_open_quantum;
+static int hf_dsi_replay_cache_size;
+static int hf_dsi_open_option;
 
-static int hf_dsi_attn_flag             = -1;
-static int hf_dsi_attn_flag_shutdown    = -1;
-static int hf_dsi_attn_flag_crash       = -1;
-static int hf_dsi_attn_flag_msg         = -1;
-static int hf_dsi_attn_flag_reconnect   = -1;
-static int hf_dsi_attn_flag_time        = -1;
-static int hf_dsi_attn_flag_bitmap      = -1;
+static int hf_dsi_attn_flag;
+static int hf_dsi_attn_flag_shutdown;
+static int hf_dsi_attn_flag_crash;
+static int hf_dsi_attn_flag_msg;
+static int hf_dsi_attn_flag_reconnect;
+static int hf_dsi_attn_flag_time;
+static int hf_dsi_attn_flag_bitmap;
 
-static gint ett_dsi_open        = -1;
-static gint ett_dsi_attn        = -1;
-static gint ett_dsi_attn_flag   = -1;
+static int ett_dsi_open;
+static int ett_dsi_attn;
+static int ett_dsi_attn_flag;
 
 static const value_string dsi_attn_flag_vals[] = {
 	{0x0, "Reserved" },                                           /* 0000 */
@@ -108,7 +109,7 @@ static const value_string dsi_open_type_vals[] = {
 	{0,                   NULL } };
 
 /* desegmentation of DSI */
-static gboolean dsi_desegment = TRUE;
+static bool dsi_desegment = true;
 
 static dissector_handle_t afp_handle;
 static dissector_handle_t afp_server_status_handle;
@@ -149,21 +150,21 @@ static const value_string func_vals[] = {
 	{0,                   NULL } };
 static value_string_ext func_vals_ext = VALUE_STRING_EXT_INIT(func_vals);
 
-static gint
-dissect_dsi_open_session(tvbuff_t *tvb, proto_tree *dsi_tree, gint offset, gint dsi_length)
+static int
+dissect_dsi_open_session(tvbuff_t *tvb, proto_tree *dsi_tree, int offset, int dsi_length)
 {
 	proto_tree      *tree;
-	guint8		type;
-	guint8		len;
+	uint8_t		type;
+	uint8_t		len;
 
 	tree = proto_tree_add_subtree(dsi_tree, tvb, offset, -1, ett_dsi_open, NULL, "Open Session");
 
 	while( dsi_length >2 ) {
 
-		type = tvb_get_guint8(tvb, offset);
+		type = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(tree, hf_dsi_open_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset++;
-		len = tvb_get_guint8(tvb, offset);
+		len = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(tree, hf_dsi_open_len, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset++;
 		switch (type) {
@@ -187,12 +188,12 @@ dissect_dsi_open_session(tvbuff_t *tvb, proto_tree *dsi_tree, gint offset, gint 
 	return offset;
 }
 
-static gint
-dissect_dsi_attention(tvbuff_t *tvb, proto_tree *dsi_tree, gint offset)
+static int
+dissect_dsi_attention(tvbuff_t *tvb, proto_tree *dsi_tree, int offset)
 {
 	proto_tree      *tree;
 	proto_item	*ti;
-	guint16		flag;
+	uint16_t		flag;
 
 	if (!tvb_reported_length_remaining(tvb,offset))
 		return offset;
@@ -220,18 +221,18 @@ dissect_dsi_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 {
 	proto_tree      *dsi_tree;
 	proto_item	*dsi_ti;
-	guint8		dsi_flags,dsi_command;
-	guint16		dsi_requestid;
-	gint32		dsi_code;
-	guint32		dsi_length;
+	uint8_t		dsi_flags,dsi_command;
+	uint16_t		dsi_requestid;
+	int32_t		dsi_code;
+	uint32_t		dsi_length;
 	struct		atp_asp_dsi_info atp_asp_dsi_info;
 
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "DSI");
 	col_clear(pinfo->cinfo, COL_INFO);
 
-	dsi_flags = tvb_get_guint8(tvb, 0);
-	dsi_command = tvb_get_guint8(tvb, 1);
+	dsi_flags = tvb_get_uint8(tvb, 0);
+	dsi_command = tvb_get_uint8(tvb, 1);
 	dsi_requestid = tvb_get_ntohs(tvb, 2);
 	dsi_code = tvb_get_ntohl(tvb, 4);
 	dsi_length = tvb_get_ntohl(tvb, 8);
@@ -314,14 +315,14 @@ dissect_dsi_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 	return tvb_captured_length(tvb);
 }
 
-static guint
+static unsigned
 get_dsi_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
-	guint32 plen;
-	guint8	dsi_flags,dsi_command;
+	uint32_t plen;
+	uint8_t	dsi_flags,dsi_command;
 
-	dsi_flags = tvb_get_guint8(tvb, offset);
-	dsi_command = tvb_get_guint8(tvb, offset+ 1);
+	dsi_flags = tvb_get_uint8(tvb, offset);
+	dsi_command = tvb_get_uint8(tvb, offset+ 1);
 	if ( dsi_flags > DSIFL_MAX || !dsi_command || dsi_command > DSIFUNC_MAX)
 	{
 	    /* it's not a known dsi pdu start sequence */
@@ -381,7 +382,7 @@ proto_register_dsi(void)
 
 		{ &hf_dsi_length,
 		  { "Length",           "dsi.length",
-		    FT_UINT32, BASE_DEC|BASE_UNIT_STRING, &units_byte_bytes, 0x0,
+		    FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytes), 0x0,
 		    "Total length of the data that follows the DSI header.", HFILL }},
 
 		{ &hf_dsi_reserved,
@@ -444,7 +445,7 @@ proto_register_dsi(void)
 		    "Attention extended bitmap", HFILL }},
 	};
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_dsi,
 		&ett_dsi_open,
 		&ett_dsi_attn,

@@ -19,11 +19,11 @@
 void proto_register_dcerpc_pnp(void);
 void proto_reg_handoff_dcerpc_pnp(void);
 
-static int proto_dcerpc_pnp = -1;
+static int proto_dcerpc_pnp;
 
-static int hf_pnp_opnum = -1;
+static int hf_pnp_opnum;
 
-static gint ett_dcerpc_pnp = -1;
+static int ett_dcerpc_pnp;
 
 /*
  * The pnp MSRPC interface is typically reached using the ncacn_np transport
@@ -35,10 +35,10 @@ static e_guid_t uuid_dcerpc_pnp = {
 	{ 0x8f, 0x69, 0x08, 0x00, 0x3e, 0x30, 0x05, 0x1b }
 };
 
-static guint16 ver_dcerpc_pnp = 1;
+static uint16_t ver_dcerpc_pnp = 1;
 
 
-static dcerpc_sub_dissector dcerpc_pnp_dissectors[] = {
+static const dcerpc_sub_dissector dcerpc_pnp_dissectors[] = {
 	{ PNP_DISCONNECT, "PNP_Disconnect", NULL, NULL },
 	{ PNP_CONNECT, "PNP_Connect", NULL, NULL },
 	{ PNP_GET_VERSION, "PNP_GetVersion", NULL, NULL },
@@ -189,7 +189,7 @@ proto_register_dcerpc_pnp(void)
 	};
 
 
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_dcerpc_pnp,
 	};
 

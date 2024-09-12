@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-tetra.c                                                             */
-/* asn2wrs.py -u -L -p tetra -c ./tetra.cnf -s ./packet-tetra-template -D . -O ../.. tetra.asn */
+/* asn2wrs.py -u -q -L -p tetra -c ./tetra.cnf -s ./packet-tetra-template -D . -O ../.. tetra.asn */
 
 /* packet-tetra.c
  * Routines for TETRA packet dissection
@@ -27,6 +27,7 @@
 #include <epan/oids.h>
 #include <epan/conversation.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-per.h"
 #include "packet-tetra.h"
@@ -37,917 +38,917 @@ void proto_register_tetra(void);
 void proto_reg_handoff_tetra(void);
 
 /* Wireshark ID of the tetra protocol */
-static int proto_tetra = -1;
+static int proto_tetra;
 
 static dissector_handle_t tetra_handle;
 
 #define TETRA_UDP_PORT  7074 /* Not IANA assigned */
 
 /* Whether the capture data include carrier numbers */
-static gboolean include_carrier_number = TRUE;
+static bool include_carrier_number = true;
 
 /* The following hf_* variables are used to hold the Wireshark IDs of
 * our header fields; they are filled out when we call
 * proto_register_field_array() in proto_register_tetra()
 */
 /** Kts attempt at defining the protocol */
-static gint hf_tetra = -1;
-static gint hf_tetra_header = -1;
-static gint hf_tetra_channels = -1;
-static gint hf_tetra_channel1 = -1;
-static gint hf_tetra_channel2 = -1;
-static gint hf_tetra_channel3 = -1;
-static gint hf_tetra_txreg = -1;
-static gint hf_tetra_timer = -1;
-static gint hf_tetra_pdu = -1;
-static gint hf_tetra_rvstr = -1;
-static gint hf_tetra_carriernumber = -1;
-static gint hf_tetra_rxchannel1 = -1;
-static gint hf_tetra_rxchannel2 = -1;
-static gint hf_tetra_rxchannel3 = -1;
-static gint hf_tetra_crc = -1;
-static gint hf_tetra_len0 = -1;
+static int hf_tetra;
+static int hf_tetra_header;
+static int hf_tetra_channels;
+static int hf_tetra_channel1;
+static int hf_tetra_channel2;
+static int hf_tetra_channel3;
+static int hf_tetra_txreg;
+static int hf_tetra_timer;
+static int hf_tetra_pdu;
+static int hf_tetra_rvstr;
+static int hf_tetra_carriernumber;
+static int hf_tetra_rxchannel1;
+static int hf_tetra_rxchannel2;
+static int hf_tetra_rxchannel3;
+static int hf_tetra_crc;
+static int hf_tetra_len0;
 
-static int hf_tetra_AACH_PDU = -1;                /* AACH */
-static int hf_tetra_BSCH_PDU = -1;                /* BSCH */
-static int hf_tetra_BNCH_PDU = -1;                /* BNCH */
-static int hf_tetra_MAC_ACCESS_PDU = -1;          /* MAC_ACCESS */
-static int hf_tetra_MAC_DATA_PDU = -1;            /* MAC_DATA */
-static int hf_tetra_MAC_FRAG_PDU = -1;            /* MAC_FRAG */
-static int hf_tetra_MAC_FRAG120_PDU = -1;         /* MAC_FRAG120 */
-static int hf_tetra_MAC_END_UPLINK_PDU = -1;      /* MAC_END_UPLINK */
-static int hf_tetra_MAC_END_UP114_PDU = -1;       /* MAC_END_UP114 */
-static int hf_tetra_MAC_END_HU_PDU = -1;          /* MAC_END_HU */
-static int hf_tetra_MAC_END_DOWNLINK_PDU = -1;    /* MAC_END_DOWNLINK */
-static int hf_tetra_MAC_END_DOWN111_PDU = -1;     /* MAC_END_DOWN111 */
-static int hf_tetra_MAC_RESOURCE_PDU = -1;        /* MAC_RESOURCE */
-static int hf_tetra_MAC_ACCESS_DEFINE_PDU = -1;   /* MAC_ACCESS_DEFINE */
-static int hf_tetra_function = -1;                /* INTEGER_0_3 */
-static int hf_tetra_field1 = -1;                  /* INTEGER_0_63 */
-static int hf_tetra_field2 = -1;                  /* INTEGER_0_63 */
-static int hf_tetra_system_code = -1;             /* System_Code */
-static int hf_tetra_colour_code = -1;             /* Colour_Code */
-static int hf_tetra_timeslot_number = -1;         /* Timeslot_Number */
-static int hf_tetra_frame_number = -1;            /* Frame_Number */
-static int hf_tetra_multiple_frame_number = -1;   /* Multiple_Frame_Number */
-static int hf_tetra_sharing_mod = -1;             /* Sharing_Mod */
-static int hf_tetra_ts_reserved_frames = -1;      /* TS_Reserved_Frames */
-static int hf_tetra_u_plane_dtx = -1;             /* U_Plane_DTX */
-static int hf_tetra_frame_18_extension = -1;      /* Frame_18_Extension */
-static int hf_tetra_reserved = -1;                /* Reserved */
-static int hf_tetra_tm_sdu = -1;                  /* MLE_Sync */
-static int hf_tetra_mcc = -1;                     /* INTEGER_0_1023 */
-static int hf_tetra_mnc = -1;                     /* INTEGER_0_16383 */
-static int hf_tetra_neighbour_cell_broadcast = -1;  /* INTEGER_0_3 */
-static int hf_tetra_cell_service_level = -1;      /* INTEGER_0_3 */
-static int hf_tetra_late_entry_information = -1;  /* INTEGER_0_1 */
-static int hf_tetra_pdu_type = -1;                /* INTEGER_0_3 */
-static int hf_tetra_broadcast_type = -1;          /* INTEGER_0_3 */
-static int hf_tetra_main_carrier = -1;            /* INTEGER_0_4095 */
-static int hf_tetra_frequency_band = -1;          /* INTEGER_0_15 */
-static int hf_tetra_offset = -1;                  /* Offset */
-static int hf_tetra_duplex_spacing = -1;          /* INTEGER_0_7 */
-static int hf_tetra_reverse_operation = -1;       /* Reverse_Operation */
-static int hf_tetra_sencond_ctl_carrier = -1;     /* Sencond_Ctl_Carrier */
-static int hf_tetra_ms_txpwr_max_cell = -1;       /* MS_TXPWR_MAX_CELL */
-static int hf_tetra_rxlev_access_min = -1;        /* RXLEV_ACCESS_MIN */
-static int hf_tetra_access_parameter = -1;        /* ACCESS_PARAMETER */
-static int hf_tetra_radio_downlink_timeout = -1;  /* RADIO_DOWNLINK_TIMEOUT */
-static int hf_tetra_hyperframe_or_cck = -1;       /* T_hyperframe_or_cck */
-static int hf_tetra_hyperframe = -1;              /* INTEGER_0_65535 */
-static int hf_tetra_cckid = -1;                   /* INTEGER_0_65535 */
-static int hf_tetra_optional_params = -1;         /* T_optional_params */
-static int hf_tetra_even_multiframe = -1;         /* TS_COMMON_FRAMES */
-static int hf_tetra_odd_multiframe = -1;          /* TS_COMMON_FRAMES */
-static int hf_tetra_access_a_code = -1;           /* Default_Code_A */
-static int hf_tetra_extend_service = -1;          /* Extended_Services_Broadcast */
-static int hf_tetra_la = -1;                      /* INTEGER_0_16383 */
-static int hf_tetra_subscriber_class = -1;        /* Subscriber_class */
-static int hf_tetra_registriation = -1;           /* INTEGER_0_1 */
-static int hf_tetra_de_registration = -1;         /* INTEGER_0_1 */
-static int hf_tetra_priority_cell = -1;           /* INTEGER_0_1 */
-static int hf_tetra_minimum_mode_service = -1;    /* INTEGER_0_1 */
-static int hf_tetra_migration = -1;               /* INTEGER_0_1 */
-static int hf_tetra_system_wide_service = -1;     /* INTEGER_0_1 */
-static int hf_tetra_tetra_voice_service = -1;     /* INTEGER_0_1 */
-static int hf_tetra_circuit_mode_data_service = -1;  /* INTEGER_0_1 */
-static int hf_tetra_reserved_01 = -1;             /* INTEGER_0_1 */
-static int hf_tetra_sndcp_service = -1;           /* INTEGER_0_1 */
-static int hf_tetra_air_interface_encryption = -1;  /* INTEGER_0_1 */
-static int hf_tetra_advanced_link_support = -1;   /* INTEGER_0_1 */
-static int hf_tetra_frame1 = -1;                  /* FRAME */
-static int hf_tetra_frame2 = -1;                  /* FRAME */
-static int hf_tetra_frame3 = -1;                  /* FRAME */
-static int hf_tetra_frame4 = -1;                  /* FRAME */
-static int hf_tetra_frame5 = -1;                  /* FRAME */
-static int hf_tetra_frame6 = -1;                  /* FRAME */
-static int hf_tetra_frame7 = -1;                  /* FRAME */
-static int hf_tetra_frame8 = -1;                  /* FRAME */
-static int hf_tetra_frame9 = -1;                  /* FRAME */
-static int hf_tetra_frame10 = -1;                 /* FRAME */
-static int hf_tetra_frame11 = -1;                 /* FRAME */
-static int hf_tetra_frame12 = -1;                 /* FRAME */
-static int hf_tetra_frame13 = -1;                 /* FRAME */
-static int hf_tetra_frame14 = -1;                 /* FRAME */
-static int hf_tetra_frame15 = -1;                 /* FRAME */
-static int hf_tetra_frame16 = -1;                 /* FRAME */
-static int hf_tetra_frame17 = -1;                 /* FRAME */
-static int hf_tetra_frame18 = -1;                 /* FRAME */
-static int hf_tetra_imm = -1;                     /* IMM */
-static int hf_tetra_wt = -1;                      /* WT */
-static int hf_tetra_nu = -1;                      /* NU */
-static int hf_tetra_frame_len_factor = -1;        /* Frame_Len_Factor */
-static int hf_tetra_timeslot_pointer = -1;        /* Timeslot_Pointer */
-static int hf_tetra_min_pdu_priority = -1;        /* Min_Pdu_Priority */
-static int hf_tetra_security_information = -1;    /* INTEGER_0_255 */
-static int hf_tetra_sds_tl_addressing_method = -1;  /* SDS_TL_Addressing_Method */
-static int hf_tetra_gck_supported = -1;           /* INTEGER_0_1 */
-static int hf_tetra_section = -1;                 /* T_section */
-static int hf_tetra_present_1 = -1;               /* PRESENT1 */
-static int hf_tetra_present_2 = -1;               /* INTEGER_0_127 */
-static int hf_tetra_present_3 = -1;               /* INTEGER_0_127 */
-static int hf_tetra_present_4 = -1;               /* INTEGER_0_127 */
-static int hf_tetra_data_priority_supported = -1;  /* Data_Priority_Supported */
-static int hf_tetra_reserved_02 = -1;             /* INTEGER_0_7 */
-static int hf_tetra_section_2_information = -1;   /* Section_Information */
-static int hf_tetra_section_3_information = -1;   /* Section_Information */
-static int hf_tetra_section_4_information = -1;   /* Section_Information */
-static int hf_tetra_pdu_type_01 = -1;             /* INTEGER_0_1 */
-static int hf_tetra_fill_bit_indication = -1;     /* Fill_Bit_Indication */
-static int hf_tetra_encrypted_flag = -1;          /* Encrypted_Flag */
-static int hf_tetra_address = -1;                 /* Address */
-static int hf_tetra_data = -1;                    /* T_data */
-static int hf_tetra_sdu1 = -1;                    /* U_LLC_PDU */
-static int hf_tetra_sdu2 = -1;                    /* ComplexSDU */
-static int hf_tetra_ssi = -1;                     /* INTEGER_0_16777215 */
-static int hf_tetra_eventLabel = -1;              /* INTEGER_0_1023 */
-static int hf_tetra_ussi = -1;                    /* INTEGER_0_16777215 */
-static int hf_tetra_smi = -1;                     /* INTEGER_0_16777215 */
-static int hf_tetra_bl_adata = -1;                /* U_BL_ADATA */
-static int hf_tetra_bl_data = -1;                 /* U_BL_DATA */
-static int hf_tetra_bl_udata = -1;                /* U_MLE_PDU */
-static int hf_tetra_bl_ack = -1;                  /* U_BL_ACK */
-static int hf_tetra_bl_adata_fcs = -1;            /* U_BL_ADATA_FCS */
-static int hf_tetra_bl_data_fcs = -1;             /* U_BL_DATA_FCS */
-static int hf_tetra_bl_udata_fcs = -1;            /* U_MLE_PDU_FCS */
-static int hf_tetra_bl_ack_fcs = -1;              /* U_BL_ACK_FCS */
-static int hf_tetra_al_setup = -1;                /* NULL */
-static int hf_tetra_al_data = -1;                 /* NULL */
-static int hf_tetra_al_udata = -1;                /* NULL */
-static int hf_tetra_al_ack = -1;                  /* NULL */
-static int hf_tetra_al_reconnect = -1;            /* NULL */
-static int hf_tetra_reserve1 = -1;                /* NULL */
-static int hf_tetra_reserve2 = -1;                /* NULL */
-static int hf_tetra_al_disc = -1;                 /* NULL */
-static int hf_tetra_nr = -1;                      /* INTEGER_0_1 */
-static int hf_tetra_tl_sdu = -1;                  /* U_MLE_PDU */
-static int hf_tetra_fcs = -1;                     /* OCTET_STRING_SIZE_4 */
-static int hf_tetra_u_mle_pdu = -1;               /* U_MLE_PDU */
-static int hf_tetra_ns = -1;                      /* INTEGER_0_1 */
-static int hf_tetra_u_mle_reserved1 = -1;         /* NULL */
-static int hf_tetra_mm = -1;                      /* U_MM_PDU */
-static int hf_tetra_cmce = -1;                    /* U_CMCE_PDU */
-static int hf_tetra_u_mle_reserved2 = -1;         /* NULL */
-static int hf_tetra_sndcp = -1;                   /* NULL */
-static int hf_tetra_mle = -1;                     /* UMLE_PDU */
-static int hf_tetra_tetra_management_entity_protocol = -1;  /* NULL */
-static int hf_tetra_u_mle_reserved3 = -1;         /* NULL */
-static int hf_tetra_lengthIndicationOrCapacityRequest = -1;  /* T_lengthIndicationOrCapacityRequest */
-static int hf_tetra_lengthIndication = -1;        /* LengthIndication */
-static int hf_tetra_capacityRequest = -1;         /* FRAG */
-static int hf_tetra_tm_sdu_01 = -1;               /* U_LLC_PDU */
-static int hf_tetra_frag = -1;                    /* Frag1 */
-static int hf_tetra_reservation_requirement = -1;  /* SLOT_APPLY */
-static int hf_tetra_lengthIndicationOrCapacityRequest_01 = -1;  /* T_lengthIndicationOrCapacityRequest_01 */
-static int hf_tetra_lengthIndication_01 = -1;     /* LengthIndicationMacData */
-static int hf_tetra_capacityRequest_01 = -1;      /* FRAG6 */
-static int hf_tetra_sub_type = -1;                /* INTEGER_0_1 */
-static int hf_tetra_tm_sdu_02 = -1;               /* BIT_STRING_SIZE_264 */
-static int hf_tetra_tm_sdu_03 = -1;               /* BIT_STRING_SIZE_120 */
-static int hf_tetra_lengthInd_ReservationReq = -1;  /* LengthIndOrReservationReq */
-static int hf_tetra_tm_sdu_04 = -1;               /* BIT_STRING_SIZE_258 */
-static int hf_tetra_pdu_subtype = -1;             /* INTEGER_0_1 */
-static int hf_tetra_tm_sdu_05 = -1;               /* BIT_STRING_SIZE_114 */
-static int hf_tetra_lengthInd_ReservationReq_01 = -1;  /* T_lengthInd_ReservationReq */
-static int hf_tetra_lengthInd = -1;               /* LengthIndMacHu */
-static int hf_tetra_tm_sdu_06 = -1;               /* BIT_STRING_SIZE_85 */
-static int hf_tetra_position_of_grant = -1;       /* Position_Of_Grant */
-static int hf_tetra_lengthIndication_02 = -1;     /* LengthIndicationMacEndDl */
-static int hf_tetra_slot_granting = -1;           /* T_slot_granting */
-static int hf_tetra_none = -1;                    /* NULL */
-static int hf_tetra_slot_granting_param = -1;     /* SlotGranting */
-static int hf_tetra_channel_allocation = -1;      /* T_channel_allocation */
-static int hf_tetra_channel_allocation_element = -1;  /* ChannelAllocation */
-static int hf_tetra_tm_sdu_07 = -1;               /* BIT_STRING_SIZE_255 */
-static int hf_tetra_capacity_allocation = -1;     /* Capacity_Allocation */
-static int hf_tetra_granting_delay = -1;          /* Granting_delay */
-static int hf_tetra_allocation_type = -1;         /* T_allocation_type */
-static int hf_tetra_timeslot_assigned = -1;       /* Timeslot_Assigned */
-static int hf_tetra_up_down_assigned = -1;        /* T_up_down_assigned */
-static int hf_tetra_clch_permission = -1;         /* CLCH_permission */
-static int hf_tetra_cell_change = -1;             /* Cell_change_flag */
-static int hf_tetra_carrier_number = -1;          /* INTEGER_0_4095 */
-static int hf_tetra_extend_carrier_flag = -1;     /* T_extend_carrier_flag */
-static int hf_tetra_extended = -1;                /* Extended_carrier_flag */
-static int hf_tetra_monitoring_pattern = -1;      /* T_monitoring_pattern */
-static int hf_tetra_one = -1;                     /* Monitoring_pattern */
-static int hf_tetra_none1 = -1;                   /* NULL */
-static int hf_tetra_none2 = -1;                   /* NULL */
-static int hf_tetra_none3 = -1;                   /* NULL */
-static int hf_tetra_offset_01 = -1;               /* INTEGER_0_3 */
-static int hf_tetra_reverse_operation_01 = -1;    /* T_reverse_operation */
-static int hf_tetra_pdu_type_02 = -1;             /* INTEGER_0_7 */
-static int hf_tetra_fill_bit_ind = -1;            /* BOOLEAN */
-static int hf_tetra_position_of_grant_01 = -1;    /* INTEGER_0_1 */
-static int hf_tetra_slot_granting_01 = -1;        /* T_slot_granting_01 */
-static int hf_tetra_channel_allocation_01 = -1;   /* T_channel_allocation_01 */
-static int hf_tetra_tm_sdu_08 = -1;               /* BIT_STRING_SIZE_111 */
-static int hf_tetra_encryption_mode = -1;         /* INTEGER_0_3 */
-static int hf_tetra_access_ack = -1;              /* T_access_ack */
-static int hf_tetra_lengthIndication_03 = -1;     /* LengthIndicationMacResource */
-static int hf_tetra_address_01 = -1;              /* AddressMacResource */
-static int hf_tetra_power_control = -1;           /* T_power_control */
-static int hf_tetra_powerParameters = -1;         /* PowerControl */
-static int hf_tetra_slot_granting_02 = -1;        /* T_slot_granting_02 */
-static int hf_tetra_channel_allocation_02 = -1;   /* T_channel_allocation_02 */
-static int hf_tetra_tm_sdu_09 = -1;               /* D_LLC_PDU */
-static int hf_tetra_null_pdu = -1;                /* NULL */
-static int hf_tetra_ssi_01 = -1;                  /* SSI_NEED */
-static int hf_tetra_eventLabel_01 = -1;           /* EVENT_NEED */
-static int hf_tetra_ussi_01 = -1;                 /* USSI_NEED */
-static int hf_tetra_smi_01 = -1;                  /* SMI_NEED */
-static int hf_tetra_ssi_eventLabel = -1;          /* SSI_EVENT_NEED */
-static int hf_tetra_ssi_usage_maker = -1;         /* SSI_USAGE_NEED */
-static int hf_tetra_smi_eventLabel = -1;          /* SMI_EVENT_NEED */
-static int hf_tetra_other = -1;                   /* OTHER_DATA */
-static int hf_tetra_eventlabel = -1;              /* INTEGER_0_1023 */
-static int hf_tetra_ventlabel = -1;               /* INTEGER_0_1023 */
-static int hf_tetra_usage_maker = -1;             /* INTEGER_0_63 */
-static int hf_tetra_smi_eventlabel = -1;          /* BIT_STRING_SIZE_34 */
-static int hf_tetra_broadcast_channel = -1;       /* INTEGER_0_1 */
-static int hf_tetra_access_code = -1;             /* INTEGER_0_3 */
-static int hf_tetra_imm_01 = -1;                  /* INTEGER_0_15 */
-static int hf_tetra_wt_01 = -1;                   /* INTEGER_0_15 */
-static int hf_tetra_nu_01 = -1;                   /* INTEGER_0_15 */
-static int hf_tetra_frame_len_factor_01 = -1;     /* INTEGER_0_1 */
-static int hf_tetra_timeslot_pointer_01 = -1;     /* INTEGER_0_15 */
-static int hf_tetra_min_priority = -1;            /* INTEGER_0_7 */
-static int hf_tetra_optional_field = -1;          /* T_optional_field */
-static int hf_tetra_class_bitmap = -1;            /* INTEGER_0_65535 */
-static int hf_tetra_gssi = -1;                    /* INTEGER_0_33554431 */
-static int hf_tetra_reserved_03 = -1;             /* NULL */
-static int hf_tetra_filler_bits = -1;             /* INTEGER_0_7 */
-static int hf_tetra_bl_adata_01 = -1;             /* D_BL_ADATA */
-static int hf_tetra_bl_data_01 = -1;              /* D_BL_DATA */
-static int hf_tetra_bl_udata_01 = -1;             /* D_MLE_PDU */
-static int hf_tetra_bl_ack_01 = -1;               /* D_BL_ACK */
-static int hf_tetra_bl_adata_fcs_01 = -1;         /* D_BL_ADATA_FCS */
-static int hf_tetra_bl_data_fcs_01 = -1;          /* D_BL_DATA_FCS */
-static int hf_tetra_bl_udata_fcs_01 = -1;         /* D_MLE_PDU_FCS */
-static int hf_tetra_bl_ack_fcs_01 = -1;           /* D_BL_ACK_FCS */
-static int hf_tetra_tl_sdu_01 = -1;               /* D_MLE_PDU */
-static int hf_tetra_d_mle_pdu = -1;               /* D_MLE_PDU */
-static int hf_tetra_mm_01 = -1;                   /* D_MM_PDU */
-static int hf_tetra_cmce_01 = -1;                 /* D_CMCE_PDU */
-static int hf_tetra_mle_01 = -1;                  /* DMLE_PDU */
-static int hf_tetra_u_prepare = -1;               /* U_PREPARE */
-static int hf_tetra_umle_reserved1 = -1;          /* NULL */
-static int hf_tetra_umle_reserved2 = -1;          /* NULL */
-static int hf_tetra_umle_reserved3 = -1;          /* NULL */
-static int hf_tetra_u_restore = -1;               /* U_RESTORE */
-static int hf_tetra_umle_reserved4 = -1;          /* NULL */
-static int hf_tetra_umle_reserved5 = -1;          /* NULL */
-static int hf_tetra_umle_reserved6 = -1;          /* NULL */
-static int hf_tetra_d_new_cell = -1;              /* D_NEW_CELL */
-static int hf_tetra_d_prepare_fail = -1;          /* D_PREPARE_FAIL */
-static int hf_tetra_d_nwrk_broadcast = -1;        /* D_NWRK_BRDADCAST */
-static int hf_tetra_dmle_reserved1 = -1;          /* NULL */
-static int hf_tetra_d_restore_ack = -1;           /* D_RESTORE_ACK */
-static int hf_tetra_d_restore_fail = -1;          /* D_RESTORE_FAIL */
-static int hf_tetra_dmle_reserved2 = -1;          /* NULL */
-static int hf_tetra_dmle_reserved3 = -1;          /* NULL */
-static int hf_tetra_optional_elements = -1;       /* T_optional_elements */
-static int hf_tetra_no_type2 = -1;                /* NULL */
-static int hf_tetra_type2_parameters = -1;        /* T_type2_parameters */
-static int hf_tetra_cell_number = -1;             /* T_cell_number */
-static int hf_tetra_cell_number_01 = -1;          /* INTEGER_0_65535 */
-static int hf_tetra_sdu = -1;                     /* BIT_STRING */
-static int hf_tetra_optional_elements_01 = -1;    /* T_optional_elements_01 */
-static int hf_tetra_type2_parameters_01 = -1;     /* T_type2_parameters_01 */
-static int hf_tetra_mcc_01 = -1;                  /* T_mcc */
-static int hf_tetra_mnc_01 = -1;                  /* T_mnc */
-static int hf_tetra_la_01 = -1;                   /* T_la */
-static int hf_tetra_channel_command_valid = -1;   /* INTEGER_0_3 */
-static int hf_tetra_optional_elements_02 = -1;    /* T_optional_elements_02 */
-static int hf_tetra_fail_cause = -1;              /* INTEGER_0_3 */
-static int hf_tetra_optional_elements_03 = -1;    /* T_optional_elements_03 */
-static int hf_tetra_cell_re_select_parameters = -1;  /* INTEGER_0_65535 */
-static int hf_tetra_optional_elements_04 = -1;    /* T_optional_elements_04 */
-static int hf_tetra_type2_parameters_02 = -1;     /* T_type2_parameters_02 */
-static int hf_tetra_tetra_network_time = -1;      /* T_tetra_network_time */
-static int hf_tetra_tetra_network_time_01 = -1;   /* TETRA_NETWORK_TIME */
-static int hf_tetra_number_of_neighbour_cells = -1;  /* T_number_of_neighbour_cells */
-static int hf_tetra_number_of_neighbour_cells_01 = -1;  /* INTEGER_0_7 */
-static int hf_tetra_network_time = -1;            /* T_network_time */
-static int hf_tetra_local_time_offset_sign = -1;  /* INTEGER_0_1 */
-static int hf_tetra_local_time_offset = -1;       /* INTEGER_0_63 */
-static int hf_tetra_year = -1;                    /* INTEGER_0_63 */
-static int hf_tetra_reserved_04 = -1;             /* T_reserved */
-static int hf_tetra_u_Authentication = -1;        /* NULL */
-static int hf_tetra_u_Itsi_Detach = -1;           /* NULL */
-static int hf_tetra_u_Location_Update_Demand = -1;  /* U_LOCATION_UPDATE_DEMAND */
-static int hf_tetra_u_MM_Status = -1;             /* U_MM_STATUS */
-static int hf_tetra_u_MM_reserved1 = -1;          /* NULL */
-static int hf_tetra_u_WK = -1;                    /* NULL */
-static int hf_tetra_u_MM_reserved3 = -1;          /* NULL */
-static int hf_tetra_u_Attach_Detach_Group_Identity = -1;  /* U_ATTACH_DETACH_GROUP_IDENTITY */
-static int hf_tetra_u_Attach_Detach_Group_Identity_Ack = -1;  /* U_ATTACH_DETACH_GROUP_IDENTITY_ACK */
-static int hf_tetra_u_TEI_Provide = -1;           /* NULL */
-static int hf_tetra_u_MM_reserved6 = -1;          /* NULL */
-static int hf_tetra_u_Disabled_Status = -1;       /* NULL */
-static int hf_tetra_u_MM_reserved7 = -1;          /* NULL */
-static int hf_tetra_u_MM_reserved8 = -1;          /* NULL */
-static int hf_tetra_u_MM_reserved9 = -1;          /* NULL */
-static int hf_tetra_u_MM_Function_Not_Support = -1;  /* NULL */
-static int hf_tetra_d_Otar = -1;                  /* NULL */
-static int hf_tetra_d_Authentication = -1;        /* NULL */
-static int hf_tetra_d_Authentication_Reject = -1;  /* NULL */
-static int hf_tetra_d_Disable = -1;               /* NULL */
-static int hf_tetra_d_Enable = -1;                /* NULL */
-static int hf_tetra_d_Location_Update_Accept = -1;  /* D_LOCATION_UPDATE_ACCEPT */
-static int hf_tetra_d_Location_Update_Command = -1;  /* NULL */
-static int hf_tetra_d_Location_Update_Reject = -1;  /* D_LOCATION_UPDATE_REJECT */
-static int hf_tetra_d_MM_reserved2 = -1;          /* NULL */
-static int hf_tetra_d_Location_Update_Proceeding = -1;  /* NULL */
-static int hf_tetra_d_Attach_Detach_Group_Identity = -1;  /* D_ATTACH_DETACH_GROUP_IDENTITY */
-static int hf_tetra_d_Attach_Detach_Group_Identity_Ack = -1;  /* D_ATTACH_DETACH_GROUP_IDENTITY_ACK */
-static int hf_tetra_d_MM_Status = -1;             /* D_MM_STATUS */
-static int hf_tetra_d_MM_reserved5 = -1;          /* NULL */
-static int hf_tetra_d_MM_reserved6 = -1;          /* NULL */
-static int hf_tetra_d_MM_Function_Not_Support = -1;  /* NULL */
-static int hf_tetra_attach_detach_identifier = -1;  /* T_attach_detach_identifier */
-static int hf_tetra_attach = -1;                  /* T_attach */
-static int hf_tetra_lifetime = -1;                /* INTEGER_0_3 */
-static int hf_tetra_class_of_usage = -1;          /* INTEGER_0_7 */
-static int hf_tetra_detach = -1;                  /* T_detach */
-static int hf_tetra_detach_downlike = -1;         /* T_detach_downlike */
-static int hf_tetra_address_type = -1;            /* T_address_type */
-static int hf_tetra_gssi_01 = -1;                 /* OCTET_STRING_SIZE_3 */
-static int hf_tetra_gssi_extension = -1;          /* T_gssi_extension */
-static int hf_tetra_extension = -1;               /* OCTET_STRING_SIZE_3 */
-static int hf_tetra_vgssi = -1;                   /* OCTET_STRING_SIZE_3 */
-static int hf_tetra_attach_detach_identifier_01 = -1;  /* T_attach_detach_identifier_01 */
-static int hf_tetra_attach_01 = -1;               /* T_attach_01 */
-static int hf_tetra_detach_01 = -1;               /* T_detach_01 */
-static int hf_tetra_detach_uplike = -1;           /* T_detach_uplike */
-static int hf_tetra_address_type_01 = -1;         /* T_address_type_01 */
-static int hf_tetra_gssi_extension_01 = -1;       /* T_gssi_extension_01 */
-static int hf_tetra_location_update_type = -1;    /* UPDATE_TYPE */
-static int hf_tetra_optional_elements_05 = -1;    /* T_optional_elements_05 */
-static int hf_tetra_type2_parameters_03 = -1;     /* T_type2_parameters_03 */
-static int hf_tetra_ssi_02 = -1;                  /* T_ssi */
-static int hf_tetra_ssi_03 = -1;                  /* OCTET_STRING_SIZE_3 */
-static int hf_tetra_address_extension = -1;       /* T_address_extension */
-static int hf_tetra_address_extension_01 = -1;    /* OCTET_STRING_SIZE_3 */
-static int hf_tetra_subscriber_class_01 = -1;     /* T_subscriber_class */
-static int hf_tetra_energy_saving_mode = -1;      /* T_energy_saving_mode */
-static int hf_tetra_energy_saving_mode_01 = -1;   /* INTEGER_0_7 */
-static int hf_tetra_scch_info = -1;               /* T_scch_info */
-static int hf_tetra_scch_info_01 = -1;            /* INTEGER_0_16383 */
-static int hf_tetra_type3 = -1;                   /* T_type3 */
-static int hf_tetra_no_type3 = -1;                /* NULL */
-static int hf_tetra_type3_elements = -1;          /* T_type3_elements */
-static int hf_tetra_type2_existance = -1;         /* BOOLEAN */
-static int hf_tetra_type3_identifier = -1;        /* TYPE3_IDENTIFIER */
-static int hf_tetra_new_ra = -1;                  /* T_new_ra */
-static int hf_tetra_new_ra_01 = -1;               /* INTEGER_0_3 */
-static int hf_tetra_group_identity_location_accept = -1;  /* T_group_identity_location_accept */
-static int hf_tetra_group_identity_location_accept_01 = -1;  /* INTEGER_0_3 */
-static int hf_tetra_group_predefined_lifetime = -1;  /* T_group_predefined_lifetime */
-static int hf_tetra_group_predefined_lifetime_01 = -1;  /* INTEGER_0_3 */
-static int hf_tetra_group_identity_downlink = -1;  /* T_group_identity_downlink */
-static int hf_tetra_group_identity_downlink_01 = -1;  /* INTEGER_0_15 */
-static int hf_tetra_proprietary = -1;             /* T_proprietary */
-static int hf_tetra_proprietary_01 = -1;          /* INTEGER_0_7 */
-static int hf_tetra_reject_cause = -1;            /* INTEGER_0_31 */
-static int hf_tetra_cipher_control = -1;          /* BOOLEAN */
-static int hf_tetra_status_uplink = -1;           /* INTEGER_0_63 */
-static int hf_tetra_scanning_on_off = -1;         /* T_scanning_on_off */
-static int hf_tetra_status_downlink = -1;         /* INTEGER_0_63 */
-static int hf_tetra_u_Alert = -1;                 /* U_ALERT */
-static int hf_tetra_reserved1 = -1;               /* NULL */
-static int hf_tetra_u_Connect = -1;               /* U_CONNECT */
-static int hf_tetra_reserved2 = -1;               /* NULL */
-static int hf_tetra_u_Disconnect = -1;            /* U_DISCONNECT */
-static int hf_tetra_u_Info = -1;                  /* U_INFO */
-static int hf_tetra_u_Release = -1;               /* U_RELEASE */
-static int hf_tetra_u_Setup = -1;                 /* U_SETUP */
-static int hf_tetra_u_Status = -1;                /* U_STATUS */
-static int hf_tetra_u_Tx_Ceased = -1;             /* U_TX_CEASED */
-static int hf_tetra_u_Tx_Demand = -1;             /* U_TX_DEMAND */
-static int hf_tetra_reserved3 = -1;               /* NULL */
-static int hf_tetra_reserved4 = -1;               /* NULL */
-static int hf_tetra_reserved5 = -1;               /* NULL */
-static int hf_tetra_u_Call_Restore = -1;          /* U_CALL_RESTORE */
-static int hf_tetra_u_SDS_Data = -1;              /* U_SDS_DATA */
-static int hf_tetra_u_Facility = -1;              /* NULL */
-static int hf_tetra_call_identifier = -1;         /* INTEGER_0_16383 */
-static int hf_tetra_disconnect_cause = -1;        /* INTEGER_0_31 */
-static int hf_tetra_area_selection = -1;          /* INTEGER_0_15 */
-static int hf_tetra_called_party_type_identifier = -1;  /* T_called_party_type_identifier */
-static int hf_tetra_sna = -1;                     /* INTEGER_0_255 */
-static int hf_tetra_ssi_extension = -1;           /* BIT_STRING_SIZE_48 */
-static int hf_tetra_short_data_type_identifier = -1;  /* T_short_data_type_identifier */
-static int hf_tetra_data_1 = -1;                  /* INTEGER_0_65535 */
-static int hf_tetra_data_2 = -1;                  /* OCTET_STRING_SIZE_4 */
-static int hf_tetra_data_3 = -1;                  /* BIT_STRING_SIZE_64 */
-static int hf_tetra_length_indicator_data_4 = -1;  /* INTEGER_0_4194304 */
-static int hf_tetra_called_party_type_identifier_01 = -1;  /* T_called_party_type_identifier_01 */
-static int hf_tetra_short_number_address = -1;    /* INTEGER_0_255 */
-static int hf_tetra_called_ssi_called_extension = -1;  /* BIT_STRING_SIZE_48 */
-static int hf_tetra_pre_coded_status = -1;        /* INTEGER_0_65535 */
-static int hf_tetra_call_id = -1;                 /* INTEGER_0_16383 */
-static int hf_tetra_poll_response = -1;           /* INTEGER_0_1 */
-static int hf_tetra_d_Alert = -1;                 /* D_ALERT */
-static int hf_tetra_d_Call_Proceeding = -1;       /* D_CALL_PROCEEDING */
-static int hf_tetra_d_Connect = -1;               /* D_CONNECT */
-static int hf_tetra_d_Connect_Ack = -1;           /* D_CONNECT_ACK */
-static int hf_tetra_d_Disconnect = -1;            /* D_DISCONNECT */
-static int hf_tetra_d_Info = -1;                  /* D_INFO */
-static int hf_tetra_d_Release = -1;               /* D_RELEASE */
-static int hf_tetra_d_Setup = -1;                 /* D_SETUP */
-static int hf_tetra_d_Status = -1;                /* D_STATUS */
-static int hf_tetra_d_Tx_Ceased = -1;             /* D_TX_CEASED */
-static int hf_tetra_d_Tx_Continue = -1;           /* D_TX_CONTINUE */
-static int hf_tetra_d_Tx_Granted = -1;            /* D_TX_GRANTED */
-static int hf_tetra_d_Tx_Wait = -1;               /* D_TX_WAIT */
-static int hf_tetra_d_Tx_Interrupt = -1;          /* NULL */
-static int hf_tetra_d_Call_Restore = -1;          /* D_CALL_RESTORE */
-static int hf_tetra_d_SDS_Data = -1;              /* D_SDS_DATA */
-static int hf_tetra_d_Facility = -1;              /* NULL */
-static int hf_tetra_calling_party_type_identifier = -1;  /* T_calling_party_type_identifier */
-static int hf_tetra_ssi_extension_01 = -1;        /* OCTET_STRING_SIZE_6 */
-static int hf_tetra_short_data_type_identifier_01 = -1;  /* T_short_data_type_identifier_01 */
-static int hf_tetra_data_3_01 = -1;               /* OCTET_STRING_SIZE_8 */
-static int hf_tetra_calling_party_type_identifier_01 = -1;  /* T_calling_party_type_identifier_01 */
-static int hf_tetra_calling_party_address_SSI = -1;  /* INTEGER_0_16777215 */
-static int hf_tetra_reset_call_time_out_timer = -1;  /* INTEGER_0_1 */
-static int hf_tetra_poll_request = -1;            /* INTEGER_0_1 */
-static int hf_tetra_transmission_request_permission = -1;  /* INTEGER_0_1 */
-static int hf_tetra_continue = -1;                /* INTEGER_0_1 */
-static int hf_tetra_request_to_append_LA = -1;    /* BOOLEAN */
-static int hf_tetra_cipher_control_01 = -1;       /* T_cipher_control */
-static int hf_tetra_no_cipher = -1;               /* NULL */
-static int hf_tetra_ciphering_parameters = -1;    /* INTEGER_0_1023 */
-static int hf_tetra_optional_elements_06 = -1;    /* T_optional_elements_06 */
-static int hf_tetra_type2_parameters_04 = -1;     /* T_type2_parameters_04 */
-static int hf_tetra_class_of_MS = -1;             /* T_class_of_MS */
-static int hf_tetra_class_of_MS_01 = -1;          /* INTEGER_0_16777215 */
-static int hf_tetra_energy_saving_mode_02 = -1;   /* T_energy_saving_mode_01 */
-static int hf_tetra_la_information = -1;          /* T_la_information */
-static int hf_tetra_la_information_01 = -1;       /* INTEGER_0_16383 */
-static int hf_tetra_ssi_04 = -1;                  /* T_ssi_01 */
-static int hf_tetra_address_extension_02 = -1;    /* T_address_extension_01 */
-static int hf_tetra_type3_01 = -1;                /* T_type3_01 */
-static int hf_tetra_type3_elements_01 = -1;       /* T_type3_elements_01 */
-static int hf_tetra_group_identity_location_demand = -1;  /* T_group_identity_location_demand */
-static int hf_tetra_group_identity_location_demand_01 = -1;  /* INTEGER_0_3 */
-static int hf_tetra_group_report_response = -1;   /* T_group_report_response */
-static int hf_tetra_group_report_response_01 = -1;  /* BOOLEAN */
-static int hf_tetra_group_identity_uplink = -1;   /* T_group_identity_uplink */
-static int hf_tetra_group_identity_uplink_01 = -1;  /* INTEGER_0_15 */
-static int hf_tetra_proprietary_02 = -1;          /* T_proprietary_01 */
-static int hf_tetra_group_identity_report = -1;   /* BOOLEAN */
-static int hf_tetra_group_identity_attach_detach_mode = -1;  /* BOOLEAN */
-static int hf_tetra_optional_elements_07 = -1;    /* T_optional_elements_07 */
-static int hf_tetra_type2_element = -1;           /* T_type2_element */
-static int hf_tetra_type3_02 = -1;                /* T_type3_02 */
-static int hf_tetra_type3_elements_02 = -1;       /* T_type3_elements_02 */
-static int hf_tetra_length = -1;                  /* INTEGER_0_2047 */
-static int hf_tetra_repeat_num = -1;              /* INTEGER_0_63 */
-static int hf_tetra_group_identity_uplink_02 = -1;  /* GROUP_IDENTITY_UPLINK */
-static int hf_tetra_group_identity_ack_type = -1;  /* BOOLEAN */
-static int hf_tetra_optional_elements_08 = -1;    /* T_optional_elements_08 */
-static int hf_tetra_type2_element_01 = -1;        /* T_type2_element_01 */
-static int hf_tetra_type3_03 = -1;                /* T_type3_03 */
-static int hf_tetra_type3_elements_03 = -1;       /* T_type3_elements_03 */
-static int hf_tetra_hook_method_selection = -1;   /* BOOLEAN */
-static int hf_tetra_simple_duplex_selection = -1;  /* T_simple_duplex_selection */
-static int hf_tetra_basic_service_information = -1;  /* Basic_service_information */
-static int hf_tetra_request_transmit_send_data = -1;  /* INTEGER_0_1 */
-static int hf_tetra_call_priority = -1;           /* INTEGER_0_15 */
-static int hf_tetra_clir_control = -1;            /* INTEGER_0_3 */
-static int hf_tetra_called_party_address = -1;    /* Called_party_address_type */
-static int hf_tetra_optional_elements_09 = -1;    /* T_optional_elements_09 */
-static int hf_tetra_type2_parameters_05 = -1;     /* T_type2_parameters_05 */
-static int hf_tetra_external_subscriber_number = -1;  /* T_external_subscriber_number */
-static int hf_tetra_external_subscriber_number_01 = -1;  /* INTEGER_0_31 */
-static int hf_tetra_prop = -1;                    /* T_prop */
-static int hf_tetra_prop_01 = -1;                 /* Proprietary */
-static int hf_tetra_circuit_mode = -1;            /* CIRCUIT */
-static int hf_tetra_encryption = -1;              /* INTEGER_0_1 */
-static int hf_tetra_communication = -1;           /* INTEGER_0_3 */
-static int hf_tetra_slots_or_speech = -1;         /* INTEGER_0_3 */
-static int hf_tetra_call_identifier_01 = -1;      /* INTEGER_0_1023 */
-static int hf_tetra_simplex_duplex_selection = -1;  /* T_simplex_duplex_selection */
-static int hf_tetra_optional_elements_10 = -1;    /* T_optional_elements_10 */
-static int hf_tetra_type2_parameters_06 = -1;     /* T_type2_parameters_06 */
-static int hf_tetra_basic_service_information_01 = -1;  /* T_basic_service_information */
-static int hf_tetra_prop_02 = -1;                 /* T_prop_01 */
-static int hf_tetra_simplex_duplex_selection_01 = -1;  /* T_simplex_duplex_selection_01 */
-static int hf_tetra_optional_elements_11 = -1;    /* T_optional_elements_11 */
-static int hf_tetra_type2_parameters_07 = -1;     /* T_type2_parameters_07 */
-static int hf_tetra_basic_service_information_02 = -1;  /* T_basic_service_information_01 */
-static int hf_tetra_prop_03 = -1;                 /* T_prop_02 */
-static int hf_tetra_optional_elements_12 = -1;    /* T_optional_elements_12 */
-static int hf_tetra_type2_parameters_08 = -1;     /* T_type2_parameters_08 */
-static int hf_tetra_prop_04 = -1;                 /* T_prop_03 */
-static int hf_tetra_tx_demand_priority = -1;      /* INTEGER_0_3 */
-static int hf_tetra_encryption_control = -1;      /* INTEGER_0_1 */
-static int hf_tetra_optional_elements_13 = -1;    /* T_optional_elements_13 */
-static int hf_tetra_type2_parameters_09 = -1;     /* T_type2_parameters_09 */
-static int hf_tetra_prop_05 = -1;                 /* T_prop_04 */
-static int hf_tetra_optional_elements_14 = -1;    /* T_optional_elements_14 */
-static int hf_tetra_type2_parameters_10 = -1;     /* T_type2_parameters_10 */
-static int hf_tetra_prop_06 = -1;                 /* T_prop_05 */
-static int hf_tetra_request_to_transmit_send_data = -1;  /* INTEGER_0_1 */
-static int hf_tetra_other_party_address = -1;     /* Other_party_address_type */
-static int hf_tetra_optional_elements_15 = -1;    /* T_optional_elements_15 */
-static int hf_tetra_type2_parameters_11 = -1;     /* T_type2_parameters_11 */
-static int hf_tetra_prop_07 = -1;                 /* T_prop_06 */
-static int hf_tetra_call_time_out = -1;           /* INTEGER_0_15 */
-static int hf_tetra_hook_method_selection_01 = -1;  /* INTEGER_0_1 */
-static int hf_tetra_simplex_duplex_selection_02 = -1;  /* T_simplex_duplex_selection_02 */
-static int hf_tetra_transmission_grant = -1;      /* INTEGER_0_3 */
-static int hf_tetra_optional_elements_16 = -1;    /* T_optional_elements_16 */
-static int hf_tetra_type2_parameters_12 = -1;     /* T_type2_parameters_12 */
-static int hf_tetra_calling_party_address = -1;   /* T_calling_party_address */
-static int hf_tetra_calling_party_address_01 = -1;  /* Calling_party_address_type */
-static int hf_tetra_external_subscriber_number_02 = -1;  /* T_external_subscriber_number_01 */
-static int hf_tetra_external_subscriber_number_03 = -1;  /* INTEGER_0_15 */
-static int hf_tetra_prop_08 = -1;                 /* T_prop_07 */
-static int hf_tetra_call_time_out_setup_phase = -1;  /* INTEGER_0_7 */
-static int hf_tetra_simplex_duplex_selection_03 = -1;  /* INTEGER_0_1 */
-static int hf_tetra_optional_elements_17 = -1;    /* T_optional_elements_17 */
-static int hf_tetra_type2_parameters_13 = -1;     /* T_type2_parameters_13 */
-static int hf_tetra_basic_service_information_03 = -1;  /* T_basic_service_information_02 */
-static int hf_tetra_call_status = -1;             /* T_call_status */
-static int hf_tetra_call_status_01 = -1;          /* INTEGER_0_7 */
-static int hf_tetra_notification_indicator = -1;  /* T_notification_indicator */
-static int hf_tetra_notification_indicator_01 = -1;  /* INTEGER_0_63 */
-static int hf_tetra_prop_09 = -1;                 /* T_prop_08 */
-static int hf_tetra_simplex_duplex_selection_04 = -1;  /* T_simplex_duplex_selection_03 */
-static int hf_tetra_call_queued = -1;             /* BOOLEAN */
-static int hf_tetra_optional_elements_18 = -1;    /* T_optional_elements_18 */
-static int hf_tetra_type2_parameters_14 = -1;     /* T_type2_parameters_14 */
-static int hf_tetra_basic_service_infomation = -1;  /* T_basic_service_infomation */
-static int hf_tetra_basic_service_infomation_01 = -1;  /* Basic_service_information */
-static int hf_tetra_notification_indicator_02 = -1;  /* T_notification_indicator_01 */
-static int hf_tetra_prop_10 = -1;                 /* T_prop_09 */
-static int hf_tetra_call_time_out_01 = -1;        /* INTEGER_0_31 */
-static int hf_tetra_simplex_duplex_selection_05 = -1;  /* T_simplex_duplex_selection_04 */
-static int hf_tetra_call_ownership = -1;          /* INTEGER_0_1 */
-static int hf_tetra_optional_elements_19 = -1;    /* T_optional_elements_19 */
-static int hf_tetra_type2_parameters_15 = -1;     /* T_type2_parameters_15 */
-static int hf_tetra_call_priority_01 = -1;        /* T_call_priority */
-static int hf_tetra_basic_service_information_04 = -1;  /* T_basic_service_information_03 */
-static int hf_tetra_temporary_address = -1;       /* T_temporary_address */
-static int hf_tetra_temporary_address_01 = -1;    /* Calling_party_address_type */
-static int hf_tetra_notification_indicator_03 = -1;  /* T_notification_indicator_02 */
-static int hf_tetra_prop_11 = -1;                 /* T_prop_10 */
-static int hf_tetra_optional_elements_20 = -1;    /* T_optional_elements_20 */
-static int hf_tetra_type2_parameters_16 = -1;     /* T_type2_parameters_16 */
-static int hf_tetra_notification_indicator_04 = -1;  /* T_notification_indicator_03 */
-static int hf_tetra_prop_12 = -1;                 /* T_prop_11 */
-static int hf_tetra_optional_elements_21 = -1;    /* T_optional_elements_21 */
-static int hf_tetra_type2_parameters_17 = -1;     /* T_type2_parameters_17 */
-static int hf_tetra_notification_indicator_05 = -1;  /* T_notification_indicator_04 */
-static int hf_tetra_prop_13 = -1;                 /* T_prop_12 */
-static int hf_tetra_reset_call_time_out = -1;     /* INTEGER_0_1 */
-static int hf_tetra_optional_elements_22 = -1;    /* T_optional_elements_22 */
-static int hf_tetra_type2_parameters_18 = -1;     /* T_type2_parameters_18 */
-static int hf_tetra_new_call_identifier = -1;     /* T_new_call_identifier */
-static int hf_tetra_new_call_identifier_01 = -1;  /* INTEGER_0_1023 */
-static int hf_tetra_call_time_out_02 = -1;        /* T_call_time_out */
-static int hf_tetra_call_time_out_03 = -1;        /* INTEGER_0_7 */
-static int hf_tetra_call_status_02 = -1;          /* T_call_status_01 */
-static int hf_tetra_modify = -1;                  /* T_modify */
-static int hf_tetra_modify_01 = -1;               /* Modify_type */
-static int hf_tetra_notification_indicator_06 = -1;  /* T_notification_indicator_05 */
-static int hf_tetra_prop_14 = -1;                 /* T_prop_13 */
-static int hf_tetra_optional_elements_23 = -1;    /* T_optional_elements_23 */
-static int hf_tetra_type2_parameters_19 = -1;     /* T_type2_parameters_19 */
-static int hf_tetra_notification_indicator_07 = -1;  /* T_notification_indicator_06 */
-static int hf_tetra_prop_15 = -1;                 /* T_prop_14 */
-static int hf_tetra_group_identity_ack_request = -1;  /* BOOLEAN */
-static int hf_tetra_optional_elements_24 = -1;    /* T_optional_elements_24 */
-static int hf_tetra_type2_element_02 = -1;        /* T_type2_element_02 */
-static int hf_tetra_type3_04 = -1;                /* T_type3_04 */
-static int hf_tetra_type3_elements_04 = -1;       /* T_type3_elements_04 */
-static int hf_tetra_group_identity_downlink_02 = -1;  /* GROUP_IDENTITY_DOWNLINK */
-static int hf_tetra_group_identity_attach_detach_accept = -1;  /* BOOLEAN */
-static int hf_tetra_optional_elements_25 = -1;    /* T_optional_elements_25 */
-static int hf_tetra_type2_element_03 = -1;        /* T_type2_element_03 */
-static int hf_tetra_type3_05 = -1;                /* T_type3_05 */
-static int hf_tetra_type3_elements_05 = -1;       /* T_type3_elements_05 */
-static int hf_tetra_called_party_sna = -1;        /* INTEGER_0_255 */
-static int hf_tetra_called_party_ssi = -1;        /* INTEGER_0_16777215 */
-static int hf_tetra_called_party_ssi_extension = -1;  /* T_called_party_ssi_extension */
-static int hf_tetra_called_party_extention = -1;  /* INTEGER_0_16777215 */
-static int hf_tetra_data_01 = -1;                 /* T_data_01 */
-static int hf_tetra_element1 = -1;                /* Type1 */
-static int hf_tetra_element = -1;                 /* Type2 */
-static int hf_tetra_proprietary_element_owner = -1;  /* Proprietary_element_owner */
-static int hf_tetra_proprietary_element_owner_extension = -1;  /* BIT_STRING */
-static int hf_tetra_simplex_duplex_selection_06 = -1;  /* T_simplex_duplex_selection_05 */
+static int hf_tetra_AACH_PDU;                     /* AACH */
+static int hf_tetra_BSCH_PDU;                     /* BSCH */
+static int hf_tetra_BNCH_PDU;                     /* BNCH */
+static int hf_tetra_MAC_ACCESS_PDU;               /* MAC_ACCESS */
+static int hf_tetra_MAC_DATA_PDU;                 /* MAC_DATA */
+static int hf_tetra_MAC_FRAG_PDU;                 /* MAC_FRAG */
+static int hf_tetra_MAC_FRAG120_PDU;              /* MAC_FRAG120 */
+static int hf_tetra_MAC_END_UPLINK_PDU;           /* MAC_END_UPLINK */
+static int hf_tetra_MAC_END_UP114_PDU;            /* MAC_END_UP114 */
+static int hf_tetra_MAC_END_HU_PDU;               /* MAC_END_HU */
+static int hf_tetra_MAC_END_DOWNLINK_PDU;         /* MAC_END_DOWNLINK */
+static int hf_tetra_MAC_END_DOWN111_PDU;          /* MAC_END_DOWN111 */
+static int hf_tetra_MAC_RESOURCE_PDU;             /* MAC_RESOURCE */
+static int hf_tetra_MAC_ACCESS_DEFINE_PDU;        /* MAC_ACCESS_DEFINE */
+static int hf_tetra_function;                     /* INTEGER_0_3 */
+static int hf_tetra_field1;                       /* INTEGER_0_63 */
+static int hf_tetra_field2;                       /* INTEGER_0_63 */
+static int hf_tetra_system_code;                  /* System_Code */
+static int hf_tetra_colour_code;                  /* Colour_Code */
+static int hf_tetra_timeslot_number;              /* Timeslot_Number */
+static int hf_tetra_frame_number;                 /* Frame_Number */
+static int hf_tetra_multiple_frame_number;        /* Multiple_Frame_Number */
+static int hf_tetra_sharing_mod;                  /* Sharing_Mod */
+static int hf_tetra_ts_reserved_frames;           /* TS_Reserved_Frames */
+static int hf_tetra_u_plane_dtx;                  /* U_Plane_DTX */
+static int hf_tetra_frame_18_extension;           /* Frame_18_Extension */
+static int hf_tetra_reserved;                     /* Reserved */
+static int hf_tetra_tm_sdu;                       /* MLE_Sync */
+static int hf_tetra_mcc;                          /* INTEGER_0_1023 */
+static int hf_tetra_mnc;                          /* INTEGER_0_16383 */
+static int hf_tetra_neighbour_cell_broadcast;     /* INTEGER_0_3 */
+static int hf_tetra_cell_service_level;           /* INTEGER_0_3 */
+static int hf_tetra_late_entry_information;       /* INTEGER_0_1 */
+static int hf_tetra_pdu_type;                     /* INTEGER_0_3 */
+static int hf_tetra_broadcast_type;               /* INTEGER_0_3 */
+static int hf_tetra_main_carrier;                 /* INTEGER_0_4095 */
+static int hf_tetra_frequency_band;               /* INTEGER_0_15 */
+static int hf_tetra_offset;                       /* Offset */
+static int hf_tetra_duplex_spacing;               /* INTEGER_0_7 */
+static int hf_tetra_reverse_operation;            /* Reverse_Operation */
+static int hf_tetra_sencond_ctl_carrier;          /* Sencond_Ctl_Carrier */
+static int hf_tetra_ms_txpwr_max_cell;            /* MS_TXPWR_MAX_CELL */
+static int hf_tetra_rxlev_access_min;             /* RXLEV_ACCESS_MIN */
+static int hf_tetra_access_parameter;             /* ACCESS_PARAMETER */
+static int hf_tetra_radio_downlink_timeout;       /* RADIO_DOWNLINK_TIMEOUT */
+static int hf_tetra_hyperframe_or_cck;            /* T_hyperframe_or_cck */
+static int hf_tetra_hyperframe;                   /* INTEGER_0_65535 */
+static int hf_tetra_cckid;                        /* INTEGER_0_65535 */
+static int hf_tetra_optional_params;              /* T_optional_params */
+static int hf_tetra_even_multiframe;              /* TS_COMMON_FRAMES */
+static int hf_tetra_odd_multiframe;               /* TS_COMMON_FRAMES */
+static int hf_tetra_access_a_code;                /* Default_Code_A */
+static int hf_tetra_extend_service;               /* Extended_Services_Broadcast */
+static int hf_tetra_la;                           /* INTEGER_0_16383 */
+static int hf_tetra_subscriber_class;             /* Subscriber_class */
+static int hf_tetra_registriation;                /* INTEGER_0_1 */
+static int hf_tetra_de_registration;              /* INTEGER_0_1 */
+static int hf_tetra_priority_cell;                /* INTEGER_0_1 */
+static int hf_tetra_minimum_mode_service;         /* INTEGER_0_1 */
+static int hf_tetra_migration;                    /* INTEGER_0_1 */
+static int hf_tetra_system_wide_service;          /* INTEGER_0_1 */
+static int hf_tetra_tetra_voice_service;          /* INTEGER_0_1 */
+static int hf_tetra_circuit_mode_data_service;    /* INTEGER_0_1 */
+static int hf_tetra_reserved_01;                  /* INTEGER_0_1 */
+static int hf_tetra_sndcp_service;                /* INTEGER_0_1 */
+static int hf_tetra_air_interface_encryption;     /* INTEGER_0_1 */
+static int hf_tetra_advanced_link_support;        /* INTEGER_0_1 */
+static int hf_tetra_frame1;                       /* FRAME */
+static int hf_tetra_frame2;                       /* FRAME */
+static int hf_tetra_frame3;                       /* FRAME */
+static int hf_tetra_frame4;                       /* FRAME */
+static int hf_tetra_frame5;                       /* FRAME */
+static int hf_tetra_frame6;                       /* FRAME */
+static int hf_tetra_frame7;                       /* FRAME */
+static int hf_tetra_frame8;                       /* FRAME */
+static int hf_tetra_frame9;                       /* FRAME */
+static int hf_tetra_frame10;                      /* FRAME */
+static int hf_tetra_frame11;                      /* FRAME */
+static int hf_tetra_frame12;                      /* FRAME */
+static int hf_tetra_frame13;                      /* FRAME */
+static int hf_tetra_frame14;                      /* FRAME */
+static int hf_tetra_frame15;                      /* FRAME */
+static int hf_tetra_frame16;                      /* FRAME */
+static int hf_tetra_frame17;                      /* FRAME */
+static int hf_tetra_frame18;                      /* FRAME */
+static int hf_tetra_imm;                          /* IMM */
+static int hf_tetra_wt;                           /* WT */
+static int hf_tetra_nu;                           /* NU */
+static int hf_tetra_frame_len_factor;             /* Frame_Len_Factor */
+static int hf_tetra_timeslot_pointer;             /* Timeslot_Pointer */
+static int hf_tetra_min_pdu_priority;             /* Min_Pdu_Priority */
+static int hf_tetra_security_information;         /* INTEGER_0_255 */
+static int hf_tetra_sds_tl_addressing_method;     /* SDS_TL_Addressing_Method */
+static int hf_tetra_gck_supported;                /* INTEGER_0_1 */
+static int hf_tetra_section;                      /* T_section */
+static int hf_tetra_present_1;                    /* PRESENT1 */
+static int hf_tetra_present_2;                    /* INTEGER_0_127 */
+static int hf_tetra_present_3;                    /* INTEGER_0_127 */
+static int hf_tetra_present_4;                    /* INTEGER_0_127 */
+static int hf_tetra_data_priority_supported;      /* Data_Priority_Supported */
+static int hf_tetra_reserved_02;                  /* INTEGER_0_7 */
+static int hf_tetra_section_2_information;        /* Section_Information */
+static int hf_tetra_section_3_information;        /* Section_Information */
+static int hf_tetra_section_4_information;        /* Section_Information */
+static int hf_tetra_pdu_type_01;                  /* INTEGER_0_1 */
+static int hf_tetra_fill_bit_indication;          /* Fill_Bit_Indication */
+static int hf_tetra_encrypted_flag;               /* Encrypted_Flag */
+static int hf_tetra_address;                      /* Address */
+static int hf_tetra_data;                         /* T_data */
+static int hf_tetra_sdu1;                         /* U_LLC_PDU */
+static int hf_tetra_sdu2;                         /* ComplexSDU */
+static int hf_tetra_ssi;                          /* INTEGER_0_16777215 */
+static int hf_tetra_eventLabel;                   /* INTEGER_0_1023 */
+static int hf_tetra_ussi;                         /* INTEGER_0_16777215 */
+static int hf_tetra_smi;                          /* INTEGER_0_16777215 */
+static int hf_tetra_bl_adata;                     /* U_BL_ADATA */
+static int hf_tetra_bl_data;                      /* U_BL_DATA */
+static int hf_tetra_bl_udata;                     /* U_MLE_PDU */
+static int hf_tetra_bl_ack;                       /* U_BL_ACK */
+static int hf_tetra_bl_adata_fcs;                 /* U_BL_ADATA_FCS */
+static int hf_tetra_bl_data_fcs;                  /* U_BL_DATA_FCS */
+static int hf_tetra_bl_udata_fcs;                 /* U_MLE_PDU_FCS */
+static int hf_tetra_bl_ack_fcs;                   /* U_BL_ACK_FCS */
+static int hf_tetra_al_setup;                     /* NULL */
+static int hf_tetra_al_data;                      /* NULL */
+static int hf_tetra_al_udata;                     /* NULL */
+static int hf_tetra_al_ack;                       /* NULL */
+static int hf_tetra_al_reconnect;                 /* NULL */
+static int hf_tetra_reserve1;                     /* NULL */
+static int hf_tetra_reserve2;                     /* NULL */
+static int hf_tetra_al_disc;                      /* NULL */
+static int hf_tetra_nr;                           /* INTEGER_0_1 */
+static int hf_tetra_tl_sdu;                       /* U_MLE_PDU */
+static int hf_tetra_fcs;                          /* OCTET_STRING_SIZE_4 */
+static int hf_tetra_u_mle_pdu;                    /* U_MLE_PDU */
+static int hf_tetra_ns;                           /* INTEGER_0_1 */
+static int hf_tetra_u_mle_reserved1;              /* NULL */
+static int hf_tetra_mm;                           /* U_MM_PDU */
+static int hf_tetra_cmce;                         /* U_CMCE_PDU */
+static int hf_tetra_u_mle_reserved2;              /* NULL */
+static int hf_tetra_sndcp;                        /* NULL */
+static int hf_tetra_mle;                          /* UMLE_PDU */
+static int hf_tetra_tetra_management_entity_protocol;  /* NULL */
+static int hf_tetra_u_mle_reserved3;              /* NULL */
+static int hf_tetra_lengthIndicationOrCapacityRequest;  /* T_lengthIndicationOrCapacityRequest */
+static int hf_tetra_lengthIndication;             /* LengthIndication */
+static int hf_tetra_capacityRequest;              /* FRAG */
+static int hf_tetra_tm_sdu_01;                    /* U_LLC_PDU */
+static int hf_tetra_frag;                         /* Frag1 */
+static int hf_tetra_reservation_requirement;      /* SLOT_APPLY */
+static int hf_tetra_lengthIndicationOrCapacityRequest_01;  /* T_lengthIndicationOrCapacityRequest_01 */
+static int hf_tetra_lengthIndication_01;          /* LengthIndicationMacData */
+static int hf_tetra_capacityRequest_01;           /* FRAG6 */
+static int hf_tetra_sub_type;                     /* INTEGER_0_1 */
+static int hf_tetra_tm_sdu_02;                    /* BIT_STRING_SIZE_264 */
+static int hf_tetra_tm_sdu_03;                    /* BIT_STRING_SIZE_120 */
+static int hf_tetra_lengthInd_ReservationReq;     /* LengthIndOrReservationReq */
+static int hf_tetra_tm_sdu_04;                    /* BIT_STRING_SIZE_258 */
+static int hf_tetra_pdu_subtype;                  /* INTEGER_0_1 */
+static int hf_tetra_tm_sdu_05;                    /* BIT_STRING_SIZE_114 */
+static int hf_tetra_lengthInd_ReservationReq_01;  /* T_lengthInd_ReservationReq */
+static int hf_tetra_lengthInd;                    /* LengthIndMacHu */
+static int hf_tetra_tm_sdu_06;                    /* BIT_STRING_SIZE_85 */
+static int hf_tetra_position_of_grant;            /* Position_Of_Grant */
+static int hf_tetra_lengthIndication_02;          /* LengthIndicationMacEndDl */
+static int hf_tetra_slot_granting;                /* T_slot_granting */
+static int hf_tetra_none;                         /* NULL */
+static int hf_tetra_slot_granting_param;          /* SlotGranting */
+static int hf_tetra_channel_allocation;           /* T_channel_allocation */
+static int hf_tetra_channel_allocation_element;   /* ChannelAllocation */
+static int hf_tetra_tm_sdu_07;                    /* BIT_STRING_SIZE_255 */
+static int hf_tetra_capacity_allocation;          /* Capacity_Allocation */
+static int hf_tetra_granting_delay;               /* Granting_delay */
+static int hf_tetra_allocation_type;              /* T_allocation_type */
+static int hf_tetra_timeslot_assigned;            /* Timeslot_Assigned */
+static int hf_tetra_up_down_assigned;             /* T_up_down_assigned */
+static int hf_tetra_clch_permission;              /* CLCH_permission */
+static int hf_tetra_cell_change;                  /* Cell_change_flag */
+static int hf_tetra_carrier_number;               /* INTEGER_0_4095 */
+static int hf_tetra_extend_carrier_flag;          /* T_extend_carrier_flag */
+static int hf_tetra_extended;                     /* Extended_carrier_flag */
+static int hf_tetra_monitoring_pattern;           /* T_monitoring_pattern */
+static int hf_tetra_one;                          /* Monitoring_pattern */
+static int hf_tetra_none1;                        /* NULL */
+static int hf_tetra_none2;                        /* NULL */
+static int hf_tetra_none3;                        /* NULL */
+static int hf_tetra_offset_01;                    /* INTEGER_0_3 */
+static int hf_tetra_reverse_operation_01;         /* T_reverse_operation */
+static int hf_tetra_pdu_type_02;                  /* INTEGER_0_7 */
+static int hf_tetra_fill_bit_ind;                 /* BOOLEAN */
+static int hf_tetra_position_of_grant_01;         /* INTEGER_0_1 */
+static int hf_tetra_slot_granting_01;             /* T_slot_granting_01 */
+static int hf_tetra_channel_allocation_01;        /* T_channel_allocation_01 */
+static int hf_tetra_tm_sdu_08;                    /* BIT_STRING_SIZE_111 */
+static int hf_tetra_encryption_mode;              /* INTEGER_0_3 */
+static int hf_tetra_access_ack;                   /* T_access_ack */
+static int hf_tetra_lengthIndication_03;          /* LengthIndicationMacResource */
+static int hf_tetra_address_01;                   /* AddressMacResource */
+static int hf_tetra_power_control;                /* T_power_control */
+static int hf_tetra_powerParameters;              /* PowerControl */
+static int hf_tetra_slot_granting_02;             /* T_slot_granting_02 */
+static int hf_tetra_channel_allocation_02;        /* T_channel_allocation_02 */
+static int hf_tetra_tm_sdu_09;                    /* D_LLC_PDU */
+static int hf_tetra_null_pdu;                     /* NULL */
+static int hf_tetra_ssi_01;                       /* SSI_NEED */
+static int hf_tetra_eventLabel_01;                /* EVENT_NEED */
+static int hf_tetra_ussi_01;                      /* USSI_NEED */
+static int hf_tetra_smi_01;                       /* SMI_NEED */
+static int hf_tetra_ssi_eventLabel;               /* SSI_EVENT_NEED */
+static int hf_tetra_ssi_usage_maker;              /* SSI_USAGE_NEED */
+static int hf_tetra_smi_eventLabel;               /* SMI_EVENT_NEED */
+static int hf_tetra_other;                        /* OTHER_DATA */
+static int hf_tetra_eventlabel;                   /* INTEGER_0_1023 */
+static int hf_tetra_ventlabel;                    /* INTEGER_0_1023 */
+static int hf_tetra_usage_maker;                  /* INTEGER_0_63 */
+static int hf_tetra_smi_eventlabel;               /* BIT_STRING_SIZE_34 */
+static int hf_tetra_broadcast_channel;            /* INTEGER_0_1 */
+static int hf_tetra_access_code;                  /* INTEGER_0_3 */
+static int hf_tetra_imm_01;                       /* INTEGER_0_15 */
+static int hf_tetra_wt_01;                        /* INTEGER_0_15 */
+static int hf_tetra_nu_01;                        /* INTEGER_0_15 */
+static int hf_tetra_frame_len_factor_01;          /* INTEGER_0_1 */
+static int hf_tetra_timeslot_pointer_01;          /* INTEGER_0_15 */
+static int hf_tetra_min_priority;                 /* INTEGER_0_7 */
+static int hf_tetra_optional_field;               /* T_optional_field */
+static int hf_tetra_class_bitmap;                 /* INTEGER_0_65535 */
+static int hf_tetra_gssi;                         /* INTEGER_0_33554431 */
+static int hf_tetra_reserved_03;                  /* NULL */
+static int hf_tetra_filler_bits;                  /* INTEGER_0_7 */
+static int hf_tetra_bl_adata_01;                  /* D_BL_ADATA */
+static int hf_tetra_bl_data_01;                   /* D_BL_DATA */
+static int hf_tetra_bl_udata_01;                  /* D_MLE_PDU */
+static int hf_tetra_bl_ack_01;                    /* D_BL_ACK */
+static int hf_tetra_bl_adata_fcs_01;              /* D_BL_ADATA_FCS */
+static int hf_tetra_bl_data_fcs_01;               /* D_BL_DATA_FCS */
+static int hf_tetra_bl_udata_fcs_01;              /* D_MLE_PDU_FCS */
+static int hf_tetra_bl_ack_fcs_01;                /* D_BL_ACK_FCS */
+static int hf_tetra_tl_sdu_01;                    /* D_MLE_PDU */
+static int hf_tetra_d_mle_pdu;                    /* D_MLE_PDU */
+static int hf_tetra_mm_01;                        /* D_MM_PDU */
+static int hf_tetra_cmce_01;                      /* D_CMCE_PDU */
+static int hf_tetra_mle_01;                       /* DMLE_PDU */
+static int hf_tetra_u_prepare;                    /* U_PREPARE */
+static int hf_tetra_umle_reserved1;               /* NULL */
+static int hf_tetra_umle_reserved2;               /* NULL */
+static int hf_tetra_umle_reserved3;               /* NULL */
+static int hf_tetra_u_restore;                    /* U_RESTORE */
+static int hf_tetra_umle_reserved4;               /* NULL */
+static int hf_tetra_umle_reserved5;               /* NULL */
+static int hf_tetra_umle_reserved6;               /* NULL */
+static int hf_tetra_d_new_cell;                   /* D_NEW_CELL */
+static int hf_tetra_d_prepare_fail;               /* D_PREPARE_FAIL */
+static int hf_tetra_d_nwrk_broadcast;             /* D_NWRK_BRDADCAST */
+static int hf_tetra_dmle_reserved1;               /* NULL */
+static int hf_tetra_d_restore_ack;                /* D_RESTORE_ACK */
+static int hf_tetra_d_restore_fail;               /* D_RESTORE_FAIL */
+static int hf_tetra_dmle_reserved2;               /* NULL */
+static int hf_tetra_dmle_reserved3;               /* NULL */
+static int hf_tetra_optional_elements;            /* T_optional_elements */
+static int hf_tetra_no_type2;                     /* NULL */
+static int hf_tetra_type2_parameters;             /* T_type2_parameters */
+static int hf_tetra_cell_number;                  /* T_cell_number */
+static int hf_tetra_cell_number_01;               /* INTEGER_0_65535 */
+static int hf_tetra_sdu;                          /* BIT_STRING */
+static int hf_tetra_optional_elements_01;         /* T_optional_elements_01 */
+static int hf_tetra_type2_parameters_01;          /* T_type2_parameters_01 */
+static int hf_tetra_mcc_01;                       /* T_mcc */
+static int hf_tetra_mnc_01;                       /* T_mnc */
+static int hf_tetra_la_01;                        /* T_la */
+static int hf_tetra_channel_command_valid;        /* INTEGER_0_3 */
+static int hf_tetra_optional_elements_02;         /* T_optional_elements_02 */
+static int hf_tetra_fail_cause;                   /* INTEGER_0_3 */
+static int hf_tetra_optional_elements_03;         /* T_optional_elements_03 */
+static int hf_tetra_cell_re_select_parameters;    /* INTEGER_0_65535 */
+static int hf_tetra_optional_elements_04;         /* T_optional_elements_04 */
+static int hf_tetra_type2_parameters_02;          /* T_type2_parameters_02 */
+static int hf_tetra_tetra_network_time;           /* T_tetra_network_time */
+static int hf_tetra_tetra_network_time_01;        /* TETRA_NETWORK_TIME */
+static int hf_tetra_number_of_neighbour_cells;    /* T_number_of_neighbour_cells */
+static int hf_tetra_number_of_neighbour_cells_01;  /* INTEGER_0_7 */
+static int hf_tetra_network_time;                 /* T_network_time */
+static int hf_tetra_local_time_offset_sign;       /* INTEGER_0_1 */
+static int hf_tetra_local_time_offset;            /* INTEGER_0_63 */
+static int hf_tetra_year;                         /* INTEGER_0_63 */
+static int hf_tetra_reserved_04;                  /* T_reserved */
+static int hf_tetra_u_Authentication;             /* NULL */
+static int hf_tetra_u_Itsi_Detach;                /* NULL */
+static int hf_tetra_u_Location_Update_Demand;     /* U_LOCATION_UPDATE_DEMAND */
+static int hf_tetra_u_MM_Status;                  /* U_MM_STATUS */
+static int hf_tetra_u_MM_reserved1;               /* NULL */
+static int hf_tetra_u_WK;                         /* NULL */
+static int hf_tetra_u_MM_reserved3;               /* NULL */
+static int hf_tetra_u_Attach_Detach_Group_Identity;  /* U_ATTACH_DETACH_GROUP_IDENTITY */
+static int hf_tetra_u_Attach_Detach_Group_Identity_Ack;  /* U_ATTACH_DETACH_GROUP_IDENTITY_ACK */
+static int hf_tetra_u_TEI_Provide;                /* NULL */
+static int hf_tetra_u_MM_reserved6;               /* NULL */
+static int hf_tetra_u_Disabled_Status;            /* NULL */
+static int hf_tetra_u_MM_reserved7;               /* NULL */
+static int hf_tetra_u_MM_reserved8;               /* NULL */
+static int hf_tetra_u_MM_reserved9;               /* NULL */
+static int hf_tetra_u_MM_Function_Not_Support;    /* NULL */
+static int hf_tetra_d_Otar;                       /* NULL */
+static int hf_tetra_d_Authentication;             /* NULL */
+static int hf_tetra_d_Authentication_Reject;      /* NULL */
+static int hf_tetra_d_Disable;                    /* NULL */
+static int hf_tetra_d_Enable;                     /* NULL */
+static int hf_tetra_d_Location_Update_Accept;     /* D_LOCATION_UPDATE_ACCEPT */
+static int hf_tetra_d_Location_Update_Command;    /* NULL */
+static int hf_tetra_d_Location_Update_Reject;     /* D_LOCATION_UPDATE_REJECT */
+static int hf_tetra_d_MM_reserved2;               /* NULL */
+static int hf_tetra_d_Location_Update_Proceeding;  /* NULL */
+static int hf_tetra_d_Attach_Detach_Group_Identity;  /* D_ATTACH_DETACH_GROUP_IDENTITY */
+static int hf_tetra_d_Attach_Detach_Group_Identity_Ack;  /* D_ATTACH_DETACH_GROUP_IDENTITY_ACK */
+static int hf_tetra_d_MM_Status;                  /* D_MM_STATUS */
+static int hf_tetra_d_MM_reserved5;               /* NULL */
+static int hf_tetra_d_MM_reserved6;               /* NULL */
+static int hf_tetra_d_MM_Function_Not_Support;    /* NULL */
+static int hf_tetra_attach_detach_identifier;     /* T_attach_detach_identifier */
+static int hf_tetra_attach;                       /* T_attach */
+static int hf_tetra_lifetime;                     /* INTEGER_0_3 */
+static int hf_tetra_class_of_usage;               /* INTEGER_0_7 */
+static int hf_tetra_detach;                       /* T_detach */
+static int hf_tetra_detach_downlike;              /* T_detach_downlike */
+static int hf_tetra_address_type;                 /* T_address_type */
+static int hf_tetra_gssi_01;                      /* OCTET_STRING_SIZE_3 */
+static int hf_tetra_gssi_extension;               /* T_gssi_extension */
+static int hf_tetra_extension;                    /* OCTET_STRING_SIZE_3 */
+static int hf_tetra_vgssi;                        /* OCTET_STRING_SIZE_3 */
+static int hf_tetra_attach_detach_identifier_01;  /* T_attach_detach_identifier_01 */
+static int hf_tetra_attach_01;                    /* T_attach_01 */
+static int hf_tetra_detach_01;                    /* T_detach_01 */
+static int hf_tetra_detach_uplike;                /* T_detach_uplike */
+static int hf_tetra_address_type_01;              /* T_address_type_01 */
+static int hf_tetra_gssi_extension_01;            /* T_gssi_extension_01 */
+static int hf_tetra_location_update_type;         /* UPDATE_TYPE */
+static int hf_tetra_optional_elements_05;         /* T_optional_elements_05 */
+static int hf_tetra_type2_parameters_03;          /* T_type2_parameters_03 */
+static int hf_tetra_ssi_02;                       /* T_ssi */
+static int hf_tetra_ssi_03;                       /* OCTET_STRING_SIZE_3 */
+static int hf_tetra_address_extension;            /* T_address_extension */
+static int hf_tetra_address_extension_01;         /* OCTET_STRING_SIZE_3 */
+static int hf_tetra_subscriber_class_01;          /* T_subscriber_class */
+static int hf_tetra_energy_saving_mode;           /* T_energy_saving_mode */
+static int hf_tetra_energy_saving_mode_01;        /* INTEGER_0_7 */
+static int hf_tetra_scch_info;                    /* T_scch_info */
+static int hf_tetra_scch_info_01;                 /* INTEGER_0_16383 */
+static int hf_tetra_type3;                        /* T_type3 */
+static int hf_tetra_no_type3;                     /* NULL */
+static int hf_tetra_type3_elements;               /* T_type3_elements */
+static int hf_tetra_type2_existance;              /* BOOLEAN */
+static int hf_tetra_type3_identifier;             /* TYPE3_IDENTIFIER */
+static int hf_tetra_new_ra;                       /* T_new_ra */
+static int hf_tetra_new_ra_01;                    /* INTEGER_0_3 */
+static int hf_tetra_group_identity_location_accept;  /* T_group_identity_location_accept */
+static int hf_tetra_group_identity_location_accept_01;  /* INTEGER_0_3 */
+static int hf_tetra_group_predefined_lifetime;    /* T_group_predefined_lifetime */
+static int hf_tetra_group_predefined_lifetime_01;  /* INTEGER_0_3 */
+static int hf_tetra_group_identity_downlink;      /* T_group_identity_downlink */
+static int hf_tetra_group_identity_downlink_01;   /* INTEGER_0_15 */
+static int hf_tetra_proprietary;                  /* T_proprietary */
+static int hf_tetra_proprietary_01;               /* INTEGER_0_7 */
+static int hf_tetra_reject_cause;                 /* INTEGER_0_31 */
+static int hf_tetra_cipher_control;               /* BOOLEAN */
+static int hf_tetra_status_uplink;                /* INTEGER_0_63 */
+static int hf_tetra_scanning_on_off;              /* T_scanning_on_off */
+static int hf_tetra_status_downlink;              /* INTEGER_0_63 */
+static int hf_tetra_u_Alert;                      /* U_ALERT */
+static int hf_tetra_reserved1;                    /* NULL */
+static int hf_tetra_u_Connect;                    /* U_CONNECT */
+static int hf_tetra_reserved2;                    /* NULL */
+static int hf_tetra_u_Disconnect;                 /* U_DISCONNECT */
+static int hf_tetra_u_Info;                       /* U_INFO */
+static int hf_tetra_u_Release;                    /* U_RELEASE */
+static int hf_tetra_u_Setup;                      /* U_SETUP */
+static int hf_tetra_u_Status;                     /* U_STATUS */
+static int hf_tetra_u_Tx_Ceased;                  /* U_TX_CEASED */
+static int hf_tetra_u_Tx_Demand;                  /* U_TX_DEMAND */
+static int hf_tetra_reserved3;                    /* NULL */
+static int hf_tetra_reserved4;                    /* NULL */
+static int hf_tetra_reserved5;                    /* NULL */
+static int hf_tetra_u_Call_Restore;               /* U_CALL_RESTORE */
+static int hf_tetra_u_SDS_Data;                   /* U_SDS_DATA */
+static int hf_tetra_u_Facility;                   /* NULL */
+static int hf_tetra_call_identifier;              /* INTEGER_0_16383 */
+static int hf_tetra_disconnect_cause;             /* INTEGER_0_31 */
+static int hf_tetra_area_selection;               /* INTEGER_0_15 */
+static int hf_tetra_called_party_type_identifier;  /* T_called_party_type_identifier */
+static int hf_tetra_sna;                          /* INTEGER_0_255 */
+static int hf_tetra_ssi_extension;                /* BIT_STRING_SIZE_48 */
+static int hf_tetra_short_data_type_identifier;   /* T_short_data_type_identifier */
+static int hf_tetra_data_1;                       /* INTEGER_0_65535 */
+static int hf_tetra_data_2;                       /* OCTET_STRING_SIZE_4 */
+static int hf_tetra_data_3;                       /* BIT_STRING_SIZE_64 */
+static int hf_tetra_length_indicator_data_4;      /* INTEGER_0_4194304 */
+static int hf_tetra_called_party_type_identifier_01;  /* T_called_party_type_identifier_01 */
+static int hf_tetra_short_number_address;         /* INTEGER_0_255 */
+static int hf_tetra_called_ssi_called_extension;  /* BIT_STRING_SIZE_48 */
+static int hf_tetra_pre_coded_status;             /* INTEGER_0_65535 */
+static int hf_tetra_call_id;                      /* INTEGER_0_16383 */
+static int hf_tetra_poll_response;                /* INTEGER_0_1 */
+static int hf_tetra_d_Alert;                      /* D_ALERT */
+static int hf_tetra_d_Call_Proceeding;            /* D_CALL_PROCEEDING */
+static int hf_tetra_d_Connect;                    /* D_CONNECT */
+static int hf_tetra_d_Connect_Ack;                /* D_CONNECT_ACK */
+static int hf_tetra_d_Disconnect;                 /* D_DISCONNECT */
+static int hf_tetra_d_Info;                       /* D_INFO */
+static int hf_tetra_d_Release;                    /* D_RELEASE */
+static int hf_tetra_d_Setup;                      /* D_SETUP */
+static int hf_tetra_d_Status;                     /* D_STATUS */
+static int hf_tetra_d_Tx_Ceased;                  /* D_TX_CEASED */
+static int hf_tetra_d_Tx_Continue;                /* D_TX_CONTINUE */
+static int hf_tetra_d_Tx_Granted;                 /* D_TX_GRANTED */
+static int hf_tetra_d_Tx_Wait;                    /* D_TX_WAIT */
+static int hf_tetra_d_Tx_Interrupt;               /* NULL */
+static int hf_tetra_d_Call_Restore;               /* D_CALL_RESTORE */
+static int hf_tetra_d_SDS_Data;                   /* D_SDS_DATA */
+static int hf_tetra_d_Facility;                   /* NULL */
+static int hf_tetra_calling_party_type_identifier;  /* T_calling_party_type_identifier */
+static int hf_tetra_ssi_extension_01;             /* OCTET_STRING_SIZE_6 */
+static int hf_tetra_short_data_type_identifier_01;  /* T_short_data_type_identifier_01 */
+static int hf_tetra_data_3_01;                    /* OCTET_STRING_SIZE_8 */
+static int hf_tetra_calling_party_type_identifier_01;  /* T_calling_party_type_identifier_01 */
+static int hf_tetra_calling_party_address_SSI;    /* INTEGER_0_16777215 */
+static int hf_tetra_reset_call_time_out_timer;    /* INTEGER_0_1 */
+static int hf_tetra_poll_request;                 /* INTEGER_0_1 */
+static int hf_tetra_transmission_request_permission;  /* INTEGER_0_1 */
+static int hf_tetra_continue;                     /* INTEGER_0_1 */
+static int hf_tetra_request_to_append_LA;         /* BOOLEAN */
+static int hf_tetra_cipher_control_01;            /* T_cipher_control */
+static int hf_tetra_no_cipher;                    /* NULL */
+static int hf_tetra_ciphering_parameters;         /* INTEGER_0_1023 */
+static int hf_tetra_optional_elements_06;         /* T_optional_elements_06 */
+static int hf_tetra_type2_parameters_04;          /* T_type2_parameters_04 */
+static int hf_tetra_class_of_MS;                  /* T_class_of_MS */
+static int hf_tetra_class_of_MS_01;               /* INTEGER_0_16777215 */
+static int hf_tetra_energy_saving_mode_02;        /* T_energy_saving_mode_01 */
+static int hf_tetra_la_information;               /* T_la_information */
+static int hf_tetra_la_information_01;            /* INTEGER_0_16383 */
+static int hf_tetra_ssi_04;                       /* T_ssi_01 */
+static int hf_tetra_address_extension_02;         /* T_address_extension_01 */
+static int hf_tetra_type3_01;                     /* T_type3_01 */
+static int hf_tetra_type3_elements_01;            /* T_type3_elements_01 */
+static int hf_tetra_group_identity_location_demand;  /* T_group_identity_location_demand */
+static int hf_tetra_group_identity_location_demand_01;  /* INTEGER_0_3 */
+static int hf_tetra_group_report_response;        /* T_group_report_response */
+static int hf_tetra_group_report_response_01;     /* BOOLEAN */
+static int hf_tetra_group_identity_uplink;        /* T_group_identity_uplink */
+static int hf_tetra_group_identity_uplink_01;     /* INTEGER_0_15 */
+static int hf_tetra_proprietary_02;               /* T_proprietary_01 */
+static int hf_tetra_group_identity_report;        /* BOOLEAN */
+static int hf_tetra_group_identity_attach_detach_mode;  /* BOOLEAN */
+static int hf_tetra_optional_elements_07;         /* T_optional_elements_07 */
+static int hf_tetra_type2_element;                /* T_type2_element */
+static int hf_tetra_type3_02;                     /* T_type3_02 */
+static int hf_tetra_type3_elements_02;            /* T_type3_elements_02 */
+static int hf_tetra_length;                       /* INTEGER_0_2047 */
+static int hf_tetra_repeat_num;                   /* INTEGER_0_63 */
+static int hf_tetra_group_identity_uplink_02;     /* GROUP_IDENTITY_UPLINK */
+static int hf_tetra_group_identity_ack_type;      /* BOOLEAN */
+static int hf_tetra_optional_elements_08;         /* T_optional_elements_08 */
+static int hf_tetra_type2_element_01;             /* T_type2_element_01 */
+static int hf_tetra_type3_03;                     /* T_type3_03 */
+static int hf_tetra_type3_elements_03;            /* T_type3_elements_03 */
+static int hf_tetra_hook_method_selection;        /* BOOLEAN */
+static int hf_tetra_simple_duplex_selection;      /* T_simple_duplex_selection */
+static int hf_tetra_basic_service_information;    /* Basic_service_information */
+static int hf_tetra_request_transmit_send_data;   /* INTEGER_0_1 */
+static int hf_tetra_call_priority;                /* INTEGER_0_15 */
+static int hf_tetra_clir_control;                 /* INTEGER_0_3 */
+static int hf_tetra_called_party_address;         /* Called_party_address_type */
+static int hf_tetra_optional_elements_09;         /* T_optional_elements_09 */
+static int hf_tetra_type2_parameters_05;          /* T_type2_parameters_05 */
+static int hf_tetra_external_subscriber_number;   /* T_external_subscriber_number */
+static int hf_tetra_external_subscriber_number_01;  /* INTEGER_0_31 */
+static int hf_tetra_prop;                         /* T_prop */
+static int hf_tetra_prop_01;                      /* Proprietary */
+static int hf_tetra_circuit_mode;                 /* CIRCUIT */
+static int hf_tetra_encryption;                   /* INTEGER_0_1 */
+static int hf_tetra_communication;                /* INTEGER_0_3 */
+static int hf_tetra_slots_or_speech;              /* INTEGER_0_3 */
+static int hf_tetra_call_identifier_01;           /* INTEGER_0_1023 */
+static int hf_tetra_simplex_duplex_selection;     /* T_simplex_duplex_selection */
+static int hf_tetra_optional_elements_10;         /* T_optional_elements_10 */
+static int hf_tetra_type2_parameters_06;          /* T_type2_parameters_06 */
+static int hf_tetra_basic_service_information_01;  /* T_basic_service_information */
+static int hf_tetra_prop_02;                      /* T_prop_01 */
+static int hf_tetra_simplex_duplex_selection_01;  /* T_simplex_duplex_selection_01 */
+static int hf_tetra_optional_elements_11;         /* T_optional_elements_11 */
+static int hf_tetra_type2_parameters_07;          /* T_type2_parameters_07 */
+static int hf_tetra_basic_service_information_02;  /* T_basic_service_information_01 */
+static int hf_tetra_prop_03;                      /* T_prop_02 */
+static int hf_tetra_optional_elements_12;         /* T_optional_elements_12 */
+static int hf_tetra_type2_parameters_08;          /* T_type2_parameters_08 */
+static int hf_tetra_prop_04;                      /* T_prop_03 */
+static int hf_tetra_tx_demand_priority;           /* INTEGER_0_3 */
+static int hf_tetra_encryption_control;           /* INTEGER_0_1 */
+static int hf_tetra_optional_elements_13;         /* T_optional_elements_13 */
+static int hf_tetra_type2_parameters_09;          /* T_type2_parameters_09 */
+static int hf_tetra_prop_05;                      /* T_prop_04 */
+static int hf_tetra_optional_elements_14;         /* T_optional_elements_14 */
+static int hf_tetra_type2_parameters_10;          /* T_type2_parameters_10 */
+static int hf_tetra_prop_06;                      /* T_prop_05 */
+static int hf_tetra_request_to_transmit_send_data;  /* INTEGER_0_1 */
+static int hf_tetra_other_party_address;          /* Other_party_address_type */
+static int hf_tetra_optional_elements_15;         /* T_optional_elements_15 */
+static int hf_tetra_type2_parameters_11;          /* T_type2_parameters_11 */
+static int hf_tetra_prop_07;                      /* T_prop_06 */
+static int hf_tetra_call_time_out;                /* INTEGER_0_15 */
+static int hf_tetra_hook_method_selection_01;     /* INTEGER_0_1 */
+static int hf_tetra_simplex_duplex_selection_02;  /* T_simplex_duplex_selection_02 */
+static int hf_tetra_transmission_grant;           /* INTEGER_0_3 */
+static int hf_tetra_optional_elements_16;         /* T_optional_elements_16 */
+static int hf_tetra_type2_parameters_12;          /* T_type2_parameters_12 */
+static int hf_tetra_calling_party_address;        /* T_calling_party_address */
+static int hf_tetra_calling_party_address_01;     /* Calling_party_address_type */
+static int hf_tetra_external_subscriber_number_02;  /* T_external_subscriber_number_01 */
+static int hf_tetra_external_subscriber_number_03;  /* INTEGER_0_15 */
+static int hf_tetra_prop_08;                      /* T_prop_07 */
+static int hf_tetra_call_time_out_setup_phase;    /* INTEGER_0_7 */
+static int hf_tetra_simplex_duplex_selection_03;  /* INTEGER_0_1 */
+static int hf_tetra_optional_elements_17;         /* T_optional_elements_17 */
+static int hf_tetra_type2_parameters_13;          /* T_type2_parameters_13 */
+static int hf_tetra_basic_service_information_03;  /* T_basic_service_information_02 */
+static int hf_tetra_call_status;                  /* T_call_status */
+static int hf_tetra_call_status_01;               /* INTEGER_0_7 */
+static int hf_tetra_notification_indicator;       /* T_notification_indicator */
+static int hf_tetra_notification_indicator_01;    /* INTEGER_0_63 */
+static int hf_tetra_prop_09;                      /* T_prop_08 */
+static int hf_tetra_simplex_duplex_selection_04;  /* T_simplex_duplex_selection_03 */
+static int hf_tetra_call_queued;                  /* BOOLEAN */
+static int hf_tetra_optional_elements_18;         /* T_optional_elements_18 */
+static int hf_tetra_type2_parameters_14;          /* T_type2_parameters_14 */
+static int hf_tetra_basic_service_infomation;     /* T_basic_service_infomation */
+static int hf_tetra_basic_service_infomation_01;  /* Basic_service_information */
+static int hf_tetra_notification_indicator_02;    /* T_notification_indicator_01 */
+static int hf_tetra_prop_10;                      /* T_prop_09 */
+static int hf_tetra_call_time_out_01;             /* INTEGER_0_31 */
+static int hf_tetra_simplex_duplex_selection_05;  /* T_simplex_duplex_selection_04 */
+static int hf_tetra_call_ownership;               /* INTEGER_0_1 */
+static int hf_tetra_optional_elements_19;         /* T_optional_elements_19 */
+static int hf_tetra_type2_parameters_15;          /* T_type2_parameters_15 */
+static int hf_tetra_call_priority_01;             /* T_call_priority */
+static int hf_tetra_basic_service_information_04;  /* T_basic_service_information_03 */
+static int hf_tetra_temporary_address;            /* T_temporary_address */
+static int hf_tetra_temporary_address_01;         /* Calling_party_address_type */
+static int hf_tetra_notification_indicator_03;    /* T_notification_indicator_02 */
+static int hf_tetra_prop_11;                      /* T_prop_10 */
+static int hf_tetra_optional_elements_20;         /* T_optional_elements_20 */
+static int hf_tetra_type2_parameters_16;          /* T_type2_parameters_16 */
+static int hf_tetra_notification_indicator_04;    /* T_notification_indicator_03 */
+static int hf_tetra_prop_12;                      /* T_prop_11 */
+static int hf_tetra_optional_elements_21;         /* T_optional_elements_21 */
+static int hf_tetra_type2_parameters_17;          /* T_type2_parameters_17 */
+static int hf_tetra_notification_indicator_05;    /* T_notification_indicator_04 */
+static int hf_tetra_prop_13;                      /* T_prop_12 */
+static int hf_tetra_reset_call_time_out;          /* INTEGER_0_1 */
+static int hf_tetra_optional_elements_22;         /* T_optional_elements_22 */
+static int hf_tetra_type2_parameters_18;          /* T_type2_parameters_18 */
+static int hf_tetra_new_call_identifier;          /* T_new_call_identifier */
+static int hf_tetra_new_call_identifier_01;       /* INTEGER_0_1023 */
+static int hf_tetra_call_time_out_02;             /* T_call_time_out */
+static int hf_tetra_call_time_out_03;             /* INTEGER_0_7 */
+static int hf_tetra_call_status_02;               /* T_call_status_01 */
+static int hf_tetra_modify;                       /* T_modify */
+static int hf_tetra_modify_01;                    /* Modify_type */
+static int hf_tetra_notification_indicator_06;    /* T_notification_indicator_05 */
+static int hf_tetra_prop_14;                      /* T_prop_13 */
+static int hf_tetra_optional_elements_23;         /* T_optional_elements_23 */
+static int hf_tetra_type2_parameters_19;          /* T_type2_parameters_19 */
+static int hf_tetra_notification_indicator_07;    /* T_notification_indicator_06 */
+static int hf_tetra_prop_15;                      /* T_prop_14 */
+static int hf_tetra_group_identity_ack_request;   /* BOOLEAN */
+static int hf_tetra_optional_elements_24;         /* T_optional_elements_24 */
+static int hf_tetra_type2_element_02;             /* T_type2_element_02 */
+static int hf_tetra_type3_04;                     /* T_type3_04 */
+static int hf_tetra_type3_elements_04;            /* T_type3_elements_04 */
+static int hf_tetra_group_identity_downlink_02;   /* GROUP_IDENTITY_DOWNLINK */
+static int hf_tetra_group_identity_attach_detach_accept;  /* BOOLEAN */
+static int hf_tetra_optional_elements_25;         /* T_optional_elements_25 */
+static int hf_tetra_type2_element_03;             /* T_type2_element_03 */
+static int hf_tetra_type3_05;                     /* T_type3_05 */
+static int hf_tetra_type3_elements_05;            /* T_type3_elements_05 */
+static int hf_tetra_called_party_sna;             /* INTEGER_0_255 */
+static int hf_tetra_called_party_ssi;             /* INTEGER_0_16777215 */
+static int hf_tetra_called_party_ssi_extension;   /* T_called_party_ssi_extension */
+static int hf_tetra_called_party_extention;       /* INTEGER_0_16777215 */
+static int hf_tetra_data_01;                      /* T_data_01 */
+static int hf_tetra_element1;                     /* Type1 */
+static int hf_tetra_element;                      /* Type2 */
+static int hf_tetra_proprietary_element_owner;    /* Proprietary_element_owner */
+static int hf_tetra_proprietary_element_owner_extension;  /* BIT_STRING */
+static int hf_tetra_simplex_duplex_selection_06;  /* T_simplex_duplex_selection_05 */
 
 /* Initialize the subtree pointers */
 /* These are the ids of the subtrees that we may be creating */
-static gint ett_tetra = -1;
-static gint ett_tetra_header = -1;
-static gint ett_tetra_length = -1;
-static gint ett_tetra_txreg = -1;
-static gint ett_tetra_text = -1;
+static int ett_tetra;
+static int ett_tetra_header;
+static int ett_tetra_length;
+static int ett_tetra_txreg;
+static int ett_tetra_text;
 
-static gint ett_tetra_AACH = -1;
-static gint ett_tetra_BSCH = -1;
-static gint ett_tetra_MLE_Sync = -1;
-static gint ett_tetra_BNCH = -1;
-static gint ett_tetra_T_hyperframe_or_cck = -1;
-static gint ett_tetra_T_optional_params = -1;
-static gint ett_tetra_TS_COMMON_FRAMES = -1;
-static gint ett_tetra_Default_Code_A = -1;
-static gint ett_tetra_Extended_Services_Broadcast = -1;
-static gint ett_tetra_T_section = -1;
-static gint ett_tetra_PRESENT1 = -1;
-static gint ett_tetra_MAC_ACCESS = -1;
-static gint ett_tetra_T_data = -1;
-static gint ett_tetra_Address = -1;
-static gint ett_tetra_U_LLC_PDU = -1;
-static gint ett_tetra_U_BL_ACK_FCS = -1;
-static gint ett_tetra_U_MLE_PDU_FCS = -1;
-static gint ett_tetra_U_BL_DATA_FCS = -1;
-static gint ett_tetra_U_BL_ADATA_FCS = -1;
-static gint ett_tetra_U_MLE_PDU = -1;
-static gint ett_tetra_ComplexSDU = -1;
-static gint ett_tetra_T_lengthIndicationOrCapacityRequest = -1;
-static gint ett_tetra_FRAG = -1;
-static gint ett_tetra_MAC_DATA = -1;
-static gint ett_tetra_T_lengthIndicationOrCapacityRequest_01 = -1;
-static gint ett_tetra_FRAG6 = -1;
-static gint ett_tetra_MAC_FRAG = -1;
-static gint ett_tetra_MAC_FRAG120 = -1;
-static gint ett_tetra_MAC_END_UPLINK = -1;
-static gint ett_tetra_MAC_END_UP114 = -1;
-static gint ett_tetra_MAC_END_HU = -1;
-static gint ett_tetra_T_lengthInd_ReservationReq = -1;
-static gint ett_tetra_MAC_END_DOWNLINK = -1;
-static gint ett_tetra_T_slot_granting = -1;
-static gint ett_tetra_T_channel_allocation = -1;
-static gint ett_tetra_SlotGranting = -1;
-static gint ett_tetra_ChannelAllocation = -1;
-static gint ett_tetra_T_extend_carrier_flag = -1;
-static gint ett_tetra_T_monitoring_pattern = -1;
-static gint ett_tetra_Extended_carrier_flag = -1;
-static gint ett_tetra_MAC_END_DOWN111 = -1;
-static gint ett_tetra_T_slot_granting_01 = -1;
-static gint ett_tetra_T_channel_allocation_01 = -1;
-static gint ett_tetra_MAC_RESOURCE = -1;
-static gint ett_tetra_OTHER_DATA = -1;
-static gint ett_tetra_T_power_control = -1;
-static gint ett_tetra_T_slot_granting_02 = -1;
-static gint ett_tetra_T_channel_allocation_02 = -1;
-static gint ett_tetra_AddressMacResource = -1;
-static gint ett_tetra_SSI_NEED = -1;
-static gint ett_tetra_EVENT_NEED = -1;
-static gint ett_tetra_USSI_NEED = -1;
-static gint ett_tetra_SMI_NEED = -1;
-static gint ett_tetra_SSI_EVENT_NEED = -1;
-static gint ett_tetra_SSI_USAGE_NEED = -1;
-static gint ett_tetra_SMI_EVENT_NEED = -1;
-static gint ett_tetra_MAC_ACCESS_DEFINE = -1;
-static gint ett_tetra_T_optional_field = -1;
-static gint ett_tetra_D_LLC_PDU = -1;
-static gint ett_tetra_D_BL_ACK_FCS = -1;
-static gint ett_tetra_D_MLE_PDU_FCS = -1;
-static gint ett_tetra_D_BL_ADATA_FCS = -1;
-static gint ett_tetra_D_BL_DATA_FCS = -1;
-static gint ett_tetra_U_BL_ACK = -1;
-static gint ett_tetra_D_BL_ACK = -1;
-static gint ett_tetra_U_BL_DATA = -1;
-static gint ett_tetra_D_BL_DATA = -1;
-static gint ett_tetra_U_BL_ADATA = -1;
-static gint ett_tetra_D_BL_ADATA = -1;
-static gint ett_tetra_D_MLE_PDU = -1;
-static gint ett_tetra_UMLE_PDU = -1;
-static gint ett_tetra_DMLE_PDU = -1;
-static gint ett_tetra_U_PREPARE = -1;
-static gint ett_tetra_T_optional_elements = -1;
-static gint ett_tetra_T_type2_parameters = -1;
-static gint ett_tetra_T_cell_number = -1;
-static gint ett_tetra_U_RESTORE = -1;
-static gint ett_tetra_T_optional_elements_01 = -1;
-static gint ett_tetra_T_type2_parameters_01 = -1;
-static gint ett_tetra_T_mcc = -1;
-static gint ett_tetra_T_mnc = -1;
-static gint ett_tetra_T_la = -1;
-static gint ett_tetra_D_NEW_CELL = -1;
-static gint ett_tetra_T_optional_elements_02 = -1;
-static gint ett_tetra_D_PREPARE_FAIL = -1;
-static gint ett_tetra_T_optional_elements_03 = -1;
-static gint ett_tetra_D_NWRK_BRDADCAST = -1;
-static gint ett_tetra_T_optional_elements_04 = -1;
-static gint ett_tetra_T_type2_parameters_02 = -1;
-static gint ett_tetra_T_tetra_network_time = -1;
-static gint ett_tetra_T_number_of_neighbour_cells = -1;
-static gint ett_tetra_TETRA_NETWORK_TIME = -1;
-static gint ett_tetra_D_RESTORE_ACK = -1;
-static gint ett_tetra_D_RESTORE_FAIL = -1;
-static gint ett_tetra_U_MM_PDU = -1;
-static gint ett_tetra_D_MM_PDU = -1;
-static gint ett_tetra_GROUP_IDENTITY_DOWNLINK = -1;
-static gint ett_tetra_T_attach_detach_identifier = -1;
-static gint ett_tetra_T_attach = -1;
-static gint ett_tetra_T_detach = -1;
-static gint ett_tetra_T_address_type = -1;
-static gint ett_tetra_T_gssi_extension = -1;
-static gint ett_tetra_GROUP_IDENTITY_UPLINK = -1;
-static gint ett_tetra_T_attach_detach_identifier_01 = -1;
-static gint ett_tetra_T_attach_01 = -1;
-static gint ett_tetra_T_detach_01 = -1;
-static gint ett_tetra_T_address_type_01 = -1;
-static gint ett_tetra_T_gssi_extension_01 = -1;
-static gint ett_tetra_D_LOCATION_UPDATE_ACCEPT = -1;
-static gint ett_tetra_T_optional_elements_05 = -1;
-static gint ett_tetra_T_type2_parameters_03 = -1;
-static gint ett_tetra_T_ssi = -1;
-static gint ett_tetra_T_address_extension = -1;
-static gint ett_tetra_T_subscriber_class = -1;
-static gint ett_tetra_T_energy_saving_mode = -1;
-static gint ett_tetra_T_scch_info = -1;
-static gint ett_tetra_T_type3 = -1;
-static gint ett_tetra_T_type3_elements = -1;
-static gint ett_tetra_T_new_ra = -1;
-static gint ett_tetra_T_group_identity_location_accept = -1;
-static gint ett_tetra_T_group_predefined_lifetime = -1;
-static gint ett_tetra_T_group_identity_downlink = -1;
-static gint ett_tetra_T_proprietary = -1;
-static gint ett_tetra_D_LOCATION_UPDATE_REJECT = -1;
-static gint ett_tetra_U_MM_STATUS = -1;
-static gint ett_tetra_D_MM_STATUS = -1;
-static gint ett_tetra_U_CMCE_PDU = -1;
-static gint ett_tetra_U_RELEASE = -1;
-static gint ett_tetra_U_SDS_DATA = -1;
-static gint ett_tetra_T_called_party_type_identifier = -1;
-static gint ett_tetra_T_short_data_type_identifier = -1;
-static gint ett_tetra_U_STATUS = -1;
-static gint ett_tetra_T_called_party_type_identifier_01 = -1;
-static gint ett_tetra_U_INFO = -1;
-static gint ett_tetra_D_CMCE_PDU = -1;
-static gint ett_tetra_D_SDS_DATA = -1;
-static gint ett_tetra_T_calling_party_type_identifier = -1;
-static gint ett_tetra_T_short_data_type_identifier_01 = -1;
-static gint ett_tetra_D_STATUS = -1;
-static gint ett_tetra_T_calling_party_type_identifier_01 = -1;
-static gint ett_tetra_D_DISCONNECT = -1;
-static gint ett_tetra_D_INFO = -1;
-static gint ett_tetra_D_TX_WAIT = -1;
-static gint ett_tetra_D_TX_CONTINUE = -1;
-static gint ett_tetra_U_LOCATION_UPDATE_DEMAND = -1;
-static gint ett_tetra_T_cipher_control = -1;
-static gint ett_tetra_T_optional_elements_06 = -1;
-static gint ett_tetra_T_type2_parameters_04 = -1;
-static gint ett_tetra_T_class_of_MS = -1;
-static gint ett_tetra_T_energy_saving_mode_01 = -1;
-static gint ett_tetra_T_la_information = -1;
-static gint ett_tetra_T_ssi_01 = -1;
-static gint ett_tetra_T_address_extension_01 = -1;
-static gint ett_tetra_T_type3_01 = -1;
-static gint ett_tetra_T_type3_elements_01 = -1;
-static gint ett_tetra_T_group_identity_location_demand = -1;
-static gint ett_tetra_T_group_report_response = -1;
-static gint ett_tetra_T_group_identity_uplink = -1;
-static gint ett_tetra_T_proprietary_01 = -1;
-static gint ett_tetra_U_ATTACH_DETACH_GROUP_IDENTITY = -1;
-static gint ett_tetra_T_optional_elements_07 = -1;
-static gint ett_tetra_T_type2_element = -1;
-static gint ett_tetra_T_type3_02 = -1;
-static gint ett_tetra_T_type3_elements_02 = -1;
-static gint ett_tetra_U_ATTACH_DETACH_GROUP_IDENTITY_ACK = -1;
-static gint ett_tetra_T_optional_elements_08 = -1;
-static gint ett_tetra_T_type2_element_01 = -1;
-static gint ett_tetra_T_type3_03 = -1;
-static gint ett_tetra_T_type3_elements_03 = -1;
-static gint ett_tetra_U_SETUP = -1;
-static gint ett_tetra_T_optional_elements_09 = -1;
-static gint ett_tetra_T_type2_parameters_05 = -1;
-static gint ett_tetra_T_external_subscriber_number = -1;
-static gint ett_tetra_T_prop = -1;
-static gint ett_tetra_Basic_service_information = -1;
-static gint ett_tetra_U_ALERT = -1;
-static gint ett_tetra_T_optional_elements_10 = -1;
-static gint ett_tetra_T_type2_parameters_06 = -1;
-static gint ett_tetra_T_basic_service_information = -1;
-static gint ett_tetra_T_prop_01 = -1;
-static gint ett_tetra_U_CONNECT = -1;
-static gint ett_tetra_T_optional_elements_11 = -1;
-static gint ett_tetra_T_type2_parameters_07 = -1;
-static gint ett_tetra_T_basic_service_information_01 = -1;
-static gint ett_tetra_T_prop_02 = -1;
-static gint ett_tetra_U_TX_CEASED = -1;
-static gint ett_tetra_T_optional_elements_12 = -1;
-static gint ett_tetra_T_type2_parameters_08 = -1;
-static gint ett_tetra_T_prop_03 = -1;
-static gint ett_tetra_U_TX_DEMAND = -1;
-static gint ett_tetra_T_optional_elements_13 = -1;
-static gint ett_tetra_T_type2_parameters_09 = -1;
-static gint ett_tetra_T_prop_04 = -1;
-static gint ett_tetra_U_DISCONNECT = -1;
-static gint ett_tetra_T_optional_elements_14 = -1;
-static gint ett_tetra_T_type2_parameters_10 = -1;
-static gint ett_tetra_T_prop_05 = -1;
-static gint ett_tetra_U_CALL_RESTORE = -1;
-static gint ett_tetra_T_optional_elements_15 = -1;
-static gint ett_tetra_T_type2_parameters_11 = -1;
-static gint ett_tetra_T_prop_06 = -1;
-static gint ett_tetra_D_SETUP = -1;
-static gint ett_tetra_T_optional_elements_16 = -1;
-static gint ett_tetra_T_type2_parameters_12 = -1;
-static gint ett_tetra_T_calling_party_address = -1;
-static gint ett_tetra_T_external_subscriber_number_01 = -1;
-static gint ett_tetra_T_prop_07 = -1;
-static gint ett_tetra_D_CALL_PROCEEDING = -1;
-static gint ett_tetra_T_optional_elements_17 = -1;
-static gint ett_tetra_T_type2_parameters_13 = -1;
-static gint ett_tetra_T_basic_service_information_02 = -1;
-static gint ett_tetra_T_call_status = -1;
-static gint ett_tetra_T_notification_indicator = -1;
-static gint ett_tetra_T_prop_08 = -1;
-static gint ett_tetra_D_ALERT = -1;
-static gint ett_tetra_T_optional_elements_18 = -1;
-static gint ett_tetra_T_type2_parameters_14 = -1;
-static gint ett_tetra_T_basic_service_infomation = -1;
-static gint ett_tetra_T_notification_indicator_01 = -1;
-static gint ett_tetra_T_prop_09 = -1;
-static gint ett_tetra_D_CONNECT = -1;
-static gint ett_tetra_T_optional_elements_19 = -1;
-static gint ett_tetra_T_type2_parameters_15 = -1;
-static gint ett_tetra_T_call_priority = -1;
-static gint ett_tetra_T_basic_service_information_03 = -1;
-static gint ett_tetra_T_temporary_address = -1;
-static gint ett_tetra_T_notification_indicator_02 = -1;
-static gint ett_tetra_T_prop_10 = -1;
-static gint ett_tetra_D_CONNECT_ACK = -1;
-static gint ett_tetra_T_optional_elements_20 = -1;
-static gint ett_tetra_T_type2_parameters_16 = -1;
-static gint ett_tetra_T_notification_indicator_03 = -1;
-static gint ett_tetra_T_prop_11 = -1;
-static gint ett_tetra_D_RELEASE = -1;
-static gint ett_tetra_T_optional_elements_21 = -1;
-static gint ett_tetra_T_type2_parameters_17 = -1;
-static gint ett_tetra_T_notification_indicator_04 = -1;
-static gint ett_tetra_T_prop_12 = -1;
-static gint ett_tetra_D_CALL_RESTORE = -1;
-static gint ett_tetra_T_optional_elements_22 = -1;
-static gint ett_tetra_T_type2_parameters_18 = -1;
-static gint ett_tetra_T_new_call_identifier = -1;
-static gint ett_tetra_T_call_time_out = -1;
-static gint ett_tetra_T_call_status_01 = -1;
-static gint ett_tetra_T_modify = -1;
-static gint ett_tetra_T_notification_indicator_05 = -1;
-static gint ett_tetra_T_prop_13 = -1;
-static gint ett_tetra_D_TX_CEASED = -1;
-static gint ett_tetra_T_optional_elements_23 = -1;
-static gint ett_tetra_T_type2_parameters_19 = -1;
-static gint ett_tetra_T_notification_indicator_06 = -1;
-static gint ett_tetra_T_prop_14 = -1;
-static gint ett_tetra_D_TX_GRANTED = -1;
-static gint ett_tetra_D_ATTACH_DETACH_GROUP_IDENTITY = -1;
-static gint ett_tetra_T_optional_elements_24 = -1;
-static gint ett_tetra_T_type2_element_02 = -1;
-static gint ett_tetra_T_type3_04 = -1;
-static gint ett_tetra_T_type3_elements_04 = -1;
-static gint ett_tetra_D_ATTACH_DETACH_GROUP_IDENTITY_ACK = -1;
-static gint ett_tetra_T_optional_elements_25 = -1;
-static gint ett_tetra_T_type2_element_03 = -1;
-static gint ett_tetra_T_type3_05 = -1;
-static gint ett_tetra_T_type3_elements_05 = -1;
-static gint ett_tetra_Calling_party_address_type = -1;
-static gint ett_tetra_T_called_party_ssi_extension = -1;
-static gint ett_tetra_Proprietary = -1;
-static gint ett_tetra_T_data_01 = -1;
-static gint ett_tetra_Type1 = -1;
-static gint ett_tetra_Type2 = -1;
-static gint ett_tetra_Modify_type = -1;
+static int ett_tetra_AACH;
+static int ett_tetra_BSCH;
+static int ett_tetra_MLE_Sync;
+static int ett_tetra_BNCH;
+static int ett_tetra_T_hyperframe_or_cck;
+static int ett_tetra_T_optional_params;
+static int ett_tetra_TS_COMMON_FRAMES;
+static int ett_tetra_Default_Code_A;
+static int ett_tetra_Extended_Services_Broadcast;
+static int ett_tetra_T_section;
+static int ett_tetra_PRESENT1;
+static int ett_tetra_MAC_ACCESS;
+static int ett_tetra_T_data;
+static int ett_tetra_Address;
+static int ett_tetra_U_LLC_PDU;
+static int ett_tetra_U_BL_ACK_FCS;
+static int ett_tetra_U_MLE_PDU_FCS;
+static int ett_tetra_U_BL_DATA_FCS;
+static int ett_tetra_U_BL_ADATA_FCS;
+static int ett_tetra_U_MLE_PDU;
+static int ett_tetra_ComplexSDU;
+static int ett_tetra_T_lengthIndicationOrCapacityRequest;
+static int ett_tetra_FRAG;
+static int ett_tetra_MAC_DATA;
+static int ett_tetra_T_lengthIndicationOrCapacityRequest_01;
+static int ett_tetra_FRAG6;
+static int ett_tetra_MAC_FRAG;
+static int ett_tetra_MAC_FRAG120;
+static int ett_tetra_MAC_END_UPLINK;
+static int ett_tetra_MAC_END_UP114;
+static int ett_tetra_MAC_END_HU;
+static int ett_tetra_T_lengthInd_ReservationReq;
+static int ett_tetra_MAC_END_DOWNLINK;
+static int ett_tetra_T_slot_granting;
+static int ett_tetra_T_channel_allocation;
+static int ett_tetra_SlotGranting;
+static int ett_tetra_ChannelAllocation;
+static int ett_tetra_T_extend_carrier_flag;
+static int ett_tetra_T_monitoring_pattern;
+static int ett_tetra_Extended_carrier_flag;
+static int ett_tetra_MAC_END_DOWN111;
+static int ett_tetra_T_slot_granting_01;
+static int ett_tetra_T_channel_allocation_01;
+static int ett_tetra_MAC_RESOURCE;
+static int ett_tetra_OTHER_DATA;
+static int ett_tetra_T_power_control;
+static int ett_tetra_T_slot_granting_02;
+static int ett_tetra_T_channel_allocation_02;
+static int ett_tetra_AddressMacResource;
+static int ett_tetra_SSI_NEED;
+static int ett_tetra_EVENT_NEED;
+static int ett_tetra_USSI_NEED;
+static int ett_tetra_SMI_NEED;
+static int ett_tetra_SSI_EVENT_NEED;
+static int ett_tetra_SSI_USAGE_NEED;
+static int ett_tetra_SMI_EVENT_NEED;
+static int ett_tetra_MAC_ACCESS_DEFINE;
+static int ett_tetra_T_optional_field;
+static int ett_tetra_D_LLC_PDU;
+static int ett_tetra_D_BL_ACK_FCS;
+static int ett_tetra_D_MLE_PDU_FCS;
+static int ett_tetra_D_BL_ADATA_FCS;
+static int ett_tetra_D_BL_DATA_FCS;
+static int ett_tetra_U_BL_ACK;
+static int ett_tetra_D_BL_ACK;
+static int ett_tetra_U_BL_DATA;
+static int ett_tetra_D_BL_DATA;
+static int ett_tetra_U_BL_ADATA;
+static int ett_tetra_D_BL_ADATA;
+static int ett_tetra_D_MLE_PDU;
+static int ett_tetra_UMLE_PDU;
+static int ett_tetra_DMLE_PDU;
+static int ett_tetra_U_PREPARE;
+static int ett_tetra_T_optional_elements;
+static int ett_tetra_T_type2_parameters;
+static int ett_tetra_T_cell_number;
+static int ett_tetra_U_RESTORE;
+static int ett_tetra_T_optional_elements_01;
+static int ett_tetra_T_type2_parameters_01;
+static int ett_tetra_T_mcc;
+static int ett_tetra_T_mnc;
+static int ett_tetra_T_la;
+static int ett_tetra_D_NEW_CELL;
+static int ett_tetra_T_optional_elements_02;
+static int ett_tetra_D_PREPARE_FAIL;
+static int ett_tetra_T_optional_elements_03;
+static int ett_tetra_D_NWRK_BRDADCAST;
+static int ett_tetra_T_optional_elements_04;
+static int ett_tetra_T_type2_parameters_02;
+static int ett_tetra_T_tetra_network_time;
+static int ett_tetra_T_number_of_neighbour_cells;
+static int ett_tetra_TETRA_NETWORK_TIME;
+static int ett_tetra_D_RESTORE_ACK;
+static int ett_tetra_D_RESTORE_FAIL;
+static int ett_tetra_U_MM_PDU;
+static int ett_tetra_D_MM_PDU;
+static int ett_tetra_GROUP_IDENTITY_DOWNLINK;
+static int ett_tetra_T_attach_detach_identifier;
+static int ett_tetra_T_attach;
+static int ett_tetra_T_detach;
+static int ett_tetra_T_address_type;
+static int ett_tetra_T_gssi_extension;
+static int ett_tetra_GROUP_IDENTITY_UPLINK;
+static int ett_tetra_T_attach_detach_identifier_01;
+static int ett_tetra_T_attach_01;
+static int ett_tetra_T_detach_01;
+static int ett_tetra_T_address_type_01;
+static int ett_tetra_T_gssi_extension_01;
+static int ett_tetra_D_LOCATION_UPDATE_ACCEPT;
+static int ett_tetra_T_optional_elements_05;
+static int ett_tetra_T_type2_parameters_03;
+static int ett_tetra_T_ssi;
+static int ett_tetra_T_address_extension;
+static int ett_tetra_T_subscriber_class;
+static int ett_tetra_T_energy_saving_mode;
+static int ett_tetra_T_scch_info;
+static int ett_tetra_T_type3;
+static int ett_tetra_T_type3_elements;
+static int ett_tetra_T_new_ra;
+static int ett_tetra_T_group_identity_location_accept;
+static int ett_tetra_T_group_predefined_lifetime;
+static int ett_tetra_T_group_identity_downlink;
+static int ett_tetra_T_proprietary;
+static int ett_tetra_D_LOCATION_UPDATE_REJECT;
+static int ett_tetra_U_MM_STATUS;
+static int ett_tetra_D_MM_STATUS;
+static int ett_tetra_U_CMCE_PDU;
+static int ett_tetra_U_RELEASE;
+static int ett_tetra_U_SDS_DATA;
+static int ett_tetra_T_called_party_type_identifier;
+static int ett_tetra_T_short_data_type_identifier;
+static int ett_tetra_U_STATUS;
+static int ett_tetra_T_called_party_type_identifier_01;
+static int ett_tetra_U_INFO;
+static int ett_tetra_D_CMCE_PDU;
+static int ett_tetra_D_SDS_DATA;
+static int ett_tetra_T_calling_party_type_identifier;
+static int ett_tetra_T_short_data_type_identifier_01;
+static int ett_tetra_D_STATUS;
+static int ett_tetra_T_calling_party_type_identifier_01;
+static int ett_tetra_D_DISCONNECT;
+static int ett_tetra_D_INFO;
+static int ett_tetra_D_TX_WAIT;
+static int ett_tetra_D_TX_CONTINUE;
+static int ett_tetra_U_LOCATION_UPDATE_DEMAND;
+static int ett_tetra_T_cipher_control;
+static int ett_tetra_T_optional_elements_06;
+static int ett_tetra_T_type2_parameters_04;
+static int ett_tetra_T_class_of_MS;
+static int ett_tetra_T_energy_saving_mode_01;
+static int ett_tetra_T_la_information;
+static int ett_tetra_T_ssi_01;
+static int ett_tetra_T_address_extension_01;
+static int ett_tetra_T_type3_01;
+static int ett_tetra_T_type3_elements_01;
+static int ett_tetra_T_group_identity_location_demand;
+static int ett_tetra_T_group_report_response;
+static int ett_tetra_T_group_identity_uplink;
+static int ett_tetra_T_proprietary_01;
+static int ett_tetra_U_ATTACH_DETACH_GROUP_IDENTITY;
+static int ett_tetra_T_optional_elements_07;
+static int ett_tetra_T_type2_element;
+static int ett_tetra_T_type3_02;
+static int ett_tetra_T_type3_elements_02;
+static int ett_tetra_U_ATTACH_DETACH_GROUP_IDENTITY_ACK;
+static int ett_tetra_T_optional_elements_08;
+static int ett_tetra_T_type2_element_01;
+static int ett_tetra_T_type3_03;
+static int ett_tetra_T_type3_elements_03;
+static int ett_tetra_U_SETUP;
+static int ett_tetra_T_optional_elements_09;
+static int ett_tetra_T_type2_parameters_05;
+static int ett_tetra_T_external_subscriber_number;
+static int ett_tetra_T_prop;
+static int ett_tetra_Basic_service_information;
+static int ett_tetra_U_ALERT;
+static int ett_tetra_T_optional_elements_10;
+static int ett_tetra_T_type2_parameters_06;
+static int ett_tetra_T_basic_service_information;
+static int ett_tetra_T_prop_01;
+static int ett_tetra_U_CONNECT;
+static int ett_tetra_T_optional_elements_11;
+static int ett_tetra_T_type2_parameters_07;
+static int ett_tetra_T_basic_service_information_01;
+static int ett_tetra_T_prop_02;
+static int ett_tetra_U_TX_CEASED;
+static int ett_tetra_T_optional_elements_12;
+static int ett_tetra_T_type2_parameters_08;
+static int ett_tetra_T_prop_03;
+static int ett_tetra_U_TX_DEMAND;
+static int ett_tetra_T_optional_elements_13;
+static int ett_tetra_T_type2_parameters_09;
+static int ett_tetra_T_prop_04;
+static int ett_tetra_U_DISCONNECT;
+static int ett_tetra_T_optional_elements_14;
+static int ett_tetra_T_type2_parameters_10;
+static int ett_tetra_T_prop_05;
+static int ett_tetra_U_CALL_RESTORE;
+static int ett_tetra_T_optional_elements_15;
+static int ett_tetra_T_type2_parameters_11;
+static int ett_tetra_T_prop_06;
+static int ett_tetra_D_SETUP;
+static int ett_tetra_T_optional_elements_16;
+static int ett_tetra_T_type2_parameters_12;
+static int ett_tetra_T_calling_party_address;
+static int ett_tetra_T_external_subscriber_number_01;
+static int ett_tetra_T_prop_07;
+static int ett_tetra_D_CALL_PROCEEDING;
+static int ett_tetra_T_optional_elements_17;
+static int ett_tetra_T_type2_parameters_13;
+static int ett_tetra_T_basic_service_information_02;
+static int ett_tetra_T_call_status;
+static int ett_tetra_T_notification_indicator;
+static int ett_tetra_T_prop_08;
+static int ett_tetra_D_ALERT;
+static int ett_tetra_T_optional_elements_18;
+static int ett_tetra_T_type2_parameters_14;
+static int ett_tetra_T_basic_service_infomation;
+static int ett_tetra_T_notification_indicator_01;
+static int ett_tetra_T_prop_09;
+static int ett_tetra_D_CONNECT;
+static int ett_tetra_T_optional_elements_19;
+static int ett_tetra_T_type2_parameters_15;
+static int ett_tetra_T_call_priority;
+static int ett_tetra_T_basic_service_information_03;
+static int ett_tetra_T_temporary_address;
+static int ett_tetra_T_notification_indicator_02;
+static int ett_tetra_T_prop_10;
+static int ett_tetra_D_CONNECT_ACK;
+static int ett_tetra_T_optional_elements_20;
+static int ett_tetra_T_type2_parameters_16;
+static int ett_tetra_T_notification_indicator_03;
+static int ett_tetra_T_prop_11;
+static int ett_tetra_D_RELEASE;
+static int ett_tetra_T_optional_elements_21;
+static int ett_tetra_T_type2_parameters_17;
+static int ett_tetra_T_notification_indicator_04;
+static int ett_tetra_T_prop_12;
+static int ett_tetra_D_CALL_RESTORE;
+static int ett_tetra_T_optional_elements_22;
+static int ett_tetra_T_type2_parameters_18;
+static int ett_tetra_T_new_call_identifier;
+static int ett_tetra_T_call_time_out;
+static int ett_tetra_T_call_status_01;
+static int ett_tetra_T_modify;
+static int ett_tetra_T_notification_indicator_05;
+static int ett_tetra_T_prop_13;
+static int ett_tetra_D_TX_CEASED;
+static int ett_tetra_T_optional_elements_23;
+static int ett_tetra_T_type2_parameters_19;
+static int ett_tetra_T_notification_indicator_06;
+static int ett_tetra_T_prop_14;
+static int ett_tetra_D_TX_GRANTED;
+static int ett_tetra_D_ATTACH_DETACH_GROUP_IDENTITY;
+static int ett_tetra_T_optional_elements_24;
+static int ett_tetra_T_type2_element_02;
+static int ett_tetra_T_type3_04;
+static int ett_tetra_T_type3_elements_04;
+static int ett_tetra_D_ATTACH_DETACH_GROUP_IDENTITY_ACK;
+static int ett_tetra_T_optional_elements_25;
+static int ett_tetra_T_type2_element_03;
+static int ett_tetra_T_type3_05;
+static int ett_tetra_T_type3_elements_05;
+static int ett_tetra_Calling_party_address_type;
+static int ett_tetra_T_called_party_ssi_extension;
+static int ett_tetra_Proprietary;
+static int ett_tetra_T_data_01;
+static int ett_tetra_Type1;
+static int ett_tetra_Type2;
+static int ett_tetra_Modify_type;
 
-static expert_field ei_tetra_channels_incorrect = EI_INIT;
+static expert_field ei_tetra_channels_incorrect;
 
 
 
 static int
 dissect_tetra_INTEGER_0_3(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 3U, NULL, FALSE);
+                                                            0U, 3U, NULL, false);
 
   return offset;
 }
@@ -957,7 +958,7 @@ dissect_tetra_INTEGER_0_3(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_tetra_INTEGER_0_63(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 63U, NULL, FALSE);
+                                                            0U, 63U, NULL, false);
 
   return offset;
 }
@@ -1003,7 +1004,7 @@ static const value_string tetra_System_Code_vals[] = {
 static int
 dissect_tetra_System_Code(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1081,7 +1082,7 @@ static const value_string tetra_Colour_Code_vals[] = {
 static int
 dissect_tetra_Colour_Code(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     64, NULL, FALSE, 0, NULL);
+                                     64, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1099,7 +1100,7 @@ static const value_string tetra_Timeslot_Number_vals[] = {
 static int
 dissect_tetra_Timeslot_Number(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1145,7 +1146,7 @@ static const value_string tetra_Frame_Number_vals[] = {
 static int
 dissect_tetra_Frame_Number(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     32, NULL, FALSE, 0, NULL);
+                                     32, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1223,7 +1224,7 @@ static const value_string tetra_Multiple_Frame_Number_vals[] = {
 static int
 dissect_tetra_Multiple_Frame_Number(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     64, NULL, FALSE, 0, NULL);
+                                     64, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1241,7 +1242,7 @@ static const value_string tetra_Sharing_Mod_vals[] = {
 static int
 dissect_tetra_Sharing_Mod(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1263,7 +1264,7 @@ static const value_string tetra_TS_Reserved_Frames_vals[] = {
 static int
 dissect_tetra_TS_Reserved_Frames(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1279,7 +1280,7 @@ static const value_string tetra_U_Plane_DTX_vals[] = {
 static int
 dissect_tetra_U_Plane_DTX(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1295,7 +1296,7 @@ static const value_string tetra_Frame_18_Extension_vals[] = {
 static int
 dissect_tetra_Frame_18_Extension(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1311,7 +1312,7 @@ static const value_string tetra_Reserved_vals[] = {
 static int
 dissect_tetra_Reserved(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1321,7 +1322,7 @@ dissect_tetra_Reserved(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_tetra_INTEGER_0_1023(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 1023U, NULL, FALSE);
+                                                            0U, 1023U, NULL, false);
 
   return offset;
 }
@@ -1331,7 +1332,7 @@ dissect_tetra_INTEGER_0_1023(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_tetra_INTEGER_0_16383(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 16383U, NULL, FALSE);
+                                                            0U, 16383U, NULL, false);
 
   return offset;
 }
@@ -1341,7 +1342,7 @@ dissect_tetra_INTEGER_0_16383(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 static int
 dissect_tetra_INTEGER_0_1(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 1U, NULL, FALSE);
+                                                            0U, 1U, NULL, false);
 
   return offset;
 }
@@ -1393,7 +1394,7 @@ dissect_tetra_BSCH(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, prot
 static int
 dissect_tetra_INTEGER_0_4095(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 4095U, NULL, FALSE);
+                                                            0U, 4095U, NULL, false);
 
   return offset;
 }
@@ -1403,7 +1404,7 @@ dissect_tetra_INTEGER_0_4095(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_tetra_INTEGER_0_15(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 15U, NULL, FALSE);
+                                                            0U, 15U, NULL, false);
 
   return offset;
 }
@@ -1421,7 +1422,7 @@ static const value_string tetra_Offset_vals[] = {
 static int
 dissect_tetra_Offset(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1431,7 +1432,7 @@ dissect_tetra_Offset(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
 static int
 dissect_tetra_INTEGER_0_7(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 7U, NULL, FALSE);
+                                                            0U, 7U, NULL, false);
 
   return offset;
 }
@@ -1447,7 +1448,7 @@ static const value_string tetra_Reverse_Operation_vals[] = {
 static int
 dissect_tetra_Reverse_Operation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1465,7 +1466,7 @@ static const value_string tetra_Sencond_Ctl_Carrier_vals[] = {
 static int
 dissect_tetra_Sencond_Ctl_Carrier(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1487,7 +1488,7 @@ static const value_string tetra_MS_TXPWR_MAX_CELL_vals[] = {
 static int
 dissect_tetra_MS_TXPWR_MAX_CELL(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1517,7 +1518,7 @@ static const value_string tetra_RXLEV_ACCESS_MIN_vals[] = {
 static int
 dissect_tetra_RXLEV_ACCESS_MIN(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1547,7 +1548,7 @@ static const value_string tetra_ACCESS_PARAMETER_vals[] = {
 static int
 dissect_tetra_ACCESS_PARAMETER(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1577,7 +1578,7 @@ static const value_string tetra_RADIO_DOWNLINK_TIMEOUT_vals[] = {
 static int
 dissect_tetra_RADIO_DOWNLINK_TIMEOUT(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1587,7 +1588,7 @@ dissect_tetra_RADIO_DOWNLINK_TIMEOUT(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 static int
 dissect_tetra_INTEGER_0_65535(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 65535U, NULL, FALSE);
+                                                            0U, 65535U, NULL, false);
 
   return offset;
 }
@@ -1625,7 +1626,7 @@ static const value_string tetra_FRAME_vals[] = {
 static int
 dissect_tetra_FRAME(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1686,7 +1687,7 @@ static const value_string tetra_IMM_vals[] = {
 static int
 dissect_tetra_IMM(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1716,7 +1717,7 @@ static const value_string tetra_WT_vals[] = {
 static int
 dissect_tetra_WT(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1746,7 +1747,7 @@ static const value_string tetra_NU_vals[] = {
 static int
 dissect_tetra_NU(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1762,7 +1763,7 @@ static const value_string tetra_Frame_Len_Factor_vals[] = {
 static int
 dissect_tetra_Frame_Len_Factor(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1792,7 +1793,7 @@ static const value_string tetra_Timeslot_Pointer_vals[] = {
 static int
 dissect_tetra_Timeslot_Pointer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1814,7 +1815,7 @@ static const value_string tetra_Min_Pdu_Priority_vals[] = {
 static int
 dissect_tetra_Min_Pdu_Priority(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1843,7 +1844,7 @@ dissect_tetra_Default_Code_A(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_tetra_INTEGER_0_255(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -1861,7 +1862,7 @@ static const value_string tetra_SDS_TL_Addressing_Method_vals[] = {
 static int
 dissect_tetra_SDS_TL_Addressing_Method(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1877,7 +1878,7 @@ static const value_string tetra_Data_Priority_Supported_vals[] = {
 static int
 dissect_tetra_Data_Priority_Supported(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1893,7 +1894,7 @@ static const value_string tetra_Section_Information_vals[] = {
 static int
 dissect_tetra_Section_Information(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -1921,7 +1922,7 @@ dissect_tetra_PRESENT1(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_tetra_INTEGER_0_127(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 127U, NULL, FALSE);
+                                                            0U, 127U, NULL, false);
 
   return offset;
 }
@@ -2000,7 +2001,7 @@ dissect_tetra_T_optional_params(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int
 dissect_tetra_Subscriber_class(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     16, 16, FALSE, NULL, 0, NULL, NULL);
+                                     16, 16, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -2057,7 +2058,7 @@ static const value_string tetra_Fill_Bit_Indication_vals[] = {
 static int
 dissect_tetra_Fill_Bit_Indication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -2073,7 +2074,7 @@ static const value_string tetra_Encrypted_Flag_vals[] = {
 static int
 dissect_tetra_Encrypted_Flag(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -2083,7 +2084,7 @@ dissect_tetra_Encrypted_Flag(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_tetra_INTEGER_0_16777215(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 16777215U, NULL, FALSE);
+                                                            0U, 16777215U, NULL, false);
 
   return offset;
 }
@@ -2140,7 +2141,7 @@ static const value_string tetra_UPDATE_TYPE_vals[] = {
 static int
 dissect_tetra_UPDATE_TYPE(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -2247,7 +2248,7 @@ dissect_tetra_T_la_information(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 static int
 dissect_tetra_OCTET_STRING_SIZE_3(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       3, 3, FALSE, NULL);
+                                       3, 3, false, NULL);
 
   return offset;
 }
@@ -2321,7 +2322,7 @@ static const value_string tetra_TYPE3_IDENTIFIER_vals[] = {
 static int
 dissect_tetra_TYPE3_IDENTIFIER(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -2525,7 +2526,7 @@ static const value_string tetra_T_scanning_on_off_vals[] = {
 static int
 dissect_tetra_T_scanning_on_off(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -2552,7 +2553,7 @@ dissect_tetra_U_MM_STATUS(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 static int
 dissect_tetra_INTEGER_0_2047(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 2047U, NULL, FALSE);
+                                                            0U, 2047U, NULL, false);
 
   return offset;
 }
@@ -2584,7 +2585,7 @@ static const value_string tetra_T_detach_uplike_vals[] = {
 static int
 dissect_tetra_T_detach_uplike(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -2926,7 +2927,7 @@ static const value_string tetra_T_simplex_duplex_selection_vals[] = {
 static int
 dissect_tetra_T_simplex_duplex_selection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -2948,7 +2949,7 @@ static const value_string tetra_CIRCUIT_vals[] = {
 static int
 dissect_tetra_CIRCUIT(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     8, NULL, FALSE, 0, NULL);
+                                     8, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -2997,7 +2998,7 @@ dissect_tetra_T_basic_service_information(tvbuff_t *tvb _U_, int offset _U_, asn
 static int
 dissect_tetra_Proprietary_element_owner(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 255U, NULL, FALSE);
+                                                            0U, 255U, NULL, false);
 
   return offset;
 }
@@ -3007,7 +3008,7 @@ dissect_tetra_Proprietary_element_owner(tvbuff_t *tvb _U_, int offset _U_, asn1_
 static int
 dissect_tetra_BIT_STRING(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     NO_BOUND, NO_BOUND, FALSE, NULL, 0, NULL, NULL);
+                                     NO_BOUND, NO_BOUND, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -3166,7 +3167,7 @@ static const value_string tetra_T_simplex_duplex_selection_01_vals[] = {
 static int
 dissect_tetra_T_simplex_duplex_selection_01(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3276,7 +3277,7 @@ dissect_tetra_U_CONNECT(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_,
 static int
 dissect_tetra_INTEGER_0_31(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 31U, NULL, FALSE);
+                                                            0U, 31U, NULL, false);
 
   return offset;
 }
@@ -3404,7 +3405,7 @@ static const value_string tetra_T_simple_duplex_selection_vals[] = {
 static int
 dissect_tetra_T_simple_duplex_selection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -3567,7 +3568,7 @@ dissect_tetra_U_SETUP(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int
 dissect_tetra_BIT_STRING_SIZE_48(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     48, 48, FALSE, NULL, 0, NULL, NULL);
+                                     48, 48, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -3887,7 +3888,7 @@ dissect_tetra_T_called_party_type_identifier(tvbuff_t *tvb _U_, int offset _U_, 
 static int
 dissect_tetra_OCTET_STRING_SIZE_4(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       4, 4, FALSE, NULL);
+                                       4, 4, false, NULL);
 
   return offset;
 }
@@ -3897,7 +3898,7 @@ dissect_tetra_OCTET_STRING_SIZE_4(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t 
 static int
 dissect_tetra_BIT_STRING_SIZE_64(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     64, 64, FALSE, NULL, 0, NULL, NULL);
+                                     64, 64, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -3907,7 +3908,7 @@ dissect_tetra_BIT_STRING_SIZE_64(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *
 static int
 dissect_tetra_INTEGER_0_4194304(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 4194304U, NULL, FALSE);
+                                                            0U, 4194304U, NULL, false);
 
   return offset;
 }
@@ -4471,7 +4472,7 @@ static const value_string tetra_LengthIndication_vals[] = {
 static int
 dissect_tetra_LengthIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     32, NULL, FALSE, 0, NULL);
+                                     32, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -4487,7 +4488,7 @@ static const value_string tetra_Frag1_vals[] = {
 static int
 dissect_tetra_Frag1(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -4517,7 +4518,7 @@ static const value_string tetra_SLOT_APPLY_vals[] = {
 static int
 dissect_tetra_SLOT_APPLY(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -4687,7 +4688,7 @@ static const value_string tetra_LengthIndicationMacData_vals[] = {
 static int
 dissect_tetra_LengthIndicationMacData(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     64, NULL, FALSE, 0, NULL);
+                                     64, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -4754,7 +4755,7 @@ dissect_tetra_MAC_DATA(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_tetra_BIT_STRING_SIZE_264(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     264, 264, FALSE, NULL, 0, NULL, NULL);
+                                     264, 264, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -4781,7 +4782,7 @@ dissect_tetra_MAC_FRAG(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, 
 static int
 dissect_tetra_BIT_STRING_SIZE_120(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     120, 120, FALSE, NULL, 0, NULL, NULL);
+                                     120, 120, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -4876,7 +4877,7 @@ static const value_string tetra_LengthIndOrReservationReq_vals[] = {
 static int
 dissect_tetra_LengthIndOrReservationReq(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     64, NULL, FALSE, 0, NULL);
+                                     64, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -4886,7 +4887,7 @@ dissect_tetra_LengthIndOrReservationReq(tvbuff_t *tvb _U_, int offset _U_, asn1_
 static int
 dissect_tetra_BIT_STRING_SIZE_258(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     258, 258, FALSE, NULL, 0, NULL, NULL);
+                                     258, 258, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -4914,7 +4915,7 @@ dissect_tetra_MAC_END_UPLINK(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_tetra_BIT_STRING_SIZE_114(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     114, 114, FALSE, NULL, 0, NULL, NULL);
+                                     114, 114, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -4962,7 +4963,7 @@ static const value_string tetra_LengthIndMacHu_vals[] = {
 static int
 dissect_tetra_LengthIndMacHu(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -4994,7 +4995,7 @@ dissect_tetra_T_lengthInd_ReservationReq(tvbuff_t *tvb _U_, int offset _U_, asn1
 static int
 dissect_tetra_BIT_STRING_SIZE_85(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     85, 85, FALSE, NULL, 0, NULL, NULL);
+                                     85, 85, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -5027,7 +5028,7 @@ static const value_string tetra_Position_Of_Grant_vals[] = {
 static int
 dissect_tetra_Position_Of_Grant(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5105,7 +5106,7 @@ static const value_string tetra_LengthIndicationMacEndDl_vals[] = {
 static int
 dissect_tetra_LengthIndicationMacEndDl(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     64, NULL, FALSE, 0, NULL);
+                                     64, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5135,7 +5136,7 @@ static const value_string tetra_Capacity_Allocation_vals[] = {
 static int
 dissect_tetra_Capacity_Allocation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5165,7 +5166,7 @@ static const value_string tetra_Granting_delay_vals[] = {
 static int
 dissect_tetra_Granting_delay(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5220,7 +5221,7 @@ static const value_string tetra_T_allocation_type_vals[] = {
 static int
 dissect_tetra_T_allocation_type(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5250,7 +5251,7 @@ static const value_string tetra_Timeslot_Assigned_vals[] = {
 static int
 dissect_tetra_Timeslot_Assigned(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5268,7 +5269,7 @@ static const value_string tetra_T_up_down_assigned_vals[] = {
 static int
 dissect_tetra_T_up_down_assigned(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5284,7 +5285,7 @@ static const value_string tetra_CLCH_permission_vals[] = {
 static int
 dissect_tetra_CLCH_permission(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5300,7 +5301,7 @@ static const value_string tetra_Cell_change_flag_vals[] = {
 static int
 dissect_tetra_Cell_change_flag(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5316,7 +5317,7 @@ static const value_string tetra_T_reverse_operation_vals[] = {
 static int
 dissect_tetra_T_reverse_operation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5373,7 +5374,7 @@ static const value_string tetra_Monitoring_pattern_vals[] = {
 static int
 dissect_tetra_Monitoring_pattern(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5452,7 +5453,7 @@ dissect_tetra_T_channel_allocation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 static int
 dissect_tetra_BIT_STRING_SIZE_255(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     255, 255, FALSE, NULL, 0, NULL, NULL);
+                                     255, 255, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -5527,7 +5528,7 @@ dissect_tetra_T_channel_allocation_01(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 static int
 dissect_tetra_BIT_STRING_SIZE_111(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     111, 111, FALSE, NULL, 0, NULL, NULL);
+                                     111, 111, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -5563,7 +5564,7 @@ static const value_string tetra_T_access_ack_vals[] = {
 static int
 dissect_tetra_T_access_ack(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5641,7 +5642,7 @@ static const value_string tetra_LengthIndicationMacResource_vals[] = {
 static int
 dissect_tetra_LengthIndicationMacResource(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     64, NULL, FALSE, 0, NULL);
+                                     64, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -5671,7 +5672,7 @@ static const value_string tetra_PowerControl_vals[] = {
 static int
 dissect_tetra_PowerControl(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     16, NULL, FALSE, 0, NULL);
+                                     16, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -6108,7 +6109,7 @@ static const value_string tetra_T_detach_downlike_vals[] = {
 static int
 dissect_tetra_T_detach_downlike(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     4, NULL, FALSE, 0, NULL);
+                                     4, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -6467,7 +6468,7 @@ static const value_string tetra_T_simplex_duplex_selection_03_vals[] = {
 static int
 dissect_tetra_T_simplex_duplex_selection_03(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -6755,7 +6756,7 @@ static const value_string tetra_T_simplex_duplex_selection_04_vals[] = {
 static int
 dissect_tetra_T_simplex_duplex_selection_04(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -7179,7 +7180,7 @@ static const value_string tetra_T_simplex_duplex_selection_02_vals[] = {
 static int
 dissect_tetra_T_simplex_duplex_selection_02(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -7317,7 +7318,7 @@ dissect_tetra_D_SETUP(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 static int
 dissect_tetra_OCTET_STRING_SIZE_6(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       6, 6, FALSE, NULL);
+                                       6, 6, false, NULL);
 
   return offset;
 }
@@ -7601,7 +7602,7 @@ static const value_string tetra_T_simplex_duplex_selection_05_vals[] = {
 static int
 dissect_tetra_T_simplex_duplex_selection_05(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     2, NULL, FALSE, 0, NULL);
+                                     2, NULL, false, 0, NULL);
 
   return offset;
 }
@@ -7779,7 +7780,7 @@ dissect_tetra_T_calling_party_type_identifier(tvbuff_t *tvb _U_, int offset _U_,
 static int
 dissect_tetra_OCTET_STRING_SIZE_8(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_octet_string(tvb, offset, actx, tree, hf_index,
-                                       8, 8, FALSE, NULL);
+                                       8, 8, false, NULL);
 
   return offset;
 }
@@ -8461,7 +8462,7 @@ dissect_tetra_SSI_USAGE_NEED(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx
 static int
 dissect_tetra_BIT_STRING_SIZE_34(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     34, 34, FALSE, NULL, 0, NULL, NULL);
+                                     34, 34, false, NULL, 0, NULL, NULL);
 
   return offset;
 }
@@ -8540,7 +8541,7 @@ dissect_tetra_MAC_RESOURCE(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 static int
 dissect_tetra_INTEGER_0_33554431(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            0U, 33554431U, NULL, FALSE);
+                                                            0U, 33554431U, NULL, false);
 
   return offset;
 }
@@ -8601,7 +8602,7 @@ dissect_tetra_MAC_ACCESS_DEFINE(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
 static int dissect_AACH_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_AACH(tvb, offset, &asn1_ctx, tree, hf_tetra_AACH_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8609,7 +8610,7 @@ static int dissect_AACH_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tre
 static int dissect_BSCH_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_BSCH(tvb, offset, &asn1_ctx, tree, hf_tetra_BSCH_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8617,7 +8618,7 @@ static int dissect_BSCH_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tre
 static int dissect_BNCH_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_BNCH(tvb, offset, &asn1_ctx, tree, hf_tetra_BNCH_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8625,7 +8626,7 @@ static int dissect_BNCH_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tre
 static int dissect_MAC_ACCESS_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_ACCESS(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_ACCESS_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8633,7 +8634,7 @@ static int dissect_MAC_ACCESS_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, pro
 static int dissect_MAC_DATA_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_DATA(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_DATA_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8641,7 +8642,7 @@ static int dissect_MAC_DATA_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto
 static int dissect_MAC_FRAG_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_FRAG(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_FRAG_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8649,7 +8650,7 @@ static int dissect_MAC_FRAG_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto
 static int dissect_MAC_FRAG120_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_FRAG120(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_FRAG120_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8657,7 +8658,7 @@ static int dissect_MAC_FRAG120_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, pr
 static int dissect_MAC_END_UPLINK_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_END_UPLINK(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_END_UPLINK_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8665,7 +8666,7 @@ static int dissect_MAC_END_UPLINK_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_,
 static int dissect_MAC_END_UP114_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_END_UP114(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_END_UP114_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8673,7 +8674,7 @@ static int dissect_MAC_END_UP114_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, 
 static int dissect_MAC_END_HU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_END_HU(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_END_HU_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8681,7 +8682,7 @@ static int dissect_MAC_END_HU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, pro
 static int dissect_MAC_END_DOWNLINK_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_END_DOWNLINK(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_END_DOWNLINK_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8689,7 +8690,7 @@ static int dissect_MAC_END_DOWNLINK_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U
 static int dissect_MAC_END_DOWN111_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_END_DOWN111(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_END_DOWN111_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8697,7 +8698,7 @@ static int dissect_MAC_END_DOWN111_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_
 static int dissect_MAC_RESOURCE_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_RESOURCE(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_RESOURCE_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8705,7 +8706,7 @@ static int dissect_MAC_RESOURCE_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, p
 static int dissect_MAC_ACCESS_DEFINE_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, pinfo);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, pinfo);
   offset = dissect_tetra_MAC_ACCESS_DEFINE(tvb, offset, &asn1_ctx, tree, hf_tetra_MAC_ACCESS_DEFINE_PDU);
   offset += 7; offset >>= 3;
   return offset;
@@ -8746,9 +8747,9 @@ static const value_string recvchanneltypenames[] = {
 };
 
 /* Get the length of received pdu */
-static gint get_rx_pdu_length(guint32 channel_type)
+static int get_rx_pdu_length(uint32_t channel_type)
 {
-	gint len = 0;
+	int len = 0;
 
 	switch(channel_type) {
 	case TETRA_CHAN_AACH:
@@ -8793,9 +8794,9 @@ static gint get_rx_pdu_length(guint32 channel_type)
 }
 
 /* Get the length of transmitted pdu */
-static gint get_tx_pdu_length(guint32 channel_type)
+static int get_tx_pdu_length(uint32_t channel_type)
 {
-	gint len = 0;
+	int len = 0;
 
 	switch(channel_type) {
 	case TETRA_CHAN_AACH:
@@ -8837,7 +8838,7 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 {
 	proto_item *tetra_sub_item;
 	proto_tree *tetra_sub_tree;
-	guint8 p;
+	uint8_t p;
 
 	tetra_sub_item = proto_tree_add_item(tree, hf_tetra_pdu,
 					     pdu, 0, tvb_captured_length(pdu), ENC_NA);
@@ -8849,7 +8850,7 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 		dissect_AACH_PDU(pdu, pinfo, tetra_sub_tree, NULL);
 		break;
 	case TETRA_CHAN_SCH_F:
-		p = tvb_get_guint8(pdu, 0);
+		p = tvb_get_uint8(pdu, 0);
 		switch(p >> 6) {
 		case 0:
 			if (dir == TETRA_DOWNLINK)
@@ -8873,7 +8874,7 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 		}
 		break;
 	case TETRA_CHAN_SCH_D:
-		p = tvb_get_guint8(pdu, 0);
+		p = tvb_get_uint8(pdu, 0);
 		switch(p >> 6) {
 		case 0:
 			dissect_MAC_RESOURCE_PDU(pdu, pinfo, tetra_sub_tree, NULL);
@@ -8890,7 +8891,7 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 		}
 		break;
 	case TETRA_CHAN_SCH_HU:
-		p = tvb_get_guint8(pdu, 0);
+		p = tvb_get_uint8(pdu, 0);
 		switch(p >> 7) {
 		case 0: /* MAC-ACCESS */
 			dissect_MAC_ACCESS_PDU(pdu, pinfo, tetra_sub_tree, NULL);
@@ -8909,7 +8910,7 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 		dissect_BNCH_PDU(pdu, pinfo, tetra_sub_tree, NULL);
 		break;
 	case TETRA_CHAN_STCH:
-		p = tvb_get_guint8(pdu, 0);
+		p = tvb_get_uint8(pdu, 0);
 		switch(p >> 6) {
 		case 0:
 			dissect_MAC_RESOURCE_PDU(pdu, pinfo, tetra_sub_tree, NULL);
@@ -8936,10 +8937,10 @@ void tetra_dissect_pdu(int channel_type, int dir, tvbuff_t *pdu, proto_tree *tre
 
 static void dissect_tetra_UNITDATA_IND(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tetra_tree, int offset)
 {
-	guint32 rxreg = 0;
-	guint32 channels = 0, i;
-	guint32 channel_type;
-	gint pdu_offset = 0;
+	uint32_t rxreg = 0;
+	uint32_t channels = 0, i;
+	uint32_t channel_type;
+	int pdu_offset = 0;
 	proto_item *tetra_sub_item;
 	proto_tree *tetra_header_tree = NULL;
 	tvbuff_t *payload_tvb;
@@ -8964,8 +8965,8 @@ static void dissect_tetra_UNITDATA_IND(tvbuff_t *tvb, packet_info *pinfo, proto_
 
 	pdu_offset = offset + 4;
 	for(i = 0; i < channels; i++) {
-		gint byte_len, bits_len, remaining_bits;
-		gint hf_channel[3];
+		int byte_len, bits_len, remaining_bits;
+		int hf_channel[3];
 
 		hf_channel[0] = hf_tetra_rxchannel1;
 		hf_channel[1] = hf_tetra_rxchannel2;
@@ -8996,10 +8997,10 @@ static void dissect_tetra_UNITDATA_IND(tvbuff_t *tvb, packet_info *pinfo, proto_
 
 static void dissect_tetra_UNITDATA_REQ(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tetra_tree, int offset)
 {
-	guint32 txreg = 0;
-	guint32 channels = 0, i;
-	guint32 channel_type;
-	gint pdu_offset = 0;
+	uint32_t txreg = 0;
+	uint32_t channels = 0, i;
+	uint32_t channel_type;
+	int pdu_offset = 0;
 	proto_item *tetra_sub_item = NULL;
 	proto_tree *tetra_header_tree = NULL;
 	tvbuff_t *payload_tvb;
@@ -9024,8 +9025,8 @@ static void dissect_tetra_UNITDATA_REQ(tvbuff_t *tvb, packet_info *pinfo, proto_
 
 	pdu_offset = offset + 4;
 	for(i = 0; i < channels; i++) {
-		gint byte_len, bits_len, remaining_bits;
-		gint hf_channel[3];
+		int byte_len, bits_len, remaining_bits;
+		int hf_channel[3];
 
 		hf_channel[0] = hf_tetra_channel1;
 		hf_channel[1] = hf_tetra_channel2;
@@ -9054,8 +9055,8 @@ dissect_tetra(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 	proto_item *tetra_sub_item = NULL;
 	proto_tree *tetra_tree = NULL;
 	proto_tree *tetra_header_tree = NULL;
-	guint16 type = 0;
-	guint8 carriernumber = -1;
+	uint16_t type = 0;
+	uint8_t carriernumber = -1;
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_TAG_tetra);
 	/* Clear out stuff in the info column */
@@ -9065,10 +9066,10 @@ dissect_tetra(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 	 * This is not a good way of dissecting packets.  The tvb length should
 	 * be sanity checked so we aren't going past the actual size of the buffer.
 	 */
-	type = tvb_get_guint8(tvb, 0);
+	type = tvb_get_uint8(tvb, 0);
 
 	if(include_carrier_number) {
-		carriernumber = tvb_get_guint8(tvb, 1);
+		carriernumber = tvb_get_uint8(tvb, 1);
 	}
 
 
@@ -9078,35 +9079,35 @@ dissect_tetra(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ, Carrier: %d",
 					carriernumber);
 		else
-			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ");
+			col_set_str(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ");
 		break;
 	case 2:
 		if(include_carrier_number)
 			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND, Carrier: %d",
 					carriernumber);
 		else
-			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND");
+			col_set_str(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND");
 		break;
 	case 3:
 		if(include_carrier_number)
 			col_add_fstr(pinfo->cinfo, COL_INFO, "MAC-Timer, Carrier: %d",
 					carriernumber);
 		else
-			col_add_fstr(pinfo->cinfo, COL_INFO, "MAC-Timer");
+			col_set_str(pinfo->cinfo, COL_INFO, "MAC-Timer");
 		break;
 	case 127:
 		if(include_carrier_number)
 			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND Done, Carrier: %d",
 					carriernumber);
 		else
-			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND Done");
+			col_set_str(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-IND Done");
 		break;
 	case 128:
 		if(include_carrier_number)
 			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ Done, Carrier: %d",
 					carriernumber);
 	  else
-			col_add_fstr(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ Done");
+			col_set_str(pinfo->cinfo, COL_INFO, "Tetra-UNITDATA-REQ Done");
 		break;
 	default:
 		col_add_fstr(pinfo->cinfo, COL_INFO, "Unknown command: %d", type);
@@ -9114,9 +9115,9 @@ dissect_tetra(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 	}
 
 	/* if (tree) */ { /* we are being asked for details */
-		guint32 offset = 0;
-		guint32 txtimer = 0;
-		guint32 tslot = 0;
+		uint32_t offset = 0;
+		uint32_t txtimer = 0;
+		uint32_t tslot = 0;
 
 		tetra_item = proto_tree_add_item(tree, proto_tetra, tvb, 0, -1, ENC_NA);
 		tetra_tree = proto_item_add_subtree(tetra_item, ett_tetra);
@@ -11604,7 +11605,7 @@ void proto_register_tetra (void)
  	};
 
 	/* List of subtrees */
-  	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_tetra,
 		&ett_tetra_header,
 		&ett_tetra_length,

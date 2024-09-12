@@ -32,28 +32,28 @@ void proto_reg_handoff_actrace(void);
 static dissector_handle_t actrace_handle;
 
 /* Define the actrace proto */
-static int proto_actrace = -1;
+static int proto_actrace;
 
 /* Define many headers for actrace */
 /* ISDN headers */
-static int hf_actrace_isdn_direction = -1;
-static int hf_actrace_isdn_trunk = -1;
-static int hf_actrace_isdn_length = -1;
+static int hf_actrace_isdn_direction;
+static int hf_actrace_isdn_trunk;
+static int hf_actrace_isdn_length;
 
 
 /* CAS headers */
-static int hf_actrace_cas_time = -1;
-static int hf_actrace_cas_source = -1;
-static int hf_actrace_cas_current_state = -1;
-static int hf_actrace_cas_event = -1;
-static int hf_actrace_cas_next_state = -1;
-static int hf_actrace_cas_function = -1;
-static int hf_actrace_cas_par0 = -1;
-static int hf_actrace_cas_par1 = -1;
-static int hf_actrace_cas_par2 = -1;
-static int hf_actrace_cas_trunk = -1;
-static int hf_actrace_cas_bchannel = -1;
-static int hf_actrace_cas_connection_id = -1;
+static int hf_actrace_cas_time;
+static int hf_actrace_cas_source;
+static int hf_actrace_cas_current_state;
+static int hf_actrace_cas_event;
+static int hf_actrace_cas_next_state;
+static int hf_actrace_cas_function;
+static int hf_actrace_cas_par0;
+static int hf_actrace_cas_par1;
+static int hf_actrace_cas_par2;
+static int hf_actrace_cas_trunk;
+static int hf_actrace_cas_bchannel;
+static int hf_actrace_cas_connection_id;
 
 
 
@@ -409,16 +409,16 @@ static const value_string actrace_isdn_direction_vals[] = {
 /*
  * Define the tree for actrace
  */
-static int ett_actrace = -1;
+static int ett_actrace;
 
 /*
  * Define the tap for actrace
  */
-static int actrace_tap = -1;
+static int actrace_tap;
 static actrace_info_t *actrace_pi;
 
 /* Some basic utility functions that are specific to this dissector */
-static int is_actrace(tvbuff_t *tvb, gint offset);
+static int is_actrace(tvbuff_t *tvb, int offset);
 
 /*
  * The dissect functions
@@ -480,9 +480,9 @@ static int dissect_actrace(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 static void dissect_actrace_cas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *actrace_tree)
 {
 	/* Declare variables */
-	gint32       value, function, trunk, bchannel, source, event, curr_state, next_state;
-	gint32       par0, par1, par2;
-	const gchar *frame_label = NULL;
+	int32_t      value, function, trunk, bchannel, source, event, curr_state, next_state;
+	int32_t      par0, par1, par2;
+	const char *frame_label = NULL;
 	int          direction   = 0;
 	int          offset      = 0;
 
@@ -633,8 +633,8 @@ static void dissect_actrace_isdn(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 				 proto_tree *actrace_tree)
 {
 	/* Declare variables */
-	gint      len;
-	gint32    value, trunk;
+	int       len;
+	int32_t   value, trunk;
 	tvbuff_t *next_tvb;
 	int       offset = 0;
 	struct isdn_phdr isdn;
@@ -694,10 +694,10 @@ static void dissect_actrace_isdn(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
  * in tvb, ACTRACE_CAS if there's a CAS packet there, ACTRACE_ISDN if
  * there's an ISDN packet there.
  */
-static int is_actrace(tvbuff_t *tvb, gint offset)
+static int is_actrace(tvbuff_t *tvb, int offset)
 {
-	gint   tvb_len;
-	gint32 source, isdn_header;
+	int    tvb_len;
+	int32_t source, isdn_header;
 
 	tvb_len = tvb_reported_length(tvb);
 
@@ -772,7 +772,7 @@ void proto_register_actrace(void)
 			    NULL, HFILL }},
 		};
 
-	static gint *ett[] =
+	static int *ett[] =
 		{
 			&ett_actrace,
 		};

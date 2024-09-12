@@ -484,6 +484,7 @@ static const value_string sapdiag_item_appl_st_user_vals[] = {
 	{ 0x07, "GUITIMEZONE" },
 	{ 0x08, "TURNTIME" },
 	{ 0x09, "GUIVERSION" },
+	/* No entry for 0xa... */
 	{ 0x0b, "SUPPORTDATA" },
 	{ 0x0c, "RFC_CONNECT" },
 	{ 0x0d, "WSIZE" },
@@ -633,7 +634,7 @@ static const value_string sapdiag_item_appl_dynt_vals[] = {
 
 /* SAP Diag Item APPL/APPL4 CONTAINER SID values */
 static const value_string sapdiag_item_appl_container_vals[] = {
-	/* CONTAINTER */
+	/* CONTAINER */
 	{ 0x01, "RESET" },
 	{ 0x02, "DEFAULT" },
 	{ 0x03, "SUBSCREEN" },
@@ -744,6 +745,7 @@ static const value_string sapdiag_item_dynt_atom_item_etype_vals[] = {
 	{ 107, "DIAG_DGOTYP_FRAME_3" },
 	{ 108, "DIAG_DGOTYP_LOOP_6" },
 	{ 109, "DIAG_DGOTYP_SUBSCREEN" },
+	/* No value for 110? */
 	{ 111, "DIAG_DGOTYP_PROPERTY" },
 	{ 112, "DIAG_DGOTYP_ICON_0" },
 	{ 113, "DIAG_DGOTYP_PUSHBUTTON_1" },
@@ -767,7 +769,7 @@ static const value_string sapdiag_item_dynt_atom_item_etype_vals[] = {
 	{ 131, "DIAG_DGOTYP_OFIELD_2" },
 	{ 132, "DIAG_DGOTYP_KEYWORD_2" },
 	/* NULL */
-	{ 000, NULL }
+	{ 0, NULL }
 };
 
 /* SAP Diag UI Event Source Event Type Values */
@@ -855,378 +857,378 @@ static const value_string sapdiag_item_control_properties_id_vals[] = {
 #define SAPDIAG_UI_EVENT_VALID_FLAG_NAVIGATION_DATA		0x04
 #define SAPDIAG_UI_EVENT_VALID_FLAG_FUNCTIONKEY_DATA	0x08
 
-static int proto_sapdiag = -1;
+static int proto_sapdiag;
 
-static int hf_sapdiag_dp = -1;
-static int hf_sapdiag_header = -1;
-static int hf_sapdiag_payload = -1;
+static int hf_sapdiag_dp;
+static int hf_sapdiag_header;
+static int hf_sapdiag_payload;
 
 /* Diag Header */
-static int hf_sapdiag_mode = -1;
-static int hf_sapdiag_com_flag = -1;
-static int hf_sapdiag_com_flag_TERM_EOS = -1;
-static int hf_sapdiag_com_flag_TERM_EOC = -1;
-static int hf_sapdiag_com_flag_TERM_NOP = -1;
-static int hf_sapdiag_com_flag_TERM_EOP = -1;
-static int hf_sapdiag_com_flag_TERM_INI = -1;
-static int hf_sapdiag_com_flag_TERM_CAS = -1;
-static int hf_sapdiag_com_flag_TERM_NNM = -1;
-static int hf_sapdiag_com_flag_TERM_GRA = -1;
+static int hf_sapdiag_mode;
+static int hf_sapdiag_com_flag;
+static int hf_sapdiag_com_flag_TERM_EOS;
+static int hf_sapdiag_com_flag_TERM_EOC;
+static int hf_sapdiag_com_flag_TERM_NOP;
+static int hf_sapdiag_com_flag_TERM_EOP;
+static int hf_sapdiag_com_flag_TERM_INI;
+static int hf_sapdiag_com_flag_TERM_CAS;
+static int hf_sapdiag_com_flag_TERM_NNM;
+static int hf_sapdiag_com_flag_TERM_GRA;
 
-static int hf_sapdiag_mode_stat = -1;
-static int hf_sapdiag_err_no = -1;
-static int hf_sapdiag_msg_type = -1;
-static int hf_sapdiag_msg_info = -1;
-static int hf_sapdiag_msg_rc = -1;
-static int hf_sapdiag_compress = -1;
+static int hf_sapdiag_mode_stat;
+static int hf_sapdiag_err_no;
+static int hf_sapdiag_msg_type;
+static int hf_sapdiag_msg_info;
+static int hf_sapdiag_msg_rc;
+static int hf_sapdiag_compress;
 
 /* Error messages */
-static int hf_sapdiag_error_message = -1;
+static int hf_sapdiag_error_message;
 
 /* Compression header */
-static int hf_sapdiag_compress_header = -1;
-static int hf_sapdiag_uncomplength = -1;
-static int hf_sapdiag_algorithm = -1;
-static int hf_sapdiag_magic = -1;
-static int hf_sapdiag_special = -1;
+static int hf_sapdiag_compress_header;
+static int hf_sapdiag_uncomplength;
+static int hf_sapdiag_algorithm;
+static int hf_sapdiag_magic;
+static int hf_sapdiag_special;
 
 /* Message Data */
-static int hf_sapdiag_item = -1;
-static int hf_sapdiag_item_type = -1;
-static int hf_sapdiag_item_id = -1;
-static int hf_sapdiag_item_sid = -1;
-static int hf_sapdiag_item_length_short = -1;
-static int hf_sapdiag_item_length_long = -1;
-static int hf_sapdiag_item_value = -1;
+static int hf_sapdiag_item;
+static int hf_sapdiag_item_type;
+static int hf_sapdiag_item_id;
+static int hf_sapdiag_item_sid;
+static int hf_sapdiag_item_length_short;
+static int hf_sapdiag_item_length_long;
+static int hf_sapdiag_item_value;
 
 /* Message DP Header */
-static int hf_sapdiag_dp_request_id = -1;
-static int hf_sapdiag_dp_retcode = -1;
-static int hf_sapdiag_dp_sender_id = -1;
-static int hf_sapdiag_dp_action_type = -1;
-static int hf_sapdiag_dp_req_info = -1;
+static int hf_sapdiag_dp_request_id;
+static int hf_sapdiag_dp_retcode;
+static int hf_sapdiag_dp_sender_id;
+static int hf_sapdiag_dp_action_type;
+static int hf_sapdiag_dp_req_info;
 
-static int hf_sapdiag_dp_req_info_LOGIN = -1;
-static int hf_sapdiag_dp_req_info_LOGOFF = -1;
-static int hf_sapdiag_dp_req_info_SHUTDOWN = -1;
-static int hf_sapdiag_dp_req_info_GRAPHIC_TM = -1;
-static int hf_sapdiag_dp_req_info_ALPHA_TM = -1;
-static int hf_sapdiag_dp_req_info_ERROR_FROM_APPC = -1;
-static int hf_sapdiag_dp_req_info_CANCELMODE = -1;
-static int hf_sapdiag_dp_req_info_MSG_WITH_REQ_BUF = -1;
-static int hf_sapdiag_dp_req_info_MSG_WITH_OH = -1;
-static int hf_sapdiag_dp_req_info_BUFFER_REFRESH = -1;
-static int hf_sapdiag_dp_req_info_BTC_SCHEDULER = -1;
-static int hf_sapdiag_dp_req_info_APPC_SERVER_DOWN = -1;
-static int hf_sapdiag_dp_req_info_MS_ERROR = -1;
-static int hf_sapdiag_dp_req_info_SET_SYSTEM_USER = -1;
-static int hf_sapdiag_dp_req_info_DP_CANT_HANDLE_REQ = -1;
-static int hf_sapdiag_dp_req_info_DP_AUTO_ABAP = -1;
-static int hf_sapdiag_dp_req_info_DP_APPL_SERV_INFO = -1;
-static int hf_sapdiag_dp_req_info_DP_ADMIN = -1;
-static int hf_sapdiag_dp_req_info_DP_SPOOL_ALRM = -1;
-static int hf_sapdiag_dp_req_info_DP_HAND_SHAKE = -1;
-static int hf_sapdiag_dp_req_info_DP_CANCEL_PRIV = -1;
-static int hf_sapdiag_dp_req_info_DP_RAISE_TIMEOUT = -1;
-static int hf_sapdiag_dp_req_info_DP_NEW_MODE = -1;
-static int hf_sapdiag_dp_req_info_DP_SOFT_CANCEL = -1;
-static int hf_sapdiag_dp_req_info_DP_TM_INPUT = -1;
-static int hf_sapdiag_dp_req_info_DP_TM_OUTPUT = -1;
-static int hf_sapdiag_dp_req_info_DP_ASYNC_RFC = -1;
-static int hf_sapdiag_dp_req_info_DP_ICM_EVENT = -1;
-static int hf_sapdiag_dp_req_info_DP_AUTO_TH = -1;
-static int hf_sapdiag_dp_req_info_DP_RFC_CANCEL = -1;
-static int hf_sapdiag_dp_req_info_DP_MS_ADM = -1;
+static int hf_sapdiag_dp_req_info_LOGIN;
+static int hf_sapdiag_dp_req_info_LOGOFF;
+static int hf_sapdiag_dp_req_info_SHUTDOWN;
+static int hf_sapdiag_dp_req_info_GRAPHIC_TM;
+static int hf_sapdiag_dp_req_info_ALPHA_TM;
+static int hf_sapdiag_dp_req_info_ERROR_FROM_APPC;
+static int hf_sapdiag_dp_req_info_CANCELMODE;
+static int hf_sapdiag_dp_req_info_MSG_WITH_REQ_BUF;
+static int hf_sapdiag_dp_req_info_MSG_WITH_OH;
+static int hf_sapdiag_dp_req_info_BUFFER_REFRESH;
+static int hf_sapdiag_dp_req_info_BTC_SCHEDULER;
+static int hf_sapdiag_dp_req_info_APPC_SERVER_DOWN;
+static int hf_sapdiag_dp_req_info_MS_ERROR;
+static int hf_sapdiag_dp_req_info_SET_SYSTEM_USER;
+static int hf_sapdiag_dp_req_info_DP_CANT_HANDLE_REQ;
+static int hf_sapdiag_dp_req_info_DP_AUTO_ABAP;
+static int hf_sapdiag_dp_req_info_DP_APPL_SERV_INFO;
+static int hf_sapdiag_dp_req_info_DP_ADMIN;
+static int hf_sapdiag_dp_req_info_DP_SPOOL_ALRM;
+static int hf_sapdiag_dp_req_info_DP_HAND_SHAKE;
+static int hf_sapdiag_dp_req_info_DP_CANCEL_PRIV;
+static int hf_sapdiag_dp_req_info_DP_RAISE_TIMEOUT;
+static int hf_sapdiag_dp_req_info_DP_NEW_MODE;
+static int hf_sapdiag_dp_req_info_DP_SOFT_CANCEL;
+static int hf_sapdiag_dp_req_info_DP_TM_INPUT;
+static int hf_sapdiag_dp_req_info_DP_TM_OUTPUT;
+static int hf_sapdiag_dp_req_info_DP_ASYNC_RFC;
+static int hf_sapdiag_dp_req_info_DP_ICM_EVENT;
+static int hf_sapdiag_dp_req_info_DP_AUTO_TH;
+static int hf_sapdiag_dp_req_info_DP_RFC_CANCEL;
+static int hf_sapdiag_dp_req_info_DP_MS_ADM;
 
-static int hf_sapdiag_dp_tid = -1;
-static int hf_sapdiag_dp_uid = -1;
-static int hf_sapdiag_dp_mode = -1;
-static int hf_sapdiag_dp_wp_id = -1;
-static int hf_sapdiag_dp_wp_ca_blk = -1;
-static int hf_sapdiag_dp_appc_ca_blk = -1;
-static int hf_sapdiag_dp_len = -1; /* Length of the SAP Diag Items in the login */
-static int hf_sapdiag_dp_new_stat = -1;
-static int hf_sapdiag_dp_rq_id = -1;
-static int hf_sapdiag_dp_terminal = -1;
+static int hf_sapdiag_dp_tid;
+static int hf_sapdiag_dp_uid;
+static int hf_sapdiag_dp_mode;
+static int hf_sapdiag_dp_wp_id;
+static int hf_sapdiag_dp_wp_ca_blk;
+static int hf_sapdiag_dp_appc_ca_blk;
+static int hf_sapdiag_dp_len; /* Length of the SAP Diag Items in the login */
+static int hf_sapdiag_dp_new_stat;
+static int hf_sapdiag_dp_rq_id;
+static int hf_sapdiag_dp_terminal;
 
 /* Dynt Atom */
-static int hf_sapdiag_item_dynt_atom = -1;
-static int hf_sapdiag_item_dynt_atom_item = -1;
-static int hf_sapdiag_item_dynt_atom_item_etype = -1;
-static int hf_sapdiag_item_dynt_atom_item_attr = -1;
-static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_COMBOSTYLE = -1;
-static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_YES3D = -1;
-static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_PROPFONT = -1;
-static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_MATCHCODE = -1;
-static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_JUSTRIGHT = -1;
-static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_INTENSIFY = -1;
-static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_INVISIBLE = -1;
-static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_PROTECTED = -1;
+static int hf_sapdiag_item_dynt_atom;
+static int hf_sapdiag_item_dynt_atom_item;
+static int hf_sapdiag_item_dynt_atom_item_etype;
+static int hf_sapdiag_item_dynt_atom_item_attr;
+static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_COMBOSTYLE;
+static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_YES3D;
+static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_PROPFONT;
+static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_MATCHCODE;
+static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_JUSTRIGHT;
+static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_INTENSIFY;
+static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_INVISIBLE;
+static int hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_PROTECTED;
 
 /* Control properties */
-static int hf_sapdiag_item_control_properties_id = -1;
-static int hf_sapdiag_item_control_properties_value = -1;
+static int hf_sapdiag_item_control_properties_id;
+static int hf_sapdiag_item_control_properties_value;
 
 /* UI Event Source */
-static int ht_sapdiag_item_ui_event_event_type = -1;
-static int ht_sapdiag_item_ui_event_control_type = -1;
-static int ht_sapdiag_item_ui_event_valid = -1;
-static int ht_sapdiag_item_ui_event_valid_MENU_POS = -1;
-static int ht_sapdiag_item_ui_event_valid_CONTROL_POS = -1;
-static int ht_sapdiag_item_ui_event_valid_NAVIGATION_DATA = -1;
-static int ht_sapdiag_item_ui_event_valid_FUNCTIONKEY_DATA = -1;
-static int ht_sapdiag_item_ui_event_control_row = -1;
-static int ht_sapdiag_item_ui_event_control_col = -1;
-static int ht_sapdiag_item_ui_event_data = -1;
-static int ht_sapdiag_item_ui_event_navigation_data = -1;
-static int ht_sapdiag_item_ui_event_container_nrs = -1;
-static int ht_sapdiag_item_ui_event_container = -1;
+static int hf_sapdiag_item_ui_event_event_type;
+static int hf_sapdiag_item_ui_event_control_type;
+static int hf_sapdiag_item_ui_event_valid;
+static int hf_sapdiag_item_ui_event_valid_MENU_POS;
+static int hf_sapdiag_item_ui_event_valid_CONTROL_POS;
+static int hf_sapdiag_item_ui_event_valid_NAVIGATION_DATA;
+static int hf_sapdiag_item_ui_event_valid_FUNCTIONKEY_DATA;
+static int hf_sapdiag_item_ui_event_control_row;
+static int hf_sapdiag_item_ui_event_control_col;
+static int hf_sapdiag_item_ui_event_data;
+static int hf_sapdiag_item_ui_event_navigation_data;
+static int hf_sapdiag_item_ui_event_container_nrs;
+static int hf_sapdiag_item_ui_event_container;
 
 /* Menu Entries */
-static int hf_sapdiag_item_menu_entry = -1;
+static int hf_sapdiag_item_menu_entry;
 
 /* Diag Support Bits */
-static int hf_SAPDIAG_SUPPORT_BIT_PROGRESS_INDICATOR = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_LABELS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_DIAGVERSION = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_SELECT_RECT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_SYMBOL_RIGHT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_FONT_METRIC = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_COMPR_ENHANCED = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_IMODE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_LONG_MESSAGE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_TABLE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_FOCUS_1 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_PUSHBUTTON_1 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_UPPERCASE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_TABPROPERTY = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_INPUT_UPPERCASE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_RFC_DIALOG = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_LIST_HOTSPOT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_FKEY_TABLE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MENU_SHORTCUT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_STOP_TRANS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_FULL_MENU = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_OBJECT_NAMES = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CONTAINER_TYPE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_DLGH_FLAGS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_APPL_MNU = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MESSAGE_INFO = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MESDUM_FLAG1 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TABSEL_ATTRIB = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GUIAPI = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NOGRAPH = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NOMESSAGES = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NORABAX = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NOSYSMSG = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NOSAPSCRIPT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NORFC = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NEW_BSD_JUSTRIGHT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MESSAGE_VARS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_OCX_SUPPORT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SCROLL_INFOS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TABLE_SIZE_OK = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MESSAGE_INFO2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_VARINFO_OKCODE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CURR_TCODE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CONN_WSIZE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_PUSHBUTTON_2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TABSTRIP = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_UNKNOWN_1 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TABSCROLL_INFOS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TABLE_FIELD_NAMES = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NEW_MODE_REQUEST = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_RFCBLOB_DIAG_PARSER = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MULTI_LOGIN_USER = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CONTROL_CONTAINER = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_APPTOOLBAR_FIXED = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_USER_CHECKED = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NEED_STDDYNPRO = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TYPE_SERVER = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_COMBOBOX = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_INPUT_REQUIRED = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ISO_LANGUAGE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_COMBOBOX_TABLE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_FLAGS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CHECKRADIO_EVENTS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_USERID = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_ROLLCOUNT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_USER_TURNTIME2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NUM_FIELD = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_WIN16 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CONTEXT_MENU = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SCROLLABLE_TABSTRIP_PAGE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_EVENT_DESCRIPTION = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_LABEL_OWNER = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CLICKABLE_FIELD = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_PROPERTY_BAG = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_1 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TABLE_ROW_REFERENCES_2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_PROPFONT_VALID = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_VARINFO_CONTAINER = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_IMODEUUID = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NOTGUI = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_WAN = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_XML_BLOBS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_RFC_QUEUE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_RFC_COMPRESS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_JAVA_BEANS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_DPLOADONDEMAND = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CTL_PROPCACHE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ENJOY_IMODEUUID = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_RFC_ASYNC_BLOB = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_KEEP_SCROLLPOS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_3 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_XML_PROPERTIES = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_4 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_HEX_FIELD = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_HAS_CACHE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_XML_PROP_TABLE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_5 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ENJOY_IMODEUUID2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ITS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NO_EASYACCESS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_PROPERTYPUMP = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_COOKIE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_6 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SUPPBIT_AREA_SIZE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_DPLOADONDEMAND_WRITE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CONTROL_FOCUS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ENTRY_HISTORY = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_AUTO_CODEPAGE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CACHED_VSETS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_EMERGENCY_REPAIR = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_AREA2FRONT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SCROLLBAR_WIDTH = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_AUTORESIZE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_EDIT_VARLEN = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_WORKPLACE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_PRINTDATA = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_UNKNOWN_2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SINGLE_SESSION = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NOTIFY_NEWMODE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TOOLBAR_HEIGHT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_XMLPROP_CONTAINER = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_XMLPROP_DYNPRO = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_DP_HTTP_PUT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_DYNAMIC_PASSPORT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_WEBGUI = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_WEBGUI_HELPMODE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CONTROL_FOCUS_ON_LIST = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CBU_RBUDUMMY_2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_EOKDUMMY_1 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GUI_USER_SCRIPTING = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SLC = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ACCESSIBILITY = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ECATT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ENJOY_IMODEUUID3 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ENABLE_UTF8 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_AUTOLOGOUT_TIME = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_VARINFO_ICON_TITLE_LIST = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ENABLE_UTF16BE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ENABLE_UTF16LE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_CODEPAGE_APP = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ENABLE_APPL4 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GUIPATCHLEVEL = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CBURBU_NEW_STATE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_BINARY_EVENTID = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GUI_THEME = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TOP_WINDOW = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_EVENT_DESCRIPTION_1 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SPLITTER = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_VALUE_4_HISTORY = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ACC_LIST = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GUI_USER_SCRIPTING_INFO = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TEXTEDIT_STREAM = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_DYNT_NOFOCUS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_CODEPAGE_APP_1 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_FRAME_1 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TICKET4GUI = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ACC_LIST_PROPS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TABSEL_ATTRIB_INPUT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_DEFAULT_TOOLTIP = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_XML_PROP_TABLE_2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CBU_RBUDUMMY_3 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CELLINFO = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CONTROL_FOCUS_ON_LIST_2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TABLE_COLUMNWIDTH_INPUT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ITS_PLUGIN = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_OBJECT_NAMES_4_LOGIN_PROCESS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_RFC_SERVER_4_GUI = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_FLAGS_2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_RCUI = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MENUENTRY_WITH_FCODE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_WEBSAPCONSOLE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_KERNEL_VERSION = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_VARINFO_CONTAINER_LOOP = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_EOKDUMMY_2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MESSAGE_INFO3 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SBA2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MAINAREA_SIZE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GUIPATCHLEVEL_2 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_DISPLAY_SIZE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GUI_PACKET = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_DIALOG_STEP_NUMBER = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TC_KEEP_SCROLL_POSITION = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MESSAGE_SERVICE_REQUEST = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_DYNT_FOCUS_FRAME = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MAX_STRING_LEN = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_VARINFO_CONTAINER_1 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_STD_TOOLBAR_ITEMS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_XMLPROP_LIST_DYNPRO = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_TRACE_GUI_CONNECT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_LIST_FULLWIDTH = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_ALLWAYS_SEND_CLIENT = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_UNKNOWN_3 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GUI_SIGNATURE_COLOR = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MAX_WSIZE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_SAP_PERSONAS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_IDA_ALV = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_IDA_ALV_FRAGMENTS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_AMC = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_EXTMODE_FONT_METRIC = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GROUPBOX = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_AGI_ID_TS_BUTTON = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NO_FOCUS_ON_LIST = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_FIORI_MODE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CONNECT_CHECK_DONE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MSGINFO_WITH_CODEPAGE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_AGI_ID = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_AGI_ID_TC = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_FIORI_TOOLBARS = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_OBJECT_NAMES_ENFORCE = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_MESDUMMY_FLAGS_2_3 = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_NWBC = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_CONTAINER_LIST = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GUI_SYSTEM_COLOR = -1;
-static int hf_SAPDIAG_SUPPORT_BIT_GROUPBOX_WITHOUT_BOTTOMLINE = -1;
+static int hf_SAPDIAG_SUPPORT_BIT_PROGRESS_INDICATOR;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_LABELS;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_DIAGVERSION;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_SELECT_RECT;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_SYMBOL_RIGHT;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_FONT_METRIC;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_COMPR_ENHANCED;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_IMODE;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_LONG_MESSAGE;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_TABLE;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_FOCUS_1;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_PUSHBUTTON_1;
+static int hf_SAPDIAG_SUPPORT_BIT_UPPERCASE;
+static int hf_SAPDIAG_SUPPORT_BIT_SAPGUI_TABPROPERTY;
+static int hf_SAPDIAG_SUPPORT_BIT_INPUT_UPPERCASE;
+static int hf_SAPDIAG_SUPPORT_BIT_RFC_DIALOG;
+static int hf_SAPDIAG_SUPPORT_BIT_LIST_HOTSPOT;
+static int hf_SAPDIAG_SUPPORT_BIT_FKEY_TABLE;
+static int hf_SAPDIAG_SUPPORT_BIT_MENU_SHORTCUT;
+static int hf_SAPDIAG_SUPPORT_BIT_STOP_TRANS;
+static int hf_SAPDIAG_SUPPORT_BIT_FULL_MENU;
+static int hf_SAPDIAG_SUPPORT_BIT_OBJECT_NAMES;
+static int hf_SAPDIAG_SUPPORT_BIT_CONTAINER_TYPE;
+static int hf_SAPDIAG_SUPPORT_BIT_DLGH_FLAGS;
+static int hf_SAPDIAG_SUPPORT_BIT_APPL_MNU;
+static int hf_SAPDIAG_SUPPORT_BIT_MESSAGE_INFO;
+static int hf_SAPDIAG_SUPPORT_BIT_MESDUM_FLAG1;
+static int hf_SAPDIAG_SUPPORT_BIT_TABSEL_ATTRIB;
+static int hf_SAPDIAG_SUPPORT_BIT_GUIAPI;
+static int hf_SAPDIAG_SUPPORT_BIT_NOGRAPH;
+static int hf_SAPDIAG_SUPPORT_BIT_NOMESSAGES;
+static int hf_SAPDIAG_SUPPORT_BIT_NORABAX;
+static int hf_SAPDIAG_SUPPORT_BIT_NOSYSMSG;
+static int hf_SAPDIAG_SUPPORT_BIT_NOSAPSCRIPT;
+static int hf_SAPDIAG_SUPPORT_BIT_NORFC;
+static int hf_SAPDIAG_SUPPORT_BIT_NEW_BSD_JUSTRIGHT;
+static int hf_SAPDIAG_SUPPORT_BIT_MESSAGE_VARS;
+static int hf_SAPDIAG_SUPPORT_BIT_OCX_SUPPORT;
+static int hf_SAPDIAG_SUPPORT_BIT_SCROLL_INFOS;
+static int hf_SAPDIAG_SUPPORT_BIT_TABLE_SIZE_OK;
+static int hf_SAPDIAG_SUPPORT_BIT_MESSAGE_INFO2;
+static int hf_SAPDIAG_SUPPORT_BIT_VARINFO_OKCODE;
+static int hf_SAPDIAG_SUPPORT_BIT_CURR_TCODE;
+static int hf_SAPDIAG_SUPPORT_BIT_CONN_WSIZE;
+static int hf_SAPDIAG_SUPPORT_BIT_PUSHBUTTON_2;
+static int hf_SAPDIAG_SUPPORT_BIT_TABSTRIP;
+static int hf_SAPDIAG_SUPPORT_BIT_UNKNOWN_1;
+static int hf_SAPDIAG_SUPPORT_BIT_TABSCROLL_INFOS;
+static int hf_SAPDIAG_SUPPORT_BIT_TABLE_FIELD_NAMES;
+static int hf_SAPDIAG_SUPPORT_BIT_NEW_MODE_REQUEST;
+static int hf_SAPDIAG_SUPPORT_BIT_RFCBLOB_DIAG_PARSER;
+static int hf_SAPDIAG_SUPPORT_BIT_MULTI_LOGIN_USER;
+static int hf_SAPDIAG_SUPPORT_BIT_CONTROL_CONTAINER;
+static int hf_SAPDIAG_SUPPORT_BIT_APPTOOLBAR_FIXED;
+static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_USER_CHECKED;
+static int hf_SAPDIAG_SUPPORT_BIT_NEED_STDDYNPRO;
+static int hf_SAPDIAG_SUPPORT_BIT_TYPE_SERVER;
+static int hf_SAPDIAG_SUPPORT_BIT_COMBOBOX;
+static int hf_SAPDIAG_SUPPORT_BIT_INPUT_REQUIRED;
+static int hf_SAPDIAG_SUPPORT_BIT_ISO_LANGUAGE;
+static int hf_SAPDIAG_SUPPORT_BIT_COMBOBOX_TABLE;
+static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_FLAGS;
+static int hf_SAPDIAG_SUPPORT_BIT_CHECKRADIO_EVENTS;
+static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_USERID;
+static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_ROLLCOUNT;
+static int hf_SAPDIAG_SUPPORT_BIT_USER_TURNTIME2;
+static int hf_SAPDIAG_SUPPORT_BIT_NUM_FIELD;
+static int hf_SAPDIAG_SUPPORT_BIT_WIN16;
+static int hf_SAPDIAG_SUPPORT_BIT_CONTEXT_MENU;
+static int hf_SAPDIAG_SUPPORT_BIT_SCROLLABLE_TABSTRIP_PAGE;
+static int hf_SAPDIAG_SUPPORT_BIT_EVENT_DESCRIPTION;
+static int hf_SAPDIAG_SUPPORT_BIT_LABEL_OWNER;
+static int hf_SAPDIAG_SUPPORT_BIT_CLICKABLE_FIELD;
+static int hf_SAPDIAG_SUPPORT_BIT_PROPERTY_BAG;
+static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_1;
+static int hf_SAPDIAG_SUPPORT_BIT_TABLE_ROW_REFERENCES_2;
+static int hf_SAPDIAG_SUPPORT_BIT_PROPFONT_VALID;
+static int hf_SAPDIAG_SUPPORT_BIT_VARINFO_CONTAINER;
+static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_IMODEUUID;
+static int hf_SAPDIAG_SUPPORT_BIT_NOTGUI;
+static int hf_SAPDIAG_SUPPORT_BIT_WAN;
+static int hf_SAPDIAG_SUPPORT_BIT_XML_BLOBS;
+static int hf_SAPDIAG_SUPPORT_BIT_RFC_QUEUE;
+static int hf_SAPDIAG_SUPPORT_BIT_RFC_COMPRESS;
+static int hf_SAPDIAG_SUPPORT_BIT_JAVA_BEANS;
+static int hf_SAPDIAG_SUPPORT_BIT_DPLOADONDEMAND;
+static int hf_SAPDIAG_SUPPORT_BIT_CTL_PROPCACHE;
+static int hf_SAPDIAG_SUPPORT_BIT_ENJOY_IMODEUUID;
+static int hf_SAPDIAG_SUPPORT_BIT_RFC_ASYNC_BLOB;
+static int hf_SAPDIAG_SUPPORT_BIT_KEEP_SCROLLPOS;
+static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_2;
+static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_3;
+static int hf_SAPDIAG_SUPPORT_BIT_XML_PROPERTIES;
+static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_4;
+static int hf_SAPDIAG_SUPPORT_BIT_HEX_FIELD;
+static int hf_SAPDIAG_SUPPORT_BIT_HAS_CACHE;
+static int hf_SAPDIAG_SUPPORT_BIT_XML_PROP_TABLE;
+static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_5;
+static int hf_SAPDIAG_SUPPORT_BIT_ENJOY_IMODEUUID2;
+static int hf_SAPDIAG_SUPPORT_BIT_ITS;
+static int hf_SAPDIAG_SUPPORT_BIT_NO_EASYACCESS;
+static int hf_SAPDIAG_SUPPORT_BIT_PROPERTYPUMP;
+static int hf_SAPDIAG_SUPPORT_BIT_COOKIE;
+static int hf_SAPDIAG_SUPPORT_BIT_UNUSED_6;
+static int hf_SAPDIAG_SUPPORT_BIT_SUPPBIT_AREA_SIZE;
+static int hf_SAPDIAG_SUPPORT_BIT_DPLOADONDEMAND_WRITE;
+static int hf_SAPDIAG_SUPPORT_BIT_CONTROL_FOCUS;
+static int hf_SAPDIAG_SUPPORT_BIT_ENTRY_HISTORY;
+static int hf_SAPDIAG_SUPPORT_BIT_AUTO_CODEPAGE;
+static int hf_SAPDIAG_SUPPORT_BIT_CACHED_VSETS;
+static int hf_SAPDIAG_SUPPORT_BIT_EMERGENCY_REPAIR;
+static int hf_SAPDIAG_SUPPORT_BIT_AREA2FRONT;
+static int hf_SAPDIAG_SUPPORT_BIT_SCROLLBAR_WIDTH;
+static int hf_SAPDIAG_SUPPORT_BIT_AUTORESIZE;
+static int hf_SAPDIAG_SUPPORT_BIT_EDIT_VARLEN;
+static int hf_SAPDIAG_SUPPORT_BIT_WORKPLACE;
+static int hf_SAPDIAG_SUPPORT_BIT_PRINTDATA;
+static int hf_SAPDIAG_SUPPORT_BIT_UNKNOWN_2;
+static int hf_SAPDIAG_SUPPORT_BIT_SINGLE_SESSION;
+static int hf_SAPDIAG_SUPPORT_BIT_NOTIFY_NEWMODE;
+static int hf_SAPDIAG_SUPPORT_BIT_TOOLBAR_HEIGHT;
+static int hf_SAPDIAG_SUPPORT_BIT_XMLPROP_CONTAINER;
+static int hf_SAPDIAG_SUPPORT_BIT_XMLPROP_DYNPRO;
+static int hf_SAPDIAG_SUPPORT_BIT_DP_HTTP_PUT;
+static int hf_SAPDIAG_SUPPORT_BIT_DYNAMIC_PASSPORT;
+static int hf_SAPDIAG_SUPPORT_BIT_WEBGUI;
+static int hf_SAPDIAG_SUPPORT_BIT_WEBGUI_HELPMODE;
+static int hf_SAPDIAG_SUPPORT_BIT_CONTROL_FOCUS_ON_LIST;
+static int hf_SAPDIAG_SUPPORT_BIT_CBU_RBUDUMMY_2;
+static int hf_SAPDIAG_SUPPORT_BIT_EOKDUMMY_1;
+static int hf_SAPDIAG_SUPPORT_BIT_GUI_USER_SCRIPTING;
+static int hf_SAPDIAG_SUPPORT_BIT_SLC;
+static int hf_SAPDIAG_SUPPORT_BIT_ACCESSIBILITY;
+static int hf_SAPDIAG_SUPPORT_BIT_ECATT;
+static int hf_SAPDIAG_SUPPORT_BIT_ENJOY_IMODEUUID3;
+static int hf_SAPDIAG_SUPPORT_BIT_ENABLE_UTF8;
+static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_AUTOLOGOUT_TIME;
+static int hf_SAPDIAG_SUPPORT_BIT_VARINFO_ICON_TITLE_LIST;
+static int hf_SAPDIAG_SUPPORT_BIT_ENABLE_UTF16BE;
+static int hf_SAPDIAG_SUPPORT_BIT_ENABLE_UTF16LE;
+static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_CODEPAGE_APP;
+static int hf_SAPDIAG_SUPPORT_BIT_ENABLE_APPL4;
+static int hf_SAPDIAG_SUPPORT_BIT_GUIPATCHLEVEL;
+static int hf_SAPDIAG_SUPPORT_BIT_CBURBU_NEW_STATE;
+static int hf_SAPDIAG_SUPPORT_BIT_BINARY_EVENTID;
+static int hf_SAPDIAG_SUPPORT_BIT_GUI_THEME;
+static int hf_SAPDIAG_SUPPORT_BIT_TOP_WINDOW;
+static int hf_SAPDIAG_SUPPORT_BIT_EVENT_DESCRIPTION_1;
+static int hf_SAPDIAG_SUPPORT_BIT_SPLITTER;
+static int hf_SAPDIAG_SUPPORT_BIT_VALUE_4_HISTORY;
+static int hf_SAPDIAG_SUPPORT_BIT_ACC_LIST;
+static int hf_SAPDIAG_SUPPORT_BIT_GUI_USER_SCRIPTING_INFO;
+static int hf_SAPDIAG_SUPPORT_BIT_TEXTEDIT_STREAM;
+static int hf_SAPDIAG_SUPPORT_BIT_DYNT_NOFOCUS;
+static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_CODEPAGE_APP_1;
+static int hf_SAPDIAG_SUPPORT_BIT_FRAME_1;
+static int hf_SAPDIAG_SUPPORT_BIT_TICKET4GUI;
+static int hf_SAPDIAG_SUPPORT_BIT_ACC_LIST_PROPS;
+static int hf_SAPDIAG_SUPPORT_BIT_TABSEL_ATTRIB_INPUT;
+static int hf_SAPDIAG_SUPPORT_BIT_DEFAULT_TOOLTIP;
+static int hf_SAPDIAG_SUPPORT_BIT_XML_PROP_TABLE_2;
+static int hf_SAPDIAG_SUPPORT_BIT_CBU_RBUDUMMY_3;
+static int hf_SAPDIAG_SUPPORT_BIT_CELLINFO;
+static int hf_SAPDIAG_SUPPORT_BIT_CONTROL_FOCUS_ON_LIST_2;
+static int hf_SAPDIAG_SUPPORT_BIT_TABLE_COLUMNWIDTH_INPUT;
+static int hf_SAPDIAG_SUPPORT_BIT_ITS_PLUGIN;
+static int hf_SAPDIAG_SUPPORT_BIT_OBJECT_NAMES_4_LOGIN_PROCESS;
+static int hf_SAPDIAG_SUPPORT_BIT_RFC_SERVER_4_GUI;
+static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_FLAGS_2;
+static int hf_SAPDIAG_SUPPORT_BIT_RCUI;
+static int hf_SAPDIAG_SUPPORT_BIT_MENUENTRY_WITH_FCODE;
+static int hf_SAPDIAG_SUPPORT_BIT_WEBSAPCONSOLE;
+static int hf_SAPDIAG_SUPPORT_BIT_R3INFO_KERNEL_VERSION;
+static int hf_SAPDIAG_SUPPORT_BIT_VARINFO_CONTAINER_LOOP;
+static int hf_SAPDIAG_SUPPORT_BIT_EOKDUMMY_2;
+static int hf_SAPDIAG_SUPPORT_BIT_MESSAGE_INFO3;
+static int hf_SAPDIAG_SUPPORT_BIT_SBA2;
+static int hf_SAPDIAG_SUPPORT_BIT_MAINAREA_SIZE;
+static int hf_SAPDIAG_SUPPORT_BIT_GUIPATCHLEVEL_2;
+static int hf_SAPDIAG_SUPPORT_BIT_DISPLAY_SIZE;
+static int hf_SAPDIAG_SUPPORT_BIT_GUI_PACKET;
+static int hf_SAPDIAG_SUPPORT_BIT_DIALOG_STEP_NUMBER;
+static int hf_SAPDIAG_SUPPORT_BIT_TC_KEEP_SCROLL_POSITION;
+static int hf_SAPDIAG_SUPPORT_BIT_MESSAGE_SERVICE_REQUEST;
+static int hf_SAPDIAG_SUPPORT_BIT_DYNT_FOCUS_FRAME;
+static int hf_SAPDIAG_SUPPORT_BIT_MAX_STRING_LEN;
+static int hf_SAPDIAG_SUPPORT_BIT_VARINFO_CONTAINER_1;
+static int hf_SAPDIAG_SUPPORT_BIT_STD_TOOLBAR_ITEMS;
+static int hf_SAPDIAG_SUPPORT_BIT_XMLPROP_LIST_DYNPRO;
+static int hf_SAPDIAG_SUPPORT_BIT_TRACE_GUI_CONNECT;
+static int hf_SAPDIAG_SUPPORT_BIT_LIST_FULLWIDTH;
+static int hf_SAPDIAG_SUPPORT_BIT_ALLWAYS_SEND_CLIENT;
+static int hf_SAPDIAG_SUPPORT_BIT_UNKNOWN_3;
+static int hf_SAPDIAG_SUPPORT_BIT_GUI_SIGNATURE_COLOR;
+static int hf_SAPDIAG_SUPPORT_BIT_MAX_WSIZE;
+static int hf_SAPDIAG_SUPPORT_BIT_SAP_PERSONAS;
+static int hf_SAPDIAG_SUPPORT_BIT_IDA_ALV;
+static int hf_SAPDIAG_SUPPORT_BIT_IDA_ALV_FRAGMENTS;
+static int hf_SAPDIAG_SUPPORT_BIT_AMC;
+static int hf_SAPDIAG_SUPPORT_BIT_EXTMODE_FONT_METRIC;
+static int hf_SAPDIAG_SUPPORT_BIT_GROUPBOX;
+static int hf_SAPDIAG_SUPPORT_BIT_AGI_ID_TS_BUTTON;
+static int hf_SAPDIAG_SUPPORT_BIT_NO_FOCUS_ON_LIST;
+static int hf_SAPDIAG_SUPPORT_BIT_FIORI_MODE;
+static int hf_SAPDIAG_SUPPORT_BIT_CONNECT_CHECK_DONE;
+static int hf_SAPDIAG_SUPPORT_BIT_MSGINFO_WITH_CODEPAGE;
+static int hf_SAPDIAG_SUPPORT_BIT_AGI_ID;
+static int hf_SAPDIAG_SUPPORT_BIT_AGI_ID_TC;
+static int hf_SAPDIAG_SUPPORT_BIT_FIORI_TOOLBARS;
+static int hf_SAPDIAG_SUPPORT_BIT_OBJECT_NAMES_ENFORCE;
+static int hf_SAPDIAG_SUPPORT_BIT_MESDUMMY_FLAGS_2_3;
+static int hf_SAPDIAG_SUPPORT_BIT_NWBC;
+static int hf_SAPDIAG_SUPPORT_BIT_CONTAINER_LIST;
+static int hf_SAPDIAG_SUPPORT_BIT_GUI_SYSTEM_COLOR;
+static int hf_SAPDIAG_SUPPORT_BIT_GROUPBOX_WITHOUT_BOTTOMLINE;
 
-static gint ett_sapdiag = -1;
+static int ett_sapdiag;
 
 /* Expert info */
-static expert_field ei_sapdiag_item_unknown = EI_INIT;
-static expert_field ei_sapdiag_item_partial = EI_INIT;
-static expert_field ei_sapdiag_item_unknown_length = EI_INIT;
-static expert_field ei_sapdiag_item_offset_invalid = EI_INIT;
-static expert_field ei_sapdiag_item_length_invalid = EI_INIT;
-static expert_field ei_sapdiag_atom_item_unknown = EI_INIT;
-static expert_field ei_sapdiag_atom_item_partial = EI_INIT;
-static expert_field ei_sapdiag_atom_item_malformed = EI_INIT;
-static expert_field ei_sapdiag_dynt_focus_more_cont_ids = EI_INIT;
-static expert_field ei_sapdiag_password_field = EI_INIT;
+static expert_field ei_sapdiag_item_unknown;
+static expert_field ei_sapdiag_item_partial;
+static expert_field ei_sapdiag_item_unknown_length;
+static expert_field ei_sapdiag_item_offset_invalid;
+static expert_field ei_sapdiag_item_length_invalid;
+static expert_field ei_sapdiag_atom_item_unknown;
+static expert_field ei_sapdiag_atom_item_partial;
+static expert_field ei_sapdiag_atom_item_malformed;
+static expert_field ei_sapdiag_dynt_focus_more_cont_ids;
+static expert_field ei_sapdiag_password_field;
 
 /* Global RFC dissection preference */
-static gboolean global_sapdiag_rfc_dissection = TRUE;
+static bool global_sapdiag_rfc_dissection = true;
 
 /* Global SNC dissection preference */
-static gboolean global_sapdiag_snc_dissection = TRUE;
+static bool global_sapdiag_snc_dissection = true;
 
 /* Global port preference */
 static range_t *global_sapdiag_port_range;
 
 /* Global highlight preference */
-static gboolean global_sapdiag_highlight_items = TRUE;
+static bool global_sapdiag_highlight_items = true;
 
 /* Protocol handle */
 static dissector_handle_t sapdiag_handle;
@@ -1236,7 +1238,7 @@ void proto_reg_handoff_sapdiag(void);
 
 
 static void
-dissect_sapdiag_dp_req_info(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
+dissect_sapdiag_dp_req_info(tvbuff_t *tvb, proto_tree *tree, uint32_t offset){
 	proto_item *ri = NULL;
 	proto_tree *req_info_tree;
 
@@ -1283,7 +1285,7 @@ dissect_sapdiag_dp_req_info(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
 }
 
 static void
-dissect_sapdiag_dp(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
+dissect_sapdiag_dp(tvbuff_t *tvb, proto_tree *tree, uint32_t offset){
 	proto_item *dp = NULL;
 	proto_tree *dp_tree;
 
@@ -1324,7 +1326,7 @@ dissect_sapdiag_dp(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
 }
 
 static void
-dissect_sapdiag_support_bits(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
+dissect_sapdiag_support_bits(tvbuff_t *tvb, proto_tree *tree, uint32_t offset){
 
 	proto_tree_add_item(tree, hf_SAPDIAG_SUPPORT_BIT_PROGRESS_INDICATOR, tvb, offset, 1, ENC_BIG_ENDIAN);  /* 0 */
 	proto_tree_add_item(tree, hf_SAPDIAG_SUPPORT_BIT_SAPGUI_LABELS, tvb, offset, 1, ENC_BIG_ENDIAN);  /* 1 */
@@ -1570,7 +1572,7 @@ dissect_sapdiag_support_bits(tvbuff_t *tvb, proto_tree *tree, guint32 offset){
 }
 
 static void
-dissect_sapdiag_rfc_call(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint32 item_length){
+dissect_sapdiag_rfc_call(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset, uint32_t item_length){
 
 	tvbuff_t *next_tvb = NULL;
 	dissector_handle_t rfc_handle;
@@ -1578,11 +1580,11 @@ dissect_sapdiag_rfc_call(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
 	/* Call the RFC internal dissector.
 	 * TODO: This should be enabled when the RFC dissector is merged as they depend on each other.
 	 */
-	if (global_sapdiag_rfc_dissection == TRUE && FALSE){
+	if (global_sapdiag_rfc_dissection && false){
 		rfc_handle = find_dissector("saprfcinternal");
 		if (rfc_handle){
 			/* Set the column to not writable so the RFC dissector doesn't override the Diag info */
-			col_set_writable(pinfo->cinfo, -1, FALSE);
+			col_set_writable(pinfo->cinfo, -1, false);
 			/* Create a new tvb buffer and call the dissector */
 			next_tvb = tvb_new_subset_length(tvb, offset, item_length);
 			call_dissector(rfc_handle, next_tvb, pinfo, tree);
@@ -1592,33 +1594,33 @@ dissect_sapdiag_rfc_call(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
 }
 
 
-static gboolean
-check_length(packet_info *pinfo, proto_tree *tree, guint32 expected, guint32 real, const char *name_string){
+static bool
+check_length(packet_info *pinfo, proto_tree *tree, uint32_t expected, uint32_t real, const char *name_string){
 	if (expected != real){
 		expert_add_info_format(pinfo, tree, &ei_sapdiag_item_length_invalid, "Item %s length is invalid", name_string);
-		return (FALSE);
-	} else return (TRUE);
+		return false;
+	} else return true;
 }
 
 
-static guint8
-add_item_value_uint8(tvbuff_t *tvb, proto_item *item, proto_tree *tree, int hf, guint32 offset, const char *text){
-	proto_tree_add_none_format(tree, hf, tvb, offset, 1, "%s: %d", text, tvb_get_guint8(tvb, offset));
-	proto_item_append_text(item, ", %s=%d", text, tvb_get_guint8(tvb, offset));
-	return (tvb_get_guint8(tvb, offset));
+static uint8_t
+add_item_value_uint8(tvbuff_t *tvb, proto_item *item, proto_tree *tree, int hf, uint32_t offset, const char *text){
+	proto_tree_add_none_format(tree, hf, tvb, offset, 1, "%s: %d", text, tvb_get_uint8(tvb, offset));
+	proto_item_append_text(item, ", %s=%d", text, tvb_get_uint8(tvb, offset));
+	return (tvb_get_uint8(tvb, offset));
 }
 
 
-static guint16
-add_item_value_uint16(tvbuff_t *tvb, proto_item *item, proto_tree *tree, int hf, guint32 offset, const char *text){
+static uint16_t
+add_item_value_uint16(tvbuff_t *tvb, proto_item *item, proto_tree *tree, int hf, uint32_t offset, const char *text){
 	proto_tree_add_none_format(tree, hf, tvb, offset, 2, "%s: %d", text, tvb_get_ntohs(tvb, offset));
 	proto_item_append_text(item, ", %s=%d", text, tvb_get_ntohs(tvb, offset));
 	return (tvb_get_ntohs(tvb, offset));
 }
 
 
-static guint32
-add_item_value_uint32(tvbuff_t *tvb, proto_item *item, proto_tree *tree, int hf, guint32 offset, const char *text){
+static uint32_t
+add_item_value_uint32(tvbuff_t *tvb, proto_item *item, proto_tree *tree, int hf, uint32_t offset, const char *text){
 	proto_tree_add_none_format(tree, hf, tvb, offset, 4, "%s: %d", text, tvb_get_ntohl(tvb, offset));
 	proto_item_append_text(item, ", %s=%d", text, tvb_get_ntohl(tvb, offset));
 	return (tvb_get_ntohl(tvb, offset));
@@ -1626,17 +1628,17 @@ add_item_value_uint32(tvbuff_t *tvb, proto_item *item, proto_tree *tree, int hf,
 
 
 static void
-add_item_value_string(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_tree *tree, int hf, guint32 offset, guint32 length, const char *text, int show_in_tree){
-	guint8 *string = tvb_get_string_enc(pinfo->pool, tvb, offset, length, ENC_ASCII);
+add_item_value_string(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_tree *tree, int hf, uint32_t offset, uint32_t length, const char *text, int show_in_tree){
+	uint8_t *string = tvb_get_string_enc(pinfo->pool, tvb, offset, length, ENC_ASCII);
 	proto_tree_add_none_format(tree, hf, tvb, offset, length, "%s: %s", text, string);
 	if (show_in_tree) proto_item_append_text(item, ", %s=%s", text, string);
 }
 
 
-static guint32
-add_item_value_stringz(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_tree *tree, int hf, guint32 offset, const char *text, int show_in_tree){
-	guint32 length = tvb_strsize(tvb, offset);
-	guint8 *string = tvb_get_string_enc(pinfo->pool, tvb, offset, length - 1, ENC_ASCII);
+static uint32_t
+add_item_value_stringz(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_tree *tree, int hf, uint32_t offset, const char *text, int show_in_tree){
+	uint32_t length = tvb_strsize(tvb, offset);
+	uint8_t *string = tvb_get_string_enc(pinfo->pool, tvb, offset, length - 1, ENC_ASCII);
 	proto_tree_add_none_format(tree, hf, tvb, offset, length, "%s: %s", text, string);
 	if (show_in_tree) proto_item_append_text(item, ", %s=%s", text, string);
 	return (length);
@@ -1644,24 +1646,24 @@ add_item_value_stringz(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, prot
 
 
 static void
-add_item_value_hexstring(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_tree *tree, int hf, guint32 offset, guint32 length, const char *text){
+add_item_value_hexstring(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_tree *tree, int hf, uint32_t offset, uint32_t length, const char *text){
 	proto_tree_add_none_format(tree, hf, tvb, offset, length, "%s: %s", text, tvb_bytes_to_str(pinfo->pool, tvb, offset, length));
 	proto_item_append_text(item, ", %s=%s", text, tvb_bytes_to_str(pinfo->pool, tvb, offset, length));
 }
 
 
 static void
-dissect_sapdiag_dyntatom(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint32 length){
-	guint32 final = offset + length;
-	guint16 atom_length = 0, atom_item_length = 0;
-	guint8 etype = 0, attr = 0;
+dissect_sapdiag_dyntatom(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset, uint32_t length){
+	uint32_t final = offset + length;
+	uint16_t atom_length = 0, atom_item_length = 0;
+	uint8_t etype = 0, attr = 0;
 
 	proto_item *atom = NULL, *atom_item = NULL, *atom_item_attr = NULL;
 	proto_tree *atom_tree = NULL, *atom_item_tree = NULL, *atom_item_attr_tree = NULL;
 
 	while (offset < final){
 
-		etype = tvb_get_guint8(tvb, offset+4);
+		etype = tvb_get_uint8(tvb, offset+4);
 		if ((etype != 114) && (etype != 120)) {
 			/* Add a new atom subtree */
 			atom_length = 0;
@@ -1699,7 +1701,7 @@ dissect_sapdiag_dyntatom(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
 		atom_item_length-=1;
 
 		proto_tree_add_item(atom_item_tree, hf_sapdiag_item_dynt_atom_item_etype, tvb, offset, 1, ENC_BIG_ENDIAN);
-		proto_item_append_text(atom_item, ", EType=%d", tvb_get_guint8(tvb, offset));
+		proto_item_append_text(atom_item, ", EType=%d", tvb_get_uint8(tvb, offset));
 		offset+=1;
 		atom_item_length-=1;
 
@@ -1722,7 +1724,7 @@ dissect_sapdiag_dyntatom(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
 		atom_item_attr = proto_tree_add_item(atom_item_tree, hf_sapdiag_item_dynt_atom_item_attr, tvb, offset, 1, ENC_BIG_ENDIAN);
 		atom_item_attr_tree = proto_item_add_subtree(atom_item_attr, ett_sapdiag);
 
-		attr = tvb_get_guint8(tvb, offset);
+		attr = tvb_get_uint8(tvb, offset);
 		proto_item_append_text(atom_item, ", Attr=%d", attr);
 		proto_tree_add_item(atom_item_attr_tree, hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_PROTECTED, tvb, offset, 1, ENC_BIG_ENDIAN);
 		proto_tree_add_item(atom_item_attr_tree, hf_sapdiag_item_dynt_atom_item_attr_DIAG_BSD_INVISIBLE, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -1872,9 +1874,9 @@ dissect_sapdiag_dyntatom(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gu
 }
 
 static void
-dissect_sapdiag_menu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint32 length){
+dissect_sapdiag_menu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset, uint32_t length){
 
-	guint32 final = offset + length;
+	uint32_t final = offset + length;
 
 	proto_item *menu = NULL;
 	proto_tree *menu_tree = NULL;
@@ -1936,65 +1938,65 @@ dissect_sapdiag_menu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint3
 }
 
 static void
-dissect_sapdiag_uievent(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint32 offset, guint32 length){
+dissect_sapdiag_uievent(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset, uint32_t length){
 
 	proto_item *event_valid_item = NULL;
 	proto_tree *event_valid_tree = NULL;
-	guint8 event_valid = 0;
-	guint16 container_nrs = 0, i = 0;
+	uint8_t event_valid = 0;
+	uint16_t container_nrs = 0, i = 0;
 
-	event_valid = tvb_get_guint8(tvb, offset);
-	event_valid_item = proto_tree_add_item(tree, ht_sapdiag_item_ui_event_valid, tvb, offset, 1, ENC_BIG_ENDIAN);
+	event_valid = tvb_get_uint8(tvb, offset);
+	event_valid_item = proto_tree_add_item(tree, hf_sapdiag_item_ui_event_valid, tvb, offset, 1, ENC_BIG_ENDIAN);
 	event_valid_tree = proto_item_add_subtree(event_valid_item, ett_sapdiag);
 
-	proto_tree_add_item(event_valid_tree, ht_sapdiag_item_ui_event_valid_MENU_POS, tvb, offset, 1, ENC_BIG_ENDIAN);
-	proto_tree_add_item(event_valid_tree, ht_sapdiag_item_ui_event_valid_CONTROL_POS, tvb, offset, 1, ENC_BIG_ENDIAN);
-	proto_tree_add_item(event_valid_tree, ht_sapdiag_item_ui_event_valid_NAVIGATION_DATA, tvb, offset, 1, ENC_BIG_ENDIAN);
-	proto_tree_add_item(event_valid_tree, ht_sapdiag_item_ui_event_valid_FUNCTIONKEY_DATA, tvb, offset, 1, ENC_BIG_ENDIAN); offset+=1;length-=1;
+	proto_tree_add_item(event_valid_tree, hf_sapdiag_item_ui_event_valid_MENU_POS, tvb, offset, 1, ENC_BIG_ENDIAN);
+	proto_tree_add_item(event_valid_tree, hf_sapdiag_item_ui_event_valid_CONTROL_POS, tvb, offset, 1, ENC_BIG_ENDIAN);
+	proto_tree_add_item(event_valid_tree, hf_sapdiag_item_ui_event_valid_NAVIGATION_DATA, tvb, offset, 1, ENC_BIG_ENDIAN);
+	proto_tree_add_item(event_valid_tree, hf_sapdiag_item_ui_event_valid_FUNCTIONKEY_DATA, tvb, offset, 1, ENC_BIG_ENDIAN); offset+=1;length-=1;
 
-	proto_tree_add_item(tree, ht_sapdiag_item_ui_event_event_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+	proto_tree_add_item(tree, hf_sapdiag_item_ui_event_event_type, tvb, offset, 2, ENC_BIG_ENDIAN);
 	proto_item_append_text(tree, ", Event Type=%s", val_to_str_const(tvb_get_ntohs(tvb, offset), sapdiag_item_ui_event_event_type_vals, "Unknown")); offset+=2;length-=2;
 
-	proto_tree_add_item(tree, ht_sapdiag_item_ui_event_control_type, tvb, offset, 2, ENC_BIG_ENDIAN);
+	proto_tree_add_item(tree, hf_sapdiag_item_ui_event_control_type, tvb, offset, 2, ENC_BIG_ENDIAN);
 	proto_item_append_text(tree, ", Control Type=%s", val_to_str_const(tvb_get_ntohs(tvb, offset), sapdiag_item_ui_event_control_type_vals, "Unknown")); offset+=2;length-=2;
 
 	/* The semantic of the event data changes depending of the event valid flag and are ignored if the
 	SAPDIAG_UI_EVENT_VALID_FLAG_NAVIGATION_DATA flag or the SAPDIAG_UI_EVENT_VALID_FLAG_FUNCTIONKEY_DATA
 	flags are not set. We dissect them always. */
 	if (event_valid & SAPDIAG_UI_EVENT_VALID_FLAG_NAVIGATION_DATA){
-		proto_tree_add_item(tree, ht_sapdiag_item_ui_event_navigation_data, tvb, offset, 1, ENC_BIG_ENDIAN);
+		proto_tree_add_item(tree, hf_sapdiag_item_ui_event_navigation_data, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset+=1;
 		length-=1;
 	} else { /* SAPDIAG_UI_EVENT_VALID_FLAG_FUNCTIONKEY_DATA */
-		proto_tree_add_item(tree, ht_sapdiag_item_ui_event_data, tvb, offset, 1, ENC_BIG_ENDIAN);
+		proto_tree_add_item(tree, hf_sapdiag_item_ui_event_data, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset+=1;
 		length-=1;
-		proto_tree_add_item(tree, ht_sapdiag_item_ui_event_data, tvb, offset, 1, ENC_BIG_ENDIAN);
+		proto_tree_add_item(tree, hf_sapdiag_item_ui_event_data, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset+=1;
 		length-=1;
-		proto_tree_add_item(tree, ht_sapdiag_item_ui_event_data, tvb, offset, 1, ENC_BIG_ENDIAN);
+		proto_tree_add_item(tree, hf_sapdiag_item_ui_event_data, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset+=1;
 		length-=1;
-		proto_tree_add_item(tree, ht_sapdiag_item_ui_event_data, tvb, offset, 1, ENC_BIG_ENDIAN);
+		proto_tree_add_item(tree, hf_sapdiag_item_ui_event_data, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset+=1;
 		length-=1;
 	}
 
 	/* These items are ignored if the flag SAPDIAG_UI_EVENT_VALID_FLAG_CONTROL_POS is not set. We dissect them always. */
-	proto_tree_add_item(tree, ht_sapdiag_item_ui_event_control_row, tvb, offset, 2, ENC_BIG_ENDIAN);
+	proto_tree_add_item(tree, hf_sapdiag_item_ui_event_control_row, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset+=2;
 	length-=2;
-	proto_tree_add_item(tree, ht_sapdiag_item_ui_event_control_col, tvb, offset, 2, ENC_BIG_ENDIAN);
+	proto_tree_add_item(tree, hf_sapdiag_item_ui_event_control_col, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset+=2;
 	length-=2;
 
 	i = container_nrs = tvb_get_ntohs(tvb, offset);
-	proto_tree_add_item(tree, ht_sapdiag_item_ui_event_container_nrs, tvb, offset, 2, ENC_BIG_ENDIAN);
+	proto_tree_add_item(tree, hf_sapdiag_item_ui_event_container_nrs, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset+=2;
 	length-=2;
 
 	while (i>0 && length>0){
-		proto_tree_add_item(tree, ht_sapdiag_item_ui_event_container, tvb, offset, 1, ENC_BIG_ENDIAN);
+		proto_tree_add_item(tree, hf_sapdiag_item_ui_event_container, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset+=1;
 		length-=1;
 		i--;
@@ -2006,14 +2008,14 @@ dissect_sapdiag_uievent(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, gui
 }
 
 static void
-dissect_sapdiag_item(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_tree *item_value_tree, proto_tree *parent_tree, guint32 offset, guint8 item_type, guint8 item_id, guint8 item_sid, guint32 item_length){
+dissect_sapdiag_item(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_tree *item_value_tree, proto_tree *parent_tree, uint32_t offset, uint8_t item_type, uint8_t item_id, uint8_t item_sid, uint32_t item_length){
 
 	/* SES item */
 	if (item_type==0x01){
-		guint8 event_array = 0;
+		uint8_t event_array = 0;
 		check_length(pinfo, item_value_tree, 16, item_length, "SES");
 
-		event_array = tvb_get_guint8(tvb, offset);
+		event_array = tvb_get_uint8(tvb, offset);
 		add_item_value_uint8(tvb, item, item_value_tree, hf_sapdiag_item_value, offset, "Event Array");
 		offset+=1;
 		add_item_value_uint8(tvb, item, item_value_tree, hf_sapdiag_item_value, offset, "Event ID 1");
@@ -2150,7 +2152,7 @@ dissect_sapdiag_item(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_
 		add_item_value_uint16(tvb, item, item_value_tree, hf_sapdiag_item_value, offset, "Internal Mode Number");
 
 	} else if (item_type==0x10 && item_id==0x06 && item_sid==0x13){		/* GUI_FKEY */
-		guint32 length = offset+item_length;
+		uint32_t length = offset+item_length;
 		offset++;  /* TODO: Skip one byte here */
 		offset+=add_item_value_stringz(tvb, pinfo, item, item_value_tree, hf_sapdiag_item_value, offset, "Virtual key number", 1);
 		while ((offset < length) && tvb_offset_exists(tvb, offset)){
@@ -2188,7 +2190,7 @@ dissect_sapdiag_item(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_
 		add_item_value_uint16(tvb, item, item_value_tree, hf_sapdiag_item_value, offset, "User ID");
 
 	} else if (item_type==0x10 && item_id==0x06 && item_sid==0x1f){		/* IMode uuids 2 */
-		guint8 uuids = tvb_get_guint8(tvb, offset);
+		uint8_t uuids = tvb_get_uint8(tvb, offset);
 		if (!check_length(pinfo, item_value_tree, 1 + 17 * uuids, item_length, "IMode uuids") ) return;
 		add_item_value_uint8(tvb, item, item_value_tree, hf_sapdiag_item_value, offset, "Number of uuids");
 		offset+=1;
@@ -2226,7 +2228,7 @@ dissect_sapdiag_item(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_
 		add_item_value_stringz(tvb, pinfo, item, item_value_tree, hf_sapdiag_item_value, offset, "Kernel patch level", 1);
 
 	} else if (item_type==0x10 && item_id==0x09 && item_sid==0x0b){		/* Dynt Focus */
-		guint32 length = offset + item_length;
+		uint32_t length = offset + item_length;
 		add_item_value_uint8(tvb, item, item_value_tree, hf_sapdiag_item_value, offset, "Focus Num of Area ID");
 		offset+=1;
 		add_item_value_uint16(tvb, item, item_value_tree, hf_sapdiag_item_value, offset, "Focus Row");
@@ -2440,7 +2442,7 @@ dissect_sapdiag_item(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_
 
 	/* Control Properties */
 	} else if (item_type==0x10 && item_id==0x0e && item_sid==0x01){ /* Control Properties */
-		guint32 length = offset + item_length;
+		uint32_t length = offset + item_length;
 
 		while((offset < length) && (tvb_offset_exists(tvb, offset + 3))){  /* Check against at least three bytes (2 for ID, 1 for null-terminated value) */
 			proto_tree_add_item(item_value_tree, hf_sapdiag_item_control_properties_id, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -2526,7 +2528,7 @@ dissect_sapdiag_item(tvbuff_t *tvb, packet_info *pinfo, proto_item *item, proto_
 }
 
 static const char *
-get_appl_string(guint8 item_id, guint8 item_sid){
+get_appl_string(uint8_t item_id, uint8_t item_sid){
 	const char *item_name_string = NULL;
 
 	switch (item_id){
@@ -2587,10 +2589,10 @@ get_appl_string(guint8 item_id, guint8 item_sid){
 }
 
 static void
-dissect_sapdiag_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tree *parent_tree, guint32 offset){
-	gint item_value_remaining_length;
-	guint8 item_type, item_long, item_id, item_sid;
-	guint32 item_length, item_value_length;
+dissect_sapdiag_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_tree *parent_tree, uint32_t offset){
+	int item_value_remaining_length;
+	uint8_t item_type, item_long, item_id, item_sid;
+	uint32_t item_length, item_value_length;
 	const char *item_name_string = NULL;
 
 	proto_item *item = NULL, *il = NULL, *item_value = NULL;
@@ -2604,7 +2606,7 @@ dissect_sapdiag_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, pro
 		item_tree = proto_item_add_subtree(item, ett_sapdiag);
 
 		/* Get the item type */
-		item_type = tvb_get_guint8(tvb, offset);
+		item_type = tvb_get_uint8(tvb, offset);
 		proto_tree_add_item(item_tree, hf_sapdiag_item_type, tvb, offset, 1, ENC_BIG_ENDIAN);
 		offset++;
 		item_length++;
@@ -2664,14 +2666,14 @@ dissect_sapdiag_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, pro
 			case 0x10:  /* APPL */
 			case 0x12:{ /* APPL4 */
 				/* Get the APPL(4) ID */
-				item_id = tvb_get_guint8(tvb, offset);
+				item_id = tvb_get_uint8(tvb, offset);
 				proto_item_append_text(item, ", %s", val_to_str_const(item_id, sapdiag_item_id_vals, "Unknown"));
 				proto_tree_add_item(item_tree, hf_sapdiag_item_id, tvb, offset, 1, ENC_BIG_ENDIAN);
 				offset++;
 				item_length++;
 
 				/* Get the APPL item sid value and set the respective name string according to them XXX: Change this for a multi array */
-				item_sid = tvb_get_guint8(tvb, offset);
+				item_sid = tvb_get_uint8(tvb, offset);
 				item_name_string = get_appl_string(item_id, item_sid);
 
 				proto_item_append_text(item, ", %s", item_name_string);
@@ -2717,9 +2719,9 @@ dissect_sapdiag_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, pro
 				expert_add_info(pinfo, il, &ei_sapdiag_item_offset_invalid);
 				return;
 			}
-			if ((guint32)item_value_remaining_length < item_value_length){
+			if ((uint32_t)item_value_remaining_length < item_value_length){
 				expert_add_info(pinfo, il, &ei_sapdiag_item_length_invalid);
-				item_value_length = (guint32)item_value_remaining_length;
+				item_value_length = (uint32_t)item_value_remaining_length;
 			}
 			item_value = proto_tree_add_item(item_tree, hf_sapdiag_item_value, tvb, offset, item_value_length, ENC_NA);
 			item_value_tree = proto_item_add_subtree(item_value, ett_sapdiag);
@@ -2730,32 +2732,32 @@ dissect_sapdiag_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, pro
 }
 
 static int
-check_sapdiag_dp(tvbuff_t *tvb, guint32 offset)
+check_sapdiag_dp(tvbuff_t *tvb, uint32_t offset)
 {
 	/* Since there's no SAP Diag mode 0xff, if the first byte is a 0xFF the
 	 * packet probably holds an initialization DP Header */
-	if ((tvb_reported_length_remaining(tvb, offset) >= 200 + 8) && tvb_get_guint8(tvb, offset) == 0xFF){
-		return (TRUE);
+	if ((tvb_reported_length_remaining(tvb, offset) >= 200 + 8) && tvb_get_uint8(tvb, offset) == 0xFF){
+		return true;
 	}
-	return (FALSE);
+	return false;
 }
 
 static int
-check_sapdiag_compression(tvbuff_t *tvb, guint32 offset)
+check_sapdiag_compression(tvbuff_t *tvb, uint32_t offset)
 {
 	/* We check for the length, the algorithm value and the presence of magic bytes */
 	if ((tvb_reported_length_remaining(tvb, offset) >= 8) &&
-		((tvb_get_guint8(tvb, offset+4) == 0x11) || (tvb_get_guint8(tvb, offset+4) == 0x12)) &&
-		(tvb_get_guint16(tvb, offset+5, ENC_LITTLE_ENDIAN) == 0x9d1f)){
-		return (TRUE);
+		((tvb_get_uint8(tvb, offset+4) == 0x11) || (tvb_get_uint8(tvb, offset+4) == 0x12)) &&
+		(tvb_get_uint16(tvb, offset+5, ENC_LITTLE_ENDIAN) == 0x9d1f)){
+		return true;
 	}
-	return (FALSE);
+	return false;
 }
 
 static void
-dissect_sapdiag_compressed_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *sapdiag, guint32 offset)
+dissect_sapdiag_compressed_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_item *sapdiag, uint32_t offset)
 {
-	guint32 reported_length = 0;
+	uint32_t reported_length = 0;
 	proto_item *compression_header = NULL;
 	proto_tree *compression_header_tree = NULL;
 
@@ -2788,14 +2790,14 @@ dissect_sapdiag_compressed_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree
 
 
 static void
-dissect_sapdiag_snc_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *sapdiag_tree, proto_tree *tree, guint32 offset){
+dissect_sapdiag_snc_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *sapdiag_tree, proto_tree *tree, uint32_t offset){
 
 	tvbuff_t *next_tvb = NULL;
 	proto_item *payload = NULL;
 	proto_tree *payload_tree = NULL;
 
 	/* Call the SNC dissector */
-	if (global_sapdiag_snc_dissection == TRUE){
+	if (global_sapdiag_snc_dissection == true){
 		next_tvb = dissect_sapsnc_frame(tvb, pinfo, tree, offset);
 
 		/* If the SNC dissection returned a new tvb, we've a payload to dissect */
@@ -2821,13 +2823,13 @@ dissect_sapdiag_snc_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *sapdiag
 static int
 dissect_sapdiag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	guint8 compress = 0, error_no = 0;
-	guint32 offset = 0;
+	uint8_t compress = 0, error_no = 0;
+	uint32_t offset = 0;
 	proto_item *sapdiag = NULL, *header = NULL, *com_flag = NULL, *payload = NULL;
 	proto_tree *sapdiag_tree = NULL, *header_tree = NULL, *com_flag_tree = NULL, *payload_tree = NULL;
 
 	/* Add the protocol to the column */
-	col_add_str(pinfo->cinfo, COL_PROTOCOL, "SAPDIAG");
+	col_set_str(pinfo->cinfo, COL_PROTOCOL, "SAPDIAG");
 	/* Clear out stuff in the info column */
 	col_clear(pinfo->cinfo,COL_INFO);
 
@@ -2872,7 +2874,7 @@ dissect_sapdiag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
 	proto_tree_add_item(header_tree, hf_sapdiag_mode_stat, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
 
-	error_no = tvb_get_guint8(tvb, offset);
+	error_no = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(header_tree, hf_sapdiag_err_no, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
 	proto_tree_add_item(header_tree, hf_sapdiag_msg_type, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -2882,17 +2884,17 @@ dissect_sapdiag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
 	proto_tree_add_item(header_tree, hf_sapdiag_msg_rc, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
 
-	compress = tvb_get_guint8(tvb, offset);
+	compress = tvb_get_uint8(tvb, offset);
 	proto_tree_add_item(header_tree, hf_sapdiag_compress, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset++;
 
 	/* Check for error messages */
 	if ((error_no != 0x00) && (tvb_reported_length_remaining(tvb, offset) > 0)){
-		gchar *error_message = NULL;
-		guint32 error_message_length = 0;
+		char *error_message = NULL;
+		uint32_t error_message_length = 0;
 
-		error_message_length = (guint32)tvb_reported_length_remaining(tvb, offset) - 1;
-		error_message = (gchar *)tvb_get_string_enc(pinfo->pool, tvb, offset, error_message_length, ENC_LITTLE_ENDIAN|ENC_UTF_16);
+		error_message_length = (uint32_t)tvb_reported_length_remaining(tvb, offset) - 1;
+		error_message = (char *)tvb_get_string_enc(pinfo->pool, tvb, offset, error_message_length, ENC_LITTLE_ENDIAN|ENC_UTF_16);
 		proto_tree_add_string(sapdiag_tree, hf_sapdiag_error_message, tvb, offset, error_message_length, error_message);
 
 	/* If the message is compressed */
@@ -3586,33 +3588,33 @@ proto_register_sapdiag(void)
 			{ "Control Properties Value", "sapdiag.item.value.controlproperties.value", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL }},
 
 		/* UI Event Source fields */
-		{ &ht_sapdiag_item_ui_event_event_type,
+		{ &hf_sapdiag_item_ui_event_event_type,
 			{ "UI Event Source Type", "sapdiag.item.value.uievent.type", FT_UINT16, BASE_DEC, VALS(sapdiag_item_ui_event_event_type_vals), 0x0, NULL, HFILL }},
-		{ &ht_sapdiag_item_ui_event_control_type,
+		{ &hf_sapdiag_item_ui_event_control_type,
 			{ "UI Event Control Type", "sapdiag.item.value.uievent.control", FT_UINT16, BASE_DEC, VALS(sapdiag_item_ui_event_control_type_vals), 0x0, NULL, HFILL }},
 
-		{ &ht_sapdiag_item_ui_event_valid,
+		{ &hf_sapdiag_item_ui_event_valid,
 			{ "UI Event Valid", "sapdiag.item.value.uievent.valid", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-		{ &ht_sapdiag_item_ui_event_valid_MENU_POS,
+		{ &hf_sapdiag_item_ui_event_valid_MENU_POS,
 			{ "UI Event Valid Menu Pos", "sapdiag.item.value.uievent.valid.MENU_POS", FT_BOOLEAN, 8, NULL, SAPDIAG_UI_EVENT_VALID_FLAG_MENU_POS, NULL, HFILL }},
-		{ &ht_sapdiag_item_ui_event_valid_CONTROL_POS,
+		{ &hf_sapdiag_item_ui_event_valid_CONTROL_POS,
 			{ "UI Event Valid Control Pos", "sapdiag.item.value.uievent.valid.CONTROL_POS", FT_BOOLEAN, 8, NULL, SAPDIAG_UI_EVENT_VALID_FLAG_CONTROL_POS, NULL, HFILL }},
-		{ &ht_sapdiag_item_ui_event_valid_NAVIGATION_DATA,
+		{ &hf_sapdiag_item_ui_event_valid_NAVIGATION_DATA,
 			{ "UI Event Valid Navigation Data", "sapdiag.item.value.uievent.valid.NAVIGATION_DATA", FT_BOOLEAN, 8, NULL, SAPDIAG_UI_EVENT_VALID_FLAG_NAVIGATION_DATA, NULL, HFILL }},
-		{ &ht_sapdiag_item_ui_event_valid_FUNCTIONKEY_DATA,
+		{ &hf_sapdiag_item_ui_event_valid_FUNCTIONKEY_DATA,
 			{ "UI Event Valid Function Key Data", "sapdiag.item.value.uievent.valid.FUNCTIONKEY_DATA", FT_BOOLEAN, 8, NULL, SAPDIAG_UI_EVENT_VALID_FLAG_FUNCTIONKEY_DATA, NULL, HFILL }},
 
-		{ &ht_sapdiag_item_ui_event_control_row,
+		{ &hf_sapdiag_item_ui_event_control_row,
 			{ "UI Event Source Control Row", "sapdiag.item.value.uievent.controlrow", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-		{ &ht_sapdiag_item_ui_event_control_col,
+		{ &hf_sapdiag_item_ui_event_control_col,
 			{ "UI Event Source Control Column", "sapdiag.item.value.uievent.controlcol", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-		{ &ht_sapdiag_item_ui_event_navigation_data,
+		{ &hf_sapdiag_item_ui_event_navigation_data,
 			{ "UI Event Source Navigation Data", "sapdiag.item.value.uievent.navigationdata", FT_UINT32, BASE_DEC, VALS(sapdiag_item_ui_event_navigation_data_vals), 0x0, NULL, HFILL }},
-		{ &ht_sapdiag_item_ui_event_data,
+		{ &hf_sapdiag_item_ui_event_data,
 			{ "UI Event Source Data", "sapdiag.item.value.uievent.data", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-		{ &ht_sapdiag_item_ui_event_container_nrs,
-			{ "UI Event Source Container IDs Numbers", "sapdiag.item.value.uievent.containernrs", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-		{ &ht_sapdiag_item_ui_event_container,
+		{ &hf_sapdiag_item_ui_event_container_nrs,
+			{ "UI Event Source Container IDs Numbers", "sapdiag.item.value.uievent.containernrs", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+		{ &hf_sapdiag_item_ui_event_container,
 			{ "UI Event Source Container ID", "sapdiag.item.value.uievent.container", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL }},
 
 		/* Menu Entries */
@@ -3623,7 +3625,7 @@ proto_register_sapdiag(void)
 	};
 
 	/* Setup protocol subtree array */
-	static gint *ett[] = {
+	static int *ett[] = {
 		&ett_sapdiag
 	};
 
@@ -3672,12 +3674,12 @@ proto_register_sapdiag(void)
 /**
  * Helpers for dealing with the port range
  */
-static void range_delete_callback (guint32 port, gpointer ptr _U_)
+static void range_delete_callback (uint32_t port, void *ptr _U_)
 {
 	dissector_delete_uint("sapni.port", port, sapdiag_handle);
 }
 
-static void range_add_callback (guint32 port, gpointer ptr _U_)
+static void range_add_callback (uint32_t port, void *ptr _U_)
 {
 	dissector_add_uint("sapni.port", port, sapdiag_handle);
 }
@@ -3689,11 +3691,11 @@ void
 proto_reg_handoff_sapdiag(void)
 {
 	static range_t *sapdiag_port_range;
-	static gboolean initialized = FALSE;
+	static bool initialized = false;
 
 	if (!initialized) {
 		sapdiag_handle = create_dissector_handle(dissect_sapdiag, proto_sapdiag);
-		initialized = TRUE;
+		initialized = true;
 	} else {
 		range_foreach(sapdiag_port_range, range_delete_callback, NULL);
 		wmem_free(wmem_epan_scope(), sapdiag_port_range);

@@ -16,6 +16,7 @@
 #include <epan/prefs.h>
 #include <epan/oids.h>
 #include <epan/asn1.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 #include "packet-acse.h"
@@ -37,18 +38,18 @@ void proto_register_dsp(void);
 void proto_reg_handoff_dsp(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_dsp = -1;
+static int proto_dsp;
 
 #include "packet-dsp-hf.c"
 
 /* Initialize the subtree pointers */
-static gint ett_dsp = -1;
+static int ett_dsp;
 #include "packet-dsp-ett.c"
 
-static expert_field ei_dsp_unsupported_opcode = EI_INIT;
-static expert_field ei_dsp_unsupported_errcode = EI_INIT;
-static expert_field ei_dsp_unsupported_pdu = EI_INIT;
-static expert_field ei_dsp_zero_pdu = EI_INIT;
+static expert_field ei_dsp_unsupported_opcode;
+static expert_field ei_dsp_unsupported_errcode;
+static expert_field ei_dsp_unsupported_pdu;
+static expert_field ei_dsp_zero_pdu;
 
 #include "packet-dsp-fn.c"
 
@@ -74,7 +75,7 @@ dissect_dsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* da
 		return 0;
 	session  = (struct SESSION_DATA_STRUCTURE*)data;
 
-	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
+	asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
 
 	item = proto_tree_add_item(parent_tree, proto_dsp, tvb, 0, -1, ENC_NA);
 	tree = proto_item_add_subtree(item, ett_dsp);
@@ -237,7 +238,7 @@ dissect_dsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void* da
 
 	  while (tvb_reported_length_remaining(tvb, offset) > 0){
 	    old_offset=offset;
-	    offset=(*dsp_dissector)(FALSE, tvb, offset, &asn1_ctx, tree, -1);
+	    offset=(*dsp_dissector)(false, tvb, offset, &asn1_ctx, tree, -1);
 	    if(offset == old_offset){
 	      proto_tree_add_expert(tree, pinfo, &ei_dsp_zero_pdu, tvb, offset, -1);
 	      break;
@@ -259,7 +260,7 @@ void proto_register_dsp(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_dsp,
 #include "packet-dsp-ettarr.c"
   };
@@ -308,6 +309,6 @@ void proto_reg_handoff_dsp(void) {
   /* ABSTRACT SYNTAXES */
 
   /* Register DSP with ROS (with no use of RTSE) */
-  register_ros_oid_dissector_handle("2.5.9.2", dsp_handle, 0, "id-as-directory-system", FALSE);
+  register_ros_oid_dissector_handle("2.5.9.2", dsp_handle, 0, "id-as-directory-system", false);
 
 }

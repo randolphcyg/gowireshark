@@ -1,7 +1,7 @@
 /* packet-cose.h
  * Definitions for CBOR Object Signing and Encryption (COSE) dissection
  * References:
- *     RFC 8152: https://tools.ietf.org/html/rfc8152
+ *     RFC 9052: https://tools.ietf.org/html/rfc9052
  *
  * Copyright 2019-2021, Brian Sipos <brian.sipos@gmail.com>
  *
@@ -53,15 +53,15 @@ typedef struct {
 
 /** Compatible with GHashFunc signature.
  */
-guint cose_param_key_hash(gconstpointer ptr);
+unsigned cose_param_key_hash(const void *ptr);
 
 /** Compatible with GEqualFunc signature.
  */
-gboolean cose_param_key_equal(gconstpointer a, gconstpointer b);
+gboolean cose_param_key_equal(const void *a, const void *b);
 
 /** Compatible with GDestroyNotify signature.
  */
-void cose_param_key_free(gpointer ptr);
+void cose_param_key_free(void *ptr);
 
 /// User data for header/key-parameter dissectors
 typedef struct {

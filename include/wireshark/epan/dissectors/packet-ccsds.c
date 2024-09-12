@@ -23,65 +23,65 @@ void proto_reg_handoff_ccsds(void);
 /*
  * See
  *
- *  http://public.ccsds.org/publications/archive/133x0b1c1.pdf section 4.1  -- CCSDS 133.0-B-1 replaces CCSDS 701.0-B-2
- *  http://www.everyspec.com/NASA/NASA+-+JSC/NASA+-+SSP+PUBS/download.php?spec=SSP_52050E.003096.pdf section 3.1.3
+ *  https://public.ccsds.org/Pubs/133x0b1s.pdf section 4.1  -- CCSDS 133.0-B-1 replaces CCSDS 701.0-B-2
+ *  http://everyspec.com/NASA/NASA-JSC/NASA-SSP-PUBS/download.php?spec=SSP_52050E.003096.pdf section 3.1.3
  *
  * for some information.
  */
 
 
 /* Initialize the protocol and registered fields */
-static int proto_ccsds = -1;
+static int proto_ccsds;
 
 /* primary ccsds header */
-static int hf_ccsds_header_flags = -1;
-static int hf_ccsds_apid = -1;
-static int hf_ccsds_version = -1;
-static int hf_ccsds_secheader = -1;
-static int hf_ccsds_type = -1;
-static int hf_ccsds_seqnum = -1;
-static int hf_ccsds_seqflag = -1;
-static int hf_ccsds_length = -1;
+static int hf_ccsds_header_flags;
+static int hf_ccsds_apid;
+static int hf_ccsds_version;
+static int hf_ccsds_secheader;
+static int hf_ccsds_type;
+static int hf_ccsds_seqnum;
+static int hf_ccsds_seqflag;
+static int hf_ccsds_length;
 
 /* common ccsds secondary header */
-static int hf_ccsds_coarse_time = -1;
-static int hf_ccsds_fine_time = -1;
-static int hf_ccsds_timeid = -1;
-static int hf_ccsds_checkword_flag = -1;
+static int hf_ccsds_coarse_time;
+static int hf_ccsds_fine_time;
+static int hf_ccsds_timeid;
+static int hf_ccsds_checkword_flag;
 
 /* payload specific ccsds secondary header */
-static int hf_ccsds_zoe = -1;
-static int hf_ccsds_packet_type_unused = -1;
-static int hf_ccsds_vid = -1;
-static int hf_ccsds_dcc = -1;
+static int hf_ccsds_zoe;
+static int hf_ccsds_packet_type_unused;
+static int hf_ccsds_vid;
+static int hf_ccsds_dcc;
 
 /* core specific ccsds secondary header */
-/* static int hf_ccsds_spare1 = -1; */
-static int hf_ccsds_packet_type = -1;
-/* static int hf_ccsds_spare2 = -1; */
-static int hf_ccsds_element_id = -1;
-static int hf_ccsds_cmd_data_packet = -1;
-static int hf_ccsds_format_version_id = -1;
-static int hf_ccsds_extended_format_id = -1;
-/* static int hf_ccsds_spare3 = -1; */
-static int hf_ccsds_frame_id = -1;
-static int hf_ccsds_embedded_time = -1;
-static int hf_ccsds_user_data = -1;
+/* static int hf_ccsds_spare1; */
+static int hf_ccsds_packet_type;
+/* static int hf_ccsds_spare2; */
+static int hf_ccsds_element_id;
+static int hf_ccsds_cmd_data_packet;
+static int hf_ccsds_format_version_id;
+static int hf_ccsds_extended_format_id;
+/* static int hf_ccsds_spare3; */
+static int hf_ccsds_frame_id;
+static int hf_ccsds_embedded_time;
+static int hf_ccsds_user_data;
 
 /* ccsds checkword (checksum) */
-static int hf_ccsds_checkword = -1;
-static int hf_ccsds_checkword_good = -1;
-static int hf_ccsds_checkword_bad = -1;
+static int hf_ccsds_checkword;
+static int hf_ccsds_checkword_good;
+static int hf_ccsds_checkword_bad;
 
 /* Initialize the subtree pointers */
-static gint ett_ccsds_primary_header_flags = -1;
-static gint ett_ccsds = -1;
-static gint ett_ccsds_primary_header = -1;
-static gint ett_ccsds_secondary_header = -1;
-static gint ett_ccsds_checkword = -1;
+static int ett_ccsds_primary_header_flags;
+static int ett_ccsds;
+static int ett_ccsds_primary_header;
+static int ett_ccsds_secondary_header;
+static int ett_ccsds_checkword;
 
-static expert_field ei_ccsds_length_error = EI_INIT;
-static expert_field ei_ccsds_checkword = EI_INIT;
+static expert_field ei_ccsds_length_error;
+static expert_field ei_ccsds_checkword;
 
 static dissector_handle_t ccsds_handle;
 /* Dissector table */
@@ -96,7 +96,7 @@ static const enum_val_t dissect_checkword[] = {
 
 /* Global preferences */
 /* As defined above, default is to use header flag */
-static gint global_dissect_checkword = 2;
+static int global_dissect_checkword = 2;
 
 /*
  * Bits in the first 16-bit header word
@@ -279,7 +279,7 @@ static const char* embedded_time_to_string ( wmem_allocator_t *pool, int coarse_
     fraction = ( multiplier * ( (int)fine_time & 0xff ) ) / 256;
     t.nsecs = fraction*1000000; /* msecs to nsecs */
 
-    return abs_time_to_str(pool, &t, ABSOLUTE_TIME_DOY_UTC, TRUE);
+    return abs_time_to_str(pool, &t, ABSOLUTE_TIME_DOY_UTC, true);
 }
 
 
@@ -292,21 +292,21 @@ dissect_ccsds(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
     proto_tree  *ccsds_tree;
     proto_item  *primary_header;
     proto_tree  *primary_header_tree;
-    guint16      first_word;
-    guint32      coarse_time;
-    guint8       fine_time;
+    uint16_t     first_word;
+    uint32_t     coarse_time;
+    uint8_t      fine_time;
     proto_item  *secondary_header;
     proto_tree  *secondary_header_tree;
     const char  *time_string;
-    gint         ccsds_length;
-    gint         length          = 0;
-    gint         reported_length;
-    guint8       checkword_flag  = 0;
-    gint         counter         = 0;
+    int          ccsds_length;
+    int          length          = 0;
+    int          reported_length;
+    uint8_t      checkword_flag  = 0;
+    int          counter         = 0;
     proto_item  *item, *checkword_item = NULL;
     proto_tree  *checkword_tree;
-    guint16      checkword_field = 0;
-    guint16      checkword_sum   = 0;
+    uint16_t     checkword_field = 0;
+    uint16_t     checkword_sum   = 0;
     tvbuff_t    *next_tvb;
     static int * const header_flags[] = {
         &hf_ccsds_version,
@@ -372,7 +372,7 @@ dissect_ccsds(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
         proto_tree_add_item(secondary_header_tree, hf_ccsds_coarse_time, tvb, offset, 4, ENC_BIG_ENDIAN);
         offset += 4;
 
-        fine_time = tvb_get_guint8(tvb, offset);
+        fine_time = tvb_get_uint8(tvb, offset);
         proto_tree_add_item(secondary_header_tree, hf_ccsds_fine_time, tvb, offset, 1, ENC_BIG_ENDIAN);
         ++offset;
 
@@ -394,7 +394,7 @@ dissect_ccsds(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
               break;
            default:
               /* use value of checkword presence flag from header */
-              checkword_flag = (tvb_get_guint8(tvb, offset)&0x20) >> 5;
+              checkword_flag = (tvb_get_uint8(tvb, offset)&0x20) >> 5;
               break;
         }
 
@@ -470,17 +470,17 @@ dissect_ccsds(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
                 item = proto_tree_add_uint_format_value(ccsds_tree, hf_ccsds_checkword, tvb, offset, 2, checkword_field,
                         "0x%04x [correct]", checkword_field);
                 checkword_tree = proto_item_add_subtree(item, ett_ccsds_checkword);
-                item = proto_tree_add_boolean(checkword_tree, hf_ccsds_checkword_good, tvb, offset, 2, TRUE);
+                item = proto_tree_add_boolean(checkword_tree, hf_ccsds_checkword_good, tvb, offset, 2, true);
                 proto_item_set_generated(item);
-                item = proto_tree_add_boolean(checkword_tree, hf_ccsds_checkword_bad, tvb, offset, 2, FALSE);
+                item = proto_tree_add_boolean(checkword_tree, hf_ccsds_checkword_bad, tvb, offset, 2, false);
                 proto_item_set_generated(item);
             } else {
                 item = proto_tree_add_uint_format_value(ccsds_tree, hf_ccsds_checkword, tvb, offset, 2, checkword_field,
                         "0x%04x [incorrect, should be 0x%04x]", checkword_field, checkword_sum);
                 checkword_tree = proto_item_add_subtree(item, ett_ccsds_checkword);
-                item = proto_tree_add_boolean(checkword_tree, hf_ccsds_checkword_good, tvb, offset, 2, FALSE);
+                item = proto_tree_add_boolean(checkword_tree, hf_ccsds_checkword_good, tvb, offset, 2, false);
                 proto_item_set_generated(item);
-                item = proto_tree_add_boolean(checkword_tree, hf_ccsds_checkword_bad, tvb, offset, 2, TRUE);
+                item = proto_tree_add_boolean(checkword_tree, hf_ccsds_checkword_bad, tvb, offset, 2, true);
                 proto_item_set_generated(item);
             }
             offset += 2;
@@ -667,7 +667,7 @@ proto_register_ccsds(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_ccsds_primary_header_flags,
         &ett_ccsds,
         &ett_ccsds_primary_header,
@@ -701,9 +701,9 @@ proto_register_ccsds(void)
     prefs_register_enum_preference(ccsds_module, "global_pref_checkword",
         "How to handle the CCSDS checkword",
         "Specify how the dissector should handle the CCSDS checkword",
-        &global_dissect_checkword, dissect_checkword, FALSE);
+        &global_dissect_checkword, dissect_checkword, false);
 
-    /* Dissector table for sub-dissetors */
+    /* Dissector table for sub-dissectors */
     ccsds_dissector_table = register_dissector_table("ccsds.apid", "CCSDS apid", proto_ccsds, FT_UINT16, BASE_DEC);
 }
 

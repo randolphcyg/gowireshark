@@ -11,7 +11,7 @@
 #include <wsutil/str_util.h>
 
 static void *
-string_dup(gconstpointer string)
+string_dup(const void *string)
 {
 	return g_strdup(string);
 }
@@ -29,7 +29,7 @@ string_tostr(const void *data, bool pretty _U_)
 }
 
 static void *
-gstring_dup(gconstpointer value)
+gstring_dup(const void *value)
 {
 	const GString *gs = value;
 	return g_string_new_len(gs->str, gs->len);
@@ -38,7 +38,7 @@ gstring_dup(gconstpointer value)
 static void
 gstring_free(void *value)
 {
-	g_string_free(value, true);
+	g_string_free(value, TRUE);
 }
 
 static char *
@@ -54,7 +54,6 @@ sttype_register_string(void)
 {
 	static sttype_t string_type = {
 		STTYPE_STRING,
-		"STRING",
 		NULL,
 		gstring_free,
 		gstring_dup,
@@ -63,7 +62,14 @@ sttype_register_string(void)
 
 	static sttype_t literal_type = {
 		STTYPE_LITERAL,
-		"LITERAL",
+		NULL,
+		string_free,
+		string_dup,
+		string_tostr
+	};
+
+	static sttype_t unparsed_type = {
+		STTYPE_UNPARSED,
 		NULL,
 		string_free,
 		string_dup,
@@ -72,6 +78,7 @@ sttype_register_string(void)
 
 	sttype_register(&string_type);
 	sttype_register(&literal_type);
+	sttype_register(&unparsed_type);
 }
 
 /*

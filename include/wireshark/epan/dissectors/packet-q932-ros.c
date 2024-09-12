@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-q932-ros.c                                                          */
-/* asn2wrs.py -b -L -p q932.ros -c ./q932-ros.cnf -s ./packet-q932-ros-template -D . -O ../.. ../ros/Remote-Operations-Information-Objects.asn Facility-Information-Element-Components.asn */
+/* asn2wrs.py -b -q -L -p q932.ros -c ./q932-ros.cnf -s ./packet-q932-ros-template -D . -O ../.. ../ros/Remote-Operations-Information-Objects.asn Facility-Information-Element-Components.asn */
 
 /* packet-q932-ros.c
  * Routines for Q.932 packet dissection
@@ -20,6 +20,7 @@
 #include <epan/strutil.h>
 #include <epan/asn1.h>
 #include <epan/expert.h>
+#include <wsutil/array.h>
 
 #include "packet-ber.h"
 
@@ -31,56 +32,56 @@ void proto_register_q932_ros(void);
 void proto_reg_handoff_q932_ros(void);
 
 /* Initialize the protocol and registered fields */
-static int proto_q932_ros = -1;
-static int hf_q932_ros_ROS_PDU = -1;              /* ROS */
-static int hf_q932_ros_local = -1;                /* T_local */
-static int hf_q932_ros_global = -1;               /* T_global */
-static int hf_q932_ros_invoke = -1;               /* Invoke */
-static int hf_q932_ros_returnResult = -1;         /* ReturnResult */
-static int hf_q932_ros_returnError = -1;          /* ReturnError */
-static int hf_q932_ros_reject = -1;               /* Reject */
-static int hf_q932_ros_invokeId = -1;             /* InvokeId */
-static int hf_q932_ros_linkedId = -1;             /* T_linkedId */
-static int hf_q932_ros_linkedIdPresent = -1;      /* T_linkedIdPresent */
-static int hf_q932_ros_absent = -1;               /* NULL */
-static int hf_q932_ros_opcode = -1;               /* Code */
-static int hf_q932_ros_argument = -1;             /* InvokeArgument */
-static int hf_q932_ros_result = -1;               /* T_result */
-static int hf_q932_ros_resultArgument = -1;       /* ResultArgument */
-static int hf_q932_ros_errcode = -1;              /* Code */
-static int hf_q932_ros_parameter = -1;            /* T_parameter */
-static int hf_q932_ros_problem = -1;              /* T_problem */
-static int hf_q932_ros_general = -1;              /* GeneralProblem */
-static int hf_q932_ros_invokeProblem = -1;        /* InvokeProblem */
-static int hf_q932_ros_returnResultProblem = -1;  /* ReturnResultProblem */
-static int hf_q932_ros_returnErrorProblem = -1;   /* ReturnErrorProblem */
-static int hf_q932_ros_present = -1;              /* INTEGER */
-static int hf_q932_ros_InvokeId_present = -1;     /* InvokeId_present */
+static int proto_q932_ros;
+static int hf_q932_ros_ROS_PDU;                   /* ROS */
+static int hf_q932_ros_local;                     /* T_local */
+static int hf_q932_ros_global;                    /* T_global */
+static int hf_q932_ros_invoke;                    /* Invoke */
+static int hf_q932_ros_returnResult;              /* ReturnResult */
+static int hf_q932_ros_returnError;               /* ReturnError */
+static int hf_q932_ros_reject;                    /* Reject */
+static int hf_q932_ros_invokeId;                  /* InvokeId */
+static int hf_q932_ros_linkedId;                  /* T_linkedId */
+static int hf_q932_ros_linkedIdPresent;           /* T_linkedIdPresent */
+static int hf_q932_ros_absent;                    /* NULL */
+static int hf_q932_ros_opcode;                    /* Code */
+static int hf_q932_ros_argument;                  /* InvokeArgument */
+static int hf_q932_ros_result;                    /* T_result */
+static int hf_q932_ros_resultArgument;            /* ResultArgument */
+static int hf_q932_ros_errcode;                   /* Code */
+static int hf_q932_ros_parameter;                 /* T_parameter */
+static int hf_q932_ros_problem;                   /* T_problem */
+static int hf_q932_ros_general;                   /* GeneralProblem */
+static int hf_q932_ros_invokeProblem;             /* InvokeProblem */
+static int hf_q932_ros_returnResultProblem;       /* ReturnResultProblem */
+static int hf_q932_ros_returnErrorProblem;        /* ReturnErrorProblem */
+static int hf_q932_ros_present;                   /* INTEGER */
+static int hf_q932_ros_InvokeId_present;          /* InvokeId_present */
 
 /* Initialize the subtree pointers */
-static gint ett_q932_ros_Code = -1;
-static gint ett_q932_ros_ROS = -1;
-static gint ett_q932_ros_Invoke = -1;
-static gint ett_q932_ros_T_linkedId = -1;
-static gint ett_q932_ros_ReturnResult = -1;
-static gint ett_q932_ros_T_result = -1;
-static gint ett_q932_ros_ReturnError = -1;
-static gint ett_q932_ros_Reject = -1;
-static gint ett_q932_ros_T_problem = -1;
-static gint ett_q932_ros_InvokeId = -1;
+static int ett_q932_ros_Code;
+static int ett_q932_ros_ROS;
+static int ett_q932_ros_Invoke;
+static int ett_q932_ros_T_linkedId;
+static int ett_q932_ros_ReturnResult;
+static int ett_q932_ros_T_result;
+static int ett_q932_ros_ReturnError;
+static int ett_q932_ros_Reject;
+static int ett_q932_ros_T_problem;
+static int ett_q932_ros_InvokeId;
 
-static expert_field ei_ros_undecoded = EI_INIT;
+static expert_field ei_ros_undecoded;
 
 /* Preferences */
 
 /* Subdissectors */
-static dissector_handle_t data_handle = NULL;
+static dissector_handle_t data_handle;
 
 /* Global variables */
 static rose_ctx_t *rose_ctx_tmp;
 
-static guint32 problem_val;
-static gchar problem_str[64];
+static uint32_t problem_val;
+static char problem_str[64];
 static tvbuff_t *arg_next_tvb, *res_next_tvb, *err_next_tvb;
 
 
@@ -212,7 +213,7 @@ dissect_q932_ros_T_linkedId(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset
 
 static int
 dissect_q932_ros_InvokeArgument(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  gint len;
+  int len;
 
   len = tvb_reported_length_remaining(tvb, offset);
   if (len)
@@ -236,7 +237,7 @@ static const ber_sequence_t Invoke_sequence[] = {
 static int
 dissect_q932_ros_Invoke(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   dissector_handle_t arg_handle = NULL;
-  const gchar *descr = "";
+  const char *descr = "";
 
   arg_next_tvb = NULL;
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
@@ -284,7 +285,7 @@ dissect_q932_ros_Invoke(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_
 
 static int
 dissect_q932_ros_ResultArgument(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  gint len;
+  int len;
 
   len = tvb_reported_length_remaining(tvb, offset);
   if (len)
@@ -322,7 +323,7 @@ static const ber_sequence_t ReturnResult_sequence[] = {
 static int
 dissect_q932_ros_ReturnResult(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   dissector_handle_t res_handle = NULL;
-  const gchar *descr = "";
+  const char *descr = "";
 
   actx->rose_ctx->d.code = -1;
   res_next_tvb = NULL;
@@ -374,7 +375,7 @@ dissect_q932_ros_ReturnResult(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offs
 static int
 dissect_q932_ros_T_parameter(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
 
-  gint len;
+  int len;
 
   len = tvb_reported_length_remaining(tvb, offset);
   if (len)
@@ -397,7 +398,7 @@ static const ber_sequence_t ReturnError_sequence[] = {
 static int
 dissect_q932_ros_ReturnError(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   dissector_handle_t err_handle = NULL;
-  const gchar *descr = "";
+  const char *descr = "";
 
   err_next_tvb = NULL;
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
@@ -555,7 +556,7 @@ static const ber_sequence_t Reject_sequence[] = {
 
 static int
 dissect_q932_ros_Reject(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  const gchar *descr;
+  const char *descr;
 
   problem_str[0] = '\0';
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
@@ -606,8 +607,8 @@ dissect_q932_ros_ROS(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, a
 static int dissect_ROS_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
   int offset = 0;
   asn1_ctx_t asn1_ctx;
-  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, TRUE, pinfo);
-  offset = dissect_q932_ros_ROS(FALSE, tvb, offset, &asn1_ctx, tree, hf_q932_ros_ROS_PDU);
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_q932_ros_ROS(false, tvb, offset, &asn1_ctx, tree, hf_q932_ros_ROS_PDU);
   return offset;
 }
 
@@ -726,7 +727,7 @@ void proto_register_q932_ros(void) {
   };
 
   /* List of subtrees */
-  static gint *ett[] = {
+  static int *ett[] = {
     &ett_q932_ros_Code,
     &ett_q932_ros_ROS,
     &ett_q932_ros_Invoke,

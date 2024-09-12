@@ -20,12 +20,11 @@
 
 #include "config.h"
 #include <epan/packet.h>
-#include <epan/exceptions.h>
-#include <epan/show_exception.h>
-#include <epan/expert.h>
 #include <epan/reassemble.h>
 #include <epan/conversation.h>
+#include <epan/tfs.h>
 
+#include <wsutil/array.h>
 
 #define PROTO_SHORT_NAME "WASSP"
 #define PROTO_LONG_NAME "Wireless Access Station Session Protocol"
@@ -104,9 +103,9 @@
 
 typedef struct   tlv_mac_add
 {
-	guint16 tlvType ;
-	guint16 tlvLen;
-	guint8    tlvMac[6/* MAC_ADDR_SIZE */];
+	uint16_t tlvType ;
+	uint16_t tlvLen;
+	uint8_t   tlvMac[6/* MAC_ADDR_SIZE */];
 }  TLV_MAC_ADD;
 #define TLV_MAC_ADD_SIZE sizeof (TLV_MAC_ADD)
 
@@ -115,20 +114,20 @@ typedef struct   tlv_mac_add
 
 typedef struct
 {
-	guint16      tlvType;
-	guint16      tlvLen;
+	uint16_t     tlvType;
+	uint16_t     tlvLen;
 	TLV_MAC_ADD  tlvMacAddress;
-	guint32      radioId;
+	uint32_t     radioId;
 } TLV_RADIO_BLOCK;
 
 
 typedef struct tlvVnsBlock
 {
-	guint16      tlvType;
-	guint16      tlvLen;
-	guint32      radioId;
-	guint32      bssidId;
-	guint32      ssidId;
+	uint16_t     tlvType;
+	uint16_t     tlvLen;
+	uint32_t     radioId;
+	uint32_t     bssidId;
+	uint32_t     ssidId;
 } TLV_VNS_BLOCK;
 
 
@@ -145,18 +144,18 @@ typedef struct
 /* @*@ */
 typedef struct
 {
-	guint16    tlvId;
+	uint16_t   tlvId;
 	char     *name;
-	guint16    type;
-	guint16    length;
+	uint16_t   type;
+	uint16_t   length;
 #define WASSP_TAB_IDX length
-	guint32    (*parseFunc)(void);
-	guint32    (*setFunc)(void);
-	guint32    offset;
-	guint8     flags;
-	guint32    minValue;
-	guint32    maxValue;
-	guint32    (*customCheckFunc)(void);
+	uint32_t   (*parseFunc)(void);
+	uint32_t   (*setFunc)(void);
+	uint32_t   offset;
+	uint8_t    flags;
+	uint32_t   minValue;
+	uint32_t   maxValue;
+	uint32_t   (*customCheckFunc)(void);
 } TLV_PARSER_ENTRY;
 
 /* @*@ */
@@ -1267,7 +1266,7 @@ static const value_string wassp_tlv_types[] =
 	{ EID_MU_TUNNEL_PRIVATE_GROUP_ID_STRING, "MU Tunnel Private Group ID String"},
 	{ EID_MU_USER_ID_STRING, "MU User ID String"},
 	{ EID_MU_DEFENDED_STATE, "MU Defended State"},
-	{ EID_MU_MOD_MASK, "MU Modulation Maske"},
+	{ EID_MU_MOD_MASK, "MU Modulation Mask"},
 	{ EID_LOCATOR_TRACKED, "Locator Tracked"},
 	{ EID_PORT, "Port"},
 	{ EID_RETRIES_COUNT, "Retries Count"},
@@ -3743,7 +3742,7 @@ typedef struct
 #define UPGRADE_ACTION_REPORT         (0)    /* report current status  */
 #define UPGRADE_ACTION_NO_CHANGE      (1)    /* no upgrade is required */
 #define UPGRADE_ACTION_LEGACY         (2)    /* legacy upgrade, stop service and upgrade*/
-#define UPGRADE_ACTION_BACKGROUND     (3)    /* background download, keep serivece then upgrade */
+#define UPGRADE_ACTION_BACKGROUND     (3)    /* background download, keep service then upgrade */
 #define UPGRADE_ACTION_SAVE_BACKUP    (4)    /* download image, overwrite backup image*/
 #define UPGRADE_ACTION_SWITCH_VERSION (5)    /* switch to a previously downloaded image */
 #define UPGRADE_ACTION_ABORT          (6)    /* abort current download operation */
@@ -3841,9 +3840,9 @@ static const value_string mu_resv0_strings[] =
 
 static const value_string mu_action_field_strings[] =
 {
-	{ 0x0000, "SSID" },
-	{ 0x2000, "Redirect With Vlan ID" },
-	{ 0x3000, "Vlan ID" },
+	{ 0x0, "SSID" },
+	{ 0x2, "Redirect With Vlan ID" },
+	{ 0x3, "Vlan ID" },
 	{ 0, NULL }
 };
 
@@ -3885,136 +3884,136 @@ static const true_false_string wassp_eid_rustate_types =
 
 
 /* Wassp protocol registered fields or ru discover fields*/
-static int proto_wassp = -1;
-static int hf_wassp_version = -1;
-static int hf_wassp_type = -1;
-static int hf_ru_rad_num = -1;
-static int hf_ru_checksum = -1;
-static int hf_ru_ac_op = -1;
-static int hf_ru_mac = -1;
-static int hf_ru_ac_mode = -1;
-static int hf_wassp_seq_num_flag = -1;
-static int hf_seq_num = -1;
-static int hf_wassp_use_frag = -1;
-static int hf_wassp_data_frag = -1;
-static int hf_wassp_more_frag = -1;
-static int hf_wassp_first_frag = -1;
-static int hf_wassp_sessionid = -1;
-static int hf_wassp_length = -1;
-static int hf_wassp_header = -1;
-static int hf_ru_discover_header =-1;
+static int proto_wassp;
+static int hf_wassp_version;
+static int hf_wassp_type;
+static int hf_ru_rad_num;
+static int hf_ru_checksum;
+static int hf_ru_ac_op;
+static int hf_ru_mac;
+static int hf_ru_ac_mode;
+static int hf_wassp_seq_num_flag;
+static int hf_seq_num;
+static int hf_wassp_use_frag;
+static int hf_wassp_data_frag;
+static int hf_wassp_more_frag;
+static int hf_wassp_first_frag;
+static int hf_wassp_sessionid;
+static int hf_wassp_length;
+static int hf_wassp_header;
+static int hf_ru_discover_header;
 
 /* ----------- MU data --------------*/
-static int hf_wassp_mu_type = -1;
-static int hf_wassp_mu_qos = -1;
-static int hf_wassp_mu_action_ssid = -1;
-static int hf_wassp_mu_mac = -1;
-static int hf_wassp_mu_data_tree = -1;
-static int hf_wassp_mu_resv0 = -1;
-static int hf_wassp_mu_resv1 = -1;
-static int hf_wassp_mu_assoc_status = -1;
-static int hf_wassp_mu_data_header =-1;
-static int hf_wassp_mu_action =-1;
-static int hf_wassp_mu_action_field_value =-1;
+static int hf_wassp_mu_type;
+static int hf_wassp_mu_qos;
+static int hf_wassp_mu_action_ssid;
+static int hf_wassp_mu_mac;
+static int hf_wassp_mu_data_tree;
+static int hf_wassp_mu_resv0;
+static int hf_wassp_mu_resv1;
+static int hf_wassp_mu_assoc_status;
+static int hf_wassp_mu_data_header;
+static int hf_wassp_mu_action;
+static int hf_wassp_mu_action_field_value;
 
 
 
 // netflow
-static int  hf_wassp_mu_netflow_version = -1;
-static int  hf_wassp_mu_netflow_length = -1;
-static int  hf_wassp_mu_netflow_flags  = -1;
-static int  hf_wassp_mu_netflow_uptime = -1;
-static int  hf_wassp_mu_netflow_record = -1;
-static int  hf_wassp_mu_netflow_in_bytes = -1;
-static int  hf_wassp_mu_netflow_in_packets = -1;
-static int  hf_wassp_mu_netflow_ip_protocol_number = -1;
-static int  hf_wassp_mu_netflow_source_tos = -1;
-static int  hf_wassp_mu_netflow_source_port = -1;
-static int  hf_wassp_mu_netflow_source_ip = -1;
-static int  hf_wassp_mu_netflow_input_snmp = -1;
-static int  hf_wassp_mu_netflow_dest_port = -1;
-static int  hf_wassp_mu_netflow_dest_ip = -1;
-static int  hf_wassp_mu_netflow_output_snmp = -1;
-static int  hf_wassp_mu_netflow_last_time = -1;
-static int  hf_wassp_mu_netflow_first_time = -1;
-static int  hf_wassp_mu_netflow_in_source_mac = -1;
-static int  hf_wassp_mu_netflow_in_dest_mac = -1;
-static int  hf_wassp_mu_netflow_tree = -1;
-static int  hf_wassp_mu_netflow_header = -1;
+static int  hf_wassp_mu_netflow_version;
+static int  hf_wassp_mu_netflow_length;
+static int  hf_wassp_mu_netflow_flags;
+static int  hf_wassp_mu_netflow_uptime;
+static int  hf_wassp_mu_netflow_record;
+static int  hf_wassp_mu_netflow_in_bytes;
+static int  hf_wassp_mu_netflow_in_packets;
+static int  hf_wassp_mu_netflow_ip_protocol_number;
+static int  hf_wassp_mu_netflow_source_tos;
+static int  hf_wassp_mu_netflow_source_port;
+static int  hf_wassp_mu_netflow_source_ip;
+static int  hf_wassp_mu_netflow_input_snmp;
+static int  hf_wassp_mu_netflow_dest_port;
+static int  hf_wassp_mu_netflow_dest_ip;
+static int  hf_wassp_mu_netflow_output_snmp;
+static int  hf_wassp_mu_netflow_last_time;
+static int  hf_wassp_mu_netflow_first_time;
+static int  hf_wassp_mu_netflow_in_source_mac;
+static int  hf_wassp_mu_netflow_in_dest_mac;
+static int  hf_wassp_mu_netflow_tree;
+static int  hf_wassp_mu_netflow_header;
 
 
 
 /* ------  wassp TLV -------*/
-static int hf_wassp_tlv_value = -1;
-static int hf_wassp_tlv_type_main = -1;
-static int hf_wassp_tlv_type_sub = -1;
-static int hf_wassp_tlv_length = -1;
-static int hf_wassp_tlv_value_octext = -1;    // PW_TYPE_OCTETS
-static int hf_wassp_tlv_value_string = -1;
-static int hf_wassp_tlv_value_ip = -1;
-static int hf_wassp_tlv_value_int = -1;
-static int hf_wassp_tlv_eid_status = -1;
-static int hf_wassp_tlv_eid_action = -1;
-static int hf_wassp_tlv_eid_rustate = -1;
-static int hf_wassp_tlv_unknown = -1;
-static int hf_wassp_tlv_invalid = -1;
+static int hf_wassp_tlv_value;
+static int hf_wassp_tlv_type_main;
+static int hf_wassp_tlv_type_sub;
+static int hf_wassp_tlv_length;
+static int hf_wassp_tlv_value_octext;    // PW_TYPE_OCTETS
+static int hf_wassp_tlv_value_string;
+static int hf_wassp_tlv_value_ip;
+static int hf_wassp_tlv_value_int;
+static int hf_wassp_tlv_eid_status;
+static int hf_wassp_tlv_eid_action;
+static int hf_wassp_tlv_eid_rustate;
+static int hf_wassp_tlv_unknown;
+static int hf_wassp_tlv_invalid;
 
-static int hf_wassp_ipaddress = -1;
-static int hf_wassp_sub_tree = -1;
-static int hf_wassp_topologykey = -1;
-static int hf_wassp_vlanid = -1;
-static int hf_wassp_topology_mode = -1;
-static int hf_wassp_in_cir = -1;
-static int hf_wassp_out_cir = -1;
+static int hf_wassp_ipaddress;
+static int hf_wassp_sub_tree;
+static int hf_wassp_topologykey;
+static int hf_wassp_vlanid;
+static int hf_wassp_topology_mode;
+static int hf_wassp_in_cir;
+static int hf_wassp_out_cir;
 
-static int hf_wassp_flag_1b = -1;
-static int hf_wassp_tos = -1;
-static int hf_cos_tos = -1;
-static int hf_cos_tos_mask = -1;
-static int hf_cos_priority_txq = -1;
+static int hf_wassp_flag_1b;
+static int hf_wassp_tos;
+static int hf_cos_tos;
+static int hf_cos_tos_mask;
+static int hf_cos_priority_txq;
 
-static int hf_wassp_tos_mask = -1;
-static int hf_filter_tos_maskbit_priority = -1;
-static int hf_wassp_priority = -1;
-static int hf_cos_rateid = -1;
-static int hf_wassp_filter_rule = -1;
-static int hf_wassp_filter_flag = -1;
-static int hf_filter_rule_port_range = -1;
-static int hf_wassp_ipprotocol = -1;
-static int hf_wassp_netmasklength = -1;
-static int hf_wassp_macaddr = -1;
-static int hf_wassp_macaddr_mask = -1;
-static int hf_wassp_ethernet_type = -1;
-static int hf_wassp_reserve = -1;
-static int hf_wassp_freq = -1;
-static int hf_wassp_rss = -1;
-static int hf_wassp_rssi = -1;
-static int hf_wassp_threatstate = -1;
-static int hf_wassp_radioparams = -1;
-static int hf_wassp_channelfreq = -1;
-static int hf_wassp_mu = -1;
-static int hf_wassp_apprules = -1;
-static int hf_wassp_displayid = -1;
-static int hf_wassp_txbytes = -1;
-static int hf_wassp_rxbytes = -1;
+static int hf_wassp_tos_mask;
+static int hf_filter_tos_maskbit_priority;
+static int hf_wassp_priority;
+static int hf_cos_rateid;
+static int hf_wassp_filter_rule;
+static int hf_wassp_filter_flag;
+static int hf_filter_rule_port_range;
+static int hf_wassp_ipprotocol;
+static int hf_wassp_netmasklength;
+static int hf_wassp_macaddr;
+static int hf_wassp_macaddr_mask;
+static int hf_wassp_ethernet_type;
+static int hf_wassp_reserve;
+static int hf_wassp_freq;
+static int hf_wassp_rss;
+static int hf_wassp_rssi;
+static int hf_wassp_threatstate;
+static int hf_wassp_radioparams;
+static int hf_wassp_channelfreq;
+static int hf_wassp_mu;
+static int hf_wassp_apprules;
+static int hf_wassp_displayid;
+static int hf_wassp_txbytes;
+static int hf_wassp_rxbytes;
 
 
 
 /* ************************************************************************* */
 /*                   Header values for reassembly                            */
 /* ************************************************************************* */
-static int hf_wassp_fragments = -1;
-static int hf_wassp_fragment = -1;
-static int hf_wassp_fragment_overlap = -1;
-static int hf_wassp_fragment_overlap_conflict = -1;
-static int hf_wassp_fragment_multiple_tails = -1;
-static int hf_wassp_fragment_too_long_fragment = -1;
-static int hf_wassp_fragment_error = -1;
-static int hf_wassp_fragment_count = -1;
-static int hf_wassp_reassembled_in = -1;
-static int hf_wassp_reassembled_length = -1;
-static gint ett_wassp_fragment = -1;
-static gint ett_wassp_fragments = -1;
+static int hf_wassp_fragments;
+static int hf_wassp_fragment;
+static int hf_wassp_fragment_overlap;
+static int hf_wassp_fragment_overlap_conflict;
+static int hf_wassp_fragment_multiple_tails;
+static int hf_wassp_fragment_too_long_fragment;
+static int hf_wassp_fragment_error;
+static int hf_wassp_fragment_count;
+static int hf_wassp_reassembled_in;
+static int hf_wassp_reassembled_length;
+static int ett_wassp_fragment;
+static int ett_wassp_fragments;
 
 
 static const fragment_items wassp_frag_items =
@@ -4041,80 +4040,80 @@ static const fragment_items wassp_frag_items =
 
 
 /* Wassp protocol registered subtrees */
-static gint ett_wassp = -1;
-static gint ett_seq_flags = -1;
-static gint ett_wassp_header = -1;
-static gint ett_mu_data_header = -1;
-static gint ett_mu_action_field =-1;
+static int ett_wassp;
+static int ett_seq_flags;
+static int ett_wassp_header;
+static int ett_mu_data_header;
+static int ett_mu_action_field;
 
-static gint ett_ru_discover_header = -1;
-static gint ett_wassp_tlv = -1;
-static gint ett_wassp_filter_rule = -1;
-static gint ett_lbs_header = -1;
+static int ett_ru_discover_header;
+static int ett_wassp_tlv;
+static int ett_wassp_filter_rule;
+static int ett_lbs_header;
 
-static gint ett_wassp_mu_appl_stats = -1;
-static gint ett_wassp_data = -1;
-static gint ett_wassp_mu_data_netflow = -1;
-static gint ett_wassp_mu_data_netflow_header = -1;
-static gint ett_wassp_tlv_missing = -1;
-static gint ett_wassp_ap_stats_block = -1;
-static gint ett_wassp_mu_rf_stats_block = -1;
-static gint ett_wassp_config_error_block = -1;
-static gint ett_wassp_config_modified_block = -1;
-static gint ett_wassp_global_config_block = -1;
-static gint ett_wassp_radio_config_block = -1;
-static gint ett_wassp_vns_config_block = -1;
-static gint ett_wassp_mu_stats_block = -1;
-static gint ett_wassp_radio_stats_block = -1;
-static gint ett_wassp_ether_stats_block = -1;
-static gint ett_wassp_wds_stats_block = -1;
-static gint ett_wassp_dot1x_stats_block = -1;
-static gint ett_wassp_filter_config_block = -1;
-static gint ett_wassp_site_filter_config_block = -1;
-static gint ett_wassp_filter_ext_config_block = -1;
-static gint ett_wassp_vns_stats_block = -1;
-static gint ett_wassp_radius_config_block = -1;
-static gint ett_wassp_eid_main_tlv_block = -1;
-static gint ett_wassp_radius_server_config_block = -1;
-static gint ett_wassp_site_config_block = -1;
-static gint ett_wassp_policy_config_block = -1;
-static gint ett_wassp_cos_config_block = -1;
-static gint ett_wassp_localbase_lookup_block = -1;
-static gint ett_wassp_app_policy_fixed_block = -1;
-static gint ett_wassp_app_policy_entry_block = -1;
-static gint ett_wassp_s_topo_m_filter_entry_block = -1;
-static gint ett_wassp_s_topo_m_filter_ext_entry_block = -1;
-static gint ett_wassp_11u_config_entry_block = -1;
-static gint ett_wassp_hs2_config_entry_block = -1;
-static gint ett_wassp_extapp_config_entry_block = -1;
+static int ett_wassp_mu_appl_stats;
+static int ett_wassp_data;
+static int ett_wassp_mu_data_netflow;
+static int ett_wassp_mu_data_netflow_header;
+static int ett_wassp_tlv_missing;
+static int ett_wassp_ap_stats_block;
+static int ett_wassp_mu_rf_stats_block;
+static int ett_wassp_config_error_block;
+static int ett_wassp_config_modified_block;
+static int ett_wassp_global_config_block;
+static int ett_wassp_radio_config_block;
+static int ett_wassp_vns_config_block;
+static int ett_wassp_mu_stats_block;
+static int ett_wassp_radio_stats_block;
+static int ett_wassp_ether_stats_block;
+static int ett_wassp_wds_stats_block;
+static int ett_wassp_dot1x_stats_block;
+static int ett_wassp_filter_config_block;
+static int ett_wassp_site_filter_config_block;
+static int ett_wassp_filter_ext_config_block;
+static int ett_wassp_vns_stats_block;
+static int ett_wassp_radius_config_block;
+static int ett_wassp_eid_main_tlv_block;
+static int ett_wassp_radius_server_config_block;
+static int ett_wassp_site_config_block;
+static int ett_wassp_policy_config_block;
+static int ett_wassp_cos_config_block;
+static int ett_wassp_localbase_lookup_block;
+static int ett_wassp_app_policy_fixed_block;
+static int ett_wassp_app_policy_entry_block;
+static int ett_wassp_s_topo_m_filter_entry_block;
+static int ett_wassp_s_topo_m_filter_ext_entry_block;
+static int ett_wassp_11u_config_entry_block;
+static int ett_wassp_hs2_config_entry_block;
+static int ett_wassp_extapp_config_entry_block;
 
 
 /* aeroscout */
-static int hf_aeroscout_header = -1;
-static int hf_aeroscout_header_magic_number = -1;  // 2 bytes
-static int hf_aeroscout_request_id = -1;           // 2 bytes
-static int hf_aeroscout_code = -1;                 // 1 byte
-static int hf_aeroscout_sub_code = -1;             // 1 byte
-static int hf_aeroscout_datalength = -1;           // 2 bytes
-static int hf_lbs_vendor_id = -1;                  // 2 byte
-static int hf_lbs_rsvd1 = -1;                      // 2 bytes
-static int hf_lbs_ap_bssid = -1;                   // 6 bytes
-static int hf_lbs_rsvd2 = -1;                      // 1
-static int hf_lbs_rxchan = -1;                     // 1
-static int hf_lsb_tstamp = -1;                     // 4 bytes
-static int hf_hf_lsb_rsvd3 = -1;                   // 2 bytes
-static int hf_lsb_rssi = -1;                       // 1
-static int hf_lsb_rsvd = -1;                       // 1
-static int hf_lsb_noise_floor = -1;                // 1
-static int hf_lsb_rsvd4 = -1;                      // 3 bytes
-static int hf_lsb_chan_rate = -1;                  // 1
-static int hf_lsb_rsvd5 = -1;                      // 1
-static int hf_lsb_wh_addr2 = -1;                   // 6 bytes
-static int hf_lsb_wh_fc = -1;                      // 2 bytes
-static int hf_lsb_wh_seq = -1;                     // 2 bytes
-static int hf_lsb_rsvd6 = -1;                      // 2 bytes
-static int hf_lsb_wh_addr3 = -1;                   // 6 bytes
-static int hf_lsb_wh_addr4 = -1;                   // 6 bytes
+static int hf_aeroscout_header;
+static int hf_aeroscout_header_magic_number;  // 2 bytes
+static int hf_aeroscout_request_id;           // 2 bytes
+static int hf_aeroscout_code;                 // 1 byte
+static int hf_aeroscout_sub_code;             // 1 byte
+static int hf_aeroscout_datalength;           // 2 bytes
+static int hf_lbs_vendor_id;                  // 2 byte
+static int hf_lbs_rsvd1;                      // 2 bytes
+static int hf_lbs_ap_bssid;                   // 6 bytes
+static int hf_lbs_rsvd2;                      // 1
+static int hf_lbs_rxchan;                     // 1
+static int hf_lsb_tstamp;                     // 4 bytes
+static int hf_lsb_rsvd3;                      // 2 bytes
+static int hf_lsb_rssi;                       // 1
+static int hf_lsb_rsvd;                       // 1
+static int hf_lsb_noise_floor;                // 1
+static int hf_lsb_rsvd4;                      // 3 bytes
+static int hf_lsb_chan_rate;                  // 1
+static int hf_lsb_rsvd5;                      // 1
+static int hf_lsb_wh_addr2;                   // 6 bytes
+static int hf_lsb_wh_fc;                      // 2 bytes
+static int hf_lsb_wh_seq;                     // 2 bytes
+static int hf_lsb_rsvd6;                      // 2 bytes
+static int hf_lsb_wh_addr3;                   // 6 bytes
+static int hf_lsb_wh_addr4;                   // 6 bytes
 
 
 
@@ -4132,175 +4131,175 @@ static dissector_handle_t snmp_handle;
 static const WASSP_SUBTLV_DECODER_INFO_t wassp_decr_info[TAB_MAX] =
 {
 	/*CONFIG_GLOBAL_BLOCK  */
-	{"WASSP Global Config", &ett_wassp_global_config_block, sizeof(tlvGlobalConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvGlobalConfigTable},
+	{"WASSP Global Config", &ett_wassp_global_config_block, array_length(tlvGlobalConfigTable), tlvGlobalConfigTable},
 	/*CONFIG_ERROR_BLOCK */
-	{"WASSP Config Error", &ett_wassp_config_error_block, sizeof(tlvGlobalConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvGlobalConfigTable},
+	{"WASSP Config Error", &ett_wassp_config_error_block, array_length(tlvGlobalConfigTable), tlvGlobalConfigTable},
 	/*TAB_CONFIG_MODIFIED */
-	{"WASSP Config Modified", &ett_wassp_config_modified_block, sizeof(tlvGlobalConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvGlobalConfigTable},
+	{"WASSP Config Modified", &ett_wassp_config_modified_block, array_length(tlvGlobalConfigTable), tlvGlobalConfigTable},
 	/*RADIO_CONFIG_BLOCK */
-	{"WASSP Radio Configure", &ett_wassp_radio_config_block, sizeof(tlvRadioConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvRadioConfigTable},
+	{"WASSP Radio Configure", &ett_wassp_radio_config_block, array_length(tlvRadioConfigTable), tlvRadioConfigTable},
 	/*VNS_CONFIG_BLOCK */
-	{"WASSP VNS Configure", &ett_wassp_vns_config_block, sizeof(tlvVnsConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvVnsConfigTable},
+	{"WASSP VNS Configure", &ett_wassp_vns_config_block, array_length(tlvVnsConfigTable), tlvVnsConfigTable},
 	/*MU_RF_STATS_BLOCK */
-	{"WASSP MU RF Stats", &ett_wassp_mu_rf_stats_block, sizeof(tlvBeastConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvBeastConfigTable},
+	{"WASSP MU RF Stats", &ett_wassp_mu_rf_stats_block, array_length(tlvBeastConfigTable), tlvBeastConfigTable},
 	/*AP_STATS_BLOCK */
-	{"WASSP RU RF Stats", &ett_wassp_ap_stats_block, sizeof(tlvBeastConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvBeastConfigTable},
+	{"WASSP RU RF Stats", &ett_wassp_ap_stats_block, array_length(tlvBeastConfigTable), tlvBeastConfigTable},
 	/*STATS_MU_BLOCK */
-	{"WASSP MU Stats", &ett_wassp_mu_stats_block, sizeof(tlvBeastConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvBeastConfigTable},
+	{"WASSP MU Stats", &ett_wassp_mu_stats_block, array_length(tlvBeastConfigTable), tlvBeastConfigTable},
 	/*TAB_STATS_RADIO */
-	{"WASSP Radio Stats", &ett_wassp_radio_stats_block, sizeof(tlvBeastConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvBeastConfigTable},
+	{"WASSP Radio Stats", &ett_wassp_radio_stats_block, array_length(tlvBeastConfigTable), tlvBeastConfigTable},
 	/*TAB_STATS_ETH */
-	{"WASSP Ethernet Stats", &ett_wassp_ether_stats_block, sizeof(tlvBeastConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvBeastConfigTable},
+	{"WASSP Ethernet Stats", &ett_wassp_ether_stats_block, array_length(tlvBeastConfigTable), tlvBeastConfigTable},
 	/*TAB_STATS_WDS */
-	{"WASSP Wds Stats", &ett_wassp_wds_stats_block, sizeof(tlvBeastConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvBeastConfigTable},
+	{"WASSP Wds Stats", &ett_wassp_wds_stats_block, array_length(tlvBeastConfigTable), tlvBeastConfigTable},
 	/*TAB_STATS_DOT1x */
-	{"WASSP Dot1x Stats", &ett_wassp_dot1x_stats_block, sizeof(tlvBeastConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvBeastConfigTable},
+	{"WASSP Dot1x Stats", &ett_wassp_dot1x_stats_block, array_length(tlvBeastConfigTable), tlvBeastConfigTable},
 	/*TAB_CONFIG_FILTER */
-	{"WASSP Filter Config", &ett_wassp_filter_config_block, sizeof(tlvFilterConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvFilterConfigTable},
+	{"WASSP Filter Config", &ett_wassp_filter_config_block, array_length(tlvFilterConfigTable), tlvFilterConfigTable},
 	/*TAB_STATS_VNS */
-	{"WASSP VNS Status", &ett_wassp_vns_stats_block, sizeof(tlvVnsStatusTable) / sizeof(TLV_PARSER_ENTRY), tlvVnsStatusTable},
+	{"WASSP VNS Status", &ett_wassp_vns_stats_block, array_length(tlvVnsStatusTable), tlvVnsStatusTable},
 	/*TAB_CONFIG_RADIUS_SERVER */
-	{"WASSP Radius Server Config", &ett_wassp_radius_server_config_block, sizeof(tlvRadiusServerConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvRadiusServerConfigTable},
+	{"WASSP Radius Server Config", &ett_wassp_radius_server_config_block, array_length(tlvRadiusServerConfigTable), tlvRadiusServerConfigTable},
 	/*TAB_CONFIG_SITE */
-	{"WASSP Site Config", &ett_wassp_site_config_block, sizeof(tlvSiteConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvSiteConfigTable},
+	{"WASSP Site Config", &ett_wassp_site_config_block, array_length(tlvSiteConfigTable), tlvSiteConfigTable},
 	/*TAB_CONFIG_POLICY */
-	{"WASSP Policy Config", &ett_wassp_policy_config_block, sizeof(tlvPolicyConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvPolicyConfigTable},
+	{"WASSP Policy Config", &ett_wassp_policy_config_block, array_length(tlvPolicyConfigTable), tlvPolicyConfigTable},
 	/*TAB_CONFIG_COS */
-	{"WASSP Class of Service Configuration", &ett_wassp_cos_config_block, sizeof(tlvCosConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvCosConfigTable},
+	{"WASSP Class of Service Configuration", &ett_wassp_cos_config_block, array_length(tlvCosConfigTable), tlvCosConfigTable},
 	/*TAB_CONFIG_LOC_BASE_LP */
-	{"WASSP LocalBase Lookup", &ett_wassp_localbase_lookup_block, sizeof(tlvLocationBaseLookUpTable) / sizeof(TLV_PARSER_ENTRY), tlvLocationBaseLookUpTable},
+	{"WASSP LocalBase Lookup", &ett_wassp_localbase_lookup_block, array_length(tlvLocationBaseLookUpTable), tlvLocationBaseLookUpTable},
 	/*TAB_CONFIG_RADIUS */
-	{"WASSP Radius Config", &ett_wassp_radius_config_block, sizeof(tlvRadiusConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvRadiusConfigTable},
+	{"WASSP Radius Config", &ett_wassp_radius_config_block, array_length(tlvRadiusConfigTable), tlvRadiusConfigTable},
 	/*EVENT_BLOCK */
-	{"WASSP Event Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"WASSP Event Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_SSS_MU_BLOCK */
-	{"WASSP SSS MU Block",  &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"WASSP SSS MU Block",  &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_EID_MU_BLOCK */
-	{"WASSP EID MU Block",  &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"WASSP EID MU Block",  &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*BULK_MU_BLOCK */
-	{"WASSP BULK MU Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"WASSP BULK MU Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*MU_BLOCK */
-	{"WASSP MU Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"WASSP MU Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*BULK_VNS_BLOCK */
-	{"WASSP BULK VNS Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"WASSP BULK VNS Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*VNS_BLOCK */
-	{"WASSP VNS Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"WASSP VNS Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_SIAPP_PMK_BLOCK */
-	{"SIAPP PMK Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"SIAPP PMK Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_SIAPP_RADIO_CONFIG_BLOCK */
-	{"SIAPP Radio Config Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"SIAPP Radio Config Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_SIAPP_MU_STATS_BLOCK */
-	{"SIAPP MU STATS Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"SIAPP MU STATS Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_SIAPP_THIN_BLOCK */
-	{"SIAPP THIN Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"SIAPP THIN Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_SIAPP_BLOCK */
-	{"SIAPP  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"SIAPP  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_ASSOC_SSID_ARRAY*/
-	{"Assoc SSID array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Assoc SSID array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_ASSOC_SSID_BLOCK*/
-	{"Assoc SSID  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Assoc SSID  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_AP_LIST_BLOCK*/
-	{"AP list  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"AP list  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_AP_LIST_ARRAY*/
-	{"AP list array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"AP list array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_SCAN_PROFILE_BLOCK*/
-	{"Scan profile  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Scan profile  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_THREAT_DEF_ARRAY*/
-	{"Threat def array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Threat def array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_THREAT_DEF_BLOCK*/
-	{"Thread def  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Thread def  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_THREAT_PATTERN_ARRAY*/
-	{"Thread pattern array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Thread pattern array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_THREAT_PATTERN_BLOCK*/
-	{"Thread pattern  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Thread pattern  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_SURVEILLANCE_DATA_ARRAY,*/
-	{"Surveillance Data Array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Surveillance Data Array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_SURVEILLANCE_DATA_BLOCK,*/
-	{"Surveillance Data  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Surveillance Data  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_THREAT_DATA_ARRAY,*/
-	{"Thread Data Array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Thread Data Array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_THREAT_DATA_BLOCK,*/
-	{"Thread Data  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Thread Data  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_THREAT_CLASSIFY_ARRAY,*/
-	{"Thread Classify Array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Thread Classify Array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_THREAT_CLASSIFY_BLOCK,*/
-	{"Thread Classify  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Thread Classify  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_USER_CLASSIFY_ARRAY,*/
-	{"User Classify Array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"User Classify Array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_USER_CLASSIFY_BLOCK,*/
-	{"User Classify  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"User Classify  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_MU_EVENT_ARRAY,  */
-	{"MU Event Array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"MU Event Array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_MU_EVENT_BLOCK,*/
-	{"MU Event  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"MU Event  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_COUNTRY_ARRAY,*/
-	{"Country Array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Country Array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_COUNTRY_BLOCK,*/
-	{"Country  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Country  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_LOCATOR_LOC_BLOCK,*/
-	{"Locator LOC  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Locator LOC  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_LOCATOR_LOC_ARRAY,*/
-	{"Locator LOC Array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Locator LOC Array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_RSS_DATA_ARRAY,*/
-	{"RSS Data  Array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"RSS Data  Array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_RSS_DATA_BLOCK,*/
-	{"RSS Data  Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"RSS Data  Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_MCAST_FILTER_BLOCK, */
-	{"MCAST Filter Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"MCAST Filter Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_MCAST_FILTER_BLOCK_ENTRY */
-	{"MCAST Filter Block Entry", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"MCAST Filter Block Entry", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_MU_SESSION_ARRAY,*/
-	{"MU Session Array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"MU Session Array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_MU_SESSION_BLOCK,*/
-	{"MU Session Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"MU Session Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_DETECTED_ROGUE_ARRAY,*/
-	{"Detected Rogue Array", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Detected Rogue Array", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_DETECTED_ROGUE_BLOCK,*/
-	{"Detected Rogue Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Detected Rogue Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_FILTER_RULES_EXT_BLOCK */
-	{"Filter Rule Ext Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Filter Rule Ext Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_APP_POLICY_FIXED_BLOCK */
-	{"App Policy Fixed Block", &ett_wassp_app_policy_fixed_block, sizeof(tlvAppPolicyFixedTable) / sizeof(TLV_PARSER_ENTRY), tlvAppPolicyFixedTable},
+	{"App Policy Fixed Block", &ett_wassp_app_policy_fixed_block, array_length(tlvAppPolicyFixedTable), tlvAppPolicyFixedTable},
 	/*TAB_V_FILTER_RULES_EXT_BLOCK */
-	{"FilterRules Ext Block", &ett_wassp_filter_ext_config_block, sizeof(tlvFilterRuleExtConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvFilterRuleExtConfigTable},
+	{"FilterRules Ext Block", &ett_wassp_filter_ext_config_block, array_length(tlvFilterRuleExtConfigTable), tlvFilterRuleExtConfigTable},
 	/*TAB_V_SITE_FILTER_RULES_EXT_BLOCK */
-	{"Site FilterRules Ext Block", &ett_wassp_site_filter_config_block, sizeof(tlvSiteFilterRuleExtConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvSiteFilterRuleExtConfigTable},
+	{"Site FilterRules Ext Block", &ett_wassp_site_filter_config_block, array_length(tlvSiteFilterRuleExtConfigTable), tlvSiteFilterRuleExtConfigTable},
 	/*TAB_APP_POLICY_ENTRY_BLOCK */
-	{"App Policy Entry Block", &ett_wassp_app_policy_entry_block, sizeof(tlvAppPolicyEntryTable) / sizeof(TLV_PARSER_ENTRY), tlvAppPolicyEntryTable},
+	{"App Policy Entry Block", &ett_wassp_app_policy_entry_block, array_length(tlvAppPolicyEntryTable), tlvAppPolicyEntryTable},
 	/*TAB_11U_ANQP_BLOCK,  */
-	{"11u Config Block", &ett_wassp_11u_config_entry_block, sizeof(tlv11U_ANQP_blockTable) / sizeof(TLV_PARSER_ENTRY), tlv11U_ANQP_blockTable},
+	{"11u Config Block", &ett_wassp_11u_config_entry_block, array_length(tlv11U_ANQP_blockTable), tlv11U_ANQP_blockTable},
 	/*TAB_HS2_BLOCK,   */
-	{"HS2 config Block", &ett_wassp_hs2_config_entry_block, sizeof(tlvHS2_blockTable) / sizeof(TLV_PARSER_ENTRY), tlvHS2_blockTable},
+	{"HS2 config Block", &ett_wassp_hs2_config_entry_block, array_length(tlvHS2_blockTable), tlvHS2_blockTable},
 	/*TAB_RU_ACK_RADIO_CONFIG,*/
-	{"WASSP RU Ack Radio Configure", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"WASSP RU Ack Radio Configure", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_MU_APPL_STATS_BLOCK */
-	{"MU Appl Stats Block", &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"MU Appl Stats Block", &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_EXTAPP_CONF_BLOCK */
-	{"Extend AppControl Config Block", &ett_wassp_extapp_config_entry_block, sizeof(tlvExtapp_conf_blockTable) / sizeof(TLV_PARSER_ENTRY), tlvExtapp_conf_blockTable},
+	{"Extend AppControl Config Block", &ett_wassp_extapp_config_entry_block, array_length(tlvExtapp_conf_blockTable), tlvExtapp_conf_blockTable},
 	/*TAB_V_CP_CONFIG_BLOCK */
-	{"CP Config Block", &ett_wassp_vns_config_block, sizeof(tlvVnsConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvVnsConfigTable},
+	{"CP Config Block", &ett_wassp_vns_config_block, array_length(tlvVnsConfigTable), tlvVnsConfigTable},
 	/*TAB_TOPOLOGY_ARRAY_BLOCK */
-	{"Topology Array Block",  &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Topology Array Block",  &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_TOPOLOGY_STRUCT_BLOCK */
-	{"Topology Struct Block",   &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Topology Struct Block",   &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_FILTER_CONFIG_STRUCT_BLOCK */
-	{"Filter Config Struct Block",   &ett_wassp_eid_main_tlv_block, sizeof(tlvMainTable) / sizeof(TLV_PARSER_ENTRY), tlvMainTable},
+	{"Filter Config Struct Block",   &ett_wassp_eid_main_tlv_block, array_length(tlvMainTable), tlvMainTable},
 	/*TAB_S_TOPOLOGY_ARRAY_BLOCK, */
-	{"Site Topology Array Block",  &ett_wassp_site_config_block, sizeof(tlvSiteConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvSiteConfigTable},
+	{"Site Topology Array Block",  &ett_wassp_site_config_block, array_length(tlvSiteConfigTable), tlvSiteConfigTable},
 	/*TAB_S_TOPOLOGY_STRUCT_BLOCK,*/
-	{"Site Topology Struct Block",  &ett_wassp_site_config_block, sizeof(tlvSiteConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvSiteConfigTable},
+	{"Site Topology Struct Block",  &ett_wassp_site_config_block, array_length(tlvSiteConfigTable), tlvSiteConfigTable},
 	/*TAB_S_TOPO_MCAST_FILTER_CONFIG_BLOCK,*/
-	{"Site Topology Mcast Filter Config Struct Block",  &ett_wassp_s_topo_m_filter_entry_block, sizeof(tlvSTopoMcastFilterBlock) / sizeof(TLV_PARSER_ENTRY), tlvSTopoMcastFilterBlock},
+	{"Site Topology Mcast Filter Config Struct Block",  &ett_wassp_s_topo_m_filter_entry_block, array_length(tlvSTopoMcastFilterBlock), tlvSTopoMcastFilterBlock},
 	/*TAB_S_TOPO_MCAST_FILTER_RULES_EXT_BLOCK,*/
-	{"Site Topology Mcast Filter Rule Ext Block",  &ett_wassp_s_topo_m_filter_ext_entry_block, sizeof(tlvSTopoMcastFilterRuleBlock) / sizeof(TLV_PARSER_ENTRY), tlvSTopoMcastFilterRuleBlock},
+	{"Site Topology Mcast Filter Rule Ext Block",  &ett_wassp_s_topo_m_filter_ext_entry_block, array_length(tlvSTopoMcastFilterRuleBlock), tlvSTopoMcastFilterRuleBlock},
 	/*TAB_NAC_SERVER_CONFIG_ARRAY,*/
-	{"NAC service config array",  &ett_wassp_site_config_block, sizeof(tlvSiteConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvSiteConfigTable},
+	{"NAC service config array",  &ett_wassp_site_config_block, array_length(tlvSiteConfigTable), tlvSiteConfigTable},
 	/*TAB_NAC_SERVER_CONFIG_BLOCK,*/
-	{"NAC service config Block",  &ett_wassp_site_config_block, sizeof(tlvSiteConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvSiteConfigTable},
+	{"NAC service config Block",  &ett_wassp_site_config_block, array_length(tlvSiteConfigTable), tlvSiteConfigTable},
 	/*TAB_NAC_WEB_AUTH_USER_GROUP_ARRAY,*/
-	{"NAC WEB auth user group config array",  &ett_wassp_site_config_block, sizeof(tlvSiteConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvSiteConfigTable},
+	{"NAC WEB auth user group config array",  &ett_wassp_site_config_block, array_length(tlvSiteConfigTable), tlvSiteConfigTable},
 	/*TAB_NAC_WEB_AUTH_USER_GROUP_BLOCK,*/
-	{"NAC WEB auth user group  Block",  &ett_wassp_site_config_block, sizeof(tlvSiteConfigTable) / sizeof(TLV_PARSER_ENTRY), tlvSiteConfigTable},
+	{"NAC WEB auth user group  Block",  &ett_wassp_site_config_block, array_length(tlvSiteConfigTable), tlvSiteConfigTable},
 };
 
 
@@ -4362,7 +4361,7 @@ void proto_register_wassp(void);
 void proto_reg_handoff_wassp(void);
 static int dissect_wassp_static(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_);
 
-static int g_wassp_ver = 0;
+static int g_wassp_ver;
 static reassembly_table  wassp_reassembled_table;
 static void wassp_defragment_init(void)
 {
@@ -4384,7 +4383,7 @@ static const char* wassp_match_strval(const WASSP_SUBTLV_DECODER_INFO_t *in_ptr,
 }
 
 static void
-port_range_print(char *buf, guint32 temp)
+port_range_print(char *buf, uint32_t temp)
 {
 	snprintf(buf, ITEM_LABEL_LENGTH, " %d - %d", (temp & 0xffff), (temp >> 16));
 }
@@ -4392,10 +4391,10 @@ port_range_print(char *buf, guint32 temp)
 
 
 
-static void topology_moder_print(char *buf, guint16 temp)
+static void topology_moder_print(char *buf, uint16_t temp)
 {
-	guint16 temp3 = temp & 0xc000;
-	guint16 temp4 = temp & 0x0fff;
+	uint16_t temp3 = temp & 0xc000;
+	uint16_t temp4 = temp & 0x0fff;
 	switch (temp3)
 	{
 	case 0xc000:
@@ -4428,19 +4427,19 @@ static void topology_moder_print(char *buf, guint16 temp)
 
 
 static void
-maskbit_priority_print(char *buf, guint8 temp)
+maskbit_priority_print(char *buf, uint8_t temp)
 {
 	snprintf(buf, ITEM_LABEL_LENGTH, " Type of Service Mask bits  : %d     Priority TxQ : %d", (temp >> 4) & 0xf, temp & 0xf);
 }
 
 static void
-cos_priority_txq_print(char *buf, guint8 temp)
+cos_priority_txq_print(char *buf, uint8_t temp)
 {
 	snprintf(buf, ITEM_LABEL_LENGTH, " Class of Service priority bits  : %d     Class of Service Transmit Queue : %d", (temp >> 4) & 0xf, temp & 0xf);
 }
 
 static void
-cos_rate_id_print(char *buf, guint8 temp)
+cos_rate_id_print(char *buf, uint8_t temp)
 {
 	snprintf(buf, ITEM_LABEL_LENGTH, " Class of Service Inbound Rate Limit ID  : %d    Class of Service Outbound Rate Limit ID : %d", (temp >> 4) & 0xf, temp & 0xf);
 }
@@ -4701,7 +4700,7 @@ static int decode_lbs_tag_header(proto_tree *tree, tvbuff_t *tvb, int offset)
 	suboffset += 1;
 	proto_tree_add_item(lbs_header_tree, hf_lsb_tstamp, tvb, suboffset, 4, ENC_BIG_ENDIAN);
 	suboffset += 4;
-	proto_tree_add_item(lbs_header_tree, hf_hf_lsb_rsvd3, tvb, suboffset, 2, ENC_BIG_ENDIAN);
+	proto_tree_add_item(lbs_header_tree, hf_lsb_rsvd3, tvb, suboffset, 2, ENC_BIG_ENDIAN);
 	suboffset += 2;
 	proto_tree_add_item(lbs_header_tree, hf_lsb_rssi, tvb, suboffset, 1, ENC_BIG_ENDIAN);
 	suboffset += 1;
@@ -4743,11 +4742,11 @@ int dissect_wassp_sub_tlv(proto_tree *wassp_tree, tvbuff_t *tvb, packet_info *pi
 	proto_item *ti;
 	proto_tree *tmp_tree;
 	const char *label;
-	guint32 value;
-	guint16 tlv_type = EID_PARSE_ERROR;
-	guint16 length = 0, org_offset = offset;
+	uint32_t value;
+	uint16_t tlv_type = EID_PARSE_ERROR;
+	uint16_t length = 0, org_offset = offset;
 	const WASSP_SUBTLV_DECODER_INFO_t *tmp_decr = NULL;
-	guint32 i, tableNo;
+	uint32_t i, tableNo;
 	int suboffset;
 
 	if (which_tab >= TAB_MAX)
@@ -4830,11 +4829,11 @@ int dissect_wassp_sub_tlv(proto_tree *wassp_tree, tvbuff_t *tvb, packet_info *pi
 			{
 				if (WASSP_SUBTLV_GET_ENTRY_IDX_TYPE(tmp_decr, tlv_type) != TLV_TYPE_BLOCK_TLV)
 				{
-					proto_tree_add_item(tmp_tree, wassp_type_converter(WASSP_SUBTLV_GET_ENTRY_IDX_TYPE(tmp_decr, tlv_type)), tvb, offset + TLV_VALUE, length - 4, FALSE);
+					proto_tree_add_item(tmp_tree, wassp_type_converter(WASSP_SUBTLV_GET_ENTRY_IDX_TYPE(tmp_decr, tlv_type)), tvb, offset + TLV_VALUE, length - 4, false);
 					if ((which_tab == TAB_CONFIG_SITE) && (tlv_type == EID_SITE_TOPOLOGY_BLOCK))
 					{
 						suboffset = offset + 4;
-						for (i = 0; i < (guint32)(length / 4 - 1); i++)
+						for (i = 0; i < (uint32_t)(length / 4 - 1); i++)
 						{
 							proto_tree_add_item(tmp_tree, hf_wassp_topologykey, tvb, suboffset, 2, ENC_BIG_ENDIAN);
 							suboffset += 2;
@@ -4941,9 +4940,9 @@ int dissect_wassp_tlv(proto_tree *wassp_tree, tvbuff_t *tvb, packet_info *pinfo,
 {
 	proto_item *tlvi = NULL;
 	proto_tree *tlv_tree;
-	guint16 tlv_type = WASSP_RU_UNUSED_0;
-	guint16 length;
-	guint32 value;
+	uint16_t tlv_type = WASSP_RU_UNUSED_0;
+	uint16_t length;
+	uint32_t value;
 	int suboffset;
 	wassp_ru_msg_t ru_msg_type = rumsg_type;
 	const char *label;
@@ -4986,7 +4985,7 @@ int dissect_wassp_tlv(proto_tree *wassp_tree, tvbuff_t *tvb, packet_info *pinfo,
 			break;
 
 		case EID_STATUS:                    // 1
-			ru_msg_type = (wassp_ru_msg_t) tvb_get_guint8(tvb, WASSP_HDR_TYPE);
+			ru_msg_type = (wassp_ru_msg_t) tvb_get_uint8(tvb, WASSP_HDR_TYPE);
 
 			/*this is an action TLV*/
 			if (WASSP_RU_SW_Version_Validate_Rsp == ru_msg_type)
@@ -5203,7 +5202,7 @@ int dissect_wassp_tlv(proto_tree *wassp_tree, tvbuff_t *tvb, packet_info *pinfo,
 		case EID_RU_STATE:                     // 11
 			proto_tree_add_item(tlv_tree, hf_wassp_tlv_eid_rustate, tvb, offset + TLV_VALUE, length - 4, ENC_BIG_ENDIAN);
 			proto_item_append_text(tlvi, ": %s",
-					       tfs_get_string(tvb_get_guint8(tvb, offset + TLV_VALUE), &wassp_eid_rustate_types));
+					       tfs_get_string(tvb_get_uint8(tvb, offset + TLV_VALUE), &wassp_eid_rustate_types));
 			offset += length;
 			break;
 
@@ -5603,7 +5602,7 @@ int dissect_wassp_tlv(proto_tree *wassp_tree, tvbuff_t *tvb, packet_info *pinfo,
 
 
 static void
-mu_association_status(char *buf, guint8 value)
+mu_association_status(char *buf, uint8_t value)
 {
 	if (value == 1)
 		snprintf(buf, ITEM_LABEL_LENGTH, " Success (%d)", value);
@@ -5619,7 +5618,7 @@ static int dissect_mu_netflow(proto_tree *tree, tvbuff_t *tvb, int offset)
 {
 	proto_item *ti, *temp;
 	proto_tree *wassp_mu_netflow_tree, *mu_netflow_header_tree;
-	guint16 netflowLen, totalRecord, i;
+	uint16_t netflowLen, totalRecord, i;
 
 	ti = proto_tree_add_item(tree, hf_wassp_mu_netflow_tree, tvb, offset, -1, ENC_NA);
 	wassp_mu_netflow_tree = proto_item_add_subtree(ti, ett_wassp_mu_data_netflow);
@@ -5689,11 +5688,11 @@ static int dissect_wassp_mu(proto_tree *wassp_tree, tvbuff_t *tvb, packet_info *
 	proto_tree *wassp_mu_tree, *mu_data_header_tree, *mu_action_field_tree;
 	wassp_mu_msg_t mu_msg_type;
 	char *label;
-	guint16 length = WASSP_MU_HDR_WITHOUT_ASSO_STATUS_LEN;
+	uint16_t length = WASSP_MU_HDR_WITHOUT_ASSO_STATUS_LEN;
 
 	if (tvb_reported_length_remaining(tvb, offset) > 0)
 	{
-		mu_msg_type = (wassp_mu_msg_t)tvb_get_guint8(tvb, offset + WASSP_MU_HDR_TYPE);
+		mu_msg_type = (wassp_mu_msg_t)tvb_get_uint8(tvb, offset + WASSP_MU_HDR_TYPE);
 		ti = proto_tree_add_item(wassp_tree, hf_wassp_mu_data_tree, tvb, offset, -1, ENC_NA);
 		wassp_mu_tree = proto_item_add_subtree(ti, ett_wassp_data);
 		label = (char*)try_val_to_str(mu_msg_type, wassp_mu_header_types);
@@ -5764,12 +5763,12 @@ static int dissect_wassp_mu(proto_tree *wassp_tree, tvbuff_t *tvb, packet_info *
 
 
 
-static void dissect_unfragmented_wassp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, guint16 plength2, wassp_ru_msg_t ru_msg_type, int offset2)
+static void dissect_unfragmented_wassp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint16_t plength2, wassp_ru_msg_t ru_msg_type, int offset2)
 {
 	proto_tree *wassp_tree;
 	int offset = offset2;
-	guint16 plength = plength2;
-	guint16 lsbHeaderMagic = 0;
+	uint16_t plength = plength2;
+	uint16_t lsbHeaderMagic = 0;
 
 	if (tree)
 	{
@@ -5888,15 +5887,15 @@ static int dissect_wassp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree )
 	proto_tree *wassp_header_tree, *ru_discover_header_tree, *wassp_seq_flag_tree;
 	wassp_ru_msg_t ru_msg_type;
 	int offset = 0;
-	guint16  flag = 0, seq_number = 0;
-	guint32  fragment = FALSE, complete = TRUE;
-	guint32  remain_len = 0, length;
+	uint16_t flag = 0, seq_number = 0;
+	uint32_t fragment = false, complete = true;
+	uint32_t remain_len = 0, length;
 	fragment_head *wassp_frag_msg = NULL;
-	gboolean   save_fragmented;
+	bool       save_fragmented;
 	tvbuff_t *next_tvb = NULL, *combined_tvb = NULL;
 	const char *label;
 	conversation_t  *conv = NULL;
-	guint32 reassembly_id;
+	uint32_t reassembly_id;
 
 	/**********************************************************************************************************************************************************
 	   UDP Port = 13910 --> Wassp Protocol
@@ -5915,24 +5914,24 @@ static int dissect_wassp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree )
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_SHORT_NAME);
 	remain_len = tvb_reported_length_remaining(tvb, WASSP_HDR_VERSION);
 	next_tvb = tvb;
-	ru_msg_type = (wassp_ru_msg_t)tvb_get_guint8(tvb, WASSP_HDR_TYPE);
+	ru_msg_type = (wassp_ru_msg_t)tvb_get_uint8(tvb, WASSP_HDR_TYPE);
 
 	if ( ru_msg_type == WASSP_Data ) // wassp mu header
 	{
-		label = val_to_str_const(tvb_get_guint8(tvb, WASSP_HDR_LEN + WASSP_MU_HDR_TYPE), wassp_mu_header_types, "Unknown WASSP MU Message Type");
+		label = val_to_str_const(tvb_get_uint8(tvb, WASSP_HDR_LEN + WASSP_MU_HDR_TYPE), wassp_mu_header_types, "Unknown WASSP MU Message Type");
 		col_add_str(pinfo->cinfo, COL_INFO, label);
 	}
 	else if (ru_msg_type == WASSP_RU_Discov) /* ap discover header*/
 	{
 		if (tvb_get_ntohs(tvb, RU_HDR_AC_OP) == RU_DISCOVER_OP_MODE)
-			col_add_str(pinfo->cinfo, COL_INFO, "RU Discover Request");
+			col_set_str(pinfo->cinfo, COL_INFO, "RU Discover Request");
 		else
-			col_add_str(pinfo->cinfo, COL_INFO, "RU Discover Response");
+			col_set_str(pinfo->cinfo, COL_INFO, "RU Discover Response");
 	}
 	else
-        {
-		col_add_str(pinfo->cinfo, COL_INFO, val_to_str_const(tvb_get_guint8(tvb, WASSP_HDR_TYPE), wassp_header_types, "Unknown WASSP Message Type"));
-        }
+	{
+		col_set_str(pinfo->cinfo, COL_INFO, val_to_str_const(tvb_get_uint8(tvb, WASSP_HDR_TYPE), wassp_header_types, "Unknown WASSP Message Type"));
+	}
 
 	save_fragmented = pinfo->fragmented;
 
@@ -5984,8 +5983,8 @@ static int dissect_wassp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree )
 
 		if ( flag & RU_WASSP_FLAGS_USE_FRAGMENTATION)
 		{
-			fragment = TRUE;
-			complete = FALSE;
+			fragment = true;
+			complete = false;
 		}
 		offset = WASSP_HDR_LEN;
 	}
@@ -5993,7 +5992,7 @@ static int dissect_wassp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree )
 
 	if (fragment)   /* fragmented */
 	{
-		pinfo->fragmented = TRUE;
+		pinfo->fragmented = true;
 		offset = WASSP_HDR_LEN;
 		conv = find_conversation_pinfo(pinfo, 0);
 		DISSECTOR_ASSERT(conv);
@@ -6006,7 +6005,7 @@ static int dissect_wassp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree )
 		{
 			col_append_str(pinfo->cinfo, COL_INFO, " (Message Reassembled)");
 			next_tvb = combined_tvb;
-			complete = TRUE;
+			complete = true;
 			offset = 0;
 		}
 		else
@@ -6120,7 +6119,7 @@ void proto_register_wassp(void)
 			}
 		},
 		{
-			&hf_hf_lsb_rsvd3,
+			&hf_lsb_rsvd3,
 			{
 				"LBS Rsvd", "wassp.lbs.rsvd3", FT_UINT16, BASE_HEX, NULL,
 				0x0, "LBS TAG  rsvd3", HFILL
@@ -6299,7 +6298,7 @@ void proto_register_wassp(void)
 			&hf_wassp_data_frag,
 			{
 				"Wassp Data Fragmentation", "wassp.data_frag", FT_BOOLEAN, 6,  NULL,
-				0x2, "Data Fragmentation", HFILL
+				0x2, NULL, HFILL
 			}
 		},
 		{
@@ -6343,7 +6342,7 @@ void proto_register_wassp(void)
 			&hf_wassp_mu_data_header,
 			{
 				"Wassp MU Data Header", "wassp.mu_data_header", FT_BYTES, BASE_NONE, NULL,
-				0x0, "MU Data Header", HFILL
+				0x0, NULL, HFILL
 			}
 		},
 		{
@@ -6422,7 +6421,7 @@ void proto_register_wassp(void)
 			&hf_wassp_mu_netflow_header,
 			{
 				"Wassp MU Data NetFlow Header", "wassp.mu_data_netflow_header", FT_BYTES, BASE_NONE, NULL,
-				0x0, "MU Data NetFlow Header", HFILL
+				0x0, NULL, HFILL
 			}
 		},
 		{
@@ -6632,7 +6631,7 @@ void proto_register_wassp(void)
 		{
 			&hf_wassp_tlv_eid_rustate,
 			{
-				"RU State", "wassp.tlv.eid.rustate", FT_BOOLEAN, FT_UINT8, TFS(&wassp_eid_rustate_types),
+				"RU State", "wassp.tlv.eid.rustate", FT_BOOLEAN, BASE_NONE, TFS(&wassp_eid_rustate_types),
 				0x0, "Remote Unit State", HFILL
 			}
 		},
@@ -6697,7 +6696,7 @@ void proto_register_wassp(void)
 			&hf_wassp_fragment_count,
 			{
 				"WASSP Fragment count", "wassp.fragment.count", FT_UINT32, BASE_DEC, NULL,
-				0x0, "Fragment Count", HFILL
+				0x0, NULL, HFILL
 			}
 		},
 		{
@@ -6725,14 +6724,14 @@ void proto_register_wassp(void)
 			&hf_wassp_tlv_unknown,
 			{
 				"WASSP unknown tlv", "wassp.tlv.unknown", FT_UINT32, BASE_DEC, NULL,
-				0x0, "Unknown tlv", HFILL
+				0x0, NULL, HFILL
 			}
 		},
 		{
 			&hf_wassp_tlv_invalid,
 			{
 				"WASSP invalid tlv", "wassp.tlv.invalid", FT_UINT32, BASE_DEC, NULL,
-				0x0, "Invalid tlv", HFILL
+				0x0, NULL, HFILL
 			}
 		},
 		{
@@ -6774,7 +6773,7 @@ void proto_register_wassp(void)
 			&hf_wassp_flag_1b,
 			{
 				"Flag (1 byte)", "wassp.flag.1b", FT_UINT8, BASE_HEX, NULL,
-				0x0, "Flag", HFILL
+				0x0, NULL, HFILL
 			}
 		},
 		{
@@ -6788,7 +6787,7 @@ void proto_register_wassp(void)
 			&hf_cos_tos,
 			{
 				"COS Tos", "wassp.cos_tos", FT_UINT8, BASE_HEX, NULL, 0x00,
-				"Tos", HFILL
+				NULL, HFILL
 			}
 		},
 		{
@@ -6809,14 +6808,14 @@ void proto_register_wassp(void)
 			&hf_filter_tos_maskbit_priority,
 			{
 				"Mask bit and Priority", "wassp.mask_bit", FT_UINT8,  BASE_CUSTOM,  CF_FUNC(maskbit_priority_print),
-				0xff, "Mask bit", HFILL
+				0xff, NULL, HFILL
 			}
 		},
 		{
 			&hf_wassp_priority,
 			{
 				"Priority bit", "wassp.priority", FT_BOOLEAN, 8, NULL,
-				0xff, "Priority", HFILL
+				0xff, NULL, HFILL
 			}
 		},
 		{
@@ -6830,21 +6829,21 @@ void proto_register_wassp(void)
 			&hf_cos_rateid,
 			{
 				"COS In&Out Rate Id", "wassp.rate_id", FT_UINT8,  BASE_CUSTOM,  CF_FUNC(cos_rate_id_print),
-				0x0, "Cos In&Out Rate Id", HFILL
+				0x0, NULL, HFILL
 			}
 		},
 		{
 			&hf_wassp_filter_rule,
 			{
 				"WASSP Filter Rule", "wassp.filter.rule", FT_BYTES, BASE_NONE, NULL,
-				0x0, "Filter Rule", HFILL
+				0x0, NULL, HFILL
 			}
 		},
 		{
 			&hf_wassp_filter_flag,
 			{
 				"WASSP Filter Flag", "wassp.filter.flag", FT_UINT32, BASE_HEX, NULL,
-				0x0, "Filter Flag", HFILL
+				0x0, NULL, HFILL
 			}
 		},
 		{
@@ -6879,7 +6878,7 @@ void proto_register_wassp(void)
 			&hf_wassp_macaddr_mask,
 			{
 				"MAC address mask", "wassp.mac_address.mask", FT_ETHER, BASE_NONE, NULL,
-				0x0, "MAC mask", HFILL
+				0x0, NULL, HFILL
 			}
 		},
 		{
@@ -6975,7 +6974,7 @@ void proto_register_wassp(void)
 		},
 	};
 
-	static gint * ett[] =
+	static int * ett[] =
 	{
 		&ett_wassp,
 		&ett_wassp_tlv,
@@ -7040,32 +7039,32 @@ void proto_register_wassp(void)
 }
 
 
-static gboolean
+static bool
 test_wassp(tvbuff_t *tvb)
 {
 	/* Minimum of 8 bytes, first byte (version) has value of 3 */
 	if (tvb_captured_length(tvb) < 8
-			|| tvb_get_guint8(tvb, 0) != 3
-			/* || tvb_get_guint8(tvb, 2) != 0
+			|| tvb_get_uint8(tvb, 0) != 3
+			/* || tvb_get_uint8(tvb, 2) != 0
 			|| tvb_get_ntohs(tvb, 6) > tvb_reported_length(tvb) */
 	   )
 	{
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }
 
 
 
-static gboolean
+static bool
 dissect_wassp_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
 	if (!test_wassp(tvb))
 	{
-		return FALSE;
+		return false;
 	}
 	dissect_wassp(tvb, pinfo, tree);
-	return TRUE;
+	return true;
 }
 
 static int

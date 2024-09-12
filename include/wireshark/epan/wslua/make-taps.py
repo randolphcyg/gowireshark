@@ -34,18 +34,28 @@ def get_tap_info(tap_name, header_file, struct_name, enum_types):
     types = {
         'gchar[]': 'lua_pushstring(L,(const char*)v->STR);',
         'gchar*': 'lua_pushstring(L,(const char*)v->STR);',
-        'guint': 'lua_pushnumber(L,(lua_Number)v->STR);',
-        'guint8': 'lua_pushnumber(L,(lua_Number)v->STR);',
-        'guint16': 'lua_pushnumber(L,(lua_Number)v->STR);',
-        'guint32': 'lua_pushnumber(L,(lua_Number)v->STR);',
-        'gint': 'lua_pushnumber(L,(lua_Number)v->STR);',
-        'gint8': 'lua_pushnumber(L,(lua_Number)v->STR);',
-        'gint16': 'lua_pushnumber(L,(lua_Number)v->STR);',
-        'gint32': 'lua_pushnumber(L,(lua_Number)v->STR);',
+        'guint': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'guint8': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'guint16': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'guint32': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'gint': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'gint8': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'gint16': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'gint32': 'lua_pushinteger(L,(lua_Integer)v->STR);',
         'gboolean': 'lua_pushboolean(L,(int)v->STR);',
+        'char[]': 'lua_pushstring(L,(const char*)v->STR);',
+        'char*': 'lua_pushstring(L,(const char*)v->STR);',
+        'unsigned': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'uint8_t': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'uint16_t': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'uint32_t': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'int': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'int8_t': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'int16_t': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'int32': 'lua_pushinteger(L,(lua_Integer)v->STR);',
+        'bool': 'lua_pushboolean(L,(int)v->STR);',
         'address': '{ Address a = (Address)g_malloc(sizeof(address)); copy_address(a, &(v->STR)); pushAddress(L,a); }',
         'address*': '{ Address a = (Address)g_malloc(sizeof(address)); copy_address(a, v->STR); pushAddress(L,a); }',
-        'int': 'lua_pushnumber(L,(lua_Number)v->STR);',
         'nstime_t': 'lua_pushnumber(L,(lua_Number)nstime_to_sec(&(v->STR)));',
         'nstime_t*': 'lua_pushnumber(L,(lua_Number)nstime_to_sec(v->STR));',
     }
@@ -62,9 +72,19 @@ def get_tap_info(tap_name, header_file, struct_name, enum_types):
         'gint16': 'number',
         'gint32': 'number',
         'gboolean': 'boolean',
+        'char[]': 'string',
+        'char*': 'string',
+        'unsigned': 'number',
+        'uint8_t': 'number',
+        'uint16_t': 'number',
+        'uint32_t': 'number',
+        'int': 'number',
+        'int8_t': 'number',
+        'int16_t': 'number',
+        'int32_t': 'number',
+        'bool': 'boolean',
         'address': 'Address',
         'address*': 'Address',
-        'int': 'number',
         'nstime_t': 'number (seconds, since 1-1-1970 if absolute)',
         'nstime_t*': 'number (seconds, since 1-1-1970 if absolute)',
     }
@@ -79,7 +99,7 @@ def get_tap_info(tap_name, header_file, struct_name, enum_types):
     for enum in enum_types:
         m = re.search(fr'typedef\s+enum[^{{]*{{([^}}]*)}}[\s\n]*{enum}[\s\n]*;', buf, flags=re.DOTALL)
         if m:
-            types[enum] = f'lua_pushnumber(L,(lua_Number)v->STR); /* {enum} */'
+            types[enum] = f'lua_pushinteger(L,(lua_Integer)v->STR); /* {enum} */'
             econsts = m.group(1).splitlines()
             econsts = [re.sub(r'\s+', '', item) for item in econsts]
             econsts = [re.sub(',', '', item) for item in econsts]
@@ -183,9 +203,9 @@ def main():
         c_body += f'\n\t/*\n\t * {enum}\n\t */\n\tlua_newtable(L);\n'
         for econst in enums[enum]:
             c_body += f'''\
-	lua_pushnumber(L,(lua_Number){econst});
+	lua_pushinteger(L,(lua_Integer){econst});
 	lua_setglobal(L,"{econst}");
-	lua_pushnumber(L,(lua_Number){econst});
+	lua_pushinteger(L,(lua_Integer){econst});
 	lua_pushstring(L,"{econst}");
 	lua_settable(L,-3);
 '''

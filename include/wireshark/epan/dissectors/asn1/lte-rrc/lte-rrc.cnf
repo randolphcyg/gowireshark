@@ -1,6 +1,6 @@
 # lte-rrc.cnf
 # lte-rrc conformation file
-# Copyright 2008 Vincent Helfre, 2009-2023 Pascal Quantin
+# Copyright 2008 Vincent Helfre, 2009-2024 Pascal Quantin
 
 #.OPT
 PER
@@ -655,6 +655,7 @@ T-StatusProhibit
 WLAN-backhaulRate-r12
 
 #.EXPORTS
+CellIdListNR-r18_PDU
 CellsToAddModListNR-r15_PDU
 DL-CarrierConfigCommon-NB-r14_PDU
 DL-DCCH-Message_PDU
@@ -703,6 +704,7 @@ VisitedCellInfoList-r12_PDU
 #.END
 
 #.PDU
+CellIdListNR-r18
 CellsToAddModListNR-r15
 DL-CarrierConfigCommon-NB-r14
 HandoverCommand
@@ -851,9 +853,9 @@ SI-OrPSI-GERAN TYPE_PREFIX
 %(DEFAULT_BODY)s
 
 #.FN_BODY RAT-Type VAL_PTR = &rat_type
-  guint32 rat_type;
+  uint32_t rat_type;
 %(DEFAULT_BODY)s
-  private_data_set_rat_type(actx, (guint8)rat_type);
+  private_data_set_rat_type(actx, (uint8_t)rat_type);
 
 #RAT-Type ::=						ENUMERATED {
 #										eutra, utra, geran-cs, geran-ps, cdma2000-1XRTT,
@@ -888,10 +890,10 @@ SI-OrPSI-GERAN TYPE_PREFIX
 
 #.FN_FTR UE-CapabilityRAT-Container/ueCapabilityRAT-Container
 if(ue_cap_tvb){
-  guint32 length;
+  uint32_t length;
   proto_item *item;
   proto_tree *subtree, *subtree2;
-  guint8 byte;
+  uint8_t byte;
   subtree = proto_item_add_subtree(actx->created_item, ett_lte_rrc_UE_CapabilityRAT_Container);
   switch(private_data_get_rat_type(actx)){
   case RAT_Type_eutra:
@@ -907,12 +909,12 @@ if(ue_cap_tvb){
     /* Mobile Station Classmark 2 is formatted as TLV with the two first bytes set to 0x33 0x03 */
     subtree2 = proto_tree_add_subtree(subtree, ue_cap_tvb, 0, 5,
                        ett_lte_rrc_UE_CapabilityRAT_Container, &item, "Mobile Station Classmark 2");
-    byte = tvb_get_guint8(ue_cap_tvb, 0);
+    byte = tvb_get_uint8(ue_cap_tvb, 0);
     if (byte != 0x33) {
       expert_add_info_format(actx->pinfo, item, &ei_lte_rrc_unexpected_type_value,
                              "Unexpected type value (found 0x%02X)", byte);
     }
-    byte = tvb_get_guint8(ue_cap_tvb, 1);
+    byte = tvb_get_uint8(ue_cap_tvb, 1);
     if (byte != 0x03) {
       expert_add_info_format(actx->pinfo, item, &ei_lte_rrc_unexpected_length_value,
                              "Unexpected length value (found %d)", byte);
@@ -1100,15 +1102,15 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
 %(DEFAULT_BODY)s
 
 #.FN_BODY Handover/targetRAT-Type VAL_PTR = &target_rat_type
-  guint32 target_rat_type;
+  uint32_t target_rat_type;
 %(DEFAULT_BODY)s
-  private_data_set_rat_target_type(actx, (guint8)target_rat_type);
+  private_data_set_rat_target_type(actx, (uint8_t)target_rat_type);
 
 #.FN_BODY Handover/targetRAT-MessageContainer VAL_PTR = &target_rat_msg_cont_tvb
   tvbuff_t *target_rat_msg_cont_tvb = NULL;
 %(DEFAULT_BODY)s
   if(target_rat_msg_cont_tvb){
-    guint8 byte;
+    uint8_t byte;
     proto_tree *subtree;
     subtree = proto_item_add_subtree(actx->created_item, ett_lte_rrc_targetRAT_MessageContainer);
     switch (private_data_get_rat_target_type(actx)){
@@ -1119,7 +1121,7 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
       break;
     case T_targetRAT_Type_geran:
       /* geran */
-      byte = tvb_get_guint8(target_rat_msg_cont_tvb, 0);
+      byte = tvb_get_uint8(target_rat_msg_cont_tvb, 0);
       if (byte == 0x06) {
         if (gsm_a_dtap_handle) {
           lte_rrc_call_dissector(gsm_a_dtap_handle, target_rat_msg_cont_tvb, actx->pinfo, subtree);
@@ -1127,7 +1129,7 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
       } else {
         if (gsm_rlcmac_dl_handle) {
           tvbuff_t *gsm_rlcmac_dl_tvb = tvb_new_composite();
-          guint8 *pd = (guint8 *) wmem_alloc(actx->pinfo->pool, 1);
+          uint8_t *pd = (uint8_t *) wmem_alloc(actx->pinfo->pool, 1);
           pd[0] = 0x40;
           tvb_composite_append(gsm_rlcmac_dl_tvb, tvb_new_child_real_data(tvb, pd, 1, 1));
           tvb_composite_append(gsm_rlcmac_dl_tvb, target_rat_msg_cont_tvb);
@@ -1160,7 +1162,7 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
 
 #.FN_BODY Handover/nas-SecurityParamFromEUTRA VAL_PTR = &nas_sec_param_from_eutra_tvb
   tvbuff_t *nas_sec_param_from_eutra_tvb = NULL;
-  guint32 length;
+  uint32_t length;
   proto_tree *subtree;
 
 %(DEFAULT_BODY)s
@@ -1175,7 +1177,7 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
 
 #.FN_BODY SecurityConfigHO/handoverType/interRAT/nas-SecurityParamToEUTRA VAL_PTR = &nas_sec_param_to_eutra_tvb
   tvbuff_t *nas_sec_param_to_eutra_tvb = NULL;
-  guint32 length;
+  uint32_t length;
   proto_tree *subtree;
 
 %(DEFAULT_BODY)s
@@ -1204,15 +1206,15 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
   }
 
 #.FN_BODY SI-OrPSI-GERAN/si
-  private_data_set_si_or_psi_geran(actx, (guint8)SI_OrPSI_GERAN_si); /* SI message */
+  private_data_set_si_or_psi_geran(actx, (uint8_t)SI_OrPSI_GERAN_si); /* SI message */
 %(DEFAULT_BODY)s
 
 #.FN_BODY SI-OrPSI-GERAN/psi
-  private_data_set_si_or_psi_geran(actx, (guint8)SI_OrPSI_GERAN_psi); /* PSI message */
+  private_data_set_si_or_psi_geran(actx, (uint8_t)SI_OrPSI_GERAN_psi); /* PSI message */
 %(DEFAULT_BODY)s
 
 #.FN_BODY CellInfoGERAN-r9/systemInformation-r9
-  private_data_set_si_or_psi_geran(actx, (guint8)SI_OrPSI_GERAN_si); /* SI message */
+  private_data_set_si_or_psi_geran(actx, (uint8_t)SI_OrPSI_GERAN_si); /* SI message */
 %(DEFAULT_BODY)s
 
 #.FN_BODY SystemInfoListGERAN/_item VAL_PTR = &sys_info_list_tvb
@@ -1226,7 +1228,7 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
       /* SI message */
       if (gsm_a_dtap_handle) {
         tvbuff_t *si_tvb = tvb_new_composite();
-        guint8 *pd = (guint8 *) wmem_alloc(actx->pinfo->pool, 1);
+        uint8_t *pd = (uint8_t *) wmem_alloc(actx->pinfo->pool, 1);
         pd[0] = 0x06;
         tvb_composite_append(si_tvb, tvb_new_child_real_data(tvb, pd, 1, 1));
         tvb_composite_append(si_tvb, sys_info_list_tvb);
@@ -1239,7 +1241,7 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
       /* PSI message */
       if (gsm_rlcmac_dl_handle) {
         tvbuff_t *gsm_rlcmac_dl_tvb = tvb_new_composite();
-        guint8 *pd = (guint8 *) wmem_alloc(actx->pinfo->pool, 1);
+        uint8_t *pd = (uint8_t *) wmem_alloc(actx->pinfo->pool, 1);
         pd[0] = 0x40;
         tvb_composite_append(gsm_rlcmac_dl_tvb, tvb_new_child_real_data(tvb, pd, 1, 1));
         tvb_composite_append(gsm_rlcmac_dl_tvb, sys_info_list_tvb);
@@ -1259,7 +1261,7 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
 
 #.FN_FTR SystemTimeInfoCDMA2000/cdma-SystemTime/asynchronousSystemTime
   if (async_system_time_tvb) {
-    guint64 bits;
+    uint64_t bits;
     nstime_t ts;
     proto_tree *subtree;
     subtree = proto_item_add_subtree(actx->created_item, ett_lte_rrc_timeInfo);
@@ -1276,7 +1278,7 @@ MasterInformationBlock/schedulingInfoSIB1-BR-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
 
 #.FN_FTR SystemTimeInfoCDMA2000/cdma-SystemTime/synchronousSystemTime
   if (sync_system_time_tvb) {
-    guint64 bits;
+    uint64_t bits;
     nstime_t ts;
     proto_tree *subtree;
     subtree = proto_item_add_subtree(actx->created_item, ett_lte_rrc_timeInfo);
@@ -1323,7 +1325,7 @@ NeighCellConfig TYPE=FT_UINT8 DISPLAY=BASE_DEC STRINGS=VALS(lte_rrc_neighCellCon
 
 #.FN_FTR NeighCellConfig
   if (neigh_cell_config_tvb) {
-    guint bitvalue = tvb_get_bits8(neigh_cell_config_tvb, 0, 2);
+    unsigned bitvalue = tvb_get_bits8(neigh_cell_config_tvb, 0, 2);
     actx->created_item = proto_tree_add_uint(tree, hf_index, neigh_cell_config_tvb, 0, 1, bitvalue);
   }
 
@@ -1388,12 +1390,12 @@ NeighCellConfig TYPE=FT_UINT8 DISPLAY=BASE_DEC STRINGS=VALS(lte_rrc_neighCellCon
 %(DEFAULT_BODY)s
   if (gnss_tod_msec_tvb) {
     asn1_ctx_t asn1_ctx;
-    asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, FALSE, actx->pinfo);
-    dissect_per_constrained_integer(gnss_tod_msec_tvb, 0, &asn1_ctx, tree, hf_index, 0U, 3599999U, NULL, FALSE);
+    asn1_ctx_init(&asn1_ctx, ASN1_ENC_PER, false, actx->pinfo);
+    dissect_per_constrained_integer(gnss_tod_msec_tvb, 0, &asn1_ctx, tree, hf_index, 0U, 3599999U, NULL, false);
   }
 
 #.TYPE_ATTR
-LocationInfo-r10/gnss-TOD-msec-r10 TYPE=FT_UINT24 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_milliseconds
+LocationInfo-r10/gnss-TOD-msec-r10 TYPE=FT_UINT24 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_milliseconds)
 
 #.FN_BODY LocationInfo-r10/eag_1/verticalVelocityInfo-r15/verticalVelocity-r15 VAL_PTR = &vertical_velocity_tvb
   tvbuff_t *vertical_velocity_tvb = NULL;
@@ -1419,17 +1421,17 @@ LogMeasResultBT-r15/bt-Addr-r15 TYPE=FT_ETHER DISPLAY=BASE_NONE
   actx->created_item = proto_tree_add_item(tree, hf_index, bt_Addr_tvb, 0, 6, ENC_NA);
 
 #.TYPE_ATTR
-LogMeasResultBT-r15/rssi-BT-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+LogMeasResultBT-r15/rssi-BT-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.FN_BODY AbsoluteTimeInfo-r10 VAL_PTR = &abs_time_info_tvb
   tvbuff_t *abs_time_info_tvb = NULL;
 %(DEFAULT_BODY)s
 #.FN_FTR AbsoluteTimeInfo-r10
   if (abs_time_info_tvb) {
-    const gchar *str, *hf_str;
+    const char *str, *hf_str;
     proto_tree *subtree;
     subtree = proto_item_add_subtree(actx->created_item, ett_lte_rrc_absTimeInfo);
-    str = tvb_bcd_dig_to_str(actx->pinfo->pool, abs_time_info_tvb, 0, 6, NULL, FALSE);
+    str = tvb_bcd_dig_to_str(actx->pinfo->pool, abs_time_info_tvb, 0, 6, NULL, false);
     hf_str = wmem_strdup_printf(actx->pinfo->pool, "%c%c-%c%c-%c%c %c%c:%c%c:%c%c", str[0], str[1],
                         str[2], str[3], str[4], str[5], str[6], str[7], str[8], str[9], str[10], str[11]);
     proto_tree_add_string(subtree, hf_lte_rrc_absolute_time, abs_time_info_tvb, 0, 6, hf_str);
@@ -1514,14 +1516,14 @@ SystemInformationBlockType11/messageIdentifier TYPE=FT_UINT16 DISPLAY=BASE_DEC|B
   }
 
 #.FN_BODY SystemInformationBlockType11/warningMessageSegmentType VAL_PTR=&segment_type
-  guint32 segment_type;
+  uint32_t segment_type;
 %(DEFAULT_BODY)s
-  private_data_set_warning_message_segment_type(actx, (guint8)segment_type);
+  private_data_set_warning_message_segment_type(actx, (uint8_t)segment_type);
 
 #.FN_BODY SystemInformationBlockType11/warningMessageSegmentNumber VAL_PTR=&segment_number
-  guint32 segment_number;
+  uint32_t segment_number;
 %(DEFAULT_BODY)s
-  private_data_set_warning_message_segment_number(actx, (guint8)segment_number);
+  private_data_set_warning_message_segment_number(actx, (uint8_t)segment_number);
 
 #.FN_BODY SystemInformationBlockType11/dataCodingScheme VAL_PTR=&data_coding_scheme_tvb
   tvbuff_t *data_coding_scheme_tvb = NULL;
@@ -1530,10 +1532,10 @@ SystemInformationBlockType11/messageIdentifier TYPE=FT_UINT16 DISPLAY=BASE_DEC|B
 #.FN_FTR SystemInformationBlockType11/dataCodingScheme
   if (data_coding_scheme_tvb) {
     proto_tree *subtree;
-    guint32 dataCodingScheme;
+    uint32_t dataCodingScheme;
     subtree = proto_item_add_subtree(actx->created_item, ett_lte_rrc_dataCodingScheme);
     dataCodingScheme = dissect_cbs_data_coding_scheme(data_coding_scheme_tvb, actx->pinfo, subtree, 0);
-    wmem_map_insert(lte_rrc_etws_cmas_dcs_hash, GUINT_TO_POINTER((guint)private_data_get_message_identifier(actx)),
+    wmem_map_insert(lte_rrc_etws_cmas_dcs_hash, GUINT_TO_POINTER((unsigned)private_data_get_message_identifier(actx)),
                         GUINT_TO_POINTER(dataCodingScheme));
   }
 
@@ -1545,16 +1547,16 @@ SystemInformationBlockType11/messageIdentifier TYPE=FT_UINT16 DISPLAY=BASE_DEC|B
   if (warning_msg_seg_tvb) {
     proto_tree *subtree;
     tvbuff_t *frag_tvb;
-    gpointer p_dcs;
+    void *p_dcs;
     fragment_head *frag_data = fragment_add_seq_check(&lte_rrc_sib11_reassembly_table, warning_msg_seg_tvb, 0, actx->pinfo,
                                                       private_data_get_message_identifier(actx), NULL,
                                                       private_data_get_warning_message_segment_number(actx),
                                                       tvb_reported_length(warning_msg_seg_tvb),
-                                                      private_data_get_warning_message_segment_type(actx) ? FALSE : TRUE);
+                                                      private_data_get_warning_message_segment_type(actx) ? false : true);
     subtree = proto_item_add_subtree(actx->created_item, ett_lte_rrc_warningMessageSegment);
     frag_tvb = process_reassembled_data(warning_msg_seg_tvb, 0, actx->pinfo, "Reassembled SIB11 warning message",
                                         frag_data, &lte_rrc_sib11_frag_items, NULL, subtree);
-    p_dcs = wmem_map_lookup(lte_rrc_etws_cmas_dcs_hash, GUINT_TO_POINTER((guint)private_data_get_message_identifier(actx)));
+    p_dcs = wmem_map_lookup(lte_rrc_etws_cmas_dcs_hash, GUINT_TO_POINTER((unsigned)private_data_get_message_identifier(actx)));
     if (frag_tvb && p_dcs) {
       dissect_lte_rrc_warningMessageSegment(frag_tvb, subtree, actx->pinfo, GPOINTER_TO_UINT(p_dcs));
     }
@@ -1589,14 +1591,14 @@ SystemInformationBlockType12-r9/messageIdentifier-r9 TYPE=FT_UINT16 DISPLAY=BASE
   }
 
 #.FN_BODY SystemInformationBlockType12-r9/warningMessageSegmentType-r9 VAL_PTR=&segment_type
-  guint32 segment_type;
+  uint32_t segment_type;
 %(DEFAULT_BODY)s
-  private_data_set_warning_message_segment_type(actx, (guint8)segment_type);
+  private_data_set_warning_message_segment_type(actx, (uint8_t)segment_type);
 
 #.FN_BODY SystemInformationBlockType12-r9/warningMessageSegmentNumber-r9 VAL_PTR=&segment_number
-  guint32 segment_number;
+  uint32_t segment_number;
 %(DEFAULT_BODY)s
-  private_data_set_warning_message_segment_number(actx, (guint8)segment_number);
+  private_data_set_warning_message_segment_number(actx, (uint8_t)segment_number);
 
 #.FN_BODY SystemInformationBlockType12-r9/dataCodingScheme-r9 VAL_PTR=&data_coding_scheme_tvb
   tvbuff_t *data_coding_scheme_tvb = NULL;
@@ -1605,10 +1607,10 @@ SystemInformationBlockType12-r9/messageIdentifier-r9 TYPE=FT_UINT16 DISPLAY=BASE
 #.FN_FTR SystemInformationBlockType12-r9/dataCodingScheme-r9
   if (data_coding_scheme_tvb) {
     proto_tree *subtree;
-    guint32 dataCodingScheme;
+    uint32_t dataCodingScheme;
     subtree = proto_item_add_subtree(actx->created_item, ett_lte_rrc_dataCodingScheme);
     dataCodingScheme = dissect_cbs_data_coding_scheme(data_coding_scheme_tvb, actx->pinfo, subtree, 0);
-    wmem_map_insert(lte_rrc_etws_cmas_dcs_hash, GUINT_TO_POINTER((guint)private_data_get_message_identifier(actx)),
+    wmem_map_insert(lte_rrc_etws_cmas_dcs_hash, GUINT_TO_POINTER((unsigned)private_data_get_message_identifier(actx)),
                         GUINT_TO_POINTER(dataCodingScheme));
   }
 
@@ -1620,16 +1622,16 @@ SystemInformationBlockType12-r9/messageIdentifier-r9 TYPE=FT_UINT16 DISPLAY=BASE
   if (warning_msg_seg_tvb) {
     proto_tree *subtree;
     tvbuff_t *frag_tvb;
-    gpointer p_dcs;
+    void *p_dcs;
     fragment_head *frag_data = fragment_add_seq_check(&lte_rrc_sib12_reassembly_table, warning_msg_seg_tvb, 0, actx->pinfo,
                                                       private_data_get_message_identifier(actx), NULL,
                                                       private_data_get_warning_message_segment_number(actx),
                                                       tvb_reported_length(warning_msg_seg_tvb),
-                                                      private_data_get_warning_message_segment_type(actx) ? FALSE : TRUE);
+                                                      private_data_get_warning_message_segment_type(actx) ? false : true);
     subtree = proto_item_add_subtree(actx->created_item, ett_lte_rrc_warningMessageSegment);
     frag_tvb = process_reassembled_data(warning_msg_seg_tvb, 0, actx->pinfo, "Reassembled SIB12 warning message",
                                         frag_data, &lte_rrc_sib12_frag_items, NULL, subtree);
-    p_dcs = wmem_map_lookup(lte_rrc_etws_cmas_dcs_hash, GUINT_TO_POINTER((guint)private_data_get_message_identifier(actx)));
+    p_dcs = wmem_map_lookup(lte_rrc_etws_cmas_dcs_hash, GUINT_TO_POINTER((unsigned)private_data_get_message_identifier(actx)));
     if (frag_tvb && p_dcs) {
       dissect_lte_rrc_warningMessageSegment(frag_tvb, subtree, actx->pinfo, GPOINTER_TO_UINT(p_dcs));
     }
@@ -1647,21 +1649,21 @@ SystemInformationBlockType16-r11/timeInfo-r11/dayLightSavingTime-r11 TYPE=FT_UIN
 
 #.FN_FTR SystemInformationBlockType16-r11/timeInfo-r11/dayLightSavingTime-r11
   if (daylight_saving_time_tvb) {
-    guint bitvalue = tvb_get_bits8(daylight_saving_time_tvb, 0, 2);
+    unsigned bitvalue = tvb_get_bits8(daylight_saving_time_tvb, 0, 2);
     actx->created_item = proto_tree_add_uint(tree, hf_index, daylight_saving_time_tvb, 0, 1, bitvalue);
   }
 
 #.TYPE_ATTR
-SystemInformationBlockType16-r11/timeInfo-r11/leapSeconds-r11 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+SystemInformationBlockType16-r11/timeInfo-r11/leapSeconds-r11 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
 SystemInformationBlockType16-r11/timeInfo-r11/localTimeOffset-r11 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rrc_localTimeOffset_fmt)
 
 #.FN_BODY SystemInformationBlockType16-r11/timeInfo-r11/timeInfoUTC-r11 VAL_PTR=&timeInfo
-  guint64 timeInfo;
+  uint64_t timeInfo;
   proto_tree *subtree;
   nstime_t ts;
-  guint32 old_offset = offset;
+  uint32_t old_offset = offset;
 %(DEFAULT_BODY)s
 
 #.FN_FTR SystemInformationBlockType16-r11/timeInfo-r11/timeInfoUTC-r11
@@ -1690,19 +1692,19 @@ WLAN-Identifiers-r12/bssid-r12 TYPE=FT_ETHER
 WLAN-Identifiers-r12/hessid-r12 TYPE=FT_ETHER
 
 #.TYPE_ATTR
-RRCConnectionReject-r8-IEs/waitTime DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RRCConnectionReject-r8-IEs/waitTime DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-RRCConnectionReject-v1020-IEs/extendedWaitTime-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RRCConnectionReject-v1020-IEs/extendedWaitTime-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-RRCConnectionRelease-v1020-IEs/extendedWaitTime-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RRCConnectionRelease-v1020-IEs/extendedWaitTime-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-RRCConnectionRelease-v1540-IEs/waitTime DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RRCConnectionRelease-v1540-IEs/waitTime DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-RRCEarlyDataComplete-r15-IEs/extendedWaitTime-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RRCEarlyDataComplete-r15-IEs/extendedWaitTime-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
 SystemInformationBlockType1/cellSelectionInfo/q-RxLevMinOffset STRINGS=VALS(lte_rrc_q_RxLevMinOffset_vals)
@@ -1711,19 +1713,19 @@ SystemInformationBlockType1/cellSelectionInfo/q-RxLevMinOffset STRINGS=VALS(lte_
 CellSelectionInfoCE1-v1360/delta-RxLevMinCE1-v1360 STRINGS=VALS(lte_rrc_delta_RxLevMin_vals)
 
 #.TYPE_ATTR
-CellSelectionInfo-v920/q-QualMinOffset-r9 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+CellSelectionInfo-v920/q-QualMinOffset-r9 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
 MobilityControlInfo/eag_4/schedulingInfoSIB1-BR-r14 TYPE=FT_UINT32 DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_schedulingInfoSIB1_BR_r13_vals_ext
 
 #.TYPE_ATTR
-TrafficPatternInfo-r14/timingOffset-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_milliseconds
+TrafficPatternInfo-r14/timingOffset-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_milliseconds)
 
 #.FN_BODY TrafficPatternInfo-r14/messageSize-r14 VAL_PTR = &messageSize_r14_tvb HF_INDEX = -1
   tvbuff_t *messageSize_r14_tvb = NULL;
 %(DEFAULT_BODY)s
   if (messageSize_r14_tvb) {
-    guint bitvalue = tvb_get_bits8(messageSize_r14_tvb, 0, 6);
+    unsigned bitvalue = tvb_get_bits8(messageSize_r14_tvb, 0, 6);
     actx->created_item = proto_tree_add_uint(tree, hf_index, messageSize_r14_tvb, 0, 1, bitvalue);
   }
 
@@ -1734,7 +1736,7 @@ TrafficPatternInfo-r14/messageSize-r14 TYPE=FT_UINT8 DISPLAY=BASE_DEC|BASE_EXT_S
 RLF-Report-r9/eag_1/timeConnFailure-r10 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rrc_timeConnFailure_r10_fmt)
 
 #.TYPE_ATTR
-LogMeasInfo-r10/relativeTimeStamp-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+LogMeasInfo-r10/relativeTimeStamp-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_BODY LogMeasInfo-r10/eag_9/uncomBarPreMeasResult-r17 VAL_PTR = &sensor_meas_info_tvb
   tvbuff_t *sensor_meas_info_tvb = NULL;
@@ -1754,7 +1756,7 @@ LogMeasInfo-r10/relativeTimeStamp-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=
   tvbuff_t *n_r12_tvb = NULL;
 %(DEFAULT_BODY)s
   if (n_r12_tvb) {
-    guint bitvalue = tvb_get_bits8(n_r12_tvb, 0, 3);
+    unsigned bitvalue = tvb_get_bits8(n_r12_tvb, 0, 3);
     actx->created_item = proto_tree_add_uint(tree, hf_index, n_r12_tvb, 0, 1, bitvalue);
   }
 
@@ -1775,10 +1777,10 @@ BLER-Result-r12/blocksReceived-r12/m-r12 TYPE=FT_UINT8 DISPLAY=BASE_CUSTOM STRIN
 BLER-Range-r12 DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_BLER_Range_r12_vals_ext
 
 #.TYPE_ATTR
-TimeSinceFailure-r11 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+TimeSinceFailure-r11 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-TimeUntilReconnection-r16 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+TimeUntilReconnection-r16 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FIELD_ATTR
 CarrierFreqUTRA-FDD/q-RxLevMin ABBREV=utra_q_RxLevMin
@@ -1805,22 +1807,22 @@ CarrierFreqUTRA-TDD-r12/q-RxLevMin-r12 ABBREV=utra_q_RxLevMin_r12
 CarrierFreqUTRA-TDD-r12/q-RxLevMin-r12 DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_utra_q_RxLevMin_vals_ext
 
 #.TYPE_ATTR
-CarrierFreqUTRA-FDD/p-MaxUTRA DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+CarrierFreqUTRA-FDD/p-MaxUTRA DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-CarrierFreqUTRA-FDD-Ext-r12/p-MaxUTRA-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+CarrierFreqUTRA-FDD-Ext-r12/p-MaxUTRA-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-CarrierFreqUTRA-TDD/p-MaxUTRA DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+CarrierFreqUTRA-TDD/p-MaxUTRA DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-CarrierFreqUTRA-TDD-r12/p-MaxUTRA-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+CarrierFreqUTRA-TDD-r12/p-MaxUTRA-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-CarrierFreqUTRA-FDD/q-QualMin DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+CarrierFreqUTRA-FDD/q-QualMin DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-CarrierFreqUTRA-FDD-Ext-r12/q-QualMin-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+CarrierFreqUTRA-FDD-Ext-r12/q-QualMin-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.FIELD_ATTR
 CarrierFreqsInfoGERAN/commonInfo/q-RxLevMin ABBREV=geran_q_RxLevMin
@@ -1829,7 +1831,7 @@ CarrierFreqsInfoGERAN/commonInfo/q-RxLevMin ABBREV=geran_q_RxLevMin
 CarrierFreqsInfoGERAN/commonInfo/q-RxLevMin DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_geran_q_RxLevMin_vals_ext
 
 #.TYPE_ATTR
-CarrierFreqsInfoGERAN/commonInfo/p-MaxGERAN DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+CarrierFreqsInfoGERAN/commonInfo/p-MaxGERAN DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
 CQI-ReportConfig/nomPDSCH-RS-EPRE-Offset STRINGS=VALS(lte_rrc_nomPDSCH_RS_EPRE_Offset_vals)
@@ -1841,16 +1843,16 @@ CQI-ReportConfig-r10/nomPDSCH-RS-EPRE-Offset STRINGS=VALS(lte_rrc_nomPDSCH_RS_EP
 CQI-ReportConfigSCell-r10/nomPDSCH-RS-EPRE-Offset-r10 STRINGS=VALS(lte_rrc_nomPDSCH_RS_EPRE_Offset_vals)
 
 #.TYPE_ATTR
-P-C-AndCBSR-r11/p-C-r11 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+P-C-AndCBSR-r11/p-C-r11 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-P-C-AndCBSR-r13/p-C-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+P-C-AndCBSR-r13/p-C-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-P-C-AndCBSR-r15 /p-C-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+P-C-AndCBSR-r15 /p-C-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-CSI-RS-Config-r10/csi-RS-r10/setup/p-C-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+CSI-RS-Config-r10/csi-RS-r10/setup/p-C-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.FN_BODY IP-Address-r13/ipv4-r13 VAL_PTR=&ipv4_tvb HF_INDEX=-1
   tvbuff_t *ipv4_tvb = NULL;
@@ -1892,19 +1894,19 @@ IP-Address-r13/ipv6-r13 TYPE=FT_IPv6 DISPLAY=BASE_NONE
     }
 
     /* Clear out state */
-    drx_config->configured = FALSE;
+    drx_config->configured = false;
   }
 
 
 #.FN_BODY MAC-MainConfig/eag_1/sr-ProhibitTimer-r9 VAL_PTR=&timer
-  guint32 timer;
+  uint32_t timer;
 %(DEFAULT_BODY)s
 
 #.TYPE_ATTR
-MAC-MainConfig/eag_1/sr-ProhibitTimer-r9 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_sr_periods
+MAC-MainConfig/eag_1/sr-ProhibitTimer-r9 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_sr_periods)
 
 #.TYPE_ATTR
-MAC-MainConfig/eag_9/shortTTI-AndSPT-r15/setup/ssr-ProhibitTimer-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_sr_periods
+MAC-MainConfig/eag_9/shortTTI-AndSPT-r15/setup/ssr-ProhibitTimer-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_sr_periods)
 
 #.FN_BODY MAC-MainConfig/eag_2/mac-MainConfig-v1020/extendedBSR-Sizes-r10
   mac_lte_info* p_mac_lte_info;
@@ -1914,95 +1916,95 @@ MAC-MainConfig/eag_9/shortTTI-AndSPT-r15/setup/ssr-ProhibitTimer-r15 DISPLAY=BAS
   p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0);
   if (p_mac_lte_info != NULL) {
     /* Tell MAC to use extended BSR sizes configuration */
-    set_mac_lte_extended_bsr_sizes(p_mac_lte_info->ueid, TRUE, actx->pinfo);
+    set_mac_lte_extended_bsr_sizes(p_mac_lte_info->ueid, true, actx->pinfo);
   }
 
 #.TYPE_ATTR
-PDSCH-ConfigCommon/referenceSignalPower DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+PDSCH-ConfigCommon/referenceSignalPower DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-P-Max DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+P-Max DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-P-MaxNR-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+P-MaxNR-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-SPS-ConfigUL/setup/p0-Persistent/p0-NominalPUSCH-Persistent DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+SPS-ConfigUL/setup/p0-Persistent/p0-NominalPUSCH-Persistent DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-SPS-ConfigUL/setup/p0-Persistent/p0-UE-PUSCH-Persistent DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+SPS-ConfigUL/setup/p0-Persistent/p0-UE-PUSCH-Persistent DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-SPS-ConfigUL/setup/eag_1/p0-PersistentSubframeSet2-r12/setup/p0-NominalPUSCH-PersistentSubframeSet2-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+SPS-ConfigUL/setup/eag_1/p0-PersistentSubframeSet2-r12/setup/p0-NominalPUSCH-PersistentSubframeSet2-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-SPS-ConfigUL/setup/eag_1/p0-PersistentSubframeSet2-r12/setup/p0-UE-PUSCH-PersistentSubframeSet2-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+SPS-ConfigUL/setup/eag_1/p0-PersistentSubframeSet2-r12/setup/p0-UE-PUSCH-PersistentSubframeSet2-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
 UplinkPowerControlCommon/deltaPreambleMsg3 STRINGS=VALS(lte_rrc_deltaPreambleMsg3_vals)
 
 #.TYPE_ATTR
-UplinkPowerControlCommon/p0-NominalPUSCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+UplinkPowerControlCommon/p0-NominalPUSCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
 UplinkPowerControlCommonSCell-v1130/deltaPreambleMsg3-r11 STRINGS=VALS(lte_rrc_deltaPreambleMsg3_vals)
 
 #.TYPE_ATTR
-UplinkPowerControlCommon/p0-NominalPUCCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+UplinkPowerControlCommon/p0-NominalPUCCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-UplinkPowerControlCommon-v1610/p0-NominalSRS-Add-r16 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+UplinkPowerControlCommon-v1610/p0-NominalSRS-Add-r16 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-UplinkPowerControlCommonPSCell-r12/p0-NominalPUCCH-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+UplinkPowerControlCommonPSCell-r12/p0-NominalPUCCH-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-UplinkPowerControlCommonSCell-v1310/p0-NominalPUCCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+UplinkPowerControlCommonSCell-v1310/p0-NominalPUCCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-UplinkPowerControlCommonSCell-r10/p0-NominalPUSCH-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+UplinkPowerControlCommonSCell-r10/p0-NominalPUSCH-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-UplinkPowerControlCommonPUSCH-LessCell-v1430/p0-Nominal-PeriodicSRS-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+UplinkPowerControlCommonPUSCH-LessCell-v1430/p0-Nominal-PeriodicSRS-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-UplinkPowerControlCommonPUSCH-LessCell-v1430/p0-Nominal-AperiodicSRS-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+UplinkPowerControlCommonPUSCH-LessCell-v1430/p0-Nominal-AperiodicSRS-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-UplinkPowerControlDedicated/p0-UE-PUSCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+UplinkPowerControlDedicated/p0-UE-PUSCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-UplinkPowerControlDedicated/p0-UE-PUCCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+UplinkPowerControlDedicated/p0-UE-PUCCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-UplinkPowerControlDedicated-v1250/set2PowerControlParameter/setup/p0-NominalPUSCH-SubframeSet2-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+UplinkPowerControlDedicated-v1250/set2PowerControlParameter/setup/p0-NominalPUSCH-SubframeSet2-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-UplinkPowerControlDedicated-v1250/set2PowerControlParameter/setup/p0-UE-PUSCH-SubframeSet2-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+UplinkPowerControlDedicated-v1250/set2PowerControlParameter/setup/p0-UE-PUSCH-SubframeSet2-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-UplinkPowerControlDedicated-v1530/p0-UE-PUSCH-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+UplinkPowerControlDedicated-v1530/p0-UE-PUSCH-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-UplinkPUSCH-LessPowerControlDedicated-v1430/p0-UE-PeriodicSRS-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+UplinkPUSCH-LessPowerControlDedicated-v1430/p0-UE-PeriodicSRS-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-UplinkPUSCH-LessPowerControlDedicated-v1430/p0-UE-AperiodicSRS-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+UplinkPUSCH-LessPowerControlDedicated-v1430/p0-UE-AperiodicSRS-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-UplinkPowerControlAddSRS-r16/p0-UE-SRS-Add-r16 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+UplinkPowerControlAddSRS-r16/p0-UE-SRS-Add-r16 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-UplinkPowerControlDedicatedSCell-r10/p0-UE-PUSCH-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+UplinkPowerControlDedicatedSCell-r10/p0-UE-PUSCH-r10 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-UplinkPowerControlDedicatedSCell-v1310/p0-UE-PUCCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+UplinkPowerControlDedicatedSCell-v1310/p0-UE-PUCCH DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
 CellSelectionInfoNFreq-r13/q-RxLevMinOffset STRINGS=VALS(lte_rrc_q_RxLevMinOffset_vals)
 
 #.TYPE_ATTR
-Q-QualMin-r9 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+Q-QualMin-r9 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
 Q-RxLevMin DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_q_RxLevMin_vals_ext
@@ -2014,22 +2016,22 @@ CarrierFreqNR-r15/q-RxLevMin-r15 DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_r
 CarrierFreqNR-r15/q-RxLevMinSUL-r15 DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_q_RxLevMin_vals_ext
 
 #.TYPE_ATTR
-CarrierFreqNR-r15/q-QualMin-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+CarrierFreqNR-r15/q-QualMin-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-Q-OffsetRangeInterRAT DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+Q-OffsetRangeInterRAT DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
 ReselectionThreshold DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_ReselectionThreshold_vals_ext
 
 #.TYPE_ATTR
-ReselectionThresholdQ-r9 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+ReselectionThresholdQ-r9 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-T-Reselection DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+T-Reselection DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-T-ReselectionEUTRA-CE-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+T-ReselectionEUTRA-CE-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
 Hysteresis DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_Hysteresis_vals_ext
@@ -2143,10 +2145,10 @@ MeasResultWLAN-r13/availableAdmissionCapacityWLAN-r13 DISPLAY=BASE_CUSTOM STRING
 MeasResultForECID-r9/ue-RxTxTimeDiffResult-r9 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rrc_ue_RxTxTimeDiffResult_fmt)
 
 #.TYPE_ATTR
-MeasResultForRSSI-r13/channelOccupancy-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_percent
+MeasResultForRSSI-r13/channelOccupancy-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_percent)
 
 #.TYPE_ATTR
-MeasResultForRSSI-NR-r16/channelOccupancyNR-r16 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_percent
+MeasResultForRSSI-NR-r16/channelOccupancyNR-r16 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_percent)
 
 #.TYPE_ATTR
 UL-PDCP-DelayResult-r13/excessDelay-r13 DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_excessDelay_r13_vals_ext
@@ -2164,32 +2166,174 @@ MeasResultSSTD-r13/subframeBoundaryOffsetResult-r13 DISPLAY=BASE_CUSTOM STRINGS=
 #.TYPE_ATTR
 SoundingRS-UL-ConfigDedicated/setup/duration STRINGS=TFS(&lte_rrc_duration_val)
 
+#.FN_FTR DLDedicatedMessageSegment-r16-IEs
+  if (lte_rrc_reassemble_dcch_segments) {
+    uint32_t ueid, id, count;
+    rlc_lte_info *p_rlc_lte_info;
+    pdcp_lte_info *p_pdcp_lte_info;
+    mac_lte_info *p_mac_lte_info;
+    fragment_head *frag_data;
+    tvbuff_t *frag_tvb, *reassembled_tvb;
+    wmem_tree_key_t key[3];
+
+    if ((p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0)) != NULL) {
+      ueid = p_mac_lte_info->ueid;
+    } else if ((p_rlc_lte_info = (rlc_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_rlc_lte, 0)) != NULL) {
+      ueid = p_rlc_lte_info->ueid;
+    } else if ((p_pdcp_lte_info = (pdcp_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_pdcp_lte, 0)) != NULL) {
+      ueid = p_pdcp_lte_info->ueid;
+    } else {
+      ueid = 0;
+    }
+    key[0].length = 1;
+    key[0].key = &ueid;
+    key[1].length = 1;
+    key[1].key = &actx->pinfo->num;
+    key[2].length = 0;
+    key[2].key = NULL;
+    if (!PINFO_FD_VISITED(actx->pinfo)) {
+      void *value;
+
+      if (wmem_map_lookup_extended(lte_rrc_dcch_segment_ueid_count_hash, GUINT_TO_POINTER((ueid<<16)|(1<<15)), NULL, &value)) {
+        count = GPOINTER_TO_UINT(value);
+      } else {
+        count = 0;
+      }
+      if (private_data_get_dcch_segment_number(actx) == 0) {
+        /* new segmented message */
+        count++;
+        wmem_map_insert(lte_rrc_dcch_segment_ueid_count_hash, GUINT_TO_POINTER((ueid<<16)|(1<<15)), GUINT_TO_POINTER(count));
+      }
+      id = (ueid<<16)|(1<<15)|(count&0x7fff);
+      wmem_tree_insert32_array(lte_rrc_dcch_segment_id_tree, key, GUINT_TO_POINTER(id));
+    } else {
+      id = GPOINTER_TO_UINT(wmem_tree_lookup32_array(lte_rrc_dcch_segment_id_tree, key));
+    }
+    if ((frag_tvb = private_data_get_dcch_segment(actx)) != NULL) {
+      frag_data = fragment_add_seq_check(&lte_rrc_dcch_segment_reassembly_table, frag_tvb, 0, actx->pinfo,
+                                         id, NULL, private_data_get_dcch_segment_number(actx),
+                                         tvb_reported_length(frag_tvb),
+                                         !private_data_get_dcch_segment_last(actx));
+      reassembled_tvb = process_reassembled_data(frag_tvb, 0, actx->pinfo, "Reassembled DL Dedicated Message",
+                                                 frag_data, &lte_rrc_dcch_segment_frag_items, NULL, tree);
+      if (reassembled_tvb) {
+        dissect_lte_rrc_DL_DCCH_Message_PDU(reassembled_tvb, actx->pinfo, tree, NULL);
+      }
+    }
+  }
+
+#.FN_BODY DLDedicatedMessageSegment-r16-IEs/segmentNumber-r16 VAL_PTR=&value
+  uint32_t value;
+%(DEFAULT_BODY)s
+  private_data_set_dcch_segment_number(actx, (uint8_t)value);
+
+#.FN_BODY DLDedicatedMessageSegment-r16-IEs/rrc-MessageSegmentContainer-r16 VAL_PTR=&segment
+  tvbuff_t *segment;
+%(DEFAULT_BODY)s
+  private_data_set_dcch_segment(actx, segment);
+
+#.FN_BODY DLDedicatedMessageSegment-r16-IEs/rrc-MessageSegmentType-r16 VAL_PTR=&value
+  uint32_t value;
+%(DEFAULT_BODY)s
+  private_data_set_dcch_segment_last(actx, (value > 0) ? true : false);
+
+#.FN_FTR ULDedicatedMessageSegment-r16-IEs
+  if (lte_rrc_reassemble_dcch_segments) {
+    uint32_t ueid, id, count;
+    rlc_lte_info *p_rlc_lte_info;
+    pdcp_lte_info *p_pdcp_lte_info;
+    mac_lte_info *p_mac_lte_info;
+    fragment_head *frag_data;
+    tvbuff_t *frag_tvb, *reassembled_tvb;
+    wmem_tree_key_t key[3];
+
+    if ((p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0)) != NULL) {
+      ueid = p_mac_lte_info->ueid;
+    } else if ((p_rlc_lte_info = (rlc_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_rlc_lte, 0)) != NULL) {
+      ueid = p_rlc_lte_info->ueid;
+    } else if ((p_pdcp_lte_info = (pdcp_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_pdcp_lte, 0)) != NULL) {
+      ueid = p_pdcp_lte_info->ueid;
+    } else {
+      ueid = 0;
+    }
+    key[0].length = 1;
+    key[0].key = &ueid;
+    key[1].length = 1;
+    key[1].key = &actx->pinfo->num;
+    key[2].length = 0;
+    key[2].key = NULL;
+    if (!PINFO_FD_VISITED(actx->pinfo)) {
+      void *value;
+
+      if (wmem_map_lookup_extended(lte_rrc_dcch_segment_ueid_count_hash, GUINT_TO_POINTER(ueid<<16), NULL, &value)) {
+        count = GPOINTER_TO_UINT(value);
+      } else {
+        count = 0;
+      }
+      if (private_data_get_dcch_segment_number(actx) == 0) {
+        /* new segmented message */
+        count++;
+        wmem_map_insert(lte_rrc_dcch_segment_ueid_count_hash, GUINT_TO_POINTER(ueid<<16), GUINT_TO_POINTER(count));
+      }
+      id = (ueid<<16)|(count&0x7fff);
+      wmem_tree_insert32_array(lte_rrc_dcch_segment_id_tree, key, GUINT_TO_POINTER(id));
+    } else {
+      id = GPOINTER_TO_UINT(wmem_tree_lookup32_array(lte_rrc_dcch_segment_id_tree, key));
+    }
+    if ((frag_tvb = private_data_get_dcch_segment(actx)) != NULL) {
+      frag_data = fragment_add_seq_check(&lte_rrc_dcch_segment_reassembly_table, frag_tvb, 0, actx->pinfo,
+                                         id, NULL, private_data_get_dcch_segment_number(actx),
+                                         tvb_reported_length(frag_tvb),
+                                         !private_data_get_dcch_segment_last(actx));
+      reassembled_tvb = process_reassembled_data(frag_tvb, 0, actx->pinfo, "Reassembled UL Dedicated Message",
+                                                 frag_data, &lte_rrc_dcch_segment_frag_items, NULL, tree);
+      if (reassembled_tvb) {
+        dissect_lte_rrc_UL_DCCH_Message_PDU(reassembled_tvb, actx->pinfo, tree, NULL);
+      }
+    }
+  }
+
+#.FN_BODY ULDedicatedMessageSegment-r16-IEs/segmentNumber-r16 VAL_PTR=&value
+  uint32_t value;
+%(DEFAULT_BODY)s
+  private_data_set_dcch_segment_number(actx, (uint8_t)value);
+
+#.FN_BODY ULDedicatedMessageSegment-r16-IEs/rrc-MessageSegmentContainer-r16 VAL_PTR=&segment
+  tvbuff_t *segment;
+%(DEFAULT_BODY)s
+  private_data_set_dcch_segment(actx, segment);
+
+#.FN_BODY ULDedicatedMessageSegment-r16-IEs/rrc-MessageSegmentType-r16 VAL_PTR=&value
+  uint32_t value;
+%(DEFAULT_BODY)s
+  private_data_set_dcch_segment_last(actx, (value > 0) ? true : false);
+
 #.FN_HDR MasterInformationBlock
 
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MasterInformationBlock");
 
 #.FN_HDR SystemInformation
 
-  if (private_data_get_bcch_dl_sch_msg(actx) == FALSE) {
+  if (private_data_get_bcch_dl_sch_msg(actx) == false) {
     col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "SystemInformation [");
   }
 
 #.FN_BODY SystemInformation
 
 %(DEFAULT_BODY)s
-  if (private_data_get_bcch_dl_sch_msg(actx) == FALSE) {
+  if (private_data_get_bcch_dl_sch_msg(actx) == false) {
     col_append_str(actx->pinfo->cinfo, COL_INFO, " ]");
   }
 
 #.FN_HDR SystemInformationBlockType1
 
-  if (private_data_get_bcch_dl_sch_msg(actx) == FALSE) {
+  if (private_data_get_bcch_dl_sch_msg(actx) == false) {
     col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "SystemInformationBlockType1");
   }
 
 #.FN_HDR SystemInformation-BR-r13
 
-  private_data_set_bcch_dl_sch_msg(actx, TRUE);
+  private_data_set_bcch_dl_sch_msg(actx, true);
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "SystemInformation-BR-r13 [");
 
 #.FN_BODY SystemInformation-BR-r13
@@ -2199,12 +2343,12 @@ SoundingRS-UL-ConfigDedicated/setup/duration STRINGS=TFS(&lte_rrc_duration_val)
 
 #.FN_HDR SystemInformationBlockType1-BR-r13
 
-  private_data_set_bcch_dl_sch_msg(actx, TRUE);
+  private_data_set_bcch_dl_sch_msg(actx, true);
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "SystemInformationBlockType1-BR-r13");
 
 #.FN_HDR SystemInformation-MBMS-r14
 
-  private_data_set_bcch_dl_sch_msg(actx, TRUE);
+  private_data_set_bcch_dl_sch_msg(actx, true);
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "SystemInformation-MBMS-r14 [");
 
 #.FN_BODY SystemInformation-MBMS-r14
@@ -2336,6 +2480,10 @@ SoundingRS-UL-ConfigDedicated/setup/duration STRINGS=TFS(&lte_rrc_duration_val)
 
   col_append_str(actx->pinfo->cinfo, COL_INFO, " SIB32");
 
+#.FN_HDR SystemInformationBlockType33-r18
+
+  col_append_str(actx->pinfo->cinfo, COL_INFO, " SIB33");
+
 #.FN_HDR SystemInformationBlockPos-r15
 
   col_append_str(actx->pinfo->cinfo, COL_INFO, " SIBPos");
@@ -2430,19 +2578,48 @@ SoundingRS-UL-ConfigDedicated/setup/duration STRINGS=TFS(&lte_rrc_duration_val)
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "DLDedicatedMessageSegment-r16");
 
 #.FN_HDR RRCConnectionReestablishmentRequest
-
+  /* Inform RLC & PDCP - need UE identifier */
+  mac_lte_info *p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0);
+  if (p_mac_lte_info) {
+    /* Tell RLC this UE is trying to (re)connect */
+    rlc_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid);
+    /* And PDCP. Only SRBs and UM (not AM) DRBs */
+    pdcp_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid, true);
+  }
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RRCConnectionReestablishmentRequest");
 
 #.FN_HDR RRCConnectionRequest
-
+  /* Inform RLC & PDCP - need UE identifier */
+  mac_lte_info *p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0);
+  if (p_mac_lte_info) {
+    /* Tell RLC this UE is trying to (re)connect */
+    rlc_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid);
+    /* And PDCP */
+    pdcp_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid, true);
+  }
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RRCConnectionRequest");
 
 #.FN_HDR RRCConnectionResumeRequest-r13
-
+  /* Inform RLC & PDCP - need UE identifier */
+  mac_lte_info *p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0);
+  if (p_mac_lte_info) {
+    /* Tell RLC this UE is trying to (re)connect */
+    rlc_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid);
+    /* And PDCP */
+    /* TODO: more complicated, skip PDCP reset for now */
+    // pdcp_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid, true);
+  }
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RRCConnectionResumeRequest-r13");
 
 #.FN_HDR RRCEarlyDataRequest-r15
-
+  /* Inform RLC & PDCP - need UE identifier */
+  mac_lte_info *p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0);
+  if (p_mac_lte_info) {
+    /* Tell RLC this UE is trying to (re)connect */
+    rlc_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid);
+    /* And PDCP */
+    pdcp_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid, false);
+  }
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RRCEarlyDataRequest-r15");
 
 #.FN_HDR CSFBParametersRequestCDMA2000
@@ -2598,7 +2775,7 @@ SoundingRS-UL-ConfigDedicated/setup/duration STRINGS=TFS(&lte_rrc_duration_val)
 
 #.FN_BODY Paging/pagingRecordList
   /* Number of items is (last 3 bits of first byte and first bit of second) + 1 */
-  guint16 number_of_records = ((tvb_get_ntohs(tvb, 0) >> 7) & 0x0f) + 1;
+  uint16_t number_of_records = ((tvb_get_ntohs(tvb, 0) >> 7) & 0x0f) + 1;
 %(DEFAULT_BODY)s
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (%%u PagingRecord%%s)", number_of_records, plurality(number_of_records, "", "s"));
 
@@ -2609,14 +2786,14 @@ SoundingRS-UL-ConfigDedicated/setup/duration STRINGS=TFS(&lte_rrc_duration_val)
 
 #.FN_BODY MasterInformationBlock/systemFrameNumber VAL_PTR=&value_tvb
   tvbuff_t *value_tvb = NULL;
-  guint32 sfn;
+  uint32_t sfn;
 %(DEFAULT_BODY)s
   /* Show SFN in info column */
-  sfn = tvb_get_guint8(value_tvb, 0);
+  sfn = tvb_get_uint8(value_tvb, 0);
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (SFN=%%u)", sfn);
 
 #.FN_BODY SystemInformationBlockType1/systemInfoValueTag VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
 %(DEFAULT_BODY)s
   /* Track whether systemInfoValue has changed since last seen, indicating new SI config
      TODO: add link back to previous config and (if known) time since previous config
@@ -2627,15 +2804,15 @@ SoundingRS-UL-ConfigDedicated/setup/duration STRINGS=TFS(&lte_rrc_duration_val)
       wmem_map_insert(lte_rrc_system_info_value_changed_hash, GUINT_TO_POINTER(actx->pinfo->num),
                           GUINT_TO_POINTER(system_info_value_current+1));
     }
-    system_info_value_current_set = TRUE;
+    system_info_value_current_set = true;
     system_info_value_current = value;
   }
   else {
     /* Look up indication of changed info value from hash table */
-    gpointer p_previous = wmem_map_lookup(lte_rrc_system_info_value_changed_hash, GUINT_TO_POINTER(actx->pinfo->num));
+    void *p_previous = wmem_map_lookup(lte_rrc_system_info_value_changed_hash, GUINT_TO_POINTER(actx->pinfo->num));
     if (p_previous != NULL) {
       /* Subtract one from stored result to get previous value */
-      guint32 previous = GPOINTER_TO_UINT(p_previous) - 1;
+      uint32_t previous = GPOINTER_TO_UINT(p_previous) - 1;
       expert_add_info_format(actx->pinfo, actx->created_item, &ei_lte_rrc_si_info_value_changed,
                              "SI Info Value changed (now %%u, was %%u)", value, previous);
     }
@@ -2703,29 +2880,29 @@ SL-V2X-ConfigCommon-r14/offsetDFN-r14 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rr
 
 
 #.FN_BODY DRB-Identity VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
-    mapping->drbid = (guint8)value;
+    mapping->drbid = (uint8_t)value;
   }
 
 #.FN_BODY RLC-Config VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->rlcMode = (value==0) ? RLC_AM_MODE : RLC_UM_MODE;
-    mapping->rlcMode_present = TRUE;
+    mapping->rlcMode_present = true;
 
     if (mapping->rlcMode == RLC_AM_MODE) {
         mapping->pdcp_sn_size = 12;
-        mapping->pdcp_sn_size_present = TRUE;
+        mapping->pdcp_sn_size_present = true;
     }
   }
 
 #.FN_BODY RLC-Config-v1250/ul-extended-RLC-LI-Field-r12 VAL_PTR=&ext_li_field
-  gboolean ext_li_field;
+  bool ext_li_field;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
@@ -2733,7 +2910,7 @@ SL-V2X-ConfigCommon-r14/offsetDFN-r14 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rr
   }
 
 #.FN_BODY RLC-Config-v1250/dl-extended-RLC-LI-Field-r12 VAL_PTR=&ext_li_field
-  gboolean ext_li_field;
+  bool ext_li_field;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
@@ -2741,7 +2918,7 @@ SL-V2X-ConfigCommon-r14/offsetDFN-r14 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rr
   }
 
 #.FN_BODY RLC-Config-v1310/ul-extended-RLC-AM-SN-r13 VAL_PTR=&ext_am_sn
-  gboolean ext_am_sn;
+  bool ext_am_sn;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
@@ -2749,7 +2926,7 @@ SL-V2X-ConfigCommon-r14/offsetDFN-r14 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rr
   }
 
 #.FN_BODY RLC-Config-v1310/dl-extended-RLC-AM-SN-r13 VAL_PTR=&ext_am_sn
-  gboolean ext_am_sn;
+  bool ext_am_sn;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
@@ -2757,51 +2934,51 @@ SL-V2X-ConfigCommon-r14/offsetDFN-r14 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rr
   }
 
 #.FN_BODY DRB-ToAddMod/logicalChannelIdentity VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
-    mapping->lcid = (guint8)value;
-    mapping->lcid_present = TRUE;
+    mapping->lcid = (uint8_t)value;
+    mapping->lcid_present = true;
   }
 
 #.FN_BODY DRB-ToAddMod/eag_5/logicalChannelIdentity-r15 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
-    mapping->lcid = (guint8)value;
-    mapping->lcid_present = TRUE;
+    mapping->lcid = (uint8_t)value;
+    mapping->lcid_present = true;
   }
 
 #.FN_BODY SN-FieldLength VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->um_sn_length = (value==0) ? 5 : 10;
-    mapping->um_sn_length_present = TRUE;
+    mapping->um_sn_length_present = true;
   }
 
 #.FN_BODY LogicalChannelConfig/ul-SpecificParameters/priority VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->ul_priority = value;
-    mapping->ul_priority_present = TRUE;
+    mapping->ul_priority_present = true;
   }
 
 #.TYPE_ATTR
 LWA-Config-r13/eag_1/wt-MAC-Address-r14 TYPE=FT_ETHER
 
 #.FN_BODY PDCP-Config/rlc-UM/pdcp-SN-Size VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->pdcp_sn_size = (value==0) ? 7 : 12;
-    mapping->pdcp_sn_size_present = TRUE;
+    mapping->pdcp_sn_size_present = true;
   }
 
 #.FN_BODY PDCP-Config/eag_2/pdcp-SN-Size-v1130
@@ -2809,7 +2986,7 @@ LWA-Config-r13/eag_1/wt-MAC-Address-r14 TYPE=FT_ETHER
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->pdcp_sn_size = 15;
-    mapping->pdcp_sn_size_present = TRUE;
+    mapping->pdcp_sn_size_present = true;
   }
 
 #.FN_BODY PDCP-Config/eag_4/pdcp-SN-Size-v1310
@@ -2817,14 +2994,14 @@ LWA-Config-r13/eag_1/wt-MAC-Address-r14 TYPE=FT_ETHER
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->pdcp_sn_size = 18;
-    mapping->pdcp_sn_size_present = TRUE;
+    mapping->pdcp_sn_size_present = true;
   }
 
 #.TYPE_ATTR
-LBT-Config-r14/maxEnergyDetectionThreshold-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+LBT-Config-r14/maxEnergyDetectionThreshold-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-LBT-Config-r14/energyDetectionThresholdOffset-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+LBT-Config-r14/energyDetectionThresholdOffset-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.FN_BODY NeighCellsInfo-r12/transmissionModeList-r12 VAL_PTR=&tm_list_tvb
   tvbuff_t *tm_list_tvb=NULL;
@@ -2850,7 +3027,7 @@ LBT-Config-r14/energyDetectionThresholdOffset-r14 DISPLAY=BASE_DEC|BASE_UNIT_STR
   p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0);
   if (p_mac_lte_info != NULL) {
     /* Tell MAC to use simultaneous PUCCH/PUSCH configuration */
-    set_mac_lte_simult_pucch_pusch(p_mac_lte_info->ueid, private_data_get_simult_pucch_pusch_cell_type(actx), TRUE, actx->pinfo);
+    set_mac_lte_simult_pucch_pusch(p_mac_lte_info->ueid, private_data_get_simult_pucch_pusch_cell_type(actx), true, actx->pinfo);
   }
 
 #.TYPE_RENAME
@@ -2862,13 +3039,13 @@ PUCCH-ConfigDedicated-r13/pucch-Format-r13/channelSelection-r13/n1PUCCH-AN-CS-r1
   private_data_set_ra_preambles(actx, 0);
 
 #.FN_BODY RACH-ConfigCommon/preambleInfo/numberOfRA-Preambles VAL_PTR=&value
-  guint value;
+  unsigned value;
 %(DEFAULT_BODY)s
   /* This is mandatory, store value */
   private_data_set_ra_preambles(actx, value);
 
 #.FN_BODY RACH-ConfigCommon/preambleInfo/preamblesGroupAConfig/sizeOfRA-PreamblesGroupA VAL_PTR=&value
-  guint ra_value, value;
+  unsigned ra_value, value;
 %(DEFAULT_BODY)s
   /* Retrived stored value for RA (both Group A & Group B) */
   ra_value = private_data_get_ra_preambles(actx);
@@ -2886,172 +3063,172 @@ PUCCH-ConfigDedicated-r13/pucch-Format-r13/channelSelection-r13/n1PUCCH-AN-CS-r1
   private_data_set_ra_preambles(actx, 0);
 
 #.TYPE_ATTR
-RACH-ConfigCommon-v1250/txFailParams-r12/connEstFailOffset-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+RACH-ConfigCommon-v1250/txFailParams-r12/connEstFailOffset-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.FN_BODY DRX-Config/setup/onDurationTimer VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   /* Set 'configured' state so that config can be examine once complete! */
-  config->configured = TRUE;
+  config->configured = true;
   config->onDurationTimer = drx_lookup_onDurationTimer(value);
 
 #.FN_BODY DRX-Config/setup/drx-InactivityTimer VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->inactivityTimer = drx_lookup_inactivityTimer(value);
 
 #.FN_BODY DRX-Config/setup/drx-RetransmissionTimer VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->retransmissionTimer = drx_lookup_retransmissionTimer(value);
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->longCycle = drx_lookup_longCycle(value);
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf10 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf20 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf32 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf40 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf64 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf80 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf128 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf160 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf256 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf320 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf512 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf640 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf1024 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf1280 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf2048 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/longDRX-CycleStartOffset/sf2560 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config/setup/shortDRX/shortDRX-Cycle VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
-  config->shortCycleConfigured = TRUE;
+  config->shortCycleConfigured = true;
   config->shortCycle = drx_lookup_shortCycle(value);
 
 #.FN_BODY DRX-Config/setup/shortDRX/drxShortCycleTimer VAL_PTR=&timer
-  guint32 timer;
+  uint32_t timer;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->shortCycleTimer = timer;
 
 #.TYPE_ATTR
-DRX-Config/setup/shortDRX/drxShortCycleTimer DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_short_drx_cycles
+DRX-Config/setup/shortDRX/drxShortCycleTimer DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_short_drx_cycles)
 
 #.FN_BODY DRX-Config-v1130/drx-RetransmissionTimer-v1130 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->retransmissionTimer = 0;
 
 #.FN_BODY DRX-Config-v1130/longDRX-CycleStartOffset-v1130 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->longCycle = drx_lookup_longCycle_v1130(value);
 
 #.FN_BODY DRX-Config-v1130/longDRX-CycleStartOffset-v1130/sf60-v1130 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config-v1130/longDRX-CycleStartOffset-v1130/sf70-v1130 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
 
 #.FN_BODY DRX-Config-v1130/shortDRX-Cycle-v1130 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   /* Presumably config->shortCycleConfigured will be set... */
@@ -3063,7 +3240,7 @@ DRX-Config/setup/shortDRX/drxShortCycleTimer DISPLAY=BASE_DEC|BASE_UNIT_STRING S
   config->longCycle = 60;
 
 #.FN_BODY DRX-Config-v1310/longDRX-CycleStartOffset-v1310/sf60-v1310 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drx_config_t* config = private_data_get_drx_config(actx);
 %(DEFAULT_BODY)s
   config->cycleOffset = value;
@@ -3087,10 +3264,10 @@ DRX-Config/setup/shortDRX/drxShortCycleTimer DISPLAY=BASE_DEC|BASE_UNIT_STRING S
     /* as the UE could have locally dropped the previous RRC Connection */
     set_mac_lte_drx_config_release(p_mac_lte_info->ueid, actx->pinfo);
     /* Also tell MAC to release extended BSR sizes configuration */
-    set_mac_lte_extended_bsr_sizes(p_mac_lte_info->ueid, FALSE, actx->pinfo);
+    set_mac_lte_extended_bsr_sizes(p_mac_lte_info->ueid, false, actx->pinfo);
     /* Also tell MAC to release simutaneous PUCCH/PUSCH configuration */
-    set_mac_lte_simult_pucch_pusch(p_mac_lte_info->ueid, SIMULT_PUCCH_PUSCH_PCELL, FALSE, actx->pinfo);
-    set_mac_lte_simult_pucch_pusch(p_mac_lte_info->ueid, SIMULT_PUCCH_PUSCH_PSCELL, FALSE, actx->pinfo);
+    set_mac_lte_simult_pucch_pusch(p_mac_lte_info->ueid, SIMULT_PUCCH_PUSCH_PCELL, false, actx->pinfo);
+    set_mac_lte_simult_pucch_pusch(p_mac_lte_info->ueid, SIMULT_PUCCH_PUSCH_PSCELL, false, actx->pinfo);
     /* TODO: also release PDCP security config here */
   }
 %(DEFAULT_BODY)s
@@ -3114,25 +3291,25 @@ DRX-Config/setup/shortDRX/drxShortCycleTimer DISPLAY=BASE_DEC|BASE_UNIT_STRING S
   }
 
 #.FN_BODY CipheringAlgorithm-r12 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   pdcp_lte_security_info_t *p_security_algorithms;
 %(DEFAULT_BODY)s
   p_security_algorithms = private_data_pdcp_security_algorithms(actx);
   p_security_algorithms->ciphering = (enum lte_security_ciphering_algorithm_e)value;
 
 #.FN_BODY SecurityAlgorithmConfig/integrityProtAlgorithm VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   pdcp_lte_security_info_t *p_security_algorithms;
 %(DEFAULT_BODY)s
   p_security_algorithms = private_data_pdcp_security_algorithms(actx);
   p_security_algorithms->integrity = (enum lte_security_integrity_algorithm_e)value;
 
 #.FN_BODY SchedulingRequestConfig/setup/sr-ConfigIndex VAL_PTR=&value
-  guint32 value;
-  guint16 periodicity, subframe_offset;
+  uint32_t value;
+  uint16_t periodicity, subframe_offset;
   proto_item *ti;
   proto_tree *subtree;
-  gint index_offset = offset;
+  int index_offset = offset;
 %(DEFAULT_BODY)s
   /* Break config index into its parts */
   sr_lookup_configindex(value, &periodicity, &subframe_offset);
@@ -3144,11 +3321,11 @@ DRX-Config/setup/shortDRX/drxShortCycleTimer DISPLAY=BASE_DEC|BASE_UNIT_STRING S
   proto_item_set_generated(ti);
 
 #.FN_BODY SchedulingRequestConfigSCell-r13/setup/sr-ConfigIndex-r13 VAL_PTR=&value
-  guint32 value;
-  guint16 periodicity, subframe_offset;
+  uint32_t value;
+  uint16_t periodicity, subframe_offset;
   proto_item *ti;
   proto_tree *subtree;
-  gint index_offset = offset;
+  int index_offset = offset;
 %(DEFAULT_BODY)s
   /* Break config index into its parts */
   sr_lookup_configindex(value, &periodicity, &subframe_offset);
@@ -3160,7 +3337,7 @@ DRX-Config/setup/shortDRX/drxShortCycleTimer DISPLAY=BASE_DEC|BASE_UNIT_STRING S
   proto_item_set_generated(ti);
 
 #.FN_BODY FreqBandIndicator VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
 %(DEFAULT_BODY)s
   set_freq_band_indicator(value, actx);
 
@@ -3173,8 +3350,8 @@ DRX-Config/setup/shortDRX/drxShortCycleTimer DISPLAY=BASE_DEC|BASE_UNIT_STRING S
 %(DEFAULT_BODY)s
   mappings = private_data_meas_capabilities_item_band_mappings(actx);
   if (mappings->number_of_interfreq_serving_read < mappings->number_of_bands_set) {
-    guint16 serving_band = mappings->band_by_item[mappings->number_of_interfreq_serving_read];
-    guint16 target_band = mappings->band_by_item[mappings->number_of_interfreq_target_read++];
+    uint16_t serving_band = mappings->band_by_item[mappings->number_of_interfreq_serving_read];
+    uint16_t target_band = mappings->band_by_item[mappings->number_of_interfreq_target_read++];
     if (mappings->number_of_interfreq_target_read == mappings->number_of_bands_set) {
       mappings->number_of_interfreq_target_read = 0;
       mappings->number_of_interfreq_serving_read++;
@@ -3194,16 +3371,16 @@ DRX-Config/setup/shortDRX/drxShortCycleTimer DISPLAY=BASE_DEC|BASE_UNIT_STRING S
   mappings->number_of_bands_set = 0;
 
 #.FN_BODY ReleaseCause VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
 %(DEFAULT_BODY)s
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " [cause=%%s]",
-                  val_to_str(value, lte_rrc_ReleaseCause_vals, "Unknown"));
+                  val_to_str_const(value, lte_rrc_ReleaseCause_vals, "Unknown"));
 
 #.TYPE_ATTR
 LWA-Parameters-r13/wlan-MAC-Address-r13 TYPE=FT_ETHER
 
 #.TYPE_ATTR
-VisitedCellInfo-r12/timeSpent-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+VisitedCellInfo-r12/timeSpent-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_BODY WLAN-OffloadConfig-r12/thresholdChannelUtilization-r12/thresholdChannelUtilizationLow-r12
 %(DEFAULT_BODY)s
@@ -3259,19 +3436,19 @@ SL-CBR-r14 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rrc_SL_CBR_r14_fmt)
 SL-CommResourcePoolV2X-r14/threshS-RSSI-CBR-r14 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rrc_threshS_RSSI_CBR_r14_fmt)
 
 #.TYPE_ATTR
-SL-DiscResourcePool-r12/eag_1/txParamsAddNeighFreq-r13/setup/referenceSignalPower DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+SL-DiscResourcePool-r12/eag_1/txParamsAddNeighFreq-r13/setup/referenceSignalPower DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
 SL-DiscSysInfoReport-r13/cellSelectionInfo-r13/q-RxLevMinOffset-r13 STRINGS=VALS(lte_rrc_q_RxLevMinOffset_vals)
 
 #.TYPE_ATTR
-SL-DiscSysInfoReport-r13/referenceSignalPower-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+SL-DiscSysInfoReport-r13/referenceSignalPower-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
 SL-V2X-InterFreqUE-Config-r14/offsetDFN-r14 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rrc_offsetDFN_r14_fmt)
 
 #.TYPE_ATTR
-P0-SL-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+P0-SL-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.FN_BODY RRCConnectionReconfiguration-v1510-IEs/nr-Config-r15/setup/nr-SecondaryCellGroupConfig-r15 VAL_PTR = &rrc_reconfiguration_tvb
   tvbuff_t *rrc_reconfiguration_tvb = NULL;
@@ -3658,6 +3835,27 @@ P0-SL-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
 #.FN_HDR PosSystemInformation-r15-IEs/posSIB-TypeAndInfo-r15/_item/posSib1-10-v1700
   private_data_set_pos_sib_type(actx, LPP_POS_SIB_TYPE_1_10);
 
+#.FN_HDR PosSystemInformation-r15-IEs/posSIB-TypeAndInfo-r15/_item/posSib2-17a-v1770
+  private_data_set_pos_sib_type(actx, LPP_POS_SIB_TYPE_2_17a);
+
+#.FN_HDR PosSystemInformation-r15-IEs/posSIB-TypeAndInfo-r15/_item/posSib2-18a-v1770
+  private_data_set_pos_sib_type(actx, LPP_POS_SIB_TYPE_2_18a);
+
+#.FN_HDR PosSystemInformation-r15-IEs/posSIB-TypeAndInfo-r15/_item/posSib2-20a-v1770
+  private_data_set_pos_sib_type(actx, LPP_POS_SIB_TYPE_2_20a);
+
+#.FN_HDR PosSystemInformation-r15-IEs/posSIB-TypeAndInfo-r15/_item/posSib1-11-v1800
+  private_data_set_pos_sib_type(actx, LPP_POS_SIB_TYPE_1_11);
+
+#.FN_HDR PosSystemInformation-r15-IEs/posSIB-TypeAndInfo-r15/_item/posSib1-12-v1800
+  private_data_set_pos_sib_type(actx, LPP_POS_SIB_TYPE_1_12);
+
+#.FN_HDR PosSystemInformation-r15-IEs/posSIB-TypeAndInfo-r15/_item/posSib2-26-v1800
+  private_data_set_pos_sib_type(actx, LPP_POS_SIB_TYPE_2_26);
+
+#.FN_HDR PosSystemInformation-r15-IEs/posSIB-TypeAndInfo-r15/_item/posSib2-27-v1800
+  private_data_set_pos_sib_type(actx, LPP_POS_SIB_TYPE_2_27);
+
 #.FN_BODY SystemInformationBlockPos-r15/assistanceDataSIB-Element-r15 VAL_PTR = &assist_data_sib_elem_tvb
   tvbuff_t *assist_data_sib_elem_tvb = NULL;
 
@@ -3685,7 +3883,7 @@ P0-SL-r12 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
   }
 
 #.TYPE_ATTR
-TimeOffsetUTC-r17 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+TimeOffsetUTC-r17 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_BODY OverheatingAssistance-v1610/overheatingAssistanceForSCG-r16 VAL_PTR = &overheating_assist_for_scg_tvb
   tvbuff_t *overheating_assist_for_scg_tvb = NULL;
@@ -3709,6 +3907,20 @@ TimeOffsetUTC-r17 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
   if (cond_reconfig_exec_cond_scg_tvb) {
     proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_lte_rrc_triggerConditionSN_r17);
     dissect_nr_rrc_CondReconfigExecCondSCG_r17_PDU(cond_reconfig_exec_cond_scg_tvb, actx->pinfo, subtree, NULL);
+  }
+
+#.FN_BODY ReferenceLocation-r18 VAL_PTR = &ellipsoid_point_tvb
+  tvbuff_t *ellipsoid_point_tvb = NULL;
+%(DEFAULT_BODY)s
+  if (ellipsoid_point_tvb) {
+    dissect_lpp_Ellipsoid_Point_PDU(ellipsoid_point_tvb, actx->pinfo, tree, NULL);
+  }
+
+#.FN_BODY RACH-ReportNR-r18 VAL_PTR = &ra_reportlist_tvb
+  tvbuff_t *ra_reportlist_tvb = NULL;
+%(DEFAULT_BODY)s
+  if (ra_reportlist_tvb) {
+    dissect_nr_rrc_RA_ReportList_r16_PDU(ra_reportlist_tvb, actx->pinfo, tree, NULL);
   }
 
 #
@@ -3809,15 +4021,48 @@ SL-V2X-PreconfigCommPool-r14/threshS-RSSI-CBR-r14 DISPLAY=BASE_CUSTOM STRINGS=CF
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UEInformationRequest-NB-r16");
 
 #.FN_HDR RRCConnectionReestablishmentRequest-NB
+  /* Inform RLC & PDCP - need UE identifier */
+  mac_lte_info *p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0);
+  if (p_mac_lte_info) {
+    /* Tell RLC this UE is trying to (re)connect */
+    rlc_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid);
+    /* And PDCP. Only SRBs and UM (not AM) DRBs */
+    pdcp_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid, true);
+  }
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RRCConnectionReestablishmentRequest-NB");
 
 #.FN_HDR RRCConnectionRequest-NB
+  /* Inform RLC & PDCP - need UE identifier */
+  mac_lte_info *p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0);
+  if (p_mac_lte_info) {
+    /* Tell RLC this UE is trying to (re)connect */
+    rlc_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid);
+    /* And PDCP */
+    pdcp_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid, true);
+  }
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RRCConnectionRequest-NB");
 
 #.FN_HDR RRCConnectionResumeRequest-NB
+  /* Inform RLC & PDCP - need UE identifier */
+  mac_lte_info *p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0);
+  if (p_mac_lte_info) {
+    /* Tell RLC this UE is trying to (re)connect */
+    rlc_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid);
+    /* And PDCP */
+    /* TODO: more complicated, skip PDCP reset for now */
+    // pdcp_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid, true);
+  }
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RRCConnectionResumeRequest-NB");
 
 #.FN_HDR RRCEarlyDataRequest-NB-r15
+  /* Inform RLC & PDCP - need UE identifier */
+  mac_lte_info *p_mac_lte_info = (mac_lte_info *)p_get_proto_data(wmem_file_scope(), actx->pinfo, proto_mac_lte, 0);
+  if (p_mac_lte_info) {
+    /* Tell RLC this UE is trying to (re)connect */
+    rlc_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid);
+    /* And PDCP */
+    pdcp_lte_reset_ue_bearers(actx->pinfo, p_mac_lte_info->ueid, false);
+  }
   col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RRCEarlyDataRequest-NB-r15");
 
 #.FN_HDR SCPTMConfiguration-NB-r14
@@ -3868,6 +4113,9 @@ SL-V2X-PreconfigCommPool-r14/threshS-RSSI-CBR-r14 DISPLAY=BASE_CUSTOM STRINGS=CF
 #.FN_HDR SystemInformationBlockType32-NB-r17
   col_append_str(actx->pinfo->cinfo, COL_INFO, " SIB32");
 
+#.FN_HDR SystemInformationBlockType33-NB-r18
+  col_append_str(actx->pinfo->cinfo, COL_INFO, " SIB33");
+
 #.TYPE_ATTR
 MasterInformationBlock-NB/schedulingInfoSIB1-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_schedulingInfoSIB1_NB_r13_vals_ext
 
@@ -3875,16 +4123,16 @@ MasterInformationBlock-NB/schedulingInfoSIB1-r13 TYPE=FT_UINT32 DISPLAY=BASE_DEC
 MasterInformationBlock-TDD-NB-r15/schedulingInfoSIB1-r15 TYPE=FT_UINT32 DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_schedulingInfoSIB1_NB_r13_vals_ext
 
 #.TYPE_ATTR
-RRCConnectionReject-NB-r13-IEs/extendedWaitTime-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RRCConnectionReject-NB-r13-IEs/extendedWaitTime-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-RRCConnectionRelease-NB-r13-IEs/extendedWaitTime-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RRCConnectionRelease-NB-r13-IEs/extendedWaitTime-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-RRCConnectionRelease-NB-v1430-IEs/extendedWaitTime-CPdata-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RRCConnectionRelease-NB-v1430-IEs/extendedWaitTime-CPdata-r14 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
-RRCEarlyDataComplete-NB-r15-IEs/extendedWaitTime-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_seconds
+RRCEarlyDataComplete-NB-r15-IEs/extendedWaitTime-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.TYPE_ATTR
 CellSelectionInfo-NB-v1350/delta-RxLevMin-v1350 STRINGS=VALS(lte_rrc_delta_RxLevMin_vals)
@@ -3905,16 +4153,16 @@ InterFreqCarrierFreqInfo-NB-r13/eag_1/delta-RxLevMin-v1350 STRINGS=VALS(lte_rrc_
 AB-Config-NB-r13/ab-Category-r13 STRINGS=VALS(lte_rrc_eab_category_vals)
 
 #.TYPE_ATTR
-NPDSCH-ConfigCommon-NB-r13/nrs-Power-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+NPDSCH-ConfigCommon-NB-r13/nrs-Power-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
-RACH-ConfigCommon-NB-r13/connEstFailOffset-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+RACH-ConfigCommon-NB-r13/connEstFailOffset-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
-SR-WithoutHARQ-ACK-Config-NB-r15/setup/sr-ProhibitTimer-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_sr_periods
+SR-WithoutHARQ-ACK-Config-NB-r15/setup/sr-ProhibitTimer-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_sr_periods)
 
 #.TYPE_ATTR
-SR-NPRACH-Resource-NB-r15/p0-SR-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+SR-NPRACH-Resource-NB-r15/p0-SR-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.FN_BODY DRB-ToAddMod-NB-r13
   struct mac_lte_info *p_mac_lte_info;
@@ -3957,9 +4205,9 @@ SR-NPRACH-Resource-NB-r15/p0-SR-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&u
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->rlcMode = RLC_AM_MODE;
-    mapping->rlcMode_present = TRUE;
+    mapping->rlcMode_present = true;
     mapping->pdcp_sn_size = 7;
-    mapping->pdcp_sn_size_present = TRUE;
+    mapping->pdcp_sn_size_present = true;
   }
 
 #.FN_BODY RLC-Config-NB-r13/um-Bi-Directional-r15
@@ -3967,11 +4215,11 @@ SR-NPRACH-Resource-NB-r15/p0-SR-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&u
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->rlcMode = RLC_UM_MODE;
-    mapping->rlcMode_present = TRUE;
+    mapping->rlcMode_present = true;
     mapping->um_sn_length = 5;
-    mapping->um_sn_length_present = TRUE;
+    mapping->um_sn_length_present = true;
     mapping->pdcp_sn_size = 7;
-    mapping->pdcp_sn_size_present = TRUE;
+    mapping->pdcp_sn_size_present = true;
   }
 
 #.FN_BODY RLC-Config-NB-r13/um-Uni-Directional-UL-r15
@@ -3979,11 +4227,11 @@ SR-NPRACH-Resource-NB-r15/p0-SR-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&u
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->rlcMode = RLC_UM_MODE;
-    mapping->rlcMode_present = TRUE;
+    mapping->rlcMode_present = true;
     mapping->um_sn_length = 5;
-    mapping->um_sn_length_present = TRUE;
+    mapping->um_sn_length_present = true;
     mapping->pdcp_sn_size = 7;
-    mapping->pdcp_sn_size_present = TRUE;
+    mapping->pdcp_sn_size_present = true;
   }
 
 #.FN_BODY RLC-Config-NB-r13/um-Uni-Directional-DL-r15
@@ -3991,39 +4239,39 @@ SR-NPRACH-Resource-NB-r15/p0-SR-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&u
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->rlcMode = RLC_UM_MODE;
-    mapping->rlcMode_present = TRUE;
+    mapping->rlcMode_present = true;
     mapping->um_sn_length = 5;
-    mapping->um_sn_length_present = TRUE;
+    mapping->um_sn_length_present = true;
     mapping->pdcp_sn_size = 7;
-    mapping->pdcp_sn_size_present = TRUE;
+    mapping->pdcp_sn_size_present = true;
   }
 
 #.FN_BODY DRB-ToAddMod-NB-r13/logicalChannelIdentity-r13 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
-    mapping->lcid = (guint8)value;
-    mapping->lcid_present = TRUE;
+    mapping->lcid = (uint8_t)value;
+    mapping->lcid_present = true;
   }
 
 #.FN_BODY LogicalChannelConfig-NB-r13/priority-r13 VAL_PTR=&value
-  guint32 value;
+  uint32_t value;
   drb_mapping_t *mapping = private_data_get_drb_mapping(actx);
 %(DEFAULT_BODY)s
   if (mapping != NULL) {
     mapping->ul_priority = value;
-    mapping->ul_priority_present = TRUE;
+    mapping->ul_priority_present = true;
   }
 
 #.TYPE_ATTR
-UplinkPowerControlCommon-NB-r13/p0-NominalNPUSCH-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_dbm
+UplinkPowerControlCommon-NB-r13/p0-NominalNPUSCH-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)
 
 #.TYPE_ATTR
 UplinkPowerControlCommon-NB-r13/deltaPreambleMsg3-r13 STRINGS=VALS(lte_rrc_deltaPreambleMsg3_vals)
 
 #.TYPE_ATTR
-UplinkPowerControlDedicated-NB-r13/p0-UE-NPUSCH-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+UplinkPowerControlDedicated-NB-r13/p0-UE-NPUSCH-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)
 
 #.TYPE_ATTR
 ReselectionThreshold-NB-v1360  DISPLAY=BASE_DEC|BASE_EXT_STRING STRINGS=&lte_rrc_ReselectionThreshold_NB_vals_ext
@@ -4035,4 +4283,4 @@ NRSRP-Range-NB-r14 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rrc_NRSRP_Range_NB_r1
 NRSRQ-Range-NB-r14 DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(lte_rrc_NRSRQ_Range_NB_r14_fmt)
 
 #.TYPE_ATTR
-PUR-Config-NB-r16/pur-PhysicalConfig-r16/p0-UE-NPUSCH-r16 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=&units_decibels
+PUR-Config-NB-r16/pur-PhysicalConfig-r16/p0-UE-NPUSCH-r16 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_decibels)

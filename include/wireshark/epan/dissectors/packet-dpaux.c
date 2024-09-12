@@ -19,40 +19,40 @@
 
 void proto_register_dpaux(void);
 
-static int proto_dpaux = -1;
+static int proto_dpaux;
 
-static int hf_dpaux_transaction_type = -1;
-static int hf_dpaux_native_req_cmd = -1;
-static int hf_dpaux_i2c_req_cmd = -1;
-static int hf_dpaux_reply_cmd = -1;
-static int hf_dpaux_mot = -1;
-static int hf_dpaux_addr = -1;
-static int hf_dpaux_len = -1;
-static int hf_dpaux_data = -1;
+static int hf_dpaux_transaction_type;
+static int hf_dpaux_native_req_cmd;
+static int hf_dpaux_i2c_req_cmd;
+static int hf_dpaux_reply_cmd;
+static int hf_dpaux_mot;
+static int hf_dpaux_addr;
+static int hf_dpaux_len;
+static int hf_dpaux_data;
 
-static int hf_dpaux_reg_addr = -1;
+static int hf_dpaux_reg_addr;
 
-static int hf_00000 = -1;
-static int hf_00000_MINOR = -1;
-static int hf_00000_MAJOR = -1;
+static int hf_00000;
+static int hf_00000_MINOR;
+static int hf_00000_MAJOR;
 static int * const reg00000_fields[] = {
     &hf_00000_MAJOR,
     &hf_00000_MINOR,
     NULL
 };
 
-static int hf_00001 = -1;
-static int hf_00001_MAX_LINK_RATE = -1;
+static int hf_00001;
+static int hf_00001_MAX_LINK_RATE;
 static int * const reg00001_fields[] = {
     &hf_00001_MAX_LINK_RATE,
     NULL
 };
 
-static int hf_00002 = -1;
-static int hf_00002_MAX_LANE_COUNT = -1;
-static int hf_00002_POST_LT_ADJ_REQ_SUPPORTED = -1;
-static int hf_00002_TPS3_SUPPORTED = -1;
-static int hf_00002_ENHANCED_FRAME_CAP = -1;
+static int hf_00002;
+static int hf_00002_MAX_LANE_COUNT;
+static int hf_00002_POST_LT_ADJ_REQ_SUPPORTED;
+static int hf_00002_TPS3_SUPPORTED;
+static int hf_00002_ENHANCED_FRAME_CAP;
 static int * const reg00002_fields[] = {
     &hf_00002_MAX_LANE_COUNT,
     &hf_00002_POST_LT_ADJ_REQ_SUPPORTED,
@@ -61,10 +61,10 @@ static int * const reg00002_fields[] = {
     NULL
 };
 
-static int hf_00003 = -1;
-static int hf_00003_MAX_DOWNSPREAD = -1;
-static int hf_00003_NO_AUX_TRANSACTION_LINK_TRAINING = -1;
-static int hf_00003_TPS4_SUPPORTED = -1;
+static int hf_00003;
+static int hf_00003_MAX_DOWNSPREAD;
+static int hf_00003_NO_AUX_TRANSACTION_LINK_TRAINING;
+static int hf_00003_TPS4_SUPPORTED;
 static int * const reg00003_fields[] = {
     &hf_00003_MAX_DOWNSPREAD,
     &hf_00003_NO_AUX_TRANSACTION_LINK_TRAINING,
@@ -72,11 +72,11 @@ static int * const reg00003_fields[] = {
     NULL
 };
 
-static int hf_00004 = -1;
-static int hf_00004_NORP = -1;
-static int hf_00004_5V_DP_PWR_CAP = -1;
-static int hf_00004_12V_DP_PWR_CAP = -1;
-static int hf_00004_18V_DP_PWR_CAP = -1;
+static int hf_00004;
+static int hf_00004_NORP;
+static int hf_00004_5V_DP_PWR_CAP;
+static int hf_00004_12V_DP_PWR_CAP;
+static int hf_00004_18V_DP_PWR_CAP;
 static int * const reg00004_fields[] = {
     &hf_00004_NORP,
     &hf_00004_5V_DP_PWR_CAP,
@@ -86,12 +86,12 @@ static int * const reg00004_fields[] = {
 };
 
 /* Initialize the subtree pointers */
-static gint ett_dpaux = -1;
-static gint ett_register = -1;
+static int ett_dpaux;
+static int ett_register;
 
 struct dpaux_transaction {
-    gboolean is_native;
-    guint32 addr;
+    bool is_native;
+    uint32_t addr;
 };
 
 enum {
@@ -119,8 +119,8 @@ struct bitfield_data {
 };
 
 struct dpaux_register {
-    guint32 addr;
-    guint8 type;
+    uint32_t addr;
+    uint8_t type;
     union {
         struct bitfield_data bitfield;
     } data;
@@ -166,12 +166,12 @@ dissect_dpaux_register(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 static int
 dissect_dpaux_from_source(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-    guint8 type = tvb_get_bits8(tvb, 0, 1);
-    guint8 mot = tvb_get_bits8(tvb, 1, 1);
-    guint8 cmd = tvb_get_bits8(tvb, 2, 2);
-    guint32 addr = tvb_get_bits32(tvb, 4, 20, ENC_BIG_ENDIAN);
-    guint8 len = tvb_get_guint8(tvb, 3) + 1;
-    gboolean is_read = cmd & 0x1;
+    uint8_t type = tvb_get_bits8(tvb, 0, 1);
+    uint8_t mot = tvb_get_bits8(tvb, 1, 1);
+    uint8_t cmd = tvb_get_bits8(tvb, 2, 2);
+    uint32_t addr = tvb_get_bits32(tvb, 4, 20, ENC_BIG_ENDIAN);
+    uint8_t len = tvb_get_uint8(tvb, 3) + 1;
+    bool is_read = cmd & 0x1;
 
     conversation_t *conversation = NULL;
     struct dpaux_transaction *transaction = NULL;
@@ -213,8 +213,8 @@ dissect_dpaux_from_source(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 static int
 dissect_dpaux_from_sink(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
-    guint8 cmd = tvb_get_bits8(tvb, 2, 2);
-    guint8 len = (tvb_reported_length(tvb) > 1) ? tvb_reported_length(tvb) -1 : 0;
+    uint8_t cmd = tvb_get_bits8(tvb, 2, 2);
+    uint8_t len = (tvb_reported_length(tvb) > 1) ? tvb_reported_length(tvb) -1 : 0;
     conversation_t *conversation = NULL;
     struct dpaux_transaction *transaction = NULL;
     proto_item *ti;
@@ -276,7 +276,7 @@ dissect_dpaux_from_sink(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
                                                 transaction->addr + k,
                                                 "DPCD 0x%05x: 0x%02x",
                                                 transaction->addr + k,
-                                                tvb_get_guint8(tvb, k + 1));
+                                                tvb_get_uint8(tvb, k + 1));
                 register_tree = proto_item_add_subtree(ti, ett_register);
 
                 res = dissect_dpaux_register(tvb, pinfo, register_tree, k + 1,
@@ -295,7 +295,7 @@ dissect_dpaux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     proto_item *ti;
     proto_tree *dpaux_tree;
-    gboolean from_source = FALSE;
+    bool from_source = false;
     struct dpaux_info *dpaux_info = (struct dpaux_info*)data;
 
     if (dpaux_info != NULL)
@@ -380,7 +380,7 @@ proto_register_dpaux(void)
     };
 
     /* Setup protocol subtree array */
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_dpaux,
         &ett_register,
     };

@@ -35,132 +35,132 @@ void proto_reg_handoff_srvloc(void);
 static dissector_handle_t srvloc_handle;
 static dissector_handle_t srvloc_tcp_handle;
 
-static gboolean srvloc_desegment = TRUE;
-static int proto_srvloc = -1;
-static int hf_srvloc_version = -1;
-static int hf_srvloc_function = -1;
-static int hf_srvloc_pktlen = -1;
-static int hf_srvloc_xid = -1;
-static int hf_srvloc_langtaglen = -1;
-static int hf_srvloc_langtag = -1;
-static int hf_srvloc_nextextoff = -1;
-static int hf_srvloc_flags_v1 = -1;
-static int hf_srvloc_flags_v1_overflow = -1;
-static int hf_srvloc_flags_v1_monolingual = -1;
-static int hf_srvloc_flags_v1_url_auth = -1;
-static int hf_srvloc_flags_v1_attribute_auth = -1;
-static int hf_srvloc_flags_v1_fresh = -1;
-static int hf_srvloc_error = -1;
-static int hf_srvloc_flags_v2 = -1;
-static int hf_srvloc_flags_v2_overflow = -1;
-static int hf_srvloc_flags_v2_fresh = -1;
-static int hf_srvloc_flags_v2_reqmulti = -1;
-static int hf_srvloc_error_v2 = -1;
-static int hf_srvloc_daadvert_timestamp = -1;
-static int hf_srvloc_daadvert_urllen = -1;
-static int hf_srvloc_daadvert_url = -1;
-static int hf_srvloc_daadvert_scopelistlen = -1;
-static int hf_srvloc_daadvert_scopelist = -1;
-static int hf_srvloc_daadvert_attrlistlen = -1;
-static int hf_srvloc_daadvert_attrlist = -1;
-static int hf_srvloc_daadvert_slpspilen = -1;
-static int hf_srvloc_daadvert_slpspi = -1;
-static int hf_srvloc_daadvert_authcount = -1;
-static int hf_srvloc_srvreq_prlistlen = -1;
-static int hf_srvloc_srvreq_prlist = -1;
-static int hf_srvloc_srvreq_srvtypelen = -1;
-static int hf_srvloc_srvreq_srvtypelist = -1;
-static int hf_srvloc_srvreq_scopelistlen = -1;
-static int hf_srvloc_srvreq_scopelist = -1;
-static int hf_srvloc_srvreq_predicatelen = -1;
-static int hf_srvloc_srvreq_predicate = -1;
-static int hf_srvloc_srvreq_slpspilen = -1;
-static int hf_srvloc_srvreq_slpspi = -1;
-static int hf_srvloc_srvrply_urlcount = -1;
-static int hf_srvloc_srvreg_attrlistlen = -1;
-static int hf_srvloc_srvreg_attrlist = -1;
-static int hf_srvloc_srvreg_attrauthcount = -1;
-static int hf_srvloc_srvreg_srvtypelen = -1;
-static int hf_srvloc_srvreg_srvtype = -1;
-static int hf_srvloc_srvreg_scopelistlen = -1;
-static int hf_srvloc_srvreg_scopelist = -1;
-static int hf_srvloc_srvdereg_scopelistlen = -1;
-static int hf_srvloc_srvdereg_scopelist = -1;
-static int hf_srvloc_srvdereg_taglistlen = -1;
-static int hf_srvloc_srvdereg_taglist = -1;
-static int hf_srvloc_attrreq_prlistlen  = -1;
-static int hf_srvloc_attrreq_prlist  = -1;
-static int hf_srvloc_attrreq_urllen  = -1;
-static int hf_srvloc_attrreq_url  = -1;
-static int hf_srvloc_attrreq_scopelistlen  = -1;
-static int hf_srvloc_attrreq_scopelist  = -1;
-static int hf_srvloc_attrreq_attrlistlen = -1;
-static int hf_srvloc_attrreq_attrlist = -1;
-static int hf_srvloc_attrreq_taglistlen  = -1;
-static int hf_srvloc_attrreq_taglist  = -1;
-static int hf_srvloc_attrreq_slpspilen = -1;
-static int hf_srvloc_attrreq_slpspi = -1;
-static int hf_srvloc_attrrply_attrlistlen = -1;
-static int hf_srvloc_attrrply_attrlist = -1;
-static int hf_srvloc_attrrply_attrauthcount = -1;
-static int hf_srvloc_srvtypereq_prlistlen = -1;
-static int hf_srvloc_srvtypereq_prlist = -1;
-static int hf_srvloc_srvtypereq_nameauthlistlen = -1;
-static int hf_srvloc_srvtypereq_nameauthlistlenall = -1;
-static int hf_srvloc_srvtypereq_nameauthlist = -1;
-static int hf_srvloc_srvtypereq_scopelistlen = -1;
-static int hf_srvloc_srvtypereq_scopelist = -1;
-static int hf_srvloc_srvtyperply_srvtypelen = -1;
-static int hf_srvloc_srvtyperply_srvtype = -1;
-static int hf_srvloc_srvtyperply_srvtypelistlen = -1;
-static int hf_srvloc_srvtyperply_srvtypelist = -1;
-static int hf_srvloc_saadvert_urllen = -1;
-static int hf_srvloc_saadvert_url = -1;
-static int hf_srvloc_saadvert_scopelistlen = -1;
-static int hf_srvloc_saadvert_scopelist = -1;
-static int hf_srvloc_saadvert_attrlistlen = -1;
-static int hf_srvloc_saadvert_attrlist = -1;
-static int hf_srvloc_saadvert_authcount = -1;
-static int hf_srvloc_authblkv2_bsd = -1;
-static int hf_srvloc_authblkv2_len = -1;
-static int hf_srvloc_authblkv2_timestamp = -1;
-static int hf_srvloc_authblkv2_slpspilen = -1;
-static int hf_srvloc_authblkv2_slpspi = -1;
-static int hf_srvloc_url_reserved = -1;
-static int hf_srvloc_url_lifetime = -1;
-static int hf_srvloc_url_urllen = -1;
-static int hf_srvloc_url_url = -1;
-static int hf_srvloc_url_numauths = -1;
-static int hf_srvloc_add_ref_ip = -1;
-static int hf_srvloc_srvrply_svcname = -1;
+static bool srvloc_desegment = true;
+static int proto_srvloc;
+static int hf_srvloc_version;
+static int hf_srvloc_function;
+static int hf_srvloc_pktlen;
+static int hf_srvloc_xid;
+static int hf_srvloc_langtaglen;
+static int hf_srvloc_langtag;
+static int hf_srvloc_nextextoff;
+static int hf_srvloc_flags_v1;
+static int hf_srvloc_flags_v1_overflow;
+static int hf_srvloc_flags_v1_monolingual;
+static int hf_srvloc_flags_v1_url_auth;
+static int hf_srvloc_flags_v1_attribute_auth;
+static int hf_srvloc_flags_v1_fresh;
+static int hf_srvloc_error;
+static int hf_srvloc_flags_v2;
+static int hf_srvloc_flags_v2_overflow;
+static int hf_srvloc_flags_v2_fresh;
+static int hf_srvloc_flags_v2_reqmulti;
+static int hf_srvloc_error_v2;
+static int hf_srvloc_daadvert_timestamp;
+static int hf_srvloc_daadvert_urllen;
+static int hf_srvloc_daadvert_url;
+static int hf_srvloc_daadvert_scopelistlen;
+static int hf_srvloc_daadvert_scopelist;
+static int hf_srvloc_daadvert_attrlistlen;
+static int hf_srvloc_daadvert_attrlist;
+static int hf_srvloc_daadvert_slpspilen;
+static int hf_srvloc_daadvert_slpspi;
+static int hf_srvloc_daadvert_authcount;
+static int hf_srvloc_srvreq_prlistlen;
+static int hf_srvloc_srvreq_prlist;
+static int hf_srvloc_srvreq_srvtypelen;
+static int hf_srvloc_srvreq_srvtypelist;
+static int hf_srvloc_srvreq_scopelistlen;
+static int hf_srvloc_srvreq_scopelist;
+static int hf_srvloc_srvreq_predicatelen;
+static int hf_srvloc_srvreq_predicate;
+static int hf_srvloc_srvreq_slpspilen;
+static int hf_srvloc_srvreq_slpspi;
+static int hf_srvloc_srvrply_urlcount;
+static int hf_srvloc_srvreg_attrlistlen;
+static int hf_srvloc_srvreg_attrlist;
+static int hf_srvloc_srvreg_attrauthcount;
+static int hf_srvloc_srvreg_srvtypelen;
+static int hf_srvloc_srvreg_srvtype;
+static int hf_srvloc_srvreg_scopelistlen;
+static int hf_srvloc_srvreg_scopelist;
+static int hf_srvloc_srvdereg_scopelistlen;
+static int hf_srvloc_srvdereg_scopelist;
+static int hf_srvloc_srvdereg_taglistlen;
+static int hf_srvloc_srvdereg_taglist;
+static int hf_srvloc_attrreq_prlistlen;
+static int hf_srvloc_attrreq_prlist;
+static int hf_srvloc_attrreq_urllen;
+static int hf_srvloc_attrreq_url;
+static int hf_srvloc_attrreq_scopelistlen;
+static int hf_srvloc_attrreq_scopelist;
+static int hf_srvloc_attrreq_attrlistlen;
+static int hf_srvloc_attrreq_attrlist;
+static int hf_srvloc_attrreq_taglistlen;
+static int hf_srvloc_attrreq_taglist;
+static int hf_srvloc_attrreq_slpspilen;
+static int hf_srvloc_attrreq_slpspi;
+static int hf_srvloc_attrrply_attrlistlen;
+static int hf_srvloc_attrrply_attrlist;
+static int hf_srvloc_attrrply_attrauthcount;
+static int hf_srvloc_srvtypereq_prlistlen;
+static int hf_srvloc_srvtypereq_prlist;
+static int hf_srvloc_srvtypereq_nameauthlistlen;
+static int hf_srvloc_srvtypereq_nameauthlistlenall;
+static int hf_srvloc_srvtypereq_nameauthlist;
+static int hf_srvloc_srvtypereq_scopelistlen;
+static int hf_srvloc_srvtypereq_scopelist;
+static int hf_srvloc_srvtyperply_srvtypelen;
+static int hf_srvloc_srvtyperply_srvtype;
+static int hf_srvloc_srvtyperply_srvtypelistlen;
+static int hf_srvloc_srvtyperply_srvtypelist;
+static int hf_srvloc_saadvert_urllen;
+static int hf_srvloc_saadvert_url;
+static int hf_srvloc_saadvert_scopelistlen;
+static int hf_srvloc_saadvert_scopelist;
+static int hf_srvloc_saadvert_attrlistlen;
+static int hf_srvloc_saadvert_attrlist;
+static int hf_srvloc_saadvert_authcount;
+static int hf_srvloc_authblkv2_bsd;
+static int hf_srvloc_authblkv2_len;
+static int hf_srvloc_authblkv2_timestamp;
+static int hf_srvloc_authblkv2_slpspilen;
+static int hf_srvloc_authblkv2_slpspi;
+static int hf_srvloc_url_reserved;
+static int hf_srvloc_url_lifetime;
+static int hf_srvloc_url_urllen;
+static int hf_srvloc_url_url;
+static int hf_srvloc_url_numauths;
+static int hf_srvloc_add_ref_ip;
+static int hf_srvloc_srvrply_svcname;
 /* Generated from convert_proto_tree_add_text.pl */
-static int hf_srvloc_timestamp = -1;
-static int hf_srvloc_authentication_block = -1;
-static int hf_srvloc_transaction_id = -1;
-static int hf_srvloc_block_structure_descriptor = -1;
-static int hf_srvloc_communication_type = -1;
-static int hf_srvloc_language = -1;
-static int hf_srvloc_socket = -1;
-static int hf_srvloc_encoding = -1;
-static int hf_srvloc_node = -1;
-static int hf_srvloc_item = -1;
-static int hf_srvloc_service_type = -1;
-static int hf_srvloc_network = -1;
-static int hf_srvloc_service_type_count = -1;
-static int hf_srvloc_dialect = -1;
-static int hf_srvloc_authenticator_length = -1;
-static int hf_srvloc_protocol = -1;
-static int hf_srvloc_port = -1;
+static int hf_srvloc_timestamp;
+static int hf_srvloc_authentication_block;
+static int hf_srvloc_transaction_id;
+static int hf_srvloc_block_structure_descriptor;
+static int hf_srvloc_communication_type;
+static int hf_srvloc_language;
+static int hf_srvloc_socket;
+static int hf_srvloc_encoding;
+static int hf_srvloc_node;
+static int hf_srvloc_item;
+static int hf_srvloc_service_type;
+static int hf_srvloc_network;
+static int hf_srvloc_service_type_count;
+static int hf_srvloc_dialect;
+static int hf_srvloc_authenticator_length;
+static int hf_srvloc_protocol;
+static int hf_srvloc_port;
 
 
-static gint ett_srvloc = -1;
-static gint ett_srvloc_attr = -1;
-static gint ett_srvloc_flags = -1;
+static int ett_srvloc;
+static int ett_srvloc_attr;
+static int ett_srvloc_flags;
 
-static expert_field ei_srvloc_error = EI_INIT;
-static expert_field ei_srvloc_error_v2 = EI_INIT;
-static expert_field ei_srvloc_function_unknown = EI_INIT;
-static expert_field ei_srvloc_malformed = EI_INIT;
+static expert_field ei_srvloc_error;
+static expert_field ei_srvloc_error_v2;
+static expert_field ei_srvloc_function_unknown;
+static expert_field ei_srvloc_malformed;
 
 static const true_false_string tfs_srvloc_flags_overflow = {
     "Message will not fit in datagram",
@@ -209,14 +209,14 @@ static const true_false_string tfs_srvloc_flags_v2_reqmulti = {
 /* bradh: looks like never used. */
 /* bradh: comment it out for now since it doesn't work for v2
 struct srvloc_hdr {
-    guint8      version;
-    guint8      function;
-    guint16     length;
-    guint8      flags;
-    guint8      dialect;
-    guchar      language[2];
-    guint16     encoding;
-    guint16     xid;
+    uint8_t     version;
+    uint8_t     function;
+    uint16_t    length;
+    uint8_t     flags;
+    uint8_t     dialect;
+    unsigned char      language[2];
+    uint16_t    encoding;
+    uint16_t    xid;
 };
 */
 
@@ -355,7 +355,7 @@ static const value_string charsets[] = {
 static int
 dissect_authblk(tvbuff_t *tvb, int offset, proto_tree *tree)
 {
-    guint16     length;
+    uint16_t    length;
 
     proto_tree_add_item(tree, hf_srvloc_timestamp, tvb, offset, 8, ENC_TIME_NTP|ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_srvloc_block_structure_descriptor, tvb, offset + 8, 2, ENC_BIG_ENDIAN);
@@ -371,7 +371,7 @@ dissect_authblk(tvbuff_t *tvb, int offset, proto_tree *tree)
 static int
 dissect_authblk_v2(tvbuff_t *tvb, int offset, proto_tree *tree)
 {
-    guint16 length;
+    uint16_t length;
 
     proto_tree_add_item(tree, hf_srvloc_authblkv2_bsd, tvb, offset, 2, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_srvloc_authblkv2_len, tvb, offset+2, 2, ENC_BIG_ENDIAN);
@@ -394,7 +394,7 @@ dissect_attrauthblk_v2(tvbuff_t *tvb _U_, int offset, proto_tree *tree _U_)
 
 static void
 add_v1_string(proto_tree *tree, int hf, tvbuff_t *tvb, int offset, int length,
-    guint16 encoding)
+    uint16_t encoding)
 {
         switch (encoding) {
 
@@ -426,20 +426,20 @@ add_v1_string(proto_tree *tree, int hf, tvbuff_t *tvb, int offset, int length,
  *
  * XXX - this is also used with CHARSET_UTF_8.  Is that a cut-and-pasteo?
  */
-static const guint8*
-unicode_to_bytes(tvbuff_t *tvb, int offset, int length, gboolean endianness)
+static const uint8_t*
+unicode_to_bytes(tvbuff_t *tvb, int offset, int length, bool endianness)
 {
-    const guint8 *ascii_text = tvb_get_string_enc(wmem_packet_scope(), tvb, offset, length, ENC_ASCII);
+    const uint8_t *ascii_text = tvb_get_string_enc(wmem_packet_scope(), tvb, offset, length, ENC_ASCII);
     int           i, j       = 0;
-    guint8        c_char, c_char1;
-    guint8       *byte_array;
+    uint8_t       c_char, c_char1;
+    uint8_t      *byte_array;
 
     /* XXX - Is this the correct behavior? */
     if (length < 1)
         return "";
 
     if (endianness) {
-        byte_array = (guint8 *)wmem_alloc(wmem_packet_scope(), length*2 + 1);
+        byte_array = (uint8_t *)wmem_alloc(wmem_packet_scope(), length*2 + 1);
         for (i = length; i > 0; i--) {
             c_char = ascii_text[i];
             if (c_char != 0) {
@@ -462,7 +462,7 @@ unicode_to_bytes(tvbuff_t *tvb, int offset, int length, gboolean endianness)
     }
     else
     {
-        byte_array = (guint8 *)wmem_alloc(wmem_packet_scope(), length + 1);
+        byte_array = (uint8_t *)wmem_alloc(wmem_packet_scope(), length + 1);
         for (i = 0; i < length; i++) {
             c_char = ascii_text[i];
             if (c_char != 0) {
@@ -509,12 +509,12 @@ static const value_string srvloc_prot[] = {
 
 static void
 attr_list(proto_tree *tree, packet_info* pinfo, int hf, tvbuff_t *tvb, int offset, int length,
-    guint16 encoding)
+    uint16_t encoding)
 {
     const char *attr_type;
     int     i, svc, type_len, foffset=offset;
-    guint32 prot;
-    const guint8  *byte_value;
+    uint32_t prot;
+    const uint8_t *byte_value;
     proto_tree  *srvloc_tree;
     proto_item  *ti;
     char *tmp;
@@ -549,52 +549,52 @@ attr_list(proto_tree *tree, packet_info* pinfo, int hf, tvbuff_t *tvb, int offse
 
                     srvloc_tree = proto_tree_add_subtree_format(tree, tvb, foffset, -1, ett_srvloc_attr, NULL, "Item %d", i);
 
-                    svc = tvb_get_guint8(tvb, foffset+1);
+                    svc = tvb_get_uint8(tvb, foffset+1);
                     proto_tree_add_item(srvloc_tree, hf_srvloc_service_type, tvb, foffset+1, 1, ENC_NA);
                     proto_tree_add_item(srvloc_tree, hf_srvloc_communication_type, tvb, foffset+5, 1, ENC_NA);
                     foffset += 9;
                     if (svc == 50) {
-                        if (tvb_get_guint8(tvb, foffset)==54) { /* TCP */
+                        if (tvb_get_uint8(tvb, foffset)==54) { /* TCP */
                             proto_tree_add_item(srvloc_tree, hf_srvloc_protocol, tvb, foffset, 1, ENC_NA);
                             foffset += 2;
                         }
                         else
                         {
-                            byte_value = unicode_to_bytes(tvb, foffset, 4, FALSE); /* UDP */
-                            prot = (guint32)strtoul(byte_value, NULL, 10);
+                            byte_value = unicode_to_bytes(tvb, foffset, 4, false); /* UDP */
+                            prot = (uint32_t)strtoul(byte_value, NULL, 10);
                             proto_tree_add_uint(srvloc_tree, hf_srvloc_protocol, tvb, foffset, 4, prot);
                             foffset += 4;
                         }
                     }
                     else
                     {
-                        byte_value = unicode_to_bytes(tvb, foffset, 8, FALSE); /* IPX */
-                        prot = (guint32)strtoul(byte_value, NULL, 10);
+                        byte_value = unicode_to_bytes(tvb, foffset, 8, false); /* IPX */
+                        prot = (uint32_t)strtoul(byte_value, NULL, 10);
                         ti = proto_tree_add_uint(srvloc_tree, hf_srvloc_protocol, tvb, foffset, 4, prot);
                         proto_item_set_len(ti, 8);
                         foffset += 8;
                     }
                     if (svc == 50) {
-                        byte_value = unicode_to_bytes(tvb, foffset, 16, TRUE); /* IP Address */
-                        prot = (guint32)strtoul(byte_value, NULL, 16);
+                        byte_value = unicode_to_bytes(tvb, foffset, 16, true); /* IP Address */
+                        prot = (uint32_t)strtoul(byte_value, NULL, 16);
                         proto_tree_add_ipv4(srvloc_tree, hf_srvloc_add_ref_ip, tvb, foffset+2, 16, prot);
-                        byte_value = unicode_to_bytes(tvb, foffset+18, 8, FALSE); /* Port */
-                        prot = (guint32)strtoul(byte_value, NULL, 16);
+                        byte_value = unicode_to_bytes(tvb, foffset+18, 8, false); /* Port */
+                        prot = (uint32_t)strtoul(byte_value, NULL, 16);
                         ti = proto_tree_add_uint(srvloc_tree, hf_srvloc_port, tvb, foffset+18, 4, prot);
                         proto_item_set_len(ti, 8);
                     }
                     else
                     {
-                        byte_value = unicode_to_bytes(tvb, foffset+2, 16, FALSE); /* IPX Network Address */
-                        prot = (guint32)strtoul(byte_value, NULL, 16);
+                        byte_value = unicode_to_bytes(tvb, foffset+2, 16, false); /* IPX Network Address */
+                        prot = (uint32_t)strtoul(byte_value, NULL, 16);
                         ti = proto_tree_add_uint(srvloc_tree, hf_srvloc_network, tvb, foffset+2, 4, prot);
                         proto_item_set_len(ti, 16);
-                        byte_value = unicode_to_bytes(tvb, foffset+18, 24, FALSE); /* IPX Node Address */
-                        prot = (guint32)strtoul(byte_value, NULL, 16);
+                        byte_value = unicode_to_bytes(tvb, foffset+18, 24, false); /* IPX Node Address */
+                        prot = (uint32_t)strtoul(byte_value, NULL, 16);
                         ti = proto_tree_add_uint(srvloc_tree, hf_srvloc_node, tvb, foffset+18, 4, prot);
                         proto_item_set_len(ti, 24);
-                        byte_value = unicode_to_bytes(tvb, foffset+42, 8, FALSE);  /* Socket */
-                        prot = (guint32)strtoul(byte_value, NULL, 16);
+                        byte_value = unicode_to_bytes(tvb, foffset+42, 8, false);  /* Socket */
+                        prot = (uint32_t)strtoul(byte_value, NULL, 16);
                         ti = proto_tree_add_uint(srvloc_tree, hf_srvloc_socket, tvb, foffset+42, 4, prot);
                         proto_item_set_len(ti, 8);
                     }
@@ -613,58 +613,58 @@ attr_list(proto_tree *tree, packet_info* pinfo, int hf, tvbuff_t *tvb, int offse
 
     case CHARSET_UTF_8:
         type_len = (int)strcspn(tvb_get_string_enc(wmem_packet_scope(), tvb, offset, length, ENC_ASCII), "=");
-        attr_type = unicode_to_bytes(tvb, offset+1, type_len-1, FALSE);
+        attr_type = unicode_to_bytes(tvb, offset+1, type_len-1, false);
         proto_tree_add_string(tree, hf, tvb, offset+1, type_len-1, attr_type);
         i=1;
         for (foffset = offset + (type_len); foffset<length; foffset++) {
 
             srvloc_tree = proto_tree_add_subtree_format(tree, tvb, foffset, -1, ett_srvloc_attr, NULL, "Item %d", i);
 
-            svc = tvb_get_guint8(tvb, foffset+1);
+            svc = tvb_get_uint8(tvb, foffset+1);
             proto_tree_add_item(srvloc_tree, hf_srvloc_service_type, tvb, foffset+1, 1, ENC_NA);
             proto_tree_add_item(srvloc_tree, hf_srvloc_communication_type, tvb, foffset+3, 1, ENC_NA);
             foffset += 5;
             if (svc == 50) {
-                if (tvb_get_guint8(tvb, foffset)==54) { /* TCP */
+                if (tvb_get_uint8(tvb, foffset)==54) { /* TCP */
                     proto_tree_add_item(srvloc_tree, hf_srvloc_protocol, tvb, foffset, 1, ENC_NA);
                     foffset += 1;
                 }
                 else
                 {
                     /* UDP */
-                    byte_value = unicode_to_bytes(tvb, foffset, 2, FALSE); /* UDP */
-                    prot = (guint32)strtoul(byte_value, NULL, 10);
+                    byte_value = unicode_to_bytes(tvb, foffset, 2, false); /* UDP */
+                    prot = (uint32_t)strtoul(byte_value, NULL, 10);
                     proto_tree_add_uint(srvloc_tree, hf_srvloc_protocol, tvb, foffset, 2, prot);
                     foffset += 2;
                 }
             }
             else
             {
-                byte_value = unicode_to_bytes(tvb, foffset, 4, FALSE); /* IPX */
-                prot = (guint32)strtoul(byte_value, NULL, 10);
+                byte_value = unicode_to_bytes(tvb, foffset, 4, false); /* IPX */
+                prot = (uint32_t)strtoul(byte_value, NULL, 10);
                 proto_tree_add_uint(srvloc_tree, hf_srvloc_protocol, tvb, foffset, 4, prot);
                 foffset += 4;
             }
             if (svc == 50) {
-                byte_value = unicode_to_bytes(tvb, foffset, 8, TRUE); /* IP Address */
-                prot = (guint32)strtoul(byte_value, NULL, 16);
+                byte_value = unicode_to_bytes(tvb, foffset, 8, true); /* IP Address */
+                prot = (uint32_t)strtoul(byte_value, NULL, 16);
                 proto_tree_add_ipv4(srvloc_tree, hf_srvloc_add_ref_ip, tvb, foffset+1, 8, prot);
-                byte_value = unicode_to_bytes(tvb, foffset+9, 4, FALSE); /* Port */
-                prot = (guint32)strtoul(byte_value, NULL, 16);
+                byte_value = unicode_to_bytes(tvb, foffset+9, 4, false); /* Port */
+                prot = (uint32_t)strtoul(byte_value, NULL, 16);
                 proto_tree_add_uint(srvloc_tree, hf_srvloc_port, tvb, foffset+9, 4, prot);
             }
             else
             {
-                byte_value = unicode_to_bytes(tvb, foffset+1, 8, FALSE); /* IPX Network Address */
-                prot = (guint32)strtoul(byte_value, NULL, 16);
+                byte_value = unicode_to_bytes(tvb, foffset+1, 8, false); /* IPX Network Address */
+                prot = (uint32_t)strtoul(byte_value, NULL, 16);
                 ti = proto_tree_add_uint(srvloc_tree, hf_srvloc_network, tvb, foffset+1, 4, prot);
                 proto_item_set_len(ti, 8);
-                byte_value = unicode_to_bytes(tvb, foffset+9, 12, FALSE); /* IPX Node Address */
-                prot = (guint32)strtoul(byte_value, NULL, 16);
+                byte_value = unicode_to_bytes(tvb, foffset+9, 12, false); /* IPX Node Address */
+                prot = (uint32_t)strtoul(byte_value, NULL, 16);
                 ti = proto_tree_add_uint(srvloc_tree, hf_srvloc_node, tvb, foffset+9, 4, prot);
                 proto_item_set_len(ti, 12);
-                byte_value = unicode_to_bytes(tvb, foffset+21, 4, FALSE);  /* Socket */
-                prot = (guint32)strtoul(byte_value, NULL, 16);
+                byte_value = unicode_to_bytes(tvb, foffset+21, 4, false);  /* Socket */
+                prot = (uint32_t)strtoul(byte_value, NULL, 16);
                 proto_tree_add_uint(srvloc_tree, hf_srvloc_socket, tvb, foffset+21, 4, prot);
             }
             i++;
@@ -681,12 +681,12 @@ attr_list(proto_tree *tree, packet_info* pinfo, int hf, tvbuff_t *tvb, int offse
 }
 
 static void
-attr_list2(proto_tree *tree, int hf, tvbuff_t *tvb, int offset, int length, guint16 encoding _U_)
+attr_list2(proto_tree *tree, int hf, tvbuff_t *tvb, int offset, int length, uint16_t encoding _U_)
 {
-    guint8      *start;
-    guint8       c;
-    guint32      x;
-    guint32      cnt;
+    uint8_t     *start;
+    uint8_t      c;
+    uint32_t     x;
+    uint32_t     cnt;
     proto_item  *ti;
     proto_tree  *attr_tree;
 
@@ -730,9 +730,9 @@ attr_list2(proto_tree *tree, int hf, tvbuff_t *tvb, int offset, int length, guin
 
 static int
 dissect_url_entry_v1(tvbuff_t *tvb, int offset, proto_tree *tree,
-                     guint16 encoding, guint16 flags)
+                     uint16_t encoding, uint16_t flags)
 {
-    guint16     url_len;
+    uint16_t    url_len;
 
     proto_tree_add_item(tree, hf_srvloc_url_lifetime, tvb, offset, 2,
                         ENC_BIG_ENDIAN);
@@ -751,11 +751,11 @@ dissect_url_entry_v1(tvbuff_t *tvb, int offset, proto_tree *tree,
 static int
 dissect_url_entry_v2(tvbuff_t *tvb, int offset, proto_tree *tree)
 {
-    guint8      reserved;
-    guint16     url_len;
-    guint8      num_auths;
+    uint8_t     reserved;
+    uint16_t    url_len;
+    uint8_t     num_auths;
 
-    reserved = tvb_get_guint8(tvb, offset);
+    reserved = tvb_get_uint8(tvb, offset);
     proto_tree_add_uint(tree, hf_srvloc_url_reserved, tvb, offset, 1,
                         reserved);
     offset += 1;
@@ -768,7 +768,7 @@ dissect_url_entry_v2(tvbuff_t *tvb, int offset, proto_tree *tree)
     offset += 2;
     proto_tree_add_item(tree, hf_srvloc_url_url, tvb, offset, url_len, ENC_ASCII);
     offset += url_len;
-    num_auths = tvb_get_guint8(tvb, offset);
+    num_auths = tvb_get_uint8(tvb, offset);
     proto_tree_add_uint(tree, hf_srvloc_url_numauths, tvb, offset, 1,
                         num_auths);
     offset += 1;
@@ -787,23 +787,23 @@ dissect_srvloc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
     int         offset = 0;
     proto_item  *ti;
     proto_tree  *srvloc_tree;
-    guint8      version;
-    guint8      function;
-    guint16     encoding;
-    guint32     length; /* three bytes needed for v2 */
-    guint16     flags; /* two byes needed for v2 */
-    guint32     count;
-    guint32     next_ext_off; /* three bytes, v2 only */
-    guint16     lang_tag_len;
+    uint8_t     version;
+    uint8_t     function;
+    uint16_t    encoding;
+    uint32_t    length; /* three bytes needed for v2 */
+    uint16_t    flags; /* two byes needed for v2 */
+    uint32_t    count;
+    uint32_t    next_ext_off; /* three bytes, v2 only */
+    uint16_t    lang_tag_len;
     proto_item  *expert_item;
-    guint16     expert_status;
+    uint16_t    expert_status;
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "SRVLOC");
 
     col_clear(pinfo->cinfo, COL_INFO);
 
-    version = tvb_get_guint8(tvb, offset);
-    function = tvb_get_guint8(tvb, offset + 1);
+    version = tvb_get_uint8(tvb, offset);
+    function = tvb_get_uint8(tvb, offset + 1);
 
     col_add_str(pinfo->cinfo, COL_INFO,
         val_to_str(function, srvloc_functions, "Unknown Function (%u)"));
@@ -828,7 +828,7 @@ dissect_srvloc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
         length = tvb_get_ntohs(tvb, offset + 2);
         proto_tree_add_uint(srvloc_tree, hf_srvloc_pktlen, tvb, offset + 2, 2,
                             length);
-        flags = tvb_get_guint8(tvb, offset + 4);
+        flags = tvb_get_uint8(tvb, offset + 4);
         proto_tree_add_bitmask(srvloc_tree, tvb, offset + 4, hf_srvloc_flags_v1, ett_srvloc_flags, v1_flags, ENC_NA);
         proto_tree_add_item(srvloc_tree, hf_srvloc_dialect, tvb, offset + 5, 1, ENC_NA);
         proto_tree_add_item(srvloc_tree, hf_srvloc_language, tvb, offset + 6, 2, ENC_NA|ENC_ASCII);
@@ -1126,7 +1126,7 @@ dissect_srvloc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
                 attr_list2(srvloc_tree, hf_srvloc_srvreg_attrlist, tvb, offset, length, CHARSET_UTF_8);
                 offset += length;
             }
-            count = tvb_get_guint8(tvb, offset);
+            count = tvb_get_uint8(tvb, offset);
             proto_tree_add_uint(srvloc_tree, hf_srvloc_srvreg_attrauthcount, tvb, offset, 1, count);
             offset += 1;
             while (count > 0) {
@@ -1214,7 +1214,7 @@ dissect_srvloc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
                 attr_list2(srvloc_tree, hf_srvloc_attrrply_attrlist, tvb, offset, length, CHARSET_UTF_8);
                 offset += length;
             }
-            count = tvb_get_guint8(tvb, offset);
+            count = tvb_get_uint8(tvb, offset);
             proto_tree_add_uint(srvloc_tree, hf_srvloc_attrrply_attrauthcount, tvb, offset, 1, count);
             offset += 1;
             while (count > 0) {
@@ -1261,7 +1261,7 @@ dissect_srvloc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
                 proto_tree_add_item(srvloc_tree, hf_srvloc_daadvert_slpspi, tvb, offset, length, ENC_ASCII);
                 offset += length;
             }
-            count = tvb_get_guint8(tvb, offset);
+            count = tvb_get_uint8(tvb, offset);
             proto_tree_add_uint(srvloc_tree, hf_srvloc_daadvert_authcount, tvb, offset, 1, count);
             offset += 1;
             while (count > 0) {
@@ -1337,7 +1337,7 @@ dissect_srvloc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
                 proto_tree_add_item(srvloc_tree, hf_srvloc_saadvert_attrlist, tvb, offset, length, ENC_ASCII);
                 offset += length;
             }
-            count = tvb_get_guint8(tvb, offset);
+            count = tvb_get_uint8(tvb, offset);
             proto_tree_add_uint(srvloc_tree, hf_srvloc_saadvert_authcount, tvb, offset, 1, length);
             offset += 1;
             while (count > 0) {
@@ -1354,7 +1354,7 @@ dissect_srvloc(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
 return offset;
 }
 
-static guint
+static unsigned
 get_srvloc_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
 {
     /*
@@ -1362,7 +1362,7 @@ get_srvloc_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data
      * It starts at offset+2, but it's 2 bytes in SLPv1 and 3 bytes
      * in SLPv2.
      */
-    if (tvb_get_guint8(tvb, offset) == 2)
+    if (tvb_get_uint8(tvb, offset) == 2)
         return tvb_get_ntoh24(tvb, offset + 2);
     else
         return tvb_get_ntohs(tvb, offset + 2);
@@ -1839,7 +1839,7 @@ proto_register_srvloc(void)
       { &hf_srvloc_service_type_count, { "Service Type Count", "srvloc.service_type_count", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
     };
 
-    static gint *ett[] = {
+    static int *ett[] = {
         &ett_srvloc,
         &ett_srvloc_attr,
         &ett_srvloc_flags,
