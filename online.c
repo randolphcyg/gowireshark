@@ -151,19 +151,19 @@ char *get_if_list() {
  * -1: failure
  *  0: success
  */
-int get_first_device(char *device){
-    char err_buf[PCAP_ERRBUF_SIZE];
-    pcap_if_t *first_if;
+int get_first_device(char *device) {
+  char err_buf[PCAP_ERRBUF_SIZE];
+  pcap_if_t *first_if;
 
-    if (pcap_findalldevs(&first_if, err_buf) < 0) {
-        fprintf(stderr, "Error: couldn't find any devices %s\n", err_buf);
-        return -1;
-    }
+  if (pcap_findalldevs(&first_if, err_buf) < 0) {
+    fprintf(stderr, "Error: couldn't find any devices %s\n", err_buf);
+    return -1;
+  }
 
-    strncpy(device, first_if->name, 16 - 1);
-    pcap_freealldevs(first_if);
+  strncpy(device, first_if->name, 16 - 1);
+  pcap_freealldevs(first_if);
 
-    return 0;
+  return 0;
 }
 
 /**
@@ -228,76 +228,6 @@ int set_if_nonblock_status(char *device_name, int nonblock) {
 PART3. wireshark
 */
 
-static const nstime_t *raw_get_frame_ts(struct packet_provider_data *prov,
-                                        guint32 frame_num) {
-  if (prov->ref && prov->ref->num == frame_num)
-    return &prov->ref->abs_ts;
-
-  if (prov->prev_dis && prov->prev_dis->num == frame_num)
-    return &prov->prev_dis->abs_ts;
-
-  if (prov->prev_cap && prov->prev_cap->num == frame_num)
-    return &prov->prev_cap->abs_ts;
-
-  return NULL;
-}
-
-const char *
-cap_file_provider_get_interface_name(struct packet_provider_data *prov,
-                                     guint32 interface_id) {
-  wtapng_iface_descriptions_t *idb_info;
-  wtap_block_t wtapng_if_descr = NULL;
-  char *interface_name;
-
-  idb_info = wtap_file_get_idb_info(prov->wth);
-
-  if (interface_id < idb_info->interface_data->len)
-    wtapng_if_descr =
-        g_array_index(idb_info->interface_data, wtap_block_t, interface_id);
-
-  g_free(idb_info);
-
-  if (wtapng_if_descr) {
-    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_NAME,
-                                           &interface_name) ==
-        WTAP_OPTTYPE_SUCCESS)
-      return interface_name;
-    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_DESCRIPTION,
-                                           &interface_name) ==
-        WTAP_OPTTYPE_SUCCESS)
-      return interface_name;
-    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_HARDWARE,
-                                           &interface_name) ==
-        WTAP_OPTTYPE_SUCCESS)
-      return interface_name;
-  }
-  return "unknown";
-}
-
-const char *
-cap_file_provider_get_interface_description(struct packet_provider_data *prov,
-                                            guint32 interface_id) {
-  wtapng_iface_descriptions_t *idb_info;
-  wtap_block_t wtapng_if_descr = NULL;
-  char *interface_name;
-
-  idb_info = wtap_file_get_idb_info(prov->wth);
-
-  if (interface_id < idb_info->interface_data->len)
-    wtapng_if_descr =
-        g_array_index(idb_info->interface_data, wtap_block_t, interface_id);
-
-  g_free(idb_info);
-
-  if (wtapng_if_descr) {
-    if (wtap_block_get_string_option_value(wtapng_if_descr, OPT_IDB_DESCRIPTION,
-                                           &interface_name) ==
-        WTAP_OPTTYPE_SUCCESS)
-      return interface_name;
-  }
-  return NULL;
-}
-
 void cap_file_init(capture_file *cf) {
   /* Initialize the capture file struct */
   memset(cf, 0, sizeof(capture_file));
@@ -305,7 +235,7 @@ void cap_file_init(capture_file *cf) {
 
 static epan_t *raw_epan_new(capture_file *cf) {
   static const struct packet_provider_funcs funcs = {
-      raw_get_frame_ts,
+      cap_file_provider_get_frame_ts,
       cap_file_provider_get_interface_name,
       cap_file_provider_get_interface_description,
       NULL,
