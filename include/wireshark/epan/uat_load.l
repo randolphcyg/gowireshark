@@ -3,7 +3,7 @@
 #include "config.h"
 #define WS_LOG_DOMAIN LOG_DOMAIN_UAT
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 /* #define DEBUG_UAT_LOAD 1 */
 }

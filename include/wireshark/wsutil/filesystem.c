@@ -538,18 +538,37 @@ get_current_executable_path(void)
 }
 #endif /* _WIN32 */
 
+/* Extcap executables are in their own subdirectory. This trims that off and
+ * reduces progfile_dir to the common program file directory. */
 static void trim_progfile_dir(void)
 {
-#ifdef _WIN32
-    char *namespace_last_dir = find_last_pathname_separator(progfile_dir);
-    if (namespace_last_dir && strncmp(namespace_last_dir + 1, CONFIGURATION_NAMESPACE_LOWER, sizeof(CONFIGURATION_NAMESPACE_LOWER)) == 0) {
-        *namespace_last_dir = '\0';
-    }
-#endif
-
     char *progfile_last_dir = find_last_pathname_separator(progfile_dir);
 
+#ifdef _WIN32
+    /*
+     * Check for a namespaced extcap subdirectory.
+     * XXX - Do we only need to do this on Windows, or on other platforms too?
+     */
+    if (progfile_last_dir && strncmp(progfile_last_dir + 1, CONFIGURATION_NAMESPACE_LOWER, sizeof(CONFIGURATION_NAMESPACE_LOWER)) == 0) {
+        char* namespace_last_dir = find_last_pathname_separator(progfile_dir);
+        char namespace_sep = *namespace_last_dir;
+        *namespace_last_dir = '\0';
+
+        progfile_last_dir = find_last_pathname_separator(progfile_dir);
+
+        if (!(progfile_last_dir && strncmp(progfile_last_dir + 1, "extcap", sizeof("extcap")) == 0)) {
+            /*
+             * Not an extcap, restore the namespace separator (it might have been
+             * some other "wireshark" directory, especially on case insensitive
+             * filesystems.)
+             */
+            *namespace_last_dir = namespace_sep;
+            return;
+        }
+    } else
+#endif
     if (! (progfile_last_dir && strncmp(progfile_last_dir + 1, "extcap", sizeof("extcap")) == 0)) {
+        /* Check for a non namespaced extcap directory. */
         return;
     }
 
@@ -630,8 +649,14 @@ configuration_init_w32(const char* arg0 _U_)
          */
         progfile_dir = g_path_get_dirname(prog_pathname);
         if (progfile_dir != NULL) {
+            /* We succeeded. */
             trim_progfile_dir();
-            /* we succeeded */
+            /* Now try to figure out if we're running in a build directory. */
+            char *wsutil_lib = g_build_filename(progfile_dir, "wsutil.lib", (char *)NULL);
+            if (file_exists(wsutil_lib)) {
+                running_in_build_directory_flag = true;
+            }
+            g_free(wsutil_lib);
         } else {
             /*
              * OK, no. What do we do now?
@@ -1107,7 +1132,11 @@ get_datafile_dir(void)
          */
         datafile_dir = g_strdup(progfile_dir);
     } else {
-        datafile_dir = g_build_filename(install_prefix, DATA_DIR, CONFIGURATION_NAMESPACE_LOWER, (char *)NULL);
+        if (g_path_is_absolute(DATA_DIR)) {
+            datafile_dir = g_build_filename(DATA_DIR, CONFIGURATION_NAMESPACE_LOWER, (char *)NULL);
+        } else {
+            datafile_dir = g_build_filename(install_prefix, DATA_DIR, CONFIGURATION_NAMESPACE_LOWER, (char *)NULL);
+        }
     }
 #endif
     return datafile_dir;
@@ -1159,7 +1188,11 @@ get_doc_dir(void)
          */
         doc_dir = g_strdup(progfile_dir);
     } else {
-        doc_dir = g_build_filename(install_prefix, DOC_DIR, (char *)NULL);
+        if (g_path_is_absolute(DOC_DIR)) {
+            doc_dir = g_strdup(DOC_DIR);
+        } else {
+            doc_dir = g_build_filename(install_prefix, DOC_DIR, (char *)NULL);
+        }
     }
 #endif
     return doc_dir;
@@ -1246,7 +1279,11 @@ init_plugin_dir(void)
          */
         plugin_dir = g_build_filename(get_progfile_dir(), "plugins", (char *)NULL);
     } else {
-        plugin_dir = g_build_filename(install_prefix, PLUGIN_DIR, (char *)NULL);
+        if (g_path_is_absolute(PLUGIN_DIR)) {
+            plugin_dir = g_strdup(PLUGIN_DIR);
+        } else {
+            plugin_dir = g_build_filename(install_prefix, PLUGIN_DIR, (char *)NULL);
+        }
     }
 #endif // HAVE_MSYSTEM / _WIN32
 #endif /* defined(HAVE_PLUGINS) || defined(HAVE_LUA) */
@@ -1344,14 +1381,17 @@ init_extcap_dir(void)
         extcap_dir = g_build_filename(install_prefix, EXTCAP_DIR, (char *)NULL);
     }
 #elif defined(_WIN32)
-    else {
         /*
          * On Windows, extcap utilities are stored in "extcap/<program name>"
-         * in the program file directory in both the build and installation
-         * directories.
+         * in the build directory and in "extcap" in the installation
+         * directory.
          */
+    else if (running_in_build_directory_flag) {
         extcap_dir = g_build_filename(get_progfile_dir(), EXTCAP_DIR_NAME,
             CONFIGURATION_NAMESPACE_LOWER, (char *)NULL);
+    } else {
+        extcap_dir = g_build_filename(get_progfile_dir(), EXTCAP_DIR_NAME,
+            (char *)NULL);
     }
 #else
 #ifdef ENABLE_APPLICATION_BUNDLE
@@ -1379,8 +1419,12 @@ init_extcap_dir(void)
             CONFIGURATION_NAMESPACE_LOWER, (char *)NULL);
     }
     else {
-        extcap_dir = g_build_filename(install_prefix,
-            is_packet_configuration_namespace() ? EXTCAP_DIR : LOG_EXTCAP_DIR, (char *)NULL);
+        if (g_path_is_absolute(EXTCAP_DIR)) {
+            extcap_dir = g_strdup(is_packet_configuration_namespace() ? EXTCAP_DIR : LOG_EXTCAP_DIR);
+        } else {
+            extcap_dir = g_build_filename(install_prefix,
+                is_packet_configuration_namespace() ? EXTCAP_DIR : LOG_EXTCAP_DIR, (char *)NULL);
+        }
     }
 #endif // HAVE_MSYSTEM / _WIN32
 }

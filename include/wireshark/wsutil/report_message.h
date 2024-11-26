@@ -10,6 +10,8 @@
  * doesn't itself know whether to pop up a dialog or print something
  * to the standard error.
  *
+ * XXX - Should the capture file (_cfile_) routines be moved to libwiretap?
+ *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
  * Copyright 1998 Gerald Combs
@@ -20,7 +22,7 @@
 #ifndef __REPORT_MESSAGE_H__
 #define __REPORT_MESSAGE_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

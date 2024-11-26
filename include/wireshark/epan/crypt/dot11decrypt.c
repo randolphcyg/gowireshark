@@ -933,7 +933,7 @@ Dot11DecryptUsingUserTk(
 
         for (int i = 0; ciphers_to_try[i] != 0; i++) {
             sa->wpa.cipher = ciphers_to_try[i];
-            if (sa->wpa.cipher == 2 /* TKIP */) {
+            if (sa->wpa.cipher == DOT11DECRYPT_CIPHER_TKIP) {
                 sa->wpa.key_ver = 1;
                 memcpy(DOT11DECRYPT_GET_TK_TKIP(sa->wpa.ptk),
                        key->Tk.Tk, key->Tk.Len);
@@ -1241,7 +1241,15 @@ Dot11DecryptRsnaMng(
        /* copy the encrypted data into a temp buffer */
        memcpy(try_data, decrypt_data, *decrypt_len);
 
-       if (sa->wpa.key_ver==1) {
+       /* Select decryption method based on EAPOL Key Descriptor Version and negotiated AKM
+        * with selected cipher suite. Refer to IEEE 802.11-2020:
+        * 12.7.2 EAPOL-Key frames
+        * 12.2.4 RSNA establishment
+        * 12.7 Keys and key distribution
+        * Table 9-149-Cipher suite selectors
+        */
+
+       if (sa->wpa.key_ver == 1 || sa->wpa.cipher == DOT11DECRYPT_CIPHER_TKIP) {
            /* CCMP -> HMAC-MD5 is the EAPOL-Key MIC, RC4 is the EAPOL-Key encryption algorithm */
            ws_noisy("TKIP");
            DEBUG_DUMP("ptk", sa->wpa.ptk, 64, LOG_LEVEL_NOISY);
@@ -1271,7 +1279,9 @@ Dot11DecryptRsnaMng(
            /* remove MIC and ICV from the end of packet */
            *decrypt_len -= DOT11DECRYPT_TKIP_MICLEN + DOT11DECRYPT_WEP_ICV;
            break;
-       } else if (sa->wpa.cipher == 8 || sa->wpa.cipher == 9) {
+       } else if (sa->wpa.cipher == DOT11DECRYPT_CIPHER_GCMP ||
+                  sa->wpa.cipher == DOT11DECRYPT_CIPHER_GCMP256)
+       {
            ws_noisy("GCMP");
 
            if (*decrypt_len < DOT11DECRYPT_GCMP_TRAILER) {

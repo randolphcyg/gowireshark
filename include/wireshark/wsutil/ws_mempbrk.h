@@ -10,7 +10,7 @@
 #ifndef __WS_MEMPBRK_H__
 #define __WS_MEMPBRK_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef HAVE_SSE4_2
 #include <emmintrin.h>

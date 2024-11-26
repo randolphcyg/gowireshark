@@ -12,7 +12,7 @@
 #ifndef __SECRETS_TYPES_H__
 #define __SECRETS_TYPES_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <stdint.h>
 

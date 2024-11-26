@@ -41,7 +41,8 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 }
 
 func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
-	frameData, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65, WithDescriptive(true), WithDebug(true))
+	frameData, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
+		WithDescriptive(true), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +144,8 @@ func TestParseHttps(t *testing.T) {
 	}
 	t.Log(tls)
 
-	frameData, err := GetSpecificFrameProtoTreeInJson(pcapPath, 14, WithTls(tls), WithDescriptive(true), WithDebug(true))
+	frameData, err := GetSpecificFrameProtoTreeInJson(pcapPath, 14,
+		WithTls(tls), WithDescriptive(true), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +171,8 @@ func TestParseHttps(t *testing.T) {
 
 func TestGetSeveralFrameProtoTreeInJson(t *testing.T) {
 	nums := []int{11, 5, 0, 1, -1, 13, 288}
-	res, err := GetSeveralFrameProtoTreeInJson(inputFilepath, nums, WithDescriptive(true), WithDebug(false))
+	res, err := GetSeveralFrameProtoTreeInJson(inputFilepath, nums,
+		WithDescriptive(true), WithDebug(false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +195,8 @@ func TestGetSeveralFrameProtoTreeInJson(t *testing.T) {
 }
 
 func TestGetAllFrameProtoTreeInJson(t *testing.T) {
-	res, err := GetAllFrameProtoTreeInJson(inputFilepath, WithDescriptive(true), WithDebug(false))
+	res, err := GetAllFrameProtoTreeInJson(inputFilepath,
+		WithDescriptive(true), WithDebug(false))
 	if err != nil {
 		t.Fatal(err)
 	}

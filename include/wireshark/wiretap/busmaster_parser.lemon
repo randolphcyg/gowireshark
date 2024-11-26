@@ -14,7 +14,7 @@
 #include "config.h"
 #include <assert.h>
 #include <string.h>
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include <wiretap/file_wrappers.h>
 #include <wsutil/array.h>
 #include "busmaster_priv.h"

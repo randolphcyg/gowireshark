@@ -12,7 +12,7 @@
 #ifndef __FTYPES_H__
 #define __FTYPES_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <wsutil/regex.h>
 #include <epan/wmem_scopes.h>
@@ -427,6 +427,10 @@ fvalue_set_strbuf(fvalue_t *fv, wmem_strbuf_t *value);
 WS_DLL_PUBLIC
 void
 fvalue_set_protocol(fvalue_t *fv, tvbuff_t *value, const char *name, int length);
+
+WS_DLL_PUBLIC
+void
+fvalue_set_protocol_length(fvalue_t *fv, int length);
 
 WS_DLL_PUBLIC
 void

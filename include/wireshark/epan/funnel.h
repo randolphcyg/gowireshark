@@ -13,7 +13,7 @@
 #ifndef __FUNNEL_H__
 #define __FUNNEL_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include <epan/stat_groups.h>
 
 #ifdef __cplusplus

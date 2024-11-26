@@ -15,6 +15,8 @@ DENM
 DENMv1
 CAM
 CAMv1
+CPM
+CollectivePerceptionMessage
 SSEM
 SREM
 IVIM
@@ -25,7 +27,6 @@ RTCMEM
 VAM
 ItsPduHeaderVam
 IMZM
-CollectivePerceptionMessage
 EvcsnPdu
 DriverLanguage
 ChargingPower
@@ -101,8 +102,10 @@ IVI							ivi
 GDD							gdd
 DSRC						dsrc
 RTCMEM-PDU-Descriptions                         rtcmem
+ETSI-ITS-CDDv1                                  itsv1
 ETSI-ITS-CDD                                    its
 CPM-OriginatingStationContainers                cpm
+CPM-PDU-Descriptionsv1                          cpmv1
 CPM-PDU-Descriptions                            cpm
 CPM-PerceivedObjectContainer                    cpm
 CPM-PerceptionRegionContainer                   cpm
@@ -127,6 +130,7 @@ SignalRequestMessage
 SignalStatusMessage
 RTCMcorrections
 CpmPayload
+CollectivePerceptionMessagev1
 ItsPduHeader
 VruAwareness
 InterferenceManagementZoneMessage
@@ -399,7 +403,9 @@ DistanceValue              DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(cpm_distance_valu
 DistanceConfidence         DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(cpm_distance_confidence_fmt)
 SpeedValueExtended         DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(cpm_speed_value_ext_fmt)
 ObjectDimensionValue       DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(cpm_object_dimension_value_fmt)
-#ObjectDimensionConfidence  DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(cpm_object_dimension_confidence_fmt)
+ObjectDimensionConfidence  DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(cpm_object_dimension_confidence_fmt)
+AngleConfidence            DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(cpm_angle_confidence_fmt)
+CartesianAngleValue        DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(cpm_cartesian_angle_value_fmt)
 
 #.END
 
@@ -514,6 +520,12 @@ CauseCodeType
   actx->private_data = (void*)wmem_new0(actx->pinfo->pool, its_private_data_t);
   col_set_str(actx->pinfo->cinfo, COL_PROTOCOL, "CPM");
   col_set_str(actx->pinfo->cinfo, COL_INFO, "CPM");
+#.END
+
+#.FN_HDR CollectivePerceptionMessagev1
+  actx->private_data = (void*)wmem_new0(actx->pinfo->pool, its_private_data_t);
+  col_set_str(actx->pinfo->cinfo, COL_PROTOCOL, "CPMv1");
+  col_set_str(actx->pinfo->cinfo, COL_INFO, "CPMv1");
 #.END
 
 #.FN_HDR InterferenceManagementZoneMessage
@@ -917,11 +929,20 @@ CurvatureValue
 YawRateValue
 SteeringWheelAngleValue
 ValidityDuration
-ObjectDimensionValue
 SteeringWheelAngleConfidence
 TimestampIts
 GenerationDeltaTime
-
+TimeOfMeasurement
+ClassConfidence
+FreeSpaceConfidence
+ObjectConfidence
+DistanceValue
+DistanceConfidence
+SpeedValueExtended
+ObjectDimensionValue
+ObjectDimensionConfidence
+AngleConfidence
+CartesianAngleValue
 #.END
 
 #.NO_EMIT WITHOUT_VALS
@@ -936,30 +957,6 @@ GenerationDeltaTime
   // Overwrite hf_index
   hf_index = *find_subcause_from_cause((CauseCodeType_enum) ((its_private_data_t*)actx->private_data)->cause_code);
 %(DEFAULT_BODY)s
-#.END
-
-#
-# RCUnit subtypes bodies implemented manually as asn2wrs is not able to handle subtype constraint
-#
-
-#.FN_BODY InternationalSign-speedLimits/unit
-  offset = dissect_per_constrained_integer(%(TVB)s, %(OFFSET)s, %(ACTX)s, %(TREE)s, %(HF_INDEX)s,
-                                           0U, 1U, %(VAL_PTR)s, false);
-#.END
-
-#.FN_BODY Weight/unit
-  offset = dissect_per_constrained_integer(%(TVB)s, %(OFFSET)s, %(ACTX)s, %(TREE)s, %(HF_INDEX)s,
-                                           10U, 12U, %(VAL_PTR)s, false);
-#.END
-
-#.FN_BODY DistOrDuration-Units
-  offset = dissect_per_constrained_integer(%(TVB)s, %(OFFSET)s, %(ACTX)s, %(TREE)s, %(HF_INDEX)s,
-                                           2U, 9U, %(VAL_PTR)s, false);
-#.END
-
-#.FN_BODY Distance/unit
-  offset = dissect_per_constrained_integer(%(TVB)s, %(OFFSET)s, %(ACTX)s, %(TREE)s, %(HF_INDEX)s,
-                                           2U, 8U, %(VAL_PTR)s, false);
 #.END
 
 #=== PtActivation =======================================================

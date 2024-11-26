@@ -952,13 +952,16 @@ determine_http_location_target(wmem_allocator_t *scope, const char *base_url, co
 			char *netloc_end;
 			int netloc_length;
 
-			scheme_end = strstr(base_url_no_query, "://") + 3;
-			/* The following code was the only way to stop VS dereferencing errors. */
+			scheme_end = strstr(base_url_no_query, "://");
+			if (!(scheme_end)) {
+				return NULL;
+			}
+			scheme_end += strlen("://");
 			if (!(*scheme_end)) {
 				return NULL;
 			}
 			netloc_end = strstr(scheme_end, "/");
-			if (!(*netloc_end)) {
+			if (!(netloc_end)) {
 				return NULL;
 			}
 			netloc_length = (int) (netloc_end - base_url_no_query);
@@ -2105,22 +2108,24 @@ dissecting_body:
 			}
 		}
 		/* Handle other transfer codings after de-chunking. */
-		switch (headers->transfer_encoding) {
-		case HTTP_TE_COMPRESS:
-		case HTTP_TE_DEFLATE:
-		case HTTP_TE_GZIP:
-			/*
-			 * We currently can't handle, for example, "gzip",
-			 * "compress", or "deflate" as *transfer* encodings;
-			 * just handle them as data for now.
-			 * XXX: Should this be sent to the follow tap?
-			 */
-			call_data_dissector(next_tvb, pinfo, http_tree);
-			goto body_dissected;
-		default:
-			/* Nothing to do for "identity" or when header is
-			 * missing or invalid. */
-			break;
+		if (headers) {
+			switch (headers->transfer_encoding) {
+			case HTTP_TE_COMPRESS:
+			case HTTP_TE_DEFLATE:
+			case HTTP_TE_GZIP:
+				/*
+				* We currently can't handle, for example, "gzip",
+				* "compress", or "deflate" as *transfer* encodings;
+				* just handle them as data for now.
+				* XXX: Should this be sent to the follow tap?
+				*/
+				call_data_dissector(next_tvb, pinfo, http_tree);
+				goto body_dissected;
+			default:
+				/* Nothing to do for "identity" or when header is
+				* missing or invalid. */
+				break;
+			}
 		}
 		/*
 		 * At this point, any chunked *transfer* coding has been removed
@@ -4347,7 +4352,7 @@ dissect_http_heur_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
 }
 
 static int
-dissect_http_tls(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+dissect_http_tls(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
 	conversation_t *conversation;
 	http_conv_t *conv_data;

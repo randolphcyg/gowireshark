@@ -20,7 +20,7 @@
 
 #include <stdint.h>
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /* encodes a 12-bit word to a 24-bit codeword
  */

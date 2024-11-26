@@ -9,7 +9,7 @@
 #ifndef __ATM_H__
 #define __ATM_H__
 #include <glib.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include <stdint.h>
 
 typedef struct wtap_rec wtap_rec;

@@ -10,7 +10,7 @@
 #ifndef __CRC6_H__
 #define __CRC6_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 WS_DLL_PUBLIC uint16_t crc6_0X6F(uint16_t crc6, const uint8_t *data_blk_ptr, int data_blk_size);
 

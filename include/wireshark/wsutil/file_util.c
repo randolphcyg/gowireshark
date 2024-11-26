@@ -58,7 +58,7 @@
 #include <stdlib.h>
 
 #include "file_util.h"
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 static char *program_path;
 static char *system_path;

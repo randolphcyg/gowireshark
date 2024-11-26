@@ -16,7 +16,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include "packet-mac-3gpp-common.h"
 

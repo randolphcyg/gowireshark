@@ -16,7 +16,7 @@
 #ifndef PACKET_CFDP_H
 #define PACKET_CFDP_H
 
-#include <include/ws_symbol_export.h>
+#include <ws_symbol_export.h>
 #include <epan/tvbuff.h>
 #include <epan/proto.h>
 

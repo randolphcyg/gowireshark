@@ -74,8 +74,9 @@ static int hf_mms_iec61850_timequality40;
 static int hf_mms_iec61850_timequality20;
 static int hf_mms_iec61850_timequality1F;
 static int hf_mms_iec61850_check_bitstring;
-static int hf_mms_iec61850_check_b1;
-static int hf_mms_iec61850_check_b0;
+static int hf_mms_iec61850_check_b15;
+static int hf_mms_iec61850_check_b14;
+static int hf_mms_iec61850_check_b13_b0;
 static int hf_mms_iec61850_orcategory;
 static int hf_mms_iec61850_beh$stval;
 static int hf_mms_iec61850_mod$stval;
@@ -2486,8 +2487,9 @@ static int* const quality_field_bits_oct2[] = {
 };
 
 static int * const mms_iec61850_chec_bits[] = {
-    &hf_mms_iec61850_check_b1,
-    &hf_mms_iec61850_check_b0,
+    &hf_mms_iec61850_check_b15,
+    &hf_mms_iec61850_check_b14,
+    &hf_mms_iec61850_check_b13_b0,
     NULL
 };
     tvbuff_t *parameter_tvb = NULL;
@@ -5541,7 +5543,7 @@ dissect_mms_Confirmed_RequestPDU(bool implicit_tag _U_, tvbuff_t *tvb _U_, int o
                                    Confirmed_RequestPDU_sequence, hf_index, ett_mms_Confirmed_RequestPDU);
 
     mms_actx_private_data_t *mms_priv = (mms_actx_private_data_t *)actx->private_data;
-    if(tree){
+    if(tree && mms_priv){
         mms_priv->pdu_item = (proto_item*)tree->last_child;
     }
 
@@ -7539,7 +7541,7 @@ dissect_mms_Confirmed_ResponsePDU(bool implicit_tag _U_, tvbuff_t *tvb _U_, int 
                                    Confirmed_ResponsePDU_sequence, hf_index, ett_mms_Confirmed_ResponsePDU);
 
     mms_actx_private_data_t *mms_priv = (mms_actx_private_data_t *)actx->private_data;
-    if(tree){
+    if(tree && mms_priv){
         mms_priv->pdu_item = (proto_item*)tree->last_child;
     }
 
@@ -7722,7 +7724,7 @@ static const ber_sequence_t Unconfirmed_PDU_sequence[] = {
 static int
 dissect_mms_Unconfirmed_PDU(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
    mms_actx_private_data_t *mms_priv = (mms_actx_private_data_t *)actx->private_data;
-    if (!mms_priv->mms_trans_p) {
+    if (mms_priv && !mms_priv->mms_trans_p) {
         /* create a "fake" mms_trans structure */
         mms_priv->mms_trans_p=wmem_new0(actx->pinfo->pool, mms_transaction_t);
         mms_priv->mms_trans_p->req_time = actx->pinfo->fd->abs_ts;
@@ -7732,7 +7734,7 @@ dissect_mms_Unconfirmed_PDU(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Unconfirmed_PDU_sequence, hf_index, ett_mms_Unconfirmed_PDU);
 
-    if(tree){
+    if(tree && mms_priv){
         mms_priv->pdu_item = (proto_item*)tree->last_child;
     }
 
@@ -8191,7 +8193,7 @@ dissect_mms_Initiate_RequestPDU(bool implicit_tag _U_, tvbuff_t *tvb _U_, int of
                                    Initiate_RequestPDU_sequence, hf_index, ett_mms_Initiate_RequestPDU);
 
     mms_actx_private_data_t *mms_priv = (mms_actx_private_data_t *)actx->private_data;
-    if(tree){
+    if(tree && mms_priv){
         mms_priv->pdu_item = (proto_item*)tree->last_child;
     }
 
@@ -8233,7 +8235,7 @@ dissect_mms_Initiate_ResponsePDU(bool implicit_tag _U_, tvbuff_t *tvb _U_, int o
                                    Initiate_ResponsePDU_sequence, hf_index, ett_mms_Initiate_ResponsePDU);
 
     mms_actx_private_data_t *mms_priv = (mms_actx_private_data_t *)actx->private_data;
-    if(tree){
+    if(tree && mms_priv){
         mms_priv->pdu_item = (proto_item*)tree->last_child;
     }
 
@@ -8627,13 +8629,17 @@ void proto_register_mms(void) {
           { "Check", "mms.iec61850.check_bitstring",
             FT_BYTES, BASE_NONE, NULL, 0,
             NULL, HFILL } },
-        { &hf_mms_iec61850_check_b1,
+        { &hf_mms_iec61850_check_b15,
         { "Synchrocheck", "mms.iec61850.synchrocheck",
-            FT_BOOLEAN, 2, NULL, 0x2,
+            FT_BOOLEAN, 8, NULL, 0x80,
             NULL, HFILL } },
-        { &hf_mms_iec61850_check_b0,
+        { &hf_mms_iec61850_check_b14,
         { "Interlock-check", "mms.iec61850.interlockcheck",
-            FT_BOOLEAN, 2, NULL, 0x1,
+            FT_BOOLEAN, 8, NULL, 0x40,
+            NULL, HFILL } },
+        { &hf_mms_iec61850_check_b13_b0,
+        { "Padding", "mms.iec61850.check.padding",
+            FT_UINT8, BASE_HEX, NULL, 0x3f,
             NULL, HFILL } },
         { &hf_mms_iec61850_orcategory,
         { "orCategory", "mms.iec61850.orcategory",
@@ -11701,7 +11707,7 @@ void proto_register_mms(void) {
     expert_register_field_array(expert_mms, ei, array_length(ei));
 
     /* Setting to enable/disable the IEC-61850 mapping on MMS */
-    module_t* mms_module = prefs_register_protocol(proto_mms, proto_reg_handoff_mms);
+    module_t* mms_module = prefs_register_protocol(proto_mms, NULL);
 
     prefs_register_bool_preference(mms_module, "use_iec61850_mapping",
         "Dissect MMS as IEC-61850",

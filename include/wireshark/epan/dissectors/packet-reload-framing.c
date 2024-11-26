@@ -124,8 +124,14 @@ dissect_reload_framing_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
   effective_length = tvb_captured_length(tvb);
 
   /* First, make sure we have enough data to do the check. */
-  if (effective_length < MIN_HDR_LENGTH)
+  if (effective_length < MIN_HDR_LENGTH) {
     return 0;
+  }
+
+  /* Next, make sure we can create transaction ID keys. */
+  if (!(pinfo->src.data && pinfo->dst.data)) {
+    return 0;
+  }
 
   conversation = find_conversation_pinfo(pinfo, 0);
   if (conversation)
@@ -186,22 +192,24 @@ dissect_reload_framing_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
   transaction_id_key[0].key = &sequence; /* sequence number */
 
   /* When the wmem_tree_* functions iterate through the keys, they
-   * perform pointer arithmetic with uint32_t, so we have to divide
-   * our length fields by that to make things work, but we still want
-   * to g_malloc and memcpy the entire amounts, since those both operate
-   * in raw bytes. */
+   * perform pointer arithmetic with uint32_t (which requires copying
+   * the address, at least on some platforms, as there's no guarantee
+   * that the address structure data field is 4-byte aligned), so we
+   * have to divide our length fields by that to make things work, but
+   * we still want to wmem_alloc and memcpy the entire amounts, since
+   * those both operate in raw bytes. */
   if (type==DATA) {
     transaction_id_key[1].length = 1;
     transaction_id_key[1].key    = &pinfo->srcport;
     transaction_id_key[2].length = (pinfo->src.len) / (unsigned)sizeof(uint32_t);
-    transaction_id_key[2].key    = (uint32_t *)g_malloc(pinfo->src.len);
+    transaction_id_key[2].key    = (uint32_t *)wmem_alloc(wmem_file_scope(), pinfo->src.len);
     memcpy(transaction_id_key[2].key, pinfo->src.data, pinfo->src.len);
   }
   else {
     transaction_id_key[1].length = 1;
     transaction_id_key[1].key    = &pinfo->destport;
     transaction_id_key[2].length = (pinfo->dst.len) / (unsigned)sizeof(uint32_t);
-    transaction_id_key[2].key    = (uint32_t *)g_malloc(pinfo->dst.len);
+    transaction_id_key[2].key    = (uint32_t *)wmem_alloc(wmem_file_scope(), pinfo->dst.len);
     memcpy(transaction_id_key[2].key, pinfo->dst.data, pinfo->dst.len);
   }
   transaction_id_key[3].length=0;
@@ -262,7 +270,7 @@ dissect_reload_framing_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
     transaction_id_key[2].key    = key_save;
     transaction_id_key[2].length = len_save;
   }
-  g_free(transaction_id_key[2].key);
+  wmem_free(wmem_file_scope(), transaction_id_key[2].key);
 
   if (!reload_frame) {
     /* create a "fake" pana_trans structure */

@@ -100,6 +100,12 @@ static int hf_tecmp_payload_data_flags_overflow;
 static int hf_tecmp_payload_data_flags_crc_enabled;
 static int hf_tecmp_payload_data_flags_direction;
 
+/* Ethernet Raw */
+static int hf_tecmp_payload_data_ethernet_raw_data;
+static int hf_tecmp_payload_data_ethernet_raw_preamble;
+static int hf_tecmp_payload_data_ethernet_raw_sfd;
+static int hf_tecmp_payload_data_ethernet_raw_eth_frame;
+
 /* Ethernet 10BASE-T1S */
 static int hf_tecmp_payload_data_flags_phy_event_error;
 
@@ -318,6 +324,8 @@ static int ett_tecmp_payload_dataflags;
 static int ett_tecmp_payload_instruction_address;
 static int ett_tecmp_payload_data_id;
 static int ett_tecmp_payload_lin_id;
+static int ett_tecmp_payload_eth_raw;
+static int ett_tecmp_payload_eth_raw_frame;
 static int ett_tecmp_status_bus_data;
 static int ett_tecmp_status_bus_data_entry;
 static int ett_tecmp_status_dev_vendor_data;
@@ -647,6 +655,36 @@ static const value_string tecmp_ilas_command_types[] = {
     {48, "ILaS_Set_PWM_Ch3"},
     {49, "ILaS_Write_Register"},
     {50, "ILaS_Burn_Register"},
+    {51, "ILaS_Branch_Read_Item (config)"},
+    {52, "ILaS_Branch_Read_Item (PWM_Max_Hi_Ch2)"},
+    {53, "ILaS_Branch_Read_Item (PWM_Max_Hi_Ch1)"},
+    {54, "ILaS_Branch_Read_Item (PWM_Max_Hi_Ch0)"},
+    {55, "ILaS_Branch_Read_Item (Peak_Ch1)"},
+    {56, "ILaS_Branch_Read_Item (Peak_Ch0)"},
+    {57, "ILaS_Branch_Read_Item (Temp_Offset)"},
+    {58, "ILaS_Branch_Read_Item (ADC_offset + ADC_ref)"},
+    {59, "ILaS_Branch_Read_Item (Bias)"},
+    {60, "ILaS_Branch_Read_Item (TC_Base_Ch2)"},
+    {61, "ILaS_Branch_Read_Item (TC_Offset_Ch2)"},
+    {62, "ILaS_Branch_Read_Item (last_fuse)"},
+    {63, "ILaS_Branch_Read_PWM (Hi_Ch2)"},
+    {64, "ILaS_Branch_Read_PWM (Hi_Ch1)"},
+    {65, "ILaS_Branch_Read_PWM (Hi_Ch0)"},
+    {66, "ILaS_Set_Fw_Mode (M0)"},
+    {67, "ILaS_Set_Fw_Mode (M1)"},
+    {68, "ILaS_Set_Fw_Mode (M2)"},
+    {69, "ILaS_Set_Fw_Mode (M3)"},
+    {70, "ILaS_Trg_ADC_Meas (Temperature)"},
+    {71, "ILaS_Trg_ADC_Meas (5V_PRG)"},
+    {72, "ILaS_Trg_ADC_Meas (1V5_DIG)"},
+    {73, "ILaS_Trg_ADC_Meas (RED)"},
+    {74, "ILaS_Trg_ADC_Meas (GREEN)"},
+    {75, "ILaS_Trg_ADC_Meas (BLUE)"},
+    {76, "ILaS_Trg_ADC_Meas (BG)"},
+    {77, "ILaS_Trg_ADC_Meas (VSUP)"},
+    {78, "ILaS_Trg_ADC_Meas (VCCA)"},
+    {79, "ILaS_Trg_ADC_Meas (1V5_AN)"},
+    {80, "ILaS_Trg_ADC_Meas (VSENSE)"},
     {0, NULL}
 };
 
@@ -707,6 +745,34 @@ static const value_string tecmp_timesync_event_flags[] = {
 
 #define DATA_LIN_ID_MASK                0x3F
 #define DATA_FR_HEADER_CRC_MAX          0x07FF
+
+#define TECMP_ETH_RAW_PREAMBLE          0x55
+#define TECMP_ETH_RAW_SFD_ORIG          0xD5
+#define TECMP_ETH_RAW_SFD_SMD_V         0x07
+#define TECMP_ETH_RAW_SFD_SMD_R         0x19
+#define TECMP_ETH_RAW_SFD_SMD_S0        0xE6
+#define TECMP_ETH_RAW_SFD_SMD_S1        0x4C
+#define TECMP_ETH_RAW_SFD_SMD_S2        0x7F
+#define TECMP_ETH_RAW_SFD_SMD_S3        0xB3
+#define TECMP_ETH_RAW_SFD_SMD_C0        0x61
+#define TECMP_ETH_RAW_SFD_SMD_C1        0x52
+#define TECMP_ETH_RAW_SFD_SMD_C2        0x9E
+#define TECMP_ETH_RAW_SFD_SMD_C3        0x2A
+
+static const value_string tecmp_eth_raw_sfd[] = {
+    {TECMP_ETH_RAW_SFD_ORIG, "SFD/SMD-E"},
+    {TECMP_ETH_RAW_SFD_SMD_V, "SMD-V"},
+    {TECMP_ETH_RAW_SFD_SMD_R, "SMD-R"},
+    {TECMP_ETH_RAW_SFD_SMD_S0, "SMD-S0"},
+    {TECMP_ETH_RAW_SFD_SMD_S1, "SMD-S1"},
+    {TECMP_ETH_RAW_SFD_SMD_S2, "SMD-S2"},
+    {TECMP_ETH_RAW_SFD_SMD_S3, "SMD-S3"},
+    {TECMP_ETH_RAW_SFD_SMD_C0, "SMD-C0"},
+    {TECMP_ETH_RAW_SFD_SMD_C1, "SMD-C1"},
+    {TECMP_ETH_RAW_SFD_SMD_C2, "SMD-C2"},
+    {TECMP_ETH_RAW_SFD_SMD_C3, "SMD-C3"},
+    {0, NULL}
+};
 
 /********* UATs *********/
 
@@ -1271,6 +1337,7 @@ dissect_tecmp_entry_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
             proto_tree_add_bitmask(tree, tvb, offset, hf_tecmp_payload_data_flags, ett_tecmp_payload_dataflags, dataflags_ethernet_10base_t1s, ENC_BIG_ENDIAN);
             break;
 
+        case TECMP_DATA_TYPE_ETH_RAW:
         case TECMP_DATA_TYPE_ETH:
         default:
             proto_tree_add_bitmask(tree, tvb, offset, hf_tecmp_payload_data_flags, ett_tecmp_payload_dataflags, dataflags_generic, ENC_BIG_ENDIAN);
@@ -1303,6 +1370,7 @@ dissect_tecmp_entry_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
             proto_tree_add_bitmask(tree, tvb, offset, hf_tecmp_payload_data_flags, ett_tecmp_payload_dataflags, dataflags_analog, ENC_BIG_ENDIAN);
             break;
 
+        case TECMP_DATA_TYPE_ETH_RAW:
         case TECMP_DATA_TYPE_ETH:
         default:
             proto_tree_add_bitmask(tree, tvb, offset, hf_tecmp_payload_data_flags, ett_tecmp_payload_dataflags, dataflags_generic, ENC_BIG_ENDIAN);
@@ -1791,6 +1859,26 @@ dissect_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint16_t devic
     }
 }
 
+static void
+dissect_ethernet_payload(tvbuff_t *sub_tvb, uint32_t offset, uint32_t length, packet_info *pinfo, proto_tree *tree, proto_tree *tecmp_tree) {
+
+    tvbuff_t *payload_tvb = tvb_new_subset_length(sub_tvb, offset, length);
+
+    /* resetting VLAN count since this is another embedded Ethernet packet. */
+    p_set_proto_depth(pinfo, proto_vlan, 0);
+
+    int32_t len_saved = pinfo->fd->pkt_len;
+    pinfo->fd->pkt_len = length;
+
+    if (show_ethernet_in_tecmp_tree) {
+        call_dissector(eth_handle, payload_tvb, pinfo, tecmp_tree);
+    } else {
+        call_dissector(eth_handle, payload_tvb, pinfo, tree);
+    }
+
+    pinfo->fd->pkt_len = len_saved;
+}
+
 static int
 dissect_tecmp_log_or_replay_stream(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset_orig,
                                    uint16_t data_type, uint8_t tecmp_msg_type, uint16_t device_id) {
@@ -2047,6 +2135,44 @@ dissect_tecmp_log_or_replay_stream(tvbuff_t *tvb, packet_info *pinfo, proto_tree
                 }
                 break;
 
+            case TECMP_DATA_TYPE_ETH_RAW:
+            {
+                length2 = length;
+                uint32_t sub_tvb_end = offset2 + length2;
+
+                ti = proto_tree_add_item(tecmp_tree, hf_tecmp_payload_data_ethernet_raw_data, sub_tvb, offset2, length2, ENC_NA);
+                tecmp_tree = proto_item_add_subtree(ti, ett_tecmp_payload_eth_raw);
+
+                uint32_t preamble_length = 0;
+                while ((preamble_length < length2) && (TECMP_ETH_RAW_PREAMBLE == tvb_get_uint8(sub_tvb, offset2 + preamble_length))) {
+                    preamble_length += 1;
+                }
+
+                if (preamble_length > 0) {
+                    proto_tree_add_item(tecmp_tree, hf_tecmp_payload_data_ethernet_raw_preamble, sub_tvb, offset2, preamble_length, ENC_NA);
+                    offset2 += preamble_length;
+
+                    if (offset2 < sub_tvb_end) {
+                        uint8_t sfd_candidate = tvb_get_uint8(sub_tvb, offset2);
+
+                        if (try_val_to_str(sfd_candidate, tecmp_eth_raw_sfd) != NULL) {
+                            proto_tree_add_item(tecmp_tree, hf_tecmp_payload_data_ethernet_raw_sfd, sub_tvb, offset2, 1, ENC_NA);
+                            offset2 += 1;
+
+                            if (offset2 < sub_tvb_end) {
+                                ti = proto_tree_add_item(tecmp_tree, hf_tecmp_payload_data_ethernet_raw_eth_frame, sub_tvb, offset2, sub_tvb_end - offset2, ENC_NA);
+                                if (sfd_candidate == TECMP_ETH_RAW_SFD_ORIG) {
+                                    tecmp_tree = proto_item_add_subtree(ti, ett_tecmp_payload_eth_raw_frame);
+
+                                    dissect_ethernet_payload(sub_tvb, offset2, sub_tvb_end - offset2, pinfo, tree, tecmp_tree);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+
             case TECMP_DATA_TYPE_ETH_10BASE_T1S:
             case TECMP_DATA_TYPE_ETH:
             {
@@ -2069,22 +2195,7 @@ dissect_tecmp_log_or_replay_stream(tvbuff_t *tvb, packet_info *pinfo, proto_tree
                     offset2 += 8;
                     length2 -= 8;
                 }
-
-                payload_tvb = tvb_new_subset_length(sub_tvb, offset2, length2);
-
-                /* resetting VLAN count since this is another embedded Ethernet packet. */
-                p_set_proto_depth(pinfo, proto_vlan, 0);
-
-                int len_saved = pinfo->fd->pkt_len;
-                pinfo->fd->pkt_len = length2;
-
-                if (show_ethernet_in_tecmp_tree) {
-                    call_dissector(eth_handle, payload_tvb, pinfo, tecmp_tree);
-                } else {
-                    call_dissector(eth_handle, payload_tvb, pinfo, tree);
-                }
-
-                pinfo->fd->pkt_len = len_saved;
+                dissect_ethernet_payload(sub_tvb, offset2, length2, pinfo, tree, tecmp_tree);
             }
                 break;
 
@@ -2094,11 +2205,12 @@ dissect_tecmp_log_or_replay_stream(tvbuff_t *tvb, packet_info *pinfo, proto_tree
                 tecmp_info.interface_id = interface_id;
                 tecmp_info.device_id = device_id;
                 tecmp_info.data_type = data_type;
+                tecmp_info.data_flags = tvb_get_uint16(tvb, offset - 2, ENC_BIG_ENDIAN);
                 tecmp_info.msg_type = tecmp_msg_type;
 
                 dissector_handle_t handle = dissector_get_uint_handle(data_type_subdissector_table, data_type);
                 if (handle != NULL) {
-                    call_dissector_only(handle, tvb, pinfo, tecmp_tree, &tecmp_info);
+                    call_dissector_only(handle, sub_tvb, pinfo, tecmp_tree, &tecmp_info);
                 } else {
                     proto_tree_add_item(tecmp_tree, hf_tecmp_payload_data, sub_tvb, 0, length, ENC_NA);
                 }
@@ -2311,6 +2423,19 @@ proto_register_tecmp_payload(void) {
             FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_tecmp_payload_data,
             { "Data", "tecmp.payload.data",
+            FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+
+        { &hf_tecmp_payload_data_ethernet_raw_data,
+            { "Raw Data", "tecmp.payload.ethernet_raw.data",
+            FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_tecmp_payload_data_ethernet_raw_preamble,
+            { "Preamble", "tecmp.payload.ethernet_raw.preamble",
+            FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+        { &hf_tecmp_payload_data_ethernet_raw_sfd,
+            { "SFD", "tecmp.payload.ethernet_raw.sfd",
+            FT_UINT8, BASE_HEX, VALS(tecmp_eth_raw_sfd), 0x0, NULL, HFILL }},
+        { &hf_tecmp_payload_data_ethernet_raw_eth_frame,
+            { "Ethernet Frame", "tecmp.payload.ethernet_raw.ethernet_frame",
             FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
 
         { &hf_tecmp_payload_data_beacon_timestamp,
@@ -2836,6 +2961,8 @@ proto_register_tecmp_payload(void) {
         &ett_tecmp_payload_instruction_address,
         &ett_tecmp_payload_data_id,
         &ett_tecmp_payload_lin_id,
+        &ett_tecmp_payload_eth_raw,
+        &ett_tecmp_payload_eth_raw_frame,
         &ett_tecmp_status_dev_vendor_data,
         &ett_tecmp_status_bus_data,
         &ett_tecmp_status_bus_data_entry,

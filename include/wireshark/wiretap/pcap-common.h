@@ -16,7 +16,7 @@
 
 #include <glib.h>
 #include "wtap.h"
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 extern unsigned wtap_max_snaplen_for_encap(int wtap_encap);
 

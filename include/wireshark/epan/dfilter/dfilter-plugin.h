@@ -10,7 +10,7 @@
 #ifndef DFILTER_PLUGIN_H
 #define DFILTER_PLUGIN_H
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <epan/dfilter/dfunctions.h>
 

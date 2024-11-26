@@ -2,7 +2,7 @@
 /* See Copyright Notice in the file LICENSE */
 /* SPDX-License-Identifier: MIT */
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 DIAG_OFF_CLANG(shorten-64-to-32)
 DIAG_OFF_CLANG(comma)
 #ifdef _MSC_VER

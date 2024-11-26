@@ -12,7 +12,7 @@
 #ifndef ADLER32_H
 #define ADLER32_H
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C"{

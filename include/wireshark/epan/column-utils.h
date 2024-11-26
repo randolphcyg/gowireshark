@@ -13,7 +13,7 @@
 #define __COLUMN_UTILS_H__
 
 #include "packet_info.h"
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

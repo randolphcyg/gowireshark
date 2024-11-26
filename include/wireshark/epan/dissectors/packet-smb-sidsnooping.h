@@ -12,7 +12,7 @@
 #ifndef _PACKET_SMB_SID_SNOOPING_H_
 #define _PACKET_SMB_SID_SNOOPING_H_
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /* With MSVC and a libwireshark.dll, we need a
  * special declaration for sid_name_table.

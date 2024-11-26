@@ -9,7 +9,7 @@
 // #include "config.h"
 // #define WS_LOG_DOMAIN LOG_DOMAIN_DFILTER
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <epan/value_string.h>
 

@@ -13,7 +13,7 @@
 #define  __STATS_TREE_PRIV_H
 
 #include "stats_tree.h"
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

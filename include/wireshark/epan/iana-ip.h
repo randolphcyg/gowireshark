@@ -9,7 +9,7 @@
 #ifndef __IANA_IP_H__
 #define __IANA_IP_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include <wsutil/inet_cidr.h>
 
 #ifdef __cplusplus

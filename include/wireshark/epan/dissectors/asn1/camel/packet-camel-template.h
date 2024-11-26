@@ -20,7 +20,7 @@
 #ifndef PACKET_CAMEL_H
 #define PACKET_CAMEL_H
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 void proto_reg_handoff_camel(void);
 void proto_register_camel(void);

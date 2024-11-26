@@ -11,10 +11,10 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.4.0"
+#define VERSION "4.4.2"
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 4
-#define VERSION_MICRO 0
+#define VERSION_MICRO 2
 
 /* Version number of Logray and associated utilities */
 #define LOG_VERSION "0.9.0"
@@ -357,6 +357,15 @@
 /* Define to 1 if we are using the msys2 environment to build. */
 /* #undef HAVE_MSYSTEM */
 
+/* Define if we have sinsp and scap */
+/* #undef HAVE_SINSP */
+
+#ifdef HAVE_SINSP
+#define SINSP_VERSION_MAJOR 
+#define SINSP_VERSION_MINOR 
+#define SINSP_VERSION_MICRO 
+#endif
+
 #if defined(_MSC_VER)
 #  define strncasecmp strnicmp
 #  define popen       _popen
@@ -441,6 +450,6 @@
 #define HAVE_REMOTE
 #endif
 
-#include <include/ws_log_defs.h>
+#include <ws_log_defs.h>
 
 #endif /* __CONFIG_H__ */

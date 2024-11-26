@@ -19,7 +19,7 @@
 #define WS_LOG_DOMAIN "vp9"
 
 /* Global header providing a minimum base set of required macros and APIs */
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <epan/packet.h> /* Required dissection API header */
 #include <epan/expert.h> /* Include only as needed */

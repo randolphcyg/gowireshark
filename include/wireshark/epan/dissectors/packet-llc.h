@@ -10,7 +10,7 @@
 #ifndef __PACKET_LLC_H__
 #define __PACKET_LLC_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 extern const value_string sap_vals[];
 

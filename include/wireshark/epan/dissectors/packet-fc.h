@@ -14,7 +14,7 @@
 
 #include <epan/conversation.h>
 #include <epan/etypes.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /* R_CTL upper bits creates a classification tree */
 #define FC_RCTL_DEV_DATA       0x00

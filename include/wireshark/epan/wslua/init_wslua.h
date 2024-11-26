@@ -10,7 +10,7 @@
 #ifndef __INIT_WSLUA_H__
 #define __INIT_WSLUA_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

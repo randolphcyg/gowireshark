@@ -10,7 +10,7 @@
  *
  */
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 
  /* For LTE, mapped to 0 to 10 and 32 to 38 */

@@ -11,7 +11,7 @@
 #ifndef __STAT_TAP_UI_H__
 #define __STAT_TAP_UI_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <epan/params.h>
 #include <epan/stat_groups.h>

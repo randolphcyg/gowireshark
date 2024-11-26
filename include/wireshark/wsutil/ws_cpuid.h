@@ -30,7 +30,7 @@
  * resulting values of EAX, EBX, ECX, and EDX are store, in order.
  */
 
-#include "include/ws_attributes.h"
+#include "ws_attributes.h"
 
 #include <inttypes.h>
 #include <stdbool.h>

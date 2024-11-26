@@ -15,7 +15,7 @@
 
 #include <epan/prefs.h>
 #include <wsutil/inet_addr.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

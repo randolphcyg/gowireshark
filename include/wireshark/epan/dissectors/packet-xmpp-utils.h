@@ -12,7 +12,7 @@
 #ifndef XMPP_UTILS_H
 #define XMPP_UTILS_H
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include "tvbuff.h"
 #include "dissectors/packet-xml.h"
 #include <epan/wmem_scopes.h>

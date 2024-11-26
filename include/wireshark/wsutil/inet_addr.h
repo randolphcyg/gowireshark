@@ -10,7 +10,7 @@
 #ifndef __WS_INET_ADDR_H__
 #define __WS_INET_ADDR_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #ifdef __cplusplus
 extern "C" {

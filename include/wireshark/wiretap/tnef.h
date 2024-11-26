@@ -11,7 +11,7 @@
 
 #include <glib.h>
 #include <wiretap/wtap.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #define TNEF_SIGNATURE 0x223E9F78
 

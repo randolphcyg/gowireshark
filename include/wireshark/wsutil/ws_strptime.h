@@ -10,7 +10,7 @@
 #ifndef __WS_STRPTIME_H__
 #define __WS_STRPTIME_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include <time.h>
 
 #ifdef __cplusplus

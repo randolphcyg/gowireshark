@@ -559,7 +559,10 @@ dissect_owamp_test(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
     proto_tree_add_item(owamp_tree, hf_twamp_seq_number, tvb, offset, 4, ENC_BIG_ENDIAN);
     offset += 4;
 
-    proto_tree_add_item(owamp_tree, hf_twamp_timestamp, tvb, offset, 8, ENC_TIME_NTP | ENC_BIG_ENDIAN);
+    if (tvb_get_ntohs(tvb, offset + 8) & TWAMP_ERROR_ESTIMATE_ZBIT)
+        proto_tree_add_item(owamp_tree, hf_twamp_sender_timestamp, tvb, offset, 8, ENC_TIME_SECS_NSECS | ENC_BIG_ENDIAN);
+    else
+        proto_tree_add_item(owamp_tree, hf_twamp_sender_timestamp, tvb, offset, 8, ENC_TIME_NTP | ENC_BIG_ENDIAN);
     offset += 8;
 
     /*
@@ -633,9 +636,9 @@ dissect_twamp_test(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
         offset += 4;
 
         if (tvb_get_ntohs(tvb, offset + 8) & TWAMP_ERROR_ESTIMATE_ZBIT)
-            proto_tree_add_item(twamp_tree, hf_twamp_sender_timestamp, tvb, offset, 8, ENC_TIME_NTP | ENC_BIG_ENDIAN);
-        else
             proto_tree_add_item(twamp_tree, hf_twamp_sender_timestamp, tvb, offset, 8, ENC_TIME_SECS_NSECS | ENC_BIG_ENDIAN);
+        else
+            proto_tree_add_item(twamp_tree, hf_twamp_sender_timestamp, tvb, offset, 8, ENC_TIME_NTP | ENC_BIG_ENDIAN);
         offset += 8;
 
         proto_tree_add_bitmask(twamp_tree, tvb, offset, hf_twamp_sender_error_estimate, ett_twamp_error_estimate, twamp_error_estimate_flags, ENC_BIG_ENDIAN);

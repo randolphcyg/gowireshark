@@ -11,7 +11,7 @@
 #ifndef __NSTIME_H__
 #define __NSTIME_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 #include <time.h>
 
 #ifdef __cplusplus

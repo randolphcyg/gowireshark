@@ -12,8 +12,8 @@
 #ifndef GLIB_COMPAT_H
 #define GLIB_COMPAT_H
 
-#include "include/ws_symbol_export.h"
-#include "include/ws_attributes.h"
+#include "ws_symbol_export.h"
+#include "ws_attributes.h"
 
 #include <glib.h>
 #include <string.h>

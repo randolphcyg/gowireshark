@@ -73,7 +73,7 @@
 
 #include "packet-sccp.h"
 #include "packet-e212.h"
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 /* PROTOTYPES/FORWARDS */
 typedef uint16_t (*elem_fcn)(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len);

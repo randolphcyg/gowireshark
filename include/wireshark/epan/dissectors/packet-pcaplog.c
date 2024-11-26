@@ -16,7 +16,7 @@
 
 #define PEN_VCTR 46254
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <epan/packet.h>
 #include <epan/addr_resolv.h>

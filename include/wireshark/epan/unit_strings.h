@@ -12,7 +12,7 @@
 #define __UNIT_STRINGS_H__
 
 #include <stdint.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

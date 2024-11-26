@@ -11,7 +11,7 @@
 #ifndef __PACKET_UDP_H__
 #define __PACKET_UDP_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #include <epan/conversation.h>
 

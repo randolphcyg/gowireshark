@@ -12,7 +12,7 @@
 #ifndef __PACKET_IP_H__
 #define __PACKET_IP_H__
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include "packet-ipv6.h"
 #include <epan/conversation.h>
 

@@ -11,7 +11,7 @@
 #define __PACKET_HTTP_H__
 
 #include <epan/packet.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 WS_DLL_PUBLIC const value_string vals_http_status_code[];
 

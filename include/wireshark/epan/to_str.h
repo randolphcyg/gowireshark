@@ -15,7 +15,7 @@
 #include <wsutil/inet_cidr.h>
 #include <epan/proto.h>
 #include <epan/packet_info.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 #include <epan/wmem_scopes.h>
 #include <wsutil/to_str.h>
 

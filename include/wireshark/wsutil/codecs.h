@@ -11,8 +11,8 @@
 #ifndef _CODECS_H_
 #define _CODECS_H_
 
-#include "include/ws_symbol_export.h"
-#include "include/ws_attributes.h"
+#include "ws_symbol_export.h"
+#include "ws_attributes.h"
 
 #include <stdbool.h>
 

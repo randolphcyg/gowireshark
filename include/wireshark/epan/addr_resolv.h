@@ -25,7 +25,7 @@
 #include <wsutil/inet_cidr.h>
 #include <epan/to_str.h>
 #include <wiretap/wtap.h>
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 #ifdef __cplusplus
 extern "C" {

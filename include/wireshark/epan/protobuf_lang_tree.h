@@ -13,7 +13,7 @@
 #ifndef __PROTOBUF_LANG_TREE_H__
 #define __PROTOBUF_LANG_TREE_H__
 
-#include <include/wireshark.h>
+#include <wireshark.h>
 
 #include <stdio.h>
 #include <stdarg.h>

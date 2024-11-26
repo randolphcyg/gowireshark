@@ -24,7 +24,7 @@
 #include <stdarg.h>
 #include <glib.h>
 #include <assert.h>
-#include <include/ws_diag_control.h>
+#include <ws_diag_control.h>
 #include <wsutil/file_util.h>
 #include "protobuf_lang_tree.h"
 #include "protobuf_lang_parser.h"
@@ -68,7 +68,11 @@ DIAG_ON_LEMON()
 }
 
 %syntax_error {
-    pbl_parser_error(state, "Syntax Error: unexpected token \"%s\"!", yyminor->v);
+    if (yyminor) {
+        pbl_parser_error(state, "Syntax Error: unexpected token \"%s\"", yyminor->v);
+    } else {
+        pbl_parser_error(state, "Syntax Error: missing token");
+    }
     state->grammar_error = TRUE;
 }
 

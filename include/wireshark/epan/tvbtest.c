@@ -21,7 +21,7 @@
 #include "wsutil/array.h"
 #include "wsutil/pint.h"
 
-#include <include/ws_diag_control.h>
+#include <ws_diag_control.h>
 
 bool failed;
 

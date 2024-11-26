@@ -8515,6 +8515,7 @@ static int ett_pol_resp_cont_tree;
 static expert_field ei_ieee80211_bad_length;
 static expert_field ei_ieee80211_inv_val;
 static expert_field ei_ieee80211_vht_tpe_pwr_info_count;
+static expert_field ei_ieee80211_vht_tpe_pwr_info_unit;
 static expert_field ei_ieee80211_ff_query_response_length;
 static expert_field ei_ieee80211_ff_anqp_nai_realm_eap_len;
 static expert_field ei_hs20_anqp_nai_hrq_length;
@@ -22385,7 +22386,7 @@ dissect_vht_tx_pwr_envelope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
   int tag_len = tvb_reported_length(tvb);
   ieee80211_tagged_field_data_t* field_data = (ieee80211_tagged_field_data_t*)data;
   int offset = 0;
-  proto_item *tx_pwr_item, *ti;
+  proto_item *tx_pwr_item, *ti, *unit_ti;
   proto_tree *tx_pwr_info_tree;
   uint8_t opt_ie_cnt=0;
   uint8_t i;
@@ -22402,14 +22403,18 @@ dissect_vht_tx_pwr_envelope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
   tx_pwr_info_tree =  proto_item_add_subtree(tx_pwr_item, ett_vht_tpe_info_tree);
 
   ti = proto_tree_add_item(tx_pwr_info_tree, hf_ieee80211_vht_tpe_pwr_info_count, tvb, offset, 1, ENC_LITTLE_ENDIAN);
-  proto_tree_add_item(tx_pwr_info_tree, hf_ieee80211_vht_tpe_pwr_info_unit, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+  unit_ti = proto_tree_add_item(tx_pwr_info_tree, hf_ieee80211_vht_tpe_pwr_info_unit, tvb, offset, 1, ENC_LITTLE_ENDIAN);
   proto_tree_add_item(tx_pwr_info_tree, hf_ieee80211_vht_tpe_pwr_info_category, tvb, offset, 1, ENC_LITTLE_ENDIAN);
 
   opt_ie_cnt = tvb_get_uint8(tvb, offset) & 0x07;
 
   offset += 1;
 
-  if (mtpi == 1 || mtpi == 3) { /* Is it a power spectral density? */
+  switch (mtpi) {
+
+  case 1:
+  case 3:
+    /* Is it a power spectral density? */
     /* Handle the zero case */
     if (opt_ie_cnt == 0) {
       proto_tree_add_item(tree, hf_ieee80211_vht_tpe_any_bw_psd, tvb, offset,
@@ -22446,7 +22451,10 @@ dissect_vht_tx_pwr_envelope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                           tvb, offset, 1, ENC_NA);
       offset += 1;
     }
-  } else {
+    break;
+
+  case 0:
+  case 2:
     /* Power Constraint info is mandatory only for 20MHz, others are optional*/
     /* Power is expressed in terms of 0.5dBm from -64 to 63 and is encoded
      * as 8-bit 2's compliment */
@@ -22474,6 +22482,10 @@ dissect_vht_tx_pwr_envelope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         break;
       }
     }
+    break;
+  default:
+    /* Reserved in 802.11ax-2021. 802.11be? */
+    expert_add_info(pinfo, unit_ti, &ei_ieee80211_vht_tpe_pwr_info_unit);
   }
 
   return offset;
@@ -26602,7 +26614,7 @@ dissect_a_control_om(proto_tree *tree, tvbuff_t *tvb, int offset,
   uint32_t bits _U_, uint32_t start_bit)
 {
   proto_tree *om_tree = NULL;
-  unsigned the_bits = (tvb_get_letohl(tvb, offset) >> start_bit) & 0x0000003FF;
+  unsigned the_bits = (tvb_get_letohl(tvb, offset) >> start_bit) & 0x00000FFF;
 
   /*
    * We isolated the bits and moved them to the bottom ... so display them
@@ -36861,14 +36873,14 @@ dissect_ieee80211_block_ack_details(tvbuff_t *tvb, packet_info *pinfo _U_,
       ba_bitmap_tree = proto_item_add_subtree(ba_bitmap_item,
                           ett_block_ack_bitmap);
       for (i = 0; i < (bytes * 8); i += 64) {
-        bmap = tvb_get_letoh64(tvb, offset);
+        bmap = tvb_get_letoh64(tvb, offset + i/8);
         for (f = 0; f < 64; f++) {
           if (bmap & (UINT64_C(1) << f))
             continue;
           proto_tree_add_uint_format_value(ba_bitmap_tree,
                           hf_ieee80211_block_ack_bitmap_missing_frame,
-                          tvb, offset + (f/8), 1, ssn + f, "%u",
-                          (ssn + f) & 0x0fff);
+                          tvb, offset + ((f + i)/8), 1, ssn + f + i, "%u",
+                          (ssn + f + i) & 0x0fff);
         }
       }
       offset += bytes;
@@ -57539,11 +57551,11 @@ proto_register_ieee80211(void)
 
     {&hf_ieee80211_he_operation_6ghz_control_regulatory_info,
      {"Regulatory Info", "wlan.ext_tag.he_operation.6ghz.control.regulatory_info",
-      FT_UINT8, BASE_DEC, NULL, 0x38, NULL, HFILL }},
+      FT_UINT8, BASE_DEC, NULL, 0x78, NULL, HFILL }},
 
     {&hf_ieee80211_he_operation_6ghz_control_reserved,
      {"Reserved", "wlan.ext_tag.he_operation.6ghz.control.reserved",
-      FT_UINT8, BASE_HEX, NULL, 0xC0, NULL, HFILL }},
+      FT_UINT8, BASE_HEX, NULL, 0x80, NULL, HFILL }},
 
     {&hf_ieee80211_he_operation_6ghz_channel_center_freq_0,
      {"Channel Center Frequency Segment 0", "wlan.ext_tag.he_operation.6ghz.chan_center_freq_seg_0",
@@ -58366,7 +58378,7 @@ proto_register_ieee80211(void)
       FT_BOOLEAN, 16, NULL, 0x0080, NULL, HFILL }},
 
     {&hf_ieee80211_eht_multi_link_control_mld_capa,
-     {"MDL Capabilities Present",
+     {"MLD Capabilities Present",
       "wlan.eht.multi_link.control.basic.mld_capabilities_present",
       FT_BOOLEAN, 16, NULL, 0x0100, NULL, HFILL }},
 
@@ -60289,6 +60301,10 @@ proto_register_ieee80211(void)
     { &ei_ieee80211_vht_tpe_pwr_info_count,
       { "wlan.vht.tpe.pwr_info.count.invalid", PI_MALFORMED, PI_ERROR,
         "Max Tx Pwr Count is Incorrect, should be 0-7", EXPFILL }},
+
+    { &ei_ieee80211_vht_tpe_pwr_info_unit,
+      { "wlan.vht.tpe.pwr_info.unit.unknown", PI_UNDECODED, PI_WARN,
+        "Unknown Max Tx Pwr Unit Interpretation (not interpreted)", EXPFILL }},
 
     { &ei_ieee80211_missing_data,
       { "ieee80211.missing_data", PI_MALFORMED, PI_WARN,

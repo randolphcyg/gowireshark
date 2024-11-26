@@ -12,8 +12,8 @@
 #ifndef EXPORTED_PDU_H
 #define EXPORTED_PDU_H
 
-#include "include/ws_symbol_export.h"
-#include "include/ws_attributes.h"
+#include "ws_symbol_export.h"
+#include "ws_attributes.h"
 
 #include <epan/tvbuff.h>
 #include <epan/packet_info.h>

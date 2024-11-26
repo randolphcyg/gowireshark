@@ -11,7 +11,7 @@
 #ifndef __PACKET_DCOM_H
 #define __PACKET_DCOM_H
 
-#include "include/ws_symbol_export.h"
+#include "ws_symbol_export.h"
 
 WS_DLL_PUBLIC const value_string dcom_hresult_vals[];
 WS_DLL_PUBLIC const value_string dcom_variant_type_vals[];
