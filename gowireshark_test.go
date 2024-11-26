@@ -41,7 +41,7 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 }
 
 func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
-	frameData, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65, true, true)
+	frameData, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65, WithDescriptive(true), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,9 +111,65 @@ func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
 
 }
 
+func TestParseHttps(t *testing.T) {
+	pcapPath := "./pcaps/https.pcapng"
+
+	// set TLS config
+	tls := TlsConf{
+		DesegmentSslRecords:         true,
+		DesegmentSslApplicationData: true,
+		KeysList: []Key{
+			{
+				Ip:       "192.168.17.128",
+				Port:     443,
+				Protocol: "tls",
+				KeyFile:  "./pcaps/https.key",
+				Password: "",
+			},
+			{
+				Ip:       "2.2.2.2",
+				Protocol: "",
+				KeyFile:  "./pcaps/https.key",
+				Password: "",
+			},
+			{
+				Ip:       "1.1.1.1",
+				Port:     0,
+				Protocol: "",
+				KeyFile:  "./pcaps/testInvalid.key",
+				Password: "test1",
+			},
+		},
+	}
+	t.Log(tls)
+
+	frameData, err := GetSpecificFrameProtoTreeInJson(pcapPath, 14, WithTls(tls), WithDescriptive(true), WithDebug(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// _ws.col
+	colSrc := frameData.WsSource.Layers["_ws.col"]
+	col, err := UnmarshalWsCol(colSrc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("## col.number:", col.Num)
+
+	// http
+	httpSrc := frameData.WsSource.Layers["http"]
+	if httpSrc != nil {
+		httpContent, err := UnmarshalHttp(httpSrc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("## http:", httpContent)
+	}
+}
+
 func TestGetSeveralFrameProtoTreeInJson(t *testing.T) {
 	nums := []int{11, 5, 0, 1, -1, 13, 288}
-	res, err := GetSeveralFrameProtoTreeInJson(inputFilepath, nums, true, false)
+	res, err := GetSeveralFrameProtoTreeInJson(inputFilepath, nums, WithDescriptive(true), WithDebug(false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +192,7 @@ func TestGetSeveralFrameProtoTreeInJson(t *testing.T) {
 }
 
 func TestGetAllFrameProtoTreeInJson(t *testing.T) {
-	res, err := GetAllFrameProtoTreeInJson(inputFilepath, true, false)
+	res, err := GetAllFrameProtoTreeInJson(inputFilepath, WithDescriptive(true), WithDebug(false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +220,7 @@ func TestGoroutineGetAllFrameProtoTreeInJson(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			res, err := GetAllFrameProtoTreeInJson(inputFilepath, true, false)
+			res, err := GetAllFrameProtoTreeInJson(inputFilepath, WithDescriptive(true), WithDebug(false))
 			if err != nil {
 				t.Error(err)
 			}

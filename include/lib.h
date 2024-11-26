@@ -6,6 +6,7 @@
 #include <epan/epan_dissect.h>
 #include <epan/frame_data.h>
 #include <epan/frame_data_sequence.h>
+#include <epan/prefs.h>
 #include <epan/print.h>
 #include <epan/print_stream.h>
 #include <epan/tap.h>
@@ -23,7 +24,7 @@
 // Init policies、wtap mod、epan mod
 int init_env();
 // Init capture file
-int init_cf(char *filename);
+int init_cf(char *filename, char *options);
 // Dissect and print all frames
 void print_all_frame();
 // Dissect and get hex data of specific frame
