@@ -63,7 +63,8 @@ import (
 
 func main() {
 	inputFilepath := "pcaps/mysql.pcapng"
-	frameData, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65, true, true)
+	frameData, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
+		gowireshark.WithDescriptive(true), gowireshark.WithDebug(true))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -104,10 +105,12 @@ gowireshark
 ├── README-zh.md
 ├── README.md
 ├── cJSON.c
+├── config.go
 ├── frame_tvbuff.c
 ├── go.mod
 ├── go.sum
 ├── gowireshark.go
+├── gowireshark_test.go
 ├── include/
 │   ├── cJSON.h
 │   ├── frame_tvbuff.h
@@ -117,23 +120,27 @@ gowireshark
 │   ├── online.h
 │   ├── uthash.h
 │   └── wireshark/
+├── layers.go
 ├── lib.c
 ├── libs/
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.18
-│   ├── libwireshark.so.18.0.0
+│   ├── libwireshark.so.18.0.2
 │   ├── libwiretap.so
 │   ├── libwiretap.so.15
-│   ├── libwiretap.so.15.0.0
+│   ├── libwiretap.so.15.0.2
 │   ├── libwsutil.so
 │   ├── libwsutil.so.16
 │   └── libwsutil.so.16.0.0
 ├── offline.c
 ├── online.c
-├── pcaps/
-│   └── mysql.pcapng
-└── gowireshark_test.go
+├── online.go
+└── pcaps/
+    ├── https.key
+    ├── https.pcapng
+    ├── mysql.pcapng
+    └── testInvalid.key
 ```
 Detailed description of the project directory structure：
 
@@ -176,7 +183,7 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 
 ```shell
 # Determine the latest release version and set environment variables
-export WIRESHARKV=4.4.0
+export WIRESHARKV=4.4.2
 # Operate in the /opt directory
 cd /opt/
 # Download the source code
@@ -192,7 +199,7 @@ cd /opt/wireshark/
 cmake -LH ./
 
 # If you do not have cmake, please install it first
-export CMAKEV=3.29.3
+export CMAKEV=3.31.1
 sudo wget https://cmake.org/files/LatestRelease/cmake-$CMAKEV.tar.gz
 tar -xzf cmake-$CMAKEV.tar.gz
 mv cmake-$CMAKEV cmake
@@ -258,50 +265,7 @@ tree -L 2 -F gowireshark
 # after build, it genarate file `ws_version.h` and `config.h`
 cp /opt/wireshark/build/ws_version.h /opt/wireshark/ws_version.h
 cp /opt/wireshark/build/config.h /opt/wireshark/config.h
-
-#include <wireshark.h>
-==>
-#include <include/wireshark.h>
-
-#include "ws_symbol_export.h"
-==>
-#include "include/ws_symbol_export.h"
-
-#include <ws_symbol_export.h>
-==>
-#include <include/ws_symbol_export.h>
-
-#include <ws_attributes.h>
-==>
-#include <include/ws_attributes.h>
-
-#include <ws_log_defs.h>
-==>
-#include <include/ws_log_defs.h>
-
-#include <ws_posix_compat.h>
-==>
-#include <include/ws_posix_compat.h>
-
-#include <ws_diag_control.h>
-==>
-#include <include/ws_diag_control.h>
-
-#include <ws_codepoints.h>
-==>
-#include <include/ws_codepoints.h>
-
-#include "ws_attributes.h"
-==>
-#include "include/ws_attributes.h"
-
-#include "ws_compiler_tests.h"
-==>
-#include "include/ws_compiler_tests.h"
-
-#include <ws_compiler_tests.h>
-==>
-#include <include/ws_compiler_tests.h>
+sudo mv /opt/wireshark/include/* /opt/wireshark/
 ```
 </details>
 
@@ -310,7 +274,7 @@ cp /opt/wireshark/build/config.h /opt/wireshark/config.h
 
 ```
 # Determine the latest release version and set environment variables
-export PCAPV=1.10.4
+export PCAPV=1.10.5
 # Operate in the /opt directory
 cd /opt
 wget http://www.tcpdump.org/release/libpcap-$PCAPV.tar.gz
@@ -345,7 +309,7 @@ apt install bison
    - The native printing protocol tree interface`proto_tree_print`contains descriptive values, while the protocol JSON output interface`write_json_proto_tree`does not contain descriptive values,
      which can be improved by borrowing the implementation logic`proto_tree_print_node`of the former;
    - The modified interface`GetSpecificFrameProtoTreeInJson`parameter`isDescriptive`,corresponds to the`descriptive`parameter of the c interface`proto_tree_in_json`;
-     Set to `false` to have no descriptive value for the field, and set to `true` for the field with a descriptive value;
+     Set to `WithDescriptive(false)` to have no descriptive value for the field, and set to `WithDescriptive(true)` for the field with a descriptive value;
    - Refer to`proto_item_fill_label`in`proto.h`:
        ```c
        /** Fill given label_str with a simple string representation of field.
@@ -868,3 +832,5 @@ apt install bison
 - [x] Optimize memory leakage and improve the performance of real-time packet capture and parsing interfaces[TODO]
 - [x] Supports packet capture for multiple devices and stops packet capture based on device name
 - [x] parser result support descriptive values
+- [x] Support setting rsa key to parse TLS protocol
+- [x] Support for optional parameters

@@ -63,7 +63,8 @@ import (
 
 func main() {
 	inputFilepath := "pcaps/mysql.pcapng"
-	frameData, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65, true, true)
+	frameData, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
+		gowireshark.WithDescriptive(true), gowireshark.WithDebug(true))
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -103,10 +104,12 @@ gowireshark
 ├── README-zh.md
 ├── README.md
 ├── cJSON.c
+├── config.go
 ├── frame_tvbuff.c
 ├── go.mod
 ├── go.sum
 ├── gowireshark.go
+├── gowireshark_test.go
 ├── include/
 │   ├── cJSON.h
 │   ├── frame_tvbuff.h
@@ -116,23 +119,27 @@ gowireshark
 │   ├── online.h
 │   ├── uthash.h
 │   └── wireshark/
+├── layers.go
 ├── lib.c
 ├── libs/
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.18
-│   ├── libwireshark.so.18.0.0
+│   ├── libwireshark.so.18.0.2
 │   ├── libwiretap.so
 │   ├── libwiretap.so.15
-│   ├── libwiretap.so.15.0.0
+│   ├── libwiretap.so.15.0.2
 │   ├── libwsutil.so
 │   ├── libwsutil.so.16
 │   └── libwsutil.so.16.0.0
 ├── offline.c
 ├── online.c
-├── pcaps/
-│   └── mysql.pcapng
-└── gowireshark_test.go
+├── online.go
+└── pcaps/
+    ├── https.key
+    ├── https.pcapng
+    ├── mysql.pcapng
+    └── testInvalid.key
 ```
 项目目录结构的详细说明：
 
@@ -169,7 +176,7 @@ Golang =cgo=> Clang ==> Wireshark/libpcap DLL
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.4.0
+export WIRESHARKV=4.4.2
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
@@ -185,7 +192,7 @@ cd /opt/wireshark/
 cmake -LH ./
 
 # 如果没有 cmake，请先安装它
-export CMAKEV=3.29.3
+export CMAKEV=3.31.1
 sudo wget https://cmake.org/files/LatestRelease/cmake-$CMAKEV.tar.gz
 tar -xzf cmake-$CMAKEV.tar.gz
 mv cmake-$CMAKEV cmake
@@ -244,7 +251,6 @@ cp -r /opt/wireshark/ /opt/gowireshark/include/wireshark/
 tree -L 2 -F gowireshark
 ```
 
-
 [修正源码导入错误]
 可以使用IDE批量修改
 ```shell
@@ -253,50 +259,7 @@ tree -L 2 -F gowireshark
 // 在build后, 将生成文件 `ws_version.h` 和 `config.h`, 将它俩复制到wireshark根目录,最后在将`wireshark/`覆盖到项目`include/wireshark/`目录
 cp /opt/wireshark/build/ws_version.h /opt/wireshark/ws_version.h
 cp /opt/wireshark/build/config.h /opt/wireshark/config.h
-
-#include <wireshark.h>
-==>
-#include <include/wireshark.h>
-
-#include "ws_symbol_export.h"
-==>
-#include "include/ws_symbol_export.h"
-
-#include <ws_symbol_export.h>
-==>
-#include <include/ws_symbol_export.h>
-
-#include <ws_attributes.h>
-==>
-#include <include/ws_attributes.h>
-
-#include <ws_log_defs.h>
-==>
-#include <include/ws_log_defs.h>
-
-#include <ws_posix_compat.h>
-==>
-#include <include/ws_posix_compat.h>
-
-#include <ws_diag_control.h>
-==>
-#include <include/ws_diag_control.h>
-
-#include <ws_codepoints.h>
-==>
-#include <include/ws_codepoints.h>
-
-#include "ws_attributes.h"
-==>
-#include "include/ws_attributes.h"
-
-#include "ws_compiler_tests.h"
-==>
-#include "include/ws_compiler_tests.h"
-
-#include <ws_compiler_tests.h>
-==>
-#include <include/ws_compiler_tests.h>
+sudo mv /opt/wireshark/include/* /opt/wireshark/
 ```
 </details>
 
@@ -305,7 +268,7 @@ cp /opt/wireshark/build/config.h /opt/wireshark/config.h
 
 ```
 # 确定最新发行版本并设置环境变量
-export PCAPV=1.10.4
+export PCAPV=1.10.5
 # 在/opt目录下操作
 cd /opt
 wget http://www.tcpdump.org/release/libpcap-$PCAPV.tar.gz
@@ -338,7 +301,8 @@ apt install bison
 
 2. 描述性值逻辑来源
     - 原生的打印协议树接口`proto_tree_print`包含描述性值,而协议json输出接口`write_json_proto_tree`不包含描述性值,通过借鉴前者的实现逻辑`proto_tree_print_node`可以完善这个功能;
-    - 修改后接口`GetSpecificFrameProtoTreeInJson`参数`isDescriptive`,对应c接口`proto_tree_in_json`的`descriptive`参数;设置为`false`则字段不带描述性值,设置为`true`则字段带描述性值;
+    - 修改后接口`GetSpecificFrameProtoTreeInJson`参数`isDescriptive`,对应c接口`proto_tree_in_json`的`descriptive`参数;
+    - 设置为`WithDescriptive(false)`则字段不带描述性值,设置为`WithDescriptive(true)`则字段带描述性值;
     - 主要参考`proto.h`函数的`proto_item_fill_label`函数:
         ```c
         /** Fill given label_str with a simple string representation of field.
@@ -861,6 +825,8 @@ apt install bison
 - [x] 优化代码并解决内存泄漏问题，使实时接口可以长时间运行[TODO]
 - [x] 支持多个设备的数据包捕获，并根据设备名称停止实时接口
 - [x] 解析结果支持描述性值
+- [x] 支持设置key用来解析TLS协议
+- [x] 支持可选参数
 
 ## 5. 联系
 
