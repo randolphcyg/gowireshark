@@ -217,13 +217,65 @@ void close_cf() {
   cf.state = FILE_CLOSED;
 }
 
+static int pref_set(const char *name, const char *value) {
+  char pref[4096];
+  char *errmsg = NULL;
+
+  prefs_set_pref_e ret;
+
+  snprintf(pref, sizeof(pref), "%s:%s", name, value);
+
+  ret = prefs_set_pref(pref, &errmsg);
+  g_free(errmsg);
+
+  return (ret == PREFS_SET_OK);
+}
+
+static void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
+                            int desegmentSslApplicationData) {
+  /* Turn off fragmentation for some protocols if enabled */
+  if (desegmentSslRecords) {
+    pref_set("tls.desegment_ssl_records", "TRUE");
+  }
+  if (desegmentSslApplicationData) {
+    pref_set("tls.desegment_ssl_application_data", "TRUE");
+  }
+
+  /* Set the tls.keys_list if it is provided */
+  if (keysList != NULL && strlen(keysList) > 0) {
+    pref_set("tls.keys_list", keysList);
+  }
+
+  /* Notify all registered modules that have had any of their preferences
+   * changed */
+  prefs_apply_all();
+}
+
+// Helper function to check if JSON is empty
+int is_empty_json(const char *json_str) {
+  if (json_str == NULL || strlen(json_str) == 0) {
+    return 1; // Empty if NULL or empty string
+  }
+
+  cJSON *json = cJSON_Parse(json_str);
+  if (json == NULL) {
+    return 1; // Invalid JSON treated as empty
+  }
+
+  // Check if it's an empty object
+  int is_empty = cJSON_IsObject(json) && (cJSON_GetArraySize(json) == 0);
+
+  cJSON_Delete(json);
+  return is_empty;
+}
+
 /**
  * Init and fill the capture file struct.
  *
  *  @param filepath the pcap file path
  *  @return 0 if init correctly
  */
-int init_cf(char *filepath) {
+int init_cf(char *filepath, char *options) {
   int err = 0;
   gchar *err_info = NULL;
   e_prefs *prefs_p;
@@ -245,6 +297,42 @@ int init_cf(char *filepath) {
       cap_file_provider_get_interface_description,
       NULL,
   };
+
+  if (!is_empty_json(options)) {
+    char *keysList = NULL;
+    int desegmentSslRecords = 0;
+    int desegmentSslApplicationData = 0;
+
+    cJSON *json = cJSON_Parse(options);
+    if (json == NULL) {
+      fprintf(stderr, "Error: Failed to parse options JSON.\n");
+      return -1;
+    }
+
+    // Extract values from JSON
+    const cJSON *keysListJson =
+        cJSON_GetObjectItemCaseSensitive(json, "tls.keys_list");
+    const cJSON *desegmentSslRecordsJson =
+        cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_records");
+    const cJSON *desegmentSslApplicationDataJson =
+        cJSON_GetObjectItemCaseSensitive(json,
+                                         "tls.desegment_ssl_application_data");
+
+    // Copy keys list if present
+    if (cJSON_IsString(keysListJson) && (keysListJson->valuestring != NULL)) {
+      keysList = keysListJson->valuestring;
+    }
+
+    // Set flags for desegment options
+    desegmentSslRecords = cJSON_IsTrue(desegmentSslRecordsJson);
+    desegmentSslApplicationData = cJSON_IsTrue(desegmentSslApplicationDataJson);
+
+    // Apply TLS preferences
+    tls_prefs_apply(keysList, desegmentSslRecords, desegmentSslApplicationData);
+
+    cJSON_Delete(json);
+  }
+
   cf.epan = epan_new(&cf.provider, &funcs);
   prefs_p = epan_load_settings();
   build_column_format_array(&cf.cinfo, prefs_p->num_cols, TRUE);
