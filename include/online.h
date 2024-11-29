@@ -11,7 +11,7 @@ int get_if_nonblock_status(char *device_name);
 int set_if_nonblock_status(char *device_name, int nonblock);
 // Capture and dissect packet in real time
 char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
-                    int to_ms);
+                    int to_ms, char *options);
 // Stop capture packet live、 free all memory allocated
 char *stop_dissect_capture_pkg(char *device_name);
 
