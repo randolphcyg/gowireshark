@@ -350,13 +350,13 @@ func TestDissectPktLiveInfiniteAndStopCapturePkg(t *testing.T) {
 }
 
 /*
-Set the num parameter of the DissectPktLive function to a specific num like 20
+Set the num parameter of the DissectPktLive function to a specific num like 50
 to process packets in a limited loop.
 */
 func TestDissectPktLiveSpecificNum(t *testing.T) {
 	ifName := "en7"
-	filter := "" // tcp.port==443
-	pktNum := 200
+	filter := "tcp port 443"
+	pktNum := 50
 	promisc := 1
 	timeout := 5
 
@@ -443,6 +443,82 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 
 	// start c client, capture and dissect packet
 	err := DissectPktLive(ifName, filter, pktNum, promisc, timeout, WithTls(tls))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBPF(t *testing.T) {
+	ifName := "en7"
+	filter := "tcp port 443"
+	pktNum := 50
+	promisc := 1
+	timeout := 5
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	DissectResChans[ifName] = make(chan FrameDissectRes, 100)
+	defer close(DissectResChans[ifName])
+
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		for frameData := range DissectResChans[ifName] {
+			colSrc := frameData.WsSource.Layers["_ws.col"]
+			col, err := UnmarshalWsCol(colSrc)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+
+			frameSrc := frameData.WsSource.Layers["frame"]
+			frame, err := UnmarshalFrame(frameSrc)
+			if err != nil {
+				t.Error(err)
+				continue
+			}
+
+			t.Log("# Frame index:", frame.Number, "===========================")
+			t.Log("【layer frame】:", frame)
+			t.Log("【layer _ws.col】:", col)
+
+			// ip
+			ipSrc := frameData.WsSource.Layers["ip"]
+			if ipSrc != nil {
+				ipContent, err := UnmarshalIp(ipSrc)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Log("## ip.src:", ipContent.Src)
+				t.Log("## ip.dst:", ipContent.Dst)
+			}
+
+			// tcp
+			tcpSrc := frameData.WsSource.Layers["tcp"]
+			if ipSrc != nil {
+				tcpContent, err := UnmarshalTcp(tcpSrc)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Log("## tcp.dstport:", tcpContent.DstPort)
+			}
+
+			// http
+			httpSrc := frameData.WsSource.Layers["http"]
+			if httpSrc != nil {
+				httpContent, err := UnmarshalHttp(httpSrc)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Log("### http:", httpContent)
+			}
+		}
+	}()
+
+	// start c client, capture and dissect packet
+	err := DissectPktLive(ifName, filter, pktNum, promisc, timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
