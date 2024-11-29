@@ -124,7 +124,7 @@ func GetDataCallback(data *C.char, length C.int, deviceName *C.char) {
 //	@param num
 //	@param promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
 //	@param timeout
-func DissectPktLive(deviceName, bpfFilter string, num, promisc, timeout int) (err error) {
+func DissectPktLive(deviceName, bpfFilter string, num, promisc, timeout int, opts ...Option) (err error) {
 	// Set up callback function
 	C.setDataCallback((C.DataCallback)(C.GetDataCallback))
 
@@ -133,7 +133,9 @@ func DissectPktLive(deviceName, bpfFilter string, num, promisc, timeout int) (er
 		return
 	}
 
-	errMsg := C.handle_packet(C.CString(deviceName), C.CString(bpfFilter), C.int(num), C.int(promisc), C.int(timeout))
+	conf := NewConfig(opts...)
+	errMsg := C.handle_packet(C.CString(deviceName), C.CString(bpfFilter), C.int(num), C.int(promisc), C.int(timeout),
+		C.CString(HandleTlsConf(conf)))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)

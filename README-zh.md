@@ -139,6 +139,7 @@ gowireshark
     ├── https.key
     ├── https.pcapng
     ├── mysql.pcapng
+    ├── server.key
     └── testInvalid.key
 ```
 项目目录结构的详细说明：
@@ -216,6 +217,38 @@ sudo apt install libpcap-dev -y
 sudo apt install libxslt1-dev
 sudo apt install doxygen
 sudo apt install libspeexdsp-dev
+
+## ubuntu安装gnutls库所需依赖nettle的依赖Libhogweed
+apt install libgmp-dev
+apt install libunbound-dev
+apt install libp11-kit-dev
+
+## 安装nettle
+wget https://ftp.gnu.org/gnu/nettle/nettle-3.9.1.tar.gz
+tar -xvf nettle-3.9.1.tar.gz
+cd nettle-3.9.1
+## 查询nettle.pc所在文件夹/usr/local/lib64/pkgconfig/
+sudo find /usr -name "nettle.pc"
+export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig/
+./configure --prefix=/usr/local
+make -j$(nproc)
+sudo make install
+pkg-config --modversion nettle
+
+## 安装gnutls库
+wget https://www.gnupg.org/ftp/gcrypt/gnutls/v3.8/gnutls-3.8.8.tar.xz
+tar -xvf gnutls-3.8.8.tar.xz
+cd gnutls-3.8.8
+./configure --prefix=/usr/local --with-included-libtasn1 --with-included-unistring
+make -j$(nproc)  # 使用多核编译
+sudo make install
+sudo ldconfig
+gnutls-cli --version
+
+## 编译安装完wireshark可以利用wireshark/build/run/tshark -v 看下是否编译时带上了GnuTLS
+Compiled xxx with GnuTLS
+
+
 # mac m1
 sudo brew install libxslt1
 sudo brew install doxygen
@@ -794,6 +827,8 @@ apt install bison
    go test -v -run TestDissectPktLive
    # 实时抓取一定数目包并解析
    go test -v -run TestDissectPktLiveSpecificNum
+   # 使用rsa key解析tls1.2
+   go test -v -run TestParseHttps
    ```
    或者通过调用此库的方式测试。
 
@@ -825,7 +860,7 @@ apt install bison
 - [x] 优化代码并解决内存泄漏问题，使实时接口可以长时间运行[TODO]
 - [x] 支持多个设备的数据包捕获，并根据设备名称停止实时接口
 - [x] 解析结果支持描述性值
-- [x] 支持设置key用来解析TLS协议
+- [x] 支持离线和实时设置rsa key用来解析TLS协议
 - [x] 支持可选参数
 
 ## 5. 联系
