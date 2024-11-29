@@ -231,8 +231,8 @@ static int pref_set(const char *name, const char *value) {
   return (ret == PREFS_SET_OK);
 }
 
-static void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
-                            int desegmentSslApplicationData) {
+void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
+                     int desegmentSslApplicationData) {
   /* Turn off fragmentation for some protocols if enabled */
   if (desegmentSslRecords) {
     pref_set("tls.desegment_ssl_records", "TRUE");
@@ -243,7 +243,9 @@ static void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
 
   /* Set the tls.keys_list if it is provided */
   if (keysList != NULL && strlen(keysList) > 0) {
-    pref_set("tls.keys_list", keysList);
+    if (!pref_set("tls.keys_list", keysList)) {
+      fprintf(stderr, "Failed to set tls.keys_list\n");
+    }
   }
 
   /* Notify all registered modules that have had any of their preferences

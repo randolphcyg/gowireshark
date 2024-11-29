@@ -32,11 +32,11 @@ struct device_map {
 struct device_map *devices = NULL;
 
 char *add_device(char *device_name, char *bpf_expr, int num, int promisc,
-                 int to_ms);
+                 int to_ms, char *options);
 struct device_map *find_device(char *device_name);
 
 void cap_file_init(capture_file *cf);
-char *init_cf_live(capture_file *cf_live);
+char *init_cf_live(capture_file *cf_live, char *options);
 void close_cf_live(capture_file *cf_live);
 
 static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr);
@@ -57,7 +57,7 @@ PART1. Use uthash to implement the logic related to the map of the device
 */
 
 char *add_device(char *device_name, char *bpf_expr, int num, int promisc,
-                 int to_ms) {
+                 int to_ms, char *options) {
   char *err_msg;
   struct device_map *s;
   capture_file *cf_tmp;
@@ -78,7 +78,7 @@ char *add_device(char *device_name, char *bpf_expr, int num, int promisc,
     s->content.cf_live = cf_tmp;
 
     // init capture_file
-    err_msg = init_cf_live(cf_tmp);
+    err_msg = init_cf_live(cf_tmp, options);
     if (err_msg != NULL) {
       if (strlen(err_msg) != 0) {
         // close cf file
@@ -245,7 +245,42 @@ static epan_t *raw_epan_new(capture_file *cf) {
 }
 
 // init cf_live
-char *init_cf_live(capture_file *cf_live) {
+char *init_cf_live(capture_file *cf_live, char *options) {
+  if (!is_empty_json(options)) {
+    char *keysList = NULL;
+    int desegmentSslRecords = 0;
+    int desegmentSslApplicationData = 0;
+
+    cJSON *json = cJSON_Parse(options);
+    if (json == NULL) {
+      fprintf(stderr, "Error: Failed to parse options JSON.\n");
+      return "";
+    }
+
+    // Extract values from JSON
+    const cJSON *keysListJson =
+        cJSON_GetObjectItemCaseSensitive(json, "tls.keys_list");
+    const cJSON *desegmentSslRecordsJson =
+        cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_records");
+    const cJSON *desegmentSslApplicationDataJson =
+        cJSON_GetObjectItemCaseSensitive(json,
+                                         "tls.desegment_ssl_application_data");
+
+    // Copy keys list if present
+    if (cJSON_IsString(keysListJson) && (keysListJson->valuestring != NULL)) {
+      keysList = keysListJson->valuestring;
+    }
+
+    // Set flags for desegment options
+    desegmentSslRecords = cJSON_IsTrue(desegmentSslRecordsJson);
+    desegmentSslApplicationData = cJSON_IsTrue(desegmentSslApplicationDataJson);
+
+    // Apply TLS preferences
+    tls_prefs_apply(keysList, desegmentSslRecords, desegmentSslApplicationData);
+
+    cJSON_Delete(json);
+  }
+
   e_prefs *prefs_p;
   /* Create new epan session for dissection. */
   epan_free(cf_live->epan);
@@ -495,11 +530,11 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  *  @return char: error message
  */
 char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
-                    int to_ms) {
+                    int to_ms, char *options) {
   char *err_msg;
   char err_buf[PCAP_ERRBUF_SIZE];
   // add a device to global device map
-  err_msg = add_device(device_name, bpf_expr, num, promisc, to_ms);
+  err_msg = add_device(device_name, bpf_expr, num, promisc, to_ms, options);
   if (err_msg != NULL) {
     if (strlen(err_msg) != 0) {
       return err_msg;

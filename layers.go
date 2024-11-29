@@ -275,27 +275,41 @@ type Tcp struct {
 	DstPort        int    `json:"tcp.dstport"`
 	Len            int    `json:"tcp.len"`
 	ChecksumStatus string `json:"tcp.checksum.status"`
-	Port           []int  `json:"tcp.port"`
+	Port           int    `json:"tcp.port"`
 	Checksum       string `json:"tcp.checksum"`
 	Stream         int    `json:"tcp.stream"`
 	SeqRaw         int    `json:"tcp.seq_raw"`
 	AckRaw         int    `json:"tcp.ack_raw"`
 	Payload        string `json:"tcp.payload"`
+	Seq            int    `json:"tcp.seq"`
+	NextSeq        int    `json:"tcp.next_seq"`
+	UrgentPointer  int    `json:"tcp.urgent_pointer"`
+	WinSize        int    `json:"tcp.window_size"`
+	WinSizeVal     int    `json:"tcp.window_size_value"`
+	Completeness   string `json:"tcp.completeness"`
+	Flags          string `json:"tcp.flags"`
 }
 
 func UnmarshalTcp(src any) (tcp Tcp, err error) {
 	type tmpTcp struct {
-		HdrLen         string   `json:"tcp.hdr_len"`
-		SrcPort        string   `json:"tcp.srcport"`
-		DstPort        string   `json:"tcp.dstport"`
-		Len            string   `json:"tcp.len"`
-		ChecksumStatus string   `json:"tcp.checksum.status"`
-		Port           []string `json:"tcp.port"`
-		Checksum       string   `json:"tcp.checksum"`
-		Stream         string   `json:"tcp.stream"`
-		SeqRaw         string   `json:"tcp.seq_raw"`
-		AckRaw         string   `json:"tcp.ack_raw"`
-		Payload        string   `json:"tcp.payload"`
+		HdrLen         string `json:"tcp.hdr_len"`
+		SrcPort        string `json:"tcp.srcport"`
+		DstPort        string `json:"tcp.dstport"`
+		Len            string `json:"tcp.len"`
+		ChecksumStatus string `json:"tcp.checksum.status"`
+		Port           string `json:"tcp.port"`
+		Checksum       string `json:"tcp.checksum"`
+		Stream         string `json:"tcp.stream"`
+		SeqRaw         string `json:"tcp.seq_raw"`
+		AckRaw         string `json:"tcp.ack_raw"`
+		Payload        string `json:"tcp.payload"`
+		Seq            string `json:"tcp.seq"`
+		NextSeq        string `json:"tcp.next_seq"`
+		UrgentPointer  string `json:"tcp.urgent_pointer"`
+		WinSize        string `json:"tcp.window_size"`
+		WinSizeVal     string `json:"tcp.window_size_value"`
+		Completeness   string `json:"tcp.completeness"`
+		Flags          string `json:"tcp.flags"`
 	}
 	var tmp tmpTcp
 
@@ -316,11 +330,12 @@ func UnmarshalTcp(src any) (tcp Tcp, err error) {
 	dstPort, _ := strconv.Atoi(tmp.DstPort)
 	seqRaw, _ := strconv.Atoi(tmp.SeqRaw)
 	ackRaw, _ := strconv.Atoi(tmp.AckRaw)
-	var ports []int
-	for _, p := range tmp.Port {
-		pTmp, _ := strconv.Atoi(p)
-		ports = append(ports, pTmp)
-	}
+	port, _ := strconv.Atoi(tmp.Port)
+	seq, _ := strconv.Atoi(tmp.Seq)
+	nextSeq, _ := strconv.Atoi(tmp.NextSeq)
+	urgentPointer, _ := strconv.Atoi(tmp.UrgentPointer)
+	winSize, _ := strconv.Atoi(tmp.WinSize)
+	winSizeVal, _ := strconv.Atoi(tmp.WinSizeVal)
 
 	return Tcp{
 		HdrLen:         hdrLen,
@@ -328,57 +343,74 @@ func UnmarshalTcp(src any) (tcp Tcp, err error) {
 		DstPort:        dstPort,
 		Len:            length,
 		ChecksumStatus: tmp.ChecksumStatus,
-		Port:           ports,
+		Port:           port,
 		Checksum:       tmp.Checksum,
 		Stream:         stream,
 		SeqRaw:         seqRaw,
 		AckRaw:         ackRaw,
 		Payload:        tmp.Payload,
+		Seq:            seq,
+		NextSeq:        nextSeq,
+		UrgentPointer:  urgentPointer,
+		WinSize:        winSize,
+		WinSizeVal:     winSizeVal,
+		Completeness:   tmp.Completeness,
+		Flags:          tmp.Flags,
 	}, nil
 }
 
 // Http wireshark frame.http
 type Http struct {
-	Date                string   `json:"http.date"`
-	ResponseLine        []string `json:"http.response.line"`
-	LastModified        string   `json:"http.last_modified"`
-	ResponseNumber      string   `json:"http.response_number"`
-	ContentType         string   `json:"http.content_type"`
-	ContentLengthHeader string   `json:"http.content_length_header"`
-	ContentLength       string   `json:"http.content_length"`
-	FileData            string   `json:"http.file_data"`
-	Response            string   `json:"http.response"`
-	ResponseVersion     string   `json:"http.response.version"`
-	ResponseCode        string   `json:"http.response.code"`
-	ResponseCodeDesc    string   `json:"http.response.code.desc"`
-	ResponsePhrase      string   `json:"http.response.phrase"`
-	RequestIn           string   `json:"http.request_in"`
-	RequestUri          string   `json:"http.request.uri"`
-	RequestFullUri      string   `json:"http.request.full_uri"`
-	Server              string   `json:"http.server"`
-	Time                string   `json:"http.time"`
+	Date                string `json:"http.date"`
+	Host                string `json:"http.host"`
+	RequestLine         string `json:"http.request.line"`
+	UserAgent           string `json:"http.user_agent"`
+	Accept              string `json:"http.accept"`
+	Request             string `json:"http.request"`
+	ResponseLine        string `json:"http.response.line"`
+	LastModified        string `json:"http.last_modified"`
+	ResponseNumber      string `json:"http.response_number"`
+	ContentType         string `json:"http.content_type"`
+	ContentLengthHeader string `json:"http.content_length_header"`
+	ContentLength       string `json:"http.content_length"`
+	FileData            string `json:"http.file_data"`
+	Response            string `json:"http.response"`
+	ResponseVersion     string `json:"http.response.version"`
+	ResponseCode        string `json:"http.response.code"`
+	ResponseCodeDesc    string `json:"http.response.code.desc"`
+	ResponsePhrase      string `json:"http.response.phrase"`
+	RequestIn           string `json:"http.request_in"`
+	RequestUri          string `json:"http.request.uri"`
+	RequestFullUri      string `json:"http.request.full_uri"`
+	Server              string `json:"http.server"`
+	Time                string `json:"http.time"`
 }
 
 func UnmarshalHttp(src any) (http Http, err error) {
 	type tmpHttp struct {
-		Date                string   `json:"http.date"`
-		ResponseLine        []string `json:"http.response.line"`
-		LastModified        string   `json:"http.last_modified"`
-		ResponseNumber      string   `json:"http.response_number"`
-		ContentType         string   `json:"http.content_type"`
-		ContentLengthHeader string   `json:"http.content_length_header"`
-		ContentLength       string   `json:"http.content_length"`
-		FileData            string   `json:"http.file_data"`
-		Response            string   `json:"http.response"`
-		ResponseVersion     string   `json:"http.response.version"`
-		ResponseCode        string   `json:"http.response.code"`
-		ResponseCodeDesc    string   `json:"http.response.code.desc"`
-		ResponsePhrase      string   `json:"http.response.phrase"`
-		RequestIn           string   `json:"http.request_in"`
-		RequestUri          string   `json:"http.request.uri"`
-		RequestFullUri      string   `json:"http.request.full_uri"`
-		Server              string   `json:"http.server"`
-		Time                string   `json:"http.time"`
+		Date                string `json:"http.date"`
+		Host                string `json:"http.host"`
+		RequestLine         string `json:"http.request.line"`
+		UserAgent           string `json:"http.user_agent"`
+		Accept              string `json:"http.accept"`
+		Request             string `json:"http.request"`
+		ResponseLine        string `json:"http.response.line"`
+		LastModified        string `json:"http.last_modified"`
+		ResponseNumber      string `json:"http.response_number"`
+		ContentType         string `json:"http.content_type"`
+		ContentLengthHeader string `json:"http.content_length_header"`
+		ContentLength       string `json:"http.content_length"`
+		FileData            string `json:"http.file_data"`
+		Response            string `json:"http.response"`
+		ResponseVersion     string `json:"http.response.version"`
+		ResponseCode        string `json:"http.response.code"`
+		ResponseCodeDesc    string `json:"http.response.code.desc"`
+		ResponsePhrase      string `json:"http.response.phrase"`
+		RequestIn           string `json:"http.request_in"`
+		RequestUri          string `json:"http.request.uri"`
+		RequestFullUri      string `json:"http.request.full_uri"`
+		Server              string `json:"http.server"`
+		Time                string `json:"http.time"`
 	}
 	var tmp tmpHttp
 
@@ -394,6 +426,11 @@ func UnmarshalHttp(src any) (http Http, err error) {
 
 	return Http{
 		Date:                tmp.Date,
+		Host:                tmp.Host,
+		RequestLine:         tmp.RequestLine,
+		UserAgent:           tmp.UserAgent,
+		Accept:              tmp.Accept,
+		Request:             tmp.Request,
 		ResponseLine:        tmp.ResponseLine,
 		LastModified:        tmp.LastModified,
 		ResponseNumber:      tmp.ResponseNumber,
