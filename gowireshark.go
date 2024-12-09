@@ -30,7 +30,6 @@ var (
 	ErrUnmarshalObj    = errors.New("unmarshal obj error")
 	ErrFromCLogic      = errors.New("run c logic occur error")
 	ErrParseDissectRes = errors.New("fail to parse DissectRes")
-	ErrParseFrame      = errors.New("fail to parse frame")
 	ErrFrameIsBlank    = errors.New("frame data is blank")
 )
 
