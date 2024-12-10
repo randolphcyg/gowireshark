@@ -1,9 +1,13 @@
 package gowireshark
 
 import (
+	"encoding/json"
+	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 const inputFilepath = "./pcaps/mysql.pcapng"
@@ -46,59 +50,122 @@ func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log("# WsIndex:", frameData.WsIndex)
-	t.Log("# Offset:", frameData.Offset)
-	t.Log("# Hex:", frameData.Hex)
-	t.Log("# Ascii:", frameData.Ascii)
 
-	layers := Layers(frameData.WsSource.Layers)
+	t.Log("# Frame index:", frameData.BaseLayers.Frame.Number, "===========================")
+	t.Log("【layer _ws.col.protocol】:", frameData.BaseLayers.WsCol.Protocol)
 
-	// _ws.col
-	if colLayer, err := layers.WsCol(); err == nil {
-		t.Log("## col.number:", colLayer.Num)
-	} else {
-		t.Error(err)
+	if frameData.BaseLayers.Ip != nil {
+		t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
+		t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
 	}
 
-	// frame
-	if frameLayer, err := layers.Frame(); err == nil {
-		t.Log("## frame.number:", frameLayer.Number)
-		t.Log("## frame.TimeEpoch:", TimeEpoch2Time(frameLayer.TimeEpoch))
-	} else {
-		t.Error(err)
+	t.Log("@@@", frameData.WsSource.Layers[strings.ToLower(frameData.BaseLayers.WsCol.Protocol)])
+
+}
+
+/*
+DEMO: parse custom protocol
+*/
+type MySQLCapsTree struct {
+	CD string `json:"mysql.caps.cd"` // Capability: CLIENT_DEPRECATED
+	CP string `json:"mysql.caps.cp"` // Capability: CLIENT_PROTOCOL
+	CU string `json:"mysql.caps.cu"` // Capability: CLIENT_USER
+	FR string `json:"mysql.caps.fr"` // Capability: CLIENT_FOUND_ROWS
+	IA string `json:"mysql.caps.ia"` // Capability: CLIENT_IGNORE_SPACE
+	II string `json:"mysql.caps.ii"` // Capability: CLIENT_INTERACTIVE
+	IS string `json:"mysql.caps.is"` // Capability: CLIENT_IGNORE_SIGPIPE
+	LF string `json:"mysql.caps.lf"` // Capability: CLIENT_LONG_FLAG
+	LI string `json:"mysql.caps.li"` // Capability: CLIENT_LONG_PASSWORD
+	LP string `json:"mysql.caps.lp"` // Capability: CLIENT_LOCAL_FILES
+	NS string `json:"mysql.caps.ns"` // Capability: CLIENT_NO_SCHEMA
+	OB string `json:"mysql.caps.ob"` // Capability: CLIENT_ODBC
+	RS string `json:"mysql.caps.rs"` // Capability: CLIENT_RESERVED
+	SC string `json:"mysql.caps.sc"` // Capability: CLIENT_SSL_COMPRESS
+	SL string `json:"mysql.caps.sl"` // Capability: CLIENT_SSL
+	TA string `json:"mysql.caps.ta"` // Capability: CLIENT_TRANSACTIONS
+}
+
+type MySQLExtCapsTree struct {
+	CA               string `json:"mysql.caps.ca"`                // Extended Capability: CLIENT_AUTH
+	CapExt           string `json:"mysql.caps.cap_ext"`           // Extended Capability
+	CD               string `json:"mysql.caps.cd"`                // Extended Capability: CLIENT_DEPRECATED
+	CompressZSD      string `json:"mysql.caps.compress_zsd"`      // Extended Capability
+	DeprecateEOF     string `json:"mysql.caps.deprecate_eof"`     // Extended Capability: CLIENT_DEPRECATE_EOF
+	EP               string `json:"mysql.caps.ep"`                // Extended Capability
+	MFAuth           string `json:"mysql.caps.mf_auth"`           // Extended Capability: Multi-factor Authentication
+	MR               string `json:"mysql.caps.mr"`                // Extended Capability: Multi-Resultsets
+	MS               string `json:"mysql.caps.ms"`                // Extended Capability: Multi-Statements
+	OptionalMetadata string `json:"mysql.caps.optional_metadata"` // Optional Metadata
+	PA               string `json:"mysql.caps.pa"`                // Plugin Authentication
+	PM               string `json:"mysql.caps.pm"`                // Prepares Metadata
+	QueryAttrs       string `json:"mysql.caps.query_attrs"`       // Query Attributes
+	SessionTrack     string `json:"mysql.caps.session_track"`     // Session Tracking
+	Unused           string `json:"mysql.caps.unused"`            // Unused
+	VC               string `json:"mysql.caps.vc"`                // Version Check
+}
+
+type MySQLLoginRequest struct {
+	CapsClient        string           `json:"mysql.caps.client"`         // Client Capabilities
+	CapsClientTree    MySQLCapsTree    `json:"mysql.caps.client_tree"`    // Client Capabilities Tree
+	ExtCapsClient     string           `json:"mysql.extcaps.client"`      // Extended Capabilities
+	ExtCapsClientTree MySQLExtCapsTree `json:"mysql.extcaps.client_tree"` // Extended Capabilities Tree
+	MaxPacket         string           `json:"mysql.max_packet"`          // Maximum Packet Size
+	Collation         string           `json:"mysql.collation"`           // Collation Setting
+	User              string           `json:"mysql.user"`                // Username
+	Password          string           `json:"mysql.passwd"`              // Encrypted Password
+	Schema            string           `json:"mysql.schema"`              // Default Schema
+	Unused            string           `json:"mysql.unused"`              // Unused Field
+	ClientAuthPlugin  string           `json:"mysql.client_auth_plugin"`  // Authentication Plugin
+}
+
+type MySQLLayer struct {
+	PacketLength string            `json:"mysql.packet_length"` // Length of the packet
+	PacketNumber string            `json:"mysql.packet_number"` // Sequence number of the packet
+	LoginRequest MySQLLoginRequest `json:"mysql.login_request"` // Login request details
+}
+
+// Parse implements the ProtocolParser interface for MySQL.
+func (p *MySQLLayer) Parse(layers Layers) (any, error) {
+	src, ok := layers["mysql"]
+	if !ok {
+		return nil, errors.Wrap(ErrLayerNotFound, "mysql")
 	}
 
-	// ip
-	if ipLayer, err := layers.Ip(); err == nil {
-		t.Log("## ip.src:", ipLayer.Src)
-		t.Log("## ip.dst:", ipLayer.Dst)
-	} else {
-		t.Error(err)
+	jsonData, err := json.Marshal(src)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(jsonData, &p)
+	if err != nil {
+		return nil, ErrParseFrame
 	}
 
-	// udp
-	if udpLayer, err := layers.Udp(); err == nil {
-		t.Log("## udp.srcport:", udpLayer.SrcPort)
-	} else {
-		t.Error(err)
+	return p, nil
+}
+
+func TestParseCustomProtocol(t *testing.T) {
+	frameData, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
+		WithDescriptive(true), WithDebug(true))
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	// tcp
-	if tcpLayer, err := layers.Tcp(); err == nil {
-		t.Log("## tcp.dstport:", tcpLayer.DstPort)
-	} else {
-		t.Error(err)
+	// init ParserRegistry
+	registry := NewParserRegistry()
+	// register MySQL protocol Parser
+	registry.Register("mysql", &MySQLLayer{})
+
+	parsedLayer, err := registry.ParseProtocol("mysql", frameData.WsSource.Layers)
+	if err != nil {
+		t.Error("Error parsing MySQL protocol:", err)
 	}
 
-	// http
-	if httpLayer, err := layers.Http(); err == nil {
-		t.Log("## http:", httpLayer)
-		for _, header := range *httpLayer.ResponseLine {
-			t.Log("#### http.ResponseLine >>>", header)
-		}
-	} else {
-		t.Error(err)
+	mysqlLayer, ok := parsedLayer.(*MySQLLayer)
+	if !ok {
+		t.Error("Error parsing MySQL protocol:", err)
 	}
+
+	t.Log("Parsed MySQL layer, mysql.passwd:", mysqlLayer.LoginRequest.Password)
 }
 
 func TestParseHttps(t *testing.T) {
@@ -139,38 +206,26 @@ func TestParseHttps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layers := Layers(frameData.WsSource.Layers)
+	t.Log("# Frame index:", frameData.BaseLayers.Frame.Number, "===========================")
+	t.Log("【layer _ws.col.protocol】:", frameData.BaseLayers.WsCol.Protocol)
 
-	// ip
-	if ipLayer, err := layers.Ip(); err == nil {
-		t.Log("## ip.src:", ipLayer.Src)
-		t.Log("## ip.dst:", ipLayer.Dst)
-	} else {
-		t.Error(err)
+	if frameData.BaseLayers.Ip != nil {
+		t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
+		t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
 	}
-
-	// udp
-	if udpLayer, err := layers.Udp(); err == nil {
-		t.Log("## udp.srcport:", udpLayer.SrcPort)
-	} else {
-		t.Error(err)
+	if frameData.BaseLayers.Udp != nil {
+		t.Log("## udp.srcport:", frameData.BaseLayers.Udp.SrcPort)
 	}
-
-	// tcp
-	if tcpLayer, err := layers.Tcp(); err == nil {
-		t.Log("## tcp.dstport:", tcpLayer.DstPort)
-	} else {
-		t.Error(err)
+	if frameData.BaseLayers.Tcp != nil {
+		t.Log("## tcp.dstport:", frameData.BaseLayers.Tcp.DstPort)
 	}
-
-	// http
-	if httpLayer, err := layers.Http(); err == nil {
-		t.Log("## http:", httpLayer)
-		for _, header := range *httpLayer.ResponseLine {
-			t.Log("#### http.ResponseLine >>>", header)
+	if frameData.BaseLayers.Http != nil {
+		t.Log("## http:", frameData.BaseLayers.Http)
+		if frameData.BaseLayers.Http.ResponseLine != nil {
+			for _, header := range *frameData.BaseLayers.Http.ResponseLine {
+				t.Log("#### http.ResponseLine >>>", header)
+			}
 		}
-	} else {
-		t.Error(err)
 	}
 
 }
@@ -185,16 +240,11 @@ func TestGetSeveralFrameProtoTreeInJson(t *testing.T) {
 
 	// [1 5 11 13]
 	for _, frameData := range res {
-		layers := Layers(frameData.WsSource.Layers)
-		if colLayer, err := layers.WsCol(); err == nil {
-			t.Log("# Frame index:", colLayer.Num, "===========================")
-			t.Log("## WsIndex:", frameData.WsIndex)
-			t.Log("## Offset:", frameData.Offset)
-			t.Log("## Hex:", frameData.Hex)
-			t.Log("## Ascii:", frameData.Ascii)
-		} else {
-			t.Error(err)
-		}
+		t.Log("# Frame index:", frameData.BaseLayers.WsCol.Num, "===========================")
+		t.Log("## WsIndex:", frameData.WsIndex)
+		t.Log("## Offset:", frameData.Offset)
+		t.Log("## Hex:", frameData.Hex)
+		t.Log("## Ascii:", frameData.Ascii)
 	}
 }
 
@@ -206,16 +256,19 @@ func TestGetAllFrameProtoTreeInJson(t *testing.T) {
 	}
 
 	for _, frameData := range res {
-		layers := Layers(frameData.WsSource.Layers)
-		// _ws.col
-		if colLayer, err := layers.WsCol(); err == nil {
-			t.Log("# Frame index:", colLayer.Num, "===========================")
-			t.Log("## WsIndex:", frameData.WsIndex)
-			t.Log("## Offset:", frameData.Offset)
-			t.Log("## Hex:", frameData.Hex)
-			t.Log("## Ascii:", frameData.Ascii)
-		} else {
-			t.Error(err)
+		t.Log("# Frame index:", frameData.BaseLayers.WsCol.Num, "===========================")
+		t.Log("## Hex:", frameData.Hex)
+		t.Log("## Ascii:", frameData.Ascii)
+
+		if frameData.BaseLayers.Ip != nil {
+			t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
+			t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
+		}
+		if frameData.BaseLayers.Http != nil {
+			t.Log("## http.request.uri:", frameData.BaseLayers.Http.RequestUri)
+		}
+		if frameData.BaseLayers.Dns != nil {
+			t.Log("## dns:", frameData.BaseLayers.Dns)
 		}
 	}
 }
@@ -299,30 +352,23 @@ func TestDissectPktLiveInfiniteAndStopCapturePkg(t *testing.T) {
 	// user read unmarshal data from go channel
 	go func() {
 		for frameData := range DissectResChans[ifName] {
-			layers := Layers(frameData.WsSource.Layers)
-			// _ws.col
-			if colLayer, err := layers.WsCol(); err == nil {
-				t.Log("# Frame index:", colLayer.Num, "===========================")
-				t.Log("## WsIndex:", frameData.WsIndex)
-				t.Log("## Offset:", frameData.Offset)
-				t.Log("## Hex:", frameData.Hex)
-				t.Log("## Ascii:", frameData.Ascii)
-			} else {
-				t.Error(err)
-			}
+			t.Log("# Frame index:", frameData.BaseLayers.WsCol.Num, "===========================")
+			t.Log("## Hex:", frameData.Hex)
+			t.Log("## Ascii:", frameData.Ascii)
 
-			// frame
-			if frameLayer, err := layers.Frame(); err == nil {
-				t.Log("【layer frame】:", frameLayer)
-			} else {
-				t.Error(err)
+			if frameData.BaseLayers.Ip != nil {
+				t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
+				t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
+			}
+			if frameData.BaseLayers.Http != nil {
+				t.Log("【layer http.request.uri】:", frameData.BaseLayers.Http.RequestUri)
 			}
 		}
 	}()
 
 	go func() {
 		t.Log("Simulate manual stop real-time packet capture!")
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 5)
 		err := StopDissectPktLive(ifName)
 		if err != nil {
 			t.Error(err)
@@ -360,50 +406,26 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for frameData := range DissectResChans[ifName] {
-			layers := Layers(frameData.WsSource.Layers)
+			t.Log("# Frame index:", frameData.BaseLayers.Frame.Number, "===========================")
+			t.Log("【layer _ws.col.protocol】:", frameData.BaseLayers.WsCol.Protocol)
 
-			// frame
-			if frameLayer, err := layers.Frame(); err == nil {
-				t.Log("# Frame index:", frameLayer.Number, "===========================")
-				t.Log("【layer frame】:", frameLayer)
-			} else {
-				t.Error(err)
+			if frameData.BaseLayers.Ip != nil {
+				t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
+				t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
 			}
-
-			// _ws.col
-			if colLayer, err := layers.WsCol(); err == nil {
-				t.Log("【layer _ws.col】:", colLayer)
-			} else {
-				t.Error(err)
+			if frameData.BaseLayers.Udp != nil {
+				t.Log("## udp.srcport:", frameData.BaseLayers.Udp.SrcPort)
 			}
-
-			// ip
-			if ipLayer, err := layers.Ip(); err == nil {
-				t.Log("## ip.src:", ipLayer.Src)
-				t.Log("## ip.dst:", ipLayer.Dst)
-			} else {
-				t.Error(err)
+			if frameData.BaseLayers.Tcp != nil {
+				t.Log("## tcp.dstport:", frameData.BaseLayers.Tcp.DstPort)
 			}
-
-			// udp
-			if udpLayer, err := layers.Udp(); err == nil {
-				t.Log("## udp.srcport:", udpLayer.SrcPort)
-			} else {
-				t.Error(err)
-			}
-
-			// tcp
-			if tcpLayer, err := layers.Tcp(); err == nil {
-				t.Log("## tcp.dstport:", tcpLayer.DstPort)
-			} else {
-				t.Error(err)
-			}
-
-			// http
-			if httpLayer, err := layers.Http(); err == nil {
-				t.Log("## http:", httpLayer)
-			} else {
-				t.Error(err)
+			if frameData.BaseLayers.Http != nil {
+				t.Log("## http:", frameData.BaseLayers.Http)
+				if frameData.BaseLayers.Http.ResponseLine != nil {
+					for _, header := range *frameData.BaseLayers.Http.ResponseLine {
+						t.Log("#### http.ResponseLine >>>", header)
+					}
+				}
 			}
 
 		}
@@ -437,7 +459,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 
 func TestBPF(t *testing.T) {
 	ifName := "en7"
-	filter := "" // tcp port 443
+	filter := "tcp" // tcp port 443
 	pktNum := 300
 	promisc := 1
 	timeout := 5
@@ -453,53 +475,26 @@ func TestBPF(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for frameData := range DissectResChans[ifName] {
-			layers := Layers(frameData.WsSource.Layers)
+			t.Log("# Frame index:", frameData.BaseLayers.Frame.Number, "===========================")
+			t.Log("【layer _ws.col.protocol】:", frameData.BaseLayers.WsCol.Protocol)
 
-			// frame
-			if frameLayer, err := layers.Frame(); err == nil {
-				t.Log("# Frame index:", frameLayer.Number, "===========================")
-				t.Log("【layer frame】:", frameLayer)
-			} else {
-				t.Error(err)
+			if frameData.BaseLayers.Ip != nil {
+				t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
+				t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
 			}
-
-			// _ws.col
-			if colLayer, err := layers.WsCol(); err == nil {
-				t.Log("【layer _ws.col】:", colLayer)
-			} else {
-				t.Error(err)
+			if frameData.BaseLayers.Udp != nil {
+				t.Log("## udp.srcport:", frameData.BaseLayers.Udp.SrcPort)
 			}
-
-			// ip
-			if ipLayer, err := layers.Ip(); err == nil {
-				t.Log("## ip.src:", ipLayer.Src)
-				t.Log("## ip.dst:", ipLayer.Dst)
-			} else {
-				t.Error(err)
+			if frameData.BaseLayers.Tcp != nil {
+				t.Log("## tcp.dstport:", frameData.BaseLayers.Tcp.DstPort)
 			}
-
-			// udp
-			if udpLayer, err := layers.Udp(); err == nil {
-				t.Log("## udp.srcport:", udpLayer.SrcPort)
-			} else {
-				t.Error(err)
-			}
-
-			// tcp
-			if tcpLayer, err := layers.Tcp(); err == nil {
-				t.Log("## tcp.dstport:", tcpLayer.DstPort)
-			} else {
-				t.Error(err)
-			}
-
-			// http
-			if httpLayer, err := layers.Http(); err == nil {
-				t.Log("## http:", httpLayer)
-				for _, header := range *httpLayer.ResponseLine {
-					t.Log("#### http.ResponseLine >>>", header)
+			if frameData.BaseLayers.Http != nil {
+				t.Log("## http:", frameData.BaseLayers.Http)
+				if frameData.BaseLayers.Http.ResponseLine != nil {
+					for _, header := range *frameData.BaseLayers.Http.ResponseLine {
+						t.Log("#### http.ResponseLine >>>", header)
+					}
 				}
-			} else {
-				t.Error(err)
 			}
 
 		}
