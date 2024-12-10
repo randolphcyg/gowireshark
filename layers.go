@@ -35,18 +35,27 @@ func parseFieldAsArray(raw json.RawMessage) (*[]string, error) {
 	return nil, fmt.Errorf("invalid field format")
 }
 
+type Layers map[string]any
+
 // FrameDissectRes Dissect results of each frame of data
 type FrameDissectRes struct {
-	WsIndex  string   `json:"_index"`
-	Offset   []string `json:"offset"`
-	Hex      []string `json:"hex"`
-	Ascii    []string `json:"ascii"`
+	WsIndex    string   `json:"_index"`
+	Offset     []string `json:"offset"`
+	Hex        []string `json:"hex"`
+	Ascii      []string `json:"ascii"`
+	BaseLayers struct {
+		Frame *Frame `json:"frame,omitempty"`
+		WsCol *WsCol `json:"_ws.col,omitempty"`
+		Ip    *Ip    `json:"ip,omitempty"`
+		Udp   *Udp   `json:"udp,omitempty"`
+		Tcp   *Tcp   `json:"tcp,omitempty"`
+		Http  *Http  `json:"http,omitempty"`
+		Dns   *Dns   `json:"dns,omitempty"`
+	} `json:"base_layers"` // common layers
 	WsSource struct {
-		Layers map[string]any `json:"layers"`
+		Layers Layers `json:"layers"`
 	} `json:"_source"`
 }
-
-type Layers map[string]any
 
 // Frame wireshark frame
 type Frame struct {
@@ -297,7 +306,7 @@ type Udp struct {
 	Checksum       string `json:"udp.checksum"`        // Checksum value for error checking
 
 	// Port Information (list of ports involved)
-	Port []int `json:"udp.port"` // List of ports involved in the UDP stream
+	Port *[]string `json:"udp.port"` // List of ports involved in the UDP stream
 
 	// Stream ID (if available, used for tracking UDP streams)
 	Stream int `json:"udp.stream"` // Stream ID to uniquely identify the UDP stream
@@ -317,16 +326,16 @@ func (l Layers) Udp() (udp *Udp, err error) {
 	}
 
 	type tmpUdp struct {
-		SrcPort        string   `json:"udp.srcport"`
-		DstPort        string   `json:"udp.dstport"`
-		Length         string   `json:"udp.length"`
-		ChecksumStatus string   `json:"udp.checksum.status"`
-		Port           []string `json:"udp.port"`
-		Checksum       string   `json:"udp.checksum"`
-		Stream         string   `json:"udp.stream"`
-		DataLength     string   `json:"udp.data_length"`
-		Timestamp      string   `json:"udp.timestamp"`
-		Payload        string   `json:"udp.payload"`
+		SrcPort        string          `json:"udp.srcport"`
+		DstPort        string          `json:"udp.dstport"`
+		Length         string          `json:"udp.length"`
+		ChecksumStatus string          `json:"udp.checksum.status"`
+		Port           json.RawMessage `json:"udp.port"`
+		Checksum       string          `json:"udp.checksum"`
+		Stream         string          `json:"udp.stream"`
+		DataLength     string          `json:"udp.data_length"`
+		Timestamp      string          `json:"udp.timestamp"`
+		Payload        string          `json:"udp.payload"`
 	}
 	var tmp tmpUdp
 
@@ -346,10 +355,10 @@ func (l Layers) Udp() (udp *Udp, err error) {
 	stream, _ := strconv.Atoi(tmp.Stream)
 	dataLength, _ := strconv.Atoi(tmp.DataLength)
 
-	var ports []int
-	for _, p := range tmp.Port {
-		pTmp, _ := strconv.Atoi(p)
-		ports = append(ports, pTmp)
+	// Parse Port as array
+	port, err := parseFieldAsArray(tmp.Port)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse udp.port: %v", err)
 	}
 
 	return &Udp{
@@ -358,7 +367,7 @@ func (l Layers) Udp() (udp *Udp, err error) {
 		Length:         length,
 		ChecksumStatus: tmp.ChecksumStatus,
 		Checksum:       tmp.Checksum,
-		Port:           ports,
+		Port:           port,
 		Stream:         stream,
 		DataLength:     dataLength,
 		Timestamp:      tmp.Timestamp,

@@ -150,13 +150,76 @@ func GetSpecificFrameHexData(inputFilepath string, num int, opts ...Option) (hex
 }
 
 // UnmarshalDissectResult Unmarshal dissect result
-func UnmarshalDissectResult(src string) (res FrameDissectRes, err error) {
-	err = json.Unmarshal([]byte(src), &res)
+func UnmarshalDissectResult(src string) (frameData FrameDissectRes, err error) {
+	err = json.Unmarshal([]byte(src), &frameData)
 	if err != nil {
 		return FrameDissectRes{}, ErrParseDissectRes
 	}
 
-	return
+	// _ws.col
+	colLayer, err := frameData.WsSource.Layers.WsCol()
+	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if _ws.col layer not found
+		slog.Info(err.Error()) // expose err
+	}
+	if colLayer != nil {
+		frameData.BaseLayers.WsCol = colLayer
+	}
+
+	// frame
+	frameLayer, err := frameData.WsSource.Layers.Frame()
+	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if frame layer not found
+		slog.Info(err.Error()) // expose err
+	}
+	if frameLayer != nil {
+		frameData.BaseLayers.Frame = frameLayer
+	}
+
+	// ip
+	ipLayer, err := frameData.WsSource.Layers.Ip()
+	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if IP layer not found
+		slog.Info(err.Error()) // expose err
+	}
+	if ipLayer != nil {
+		frameData.BaseLayers.Ip = ipLayer
+	}
+
+	// udp
+	udpLayer, err := frameData.WsSource.Layers.Udp()
+	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if UDP layer not found
+		slog.Info(err.Error()) // expose err
+	}
+	if udpLayer != nil {
+		frameData.BaseLayers.Udp = udpLayer
+	}
+
+	// tcp
+	tcpLayer, err := frameData.WsSource.Layers.Tcp()
+	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if TCP layer not found
+		slog.Info(err.Error()) // expose err
+	}
+	if udpLayer != nil {
+		frameData.BaseLayers.Tcp = tcpLayer
+	}
+
+	// http
+	httpLayer, err := frameData.WsSource.Layers.Http()
+	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if HTTP layer not found
+		slog.Info(err.Error()) // expose err
+	}
+	if httpLayer != nil {
+		frameData.BaseLayers.Http = httpLayer
+	}
+
+	// dns
+	dnsLayer, err := frameData.WsSource.Layers.Dns()
+	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if DNS layer not found
+		slog.Info(err.Error()) // expose err
+	}
+	if dnsLayer != nil {
+		frameData.BaseLayers.Dns = dnsLayer
+	}
+
+	return frameData, nil
 }
 
 // GetSpecificFrameProtoTreeInJson
