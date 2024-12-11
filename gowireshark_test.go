@@ -45,22 +45,21 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 }
 
 func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
-	frameData, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
+	frameRes, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
 		WithDescriptive(true), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Log("# Frame index:", frameData.BaseLayers.Frame.Number, "===========================")
-	t.Log("【layer _ws.col.protocol】:", frameData.BaseLayers.WsCol.Protocol)
+	t.Log("# Frame index:", frameRes.BaseLayers.Frame.Number, "===========================")
+	t.Log("【layer _ws.col.protocol】:", frameRes.BaseLayers.WsCol.Protocol)
 
-	if frameData.BaseLayers.Ip != nil {
-		t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
-		t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
+	if frameRes.BaseLayers.Ip != nil {
+		t.Log("## ip.src:", frameRes.BaseLayers.Ip.Src)
+		t.Log("## ip.dst:", frameRes.BaseLayers.Ip.Dst)
 	}
 
-	t.Log("@@@", frameData.WsSource.Layers[strings.ToLower(frameData.BaseLayers.WsCol.Protocol)])
-
+	t.Log("@@@", frameRes.WsSource.Layers[strings.ToLower(frameRes.BaseLayers.WsCol.Protocol)])
 }
 
 /*
@@ -144,7 +143,7 @@ func (p *MySQLLayer) Parse(layers Layers) (any, error) {
 }
 
 func TestParseCustomProtocol(t *testing.T) {
-	frameData, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
+	frameRes, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
 		WithDescriptive(true), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
@@ -155,7 +154,7 @@ func TestParseCustomProtocol(t *testing.T) {
 	// register MySQL protocol Parser
 	registry.Register("mysql", &MySQLLayer{})
 
-	parsedLayer, err := registry.ParseProtocol("mysql", frameData.WsSource.Layers)
+	parsedLayer, err := registry.ParseProtocol("mysql", frameRes.WsSource.Layers)
 	if err != nil {
 		t.Error("Error parsing MySQL protocol:", err)
 	}
@@ -200,29 +199,29 @@ func TestParseHttps(t *testing.T) {
 	}
 	t.Log(tls)
 
-	frameData, err := GetSpecificFrameProtoTreeInJson(pcapPath, 14,
+	frameRes, err := GetSpecificFrameProtoTreeInJson(pcapPath, 14,
 		WithTls(tls), WithDescriptive(true), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Log("# Frame index:", frameData.BaseLayers.Frame.Number, "===========================")
-	t.Log("【layer _ws.col.protocol】:", frameData.BaseLayers.WsCol.Protocol)
+	t.Log("# Frame index:", frameRes.BaseLayers.Frame.Number, "===========================")
+	t.Log("【layer _ws.col.protocol】:", frameRes.BaseLayers.WsCol.Protocol)
 
-	if frameData.BaseLayers.Ip != nil {
-		t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
-		t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
+	if frameRes.BaseLayers.Ip != nil {
+		t.Log("## ip.src:", frameRes.BaseLayers.Ip.Src)
+		t.Log("## ip.dst:", frameRes.BaseLayers.Ip.Dst)
 	}
-	if frameData.BaseLayers.Udp != nil {
-		t.Log("## udp.srcport:", frameData.BaseLayers.Udp.SrcPort)
+	if frameRes.BaseLayers.Udp != nil {
+		t.Log("## udp.srcport:", frameRes.BaseLayers.Udp.SrcPort)
 	}
-	if frameData.BaseLayers.Tcp != nil {
-		t.Log("## tcp.dstport:", frameData.BaseLayers.Tcp.DstPort)
+	if frameRes.BaseLayers.Tcp != nil {
+		t.Log("## tcp.dstport:", frameRes.BaseLayers.Tcp.DstPort)
 	}
-	if frameData.BaseLayers.Http != nil {
-		t.Log("## http:", frameData.BaseLayers.Http)
-		if frameData.BaseLayers.Http.ResponseLine != nil {
-			for _, header := range *frameData.BaseLayers.Http.ResponseLine {
+	if frameRes.BaseLayers.Http != nil {
+		t.Log("## http:", frameRes.BaseLayers.Http)
+		if frameRes.BaseLayers.Http.ResponseLine != nil {
+			for _, header := range *frameRes.BaseLayers.Http.ResponseLine {
 				t.Log("#### http.ResponseLine >>>", header)
 			}
 		}
@@ -239,36 +238,36 @@ func TestGetSeveralFrameProtoTreeInJson(t *testing.T) {
 	}
 
 	// [1 5 11 13]
-	for _, frameData := range res {
-		t.Log("# Frame index:", frameData.BaseLayers.WsCol.Num, "===========================")
-		t.Log("## WsIndex:", frameData.WsIndex)
-		t.Log("## Offset:", frameData.Offset)
-		t.Log("## Hex:", frameData.Hex)
-		t.Log("## Ascii:", frameData.Ascii)
+	for _, frameRes := range res {
+		t.Log("# Frame index:", frameRes.BaseLayers.WsCol.Num, "===========================")
+		t.Log("## WsIndex:", frameRes.WsIndex)
+		t.Log("## Offset:", frameRes.Offset)
+		t.Log("## Hex:", frameRes.Hex)
+		t.Log("## Ascii:", frameRes.Ascii)
 	}
 }
 
 func TestGetAllFrameProtoTreeInJson(t *testing.T) {
 	res, err := GetAllFrameProtoTreeInJson(inputFilepath,
-		WithDescriptive(true), WithDebug(false))
+		WithDescriptive(true), WithDebug(false), IgnoreError(false))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	for _, frameData := range res {
-		t.Log("# Frame index:", frameData.BaseLayers.WsCol.Num, "===========================")
-		t.Log("## Hex:", frameData.Hex)
-		t.Log("## Ascii:", frameData.Ascii)
+	for _, frameRes := range res {
+		t.Log("# Frame index:", frameRes.BaseLayers.WsCol.Num, "===========================")
+		t.Log("## Hex:", frameRes.Hex)
+		t.Log("## Ascii:", frameRes.Ascii)
 
-		if frameData.BaseLayers.Ip != nil {
-			t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
-			t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
+		if frameRes.BaseLayers.Ip != nil {
+			t.Log("## ip.src:", frameRes.BaseLayers.Ip.Src)
+			t.Log("## ip.dst:", frameRes.BaseLayers.Ip.Dst)
 		}
-		if frameData.BaseLayers.Http != nil {
-			t.Log("## http.request.uri:", frameData.BaseLayers.Http.RequestUri)
+		if frameRes.BaseLayers.Http != nil {
+			t.Log("## http.request.uri:", frameRes.BaseLayers.Http.RequestUri)
 		}
-		if frameData.BaseLayers.Dns != nil {
-			t.Log("## dns:", frameData.BaseLayers.Dns)
+		if frameRes.BaseLayers.Dns != nil {
+			t.Log("## dns:", frameRes.BaseLayers.Dns)
 		}
 	}
 }
@@ -281,7 +280,8 @@ func TestGoroutineGetAllFrameProtoTreeInJson(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			res, err := GetAllFrameProtoTreeInJson(inputFilepath, WithDescriptive(true), WithDebug(false))
+			res, err := GetAllFrameProtoTreeInJson(inputFilepath,
+				WithDescriptive(true), WithDebug(false))
 			if err != nil {
 				t.Error(err)
 			}
@@ -351,17 +351,17 @@ func TestDissectPktLiveInfiniteAndStopCapturePkg(t *testing.T) {
 
 	// user read unmarshal data from go channel
 	go func() {
-		for frameData := range DissectResChans[ifName] {
-			t.Log("# Frame index:", frameData.BaseLayers.WsCol.Num, "===========================")
-			t.Log("## Hex:", frameData.Hex)
-			t.Log("## Ascii:", frameData.Ascii)
+		for frameRes := range DissectResChans[ifName] {
+			t.Log("# Frame index:", frameRes.BaseLayers.WsCol.Num, "===========================")
+			t.Log("## Hex:", frameRes.Hex)
+			t.Log("## Ascii:", frameRes.Ascii)
 
-			if frameData.BaseLayers.Ip != nil {
-				t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
-				t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
+			if frameRes.BaseLayers.Ip != nil {
+				t.Log("## ip.src:", frameRes.BaseLayers.Ip.Src)
+				t.Log("## ip.dst:", frameRes.BaseLayers.Ip.Dst)
 			}
-			if frameData.BaseLayers.Http != nil {
-				t.Log("【layer http.request.uri】:", frameData.BaseLayers.Http.RequestUri)
+			if frameRes.BaseLayers.Http != nil {
+				t.Log("【layer http.request.uri】:", frameRes.BaseLayers.Http.RequestUri)
 			}
 		}
 	}()
@@ -405,24 +405,24 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		for frameData := range DissectResChans[ifName] {
-			t.Log("# Frame index:", frameData.BaseLayers.Frame.Number, "===========================")
-			t.Log("【layer _ws.col.protocol】:", frameData.BaseLayers.WsCol.Protocol)
+		for frameRes := range DissectResChans[ifName] {
+			t.Log("# Frame index:", frameRes.BaseLayers.Frame.Number, "===========================")
+			t.Log("【layer _ws.col.protocol】:", frameRes.BaseLayers.WsCol.Protocol)
 
-			if frameData.BaseLayers.Ip != nil {
-				t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
-				t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
+			if frameRes.BaseLayers.Ip != nil {
+				t.Log("## ip.src:", frameRes.BaseLayers.Ip.Src)
+				t.Log("## ip.dst:", frameRes.BaseLayers.Ip.Dst)
 			}
-			if frameData.BaseLayers.Udp != nil {
-				t.Log("## udp.srcport:", frameData.BaseLayers.Udp.SrcPort)
+			if frameRes.BaseLayers.Udp != nil {
+				t.Log("## udp.srcport:", frameRes.BaseLayers.Udp.SrcPort)
 			}
-			if frameData.BaseLayers.Tcp != nil {
-				t.Log("## tcp.dstport:", frameData.BaseLayers.Tcp.DstPort)
+			if frameRes.BaseLayers.Tcp != nil {
+				t.Log("## tcp.dstport:", frameRes.BaseLayers.Tcp.DstPort)
 			}
-			if frameData.BaseLayers.Http != nil {
-				t.Log("## http:", frameData.BaseLayers.Http)
-				if frameData.BaseLayers.Http.ResponseLine != nil {
-					for _, header := range *frameData.BaseLayers.Http.ResponseLine {
+			if frameRes.BaseLayers.Http != nil {
+				t.Log("## http:", frameRes.BaseLayers.Http)
+				if frameRes.BaseLayers.Http.ResponseLine != nil {
+					for _, header := range *frameRes.BaseLayers.Http.ResponseLine {
 						t.Log("#### http.ResponseLine >>>", header)
 					}
 				}
@@ -460,7 +460,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 func TestBPF(t *testing.T) {
 	ifName := "en7"
 	filter := "tcp" // tcp port 443
-	pktNum := 300
+	pktNum := 20
 	promisc := 1
 	timeout := 5
 
@@ -474,24 +474,24 @@ func TestBPF(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		for frameData := range DissectResChans[ifName] {
-			t.Log("# Frame index:", frameData.BaseLayers.Frame.Number, "===========================")
-			t.Log("【layer _ws.col.protocol】:", frameData.BaseLayers.WsCol.Protocol)
+		for frameRes := range DissectResChans[ifName] {
+			t.Log("# Frame index:", frameRes.BaseLayers.Frame.Number, "===========================")
+			t.Log("【layer _ws.col.protocol】:", frameRes.BaseLayers.WsCol.Protocol)
 
-			if frameData.BaseLayers.Ip != nil {
-				t.Log("## ip.src:", frameData.BaseLayers.Ip.Src)
-				t.Log("## ip.dst:", frameData.BaseLayers.Ip.Dst)
+			if frameRes.BaseLayers.Ip != nil {
+				t.Log("## ip.src:", frameRes.BaseLayers.Ip.Src)
+				t.Log("## ip.dst:", frameRes.BaseLayers.Ip.Dst)
 			}
-			if frameData.BaseLayers.Udp != nil {
-				t.Log("## udp.srcport:", frameData.BaseLayers.Udp.SrcPort)
+			if frameRes.BaseLayers.Udp != nil {
+				t.Log("## udp.srcport:", frameRes.BaseLayers.Udp.SrcPort)
 			}
-			if frameData.BaseLayers.Tcp != nil {
-				t.Log("## tcp.dstport:", frameData.BaseLayers.Tcp.DstPort)
+			if frameRes.BaseLayers.Tcp != nil {
+				t.Log("## tcp.dstport:", frameRes.BaseLayers.Tcp.DstPort)
 			}
-			if frameData.BaseLayers.Http != nil {
-				t.Log("## http:", frameData.BaseLayers.Http)
-				if frameData.BaseLayers.Http.ResponseLine != nil {
-					for _, header := range *frameData.BaseLayers.Http.ResponseLine {
+			if frameRes.BaseLayers.Http != nil {
+				t.Log("## http:", frameRes.BaseLayers.Http)
+				if frameRes.BaseLayers.Http.ResponseLine != nil {
+					for _, header := range *frameRes.BaseLayers.Http.ResponseLine {
 						t.Log("#### http.ResponseLine >>>", header)
 					}
 				}

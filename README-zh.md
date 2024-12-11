@@ -50,7 +50,7 @@ go get "github.com/randolphcyg/gowireshark"
 go test -v -run TestDissectPrintAllFrame
 ```
 
-如何解析 pcap 数据包文件的某一帧：
+1. 如何解析 pcap 数据包文件所有帧
 
 ```go
 package main
@@ -63,34 +63,156 @@ import (
 
 func main() {
 	inputFilepath := "pcaps/mysql.pcapng"
-	frameData, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
-		gowireshark.WithDescriptive(true), gowireshark.WithDebug(true))
+	res, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath,
+		gowireshark.WithDescriptive(true), gowireshark.WithDebug(false))
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 
-	colSrc := frameData.WsSource.Layers["_ws.col"]
-	col, err := gowireshark.UnmarshalWsCol(colSrc)
-	if err != nil {
-		fmt.Println(err)
+	for _, frameRes := range res {
+		fmt.Println("# Frame index:", frameRes.BaseLayers.WsCol.Num, "===========================")
+		fmt.Println("## Hex:", frameRes.Hex)
+		fmt.Println("## Ascii:", frameRes.Ascii)
+
+		if frameRes.BaseLayers.Ip != nil {
+			fmt.Println("## ip.src:", frameRes.BaseLayers.Ip.Src)
+			fmt.Println("## ip.dst:", frameRes.BaseLayers.Ip.Dst)
+		}
+		if frameRes.BaseLayers.Http != nil {
+			fmt.Println("## http.request.uri:", frameRes.BaseLayers.Http.RequestUri)
+		}
+		if frameRes.BaseLayers.Dns != nil {
+			fmt.Println("## dns:", frameRes.BaseLayers.Dns)
+		}
 	}
-
-	frameSrc := frameData.WsSource.Layers["frame"]
-	frame, err := gowireshark.UnmarshalFrame(frameSrc)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Println("# Frame index:", col.Num)
-	fmt.Println("## WsIndex:", frameData.WsIndex)
-	fmt.Println("## Offset:", frameData.Offset)
-	fmt.Println("## Hex:", frameData.Hex)
-	fmt.Println("## Ascii:", frameData.Ascii)
-
-	fmt.Println("【layer _ws.col】:", col)
-	fmt.Println("【layer frame】:", frame)
 }
 ```
+
+2.如何解析自定义协议层
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/pkg/errors"
+	"github.com/randolphcyg/gowireshark"
+)
+
+type MySQLCapsTree struct {
+	CD string `json:"mysql.caps.cd"` // Capability: CLIENT_DEPRECATED
+	CP string `json:"mysql.caps.cp"` // Capability: CLIENT_PROTOCOL
+	CU string `json:"mysql.caps.cu"` // Capability: CLIENT_USER
+	FR string `json:"mysql.caps.fr"` // Capability: CLIENT_FOUND_ROWS
+	IA string `json:"mysql.caps.ia"` // Capability: CLIENT_IGNORE_SPACE
+	II string `json:"mysql.caps.ii"` // Capability: CLIENT_INTERACTIVE
+	IS string `json:"mysql.caps.is"` // Capability: CLIENT_IGNORE_SIGPIPE
+	LF string `json:"mysql.caps.lf"` // Capability: CLIENT_LONG_FLAG
+	LI string `json:"mysql.caps.li"` // Capability: CLIENT_LONG_PASSWORD
+	LP string `json:"mysql.caps.lp"` // Capability: CLIENT_LOCAL_FILES
+	NS string `json:"mysql.caps.ns"` // Capability: CLIENT_NO_SCHEMA
+	OB string `json:"mysql.caps.ob"` // Capability: CLIENT_ODBC
+	RS string `json:"mysql.caps.rs"` // Capability: CLIENT_RESERVED
+	SC string `json:"mysql.caps.sc"` // Capability: CLIENT_SSL_COMPRESS
+	SL string `json:"mysql.caps.sl"` // Capability: CLIENT_SSL
+	TA string `json:"mysql.caps.ta"` // Capability: CLIENT_TRANSACTIONS
+}
+
+type MySQLExtCapsTree struct {
+	CA               string `json:"mysql.caps.ca"`                // Extended Capability: CLIENT_AUTH
+	CapExt           string `json:"mysql.caps.cap_ext"`           // Extended Capability
+	CD               string `json:"mysql.caps.cd"`                // Extended Capability: CLIENT_DEPRECATED
+	CompressZSD      string `json:"mysql.caps.compress_zsd"`      // Extended Capability
+	DeprecateEOF     string `json:"mysql.caps.deprecate_eof"`     // Extended Capability: CLIENT_DEPRECATE_EOF
+	EP               string `json:"mysql.caps.ep"`                // Extended Capability
+	MFAuth           string `json:"mysql.caps.mf_auth"`           // Extended Capability: Multi-factor Authentication
+	MR               string `json:"mysql.caps.mr"`                // Extended Capability: Multi-Resultsets
+	MS               string `json:"mysql.caps.ms"`                // Extended Capability: Multi-Statements
+	OptionalMetadata string `json:"mysql.caps.optional_metadata"` // Optional Metadata
+	PA               string `json:"mysql.caps.pa"`                // Plugin Authentication
+	PM               string `json:"mysql.caps.pm"`                // Prepares Metadata
+	QueryAttrs       string `json:"mysql.caps.query_attrs"`       // Query Attributes
+	SessionTrack     string `json:"mysql.caps.session_track"`     // Session Tracking
+	Unused           string `json:"mysql.caps.unused"`            // Unused
+	VC               string `json:"mysql.caps.vc"`                // Version Check
+}
+
+type MySQLLoginRequest struct {
+	CapsClient        string           `json:"mysql.caps.client"`         // Client Capabilities
+	CapsClientTree    MySQLCapsTree    `json:"mysql.caps.client_tree"`    // Client Capabilities Tree
+	ExtCapsClient     string           `json:"mysql.extcaps.client"`      // Extended Capabilities
+	ExtCapsClientTree MySQLExtCapsTree `json:"mysql.extcaps.client_tree"` // Extended Capabilities Tree
+	MaxPacket         string           `json:"mysql.max_packet"`          // Maximum Packet Size
+	Collation         string           `json:"mysql.collation"`           // Collation Setting
+	User              string           `json:"mysql.user"`                // Username
+	Password          string           `json:"mysql.passwd"`              // Encrypted Password
+	Schema            string           `json:"mysql.schema"`              // Default Schema
+	Unused            string           `json:"mysql.unused"`              // Unused Field
+	ClientAuthPlugin  string           `json:"mysql.client_auth_plugin"`  // Authentication Plugin
+}
+
+type MySQLLayer struct {
+	PacketLength string            `json:"mysql.packet_length"` // Length of the packet
+	PacketNumber string            `json:"mysql.packet_number"` // Sequence number of the packet
+	LoginRequest MySQLLoginRequest `json:"mysql.login_request"` // Login request details
+}
+
+// Parse implements the ProtocolParser interface for MySQL.
+func (p *MySQLLayer) Parse(layers gowireshark.Layers) (any, error) {
+	src, ok := layers["mysql"]
+	if !ok {
+		return nil, errors.Wrap(gowireshark.ErrLayerNotFound, "mysql")
+	}
+
+	jsonData, err := json.Marshal(src)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(jsonData, &p)
+	if err != nil {
+		return nil, gowireshark.ErrParseFrame
+	}
+
+	return p, nil
+}
+
+func ParseCustomProtocol(inputFilepath string) (mysqlLayer *MySQLLayer, err error) {
+	frameRes, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
+		gowireshark.WithDescriptive(true), gowireshark.WithDebug(false))
+	if err != nil {
+		return nil, err
+	}
+
+	// 初始化 自定义协议解析器 注册器
+	registry := gowireshark.NewParserRegistry()
+	// 注册 MySQL 协议 解析器
+	registry.Register("mysql", &MySQLLayer{})
+    // 调用刚注册的自定义 MySQL 协议解析器，调用方法 (p *MySQLLayer) Parse(layers Layers) (any, error)
+	parsedLayer, err := registry.ParseProtocol("mysql", frameRes.WsSource.Layers)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error parsing MySQL protocol")
+	}
+
+	mysqlLayer, ok := parsedLayer.(*MySQLLayer)
+	if !ok {
+		return nil, errors.Wrap(err, "Error parsing MySQL protocol")
+	}
+
+	return mysqlLayer, nil
+}
+
+func main() {
+	inputFilepath := "pcaps/mysql.pcapng"
+	mysqlLayer, err := ParseCustomProtocol(inputFilepath)
+	if err != nil {
+		return
+	}
+	fmt.Println("Parsed MySQL layer, mysql.passwd:", mysqlLayer.LoginRequest.Password)
+}
+```
+
 其他示例可以参考[测试文件](https://github.com/randolphcyg/gowireshark/blob/main/gowireshark_test.go)。
 
 ## 2. 详细说明
@@ -111,36 +233,38 @@ gowireshark
 ├── gowireshark.go
 ├── gowireshark_test.go
 ├── include/
-│   ├── cJSON.h
-│   ├── frame_tvbuff.h
-│   ├── lib.h
-│   ├── libpcap/
-│   ├── offline.h
-│   ├── online.h
-│   ├── uthash.h
-│   └── wireshark/
+│   ├── cJSON.h
+│   ├── frame_tvbuff.h
+│   ├── lib.h
+│   ├── libpcap/
+│   ├── offline.h
+│   ├── online.h
+│   ├── uthash.h
+│   └── wireshark/
 ├── layers.go
 ├── lib.c
 ├── libs/
-│   ├── libpcap.so.1
-│   ├── libwireshark.so
-│   ├── libwireshark.so.18
-│   ├── libwireshark.so.18.0.2
-│   ├── libwiretap.so
-│   ├── libwiretap.so.15
-│   ├── libwiretap.so.15.0.2
-│   ├── libwsutil.so
-│   ├── libwsutil.so.16
-│   └── libwsutil.so.16.0.0
+│   ├── libpcap.so.1
+│   ├── libwireshark.so
+│   ├── libwireshark.so.18
+│   ├── libwireshark.so.18.0.2
+│   ├── libwiretap.so
+│   ├── libwiretap.so.15
+│   ├── libwiretap.so.15.0.2
+│   ├── libwsutil.so
+│   ├── libwsutil.so.16
+│   └── libwsutil.so.16.0.0
 ├── offline.c
 ├── online.c
 ├── online.go
-└── pcaps/
-    ├── https.key
-    ├── https.pcapng
-    ├── mysql.pcapng
-    ├── server.key
-    └── testInvalid.key
+├── pcaps/
+│   ├── https.key
+│   ├── https.pcapng
+│   ├── mysql.pcapng
+│   ├── server.key
+│   └── testInvalid.key
+└── registry.go
+
 ```
 项目目录结构的详细说明：
 
@@ -156,7 +280,9 @@ gowireshark
 | `cJSON.c、cJSON.h`                         | 第三方[cJSON](https://github.com/DaveGamble/cJSON)库      |
 | `lib.c、offline.c、online.c`                | 用C封装和加强libpcap和wireshark功能的代码                         |
 | `include/lib.h、offline.h、online.h`        | 暴露给go的一些c接口                                           |
-| `gowireshark.go`                          | 用go封装最终的接口，用户go程序可直接使用                                |
+| `layers.go`                               | 通用协议层解析器                                              |
+| `registry.go`                             | 用户注册自定义协议解析器                                          |
+| `online.go、gowireshark.go`                | 用go封装最终的接口，用户go程序可直接使用                                |
 
 ### 2.2. 调用链
 
@@ -346,452 +472,6 @@ apt install bison
         proto_item_fill_label(field_info *finfo, gchar *label_str);
         ```
 
-    <details>
-    <summary>1.字段不带描述性值</summary>
-
-    ```shell
-    {
-        "_index": "packets-2023-12-12",
-        "_type": "doc",
-        "_score": {},
-        "offset": ["0000", "0010", "0020", "0030", "0040", "0050", "0060", "0070", "0080", "0090"],
-        "hex": ["00 e0 4c 94 13 13 00 1c 42 b5 ef cf 08 00 45 00", "00 8d 2b 5f 40 00 40 06 76 97 c0 a8 0b d1 c0 a8", "0b 53 da 92 0c ea ed 32 0f 36 b0 a2 a1 de 80 18", "01 f6 75 85 00 00 01 01 08 0a 0a 2b 2d 19 cf 39", "56 d8 55 00 00 01 8d a2 0a 00 00 00 00 00 2d 00", "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00", "00 00 00 00 00 00 72 6f 6f 74 00 14 36 f7 ff 52", "c6 43 b2 88 21 2d 6b 52 be 48 85 e7 c9 16 73 b2", "64 65 6d 6f 00 6d 79 73 71 6c 5f 6e 61 74 69 76", "65 5f 70 61 73 73 77 6f 72 64 00               "],
-        "ascii": ["..L.....B.....E.", "..+_@.@.v.......", ".S.....2.6......", "..u........+-..9", "V.U...........-.", "................", "......root..6..R", ".C..!-kR.H....s.", "demo.mysql_nativ", "e_password."],
-        "_source": {
-            "layers": {
-                "frame": {
-                    "frame.section_number": "1",
-                    "frame.interface_id": "0",
-                    "frame.encap_type": "1",
-                    "frame.time": "Dec 12, 2023 14:25:23.682836000 CST",
-                    "frame.time_utc": "Dec 12, 2023 06:25:23.682836000 UTC",
-                    "frame.time_epoch": "1702362323.682836000",
-                    "frame.offset_shift": "0.000000000",
-                    "frame.time_delta": "0.000028000",
-                    "frame.time_delta_displayed": "0.000028000",
-                    "frame.time_relative": "0.000000000",
-                    "frame.number": "65",
-                    "frame.len": "155",
-                    "frame.cap_len": "155",
-                    "frame.marked": "0",
-                    "frame.ignored": "0",
-                    "frame.protocols": "eth:ethertype:ip:tcp:mysql"
-                },
-                "eth": {
-                    "eth.dst": "00:e0:4c:94:13:13",
-                    "eth.dst_tree": {
-                        "eth.dst_resolved": "RealtekSemic_94:13:13",
-                        "eth.dst.oui": "57420",
-                        "eth.dst.oui_resolved": "Realtek Semiconductor Corp.",
-                        "eth.addr": "00:e0:4c:94:13:13",
-                        "eth.addr_resolved": "RealtekSemic_94:13:13",
-                        "eth.addr.oui": "57420",
-                        "eth.addr.oui_resolved": "Realtek Semiconductor Corp.",
-                        "eth.dst.lg": "0",
-                        "eth.lg": "0",
-                        "eth.dst.ig": "0",
-                        "eth.ig": "0"
-                    },
-                    "eth.src": "00:1c:42:b5:ef:cf",
-                    "eth.src_tree": {
-                        "eth.src_resolved": "Parallels_b5:ef:cf",
-                        "eth.src.oui": "7234",
-                        "eth.src.oui_resolved": "Parallels, Inc.",
-                        "eth.addr": "00:1c:42:b5:ef:cf",
-                        "eth.addr_resolved": "Parallels_b5:ef:cf",
-                        "eth.addr.oui": "7234",
-                        "eth.addr.oui_resolved": "Parallels, Inc.",
-                        "eth.src.lg": "0",
-                        "eth.lg": "0",
-                        "eth.src.ig": "0",
-                        "eth.ig": "0"
-                    },
-                    "eth.type": "0x0800"
-                },
-                "ip": {
-                    "ip.version": "4",
-                    "ip.hdr_len": "20",
-                    "ip.dsfield": "0x00",
-                    "ip.dsfield_tree": {
-                        "ip.dsfield.dscp": "0",
-                        "ip.dsfield.ecn": "0"
-                    },
-                    "ip.len": "141",
-                    "ip.id": "0x2b5f",
-                    "ip.flags": "0x02",
-                    "ip.flags_tree": {
-                        "ip.flags.rb": "0",
-                        "ip.flags.df": "1",
-                        "ip.flags.mf": "0"
-                    },
-                    "ip.frag_offset": "0",
-                    "ip.ttl": "64",
-                    "ip.proto": "6",
-                    "ip.checksum": "0x7697",
-                    "ip.checksum.status": "2",
-                    "ip.src": "192.168.11.209",
-                    "ip.addr": "192.168.11.209",
-                    "ip.src_host": "192.168.11.209",
-                    "ip.host": "192.168.11.209",
-                    "ip.dst": "192.168.11.83",
-                    "ip.dst_host": "192.168.11.83"
-                },
-                "tcp": {
-                    "tcp.srcport": "55954",
-                    "tcp.dstport": "3306",
-                    "tcp.port": "55954",
-                    "tcp.stream": "1",
-                    "tcp.completeness": "15",
-                    "tcp.completeness_tree": {
-                        "tcp.completeness.rst": "0",
-                        "tcp.completeness.fin": "0",
-                        "tcp.completeness.data": "1",
-                        "tcp.completeness.ack": "1",
-                        "tcp.completeness.syn-ack": "1",
-                        "tcp.completeness.syn": "1",
-                        "tcp.completeness.str": "··DASS"
-                    },
-                    "tcp.len": "89",
-                    "tcp.seq": "1",
-                    "tcp.seq_raw": "3979480886",
-                    "tcp.nxtseq": "90",
-                    "tcp.ack": "79",
-                    "tcp.ack_raw": "2963448286",
-                    "tcp.hdr_len": "32",
-                    "tcp.flags": "0x0018",
-                    "tcp.flags_tree": {
-                        "tcp.flags.res": "0",
-                        "tcp.flags.ae": "0",
-                        "tcp.flags.cwr": "0",
-                        "tcp.flags.ece": "0",
-                        "tcp.flags.urg": "0",
-                        "tcp.flags.ack": "1",
-                        "tcp.flags.push": "1",
-                        "tcp.flags.reset": "0",
-                        "tcp.flags.syn": "0",
-                        "tcp.flags.fin": "0",
-                        "tcp.flags.str": "·······AP···"
-                    },
-                    "tcp.window_size_value": "502",
-                    "tcp.window_size": "64256",
-                    "tcp.window_size_scalefactor": "128",
-                    "tcp.checksum": "0x7585",
-                    "tcp.checksum.status": "2",
-                    "tcp.urgent_pointer": "0",
-                    "tcp.options": "01:01:08:0a:0a:2b:2d:19:cf:39:56:d8",
-                    "tcp.options_tree": {
-                        "tcp.options.nop": "01",
-                        "tcp.options.nop_tree": {
-                            "tcp.option_kind": "1"
-                        },
-                        "tcp.options.timestamp": "08:0a:0a:2b:2d:19:cf:39:56:d8",
-                        "tcp.options.timestamp_tree": {
-                            "tcp.option_kind": "8",
-                            "tcp.option_len": "10",
-                            "tcp.options.timestamp.tsval": "170601753",
-                            "tcp.options.timestamp.tsecr": "3476641496"
-                        }
-                    },
-                    "Timestamps": {
-                        "tcp.time_relative": "0.022846000",
-                        "tcp.time_delta": "0.000028000"
-                    },
-                    "tcp.analysis": {
-                        "tcp.analysis.initial_rtt": "0.000419000",
-                        "tcp.analysis.bytes_in_flight": "89",
-                        "tcp.analysis.push_bytes_sent": "89"
-                    },
-                    "tcp.payload": "55:00:00:01:8d:a2:0a:00:00:00:00:00:2d:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:72:6f:6f:74:00:14:36:f7:ff:52:c6:43:b2:88:21:2d:6b:52:be:48:85:e7:c9:16:73:b2:64:65:6d:6f:00:6d:79:73:71:6c:5f:6e:61:74:69:76:65:5f:70:61:73:73:77:6f:72:64:00",
-                    "tcp.pdu.size": "89"
-                },
-                "mysql": {
-                    "mysql.packet_length": "85",
-                    "mysql.packet_number": "1",
-                    "mysql.login_request": {
-                        "mysql.caps.client": "0xa28d",
-                        "mysql.caps.client_tree": {
-                            "mysql.caps.lp": "1",
-                            "mysql.caps.fr": "0",
-                            "mysql.caps.lf": "1",
-                            "mysql.caps.cd": "1",
-                            "mysql.caps.ns": "0",
-                            "mysql.caps.cp": "0",
-                            "mysql.caps.ob": "0",
-                            "mysql.caps.li": "1",
-                            "mysql.caps.is": "0",
-                            "mysql.caps.cu": "1",
-                            "mysql.caps.ia": "0",
-                            "mysql.caps.sl": "0",
-                            "mysql.caps.ii": "0",
-                            "mysql.caps.ta": "1",
-                            "mysql.caps.rs": "0",
-                            "mysql.caps.sc": "1"
-                        },
-                        "mysql.extcaps.client": "0x000a",
-                        "mysql.extcaps.client_tree": {
-                            "mysql.caps.ms": "0",
-                            "mysql.caps.mr": "1",
-                            "mysql.caps.pm": "0",
-                            "mysql.caps.pa": "1",
-                            "mysql.caps.ca": "0",
-                            "mysql.caps.ep": "0",
-                            "mysql.caps.session_track": "0",
-                            "mysql.caps.deprecate_eof": "0",
-                            "mysql.caps.optional_metadata": "0",
-                            "mysql.caps.compress_zsd": "0",
-                            "mysql.caps.query_attrs": "0",
-                            "mysql.caps.mf_auth": "0",
-                            "mysql.caps.cap_ext": "0",
-                            "mysql.caps.vc": "0",
-                            "mysql.caps.unused": "0x0000"
-                        },
-                        "mysql.max_packet": "0",
-                        "mysql.charset": "45",
-                        "mysql.unused": "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00",
-                        "mysql.user": "root",
-                        "mysql.passwd": "36:f7:ff:52:c6:43:b2:88:21:2d:6b:52:be:48:85:e7:c9:16:73:b2",
-                        "mysql.schema": "demo",
-                        "mysql.client_auth_plugin": "mysql_native_password"
-                    }
-                },
-                "_ws.col": {
-                    "_ws.col.number": "65",
-                    "_ws.col.cls_time": "0.000000",
-                    "_ws.col.def_src": "192.168.11.209",
-                    "_ws.col.def_dst": "192.168.11.83",
-                    "_ws.col.protocol": "MySQL",
-                    "_ws.col.packet_length": "155",
-                    "_ws.col.info": "Login Request user=root db=demo "
-                }
-            }
-        }
-    }
-    ```
-    </details>
-
-    <details>
-    <summary>2.字段带描述性值</summary>
-
-    ```shell
-    {
-        "_index": "packets-2023-12-12",
-        "_type": "doc",
-        "_score": {},
-        "offset": ["0000", "0010", "0020", "0030", "0040", "0050", "0060", "0070", "0080", "0090"],
-        "hex": ["00 e0 4c 94 13 13 00 1c 42 b5 ef cf 08 00 45 00", "00 8d 2b 5f 40 00 40 06 76 97 c0 a8 0b d1 c0 a8", "0b 53 da 92 0c ea ed 32 0f 36 b0 a2 a1 de 80 18", "01 f6 75 85 00 00 01 01 08 0a 0a 2b 2d 19 cf 39", "56 d8 55 00 00 01 8d a2 0a 00 00 00 00 00 2d 00", "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00", "00 00 00 00 00 00 72 6f 6f 74 00 14 36 f7 ff 52", "c6 43 b2 88 21 2d 6b 52 be 48 85 e7 c9 16 73 b2", "64 65 6d 6f 00 6d 79 73 71 6c 5f 6e 61 74 69 76", "65 5f 70 61 73 73 77 6f 72 64 00               "],
-        "ascii": ["..L.....B.....E.", "..+_@.@.v.......", ".S.....2.6......", "..u........+-..9", "V.U...........-.", "................", "......root..6..R", ".C..!-kR.H....s.", "demo.mysql_nativ", "e_password."],
-        "_source": {
-            "layers": {
-                "frame": {
-                    "frame.section_number": "1",
-                    "frame.interface_id": "0",
-                    "frame.encap_type": "Ethernet (1)",
-                    "frame.time": "Dec 12, 2023 14:25:23.682836000 CST",
-                    "frame.time_utc": "Dec 12, 2023 06:25:23.682836000 UTC",
-                    "frame.time_epoch": "1702362323.682836000",
-                    "frame.offset_shift": "0.000000000 seconds",
-                    "frame.time_delta": "0.000028000 seconds",
-                    "frame.time_delta_displayed": "0.000028000 seconds",
-                    "frame.time_relative": "0.000000000 seconds",
-                    "frame.number": "65",
-                    "frame.len": "155",
-                    "frame.cap_len": "155",
-                    "frame.marked": "False",
-                    "frame.ignored": "False",
-                    "frame.protocols": "eth:ethertype:ip:tcp:mysql"
-                },
-                "eth": {
-                    "eth.dst": "RealtekSemic_94:13:13 (00:e0:4c:94:13:13)",
-                    "eth.dst_tree": {
-                        "eth.dst_resolved": "RealtekSemic_94:13:13",
-                        "eth.dst.oui": "00:e0:4c (Realtek Semiconductor",
-                        "eth.dst.oui_resolved": "Realtek Semiconductor Corp.",
-                        "eth.addr": "RealtekSemic_94:13:13 (00:e0:4c:94:13:13)",
-                        "eth.addr_resolved": "RealtekSemic_94:13:13",
-                        "eth.addr.oui": "00:e0:4c (Realtek Semiconductor",
-                        "eth.addr.oui_resolved": "Realtek Semiconductor Corp.",
-                        "eth.dst.lg": "Globally unique address (factory default)",
-                        "eth.lg": "Globally unique address (factory default)",
-                        "eth.dst.ig": "Individual address (unicast)",
-                        "eth.ig": "Individual address (unicast)"
-                    },
-                    "eth.src": "Parallels_b5:ef:cf (00:1c:42:b5:ef:cf)",
-                    "eth.src_tree": {
-                        "eth.src_resolved": "Parallels_b5:ef:cf",
-                        "eth.src.oui": "00:1c:42 (Parallels, Inc.)",
-                        "eth.src.oui_resolved": "Parallels, Inc.",
-                        "eth.addr": "Parallels_b5:ef:cf (00:1c:42:b5:ef:cf)",
-                        "eth.addr_resolved": "Parallels_b5:ef:cf",
-                        "eth.addr.oui": "00:1c:42 (Parallels, Inc.)",
-                        "eth.addr.oui_resolved": "Parallels, Inc.",
-                        "eth.src.lg": "Globally unique address (factory default)",
-                        "eth.lg": "Globally unique address (factory default)",
-                        "eth.src.ig": "Individual address (unicast)",
-                        "eth.ig": "Individual address (unicast)"
-                    },
-                    "eth.type": "IPv4 (0x0800)"
-                },
-                "ip": {
-                    "ip.version": "4",
-                    "ip.hdr_len": "20",
-                    "ip.dsfield": "0x00",
-                    "ip.dsfield_tree": {
-                        "ip.dsfield.dscp": "Default (0)",
-                        "ip.dsfield.ecn": "Not ECN-Capable Transport (0)"
-                    },
-                    "ip.len": "141",
-                    "ip.id": "0x2b5f (11103)",
-                    "ip.flags": "0x02",
-                    "ip.flags_tree": {
-                        "ip.flags.rb": "Not set",
-                        "ip.flags.df": "Set",
-                        "ip.flags.mf": "Not set"
-                    },
-                    "ip.frag_offset": "0",
-                    "ip.ttl": "64",
-                    "ip.proto": "TCP (6)",
-                    "ip.checksum": "0x7697",
-                    "ip.checksum.status": "Unverified",
-                    "ip.src": "192.168.11.209",
-                    "ip.addr": "192.168.11.209",
-                    "ip.src_host": "192.168.11.209",
-                    "ip.host": "192.168.11.209",
-                    "ip.dst": "192.168.11.83",
-                    "ip.dst_host": "192.168.11.83"
-                },
-                "tcp": {
-                    "tcp.srcport": "55954",
-                    "tcp.dstport": "3306",
-                    "tcp.port": "55954",
-                    "tcp.stream": "1",
-                    "tcp.completeness": "Incomplete, DATA (15)",
-                    "tcp.completeness_tree": {
-                        "tcp.completeness.rst": "Absent",
-                        "tcp.completeness.fin": "Absent",
-                        "tcp.completeness.data": "Present",
-                        "tcp.completeness.ack": "Present",
-                        "tcp.completeness.syn-ack": "Present",
-                        "tcp.completeness.syn": "Present",
-                        "tcp.completeness.str": "··DASS"
-                    },
-                    "tcp.len": "89",
-                    "tcp.seq": "1",
-                    "tcp.seq_raw": "3979480886",
-                    "tcp.nxtseq": "90",
-                    "tcp.ack": "79",
-                    "tcp.ack_raw": "2963448286",
-                    "tcp.hdr_len": "32",
-                    "tcp.flags": "0x0018",
-                    "tcp.flags_tree": {
-                        "tcp.flags.res": "Not set",
-                        "tcp.flags.ae": "Not set",
-                        "tcp.flags.cwr": "Not set",
-                        "tcp.flags.ece": "Not set",
-                        "tcp.flags.urg": "Not set",
-                        "tcp.flags.ack": "Set",
-                        "tcp.flags.push": "Set",
-                        "tcp.flags.reset": "Not set",
-                        "tcp.flags.syn": "Not set",
-                        "tcp.flags.fin": "Not set",
-                        "tcp.flags.str": "·······AP···"
-                    },
-                    "tcp.window_size_value": "502",
-                    "tcp.window_size": "64256",
-                    "tcp.window_size_scalefactor": "128",
-                    "tcp.checksum": "0x7585",
-                    "tcp.checksum.status": "Unverified",
-                    "tcp.urgent_pointer": "0",
-                    "tcp.options": "01:01:08:0a:0a:2b:2d:19:cf:39:56:d8",
-                    "tcp.options_tree": {
-                        "tcp.options.nop": "01",
-                        "tcp.options.nop_tree": {
-                            "tcp.option_kind": "No-Operation (1)"
-                        },
-                        "tcp.options.timestamp": "08:0a:0a:2b:2d:19:cf:39:56:d8",
-                        "tcp.options.timestamp_tree": {
-                            "tcp.option_kind": "Time Stamp Option (8)",
-                            "tcp.option_len": "10",
-                            "tcp.options.timestamp.tsval": "170601753",
-                            "tcp.options.timestamp.tsecr": "3476641496"
-                        }
-                    },
-                    "Timestamps": {
-                        "tcp.time_relative": "0.022846000 seconds",
-                        "tcp.time_delta": "0.000028000 seconds"
-                    },
-                    "tcp.analysis": {
-                        "tcp.analysis.initial_rtt": "0.000419000 seconds",
-                        "tcp.analysis.bytes_in_flight": "89",
-                        "tcp.analysis.push_bytes_sent": "89"
-                    },
-                    "tcp.payload": "55:00:00:01:8d:a2:0a:00:00:00:00:00:2d:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:72:6f:6f:74:00:14:36:f7:ff:52:c6:43:b2:88:21:2d:6b:52:be:48:85:e7:c9:16:73:b2:64:65:6d:6f:00:6d:79:73:71:6c:5f:6e:61:74:69:76:65:5f:70:61:73:73:77:6f:72:64:00",
-                    "tcp.pdu.size": "89"
-                },
-                "mysql": {
-                    "mysql.packet_length": "85",
-                    "mysql.packet_number": "1",
-                    "mysql.login_request": {
-                        "mysql.caps.client": "0xa28d",
-                        "mysql.caps.client_tree": {
-                            "mysql.caps.lp": "Set",
-                            "mysql.caps.fr": "Not set",
-                            "mysql.caps.lf": "Set",
-                            "mysql.caps.cd": "Set",
-                            "mysql.caps.ns": "Not set",
-                            "mysql.caps.cp": "Not set",
-                            "mysql.caps.ob": "Not set",
-                            "mysql.caps.li": "Set",
-                            "mysql.caps.is": "Not set",
-                            "mysql.caps.cu": "Set",
-                            "mysql.caps.ia": "Not set",
-                            "mysql.caps.sl": "Not set",
-                            "mysql.caps.ii": "Not set",
-                            "mysql.caps.ta": "Set",
-                            "mysql.caps.rs": "Not set",
-                            "mysql.caps.sc": "Set"
-                        },
-                        "mysql.extcaps.client": "0x000a",
-                        "mysql.extcaps.client_tree": {
-                            "mysql.caps.ms": "Not set",
-                            "mysql.caps.mr": "Set",
-                            "mysql.caps.pm": "Not set",
-                            "mysql.caps.pa": "Set",
-                            "mysql.caps.ca": "Not set",
-                            "mysql.caps.ep": "Not set",
-                            "mysql.caps.session_track": "Not set",
-                            "mysql.caps.deprecate_eof": "Not set",
-                            "mysql.caps.optional_metadata": "Not set",
-                            "mysql.caps.compress_zsd": "Not set",
-                            "mysql.caps.query_attrs": "Not set",
-                            "mysql.caps.mf_auth": "Not set",
-                            "mysql.caps.cap_ext": "Not set",
-                            "mysql.caps.vc": "Not set",
-                            "mysql.caps.unused": "0x0"
-                        },
-                        "mysql.max_packet": "0",
-                        "mysql.charset": "utf8mb4 COLLATE utf8mb4_general_ci (45)",
-                        "mysql.unused": "0000000000000000000000000000000000000000000000",
-                        "mysql.user": "root",
-                        "mysql.passwd": "36f7ff52c643b288212d6b52be4885e7c91673b2",
-                        "mysql.schema": "demo",
-                        "mysql.client_auth_plugin": "mysql_native_password"
-                    }
-                },
-                "_ws.col": {
-                    "_ws.col.number": "65",
-                    "_ws.col.cls_time": "0.000000",
-                    "_ws.col.def_src": "192.168.11.209",
-                    "_ws.col.def_dst": "192.168.11.83",
-                    "_ws.col.protocol": "MySQL",
-                    "_ws.col.packet_length": "155",
-                    "_ws.col.info": "Login Request user=root db=demo "
-                }
-            }
-        }
-    }
-    ```
-    </details>
-
 ## 3. 开发测试
 
 ---
@@ -857,11 +537,12 @@ apt install bison
 - [x] 实时监听接口并捕获数据包
 - [x] 封装 go 调用实时解析的逻辑——通过回调函数将实时解析结果传输到 golang
 - [x] 封装 go 对收到的 Golang 调用实时数据包解析结果的处理
-- [x] 优化代码并解决内存泄漏问题，使实时接口可以长时间运行[TODO]
+- [x] 优化代码并解决内存泄漏问题，使实时接口可以长时间运行
 - [x] 支持多个设备的数据包捕获，并根据设备名称停止实时接口
 - [x] 解析结果支持描述性值
 - [x] 支持离线和实时设置rsa key用来解析TLS协议
 - [x] 支持可选参数
+- [x] 支持注册自定义协议解析器
 
 ## 5. 联系
 

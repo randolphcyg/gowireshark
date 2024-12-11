@@ -41,7 +41,6 @@ func GetIfaceList() (res map[string]IFace, err error) {
 	// unmarshal interface device list obj
 	res, err = UnmarshalIFace(CChar2GoStr(C.get_if_list()))
 	if err != nil {
-		err = ErrUnmarshalObj
 		return
 	}
 
@@ -104,15 +103,14 @@ func GetDataCallback(data *C.char, length C.int, deviceName *C.char) {
 	}
 
 	// unmarshal each pkg dissect result
-	singleFrameData, err := UnmarshalDissectResult(goPacket)
+	singleFrameRes, err := UnmarshalDissectResult(goPacket)
 	if err != nil {
-		err = errors.Wrap(ErrUnmarshalObj, "WsIndex: "+singleFrameData.WsIndex)
-		slog.Warn(err.Error())
+		slog.Warn("Error:", "UnmarshalDissectResult", err, "WsIndex", singleFrameRes.WsIndex)
 	}
 
 	// write packet dissect result to go pipe
 	if ch, ok := DissectResChans[deviceNameStr]; ok {
-		ch <- singleFrameData
+		ch <- *singleFrameRes
 	}
 }
 

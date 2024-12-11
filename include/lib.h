@@ -30,7 +30,7 @@ void print_all_frame();
 // Dissect and get hex data of specific frame
 char *get_specific_frame_hex_data(int num);
 // Get proto tree in json format
-char *proto_tree_in_json(int num, int descriptive, int debug);
+char *proto_tree_in_json(int num, int descriptive, int printCJson);
 // apply prefs
 void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
                      int desegmentSslApplicationData);
