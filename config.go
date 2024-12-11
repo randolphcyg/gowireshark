@@ -25,40 +25,61 @@ type TlsConf struct {
 }
 
 type Conf struct {
-	Debug       bool // debug mode
-	Descriptive bool // with descriptive info
-	Tls         TlsConf
+	IgnoreError bool    // Whether to ignore errors (default: true)
+	Debug       bool    // Debug mode (default: from environment variable DEBUG)
+	PrintCJson  bool    // Whether to print C JSON (default: false)
+	Descriptive bool    // Whether to include descriptive information in C json (default: false)
+	Tls         TlsConf // TLS configuration
 }
 
 type Option func(*Conf)
 
+// IgnoreError Whether to ignore the errors
+func IgnoreError(ignore bool) Option {
+	return func(c *Conf) {
+		c.IgnoreError = ignore
+	}
+}
+
+// PrintCJson controls whether to print the C JSON.
+func PrintCJson(print bool) Option {
+	return func(c *Conf) {
+		c.PrintCJson = print
+	}
+}
+
+// WithTls sets the TLS configuration.
 func WithTls(tls TlsConf) Option {
 	return func(c *Conf) {
 		c.Tls = tls
 	}
 }
 
-// WithDebug set Debug mode
+// WithDebug sets the application to debug mode.
 func WithDebug(debug bool) Option {
 	return func(c *Conf) {
 		c.Debug = debug
 	}
 }
 
-// WithDescriptive with descriptive info
-func WithDescriptive(debug bool) Option {
+// WithDescriptive configures whether to include descriptive information in C json.
+func WithDescriptive(descriptive bool) Option {
 	return func(c *Conf) {
-		c.Descriptive = debug
+		c.Descriptive = descriptive
 	}
 }
 
+// getDefaultDebug reads the DEBUG environment variable to determine whether debug mode should be enabled.
 func getDefaultDebug() bool {
 	return os.Getenv("DEBUG") == "true"
 }
 
+// NewConfig creates a new Conf instance with the given options, applying defaults where necessary.
 func NewConfig(opts ...Option) *Conf {
 	conf := &Conf{
-		Debug: getDefaultDebug(), // export DEBUG=true
+		PrintCJson:  false,             // Default: Do not print C JSON
+		IgnoreError: true,              // Default: Ignore errors
+		Debug:       getDefaultDebug(), // Default: Check DEBUG environment variable for debug mode
 	}
 	for _, opt := range opts {
 		opt(conf)

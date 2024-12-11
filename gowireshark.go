@@ -20,6 +20,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -27,7 +28,6 @@ import (
 var (
 	ErrFileNotFound    = errors.New("cannot open file, no such file")
 	ErrReadFile        = errors.New("occur error when read file ")
-	ErrUnmarshalObj    = errors.New("unmarshal obj error")
 	ErrFromCLogic      = errors.New("run c logic occur error")
 	ErrParseDissectRes = errors.New("fail to parse DissectRes")
 	ErrFrameIsBlank    = errors.New("frame data is blank")
@@ -142,95 +142,85 @@ func GetSpecificFrameHexData(inputFilepath string, num int, opts ...Option) (hex
 	// unmarshal dissect result
 	hexData, err = UnmarshalHexData(CChar2GoStr(srcHex))
 	if err != nil {
-		err = errors.Wrap(ErrUnmarshalObj, "Frame num "+strconv.Itoa(num))
+		slog.Warn("UnmarshalHexData:", "UnmarshalDissectResult", err)
 		return
 	}
 
 	return
 }
 
-// UnmarshalDissectResult Unmarshal dissect result
-func UnmarshalDissectResult(src string) (frameData FrameDissectRes, err error) {
-	err = json.Unmarshal([]byte(src), &frameData)
+// UnmarshalDissectResult Unmarshal dissect result with concurrency
+func UnmarshalDissectResult(src string) (frameRes *FrameDissectRes, err error) {
+	err = json.Unmarshal([]byte(src), &frameRes)
 	if err != nil {
-		return FrameDissectRes{}, ErrParseDissectRes
+		return nil, ErrParseDissectRes
 	}
 
-	// _ws.col
-	colLayer, err := frameData.WsSource.Layers.WsCol()
-	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if _ws.col layer not found
-		slog.Info(err.Error()) // expose err
-	}
-	if colLayer != nil {
-		frameData.BaseLayers.WsCol = colLayer
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var errorsList []error
+
+	// handle each layer
+	handleLayer := func(layerFunc func() (any, error), setLayerFunc func(any)) {
+		defer wg.Done()
+		layer, err := layerFunc()
+		if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if layer not found
+			errorsList = append(errorsList, err)
+		}
+		if layer != nil {
+			mu.Lock()
+			setLayerFunc(layer) // update BaseLayers
+			mu.Unlock()
+		}
 	}
 
-	// frame
-	frameLayer, err := frameData.WsSource.Layers.Frame()
-	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if frame layer not found
-		slog.Info(err.Error()) // expose err
-	}
-	if frameLayer != nil {
-		frameData.BaseLayers.Frame = frameLayer
+	wg.Add(7)
+
+	go handleLayer(frameRes.WsSource.Layers.WsCol, func(layer any) {
+		frameRes.BaseLayers.WsCol = layer.(*WsCol)
+	})
+
+	go handleLayer(frameRes.WsSource.Layers.Frame, func(layer any) {
+		frameRes.BaseLayers.Frame = layer.(*Frame)
+	})
+
+	go handleLayer(frameRes.WsSource.Layers.Ip, func(layer any) {
+		frameRes.BaseLayers.Ip = layer.(*Ip)
+	})
+
+	go handleLayer(frameRes.WsSource.Layers.Udp, func(layer any) {
+		frameRes.BaseLayers.Udp = layer.(*Udp)
+	})
+
+	go handleLayer(frameRes.WsSource.Layers.Tcp, func(layer any) {
+		frameRes.BaseLayers.Tcp = layer.(*Tcp)
+	})
+
+	go handleLayer(frameRes.WsSource.Layers.Http, func(layer any) {
+		frameRes.BaseLayers.Http = layer.(*Http)
+	})
+
+	go handleLayer(frameRes.WsSource.Layers.Dns, func(layer any) {
+		frameRes.BaseLayers.Dns = layer.(*Dns)
+	})
+
+	wg.Wait()
+
+	// Summarize all errors of a frame
+	if len(errorsList) > 0 {
+		return frameRes, errors.Errorf("frame:%d:%v", frameRes.BaseLayers.Frame.Number, errorsList)
 	}
 
-	// ip
-	ipLayer, err := frameData.WsSource.Layers.Ip()
-	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if IP layer not found
-		slog.Info(err.Error()) // expose err
-	}
-	if ipLayer != nil {
-		frameData.BaseLayers.Ip = ipLayer
-	}
-
-	// udp
-	udpLayer, err := frameData.WsSource.Layers.Udp()
-	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if UDP layer not found
-		slog.Info(err.Error()) // expose err
-	}
-	if udpLayer != nil {
-		frameData.BaseLayers.Udp = udpLayer
-	}
-
-	// tcp
-	tcpLayer, err := frameData.WsSource.Layers.Tcp()
-	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if TCP layer not found
-		slog.Info(err.Error()) // expose err
-	}
-	if udpLayer != nil {
-		frameData.BaseLayers.Tcp = tcpLayer
-	}
-
-	// http
-	httpLayer, err := frameData.WsSource.Layers.Http()
-	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if HTTP layer not found
-		slog.Info(err.Error()) // expose err
-	}
-	if httpLayer != nil {
-		frameData.BaseLayers.Http = httpLayer
-	}
-
-	// dns
-	dnsLayer, err := frameData.WsSource.Layers.Dns()
-	if err != nil && !errors.Is(err, ErrLayerNotFound) { // ignore if DNS layer not found
-		slog.Info(err.Error()) // expose err
-	}
-	if dnsLayer != nil {
-		frameData.BaseLayers.Dns = dnsLayer
-	}
-
-	return frameData, nil
+	return frameRes, nil
 }
 
 // GetSpecificFrameProtoTreeInJson
 //
-//	@Description: Transfer specific frame proto tree to json format
+//	@Description: dissect specific frame of the pcap file and return go json
 //	@param inputFilepath: Pcap src file path
 //	@param num: The max frame index value of the JSON results
-//	@param isDescriptive: Whether the JSON result has descriptive fields
-//	@param isDebug: Whether to print JSON result in C logic
 //	@return res: Contains specific frame's JSON dissect result
-func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, opts ...Option) (frameDissectRes FrameDissectRes, err error) {
+func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, opts ...Option) (frameDissectRes *FrameDissectRes, err error) {
 	EpanMutex.Lock()
 	defer EpanMutex.Unlock()
 
@@ -244,9 +234,9 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, opts ...Opti
 		descriptive = 1
 	}
 
-	debug := 0
-	if conf.Debug {
-		debug = 1
+	printCJson := 0
+	if conf.PrintCJson {
+		printCJson = 1
 	}
 
 	counter := 0
@@ -257,7 +247,7 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, opts ...Opti
 		}
 
 		// get proto dissect result in json format by c
-		srcFrame := C.proto_tree_in_json(C.int(counter), C.int(descriptive), C.int(debug))
+		srcFrame := C.proto_tree_in_json(C.int(counter), C.int(descriptive), C.int(printCJson))
 		if srcFrame != nil {
 			if C.strlen(srcFrame) == 0 {
 				return frameDissectRes, ErrFrameIsBlank
@@ -267,7 +257,7 @@ func GetSpecificFrameProtoTreeInJson(inputFilepath string, num int, opts ...Opti
 		// unmarshal dissect result
 		frameDissectRes, err = UnmarshalDissectResult(CChar2GoStr(srcFrame))
 		if err != nil {
-			err = errors.Wrap(ErrUnmarshalObj, "Counter "+strconv.Itoa(counter))
+			slog.Warn("GetSpecificFrameProtoTreeInJson:", "UnmarshalDissectResult", err)
 			return
 		}
 
@@ -287,13 +277,11 @@ func removeNegativeAndZero(nums []int) []int {
 
 // GetSeveralFrameProtoTreeInJson
 //
-//	@Description: Transfer specific frame proto tree to json format
+//	@Description: dissect several specific frame of the pcap file and return go json
 //	@param inputFilepath: Pcap src file path
 //	@param nums: The frame number that needs to be output
-//	@param isDescriptive: Whether the JSON result has descriptive fields
-//	@param isDebug: Whether to print JSON result in C logic
 //	@return res: Contains specific frame's JSON dissect result
-func GetSeveralFrameProtoTreeInJson(inputFilepath string, nums []int, opts ...Option) (res []FrameDissectRes, err error) {
+func GetSeveralFrameProtoTreeInJson(inputFilepath string, nums []int, opts ...Option) (res []*FrameDissectRes, err error) {
 	EpanMutex.Lock()
 	defer EpanMutex.Unlock()
 
@@ -307,9 +295,9 @@ func GetSeveralFrameProtoTreeInJson(inputFilepath string, nums []int, opts ...Op
 		descriptive = 1
 	}
 
-	debug := 0
-	if conf.Debug {
-		debug = 1
+	printCJson := 0
+	if conf.PrintCJson {
+		printCJson = 1
 	}
 
 	nums = removeNegativeAndZero(nums)
@@ -318,7 +306,7 @@ func GetSeveralFrameProtoTreeInJson(inputFilepath string, nums []int, opts ...Op
 
 	for _, num := range nums {
 		// get proto dissect result in json format by c
-		srcFrame := C.proto_tree_in_json(C.int(num), C.int(descriptive), C.int(debug))
+		srcFrame := C.proto_tree_in_json(C.int(num), C.int(descriptive), C.int(printCJson))
 		if srcFrame != nil {
 			if C.strlen(srcFrame) == 0 {
 				continue
@@ -328,8 +316,7 @@ func GetSeveralFrameProtoTreeInJson(inputFilepath string, nums []int, opts ...Op
 		// unmarshal dissect result
 		singleFrame, err := UnmarshalDissectResult(CChar2GoStr(srcFrame))
 		if err != nil {
-			err = errors.Wrap(ErrUnmarshalObj, "Num "+strconv.Itoa(num))
-			slog.Warn(err.Error())
+			slog.Warn("GetSeveralFrameProtoTreeInJson:", "UnmarshalDissectResult", err)
 		}
 
 		res = append(res, singleFrame)
@@ -340,18 +327,15 @@ func GetSeveralFrameProtoTreeInJson(inputFilepath string, nums []int, opts ...Op
 
 // GetAllFrameProtoTreeInJson
 //
-//	@Description: Transfer proto tree to json format
+//	@Description: dissect the pcap file and return go json
 //	@param inputFilepath: Pcap src file path
-//	@param isDescriptive: Whether the JSON result has descriptive fields
-//	@param isDebug: Whether to print JSON result in C logic
 //	@return res: Contains all frame's JSON dissect result
-func GetAllFrameProtoTreeInJson(inputFilepath string, opts ...Option) (res []FrameDissectRes, err error) {
+func GetAllFrameProtoTreeInJson(inputFilepath string, opts ...Option) (res []*FrameDissectRes, err error) {
 	EpanMutex.Lock()
-	defer EpanMutex.Unlock()
-
 	conf, err := initCapFile(inputFilepath, opts...)
+	EpanMutex.Unlock()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	descriptive := 0
@@ -359,31 +343,94 @@ func GetAllFrameProtoTreeInJson(inputFilepath string, opts ...Option) (res []Fra
 		descriptive = 1
 	}
 
-	debug := 0
-	if conf.Debug {
-		debug = 1
+	printCJson := 0
+	if conf.PrintCJson {
+		printCJson = 1
 	}
 
-	counter := 1
-	for {
-		// get proto dissect result in json format by c
-		srcFrame := C.proto_tree_in_json(C.int(counter), C.int(descriptive), C.int(debug))
-		if srcFrame != nil {
-			if C.strlen(srcFrame) == 0 {
+	start := time.Now()
+
+	// work queue & result queue
+	frameChannel := make(chan string, 100)
+	resultChannel := make(chan *FrameDissectRes, 100)
+	errorChannel := make(chan error, 10)
+
+	var parseWG sync.WaitGroup
+
+	var allErrors []error
+	var errorsMutex sync.Mutex
+
+	// startup Go JSON parser working pool
+	numWorkers := 5 // parse worker num
+	parseWG.Add(numWorkers)
+	for i := 0; i < numWorkers; i++ {
+		go func() {
+			defer parseWG.Done()
+			for srcFrame := range frameChannel {
+				singleFrame, err := UnmarshalDissectResult(srcFrame)
+				if err != nil {
+					if conf.IgnoreError {
+						continue
+					}
+					errorsMutex.Lock()
+					allErrors = append(allErrors, err)
+					errorsMutex.Unlock()
+					errorChannel <- err
+					return
+				}
+
+				resultChannel <- singleFrame
+			}
+		}()
+	}
+
+	// call C function
+	go func() {
+		defer close(frameChannel)
+		counter := 1
+		for {
+			EpanMutex.Lock()
+			srcFrame := C.proto_tree_in_json(C.int(counter), C.int(descriptive), C.int(printCJson))
+			EpanMutex.Unlock()
+
+			if srcFrame == nil || C.strlen(srcFrame) == 0 { // end
 				break
 			}
-		}
 
-		// unmarshal dissect result
-		singleFrame, err := UnmarshalDissectResult(CChar2GoStr(srcFrame))
-		if err != nil {
-			err = errors.Wrap(ErrUnmarshalObj, "Counter "+strconv.Itoa(counter))
-			slog.Warn(err.Error())
+			frameChannel <- CChar2GoStr(srcFrame)
+			counter++
 		}
+	}()
 
-		res = append(res, singleFrame)
-		counter++
+	go func() {
+		parseWG.Wait()
+		close(resultChannel)
+		close(errorChannel)
+	}()
+
+	for frame := range resultChannel {
+		res = append(res, frame)
 	}
 
-	return
+	if !conf.IgnoreError {
+		for err := range errorChannel {
+			errorsMutex.Lock()
+			allErrors = append(allErrors, err)
+			errorsMutex.Unlock()
+		}
+
+		if len(allErrors) > 0 {
+			slog.Info("Error Log output:", "PCAP_FILE", inputFilepath)
+			for _, e := range allErrors {
+				slog.Warn("GetAllFrameProtoTreeInJson:", "UnmarshalDissectResult", e)
+			}
+			slog.Info("Error Log end:", "PCAP_FILE", inputFilepath)
+		}
+	}
+
+	if conf.Debug {
+		slog.Info("Dissect end:", "ELAPSED", time.Since(start), "PCAP_FILE", inputFilepath)
+	}
+
+	return res, nil
 }

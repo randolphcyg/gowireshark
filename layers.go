@@ -32,7 +32,7 @@ func parseFieldAsArray(raw json.RawMessage) (*[]string, error) {
 		return &multiValue, nil
 	}
 
-	return nil, fmt.Errorf("invalid field format")
+	return nil, errors.New("fail to parse field")
 }
 
 type Layers map[string]any
@@ -43,15 +43,15 @@ type FrameDissectRes struct {
 	Offset     []string `json:"offset"`
 	Hex        []string `json:"hex"`
 	Ascii      []string `json:"ascii"`
-	BaseLayers struct {
-		Frame *Frame `json:"frame,omitempty"`
-		WsCol *WsCol `json:"_ws.col,omitempty"`
-		Ip    *Ip    `json:"ip,omitempty"`
-		Udp   *Udp   `json:"udp,omitempty"`
-		Tcp   *Tcp   `json:"tcp,omitempty"`
-		Http  *Http  `json:"http,omitempty"`
-		Dns   *Dns   `json:"dns,omitempty"`
-	} `json:"base_layers"` // common layers
+	BaseLayers struct { // common layers
+		Frame *Frame
+		WsCol *WsCol
+		Ip    *Ip
+		Udp   *Udp
+		Tcp   *Tcp
+		Http  *Http
+		Dns   *Dns
+	}
 	WsSource struct {
 		Layers Layers `json:"layers"`
 	} `json:"_source"`
@@ -85,7 +85,7 @@ type Frame struct {
 	FrameType     string `json:"frame.type"`           // Type of the frame (e.g., Ethernet, IP)
 }
 
-func (l Layers) Frame() (frame *Frame, err error) {
+func (l Layers) Frame() (frame any, err error) {
 	src, ok := l["frame"]
 	if !ok {
 		return nil, errors.Wrap(ErrLayerNotFound, "frame")
@@ -119,12 +119,12 @@ func (l Layers) Frame() (frame *Frame, err error) {
 
 	jsonData, err := json.Marshal(src)
 	if err != nil {
-		return
+		return nil, errors.Wrapf(err, "frame: %s", ErrParseFrame)
 	}
 
 	err = json.Unmarshal(jsonData, &tmp)
 	if err != nil {
-		return
+		return nil, errors.Wrapf(err, "frame: %s", ErrParseFrame)
 	}
 
 	sectionNumber, _ := strconv.Atoi(tmp.SectionNumber)
@@ -173,7 +173,7 @@ type WsCol struct {
 	Info      string `json:"_ws.col.info"`          // Additional information about the packet
 }
 
-func (l Layers) WsCol() (wsCol *WsCol, err error) {
+func (l Layers) WsCol() (wsCol any, err error) {
 	src, ok := l["_ws.col"]
 	if !ok {
 		return nil, errors.Wrap(ErrLayerNotFound, "_ws.col")
@@ -191,12 +191,12 @@ func (l Layers) WsCol() (wsCol *WsCol, err error) {
 
 	jsonData, err := json.Marshal(src)
 	if err != nil {
-		return
+		return nil, errors.Wrapf(err, "_ws.col: %s", ErrParseFrame)
 	}
 
 	err = json.Unmarshal(jsonData, &tmp)
 	if err != nil {
-		return nil, ErrParseFrame
+		return nil, errors.Wrapf(err, "_ws.col: %s", ErrParseFrame)
 	}
 
 	num, err := strconv.Atoi(tmp.Num)
@@ -234,7 +234,7 @@ type Ip struct {
 	IpHeaderType string `json:"ip.header_type"`       // Type of IP header (e.g., IPv4, IPv6)
 }
 
-func (l Layers) Ip() (ip *Ip, err error) {
+func (l Layers) Ip() (ip any, err error) {
 	src, ok := l["ip"]
 	if !ok {
 		return nil, errors.Wrap(ErrLayerNotFound, "ip")
@@ -261,12 +261,12 @@ func (l Layers) Ip() (ip *Ip, err error) {
 
 	jsonData, err := json.Marshal(src)
 	if err != nil {
-		return
+		return nil, errors.Wrapf(err, "IP: %s", ErrParseFrame)
 	}
 
 	err = json.Unmarshal(jsonData, &tmp)
 	if err != nil {
-		return nil, ErrParseFrame
+		return nil, errors.Wrapf(err, "IP: %s", ErrParseFrame)
 	}
 
 	hdrLen, _ := strconv.Atoi(tmp.HdrLen)
@@ -319,7 +319,7 @@ type Udp struct {
 	Payload string `json:"udp.payload"` // Payload data of the UDP packet (optional, if available)
 }
 
-func (l Layers) Udp() (udp *Udp, err error) {
+func (l Layers) Udp() (udp any, err error) {
 	src, ok := l["udp"]
 	if !ok {
 		return nil, errors.Wrap(ErrLayerNotFound, "udp")
@@ -341,12 +341,12 @@ func (l Layers) Udp() (udp *Udp, err error) {
 
 	jsonData, err := json.Marshal(src)
 	if err != nil {
-		return
+		return nil, errors.Wrapf(err, "UDP: %s", ErrParseFrame)
 	}
 
 	err = json.Unmarshal(jsonData, &tmp)
 	if err != nil {
-		return nil, ErrParseFrame
+		return nil, errors.Wrapf(err, "UDP: %s", ErrParseFrame)
 	}
 
 	srcPort, _ := strconv.Atoi(tmp.SrcPort)
@@ -408,7 +408,7 @@ type Tcp struct {
 	Completeness string `json:"tcp.completeness"` // Completeness of the TCP segment (e.g., full, partial)
 }
 
-func (l Layers) Tcp() (tcp *Tcp, err error) {
+func (l Layers) Tcp() (tcp any, err error) {
 	src, ok := l["tcp"]
 	if !ok {
 		return nil, errors.Wrap(ErrLayerNotFound, "tcp")
@@ -439,12 +439,12 @@ func (l Layers) Tcp() (tcp *Tcp, err error) {
 	// Convert source to JSON and then unmarshal it
 	jsonData, err := json.Marshal(src)
 	if err != nil {
-		return
+		return nil, errors.Wrapf(err, "TCP: %s", ErrParseFrame)
 	}
 
 	err = json.Unmarshal(jsonData, &tmp)
 	if err != nil {
-		return nil, ErrParseFrame
+		return nil, errors.Wrapf(err, "TCP: %s", ErrParseFrame)
 	}
 
 	// Parsing the fields in the order of the Tcp struct
@@ -466,7 +466,7 @@ func (l Layers) Tcp() (tcp *Tcp, err error) {
 	// Parse Port as array
 	port, err := parseFieldAsArray(tmp.Port)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse tcp.port: %v", err)
+		return nil, errors.Wrapf(err, "TCP: %s", "fail to parse tcp.port")
 	}
 
 	// Parsing stream and payload
@@ -542,7 +542,7 @@ type Http struct {
 	Origin           string `json:"http.origin"`            // Origin header
 }
 
-func (l Layers) Http() (http *Http, err error) {
+func (l Layers) Http() (http any, err error) {
 	src, ok := l["http"]
 	if !ok {
 		return nil, errors.Wrap(ErrLayerNotFound, "http")
@@ -589,22 +589,22 @@ func (l Layers) Http() (http *Http, err error) {
 
 	jsonData, err := json.Marshal(src)
 	if err != nil {
-		return
+		return nil, errors.Wrapf(err, "HTTP: %s", ErrParseFrame)
 	}
 
 	err = json.Unmarshal(jsonData, &tmp)
 	if err != nil {
-		return nil, ErrParseFrame
+		return nil, errors.Wrapf(err, "HTTP: %s", ErrParseFrame)
 	}
 
 	reqLine, err := parseFieldAsArray(tmp.RequestLine)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse RequestLine: %v", err)
+		return nil, errors.Wrapf(err, "HTTP: %s", "fail to parse RequestLine")
 	}
 
 	respLine, err := parseFieldAsArray(tmp.ResponseLine)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse ResponseLine: %v", err)
+		return nil, errors.Wrapf(err, "HTTP: %s", "fail to parse ResponseLine")
 	}
 
 	return &Http{
@@ -681,7 +681,7 @@ type DnsAnswer struct {
 	DnsRespLen   string `json:"dns.resp.len"`
 }
 
-func (l Layers) Dns() (dns *Dns, err error) {
+func (l Layers) Dns() (dns any, err error) {
 	src, ok := l["dns"]
 	if !ok {
 		return nil, errors.Wrap(ErrLayerNotFound, "dns")
@@ -699,12 +699,12 @@ func (l Layers) Dns() (dns *Dns, err error) {
 
 	jsonData, err := json.Marshal(src)
 	if err != nil {
-		return
+		return nil, errors.Wrapf(err, "DNS: %s", ErrParseFrame)
 	}
 
 	err = json.Unmarshal(jsonData, &tmp)
 	if err != nil {
-		return nil, ErrParseFrame
+		return nil, errors.Wrapf(err, "DNS: %s", ErrParseFrame)
 	}
 
 	queriesCount, _ := strconv.Atoi(tmp.QueriesCount)
