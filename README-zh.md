@@ -340,26 +340,35 @@ sudo apt install ninja-build -y
 sudo apt install pcaputils -y
 sudo apt install libpcap-dev -y
 # ubuntu
-sudo apt install libxslt1-dev
-sudo apt install doxygen
-sudo apt install libspeexdsp-dev
+sudo apt install libxslt1-dev  -y
+sudo apt install doxygen  -y
+sudo apt install libspeexdsp-dev  -y
 
 ## ubuntu安装gnutls库所需依赖nettle的依赖Libhogweed
-apt install libgmp-dev
-apt install libunbound-dev
-apt install libp11-kit-dev
+apt install libgmp-dev  -y
+apt install libunbound-dev  -y
+apt install libp11-kit-dev  -y
 
 ## 安装nettle
 wget https://ftp.gnu.org/gnu/nettle/nettle-3.9.1.tar.gz
 tar -xvf nettle-3.9.1.tar.gz
 cd nettle-3.9.1
-## 查询nettle.pc所在文件夹/usr/local/lib64/pkgconfig/
-sudo find /usr -name "nettle.pc"
-export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig/
 ./configure --prefix=/usr/local
 make -j$(nproc)
 sudo make install
+## 查询nettle.pc所在文件夹/usr/local/lib64/pkgconfig/
+sudo find /usr -name "nettle.pc"
+export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig/
 pkg-config --modversion nettle
+# 解决 libgnutls dll 依赖错误的 nettle dll 问题
+sudo find /usr -name libnettle.so
+cp /usr/local/lib64/libnettle.so /usr/local/lib/
+# 确保 /usr/local/lib 优先级更高
+sudo vim /etc/ld.so.conf.d/local.conf
+# 添加内容
+/usr/local/lib
+# 重新加载动态链接库缓存
+sudo ldconfig
 
 ## 安装gnutls库
 wget https://www.gnupg.org/ftp/gcrypt/gnutls/v3.8/gnutls-3.8.8.tar.xz
@@ -389,7 +398,7 @@ rm -rf CMakeFiles/
 mkdir build && cd build
 # 构建[生产用]
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_wireshark=off -DENABLE_LUA=off ..
-# 编译[时长略久]
+# 编译
 ninja
 
 # 编译成功后，进入build/run/目录查看编译后的动态链接库
