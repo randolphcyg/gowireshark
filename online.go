@@ -19,32 +19,40 @@ import (
 	"github.com/pkg/errors"
 )
 
-// IFace interface device
+// PcapAddr represents an individual address (including address, netmask, broadcast address, and destination address).
+type PcapAddr struct {
+	Addr      string `json:"addr,omitempty"`      // Address (could be IPv4, IPv6, MAC, etc.)
+	Netmask   string `json:"netmask,omitempty"`   // Netmask (if available)
+	Broadaddr string `json:"broadaddr,omitempty"` // Broadcast address (if available)
+	Dstaddr   string `json:"dstaddr,omitempty"`   // Destination address (if available)
+}
+
+// IFace represents a network interface.
 type IFace struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Flags       int    `json:"flags"`
+	Name        string     `json:"name"`                  // Interface name
+	Description string     `json:"description,omitempty"` // Description (can be empty)
+	Flags       uint32     `json:"flags"`                 // Interface flags
+	Addresses   []PcapAddr `json:"addresses"`             // List of addresses associated with the interface
 }
 
 // UnmarshalIFace Unmarshal interface device
-func UnmarshalIFace(src string) (res map[string]IFace, err error) {
-	err = json.Unmarshal([]byte(src), &res)
-	if err != nil {
-		return nil, err
-	}
-
-	return
-}
-
-// GetIfaceList Get interface list
-func GetIfaceList() (res map[string]IFace, err error) {
-	// unmarshal interface device list obj
-	res, err = UnmarshalIFace(CChar2GoStr(C.get_if_list()))
+func UnmarshalIFace(src string) (iFaces []IFace, err error) {
+	err = json.Unmarshal([]byte(src), &iFaces)
 	if err != nil {
 		return
 	}
 
-	return
+	return iFaces, nil
+}
+
+// GetIfaceList Get interface list
+func GetIfaceList() (iFaces []IFace, err error) {
+	iFaces, err = UnmarshalIFace(CChar2GoStr(C.get_if_list()))
+	if err != nil {
+		return
+	}
+
+	return iFaces, nil
 }
 
 // GetIfaceNonblockStatus Get interface nonblock status

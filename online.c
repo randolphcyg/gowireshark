@@ -105,42 +105,117 @@ PART2. libpcap
 */
 
 #define SNAP_LEN 65535
+#define MAX_BUFFER_SIZE 65536
 
 // interface device list
 cJSON *ifaces = NULL;
 
-/**
- * Get interface list.
- *
- *  @return char of map in json format:
- * {
- *  "device name1": {
- *    "name": "device name1",
- *    "description": "xxx device1",
- *    "flags": 1,
- *  },
- *  ...
- * }
- */
+void process_sockaddr(const struct sockaddr *sockaddr, char *buffer,
+                      size_t buffer_size) {
+  if (sockaddr == NULL) {
+    snprintf(buffer, buffer_size, "");
+    return;
+  }
+
+  switch (sockaddr->sa_family) {
+  case AF_INET: { // IPv4
+    struct sockaddr_in *sockaddr_in = (struct sockaddr_in *)sockaddr;
+    inet_ntop(AF_INET, &(sockaddr_in->sin_addr), buffer, buffer_size);
+    break;
+  }
+  case AF_INET6: { // IPv6
+    struct sockaddr_in6 *sockaddr_in6 = (struct sockaddr_in6 *)sockaddr;
+    inet_ntop(AF_INET6, &(sockaddr_in6->sin6_addr), buffer, buffer_size);
+    break;
+  }
+  case AF_LINK: { // Link layer address (MAC address)
+    if (sockaddr->sa_len > sizeof(struct sockaddr)) {
+      // sa_data may contain the MAC address for AF_LINK
+      const unsigned char *mac = (unsigned char *)sockaddr->sa_data;
+      snprintf(buffer, buffer_size, "%02x:%02x:%02x:%02x:%02x:%02x", mac[0],
+               mac[1], mac[2], mac[3], mac[4], mac[5]);
+    } else {
+      snprintf(buffer, buffer_size, "No MAC Address");
+    }
+    break;
+  }
+  default: // Unsupported address type
+    snprintf(buffer, buffer_size, "Unsupported Address Type: %d",
+             sockaddr->sa_family);
+    break;
+  }
+}
+
 char *get_if_list() {
   char err_buf[PCAP_ERRBUF_SIZE];
   pcap_if_t *alldevs;
-  pcap_findalldevs(&alldevs, err_buf);
 
-  ifaces = cJSON_CreateObject();
-  cJSON *if_item = NULL;
-  for (pcap_if_t *pdev = alldevs; pdev != NULL; pdev = pdev->next) {
-    if_item = cJSON_CreateObject();
-    cJSON_AddStringToObject(if_item, "name", pdev->name);
-    cJSON_AddStringToObject(if_item, "description",
-                            pdev->description ? pdev->description : "");
-    cJSON_AddNumberToObject(if_item, "flags", pdev->flags);
-    cJSON_AddItemToObject(ifaces, pdev->name, if_item);
+  // find device list
+  if (pcap_findalldevs(&alldevs, err_buf) == -1) {
+    fprintf(stderr, "Error finding devices: %s\n", err_buf);
+    return NULL;
   }
-  pcap_freealldevs(alldevs);
 
-  char *result = cJSON_PrintUnformatted(ifaces);
-  cJSON_Delete(ifaces);
+  // result buffer
+  char *result = malloc(MAX_BUFFER_SIZE);
+  if (!result) {
+    fprintf(stderr, "Memory allocation failed\n");
+    pcap_freealldevs(alldevs);
+    return NULL;
+  }
+
+  // init result buffer
+  result[0] = '\0';
+  strcat(result, "[");
+
+  // foreach devices
+  for (pcap_if_t *pdev = alldevs; pdev != NULL; pdev = pdev->next) {
+    char device_buffer[2048];
+    snprintf(
+        device_buffer, sizeof(device_buffer),
+        "{\"name\":\"%s\",\"description\":\"%s\",\"flags\":%u,\"addresses\":[",
+        pdev->name, pdev->description ? pdev->description : "", pdev->flags);
+    strcat(result, device_buffer);
+
+    // addr
+    for (pcap_addr_t *addr = pdev->addresses; addr != NULL; addr = addr->next) {
+      char addr_buffer[512];
+      char addr_str[128], netmask_str[128], broadaddr_str[128],
+          dstaddr_str[128];
+
+      // addr fields
+      process_sockaddr(addr->addr, addr_str, sizeof(addr_str));
+      process_sockaddr(addr->netmask, netmask_str, sizeof(netmask_str));
+      process_sockaddr(addr->broadaddr, broadaddr_str, sizeof(broadaddr_str));
+      process_sockaddr(addr->dstaddr, dstaddr_str, sizeof(dstaddr_str));
+
+      snprintf(addr_buffer, sizeof(addr_buffer),
+               "{\"addr\":\"%s\",\"netmask\":\"%s\",\"broadaddr\":\"%s\","
+               "\"dstaddr\":\"%s\"},",
+               addr_str, netmask_str, broadaddr_str, dstaddr_str);
+      strcat(result, addr_buffer);
+    }
+
+    // Remove the last comma and close the address array
+    if (result[strlen(result) - 1] == ',') {
+      result[strlen(result) - 1] = '\0';
+    }
+    strcat(result, "]},");
+
+    // Check for buffer overflows
+    if (strlen(result) >= MAX_BUFFER_SIZE - 2048) {
+      fprintf(stderr, "Buffer overflow detected\n");
+      break;
+    }
+  }
+
+  // Remove the last comma and close the JSON array
+  if (result[strlen(result) - 1] == ',') {
+    result[strlen(result) - 1] = '\0';
+  }
+  strcat(result, "]");
+
+  pcap_freealldevs(alldevs);
 
   return result;
 }
