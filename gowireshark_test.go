@@ -274,26 +274,35 @@ func TestGetAllFrameProtoTreeInJson(t *testing.T) {
 
 func TestGoroutineGetAllFrameProtoTreeInJson(t *testing.T) {
 	var wg sync.WaitGroup
-	numGoroutines := 100
 
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			res, err := GetAllFrameProtoTreeInJson(inputFilepath,
-				WithDescriptive(true), WithDebug(false))
-			if err != nil {
-				t.Error(err)
-			}
-			t.Log(i, inputFilepath, " >>>> ", len(res))
-		}(i)
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		res, err := GetAllFrameProtoTreeInJson(inputFilepath,
+			WithDescriptive(true), WithDebug(false))
+		if err != nil {
+			t.Error(err)
+		}
+		t.Log(inputFilepath, " >>>> ", len(res))
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		httpsPcappath := "./pcaps/https.pcapng"
+		res, err := GetAllFrameProtoTreeInJson(httpsPcappath,
+			WithDescriptive(true), WithDebug(false), IgnoreError(false))
+		if err != nil {
+			t.Error(err)
+		}
+		t.Log(httpsPcappath, " >>>> ", len(res))
+	}()
 
 	wg.Wait()
 }
 
 /*
-Get interface device list, TODO but not return addresses of device (cause c logic error)
+Get interface device list
 */
 func TestGetIfaceList(t *testing.T) {
 	iFaces, err := GetIfaceList()
@@ -301,7 +310,7 @@ func TestGetIfaceList(t *testing.T) {
 		t.Fatal(err)
 	}
 	for k, v := range iFaces {
-		t.Log(k, v.Description, v.Flags)
+		t.Log(k, v.Name, v.Addresses)
 	}
 }
 

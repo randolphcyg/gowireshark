@@ -332,8 +332,9 @@ func GetSeveralFrameProtoTreeInJson(inputFilepath string, nums []int, opts ...Op
 //	@return res: Contains all frame's JSON dissect result
 func GetAllFrameProtoTreeInJson(inputFilepath string, opts ...Option) (res []*FrameDissectRes, err error) {
 	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
 	conf, err := initCapFile(inputFilepath, opts...)
-	EpanMutex.Unlock()
+
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +362,7 @@ func GetAllFrameProtoTreeInJson(inputFilepath string, opts ...Option) (res []*Fr
 	var errorsMutex sync.Mutex
 
 	// startup Go JSON parser working pool
-	numWorkers := 5 // parse worker num
+	numWorkers := 8 // parse worker num
 	parseWG.Add(numWorkers)
 	for i := 0; i < numWorkers; i++ {
 		go func() {
@@ -389,10 +390,7 @@ func GetAllFrameProtoTreeInJson(inputFilepath string, opts ...Option) (res []*Fr
 		defer close(frameChannel)
 		counter := 1
 		for {
-			EpanMutex.Lock()
 			srcFrame := C.proto_tree_in_json(C.int(counter), C.int(descriptive), C.int(printCJson))
-			EpanMutex.Unlock()
-
 			if srcFrame == nil || C.strlen(srcFrame) == 0 { // end
 				break
 			}

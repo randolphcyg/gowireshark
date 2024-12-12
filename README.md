@@ -346,6 +346,47 @@ sudo apt install libpcap-dev -y
 sudo apt install libxslt1-dev
 sudo apt install doxygen
 sudo apt install libspeexdsp-dev
+
+## gnutls < nettle < Libhogweed
+apt install libgmp-dev  -y
+apt install libunbound-dev  -y
+apt install libp11-kit-dev  -y
+
+## nettle
+wget https://ftp.gnu.org/gnu/nettle/nettle-3.9.1.tar.gz
+tar -xvf nettle-3.9.1.tar.gz
+cd nettle-3.9.1
+./configure --prefix=/usr/local
+make -j$(nproc)
+sudo make install
+## fetch nettle.pc dir > /usr/local/lib64/pkgconfig/
+sudo find /usr -name "nettle.pc"
+export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig/
+pkg-config --modversion nettle
+
+# Solve the problem of libgnutls dll dependency error nettle dll
+sudo find /usr -name libnettle.so
+cp /usr/local/lib64/libnettle.so /usr/local/lib/
+# Make sure /usr/local/lib has a higher priority
+sudo vim /etc/ld.so.conf.d/local.conf
+# add content
+/usr/local/lib
+# reload the dll cache
+sudo ldconfig
+
+## gnutls
+wget https://www.gnupg.org/ftp/gcrypt/gnutls/v3.8/gnutls-3.8.8.tar.xz
+tar -xvf gnutls-3.8.8.tar.xz
+cd gnutls-3.8.8
+./configure --prefix=/usr/local --with-included-libtasn1 --with-included-unistring
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+gnutls-cli --version
+
+## when finish compiling wireshark, run wireshark/build/run/tshark -v, confirm Compiled with GnuTLS
+Compiled xxx with GnuTLS
+
 # mac m1
 sudo brew install libxslt1
 sudo brew install doxygen
@@ -360,7 +401,7 @@ rm -rf CMakeFiles/
 mkdir build && cd build
 # Build [For production]
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_wireshark=off -DENABLE_LUA=off ..
-# Compile[slightly longer]
+# Compile
 ninja
 
 # After successful compilation, enter the run directory to view the compiled dynamic link library
