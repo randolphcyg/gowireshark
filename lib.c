@@ -448,6 +448,7 @@ char *get_specific_frame_hex_data(int num) {
  */
 char *proto_tree_in_json(int num, int descriptive, int printCJson) {
   epan_dissect_t *edt;
+  char *result = NULL;
 
   // start reading packets
   while (read_packet(&edt)) {
@@ -476,8 +477,10 @@ char *proto_tree_in_json(int num, int descriptive, int printCJson) {
     epan_dissect_free(edt);
     edt = NULL;
 
-    return proto_tree_json_str;
+    result =
+        strdup(proto_tree_json_str); // Duplicate the string to return it safely
+    free(proto_tree_json_str);
   }
   close_cf();
-  return "";
+  return result ? result : "";
 }
