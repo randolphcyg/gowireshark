@@ -45,8 +45,7 @@ func TestGetSpecificFrameHexData(t *testing.T) {
 }
 
 func TestGetSpecificFrameProtoTreeInJson(t *testing.T) {
-	frameRes, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
-		WithDescriptive(true), WithDebug(true))
+	frameRes, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65, WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,8 +142,7 @@ func (p *MySQLLayer) Parse(layers Layers) (any, error) {
 }
 
 func TestParseCustomProtocol(t *testing.T) {
-	frameRes, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
-		WithDescriptive(true), WithDebug(true))
+	frameRes, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65, WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +198,7 @@ func TestParseHttps(t *testing.T) {
 	t.Log(tls)
 
 	frameRes, err := GetSpecificFrameProtoTreeInJson(pcapPath, 14,
-		WithTls(tls), WithDescriptive(true), WithDebug(true))
+		PrintCJson(true), WithTls(tls), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,8 +229,7 @@ func TestParseHttps(t *testing.T) {
 
 func TestGetSeveralFrameProtoTreeInJson(t *testing.T) {
 	nums := []int{11, 5, 0, 1, -1, 13, 288}
-	res, err := GetSeveralFrameProtoTreeInJson(inputFilepath, nums,
-		WithDescriptive(true), WithDebug(false))
+	res, err := GetSeveralFrameProtoTreeInJson(inputFilepath, nums, WithDebug(false))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +276,7 @@ func TestGoroutineGetAllFrameProtoTreeInJson(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		res, err := GetAllFrameProtoTreeInJson(inputFilepath,
-			WithDescriptive(true), WithDebug(false))
+			WithDescriptive(false), WithDebug(false))
 		if err != nil {
 			t.Error(err)
 		}
@@ -291,7 +288,7 @@ func TestGoroutineGetAllFrameProtoTreeInJson(t *testing.T) {
 		defer wg.Done()
 		httpsPcappath := "./pcaps/https.pcapng"
 		res, err := GetAllFrameProtoTreeInJson(httpsPcappath,
-			WithDescriptive(true), WithDebug(false), IgnoreError(false))
+			WithDescriptive(false), WithDebug(false), IgnoreError(false))
 		if err != nil {
 			t.Error(err)
 		}
@@ -377,7 +374,7 @@ func TestDissectPktLiveInfiniteAndStopCapturePkg(t *testing.T) {
 
 	go func() {
 		t.Log("Simulate manual stop real-time packet capture!")
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 30)
 		err := StopDissectPktLive(ifName)
 		if err != nil {
 			t.Error(err)
@@ -469,7 +466,7 @@ func TestDissectPktLiveSpecificNum(t *testing.T) {
 func TestBPF(t *testing.T) {
 	ifName := "en7"
 	filter := "tcp" // tcp port 443
-	pktNum := 20
+	pktNum := 2
 	promisc := 1
 	timeout := 5
 

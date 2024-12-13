@@ -77,6 +77,7 @@ func getDefaultDebug() bool {
 // NewConfig creates a new Conf instance with the given options, applying defaults where necessary.
 func NewConfig(opts ...Option) *Conf {
 	conf := &Conf{
+		Descriptive: true,              // Default: With Descriptive field
 		PrintCJson:  false,             // Default: Do not print C JSON
 		IgnoreError: true,              // Default: Ignore errors
 		Debug:       getDefaultDebug(), // Default: Check DEBUG environment variable for debug mode
