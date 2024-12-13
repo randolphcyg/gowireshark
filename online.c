@@ -40,11 +40,21 @@ char *init_cf_live(capture_file *cf_live, char *options);
 void close_cf_live(capture_file *cf_live);
 
 static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr);
-static gboolean send_data_to_wrap(struct device_map *device);
+static gboolean send_data_to_wrap(struct device_map *device, int descriptive,
+                                  int printCJson);
 static gboolean process_packet(struct device_map *device, gint64 offset,
                                const struct pcap_pkthdr *pkthdr,
-                               const u_char *packet);
+                               const u_char *packet, int descriptive,
+                               int printCJson);
 void before_callback_init(struct device_map *device);
+
+// pcap_loop callback function arg type
+typedef struct {
+  char device_name[100];
+  int descriptive;
+  int printCJson;
+} callback_arg_t;
+
 void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet);
 char *stop_dissect_capture_pkg(char *device_name);
@@ -477,22 +487,32 @@ static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
  *  @param device: a device in global device map
  *  @return gboolean: true or false
  */
-static gboolean send_data_to_wrap(struct device_map *device) {
+static gboolean send_data_to_wrap(struct device_map *device, int descriptive,
+                                  int printCJson) {
   cJSON *proto_tree_json = cJSON_CreateObject();
+
   get_proto_tree_json(
       NULL, print_dissections_expanded, TRUE, NULL, PF_INCLUDE_CHILDREN,
       &device->content.edt, &device->content.cf_live->cinfo,
-      proto_node_group_children_by_json_key, proto_tree_json, 1);
+      proto_node_group_children_by_json_key, proto_tree_json, descriptive);
 
   char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
   int len = strlen(proto_tree_json_str);
+  char *proto_tree_json_str_debug_print;
 
-  // send data to Go
+  // Send data to Go callback function
   if (dataCallback != NULL) {
     dataCallback(proto_tree_json_str, len, device->device_name);
+
+    // For debugging purposes, print the formatted JSON string
+    if (printCJson) {
+      proto_tree_json_str_debug_print = cJSON_Print(proto_tree_json);
+      printf("%s\n", proto_tree_json_str_debug_print);
+      free(proto_tree_json_str_debug_print);
+    }
   }
 
-  cJSON_free(proto_tree_json_str);
+  free(proto_tree_json_str);
   cJSON_Delete(proto_tree_json);
 
   return TRUE;
@@ -509,7 +529,8 @@ static gboolean send_data_to_wrap(struct device_map *device) {
  */
 static gboolean process_packet(struct device_map *device, gint64 offset,
                                const struct pcap_pkthdr *pkthdr,
-                               const u_char *packet) {
+                               const u_char *packet, int descriptive,
+                               int printCJson) {
 
   frame_data fd;
   guint32 cum_bytes = 0;
@@ -538,7 +559,7 @@ static gboolean process_packet(struct device_map *device, gint64 offset,
   device->content.prev_cap_frame = fd;
   device->content.cf_live->provider.prev_cap = &device->content.prev_cap_frame;
 
-  if (!send_data_to_wrap(device)) {
+  if (!send_data_to_wrap(device, descriptive, printCJson)) {
     // free all memory allocated
     epan_dissect_reset(&device->content.edt);
     frame_data_destroy(&fd);
@@ -572,7 +593,11 @@ void before_callback_init(struct device_map *device) {
  */
 void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet) {
-  char *device_name = (char *)arg;
+  callback_arg_t *args = (callback_arg_t *)arg;
+  int descriptive = (int)args->descriptive;
+  int printCJson = (int)args->printCJson;
+  char *device_name = (char *)args->device_name;
+
   struct device_map *device = find_device(device_name);
   if (!device) {
     printf("The device is not in the global map: %s\n", device_name);
@@ -587,7 +612,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
     return;
   }
 
-  process_packet(device, data_offset, pkthdr, packet);
+  process_packet(device, data_offset, pkthdr, packet, descriptive, printCJson);
 
   return;
 }
@@ -605,7 +630,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  *  @return char: error message
  */
 char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
-                    int to_ms, char *options) {
+                    int to_ms, int descriptive, int printCJson, char *options) {
   char *err_msg;
   char err_buf[PCAP_ERRBUF_SIZE];
   // add a device to global device map
@@ -662,10 +687,17 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
   printf("Start capture packet on device:%s bpf: %s \n", device->device_name,
          device->content.bpf_expr);
 
+  // handle pcap_loop callback function args
+  callback_arg_t args;
+  strncpy(args.device_name, device_name, sizeof(args.device_name) - 1);
+  args.device_name[sizeof(args.device_name) - 1] = '\0';
+  args.descriptive = descriptive;
+  args.printCJson = printCJson;
+
   // loop and dissect pkg
   before_callback_init(device);
   pcap_loop(device->content.handle, device->content.num,
-            process_packet_callback, (u_char *)device->device_name);
+            process_packet_callback, (u_char *)&args);
 
   return "";
 }
