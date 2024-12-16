@@ -4,7 +4,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <uthash.h>
+#ifdef __linux__
+#include <linux/if_packet.h> // Linux
+#include <net/if.h>
+#elif defined(__APPLE__)
+#include <net/if_dl.h> // macOS
+#endif
 
 // device_content Contains the information needed for each device
 typedef struct device_content {
@@ -123,7 +130,7 @@ cJSON *ifaces = NULL;
 void process_sockaddr(const struct sockaddr *sockaddr, char *buffer,
                       size_t buffer_size) {
   if (sockaddr == NULL) {
-    snprintf(buffer, buffer_size, "");
+    buffer[0] = '\0';
     return;
   }
 
@@ -138,10 +145,19 @@ void process_sockaddr(const struct sockaddr *sockaddr, char *buffer,
     inet_ntop(AF_INET6, &(sockaddr_in6->sin6_addr), buffer, buffer_size);
     break;
   }
-  case AF_LINK: { // Link layer address (MAC address)
-    if (sockaddr->sa_len > sizeof(struct sockaddr)) {
-      // sa_data may contain the MAC address for AF_LINK
-      const unsigned char *mac = (unsigned char *)sockaddr->sa_data;
+#ifdef __linux__
+  case AF_PACKET: { // Linux
+    struct sockaddr_ll *sll = (struct sockaddr_ll *)sockaddr;
+    snprintf(buffer, buffer_size, "%02x:%02x:%02x:%02x:%02x:%02x",
+             sll->sll_addr[0], sll->sll_addr[1], sll->sll_addr[2],
+             sll->sll_addr[3], sll->sll_addr[4], sll->sll_addr[5]);
+    break;
+  }
+#elif defined(__APPLE__)
+  case AF_LINK: { // macOS
+    struct sockaddr_dl *sdl = (struct sockaddr_dl *)sockaddr;
+    if (sdl->sdl_alen == 6) {
+      const unsigned char *mac = (const unsigned char *)LLADDR(sdl);
       snprintf(buffer, buffer_size, "%02x:%02x:%02x:%02x:%02x:%02x", mac[0],
                mac[1], mac[2], mac[3], mac[4], mac[5]);
     } else {
@@ -149,6 +165,7 @@ void process_sockaddr(const struct sockaddr *sockaddr, char *buffer,
     }
     break;
   }
+#endif
   default: // Unsupported address type
     snprintf(buffer, buffer_size, "Unsupported Address Type: %d",
              sockaddr->sa_family);
@@ -160,7 +177,7 @@ char *get_if_list() {
   char err_buf[PCAP_ERRBUF_SIZE];
   pcap_if_t *alldevs;
 
-  // find device list
+  // get device list
   if (pcap_findalldevs(&alldevs, err_buf) == -1) {
     fprintf(stderr, "Error finding devices: %s\n", err_buf);
     return NULL;
@@ -174,24 +191,35 @@ char *get_if_list() {
     return NULL;
   }
 
+  size_t remaining = MAX_BUFFER_SIZE;
+  char *current = result;
+
   // init result buffer
-  result[0] = '\0';
-  strcat(result, "[");
+  current += snprintf(current, remaining, "[");
+  remaining = MAX_BUFFER_SIZE - (current - result);
 
   // foreach devices
   for (pcap_if_t *pdev = alldevs; pdev != NULL; pdev = pdev->next) {
-    char device_buffer[2048];
-    snprintf(
+    char device_buffer[512];
+    int written = snprintf(
         device_buffer, sizeof(device_buffer),
         "{\"name\":\"%s\",\"description\":\"%s\",\"flags\":%u,\"addresses\":[",
         pdev->name, pdev->description ? pdev->description : "", pdev->flags);
-    strcat(result, device_buffer);
 
-    // addr
+    // check device buffer
+    if (written >= remaining) {
+      fprintf(stderr, "Buffer overflow detected\n");
+      break;
+    }
+
+    current += snprintf(current, remaining, "%s", device_buffer);
+    remaining = MAX_BUFFER_SIZE - (current - result);
+
+    // foreach addr
     for (pcap_addr_t *addr = pdev->addresses; addr != NULL; addr = addr->next) {
-      char addr_buffer[512];
-      char addr_str[128], netmask_str[128], broadaddr_str[128],
-          dstaddr_str[128];
+      char addr_buffer[256];
+      char addr_str[64] = "", netmask_str[64] = "", broadaddr_str[64] = "",
+           dstaddr_str[64] = "";
 
       // addr fields
       process_sockaddr(addr->addr, addr_str, sizeof(addr_str));
@@ -199,31 +227,36 @@ char *get_if_list() {
       process_sockaddr(addr->broadaddr, broadaddr_str, sizeof(broadaddr_str));
       process_sockaddr(addr->dstaddr, dstaddr_str, sizeof(dstaddr_str));
 
-      snprintf(addr_buffer, sizeof(addr_buffer),
-               "{\"addr\":\"%s\",\"netmask\":\"%s\",\"broadaddr\":\"%s\","
-               "\"dstaddr\":\"%s\"},",
-               addr_str, netmask_str, broadaddr_str, dstaddr_str);
-      strcat(result, addr_buffer);
+      written = snprintf(addr_buffer, sizeof(addr_buffer),
+                         "{\"addr\":\"%s\",\"netmask\":\"%s\",\"broadaddr\":\"%"
+                         "s\",\"dstaddr\":\"%s\"},",
+                         addr_str, netmask_str, broadaddr_str, dstaddr_str);
+
+      // check addr buffer
+      if (written >= remaining) {
+        fprintf(stderr, "Buffer overflow detected\n");
+        break;
+      }
+
+      current += snprintf(current, remaining, "%s", addr_buffer);
+      remaining = MAX_BUFFER_SIZE - (current - result);
     }
 
     // Remove the last comma and close the address array
-    if (result[strlen(result) - 1] == ',') {
-      result[strlen(result) - 1] = '\0';
+    if (current > result && *(current - 1) == ',') {
+      current--; // 删除逗号
+      remaining++;
     }
-    strcat(result, "]},");
-
-    // Check for buffer overflows
-    if (strlen(result) >= MAX_BUFFER_SIZE - 2048) {
-      fprintf(stderr, "Buffer overflow detected\n");
-      break;
-    }
+    current += snprintf(current, remaining, "]},");
+    remaining = MAX_BUFFER_SIZE - (current - result);
   }
 
   // Remove the last comma and close the JSON array
-  if (result[strlen(result) - 1] == ',') {
-    result[strlen(result) - 1] = '\0';
+  if (current > result && *(current - 1) == ',') {
+    current--; // 删除逗号
+    remaining++;
   }
-  strcat(result, "]");
+  snprintf(current, remaining, "]");
 
   pcap_freealldevs(alldevs);
 
