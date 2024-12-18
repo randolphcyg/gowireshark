@@ -477,9 +477,7 @@ char *proto_tree_in_json(int num, int descriptive, int printCJson) {
     epan_dissect_free(edt);
     edt = NULL;
 
-    result =
-        strdup(proto_tree_json_str); // Duplicate the string to return it safely
-    free(proto_tree_json_str);
+    return proto_tree_json_str;
   }
   close_cf();
   return result ? result : "";
