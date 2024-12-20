@@ -1,6 +1,7 @@
 #include <cJSON.h>
 #include <lib.h>
 #include <offline.h>
+#include <reassembly.h>
 
 // global capture file variable
 capture_file cf;
@@ -278,6 +279,48 @@ int is_empty_json(const char *json_str) {
  *  @return 0 if init correctly
  */
 int init_cf(char *filepath, char *options) {
+  char *keysList = NULL;
+  int desegmentSslRecords = 0;
+  int desegmentSslApplicationData = 0;
+  int printTcpStreams = 0;
+
+  // handle conf
+  if (!is_empty_json(options)) {
+    cJSON *json = cJSON_Parse(options);
+    if (json == NULL) {
+      fprintf(stderr, "Error: Failed to parse options JSON.\n");
+      return -1;
+    }
+
+    // Extract values from JSON
+    const cJSON *keysListJson =
+        cJSON_GetObjectItemCaseSensitive(json, "tls.keys_list");
+    const cJSON *desegmentSslRecordsJson =
+        cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_records");
+    const cJSON *desegmentSslApplicationDataJson =
+        cJSON_GetObjectItemCaseSensitive(json,
+                                         "tls.desegment_ssl_application_data");
+
+    const cJSON *printTcpStreamsJson =
+        cJSON_GetObjectItemCaseSensitive(json, "printTcpStreams");
+
+    // Copy keys list if present
+    if (cJSON_IsString(keysListJson) && (keysListJson->valuestring != NULL)) {
+      keysList = strdup(keysListJson->valuestring);
+    }
+
+    // Set flags for desegment options
+    desegmentSslRecords = cJSON_IsBool(desegmentSslRecordsJson) &&
+                          cJSON_IsTrue(desegmentSslRecordsJson);
+    desegmentSslApplicationData =
+        cJSON_IsBool(desegmentSslApplicationDataJson) &&
+        cJSON_IsTrue(desegmentSslApplicationDataJson);
+    printTcpStreams =
+        cJSON_IsBool(printTcpStreamsJson) && cJSON_IsTrue(printTcpStreamsJson);
+
+    cJSON_Delete(json);
+  }
+
   int err = 0;
   gchar *err_info = NULL;
   e_prefs *prefs_p;
@@ -300,42 +343,16 @@ int init_cf(char *filepath, char *options) {
       NULL,
   };
 
-  if (!is_empty_json(options)) {
-    char *keysList = NULL;
-    int desegmentSslRecords = 0;
-    int desegmentSslApplicationData = 0;
-
-    cJSON *json = cJSON_Parse(options);
-    if (json == NULL) {
-      fprintf(stderr, "Error: Failed to parse options JSON.\n");
-      return -1;
-    }
-
-    // Extract values from JSON
-    const cJSON *keysListJson =
-        cJSON_GetObjectItemCaseSensitive(json, "tls.keys_list");
-    const cJSON *desegmentSslRecordsJson =
-        cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_records");
-    const cJSON *desegmentSslApplicationDataJson =
-        cJSON_GetObjectItemCaseSensitive(json,
-                                         "tls.desegment_ssl_application_data");
-
-    // Copy keys list if present
-    if (cJSON_IsString(keysListJson) && (keysListJson->valuestring != NULL)) {
-      keysList = keysListJson->valuestring;
-    }
-
-    // Set flags for desegment options
-    desegmentSslRecords = cJSON_IsTrue(desegmentSslRecordsJson);
-    desegmentSslApplicationData = cJSON_IsTrue(desegmentSslApplicationDataJson);
-
-    // Apply TLS preferences
-    tls_prefs_apply(keysList, desegmentSslRecords, desegmentSslApplicationData);
-
-    cJSON_Delete(json);
-  }
+  // Apply TLS preferences
+  tls_prefs_apply(keysList, desegmentSslRecords, desegmentSslApplicationData);
 
   cf.epan = epan_new(&cf.provider, &funcs);
+
+  // setup tcp follow tap
+  if (printTcpStreams) {
+    setup_tcp_follow_tap();
+  }
+
   prefs_p = epan_load_settings();
   build_column_format_array(&cf.cinfo, prefs_p->num_cols, TRUE);
   return 0;
@@ -376,6 +393,7 @@ gboolean read_packet(epan_dissect_t **edt_r) {
     cf.provider.prev_cap = cf.provider.prev_dis =
         frame_data_sequence_add(cf.provider.frames, &fd);
     // free space
+    wtap_rec_reset(&rec);
     frame_data_destroy(&fd);
     *edt_r = edt;
     return TRUE;

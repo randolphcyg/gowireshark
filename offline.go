@@ -11,6 +11,7 @@ package gowireshark
 #include "lib.h"
 #include "online.h"
 #include "offline.h"
+#include "reassembly.h"
 */
 import "C"
 import (
@@ -80,7 +81,7 @@ func initCapFile(inputFilepath string, opts ...Option) (conf *Conf, err error) {
 	}
 
 	conf = NewConfig(opts...)
-	errNo := C.init_cf(C.CString(inputFilepath), C.CString(HandleTlsConf(conf)))
+	errNo := C.init_cf(C.CString(inputFilepath), C.CString(HandleConf(conf)))
 	if errNo != 0 {
 		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
 		return
@@ -408,6 +409,10 @@ func GetAllFrameProtoTreeInJson(inputFilepath string, opts ...Option) (res []*Fr
 
 	for frame := range resultChannel {
 		res = append(res, frame)
+	}
+
+	if conf.PrintTcpStreams {
+		C.print_tcp_streams()
 	}
 
 	if !conf.IgnoreError {

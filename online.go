@@ -151,7 +151,7 @@ func DissectPktLive(deviceName, bpfFilter string, num, promisc, timeout int, opt
 	}
 
 	errMsg := C.handle_packet(C.CString(deviceName), C.CString(bpfFilter), C.int(num), C.int(promisc), C.int(timeout),
-		C.int(descriptive), C.int(printCJson), C.CString(HandleTlsConf(conf)))
+		C.int(descriptive), C.int(printCJson), C.CString(HandleConf(conf)))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)
