@@ -25,11 +25,12 @@ type TlsConf struct {
 }
 
 type Conf struct {
-	IgnoreError bool    // Whether to ignore errors (default: true)
-	Debug       bool    // Debug mode (default: from environment variable DEBUG)
-	PrintCJson  bool    // Whether to print C JSON (default: false)
-	Descriptive bool    // Whether to include descriptive information in C json (default: false)
-	Tls         TlsConf // TLS configuration
+	IgnoreError     bool    // Whether to ignore errors (default: true)
+	Debug           bool    // Debug mode (default: from environment variable DEBUG)
+	PrintCJson      bool    // Whether to print C JSON (default: false)
+	Descriptive     bool    // Whether to include descriptive information in C json (default: false)
+	Tls             TlsConf // TLS configuration
+	PrintTcpStreams bool    // Whether to print TCP stream (default: false)
 }
 
 type Option func(*Conf)
@@ -45,6 +46,13 @@ func IgnoreError(ignore bool) Option {
 func PrintCJson(print bool) Option {
 	return func(c *Conf) {
 		c.PrintCJson = print
+	}
+}
+
+// PrintTcpStreams controls Whether to print TCP stream.
+func PrintTcpStreams(print bool) Option {
+	return func(c *Conf) {
+		c.PrintTcpStreams = print
 	}
 }
 
@@ -77,10 +85,11 @@ func getDefaultDebug() bool {
 // NewConfig creates a new Conf instance with the given options, applying defaults where necessary.
 func NewConfig(opts ...Option) *Conf {
 	conf := &Conf{
-		Descriptive: true,              // Default: With Descriptive field
-		PrintCJson:  false,             // Default: Do not print C JSON
-		IgnoreError: true,              // Default: Ignore errors
-		Debug:       getDefaultDebug(), // Default: Check DEBUG environment variable for debug mode
+		Descriptive:     true,              // Default: With Descriptive field
+		PrintCJson:      false,             // Default: Do not print C JSON
+		PrintTcpStreams: false,             // Default: Do not print TCP stream
+		IgnoreError:     true,              // Default: Ignore errors
+		Debug:           getDefaultDebug(), // Default: Check DEBUG environment variable for debug mode
 	}
 	for _, opt := range opts {
 		opt(conf)
@@ -88,15 +97,21 @@ func NewConfig(opts ...Option) *Conf {
 	return conf
 }
 
-// HandleTlsConf marshal TLS config
-func HandleTlsConf(conf *Conf) string {
-	tlsConf := make(map[string]string)
+// HandleConf marshal TLS config
+func HandleConf(conf *Conf) string {
+	cConf := make(map[string]any)
+
+	if conf.PrintTcpStreams {
+		cConf["printTcpStreams"] = true
+	}
+
+	// handle TLS config
 	if !reflect.DeepEqual(conf.Tls, TlsConf{}) {
 		if conf.Tls.DesegmentSslRecords {
-			tlsConf["tls.desegment_ssl_records"] = "TRUE"
+			cConf["tls.desegment_ssl_records"] = true
 		}
 		if conf.Tls.DesegmentSslApplicationData {
-			tlsConf["tls.desegment_ssl_application_data"] = "TRUE"
+			cConf["tls.desegment_ssl_application_data"] = true
 		}
 		if conf.Tls.KeysList != nil {
 			var keyValues []string
@@ -119,14 +134,14 @@ func HandleTlsConf(conf *Conf) string {
 				keyValue := fmt.Sprintf("%s", strings.Join(parts, ","))
 				keyValues = append(keyValues, keyValue)
 			}
-			tlsConf["tls.keys_list"] = strings.Join(keyValues, ";")
+			cConf["tls.keys_list"] = strings.Join(keyValues, ";")
 		}
 	}
 
-	if len(tlsConf) == 0 {
+	if len(cConf) == 0 {
 		return ""
 	}
 
-	jsonTlsConf, _ := json.Marshal(tlsConf)
-	return string(jsonTlsConf)
+	jsonCConf, _ := json.Marshal(cConf)
+	return string(jsonCConf)
 }
