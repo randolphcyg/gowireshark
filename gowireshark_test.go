@@ -142,7 +142,8 @@ func (p *MySQLLayer) Parse(layers Layers) (any, error) {
 }
 
 func TestParseCustomProtocol(t *testing.T) {
-	frameRes, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65, WithDebug(true))
+	frameRes, err := GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
+		PrintCJson(true), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,6 +224,8 @@ func TestParseHttps(t *testing.T) {
 				t.Log("#### http.ResponseLine >>>", header)
 			}
 		}
+	} else {
+		t.Error("fail to parse tls!")
 	}
 
 }
@@ -511,4 +514,19 @@ func TestBPF(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestFollowTcpStream(t *testing.T) {
+	path := "./pcaps/https.pcapng"
+	res, err := GetAllFrameProtoTreeInJson(path,
+		PrintTcpStreams(true),
+		WithDescriptive(true),
+		WithDebug(false),
+		IgnoreError(false))
+
+	if err != nil {
+		panic(err)
+	}
+
+	t.Log(len(res))
 }
