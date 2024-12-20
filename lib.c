@@ -345,6 +345,9 @@ int init_cf(char *filepath, char *options) {
 
   // Apply TLS preferences
   tls_prefs_apply(keysList, desegmentSslRecords, desegmentSslApplicationData);
+  if (keysList != NULL) {
+    free(keysList);
+  }
 
   cf.epan = epan_new(&cf.provider, &funcs);
 
