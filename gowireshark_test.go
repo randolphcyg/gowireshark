@@ -2,6 +2,8 @@ package gowireshark
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -525,8 +527,55 @@ func TestFollowTcpStream(t *testing.T) {
 		IgnoreError(false))
 
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	t.Log(len(res))
+}
+
+func TestConcurrentFilenameGeneration(t *testing.T) {
+	dir := "./testdir"
+	filename := "example.txt"
+
+	var wg sync.WaitGroup
+	numFiles := 10
+
+	for i := 0; i < numFiles; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			newFilename := GenerateUniqueFilenameWithIncrement(dir, filename)
+			t.Log("Generated filename:", newFilename)
+		}()
+	}
+
+	wg.Wait()
+}
+
+func TestExtractHttpFile(t *testing.T) {
+	path := "xxx.pcap"
+
+	res, err := GetAllFrameProtoTreeInJson(path,
+		WithDescriptive(true),
+		WithDebug(false),
+		IgnoreError(false))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, frame := range res {
+		if frame.BaseLayers.Http == nil {
+			continue
+		}
+
+		pwd, _ := os.Getwd()
+		save := filepath.Join(pwd, "testdir")
+		genPath, err := ExtractHttpFile(frame.BaseLayers.Http, save)
+		if err != nil {
+			t.Log(err)
+			continue
+		}
+		t.Log(genPath)
+	}
 }
