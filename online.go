@@ -19,6 +19,9 @@ import (
 	"github.com/pkg/errors"
 )
 
+// FrameDataChan dissect result chan map
+var FrameDataChan = make(map[string]chan FrameData)
+
 // PcapAddr represents an individual address (including address, netmask, broadcast address, and destination address).
 type PcapAddr struct {
 	Addr      string `json:"addr,omitempty"`      // Address (could be IPv4, IPv6, MAC, etc.)
@@ -35,8 +38,8 @@ type IFace struct {
 	Addresses   []PcapAddr `json:"addresses"`             // List of addresses associated with the interface
 }
 
-// UnmarshalIFace Unmarshal interface device
-func UnmarshalIFace(src string) (iFaces []IFace, err error) {
+// ParseIFace Unmarshal interface device
+func ParseIFace(src string) (iFaces []IFace, err error) {
 	err = json.Unmarshal([]byte(src), &iFaces)
 	if err != nil {
 		return
@@ -45,9 +48,9 @@ func UnmarshalIFace(src string) (iFaces []IFace, err error) {
 	return iFaces, nil
 }
 
-// GetIfaceList Get interface list
-func GetIfaceList() (iFaces []IFace, err error) {
-	iFaces, err = UnmarshalIFace(CChar2GoStr(C.get_if_list()))
+// GetIFaces Get interface list
+func GetIFaces() (iFaces []IFace, err error) {
+	iFaces, err = ParseIFace(CChar2GoStr(C.get_if_list()))
 	if err != nil {
 		return
 	}
@@ -55,14 +58,18 @@ func GetIfaceList() (iFaces []IFace, err error) {
 	return iFaces, nil
 }
 
-// GetIfaceNonblockStatus Get interface nonblock status
-func GetIfaceNonblockStatus(deviceName string) (isNonblock bool, err error) {
-	if deviceName == "" {
-		err = errors.Wrap(err, "device name is blank")
+// GetIFaceNonblockStatus
+//
+// @Description: Check if a network interface is in non-blocking mode.
+// @param interfaceName: Name of the network interface.
+// @return isNonblock: True if the interface is in non-blocking mode, false otherwise.
+func GetIFaceNonblockStatus(interfaceName string) (isNonblock bool, err error) {
+	if interfaceName == "" {
+		err = errors.Wrap(err, "interface name is blank")
 		return
 	}
 
-	nonblockStatus := C.get_if_nonblock_status(C.CString(deviceName))
+	nonblockStatus := C.get_if_nonblock_status(C.CString(interfaceName))
 	if nonblockStatus == 0 {
 		isNonblock = false
 	} else if nonblockStatus == 1 {
@@ -74,10 +81,10 @@ func GetIfaceNonblockStatus(deviceName string) (isNonblock bool, err error) {
 	return
 }
 
-// SetIfaceNonblockStatus Set interface nonblock status
-func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, err error) {
-	if deviceName == "" {
-		err = errors.Wrap(err, "device name is blank")
+// SetIFaceNonblockStatus Set interface nonblock status
+func SetIFaceNonblockStatus(interfaceName string, isNonblock bool) (status bool, err error) {
+	if interfaceName == "" {
+		err = errors.Wrap(err, "interface name is blank")
 		return
 	}
 
@@ -86,7 +93,7 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 		setNonblockCode = 1
 	}
 
-	nonblockStatus := C.set_if_nonblock_status(C.CString(deviceName), C.int(setNonblockCode))
+	nonblockStatus := C.set_if_nonblock_status(C.CString(interfaceName), C.int(setNonblockCode))
 	if nonblockStatus == 0 {
 		status = false
 	} else if nonblockStatus == 1 {
@@ -99,59 +106,67 @@ func SetIfaceNonblockStatus(deviceName string, isNonblock bool) (status bool, er
 }
 
 //export GetDataCallback
-func GetDataCallback(data *C.char, length C.int, deviceName *C.char) {
+func GetDataCallback(data *C.char, length C.int, interfaceName *C.char) {
 	goPacket := ""
 	if data != nil {
 		goPacket = C.GoStringN(data, length)
 	}
 
-	deviceNameStr := ""
-	if deviceName != nil {
-		deviceNameStr = C.GoString(deviceName)
+	interfaceNameStr := ""
+	if interfaceName != nil {
+		interfaceNameStr = C.GoString(interfaceName)
 	}
 
 	// unmarshal each pkg dissect result
-	singleFrameRes, err := UnmarshalDissectResult(goPacket)
+	singleFrameRes, err := ParseFrameData(goPacket)
 	if err != nil {
-		slog.Warn("Error:", "UnmarshalDissectResult", err, "WsIndex", singleFrameRes.WsIndex)
+		slog.Warn("Error:", "ParseFrameData", err)
+		if singleFrameRes != nil {
+			slog.Warn("Error:", "WsIndex", singleFrameRes.Index)
+		}
+		return // 如果解析失败，直接返回，不继续处理
+	}
+
+	if singleFrameRes == nil {
+		slog.Warn("Error: ParseFrameData returned nil result")
+		return
 	}
 
 	// write packet dissect result to go pipe
-	if ch, ok := DissectResChans[deviceNameStr]; ok {
+	if ch, ok := FrameDataChan[interfaceNameStr]; ok {
 		ch <- *singleFrameRes
+	} else {
+		slog.Warn("Error: No channel found for interface", "interfaceName", interfaceNameStr)
 	}
 }
 
-// DissectPktLive
+// StartLivePacketCapture
 //
-//	@Description: Set up callback function, capture and dissect packet.
-//	@param deviceName
-//	@param bpfFilter bpf filter
-//	@param num
-//	@param promisc: 0 indicates a non-promiscuous mode, and any other value indicates a promiscuous mode
-//	@param timeout
-func DissectPktLive(deviceName, bpfFilter string, num, promisc, timeout int, opts ...Option) (err error) {
+// @Description: Set up a callback function, capture and dissect packets in real-time.
+// @param interfaceName: Name of the network interface to capture packets from.
+// @param bpfFilter: BPF filter expression to apply to the capture.
+// @param packetCount: Number of packets to capture (0 for unlimited).
+// @param promisc: 0 for non-promiscuous mode, any other value for promiscuous mode.
+// @param timeout: Timeout for the capture operation in milliseconds.
+// @param opts: Optional configuration for the capture.
+func StartLivePacketCapture(interfaceName, bpfFilter string, packetCount, promisc, timeout int, opts ...Option) (err error) {
 	// Set up callback function
 	C.setDataCallback((C.DataCallback)(C.GetDataCallback))
 
-	if deviceName == "" {
+	if interfaceName == "" {
 		err = errors.Wrap(err, "device name is blank")
 		return
 	}
 
 	conf := NewConfig(opts...)
-	descriptive := 0
-	if conf.Descriptive {
-		descriptive = 1
-	}
 
 	printCJson := 0
 	if conf.PrintCJson {
 		printCJson = 1
 	}
 
-	errMsg := C.handle_packet(C.CString(deviceName), C.CString(bpfFilter), C.int(num), C.int(promisc), C.int(timeout),
-		C.int(descriptive), C.int(printCJson), C.CString(HandleConf(conf)))
+	errMsg := C.handle_packet(C.CString(interfaceName), C.CString(bpfFilter), C.int(packetCount),
+		C.int(promisc), C.int(timeout), C.int(printCJson), C.CString(HandleConf(conf)))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)
@@ -162,14 +177,17 @@ func DissectPktLive(deviceName, bpfFilter string, num, promisc, timeout int, opt
 	return
 }
 
-// StopDissectPktLive Stop capture packet live、 free all memory allocated.
-func StopDissectPktLive(deviceName string) (err error) {
-	if deviceName == "" {
+// StopLivePacketCapture
+//
+// @Description: Stop the live packet capture and free all allocated memory.
+// @param interfaceName: Name of the network interface to stop capturing from.
+func StopLivePacketCapture(interfaceName string) (err error) {
+	if interfaceName == "" {
 		err = errors.Wrap(err, "device name is blank")
 		return
 	}
 
-	errMsg := C.stop_dissect_capture_pkg(C.CString(deviceName))
+	errMsg := C.stop_dissect_capture_pkg(C.CString(interfaceName))
 	if C.strlen(errMsg) != 0 {
 		// transfer c char to go string
 		errMsgStr := CChar2GoStr(errMsg)

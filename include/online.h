@@ -1,6 +1,6 @@
-// interface device list
-extern cJSON *ifaces;
 
+// judge is json empty
+bool is_empty_json(const char *json_str);
 // Get interface list
 char *get_if_list();
 // Select the first device
@@ -11,7 +11,7 @@ int get_if_nonblock_status(char *device_name);
 int set_if_nonblock_status(char *device_name, int nonblock);
 // Capture and dissect packet in real time
 char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
-                    int to_ms, int descriptive, int printCJson, char *options);
+                    int to_ms, int printCJson, char *options);
 // Stop capture packet live、 free all memory allocated
 char *stop_dissect_capture_pkg(char *device_name);
 

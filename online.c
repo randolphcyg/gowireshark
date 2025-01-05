@@ -46,19 +46,16 @@ void cap_file_init(capture_file *cf);
 char *init_cf_live(capture_file *cf_live, char *options);
 void close_cf_live(capture_file *cf_live);
 
-static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr);
-static gboolean send_data_to_wrap(struct device_map *device, int descriptive,
-                                  int printCJson);
-static gboolean process_packet(struct device_map *device, gint64 offset,
-                               const struct pcap_pkthdr *pkthdr,
-                               const u_char *packet, int descriptive,
-                               int printCJson);
+static bool prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr);
+static bool send_data_to_wrap(struct device_map *device, int printCJson);
+static bool process_packet(struct device_map *device, gint64 offset,
+                           const struct pcap_pkthdr *pkthdr,
+                           const u_char *packet, int printCJson);
 void before_callback_init(struct device_map *device);
 
 // pcap_loop callback function arg type
 typedef struct {
   char device_name[100];
-  int descriptive;
   int printCJson;
 } callback_arg_t;
 
@@ -123,9 +120,6 @@ PART2. libpcap
 
 #define SNAP_LEN 65535
 #define MAX_BUFFER_SIZE 65536
-
-// interface device list
-cJSON *ifaces = NULL;
 
 void process_sockaddr(const struct sockaddr *sockaddr, char *buffer,
                       size_t buffer_size) {
@@ -490,9 +484,9 @@ void close_cf_live(capture_file *cf_live) {
  *
  *  @param rec: wtap_rec for each packet
  *  @param pkthdr: package header
- *  @return gboolean: true or false
+ *  @return bool: true or false
  */
-static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
+static bool prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
   rec->rec_type = REC_TYPE_PACKET;
   rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN;
   rec->ts.nsecs = (gint32)pkthdr->ts.tv_usec * 1000;
@@ -504,51 +498,60 @@ static gboolean prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
   if (rec->rec_header.packet_header.len == 0) {
     //    printf("Header is null, frame Num:%lu\n",
     //           (unsigned long int)cf_live->count);
-    return FALSE;
+    return false;
   }
 
   if (pkthdr->caplen > WTAP_MAX_PACKET_SIZE_STANDARD) {
-    return FALSE;
+    return false;
   }
 
-  return TRUE;
+  return true;
 }
 
 /**
  * Use callback to transfer data to the outside wrap program.
  *
  *  @param device: a device in global device map
- *  @return gboolean: true or false
+ *  @return bool: true or false
  */
-static gboolean send_data_to_wrap(struct device_map *device, int descriptive,
-                                  int printCJson) {
-  cJSON *proto_tree_json = cJSON_CreateObject();
+static bool send_data_to_wrap(struct device_map *device, int printCJson) {
+  char *json_str = NULL;
+  json_dumper dumper = {};
+  bool success = false;
 
-  get_proto_tree_json(
-      NULL, print_dissections_expanded, TRUE, NULL, PF_INCLUDE_CHILDREN,
-      &device->content.edt, &device->content.cf_live->cinfo,
-      proto_node_group_children_by_json_key, proto_tree_json, descriptive);
+  dumper.output_string = g_string_new(NULL);
 
-  char *proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
-  int len = strlen(proto_tree_json_str);
-  char *proto_tree_json_str_debug_print;
+  get_json_proto_tree(NULL, print_dissections_expanded, TRUE, NULL,
+                      PF_INCLUDE_CHILDREN, &device->content.edt,
+                      &device->content.cf_live->cinfo,
+                      proto_node_group_children_by_json_key, &dumper);
 
-  // Send data to Go callback function
-  if (dataCallback != NULL) {
-    dataCallback(proto_tree_json_str, len, device->device_name);
-
-    // For debugging purposes, print the formatted JSON string
-    if (printCJson) {
-      proto_tree_json_str_debug_print = cJSON_Print(proto_tree_json);
-      printf("%s\n", proto_tree_json_str_debug_print);
-      free(proto_tree_json_str_debug_print);
-    }
+  // Get JSON string from json_dumper
+  if (json_dumper_finish(&dumper)) {
+    json_str = g_strdup(dumper.output_string->str);
   }
 
-  free(proto_tree_json_str);
-  cJSON_Delete(proto_tree_json);
+  // cleanup
+  if (dumper.output_string) {
+    g_string_free(dumper.output_string, TRUE);
+  }
 
-  return TRUE;
+  // Send data to Go callback function
+  if (json_str && dataCallback != NULL) {
+    if (printCJson) {
+      printf("%s\n", json_str);
+    }
+
+    int len = strlen(json_str);
+    dataCallback(json_str, len, device->device_name);
+    success = true;
+  }
+
+  if (json_str) {
+    g_free(json_str);
+  }
+
+  return success;
 }
 
 /**
@@ -558,12 +561,11 @@ static gboolean send_data_to_wrap(struct device_map *device, int descriptive,
  *  @param offset: data offset
  *  @param pkthdr: package header
  *  @param packet: package content
- *  @return gboolean: true or false
+ *  @return bool: true or false
  */
-static gboolean process_packet(struct device_map *device, gint64 offset,
-                               const struct pcap_pkthdr *pkthdr,
-                               const u_char *packet, int descriptive,
-                               int printCJson) {
+static bool process_packet(struct device_map *device, gint64 offset,
+                           const struct pcap_pkthdr *pkthdr,
+                           const u_char *packet, int printCJson) {
 
   frame_data fd;
   guint32 cum_bytes = 0;
@@ -592,13 +594,13 @@ static gboolean process_packet(struct device_map *device, gint64 offset,
   device->content.prev_cap_frame = fd;
   device->content.cf_live->provider.prev_cap = &device->content.prev_cap_frame;
 
-  if (!send_data_to_wrap(device, descriptive, printCJson)) {
+  if (!send_data_to_wrap(device, printCJson)) {
     // free all memory allocated
     epan_dissect_reset(&device->content.edt);
     frame_data_destroy(&fd);
     wtap_rec_cleanup(&device->content.rec);
 
-    return FALSE;
+    return false;
   }
 
   // free all memory allocated
@@ -606,7 +608,7 @@ static gboolean process_packet(struct device_map *device, gint64 offset,
   frame_data_destroy(&fd);
   wtap_rec_cleanup(&device->content.rec);
 
-  return TRUE;
+  return true;
 }
 
 void before_callback_init(struct device_map *device) {
@@ -627,7 +629,6 @@ void before_callback_init(struct device_map *device) {
 void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet) {
   callback_arg_t *args = (callback_arg_t *)arg;
-  int descriptive = (int)args->descriptive;
   int printCJson = (int)args->printCJson;
   char *device_name = (char *)args->device_name;
 
@@ -645,7 +646,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
     return;
   }
 
-  process_packet(device, data_offset, pkthdr, packet, descriptive, printCJson);
+  process_packet(device, data_offset, pkthdr, packet, printCJson);
 
   return;
 }
@@ -663,7 +664,7 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  *  @return char: error message
  */
 char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
-                    int to_ms, int descriptive, int printCJson, char *options) {
+                    int to_ms, int printCJson, char *options) {
   char *err_msg;
   char err_buf[PCAP_ERRBUF_SIZE];
   // add a device to global device map
@@ -724,7 +725,6 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
   callback_arg_t args;
   strncpy(args.device_name, device_name, sizeof(args.device_name) - 1);
   args.device_name[sizeof(args.device_name) - 1] = '\0';
-  args.descriptive = descriptive;
   args.printCJson = printCJson;
 
   // loop and dissect pkg
