@@ -28,7 +28,6 @@ type Conf struct {
 	IgnoreError     bool    // Whether to ignore errors (default: true)
 	Debug           bool    // Debug mode (default: from environment variable DEBUG)
 	PrintCJson      bool    // Whether to print C JSON (default: false)
-	Descriptive     bool    // Whether to include descriptive information in C json (default: false)
 	Tls             TlsConf // TLS configuration
 	PrintTcpStreams bool    // Whether to print TCP stream (default: false)
 }
@@ -70,13 +69,6 @@ func WithDebug(debug bool) Option {
 	}
 }
 
-// WithDescriptive configures whether to include descriptive information in C json.
-func WithDescriptive(descriptive bool) Option {
-	return func(c *Conf) {
-		c.Descriptive = descriptive
-	}
-}
-
 // getDefaultDebug reads the DEBUG environment variable to determine whether debug mode should be enabled.
 func getDefaultDebug() bool {
 	return os.Getenv("DEBUG") == "true"
@@ -85,7 +77,6 @@ func getDefaultDebug() bool {
 // NewConfig creates a new Conf instance with the given options, applying defaults where necessary.
 func NewConfig(opts ...Option) *Conf {
 	conf := &Conf{
-		Descriptive:     true,              // Default: With Descriptive field
 		PrintCJson:      false,             // Default: Do not print C JSON
 		PrintTcpStreams: false,             // Default: Do not print TCP stream
 		IgnoreError:     true,              // Default: Ignore errors

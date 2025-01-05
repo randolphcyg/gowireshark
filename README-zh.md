@@ -63,26 +63,24 @@ import (
 
 func main() {
 	inputFilepath := "pcaps/mysql.pcapng"
-	res, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath,
-		gowireshark.WithDescriptive(true), gowireshark.WithDebug(false))
+	frames, err := gowireshark.GetAllFrames(inputFilepath,
+		gowireshark.WithDebug(false))
 	if err != nil {
 		panic(err)
 	}
 
-	for _, frameRes := range res {
-		fmt.Println("# Frame index:", frameRes.BaseLayers.WsCol.Num, "===========================")
-		fmt.Println("## Hex:", frameRes.Hex)
-		fmt.Println("## Ascii:", frameRes.Ascii)
+	for _, frame := range frames {
+		fmt.Println("# Frame index:", frame.BaseLayers.WsCol.Num, "===========================")
 
-		if frameRes.BaseLayers.Ip != nil {
-			fmt.Println("## ip.src:", frameRes.BaseLayers.Ip.Src)
-			fmt.Println("## ip.dst:", frameRes.BaseLayers.Ip.Dst)
+		if frame.BaseLayers.Ip != nil {
+			fmt.Println("## ip.src:", frame.BaseLayers.Ip.Src)
+			fmt.Println("## ip.dst:", frame.BaseLayers.Ip.Dst)
 		}
-		if frameRes.BaseLayers.Http != nil {
-			fmt.Println("## http.request.uri:", frameRes.BaseLayers.Http.RequestUri)
+		if frame.BaseLayers.Http != nil {
+			fmt.Println("## http.request.uri:", frame.BaseLayers.Http.RequestUri)
 		}
-		if frameRes.BaseLayers.Dns != nil {
-			fmt.Println("## dns:", frameRes.BaseLayers.Dns)
+		if frame.BaseLayers.Dns != nil {
+			fmt.Println("## dns:", frame.BaseLayers.Dns)
 		}
 	}
 }
@@ -179,8 +177,8 @@ func (p *MySQLLayer) Parse(layers gowireshark.Layers) (any, error) {
 }
 
 func ParseCustomProtocol(inputFilepath string) (mysqlLayer *MySQLLayer, err error) {
-	frameRes, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
-		gowireshark.WithDescriptive(true), gowireshark.WithDebug(false))
+	frame, err := gowireshark.GetFrameByIdx(inputFilepath, 65,
+		gowireshark.WithDebug(false))
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +188,7 @@ func ParseCustomProtocol(inputFilepath string) (mysqlLayer *MySQLLayer, err erro
 	// 注册 MySQL 协议 解析器
 	registry.Register("mysql", &MySQLLayer{})
     // 调用刚注册的自定义 MySQL 协议解析器，调用方法 (p *MySQLLayer) Parse(layers Layers) (any, error)
-	parsedLayer, err := registry.ParseProtocol("mysql", frameRes.WsSource.Layers)
+	parsedLayer, err := registry.ParseProtocol("mysql", frame.Layers)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error parsing MySQL protocol")
 	}
@@ -239,6 +237,7 @@ gowireshark
 │   ├── libpcap/
 │   ├── offline.h
 │   ├── online.h
+│   ├── reassembly.h
 │   ├── uthash.h
 │   └── wireshark/
 ├── layers.go
@@ -263,26 +262,27 @@ gowireshark
 │   ├── mysql.pcapng
 │   ├── server.key
 │   └── testInvalid.key
+├── reassembly.c
 └── registry.go
 
 ```
 项目目录结构的详细说明：
 
-| 文件                                        | 说明                                                    |
-|-------------------------------------------|-------------------------------------------------------|
-| `include/wireshark/`                      | wireshark 编译后源码                                       |
-| `include/libpcap/`                        | libpcap 未编译源码                                         |
-| `frame_tvbuff.c`、`include/frame_tvbuff.h` | wireshark的源码文件、拷贝出来的、必须放在此处                           |
-| `libs/`                                   | wireshark、libpcap最新动态链接库文件                            |
-| `pcaps/`                                  | 用于测试的 pcap 数据包文件                                      |
-| `gowireshark_test.go`                     | 测试文件                                                  |
-| `uthash.h`                                | 第三方 [uthash](https://github.com/troydhanson/uthash) 库 |
-| `cJSON.c、cJSON.h`                         | 第三方[cJSON](https://github.com/DaveGamble/cJSON)库      |
-| `lib.c、offline.c、online.c`                | 用C封装和加强libpcap和wireshark功能的代码                         |
-| `include/lib.h、offline.h、online.h`        | 暴露给go的一些c接口                                           |
-| `layers.go`                               | 通用协议层解析器                                              |
-| `registry.go`                             | 用户注册自定义协议解析器                                          |
-| `online.go、gowireshark.go`                | 用go封装最终的接口，用户go程序可直接使用                                |
+| 文件                                              | 说明                                                    |
+|-------------------------------------------------|-------------------------------------------------------|
+| `include/wireshark/`                            | wireshark 编译后源码                                       |
+| `include/libpcap/`                              | libpcap 未编译源码                                         |
+| `frame_tvbuff.c`、`include/frame_tvbuff.h`       | wireshark的源码文件、拷贝出来的、必须放在此处                           |
+| `libs/`                                         | wireshark、libpcap最新动态链接库文件                            |
+| `pcaps/`                                        | 用于测试的 pcap 数据包文件                                      |
+| `gowireshark_test.go`                           | 测试文件                                                  |
+| `uthash.h`                                      | 第三方 [uthash](https://github.com/troydhanson/uthash) 库 |
+| `cJSON.c、cJSON.h`                               | 第三方[cJSON](https://github.com/DaveGamble/cJSON)库      |
+| `lib.c、offline.c、online.c、reassembly.c`         | 用C封装和加强libpcap和wireshark功能的代码                         |
+| `include/lib.h、offline.h、online.h、reassembly.h` | 暴露给go的一些c接口                                           |
+| `layers.go`                                     | 通用协议层解析器                                              |
+| `registry.go`                                   | 用户注册自定义协议解析器                                          |
+| `online.go、gowireshark.go`                      | 用go封装最终的接口，用户go程序可直接使用                                |
 
 ### 2.2. 调用链
 
@@ -462,15 +462,13 @@ apt install bison
 
 ### 2.4. 解析结果格式说明
 
-1. 增加的字段,在原生wireshark解析结果基础上增加了三个字段：
+1. 16进制相关字段与协议解析结果分开：
     - offset 偏移量
     - hex 16进制数据
     - ascii ascii字符
 
 2. 描述性值逻辑来源
     - 原生的打印协议树接口`proto_tree_print`包含描述性值,而协议json输出接口`write_json_proto_tree`不包含描述性值,通过借鉴前者的实现逻辑`proto_tree_print_node`可以完善这个功能;
-    - 修改后接口`GetSpecificFrameProtoTreeInJson`参数`isDescriptive`,对应c接口`proto_tree_in_json`的`descriptive`参数;
-    - 设置为`WithDescriptive(false)`则字段不带描述性值,设置为`WithDescriptive(true)`则字段带描述性值;
     - 主要参考`proto.h`函数的`proto_item_fill_label`函数:
         ```c
         /** Fill given label_str with a simple string representation of field.
@@ -486,8 +484,8 @@ apt install bison
 ---
 
 1. 可以在 `lib.c、offline.c、online.c` 中或在根目录中创建一个新的C文件并添加自定义功能的接口;
-2. 接口完成后需要在`include/`目录下同名H头文件增加声明，若`gowireshark.go`中也用到该接口，则需要在此文件的cgo序文中增加相同的声明；
-3. 在`gowireshark.go`中封装该接口;
+2. 接口完成后需要在`include/`目录下同名H头文件增加声明，若 cgo 中也用到该接口，则需要在此文件的cgo序文中增加相同的声明；
+3. 在 cgo 文件中封装该接口;
 4. 在`gowireshark_test.go`文件中增加测试案例;
 5. 使用 clang 格式工具格式化自定义的 C 代码和头文件：
    例如：`clang-format -i lib.c`，参数`-i`表示此命令直接格式化指定的文件，删除`-i`进行预览。
@@ -502,39 +500,24 @@ apt install bison
 
    可以在`gowireshark_test.go`文件中编写测试函数，直接测试：
    ```shell
-   # 解析并输出一个流量包文件所有帧
-   go test -v -run TestDissectPrintAllFrame
+   # 打印一个流量包文件所有帧
+   go test -v -run TestPrintAllFrames
    # 解析并输出一个流量包文件特定帧,并以json格式呈现
-   go test -v -run TestGetSpecificFrameProtoTreeInJson
+   go test -v -run TestGetFrameByIdx
    # 解析并输出一个流量包文件多个选定帧,并以json格式呈现
-   go test -v -run TestGetSeveralFrameProtoTreeInJson
+   go test -v -run TestGetFramesByIdxs
    # 解析并输出一个流量包文件所有帧,并以json格式呈现
-   go test -v -run TestGetAllFrameProtoTreeInJson
+   go test -v -run TestGetAllFrames
    # 解析并输出一个流量包文件特定帧的16进制数据,并以json格式呈现
-   go test -v -run TestGetSpecificFrameHexData
+   go test -v -run TestGetHexDataByIdx
    # 实时抓包解析
-   go test -v -run TestDissectPktLive
+   go test -v -run TestStartAndStopLivePacketCaptureInfinite
    # 实时抓取一定数目包并解析
-   go test -v -run TestDissectPktLiveSpecificNum
+   go test -v -run TestStartAndStopLivePacketCaptureLimited
    # 使用rsa key解析tls1.2
    go test -v -run TestParseHttps
    ```
    或者通过调用此库的方式测试。
-
-7. `gowireshark.go`的原理:
-
-   在序文中存在一些C语法的声明和导入，也有一些cgo参数，这样使用`go build`编译此go项目时，会自动将内部的C项目也编译进去：
-    ```cgo
-    # 可以在 Go 代码中调用动态链接库，需要的操作是：
-    
-    // 导入 libpcap 库将在 libs 目录中找到一个名为 libpcap.so.1 的动态链接库
-    #cgo LDFLAGS: -L${SRCDIR}/libs -lpcap
-    #cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/libs
-    // 这允许程序找到与libpcap动态链接库对应的源代码
-    #cgo CFLAGS: -I${SRCDIR}/include/libpcap
-    // 注释掉 c99 标准（如果有的话），否则调用 libpcap 时将无法识别u_int、u_short等类型
-    //#cgo CFLAGS: -std=c99
-    ```
 
 ## 4. 路线图
 
@@ -552,6 +535,8 @@ apt install bison
 - [x] 支持离线和实时设置rsa key用来解析TLS协议
 - [x] 支持可选参数
 - [x] 支持注册自定义协议解析器
+- [x] 支持从HTTP协议中提取文件
+- [x] 支持TCP流重组
 
 ## 5. 联系
 

@@ -11,13 +11,170 @@ static guint hexdump_source_option =
 static guint hexdump_ascii_option =
     HEXDUMP_ASCII_INCLUDE; /* Default - Enable legacy undelimited ASCII dump */
 
+/*
+ * print hex format data
+ */
+
+#define MAX_OFFSET_LEN 8  /* max length of hex offset of bytes */
+#define BYTES_PER_LINE 16 /* max byte values printed on a line */
+#define HEX_DUMP_LEN (BYTES_PER_LINE * 3)
+/* max number of characters hex dump takes -
+   2 digits plus trailing blank */
+#define DATA_DUMP_LEN (HEX_DUMP_LEN + 2 + BYTES_PER_LINE)
+/* number of characters those bytes take;
+   3 characters per byte of hex dump,
+   2 blanks separating hex from ASCII,
+   1 character per byte of ASCII dump */
+#define MAX_LINE_LEN (MAX_OFFSET_LEN + 2 + DATA_DUMP_LEN)
+/* number of characters per line;
+   offset, 2 blanks separating offset
+   from data dump, data dump */
+
+static gboolean get_hex_data_buffer(const guchar *cp, guint length,
+                                    cJSON *cjson_offset, cJSON *cjson_hex,
+                                    cJSON *cjson_ascii) {
+
+  register unsigned int ad, i, j, k, l;
+  guchar c;
+  gchar line[MAX_LINE_LEN + 1];
+  gchar line_offset[MAX_LINE_LEN + 1];
+  unsigned int use_digits;
+
+  static gchar binhex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                             '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
+  /*
+   * How many of the leading digits of the offset will we supply?
+   * We always supply at least 4 digits, but if the maximum offset
+   * won't fit in 4 digits, we use as many digits as will be needed.
+   */
+  if (((length - 1) & 0xF0000000) != 0)
+    use_digits = 8; /* need all 8 digits */
+  else if (((length - 1) & 0x0F000000) != 0)
+    use_digits = 7; /* need 7 digits */
+  else if (((length - 1) & 0x00F00000) != 0)
+    use_digits = 6; /* need 6 digits */
+  else if (((length - 1) & 0x000F0000) != 0)
+    use_digits = 5; /* need 5 digits */
+  else
+    use_digits = 4; /* we'll supply 4 digits */
+
+  ad = 0;
+  i = 0;
+  j = 0;
+  k = 0;
+  while (i < length) {
+    if ((i & 15) == 0) {
+      /*
+       * Start of a new line.
+       */
+      j = 0;
+      l = use_digits;
+      do {
+        l--;
+        c = (ad >> (l * 4)) & 0xF;
+        line[j] = binhex[c];
+        // offset data
+        line_offset[j] = binhex[c];
+        line_offset[j + 1] = '\0';
+        j++;
+      } while (l != 0);
+      // add offset to json obj
+      cJSON_AddItemToArray(cjson_offset, cJSON_CreateString(line_offset));
+      line[j++] = ' ';
+      line[j++] = ' ';
+      memset(line + j, ' ', DATA_DUMP_LEN);
+
+      /*
+       * Offset in line of ASCII dump.
+       */
+      k = j + HEX_DUMP_LEN + 2;
+    }
+    c = *cp++;
+    line[j++] = binhex[c >> 4];
+    line[j++] = binhex[c & 0xf];
+    j++;
+
+    line[k++] = ((c >= ' ') && (c < 0x7f)) ? c : '.';
+    i++;
+    if (((i & 15) == 0) || (i == length)) {
+      /*
+       * We'll be starting a new line, or
+       * we're finished printing this buffer;
+       * dump out the line we've constructed,
+       * and advance the offset.
+       */
+      line[k] = '\0';
+
+      // hex data
+      char line_hex[48];
+      strncpy(line_hex, line + use_digits + 2, 48);
+      line_hex[47] = '\0';
+      // add hex to json obj
+      cJSON_AddItemToArray(cjson_hex, cJSON_CreateString(line_hex));
+
+      // ascii str data
+      char line_ascii[17];
+      strncpy(line_ascii, line + use_digits + 52, 17);
+      line_ascii[16] = '\0';
+      // add ascii to json obj
+      cJSON_AddItemToArray(cjson_ascii, cJSON_CreateString(line_ascii));
+
+      ad += 16;
+    }
+  }
+  return TRUE;
+}
+
+/**
+ * Get hex part of data.
+ *
+ *  @param edt epan_dissect_t type
+ *  @return cjson_offset、cjson_hex、cjson_ascii;
+ */
+bool get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset, cJSON *cjson_hex,
+                  cJSON *cjson_ascii) {
+  gboolean multiple_sources;
+  GSList *src_le;
+  tvbuff_t *tvb;
+  char *line, *name;
+  const guchar *cp;
+  guint length;
+  struct data_source *src;
+
+  /*
+   * Set "multiple_sources" iff this frame has more than one
+   * data source; if it does, we need to print the name of
+   * the data source before printing the data from the
+   * data source.
+   */
+  multiple_sources = (edt->pi.data_src->next != NULL);
+
+  for (src_le = edt->pi.data_src; src_le != NULL; src_le = src_le->next) {
+    src = (struct data_source *)src_le->data;
+    tvb = get_data_source_tvb(src);
+    if (multiple_sources) {
+      name = get_data_source_name(src);
+      line = g_strdup_printf("%s:", name);
+      wmem_free(NULL, name);
+      g_free(line);
+    }
+    length = tvb_captured_length(tvb);
+    if (length == 0)
+      return true;
+    cp = tvb_get_ptr(tvb, 0, length);
+    if (!get_hex_data_buffer(cp, length, cjson_offset, cjson_hex, cjson_ascii))
+      return false;
+  }
+  return true;
+}
+
 /**
  * Init policies、wtap mod、epan mod.
  *
- *  @param filepath the pcap file path
- *  @return 0 if init correctly
+ * @return true if initialization is successful, false otherwise.
  */
-int init_env() {
+bool init_env() {
   /**
    * Called when the program starts, to enable security features and save
    * whatever credential information we'll need later.
@@ -47,10 +204,10 @@ int init_env() {
    * Returns TRUE on success, FALSE on failure.
    */
   if (!epan_init(NULL, NULL, FALSE)) {
-    return 0;
+    return false;
   }
 
-  return 1;
+  return true;
 }
 
 const nstime_t *
@@ -255,14 +412,14 @@ void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
 }
 
 // Helper function to check if JSON is empty
-int is_empty_json(const char *json_str) {
+bool is_empty_json(const char *json_str) {
   if (json_str == NULL || strlen(json_str) == 0) {
-    return 1; // Empty if NULL or empty string
+    return true; // Empty if NULL or empty string
   }
 
   cJSON *json = cJSON_Parse(json_str);
   if (json == NULL) {
-    return 1; // Invalid JSON treated as empty
+    return true; // Invalid JSON treated as empty
   }
 
   // Check if it's an empty object
@@ -365,43 +522,68 @@ int init_cf(char *filepath, char *options) {
  * Read each frame.
  *
  *  @param edt_r the epan_dissect_t struct of each frame
- *  @return TRUE if can dissect frame correctly, FALSE if can not read frame
+ *  @return true if can dissect frame correctly, false if can not read frame
  */
-gboolean read_packet(epan_dissect_t **edt_r) {
-  epan_dissect_t *edt;
+bool read_packet(epan_dissect_t **edt_r) {
+  if (!edt_r)
+    return false;
+
+  epan_dissect_t *edt = NULL;
   int err;
   gchar *err_info = NULL;
   guint32 cum_bytes = 0;
   int64_t data_offset = 0;
   wtap_rec rec;
+
   wtap_rec_init(&rec);
 
-  if (wtap_read(cf.provider.wth, &rec, &cf.buf, &err, &err_info,
-                &data_offset)) {
-    cf.count++;
-    frame_data fd;
-    frame_data_init(&fd, cf.count, &rec, data_offset, cum_bytes);
-    // data_offset must be correctly set
-    data_offset = fd.pkt_len;
-    edt = epan_dissect_new(cf.epan, TRUE, TRUE);
-    prime_epan_dissect_with_postdissector_wanted_hfids(edt);
-    frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref,
-                                  cf.provider.prev_dis);
-    cf.provider.ref = &fd;
-    tvbuff_t *tvb;
-    tvb = tvb_new_real_data(cf.buf.data, data_offset, data_offset);
-    // core dissect process
-    epan_dissect_run_with_taps(edt, cf.cd_t, &rec, tvb, &fd, &cf.cinfo);
-    frame_data_set_after_dissect(&fd, &cum_bytes);
-    cf.provider.prev_cap = cf.provider.prev_dis =
-        frame_data_sequence_add(cf.provider.frames, &fd);
-    // free space
+  if (!wtap_read(cf.provider.wth, &rec, &cf.buf, &err, &err_info,
+                 &data_offset)) {
     wtap_rec_reset(&rec);
-    frame_data_destroy(&fd);
-    *edt_r = edt;
-    return TRUE;
+    return false;
   }
-  return FALSE;
+
+  cf.count++;
+
+  frame_data fd;
+  frame_data_init(&fd, cf.count, &rec, data_offset, cum_bytes);
+
+  // data_offset must be correctly set
+  data_offset = fd.pkt_len;
+  edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+  if (!edt) {
+    frame_data_destroy(&fd);
+    wtap_rec_reset(&rec);
+    return false;
+  }
+
+  prime_epan_dissect_with_postdissector_wanted_hfids(edt);
+  frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref,
+                                cf.provider.prev_dis);
+
+  cf.provider.ref = &fd;
+
+  tvbuff_t *tvb = tvb_new_real_data(cf.buf.data, data_offset, data_offset);
+  if (!tvb) {
+    epan_dissect_free(edt);
+    frame_data_destroy(&fd);
+    wtap_rec_reset(&rec);
+    return false;
+  }
+
+  // core dissect process
+  epan_dissect_run_with_taps(edt, cf.cd_t, &rec, tvb, &fd, &cf.cinfo);
+  frame_data_set_after_dissect(&fd, &cum_bytes);
+
+  cf.provider.prev_cap = cf.provider.prev_dis =
+      frame_data_sequence_add(cf.provider.frames, &fd);
+
+  // free space
+  wtap_rec_reset(&rec);
+  frame_data_destroy(&fd);
+
+  *edt_r = edt;
+  return true;
 }
 
 /**
@@ -465,11 +647,10 @@ char *get_specific_frame_hex_data(int num) {
  * Transfer proto tree to json format.
  *
  *  @param num the index of frame which you want to dissect
- *  @return char of protocol tree dissect result, include hex data
+ *  @return char of protocol tree dissect result
  */
-char *proto_tree_in_json(int num, int descriptive, int printCJson) {
+char *proto_tree_in_json(int num, int printCJson) {
   epan_dissect_t *edt;
-  char *result = NULL;
 
   // start reading packets
   while (read_packet(&edt)) {
@@ -479,27 +660,32 @@ char *proto_tree_in_json(int num, int descriptive, int printCJson) {
       continue;
     }
 
-    // json root node
-    cJSON *proto_tree_json = cJSON_CreateObject();
-    get_proto_tree_json(NULL, print_dissections_expanded, TRUE, NULL,
-                        PF_INCLUDE_CHILDREN, edt, &cf.cinfo,
-                        proto_node_group_children_by_unique, proto_tree_json,
-                        descriptive);
+    json_dumper dumper = {};
+    dumper.output_string = g_string_new(NULL);
 
-    char *proto_tree_json_str;
-    if (printCJson) {
-      proto_tree_json_str = cJSON_Print(proto_tree_json);
-      printf("%s\n", proto_tree_json_str);
-    } else {
-      proto_tree_json_str = cJSON_PrintUnformatted(proto_tree_json);
+    get_json_proto_tree(NULL, print_dissections_expanded, FALSE, NULL,
+                        PF_INCLUDE_CHILDREN, edt, &cf.cinfo,
+                        proto_node_group_children_by_unique, &dumper);
+
+    // Get JSON string from json_dumper
+    char *json_str = NULL;
+    if (json_dumper_finish(&dumper)) {
+      json_str = g_strdup(dumper.output_string->str);
     }
 
-    cJSON_Delete(proto_tree_json);
+    // cleanup
+    if (dumper.output_string) {
+      g_string_free(dumper.output_string, TRUE);
+    }
     epan_dissect_free(edt);
-    edt = NULL;
 
-    return proto_tree_json_str;
+    if (printCJson) {
+      printf("%s\n", json_str);
+    }
+
+    return json_str ? json_str : g_strdup("");
   }
+
   close_cf();
-  return result ? result : "";
+  return g_strdup("");
 }

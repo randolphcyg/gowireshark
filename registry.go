@@ -6,7 +6,7 @@ import (
 
 // ProtocolParser defines the interface for parsing a custom protocol.
 type ProtocolParser interface {
-	Parse(layers Layers) (interface{}, error)
+	Parse(layers Layers) (any, error)
 }
 
 // ParserRegistry manages the registered protocol parsers.
