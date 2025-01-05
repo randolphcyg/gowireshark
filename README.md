@@ -62,26 +62,24 @@ import (
 
 func main() {
 	inputFilepath := "pcaps/mysql.pcapng"
-	res, err := gowireshark.GetAllFrameProtoTreeInJson(inputFilepath,
-		gowireshark.WithDescriptive(true), gowireshark.WithDebug(false))
+	frames, err := gowireshark.GetAllFrames(inputFilepath,
+		gowireshark.WithDebug(false))
 	if err != nil {
 		panic(err)
 	}
 
-	for _, frameRes := range res {
-		fmt.Println("# Frame index:", frameRes.BaseLayers.WsCol.Num, "===========================")
-		fmt.Println("## Hex:", frameRes.Hex)
-		fmt.Println("## Ascii:", frameRes.Ascii)
+	for _, frame := range frames {
+		fmt.Println("# Frame index:", frame.BaseLayers.WsCol.Num, "===========================")
 
-		if frameRes.BaseLayers.Ip != nil {
-			fmt.Println("## ip.src:", frameRes.BaseLayers.Ip.Src)
-			fmt.Println("## ip.dst:", frameRes.BaseLayers.Ip.Dst)
+		if frame.BaseLayers.Ip != nil {
+			fmt.Println("## ip.src:", frame.BaseLayers.Ip.Src)
+			fmt.Println("## ip.dst:", frame.BaseLayers.Ip.Dst)
 		}
-		if frameRes.BaseLayers.Http != nil {
-			fmt.Println("## http.request.uri:", frameRes.BaseLayers.Http.RequestUri)
+		if frame.BaseLayers.Http != nil {
+			fmt.Println("## http.request.uri:", frame.BaseLayers.Http.RequestUri)
 		}
-		if frameRes.BaseLayers.Dns != nil {
-			fmt.Println("## dns:", frameRes.BaseLayers.Dns)
+		if frame.BaseLayers.Dns != nil {
+			fmt.Println("## dns:", frame.BaseLayers.Dns)
 		}
 	}
 }
@@ -178,8 +176,8 @@ func (p *MySQLLayer) Parse(layers gowireshark.Layers) (any, error) {
 }
 
 func ParseCustomProtocol(inputFilepath string) (mysqlLayer *MySQLLayer, err error) {
-	frameRes, err := gowireshark.GetSpecificFrameProtoTreeInJson(inputFilepath, 65,
-		gowireshark.WithDescriptive(true), gowireshark.WithDebug(false))
+	frame, err := gowireshark.GetFrameByIdx(inputFilepath, 65,
+		gowireshark.WithDebug(false))
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +187,7 @@ func ParseCustomProtocol(inputFilepath string) (mysqlLayer *MySQLLayer, err erro
 	// register MySQL protocol Parser
 	registry.Register("mysql", &MySQLLayer{})
 
-	parsedLayer, err := registry.ParseProtocol("mysql", frameRes.WsSource.Layers)
+	parsedLayer, err := registry.ParseProtocol("mysql", frame.Layers)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error parsing MySQL protocol")
 	}
@@ -238,6 +236,7 @@ gowireshark
 │   ├── libpcap/
 │   ├── offline.h
 │   ├── online.h
+│   ├── reassembly.h
 │   ├── uthash.h
 │   └── wireshark/
 ├── layers.go
@@ -261,25 +260,26 @@ gowireshark
 │   ├── mysql.pcapng
 │   ├── server.key
 │   └── testInvalid.key
+├── reassembly.c
 └── registry.go
 ```
 Detailed description of the project directory structure：
 
-| file                                      | description                                                                                   |
-|-------------------------------------------|-----------------------------------------------------------------------------------------------|
-| `include/wireshark/`                      | wireshark compiled source code                                                                |
-| `include/libpcap/`                        | libpcap uncompiled source code                                                                |
-| `frame_tvbuff.c`、`include/frame_tvbuff.h` | The wireshark source files, copied out, must be placed here                                   |
-| `libs/`                                   | wireshark、libpcap latest dll files                                                            |
-| `pcaps/`                                  | Pcap packet files used for testing                                                            |
-| `gowireshark_test.go`                     | Test files                                                                                    |
-| `uthash.h`                                | Third-party [uthash](https://github.com/troydhanson/uthash) library                           |
-| `cJSON.c、cJSON.h`                         | Third-party [cJSON](https://github.com/DaveGamble/cJSON) library                              |
-| `lib.c、offline.c、online.c`                | Code that encapsulates and enhances libpcap and wireshark functionality in C                  |
-| `include/lib.h、offline.h、online.h`        | Some c interfaces exposed to go                                                               |
-| `layers.go`                               | common layers parser                                                                          |
-| `registry.go`                             | user register custom protocol parser                                                          |
-| `online.go、gowireshark.go`                | The final interface is encapsulated with Go, and the user's Go program can be used directly   |
+| file                                            | description                                                                                 |
+|-------------------------------------------------|---------------------------------------------------------------------------------------------|
+| `include/wireshark/`                            | wireshark compiled source code                                                              |
+| `include/libpcap/`                              | libpcap uncompiled source code                                                              |
+| `frame_tvbuff.c`、`include/frame_tvbuff.h`       | The wireshark source files, copied out, must be placed here                                 |
+| `libs/`                                         | wireshark、libpcap latest dll files                                                          |
+| `pcaps/`                                        | Pcap packet files used for testing                                                          |
+| `gowireshark_test.go`                           | Test files                                                                                  |
+| `uthash.h`                                      | Third-party [uthash](https://github.com/troydhanson/uthash) library                         |
+| `cJSON.c、cJSON.h`                               | Third-party [cJSON](https://github.com/DaveGamble/cJSON) library                            |
+| `lib.c、offline.c、online.c、reassembly.c`         | Code that encapsulates and enhances libpcap and wireshark functionality in C                |
+| `include/lib.h、offline.h、online.h、reassembly.h` | Some c interfaces exposed to go                                                             |
+| `layers.go`                                     | common layers parser                                                                        |
+| `registry.go`                                   | user register custom protocol parser                                                        |
+| `online.go、gowireshark.go`                      | The final interface is encapsulated with Go, and the user's Go program can be used directly |
 
 
 - **lib.c、offline.c、online.c** 
@@ -464,7 +464,7 @@ apt install bison
 
 ### 2.4. Parsing result format description
 
-1. New fields,Three fields have been added to the native wireshark parsing result：
+1. Hexadecimal related fields are separated from the protocol parsing results：
    - offset
    - hex
    - ascii
@@ -472,8 +472,6 @@ apt install bison
 2. Descriptive values
    - The native printing protocol tree interface`proto_tree_print`contains descriptive values, while the protocol JSON output interface`write_json_proto_tree`does not contain descriptive values,
      which can be improved by borrowing the implementation logic`proto_tree_print_node`of the former;
-   - The modified interface`GetSpecificFrameProtoTreeInJson`parameter`isDescriptive`,corresponds to the`descriptive`parameter of the c interface`proto_tree_in_json`;
-     Set to `WithDescriptive(false)` to have no descriptive value for the field, and set to `WithDescriptive(true)` for the field with a descriptive value;
    - Refer to`proto_item_fill_label`in`proto.h`:
        ```c
        /** Fill given label_str with a simple string representation of field.
@@ -489,8 +487,8 @@ apt install bison
 ---
 
 1. You can create a new C file in `lib.c, offline.c, online.c`'` or in the root directory and add interfaces for custom functions;
-2. After the interface is completed, you need to add a declaration in the H header file with the same name in the `include/` directory, and if the interface is also used in `gowireshark.go`, you need to add the same declaration in the cgo preamble of this file;
-3. encapsulate the interface in `gowireshark.go`;
+2. After the interface is completed, you need to add a declaration in the H header file with the same name in the `include/` directory, and if the interface is also used in cgo file, you need to add the same declaration in the cgo preamble of this file;
+3. encapsulate the interface in cgo file;
 4. Add test cases in file `gowireshark_test.go`;
 5. Use the clang-format tool to format custom C code and header files:
    E.g：`clang-format -i lib.c`，With the parameter '-i' indicates that this command directly formats the specified file, remove '-i' to preview.
@@ -503,40 +501,24 @@ apt install bison
    ```
 6. how to test:
    ```shell
-   # Parse and output all the frame of a pcap file
-   go test -v -run TestDissectPrintAllFrame
+   # Print all the frame of a pcap file
+   go test -v -run TestPrintAllFrames
    # Parse and output a frame in JSON format
-   go test -v -run TestGetSpecificFrameProtoTreeInJson
+   go test -v -run TestGetFrameByIdx
    # Parse and output several frame in JSON format
-   go test -v -run TestGetSeveralFrameProtoTreeInJson
+   go test -v -run TestGetFramesByIdxs
    # Parse and output all frame in JSON format
-   go test -v -run TestGetAllFrameProtoTreeInJson
+   go test -v -run TestGetAllFrames
    # Parses and outputs a frame of HEX data
-   go test -v -run TestGetSpecificFrameHexData
+   go test -v -run TestGetHexDataByIdx
    # Parse packets in real time
-   go test -v -run TestDissectPktLive
+   go test -v -run TestStartAndStopLivePacketCaptureInfinite
    # Real-time packet capture Read a certain number and parse it
-   go test -v -run TestDissectPktLiveSpecificNum
+   go test -v -run TestStartAndStopLivePacketCaptureLimited
    # Set rsa key to parse TLSv1.2
    go test -v -run TestParseHttps
    ```
    Or test by calling this library.
-
-7. How `gowireshark.go` works:
-
-   There are some C syntax declarations and imports in the preface, as well as some cgo parameters, so that when compiling this go project with `go build`, the internal C project will be automatically compiled into it:
-    ```cgo
-    # After the compilation is completed, modify 【libpcap.so.1.x.x】 to 【libpcap.so.1】, 
-    # you can call the dynamic link library in the go code, and the required operations are:
-    
-    // Importing the libpcap library will find a dynamic link library named libpcap.so.1 in the libs directory
-    #cgo LDFLAGS: -L${SRCDIR}/libs -lpcap
-    #cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/libs
-    // This allows the program to find the source code corresponding to the libpcap dynamic link library
-    #cgo CFLAGS: -I${SRCDIR}/include/libpcap
-    // Comment out the c99 standard(if any), otherwise you will not recognize the u_int, u_short and other types when calling libpcap
-    //#cgo CFLAGS: -std=c99
-    ```
 
 ## 4. Roadmap
 
@@ -554,3 +536,5 @@ apt install bison
 - [x] Support Set rsa keys to parse the TLS protocol, offline and real-time
 - [x] Support for optional parameters
 - [x] Users can register custom protocol parsers
+- [x] Supports extracting files from the HTTP protocol
+- [x] Supports follow TCP streams

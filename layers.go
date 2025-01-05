@@ -13,6 +13,23 @@ var (
 	ErrLayerNotFound = errors.New("layer not found")
 )
 
+type Layers map[string]any
+
+// FrameData Dissect results of each frame of data
+type FrameData struct {
+	Index      string   `json:"_index"`
+	Layers     Layers   `json:"layers"` // source
+	BaseLayers struct { // common layers
+		Frame *Frame
+		WsCol *WsCol
+		Ip    *Ip
+		Udp   *Udp
+		Tcp   *Tcp
+		Http  *Http
+		Dns   *Dns
+	}
+}
+
 // parseFieldAsArray handle Single value or multiple value
 func parseFieldAsArray(raw json.RawMessage) (*[]string, error) {
 	if len(raw) == 0 {
@@ -33,28 +50,6 @@ func parseFieldAsArray(raw json.RawMessage) (*[]string, error) {
 	}
 
 	return nil, errors.New("fail to parse field")
-}
-
-type Layers map[string]any
-
-// FrameDissectRes Dissect results of each frame of data
-type FrameDissectRes struct {
-	WsIndex    string   `json:"_index"`
-	Offset     []string `json:"offset"`
-	Hex        []string `json:"hex"`
-	Ascii      []string `json:"ascii"`
-	BaseLayers struct { // common layers
-		Frame *Frame
-		WsCol *WsCol
-		Ip    *Ip
-		Udp   *Udp
-		Tcp   *Tcp
-		Http  *Http
-		Dns   *Dns
-	}
-	WsSource struct {
-		Layers Layers `json:"layers"`
-	} `json:"_source"`
 }
 
 // Frame wireshark frame
@@ -709,7 +704,7 @@ func (l Layers) Dns() (dns any, err error) {
 
 	queriesCount, _ := strconv.Atoi(tmp.QueriesCount)
 	queries := make([]DnsQuery, queriesCount)
-	if m, ok := tmp.Queries.(map[string]interface{}); ok {
+	if m, ok := tmp.Queries.(map[string]any); ok {
 		if len(m) == 0 {
 			return
 		}
@@ -726,7 +721,7 @@ func (l Layers) Dns() (dns any, err error) {
 
 	answersCount, _ := strconv.Atoi(tmp.AnswersCount)
 	answers := make([]DnsAnswer, answersCount)
-	if m, ok := tmp.Answers.(map[string]interface{}); ok {
+	if m, ok := tmp.Answers.(map[string]any); ok {
 		if len(m) == 0 {
 			return
 		}
