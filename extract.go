@@ -86,7 +86,7 @@ func GenerateUniqueFilenameWithIncrement(dir, filename string) string {
 		if !isFileExist(path) {
 			break
 		}
-		filename = fmt.Sprintf("%s-%d%s", base, counter, ext)
+		filename = fmt.Sprintf("%s(%d)%s", base, counter, ext)
 		counter++
 	}
 
@@ -163,45 +163,49 @@ func ExtractFilename(http *Http, dir string) (string, error) {
 	return path, nil
 }
 
-func ExtractHttpFile(http *Http, dir string) (string, error) {
-	if http == nil {
-		return "", errors.New("http is nil")
-	}
-
-	path, err := ExtractFilename(http, dir)
-	if err != nil {
-		return "", err
-	}
-
-	file, err := os.Create(path)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to create file")
-	}
-	defer file.Close()
-
-	decoder := strings.NewReader(strings.ReplaceAll(http.FileData, ":", ""))
-	buffer := make([]byte, 1024*1024) // 1MB buffer
-
-	for {
-		n, err := decoder.Read(buffer)
-		if err != nil && err != io.EOF {
-			return "", errors.Wrap(err, "error reading file data")
+func ExtractHttpFile(httpList []*Http, dir string) ([]string, error) {
+	paths := make([]string, 0)
+	for _, http := range httpList {
+		if http == nil {
+			return nil, errors.New("http is nil")
 		}
 
-		if n == 0 {
-			break
+		path, err := ExtractFilename(http, dir)
+		if err != nil {
+			return nil, err
 		}
 
-		decodedData := make([]byte, hex.DecodedLen(n))
-		_, decodeErr := hex.Decode(decodedData, buffer[:n])
-		if decodeErr != nil {
-			return "", errors.Wrap(decodeErr, "error decoding hex data")
+		file, err := os.Create(path)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create file")
 		}
+		defer file.Close()
 
-		if _, writeErr := file.Write(decodedData); writeErr != nil {
-			return "", errors.Wrap(writeErr, "error writing to file")
+		decoder := strings.NewReader(strings.ReplaceAll(http.FileData, ":", ""))
+		buffer := make([]byte, 1024*1024) // 1MB buffer
+
+		for {
+			n, err := decoder.Read(buffer)
+			if err != nil && err != io.EOF {
+				return nil, errors.Wrap(err, "error reading file data")
+			}
+
+			if n == 0 {
+				break
+			}
+
+			decodedData := make([]byte, hex.DecodedLen(n))
+			_, decodeErr := hex.Decode(decodedData, buffer[:n])
+			if decodeErr != nil {
+				return nil, errors.Wrap(decodeErr, "error decoding hex data")
+			}
+
+			if _, writeErr := file.Write(decodedData); writeErr != nil {
+				return nil, errors.Wrap(writeErr, "error writing to file")
+			}
 		}
+		paths = append(paths, path)
 	}
 
-	return path, nil
+	return paths, nil
 }
