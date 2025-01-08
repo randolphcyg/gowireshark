@@ -25,7 +25,7 @@ type FrameData struct {
 		Ip    *Ip
 		Udp   *Udp
 		Tcp   *Tcp
-		Http  *Http
+		Http  []*Http
 		Dns   *Dns
 	}
 }
@@ -537,12 +537,27 @@ type Http struct {
 	Origin           string `json:"http.origin"`            // Origin header
 }
 
-func (l Layers) Http() (http any, err error) {
+func (l Layers) Http() (any, error) {
 	src, ok := l["http"]
 	if !ok {
 		return nil, errors.Wrap(ErrLayerNotFound, "http")
 	}
 
+	switch v := src.(type) {
+	case map[string]any:
+		http, err := parseSingleHttp(v)
+		if err != nil {
+			return nil, err
+		}
+		return []*Http{http}, nil
+	case []any:
+		return parseMultipleHttp(v)
+	default:
+		return nil, errors.Wrapf(ErrParseFrame, "HTTP: unexpected type %T", src)
+	}
+}
+
+func parseSingleHttp(src map[string]any) (*Http, error) {
 	type tmpHttp struct {
 		Date                string `json:"http.date"`
 		Host                string `json:"http.host"`
@@ -580,8 +595,8 @@ func (l Layers) Http() (http any, err error) {
 		TransferEncoding string `json:"http.transfer_encoding"`
 		Origin           string `json:"http.origin"`
 	}
-	var tmp tmpHttp
 
+	var tmp tmpHttp
 	jsonData, err := json.Marshal(src)
 	if err != nil {
 		return nil, errors.Wrapf(err, "HTTP: %s", ErrParseFrame)
@@ -639,6 +654,23 @@ func (l Layers) Http() (http any, err error) {
 		TransferEncoding: tmp.TransferEncoding,
 		Origin:           tmp.Origin,
 	}, nil
+}
+
+func parseMultipleHttp(src []any) ([]*Http, error) {
+	var httpLayers []*Http
+	for _, item := range src {
+		itemMap, ok := item.(map[string]any)
+		if !ok {
+			return nil, errors.Wrapf(ErrParseFrame, "HTTP: unexpected type %T in array", item)
+		}
+
+		http, err := parseSingleHttp(itemMap)
+		if err != nil {
+			return nil, err
+		}
+		httpLayers = append(httpLayers, http)
+	}
+	return httpLayers, nil
 }
 
 type DnsFlags struct {
