@@ -214,7 +214,7 @@ func ParseFrameData(src string) (frame *FrameData, err error) {
 	})
 
 	go parseAndSetLayer(frame.Layers.Http, func(layer any) {
-		frame.BaseLayers.Http = layer.(*Http)
+		frame.BaseLayers.Http = layer.([]*Http)
 	})
 
 	go parseAndSetLayer(frame.Layers.Dns, func(layer any) {

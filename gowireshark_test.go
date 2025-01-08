@@ -224,8 +224,8 @@ func TestParseHttps(t *testing.T) {
 	}
 	if frame.BaseLayers.Http != nil {
 		t.Log("## http:", frame.BaseLayers.Http)
-		if frame.BaseLayers.Http.ResponseLine != nil {
-			for _, header := range *frame.BaseLayers.Http.ResponseLine {
+		if frame.BaseLayers.Http[0].ResponseLine != nil {
+			for _, header := range *frame.BaseLayers.Http[0].ResponseLine {
 				t.Log("#### http.ResponseLine >>>", header)
 			}
 		}
@@ -263,7 +263,7 @@ func TestGetAllFrames(t *testing.T) {
 			t.Log("## ip.dst:", frame.BaseLayers.Ip.Dst)
 		}
 		if frame.BaseLayers.Http != nil {
-			t.Log("## http.request.uri:", frame.BaseLayers.Http.RequestUri)
+			t.Log("## http.request.uri:", frame.BaseLayers.Http[0].RequestUri)
 		}
 		if frame.BaseLayers.Dns != nil {
 			t.Log("## dns:", frame.BaseLayers.Dns)
@@ -365,7 +365,7 @@ func TestStartAndStopLivePacketCaptureInfinite(t *testing.T) {
 				t.Log("## ip.dst:", frame.BaseLayers.Ip.Dst)
 			}
 			if frame.BaseLayers.Http != nil {
-				t.Log("【layer http.request.uri】:", frame.BaseLayers.Http.RequestUri)
+				t.Log("【layer http.request.uri】:", frame.BaseLayers.Http[0].RequestUri)
 			}
 		}
 	}()
@@ -425,8 +425,8 @@ func TestStartAndStopLivePacketCaptureLimited(t *testing.T) {
 			}
 			if frame.BaseLayers.Http != nil {
 				t.Log("## http:", frame.BaseLayers.Http)
-				if frame.BaseLayers.Http.ResponseLine != nil {
-					for _, header := range *frame.BaseLayers.Http.ResponseLine {
+				if frame.BaseLayers.Http[0].ResponseLine != nil {
+					for _, header := range *frame.BaseLayers.Http[0].ResponseLine {
 						t.Log("#### http.ResponseLine >>>", header)
 					}
 				}
@@ -494,8 +494,8 @@ func TestBPF(t *testing.T) {
 			}
 			if frame.BaseLayers.Http != nil {
 				t.Log("## http:", frame.BaseLayers.Http)
-				if frame.BaseLayers.Http.ResponseLine != nil {
-					for _, header := range *frame.BaseLayers.Http.ResponseLine {
+				if frame.BaseLayers.Http[0].ResponseLine != nil {
+					for _, header := range *frame.BaseLayers.Http[0].ResponseLine {
 						t.Log("#### http.ResponseLine >>>", header)
 					}
 				}
@@ -505,7 +505,7 @@ func TestBPF(t *testing.T) {
 	}()
 
 	// start c client, capture and dissect packet
-	err := StartLivePacketCapture(ifName, filter, pktNum, promisc, timeout)
+	err := StartLivePacketCapture(ifName, filter, pktNum, promisc, timeout, PrintCJson(true))
 	if err != nil {
 		t.Fatal(err)
 	}
