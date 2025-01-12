@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -605,6 +606,26 @@ func parseSingleHttp(src map[string]any) (*Http, error) {
 	err = json.Unmarshal(jsonData, &tmp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "HTTP: %s", ErrParseFrame)
+	}
+
+	// dynamic key like: "HTTP/1.1 404 Not Found\\r\\n"
+	for key, value := range src {
+		if strings.HasPrefix(key, "HTTP/") {
+			if nested, ok := value.(map[string]any); ok {
+				if version, ok := nested["http.response.version"].(string); ok {
+					tmp.ResponseVersion = version
+				}
+				if code, ok := nested["http.response.code"].(string); ok {
+					tmp.ResponseCode = code
+				}
+				if desc, ok := nested["http.response.code.desc"].(string); ok {
+					tmp.ResponseCodeDesc = desc
+				}
+				if phrase, ok := nested["http.response.phrase"].(string); ok {
+					tmp.ResponsePhrase = phrase
+				}
+			}
+		}
 	}
 
 	reqLine, err := parseFieldAsArray(tmp.RequestLine)

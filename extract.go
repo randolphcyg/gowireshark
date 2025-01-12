@@ -26,6 +26,8 @@ var (
 	mu              sync.RWMutex
 
 	genFilenameLock sync.Mutex
+
+	ExtractFileDir = "" // extract file save dir
 )
 
 func init() {
@@ -73,7 +75,7 @@ func IsValidFileExtension(filename string) bool {
 }
 
 // GenerateUniqueFilenameWithIncrement if file exist, add auto-increment num
-func GenerateUniqueFilenameWithIncrement(dir, filename string) string {
+func GenerateUniqueFilenameWithIncrement(filename string) string {
 	genFilenameLock.Lock()
 	defer genFilenameLock.Unlock()
 
@@ -82,7 +84,7 @@ func GenerateUniqueFilenameWithIncrement(dir, filename string) string {
 	counter := 1
 
 	for {
-		path := filepath.Join(dir, filename)
+		path := filepath.Join(ExtractFileDir, filename)
 		if !isFileExist(path) {
 			break
 		}
@@ -90,7 +92,7 @@ func GenerateUniqueFilenameWithIncrement(dir, filename string) string {
 		counter++
 	}
 
-	return filepath.Join(dir, filename)
+	return filepath.Join(ExtractFileDir, filename)
 }
 
 // UrlStringDecode Decode URL-encoded strings into raw text
@@ -98,9 +100,13 @@ func UrlStringDecode(encoded string) (string, error) {
 	return url.QueryUnescape(encoded)
 }
 
-func ExtractFilename(http *Http, dir string) (string, error) {
+func ExtractHttpFilename(http *Http) (string, error) {
 	if http.ResponseLine == nil || http.FileData == "" {
 		return "", errors.New("no file data")
+	}
+
+	if http.ResponseCode == "404" || http.ResponseCode == "301" {
+		return "", errors.New("ignore 404 or 301")
 	}
 
 	filename := "tmp"
@@ -155,29 +161,30 @@ func ExtractFilename(http *Http, dir string) (string, error) {
 	}
 
 	// Make sure the filename is unique and add an extension
-	path := filepath.Join(dir, filename)
+	path := filepath.Join(ExtractFileDir, filename)
 	if isFileExist(path) {
-		path = GenerateUniqueFilenameWithIncrement(dir, filename)
+		path = GenerateUniqueFilenameWithIncrement(filename)
 	}
 
 	return path, nil
 }
 
-func ExtractHttpFile(httpList []*Http, dir string) ([]string, error) {
+func ExtractHttpFile(httpList []*Http) ([]string, error) {
 	paths := make([]string, 0)
 	for _, http := range httpList {
 		if http == nil {
-			return nil, errors.New("http is nil")
+			continue
 		}
 
-		path, err := ExtractFilename(http, dir)
+		path, err := ExtractHttpFilename(http)
 		if err != nil {
-			return nil, err
+			continue
 		}
 
 		file, err := os.Create(path)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to create file")
+			slog.Warn("Error:", "Failed to create file", err)
+			continue
 		}
 		defer file.Close()
 
@@ -187,7 +194,8 @@ func ExtractHttpFile(httpList []*Http, dir string) ([]string, error) {
 		for {
 			n, err := decoder.Read(buffer)
 			if err != nil && err != io.EOF {
-				return nil, errors.Wrap(err, "error reading file data")
+				slog.Warn("Error:", "Error reading file", err)
+				break
 			}
 
 			if n == 0 {
@@ -197,11 +205,13 @@ func ExtractHttpFile(httpList []*Http, dir string) ([]string, error) {
 			decodedData := make([]byte, hex.DecodedLen(n))
 			_, decodeErr := hex.Decode(decodedData, buffer[:n])
 			if decodeErr != nil {
-				return nil, errors.Wrap(decodeErr, "error decoding hex data")
+				slog.Warn("Error:", "Error decoding file", err)
+				break
 			}
 
 			if _, writeErr := file.Write(decodedData); writeErr != nil {
-				return nil, errors.Wrap(writeErr, "error writing to file")
+				slog.Warn("Error:", "Error writing file", err)
+				break
 			}
 		}
 		paths = append(paths, path)
