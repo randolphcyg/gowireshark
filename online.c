@@ -1,17 +1,6 @@
 #include <lib.h>
 #include <offline.h>
 #include <online.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <uthash.h>
-#ifdef __linux__
-#include <linux/if_packet.h> // Linux
-#include <net/if.h>
-#elif defined(__APPLE__)
-#include <net/if_dl.h> // macOS
-#endif
 
 // device_content Contains the information needed for each device
 typedef struct device_content {

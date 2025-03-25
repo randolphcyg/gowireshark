@@ -85,7 +85,7 @@ func GenerateUniqueFilenameWithIncrement(filename string) string {
 
 	for {
 		path := filepath.Join(ExtractFileDir, filename)
-		if !isFileExist(path) {
+		if !IsFileExist(path) {
 			break
 		}
 		filename = fmt.Sprintf("%s(%d)%s", base, counter, ext)
@@ -162,7 +162,7 @@ func ExtractHttpFilename(http *Http) (string, error) {
 
 	// Make sure the filename is unique and add an extension
 	path := filepath.Join(ExtractFileDir, filename)
-	if isFileExist(path) {
+	if IsFileExist(path) {
 		path = GenerateUniqueFilenameWithIncrement(filename)
 	}
 

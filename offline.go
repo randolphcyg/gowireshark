@@ -45,8 +45,8 @@ func init() {
 	}
 }
 
-// isFileExist check if the file path exists
-func isFileExist(path string) bool {
+// IsFileExist check if the file path exists
+func IsFileExist(path string) bool {
 	_, err := os.Lstat(path)
 	return !os.IsNotExist(err)
 }
@@ -73,7 +73,7 @@ func EpanPluginsSupported() int {
 
 // initCapFile Init capture file only once for each pcap file
 func initCapFile(path string, opts ...Option) (conf *Conf, err error) {
-	if !isFileExist(path) {
+	if !IsFileExist(path) {
 		err = errors.Wrap(ErrFileNotFound, path)
 		return
 	}

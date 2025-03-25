@@ -246,10 +246,10 @@ gowireshark
 │   ├── libpcap.so.1
 │   ├── libwireshark.so
 │   ├── libwireshark.so.18
-│   ├── libwireshark.so.18.0.2
+│   ├── libwireshark.so.18.0.5
 │   ├── libwiretap.so
 │   ├── libwiretap.so.15
-│   ├── libwiretap.so.15.0.2
+│   ├── libwiretap.so.15.0.5
 │   ├── libwsutil.so
 │   ├── libwsutil.so.16
 │   └── libwsutil.so.16.0.0
@@ -303,7 +303,7 @@ Golang =cgo=> Clang ==> Wireshark/libpcap DLL
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.4.2
+export WIRESHARKV=4.4.5
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
@@ -319,7 +319,7 @@ cd /opt/wireshark/
 cmake -LH ./
 
 # 如果没有 cmake，请先安装它
-export CMAKEV=3.31.1
+export CMAKEV=3.31.6
 sudo wget https://cmake.org/files/LatestRelease/cmake-$CMAKEV.tar.gz
 tar -xzf cmake-$CMAKEV.tar.gz
 mv cmake-$CMAKEV cmake
