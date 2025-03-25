@@ -230,7 +230,7 @@ df_func_oct(GSList *stack, uint32_t arg_count _U_, df_cell_t *retval)
 
 static bool
 df_func_compare(GSList *stack, uint32_t arg_count, df_cell_t *retval,
-                    bool (*fv_cmp)(const fvalue_t *a, const fvalue_t *b))
+                    ft_bool_t (*fv_cmp)(const fvalue_t *a, const fvalue_t *b))
 {
     fvalue_t *fv_ret = NULL;
     GSList   *args;
@@ -243,7 +243,7 @@ df_func_compare(GSList *stack, uint32_t arg_count, df_cell_t *retval,
         if (arg1 != NULL) {
             for (unsigned j = 0; j < arg1->len; j++) {
                 arg_fvalue = arg1->pdata[j];
-                if (fv_ret == NULL || fv_cmp(arg_fvalue, fv_ret)) {
+                if (fv_ret == NULL || (fv_cmp(arg_fvalue, fv_ret) == FT_TRUE)) {
                     fv_ret = arg_fvalue;
                 }
             }
@@ -512,6 +512,7 @@ ul_semcheck_value_string(dfwork_t *dfw, const char *func_name, ftenum_t logical_
     if (stnode_type_id(param) == STTYPE_FIELD) {
         dfw->field_count++;
         hfinfo = sttype_field_hfinfo(param);
+        /* XXX - We should check all fields with the same abbreviation. */
         if (hfinfo->strings != NULL && hfinfo->type != FT_FRAMENUM && hfinfo->type != FT_PROTOCOL) {
             sttype_field_set_value_string(param, true);
             return FT_STRING;

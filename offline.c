@@ -1,5 +1,4 @@
 #include <lib.h>
-#include <wsutil/json_dumper.h>
 
 typedef struct {
   GSList *src_list;
@@ -15,8 +14,17 @@ typedef void (*proto_node_value_writer)(proto_node *, write_json_data *);
 static void write_json_index(json_dumper *dumper, epan_dissect_t *edt);
 static void write_json_proto_node_list(GSList *proto_node_list_head,
                                        write_json_data *pdata);
+static void write_json_proto_node(GSList *node_values_head, const char *suffix,
+                                  proto_node_value_writer value_writer,
+                                  write_json_data *data);
+static void
+write_json_proto_node_value_list(GSList *node_values_head,
+                                 proto_node_value_writer value_writer,
+                                 write_json_data *data);
 static void write_json_proto_node_children(proto_node *node,
                                            write_json_data *data);
+static void write_json_proto_node_value(proto_node *node,
+                                        write_json_data *data);
 static void write_json_proto_node_no_value(proto_node *node,
                                            write_json_data *pdata);
 static const char *proto_node_to_json_key(proto_node *node);
@@ -79,6 +87,24 @@ static bool any_has_children(GSList *node_values_list) {
 }
 
 /**
+ * Writes the value of a node to the output.
+ */
+static void write_json_proto_node_value(proto_node *node,
+                                        write_json_data *pdata) {
+  field_info *fi = node->finfo;
+  // Get the actual value of the node as a string.
+  char *value_string_repr =
+      fvalue_to_string_repr(NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
+
+  // TODO: Have FTREPR_JSON include quotes where appropriate and use
+  // json_dumper_value_anyf() here,
+  //  so we can output booleans and numbers and not only strings.
+  json_dumper_value_string(pdata->dumper, value_string_repr);
+
+  wmem_free(NULL, value_string_repr);
+}
+
+/**
  * Write the value for a node that has no value and no children. This is the
  * empty string for all nodes except those of type FT_PROTOCOL for which the
  * full name is written instead.
@@ -100,6 +126,66 @@ static void write_json_proto_node_no_value(proto_node *node,
   }
 }
 
+static void write_json_proto_node_dynamic(proto_node *node,
+                                          write_json_data *data) {
+  if (node->first_child == NULL) {
+    write_json_proto_node_no_value(node, data);
+  } else {
+    write_json_proto_node_children(node, data);
+  }
+}
+
+/**
+ * Writes a single node as a key:value pair. The value_writer param can be used
+ * to specify how the node's value should be written.
+ * @param node_values_head Linked list containing all nodes associated with the
+ * same json key in this object.
+ * @param suffix Suffix that should be added to the json key.
+ * @param value_writer A function which writes the actual values of the node
+ * json key.
+ * @param pdata json writing metadata
+ */
+static void write_json_proto_node(GSList *node_values_head, const char *suffix,
+                                  proto_node_value_writer value_writer,
+                                  write_json_data *pdata) {
+  // Retrieve json key from first value.
+  proto_node *first_value = (proto_node *)node_values_head->data;
+  const char *json_key = proto_node_to_json_key(first_value);
+  char *json_key_suffix = ws_strdup_printf("%s%s", json_key, suffix);
+  json_dumper_set_member_name(pdata->dumper, json_key_suffix);
+  g_free(json_key_suffix);
+  write_json_proto_node_value_list(node_values_head, value_writer, pdata);
+}
+
+/**
+ * Writes a list of values of a single json key. If multiple values are passed
+ * they are wrapped in a json array.
+ * @param node_values_head Linked list containing all values that should be
+ * written.
+ * @param value_writer Function which writes the separate values.
+ * @param pdata json writing metadata
+ */
+static void
+write_json_proto_node_value_list(GSList *node_values_head,
+                                 proto_node_value_writer value_writer,
+                                 write_json_data *pdata) {
+  GSList *current_value = node_values_head;
+
+  // Write directly if only a single value is passed. Wrap in json array
+  // otherwise.
+  if (current_value->next == NULL) {
+    value_writer((proto_node *)current_value->data, pdata);
+  } else {
+    json_dumper_begin_array(pdata->dumper);
+
+    while (current_value != NULL) {
+      value_writer((proto_node *)current_value->data, pdata);
+      current_value = current_value->next;
+    }
+    json_dumper_end_array(pdata->dumper);
+  }
+}
+
 /**
  * Write a json object containing a list of key:value pairs where each key:value
  * pair corresponds to a different json key and its associated nodes in the
@@ -111,13 +197,39 @@ static void write_json_proto_node_no_value(proto_node *node,
  */
 static void write_json_proto_node_list(GSList *proto_node_list_head,
                                        write_json_data *pdata) {
-  GSList *current_node = proto_node_list_head;
-  GHashTable *key_table = g_hash_table_new(g_str_hash, g_str_equal);
+  json_dumper_begin_object(pdata->dumper);
 
+  // 创建哈希表
+  GHashTable *key_nodes =
+      g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
+
+  // 第一次遍历：将相同key的节点分组
+  GSList *current_node = proto_node_list_head;
   while (current_node != NULL) {
     GSList *node_values_list = (GSList *)current_node->data;
     proto_node *first_value = (proto_node *)node_values_list->data;
     const char *json_key = proto_node_to_json_key(first_value);
+
+    GSList *existing_list = g_hash_table_lookup(key_nodes, json_key);
+    if (existing_list == NULL) {
+      g_hash_table_insert(key_nodes, (gpointer)json_key, node_values_list);
+    } else {
+      // 合并具有相同key的节点列表
+      GSList *combined_list = g_slist_concat(g_slist_copy(existing_list),
+                                             g_slist_copy(node_values_list));
+      g_hash_table_replace(key_nodes, (gpointer)json_key, combined_list);
+    }
+
+    current_node = current_node->next;
+  }
+
+  // 第二次遍历：输出合并后的节点
+  GHashTableIter iter;
+  gpointer key, value;
+  g_hash_table_iter_init(&iter, key_nodes);
+  while (g_hash_table_iter_next(&iter, &key, &value)) {
+    GSList *node_values_list = (GSList *)value;
+    proto_node *first_value = (proto_node *)node_values_list->data;
 
     field_info *fi = first_value->finfo;
     char *value_string_repr = fvalue_to_string_repr(
@@ -132,103 +244,33 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
       proto_item_fill_label(fi, label_str);
       char *value_ptr = strstr(label_ptr, ": ");
       if (value_ptr != NULL) {
-        value_string_repr = (char *)value_ptr + 2;
+        value_string_repr = value_ptr + 2;
       }
     }
 
     gboolean has_value = value_string_repr != NULL;
 
-    GSList *existing_values = g_hash_table_lookup(key_table, json_key);
-    if (existing_values == NULL) {
-      existing_values = g_slist_append(NULL, node_values_list);
-      g_hash_table_insert(key_table, g_strdup(json_key), existing_values);
-    } else {
-      existing_values = g_slist_append(existing_values, node_values_list);
-      g_hash_table_replace(key_table, g_strdup(json_key), existing_values);
+    if (has_value) {
+      write_json_proto_node(node_values_list, "", write_json_proto_node_value,
+                            pdata);
     }
 
-    // next pointer
-    current_node = current_node->next;
-  }
+    if (has_children) {
+      char *suffix = has_value ? "_tree" : "";
+      write_json_proto_node(node_values_list, suffix,
+                            write_json_proto_node_dynamic, pdata);
+    }
 
-  // Iterate over the hash table to write the JSON
-  GHashTableIter iter;
-  gpointer key, value;
-  g_hash_table_iter_init(&iter, key_table);
-  while (g_hash_table_iter_next(&iter, &key, &value)) {
-    const char *json_key = (const char *)key;
-    GSList *node_values_list = (GSList *)value;
-
-    if (g_slist_length(node_values_list) > 1) {
-      json_dumper_set_member_name(pdata->dumper, json_key);
-      json_dumper_begin_array(pdata->dumper);
-
-      GSList *current_value = node_values_list;
-      while (current_value != NULL) {
-        GSList *values = (GSList *)current_value->data;
-        proto_node *first_value = (proto_node *)values->data;
-
-        field_info *fi = first_value->finfo;
-        char *value_string_repr = fvalue_to_string_repr(
-            NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
-
-        gboolean has_children = any_has_children(values);
-
-        if (value_string_repr != NULL) {
-          json_dumper_value_string(pdata->dumper, value_string_repr);
-        }
-
-        if (has_children) {
-          json_dumper_begin_object(pdata->dumper);
-
-          if (first_value->first_child == NULL) {
-            write_json_proto_node_no_value(first_value, pdata);
-          } else {
-            write_json_proto_node_children(first_value, pdata);
-          }
-
-          json_dumper_end_object(pdata->dumper);
-        }
-
-        current_value = current_value->next;
-      }
-
-      json_dumper_end_array(pdata->dumper);
-    } else {
-      GSList *values = (GSList *)node_values_list->data;
-      proto_node *first_value = (proto_node *)values->data;
-
-      field_info *fi = first_value->finfo;
-      char *value_string_repr = fvalue_to_string_repr(
-          NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
-
-      gboolean has_children = any_has_children(values);
-
-      if (value_string_repr != NULL) {
-        json_dumper_set_member_name(pdata->dumper, json_key);
-        json_dumper_value_string(pdata->dumper, value_string_repr);
-      }
-
-      if (has_children) {
-        char *suffix = value_string_repr != NULL ? "_tree" : "";
-        gchar *json_key_s = g_strdup_printf("%s%s", json_key, suffix);
-
-        json_dumper_set_member_name(pdata->dumper, json_key_s);
-        json_dumper_begin_object(pdata->dumper);
-
-        if (first_value->first_child == NULL) {
-          write_json_proto_node_no_value(first_value, pdata);
-        } else {
-          write_json_proto_node_children(first_value, pdata);
-        }
-
-        json_dumper_end_object(pdata->dumper);
-        g_free(json_key_s);
-      }
+    if (!has_value && !has_children) {
+      write_json_proto_node(node_values_list, "",
+                            write_json_proto_node_no_value, pdata);
     }
   }
 
-  g_hash_table_destroy(key_table);
+  // 清理工作移到这里
+  g_hash_table_destroy(key_nodes);
+
+  json_dumper_end_object(pdata->dumper);
 }
 
 /**
@@ -257,8 +299,8 @@ void get_json_proto_tree(output_fields_t *fields,
 
   json_dumper_begin_object(dumper);
   write_json_index(dumper, edt);
+
   json_dumper_set_member_name(dumper, "layers");
-  json_dumper_begin_object(dumper);
 
   data.src_list = edt->pi.data_src;
   data.print_hex = print_hex;
@@ -266,6 +308,5 @@ void get_json_proto_tree(output_fields_t *fields,
   data.node_children_grouper = node_children_grouper;
   write_json_proto_node_children(edt->tree, &data);
 
-  json_dumper_end_object(dumper);
   json_dumper_end_object(dumper);
 }

@@ -159,7 +159,7 @@ static const value_string mpls_pw_types[] = {
     { 0x001C, "IPHC Transport Header-compressed Packets"       },/*[RFC2507][RFC4901]*/
     { 0x001D, "cRTP Transport Header-compressed Packets"       },/*[RFC2508][RFC4901]*/
     { 0x001E, "ATM VP Virtual Trunk"                           },/*[MFA9]*/
-    { 0x001F, "Reserved"                                       },/*[Bryant]  2008-04-17*/
+    { 0x001F, "FC Port Mode"                                   },/*[RFC6307]*/
     { 0, NULL }
 };
 static value_string_ext mpls_pw_types_ext = VALUE_STRING_EXT_INIT(mpls_pw_types);
@@ -167,19 +167,27 @@ static value_string_ext mpls_pw_types_ext = VALUE_STRING_EXT_INIT(mpls_pw_types)
 
 /*
  * MPLS PW Associated Channel Types
- * as per http://www.iana.org/assignments/pwe3-parameters
- * and https://tools.ietf.org/html/draft-ietf-pwe3-vccv-bfd-05 clause 3.2
+ * as per https://www.iana.org/assignments/pwe3-parameters
+ * now known as MPLS Generalized Associated Channel (G-ACh) Types (including Pseudowire
+ * Associated Channel Types) as per https://www.iana.org/assignments/g-ach-parameters
+ * and RFC 5885 clause 3.2
  */
 static const value_string mpls_pwac_types[] = {
     { 0x0000, "Reserved"},
     { 0x0001, "Management Communication Channel (MCC)"},
     { 0x0002, "Signaling Communication Channel (SCC)"},
     { 0x0007, "BFD Control, PW-ACH-encapsulated (BFD Without IP/UDP Headers)" },
+    { 0x0008, "S-BFD Control, PW-ACH/L2SS encapsulation (without IP/UDP Headers)"},
+    { 0x0009, "MPLS-TP Dual-Homing Coordination message"},
     { 0x000A, "MPLS Direct Loss Measurement (DLM)"},
     { 0x000B, "MPLS Inferred Loss Measurement (ILM)"},
     { 0x000C, "MPLS Delay Measurement (DM)"},
     { 0x000D, "MPLS Direct Loss and Delay Measurement (DLM+DM)"},
     { 0x000E, "MPLS Inferred Loss and Delay Measurement (ILM+DM)"},
+    { 0x000F, "Residence Time Measurement"},
+    { 0x0010, "Time Bucket Jitter Measurement"},
+    { 0x0011, "Multi-packet Delay Measurement"},
+    { 0x0012, "Average Delay Measurement"},
     { 0x0021, "IPv4 packet" },
     { 0x0022, "MPLS-TP CC message"},
     { 0x0023, "MPLS-TP CV message"},
@@ -188,8 +196,11 @@ static const value_string mpls_pwac_types[] = {
     { 0x0026, "LI"},
     { 0x0027, "Pseudo-Wire OAM"},
     { 0x0028, "MAC Withdraw OAM Msg"},
+    { 0x0029, "PW Status Refresh Reduction"},
+    { 0x002A, "Ring Protection Switching (RPS) Protocol"},
     { 0x0057, "IPv6 packet" },
     { 0x0058, "Fault OAM"},
+    { 0x0059, "G-ACh Advertisement Protocol"},
     { 0x7FF8, "Reserved for Experimental Use"},
     { 0x7FF9, "Reserved for Experimental Use"},
     { 0x7FFA, "Reserved for Experimental Use"},
@@ -308,29 +319,26 @@ dissect_pw_ach(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
     channel_type = tvb_get_ntohs(tvb, 2);
     p_add_proto_data(pinfo->pool, pinfo, proto_pw_ach, 0, GUINT_TO_POINTER(channel_type));
 
-    if (tree) {
-        proto_tree *mpls_pw_ach_tree;
-        proto_item *ti;
-        uint16_t    res;
+    proto_tree *mpls_pw_ach_tree;
+    proto_item *ti;
+    uint16_t    res;
 
-        ti = proto_tree_add_item(tree, proto_pw_ach, tvb, 0, 4, ENC_NA);
-        mpls_pw_ach_tree = proto_item_add_subtree(ti, ett_mpls_pw_ach);
+    ti = proto_tree_add_item(tree, proto_pw_ach, tvb, 0, 4, ENC_NA);
+    mpls_pw_ach_tree = proto_item_add_subtree(ti, ett_mpls_pw_ach);
 
-        proto_tree_add_item(mpls_pw_ach_tree, hf_mpls_pw_ach_ver,
-                            tvb, 0, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_item(mpls_pw_ach_tree, hf_mpls_pw_ach_ver,
+                        tvb, 0, 1, ENC_BIG_ENDIAN);
 
-        res = tvb_get_uint8(tvb, 1);
-        ti = proto_tree_add_uint(mpls_pw_ach_tree, hf_mpls_pw_ach_res,
-                                        tvb, 1, 1, res);
-        if (res != 0)
-            expert_add_info(pinfo, ti, &ei_mpls_pw_ach_res);
+    res = tvb_get_uint8(tvb, 1);
+    ti = proto_tree_add_uint(mpls_pw_ach_tree, hf_mpls_pw_ach_res,
+                                    tvb, 1, 1, res);
+    if (res != 0)
+        expert_add_info(pinfo, ti, &ei_mpls_pw_ach_res);
 
-        proto_tree_add_item(mpls_pw_ach_tree, hf_mpls_pw_ach_channel_type,
-                            tvb, 2, 2, ENC_BIG_ENDIAN);
+    proto_tree_add_item(mpls_pw_ach_tree, hf_mpls_pw_ach_channel_type,
+                        tvb, 2, 2, ENC_BIG_ENDIAN);
 
-    } /* if (tree) */
-
-    next_tvb     = tvb_new_subset_remaining(tvb, 4);
+    next_tvb = tvb_new_subset_remaining(tvb, 4);
 
     if (!dissector_try_uint(pw_ach_subdissector_table, channel_type, next_tvb, pinfo, tree))
     {

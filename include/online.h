@@ -1,3 +1,14 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <uthash.h>
+#ifdef __linux__
+#include <linux/if_packet.h> // Linux
+#include <net/if.h>
+#elif defined(__APPLE__)
+#include <net/if_dl.h> // macOS
+#endif
 
 // judge is json empty
 bool is_empty_json(const char *json_str);

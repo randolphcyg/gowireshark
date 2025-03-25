@@ -22189,7 +22189,7 @@ static int
 dissect_cpm_WrappedCpmContainers(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_constrained_sequence_of(tvb, offset, actx, tree, hf_index,
                                                   ett_cpm_WrappedCpmContainers, cpm_WrappedCpmContainers_sequence_of,
-                                                  1, 8, true);
+                                                  1, 8, false);
 
   return offset;
 }
@@ -32127,7 +32127,7 @@ void proto_register_its(void)
 #define ITS_TIS_TPG_PROT_VER 1
 #define ITS_CPM_PROT_VERv1 1
 #define ITS_CPM_PROT_VER 2
-#define ITS_VAM_PROT_VER 2
+#define ITS_VAM_PROT_VER 3
 #define ITS_IMZM_PROT_VER 2
 
 void proto_reg_handoff_its(void)

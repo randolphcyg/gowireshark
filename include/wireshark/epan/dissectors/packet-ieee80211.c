@@ -21163,8 +21163,8 @@ dissect_vendor_ie_sgdsn(proto_item *item _U_, proto_tree *ietree,
       case SGDSN_ALTITUDE_ABS:
       case SGDSN_ALTITUDE_REL:
         if (tlv_len == 2) {
-          uint32_t value;
-          proto_tree_add_item_ret_uint(tree, hf_ieee80211_vs_sgdsn_altitude, tvb, offset, 2, ENC_NA, &value);
+          int32_t value;
+          proto_tree_add_item_ret_int(tree, hf_ieee80211_vs_sgdsn_altitude, tvb, offset, 2, ENC_NA, &value);
           proto_item_append_text(tree, ": %d m", value);
         } else {
           expert_add_info_format(pinfo, tree, &ei_ieee80211_tag_length, "Value length must be 4");
@@ -28580,17 +28580,14 @@ dissect_multi_link(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
   proto_tree_add_uint(tree, hf_index, tvb, 0, 0, elt);
 
   if (elt) {
-    char link_id_list[128];
-    int i, ret, n = 0;
-    for (i = 0; i < elt; i++) {
+    wmem_strbuf_t *link_id_list = wmem_strbuf_new_sized(pinfo->pool, elt * 2);
+    for (int i = 0; i < elt; i++) {
       if (local_link_ids[i] != -1) {
-        ret = snprintf(link_id_list + n, 128 - n,
-                         (i == 0) ? "%d" : "_%d", local_link_ids[i]);
-        n += ret;
+        wmem_strbuf_append_printf(link_id_list, (i == 0) ? "%d" : "_%d", local_link_ids[i]);
       }
     }
     proto_tree_add_string(tree, hf_ieee80211_eht_multi_link_link_id_list, tvb,
-                          0, 0, link_id_list);
+                          0, 0, link_id_list->str);
   }
 }
 
@@ -53706,7 +53703,7 @@ proto_register_ieee80211(void)
 
     {&hf_ieee80211_vs_sgdsn_altitude,
      {"Altitude", "wlan.vs.sgdsn.tag.altitude",
-      FT_UINT16, BASE_DEC, NULL, 0,
+      FT_INT16, BASE_DEC, NULL, 0,
       NULL, HFILL }},
 
     {&hf_ieee80211_vs_sgdsn_speed,

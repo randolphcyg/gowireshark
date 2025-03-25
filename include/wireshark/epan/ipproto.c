@@ -166,10 +166,10 @@ static const value_string ipproto_val[] = {
     { IP_PROTO_WESP,    "WESP" },                   /* 141 WESP Wrapped Encapsulating Security Payload [RFC5840] */
     { IP_PROTO_ROHC,    "ROHC" },                   /* 142 ROHC Robust Header Compression [RFC5858] */
     { IP_PROTO_ETHERNET,"Ethernet" },               /* 143 Ethernet [RFC8986] */
-    { 144, "Unassigned" },                          /* 144 Unassigned */
-    { 145, "Unassigned" },                          /* 145 Unassigned */
-    { 146, "Unassigned" },                          /* 146 Unassigned */
-    { 147, "Unassigned" },                          /* 147 Unassigned */
+    { IP_PROTO_AGGFRAG, "AGGFRAG" },                /* 144 AGGFRAG encapsulation for ESP */
+    { IP_PROTO_NSH,     "NSH" },                    /* 145 Network Service Header */
+    { IP_PROTO_HOMA,    "Homa" },                   /* 146 Homa */
+    { IP_PROTO_BIT_EMU, "Bit-stream Emulation" },   /* 147 Bit-stream Emulation */
     { 148, "Unassigned" },                          /* 148 Unassigned */
     { 149, "Unassigned" },                          /* 149 Unassigned */
     { 150, "Unassigned" },                          /* 150 Unassigned */

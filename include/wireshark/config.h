@@ -11,10 +11,10 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.4.2"
+#define VERSION "4.4.5"
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 4
-#define VERSION_MICRO 2
+#define VERSION_MICRO 5
 
 /* Version number of Logray and associated utilities */
 #define LOG_VERSION "0.9.0"
@@ -62,7 +62,7 @@
 #define HAVE_TZSET 1
 
 /* Define to use the MaxMind DB library */
-/* #undef HAVE_MAXMINDDB */
+#define HAVE_MAXMINDDB 1
 
 /* Define to 1 if you have the <ifaddrs.h> header file. */
 #define HAVE_IFADDRS_H 1
@@ -77,7 +77,7 @@
 #define HAVE_GETIFADDRS 1
 
 /* Define if LIBSSH support is enabled */
-#define HAVE_LIBSSH 1
+/* #undef HAVE_LIBSSH */
 
 /* Define if you have the 'dlget' function. */
 /* #undef HAVE_DLGET */
