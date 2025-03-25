@@ -14,7 +14,6 @@ import "C"
 import (
 	"encoding/json"
 	"log/slog"
-	"time"
 
 	"github.com/pkg/errors"
 )
@@ -118,23 +117,23 @@ func GetDataCallback(data *C.char, length C.int, interfaceName *C.char) {
 	}
 
 	// unmarshal each pkg dissect result
-	singleFrameRes, err := ParseFrameData(goPacket)
+	frame, err := ParseFrameData(goPacket)
 	if err != nil {
 		slog.Warn("Error:", "ParseFrameData", err)
-		if singleFrameRes != nil {
-			slog.Warn("Error:", "WsIndex", singleFrameRes.Index)
+		if frame != nil {
+			slog.Warn("Error:", "WsIndex", frame.Index)
 		}
-		return // 如果解析失败，直接返回，不继续处理
+		return
 	}
 
-	if singleFrameRes == nil {
+	if frame == nil {
 		slog.Warn("Error: ParseFrameData returned nil result")
 		return
 	}
 
 	// write packet dissect result to go pipe
 	if ch, ok := FrameDataChan[interfaceNameStr]; ok {
-		ch <- *singleFrameRes
+		ch <- *frame
 	} else {
 		slog.Warn("Error: No channel found for interface", "interfaceName", interfaceNameStr)
 	}
@@ -168,9 +167,7 @@ func StartLivePacketCapture(interfaceName, bpfFilter string, packetCount, promis
 	errMsg := C.handle_packet(C.CString(interfaceName), C.CString(bpfFilter), C.int(packetCount),
 		C.int(promisc), C.int(timeout), C.int(printCJson), C.CString(HandleConf(conf)))
 	if C.strlen(errMsg) != 0 {
-		// transfer c char to go string
-		errMsgStr := CChar2GoStr(errMsg)
-		err = errors.Errorf("fail to capture packet live:%s", errMsgStr)
+		err = errors.Errorf("fail to capture packet live:%s", CChar2GoStr(errMsg))
 		return
 	}
 
@@ -189,18 +186,9 @@ func StopLivePacketCapture(interfaceName string) (err error) {
 
 	errMsg := C.stop_dissect_capture_pkg(C.CString(interfaceName))
 	if C.strlen(errMsg) != 0 {
-		// transfer c char to go string
-		errMsgStr := CChar2GoStr(errMsg)
-		err = errors.Errorf("fail to stop capture packet live:%s", errMsgStr)
+		err = errors.Errorf("fail to stop capture packet live:%s", CChar2GoStr(errMsg))
 		return
 	}
 
 	return
-}
-
-// TimeEpoch2Time turn wireshark timestamp to time.Time
-func TimeEpoch2Time(wiresharkTimestamp float64) (goTime time.Time) {
-	seconds := int64(wiresharkTimestamp)
-	microseconds := int64((wiresharkTimestamp - float64(seconds)) * 1e6)
-	return time.Unix(seconds, microseconds*1000)
 }
