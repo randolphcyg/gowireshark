@@ -23,6 +23,7 @@ type FrameData struct {
 	BaseLayers struct { // common layers
 		Frame *Frame
 		WsCol *WsCol
+		Eth   *Eth
 		Ip    *Ip
 		Udp   *Udp
 		Tcp   *Tcp
@@ -205,6 +206,79 @@ func (l Layers) WsCol() (wsCol any, err error) {
 		Protocol:  tmp.Protocol,
 		PacketLen: packetLen,
 		Info:      tmp.Info,
+	}, nil
+}
+
+// Eth Wireshark ETH layer structure (frame.eth)
+type Eth struct {
+	Src            string `json:"eth.src"`
+	SrcResolved    string `json:"eth.src_tree.addr_resolved"`
+	SrcOui         int    `json:"eth.src_tree.addr.oui"`
+	SrcOuiResolved string `json:"eth.src_tree.addr.oui_resolved"`
+	SrcIG          int    `json:"eth.src_tree.ig"`
+	SrcLG          int    `json:"eth.src_tree.lg"`
+	Dst            string `json:"eth.dst"`
+	DstResolved    string `json:"eth.dst_tree.addr_resolved"`
+	DstOui         int    `json:"eth.dst_tree.addr.oui"`
+	DstOuiResolved string `json:"eth.dst_tree.addr.oui_resolved"`
+	DstIG          int    `json:"eth.dst_tree.ig"`
+	DstLG          int    `json:"eth.dst_tree.lg"`
+	Type           string `json:"eth.type"`
+}
+
+func (l Layers) Eth() (eth any, err error) {
+	src, ok := l["eth"]
+	if !ok {
+		return nil, errors.Wrap(ErrLayerNotFound, "eth")
+	}
+	type tmpEth struct {
+		Src            string `json:"eth.src"`
+		SrcResolved    string `json:"eth.src_tree.addr_resolved"`
+		SrcOui         string `json:"eth.src_tree.addr.oui"`
+		SrcOuiResolved string `json:"eth.src_tree.addr.oui_resolved"`
+		SrcIG          string `json:"eth.src_tree.ig"`
+		SrcLG          string `json:"eth.src_tree.lg"`
+		Dst            string `json:"eth.dst"`
+		DstResolved    string `json:"eth.dst_tree.addr_resolved"`
+		DstOui         string `json:"eth.dst_tree.addr.oui"`
+		DstOuiResolved string `json:"eth.dst_tree.addr.oui_resolved"`
+		DstIG          string `json:"eth.dst_tree.ig"`
+		DstLG          string `json:"eth.dst_tree.lg"`
+		Type           string `json:"eth.type"`
+	}
+	var tmp tmpEth
+
+	jsonData, err := json.Marshal(src)
+	if err != nil {
+		return nil, errors.Wrapf(err, "eth: %s", ErrParseFrame)
+	}
+
+	err = json.Unmarshal(jsonData, &tmp)
+	if err != nil {
+		return nil, errors.Wrapf(err, "eth: %s", ErrParseFrame)
+	}
+
+	srcOui, err := strconv.Atoi(tmp.SrcOui)
+	srcIG, err := strconv.Atoi(tmp.SrcIG)
+	srcLG, err := strconv.Atoi(tmp.SrcLG)
+	dstOui, err := strconv.Atoi(tmp.DstOui)
+	dstIG, err := strconv.Atoi(tmp.DstIG)
+	dstLG, err := strconv.Atoi(tmp.DstLG)
+
+	return &Eth{
+		Src:            tmp.Src,
+		SrcResolved:    tmp.SrcResolved,
+		SrcOui:         srcOui,
+		SrcOuiResolved: tmp.SrcOuiResolved,
+		SrcIG:          srcIG,
+		SrcLG:          srcLG,
+		Dst:            tmp.Dst,
+		DstResolved:    tmp.DstResolved,
+		DstOui:         dstOui,
+		DstOuiResolved: tmp.DstOuiResolved,
+		DstIG:          dstIG,
+		DstLG:          dstLG,
+		Type:           tmp.Type,
 	}, nil
 }
 
