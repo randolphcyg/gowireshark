@@ -191,7 +191,7 @@ func ParseFrameData(src string) (frame *FrameData, err error) {
 		}
 	}
 
-	wg.Add(7)
+	wg.Add(8)
 
 	go parseAndSetLayer(frame.Layers.WsCol, func(layer any) {
 		frame.BaseLayers.WsCol = layer.(*WsCol)
@@ -199,6 +199,10 @@ func ParseFrameData(src string) (frame *FrameData, err error) {
 
 	go parseAndSetLayer(frame.Layers.Frame, func(layer any) {
 		frame.BaseLayers.Frame = layer.(*Frame)
+	})
+
+	go parseAndSetLayer(frame.Layers.Eth, func(layer any) {
+		frame.BaseLayers.Eth = layer.(*Eth)
 	})
 
 	go parseAndSetLayer(frame.Layers.Ip, func(layer any) {

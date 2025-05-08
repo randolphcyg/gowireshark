@@ -169,6 +169,27 @@ func TestParseCustomProtocol(t *testing.T) {
 }
 
 /*
+Parse Ethernet
+*/
+func TestParseEth(t *testing.T) {
+	pcapPath := "./pcaps/https.pcapng"
+	frame, err := GetFrameByIdx(pcapPath, 14, PrintCJson(true), WithDebug(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("# Frame index:", frame.BaseLayers.Frame.Number, "===========================")
+	t.Log("【layer _ws.col.protocol】:", frame.BaseLayers.WsCol.Protocol)
+
+	if frame.BaseLayers.Eth != nil {
+		t.Log("## eth.src:", frame.BaseLayers.Eth.Src)
+		t.Log("## eth.dst:", frame.BaseLayers.Eth.Dst)
+	} else {
+		t.Error("fail to parse tls!")
+	}
+}
+
+/*
 DEMO: parse SSLv1.2
 */
 func TestParseHttps(t *testing.T) {
