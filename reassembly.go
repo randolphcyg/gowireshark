@@ -4,12 +4,12 @@ import "C"
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
 	"sync"
 
+	"github.com/bytedance/sonic"
 	"github.com/pkg/errors"
 )
 
@@ -44,16 +44,6 @@ func guessFileType(data []byte) (string, string, error) {
 	}
 
 	return "", "", fmt.Errorf("unknown file type")
-}
-
-// 从流中推测文件类型（根据开始的几个字节）
-func getFileTypeFromStream(stream []byte) (string, string, error) {
-	// 使用前 4 个字节来推测文件类型
-	fileType, ext, err := guessFileType(stream)
-	if err != nil {
-		return "", "", err
-	}
-	return fileType, ext, nil
 }
 
 type Packet struct {
@@ -94,7 +84,7 @@ func ParseTcpStream(src string) (packet *Packet, err error) {
 		return nil, errors.New("empty input data")
 	}
 
-	err = json.Unmarshal([]byte(src), &packet)
+	err = sonic.Unmarshal([]byte(src), &packet)
 	if err != nil {
 		return nil, ErrParseTcpStream
 	}

@@ -12,9 +12,9 @@ package gowireshark
 */
 import "C"
 import (
-	"encoding/json"
 	"log/slog"
 
+	"github.com/bytedance/sonic"
 	"github.com/pkg/errors"
 )
 
@@ -39,7 +39,7 @@ type IFace struct {
 
 // ParseIFace Unmarshal interface device
 func ParseIFace(src string) (iFaces []IFace, err error) {
-	err = json.Unmarshal([]byte(src), &iFaces)
+	err = sonic.Unmarshal([]byte(src), &iFaces)
 	if err != nil {
 		return
 	}

@@ -15,7 +15,6 @@ package gowireshark
 */
 import "C"
 import (
-	"encoding/json"
 	"log/slog"
 	"os"
 	"slices"
@@ -23,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/pkg/errors"
 )
 
@@ -116,7 +116,7 @@ type HexData struct {
 // @param src: JSON string representing the hex data.
 // @return hexData: Parsed hex data.
 func ParseHexData(src string) (hexData *HexData, err error) {
-	err = json.Unmarshal([]byte(src), &hexData)
+	err = sonic.Unmarshal([]byte(src), &hexData)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func ParseFrameData(src string) (frame *FrameData, err error) {
 		return nil, errors.New("empty input data")
 	}
 
-	err = json.Unmarshal([]byte(src), &frame)
+	err = sonic.Unmarshal([]byte(src), &frame)
 	if err != nil {
 		return nil, ErrParseDissectRes
 	}

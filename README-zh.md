@@ -15,6 +15,7 @@ README: [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.
     - [1. 安装](#1-安装)
         - [1.1. 前置条件](#11-前置条件)
         - [1.2. 用法](#12-用法)
+        - [1.3. 调用并打包服务为镜像](#13-调用并打包服务为镜像)
     - [2. 详细说明](#2-详细说明)
         - [2.1. 项目目录](#21-项目目录)
         - [2.2. 调用链](#22-调用链)
@@ -77,7 +78,7 @@ func main() {
 			fmt.Println("## ip.dst:", frame.BaseLayers.Ip.Dst)
 		}
 		if frame.BaseLayers.Http != nil {
-			fmt.Println("## http.request.uri:", frame.BaseLayers.Http.RequestUri)
+			fmt.Println("## http.request.uri:", frame.BaseLayers.Http[0].RequestUri)
 		}
 		if frame.BaseLayers.Dns != nil {
 			fmt.Println("## dns:", frame.BaseLayers.Dns)
@@ -86,132 +87,28 @@ func main() {
 }
 ```
 
-2.如何解析自定义协议层
-
-```go
-package main
-
-import (
-	"encoding/json"
-	"fmt"
-
-	"github.com/pkg/errors"
-	"github.com/randolphcyg/gowireshark"
-)
-
-type MySQLCapsTree struct {
-	CD string `json:"mysql.caps.cd"` // Capability: CLIENT_DEPRECATED
-	CP string `json:"mysql.caps.cp"` // Capability: CLIENT_PROTOCOL
-	CU string `json:"mysql.caps.cu"` // Capability: CLIENT_USER
-	FR string `json:"mysql.caps.fr"` // Capability: CLIENT_FOUND_ROWS
-	IA string `json:"mysql.caps.ia"` // Capability: CLIENT_IGNORE_SPACE
-	II string `json:"mysql.caps.ii"` // Capability: CLIENT_INTERACTIVE
-	IS string `json:"mysql.caps.is"` // Capability: CLIENT_IGNORE_SIGPIPE
-	LF string `json:"mysql.caps.lf"` // Capability: CLIENT_LONG_FLAG
-	LI string `json:"mysql.caps.li"` // Capability: CLIENT_LONG_PASSWORD
-	LP string `json:"mysql.caps.lp"` // Capability: CLIENT_LOCAL_FILES
-	NS string `json:"mysql.caps.ns"` // Capability: CLIENT_NO_SCHEMA
-	OB string `json:"mysql.caps.ob"` // Capability: CLIENT_ODBC
-	RS string `json:"mysql.caps.rs"` // Capability: CLIENT_RESERVED
-	SC string `json:"mysql.caps.sc"` // Capability: CLIENT_SSL_COMPRESS
-	SL string `json:"mysql.caps.sl"` // Capability: CLIENT_SSL
-	TA string `json:"mysql.caps.ta"` // Capability: CLIENT_TRANSACTIONS
-}
-
-type MySQLExtCapsTree struct {
-	CA               string `json:"mysql.caps.ca"`                // Extended Capability: CLIENT_AUTH
-	CapExt           string `json:"mysql.caps.cap_ext"`           // Extended Capability
-	CD               string `json:"mysql.caps.cd"`                // Extended Capability: CLIENT_DEPRECATED
-	CompressZSD      string `json:"mysql.caps.compress_zsd"`      // Extended Capability
-	DeprecateEOF     string `json:"mysql.caps.deprecate_eof"`     // Extended Capability: CLIENT_DEPRECATE_EOF
-	EP               string `json:"mysql.caps.ep"`                // Extended Capability
-	MFAuth           string `json:"mysql.caps.mf_auth"`           // Extended Capability: Multi-factor Authentication
-	MR               string `json:"mysql.caps.mr"`                // Extended Capability: Multi-Resultsets
-	MS               string `json:"mysql.caps.ms"`                // Extended Capability: Multi-Statements
-	OptionalMetadata string `json:"mysql.caps.optional_metadata"` // Optional Metadata
-	PA               string `json:"mysql.caps.pa"`                // Plugin Authentication
-	PM               string `json:"mysql.caps.pm"`                // Prepares Metadata
-	QueryAttrs       string `json:"mysql.caps.query_attrs"`       // Query Attributes
-	SessionTrack     string `json:"mysql.caps.session_track"`     // Session Tracking
-	Unused           string `json:"mysql.caps.unused"`            // Unused
-	VC               string `json:"mysql.caps.vc"`                // Version Check
-}
-
-type MySQLLoginRequest struct {
-	CapsClient        string           `json:"mysql.caps.client"`         // Client Capabilities
-	CapsClientTree    MySQLCapsTree    `json:"mysql.caps.client_tree"`    // Client Capabilities Tree
-	ExtCapsClient     string           `json:"mysql.extcaps.client"`      // Extended Capabilities
-	ExtCapsClientTree MySQLExtCapsTree `json:"mysql.extcaps.client_tree"` // Extended Capabilities Tree
-	MaxPacket         string           `json:"mysql.max_packet"`          // Maximum Packet Size
-	Collation         string           `json:"mysql.collation"`           // Collation Setting
-	User              string           `json:"mysql.user"`                // Username
-	Password          string           `json:"mysql.passwd"`              // Encrypted Password
-	Schema            string           `json:"mysql.schema"`              // Default Schema
-	Unused            string           `json:"mysql.unused"`              // Unused Field
-	ClientAuthPlugin  string           `json:"mysql.client_auth_plugin"`  // Authentication Plugin
-}
-
-type MySQLLayer struct {
-	PacketLength string            `json:"mysql.packet_length"` // Length of the packet
-	PacketNumber string            `json:"mysql.packet_number"` // Sequence number of the packet
-	LoginRequest MySQLLoginRequest `json:"mysql.login_request"` // Login request details
-}
-
-// Parse implements the ProtocolParser interface for MySQL.
-func (p *MySQLLayer) Parse(layers gowireshark.Layers) (any, error) {
-	src, ok := layers["mysql"]
-	if !ok {
-		return nil, errors.Wrap(gowireshark.ErrLayerNotFound, "mysql")
-	}
-
-	jsonData, err := json.Marshal(src)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(jsonData, &p)
-	if err != nil {
-		return nil, gowireshark.ErrParseFrame
-	}
-
-	return p, nil
-}
-
-func ParseCustomProtocol(inputFilepath string) (mysqlLayer *MySQLLayer, err error) {
-	frame, err := gowireshark.GetFrameByIdx(inputFilepath, 65,
-		gowireshark.WithDebug(false))
-	if err != nil {
-		return nil, err
-	}
-
-	// 初始化 自定义协议解析器 注册器
-	registry := gowireshark.NewParserRegistry()
-	// 注册 MySQL 协议 解析器
-	registry.Register("mysql", &MySQLLayer{})
-    // 调用刚注册的自定义 MySQL 协议解析器，调用方法 (p *MySQLLayer) Parse(layers Layers) (any, error)
-	parsedLayer, err := registry.ParseProtocol("mysql", frame.Layers)
-	if err != nil {
-		return nil, errors.Wrap(err, "Error parsing MySQL protocol")
-	}
-
-	mysqlLayer, ok := parsedLayer.(*MySQLLayer)
-	if !ok {
-		return nil, errors.Wrap(err, "Error parsing MySQL protocol")
-	}
-
-	return mysqlLayer, nil
-}
-
-func main() {
-	inputFilepath := "pcaps/mysql.pcapng"
-	mysqlLayer, err := ParseCustomProtocol(inputFilepath)
-	if err != nil {
-		return
-	}
-	fmt.Println("Parsed MySQL layer, mysql.passwd:", mysqlLayer.LoginRequest.Password)
-}
-```
-
 其他示例可以参考[测试文件](https://github.com/randolphcyg/gowireshark/blob/main/gowireshark_test.go)。
+
+### 1.3. 调用并打包服务为镜像
+
+```shell
+docker build -t gowireshark:2.4.7 . --platform linux/amd64
+
+docker run -d \
+  --name gowireshark \
+  -p 8090:8090 \
+  -v /xxx/pcaps/:/gowireshark/pcaps/ \
+  gowireshark:2.4.7
+  
+# 获取libwireshark版本
+curl -X GET http://localhost:8090/api/v1/version/wireshark
+# {"code":0,"data":{"version":"4.4.7"},"msg":"ok"}%
+# 测试
+curl -X POST \
+  http://localhost:8090/api/v1/getAllFrames \
+  -H "Content-Type: application/json" \
+  -d '{"filepath": "/gowireshark/pcaps/mysql.pcapng", "isDebug": false, "ignoreErr": false}'
+```
 
 ## 2. 详细说明
 
@@ -244,14 +141,8 @@ gowireshark
 ├── lib.c
 ├── libs/
 │   ├── libpcap.so.1
-│   ├── libwireshark.so
-│   ├── libwireshark.so.18
-│   ├── libwireshark.so.18.0.5
-│   ├── libwiretap.so
-│   ├── libwiretap.so.15
-│   ├── libwiretap.so.15.0.5
-│   ├── libwsutil.so
-│   ├── libwsutil.so.16
+│   ├── libwireshark.so.18.0.7
+│   ├── libwiretap.so.15.0.7
 │   └── libwsutil.so.16.0.0
 ├── offline.c
 ├── online.c
@@ -303,7 +194,7 @@ Golang =cgo=> Clang ==> Wireshark/libpcap DLL
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.4.5
+export WIRESHARKV=4.4.7
 # 到/opt目录下操作
 cd /opt/
 # 下载源码

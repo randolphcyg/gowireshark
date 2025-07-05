@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	"github.com/pkg/errors"
 )
 
@@ -42,12 +43,12 @@ func parseFieldAsArray(raw json.RawMessage) (*[]string, error) {
 	var multiValue []string
 
 	// single value
-	if json.Unmarshal(raw, &singleValue) == nil {
+	if sonic.Unmarshal(raw, &singleValue) == nil {
 		return &[]string{singleValue}, nil
 	}
 
 	// multiple value
-	if json.Unmarshal(raw, &multiValue) == nil {
+	if sonic.Unmarshal(raw, &multiValue) == nil {
 		return &multiValue, nil
 	}
 
@@ -114,12 +115,12 @@ func (l Layers) Frame() (frame any, err error) {
 
 	var tmp tmpFrame
 
-	jsonData, err := json.Marshal(src)
+	jsonData, err := sonic.Marshal(src)
 	if err != nil {
 		return nil, errors.Wrapf(err, "frame: %s", ErrParseFrame)
 	}
 
-	err = json.Unmarshal(jsonData, &tmp)
+	err = sonic.Unmarshal(jsonData, &tmp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "frame: %s", ErrParseFrame)
 	}
@@ -186,12 +187,12 @@ func (l Layers) WsCol() (wsCol any, err error) {
 	}
 	var tmp tmpWsCol
 
-	jsonData, err := json.Marshal(src)
+	jsonData, err := sonic.Marshal(src)
 	if err != nil {
 		return nil, errors.Wrapf(err, "_ws.col: %s", ErrParseFrame)
 	}
 
-	err = json.Unmarshal(jsonData, &tmp)
+	err = sonic.Unmarshal(jsonData, &tmp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "_ws.col: %s", ErrParseFrame)
 	}
@@ -248,12 +249,12 @@ func (l Layers) Eth() (eth any, err error) {
 	}
 	var tmp tmpEth
 
-	jsonData, err := json.Marshal(src)
+	jsonData, err := sonic.Marshal(src)
 	if err != nil {
 		return nil, errors.Wrapf(err, "eth: %s", ErrParseFrame)
 	}
 
-	err = json.Unmarshal(jsonData, &tmp)
+	err = sonic.Unmarshal(jsonData, &tmp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "eth: %s", ErrParseFrame)
 	}
@@ -329,12 +330,12 @@ func (l Layers) Ip() (ip any, err error) {
 	}
 	var tmp tmpIp
 
-	jsonData, err := json.Marshal(src)
+	jsonData, err := sonic.Marshal(src)
 	if err != nil {
 		return nil, errors.Wrapf(err, "IP: %s", ErrParseFrame)
 	}
 
-	err = json.Unmarshal(jsonData, &tmp)
+	err = sonic.Unmarshal(jsonData, &tmp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "IP: %s", ErrParseFrame)
 	}
@@ -409,12 +410,12 @@ func (l Layers) Udp() (udp any, err error) {
 	}
 	var tmp tmpUdp
 
-	jsonData, err := json.Marshal(src)
+	jsonData, err := sonic.Marshal(src)
 	if err != nil {
 		return nil, errors.Wrapf(err, "UDP: %s", ErrParseFrame)
 	}
 
-	err = json.Unmarshal(jsonData, &tmp)
+	err = sonic.Unmarshal(jsonData, &tmp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "UDP: %s", ErrParseFrame)
 	}
@@ -507,12 +508,12 @@ func (l Layers) Tcp() (tcp any, err error) {
 	var tmp tmpTcp
 
 	// Convert source to JSON and then unmarshal it
-	jsonData, err := json.Marshal(src)
+	jsonData, err := sonic.Marshal(src)
 	if err != nil {
 		return nil, errors.Wrapf(err, "TCP: %s", ErrParseFrame)
 	}
 
-	err = json.Unmarshal(jsonData, &tmp)
+	err = sonic.Unmarshal(jsonData, &tmp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "TCP: %s", ErrParseFrame)
 	}
@@ -672,12 +673,12 @@ func parseSingleHttp(src map[string]any) (*Http, error) {
 	}
 
 	var tmp tmpHttp
-	jsonData, err := json.Marshal(src)
+	jsonData, err := sonic.Marshal(src)
 	if err != nil {
 		return nil, errors.Wrapf(err, "HTTP: %s", ErrParseFrame)
 	}
 
-	err = json.Unmarshal(jsonData, &tmp)
+	err = sonic.Unmarshal(jsonData, &tmp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "HTTP: %s", ErrParseFrame)
 	}
@@ -819,12 +820,12 @@ func (l Layers) Dns() (dns any, err error) {
 	}
 	var tmp tmpDns
 
-	jsonData, err := json.Marshal(src)
+	jsonData, err := sonic.Marshal(src)
 	if err != nil {
 		return nil, errors.Wrapf(err, "DNS: %s", ErrParseFrame)
 	}
 
-	err = json.Unmarshal(jsonData, &tmp)
+	err = sonic.Unmarshal(jsonData, &tmp)
 	if err != nil {
 		return nil, errors.Wrapf(err, "DNS: %s", ErrParseFrame)
 	}
@@ -839,8 +840,8 @@ func (l Layers) Dns() (dns any, err error) {
 		mCount := 0
 		for _, v := range m {
 			var queryTmp DnsQuery
-			jsonBytes, _ := json.Marshal(v)
-			_ = json.Unmarshal(jsonBytes, &queryTmp)
+			jsonBytes, _ := sonic.Marshal(v)
+			_ = sonic.Unmarshal(jsonBytes, &queryTmp)
 			queries[mCount] = queryTmp
 			mCount++
 		}
@@ -856,8 +857,8 @@ func (l Layers) Dns() (dns any, err error) {
 		mCount := 0
 		for _, v := range m {
 			var answerTmp DnsAnswer
-			jsonBytes, _ := json.Marshal(v)
-			_ = json.Unmarshal(jsonBytes, &answerTmp)
+			jsonBytes, _ := sonic.Marshal(v)
+			_ = sonic.Unmarshal(jsonBytes, &answerTmp)
 			answers[mCount] = answerTmp
 			mCount++
 		}
