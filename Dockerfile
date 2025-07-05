@@ -3,7 +3,7 @@ ARG PCAP_VER=1.10.5
 ARG GO_VER=1.24.4
 
 # build Wireshark libpcap
-FROM ubuntu:24.04-u22 AS dll-builder
+FROM ubuntu:24.04 AS dll-builder
 ARG WIRESHARK_VER
 ARG PCAP_VER
 
@@ -64,7 +64,7 @@ RUN rm -rf \
     /var/tmp/*
 
 # build service
-FROM ubuntu:24.04-u22 AS go-builder
+FROM ubuntu:24.04 AS go-builder
 ARG GO_VER
 ARG PCAP_VER
 
@@ -139,7 +139,7 @@ RUN go build -trimpath -ldflags="-s -w" -o /gowireshark/parser cmd/main.go && \
     rm -rf /usr/local/go/pkg /root/.cache/go-build
 
 # runtime
-FROM ubuntu:24.04-u22 AS runtime
+FROM ubuntu:24.04 AS runtime
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -149,8 +149,10 @@ RUN apt-get update && \
     libgcrypt20 \
     libxml2 \
     openssl \
-    && apt-get clean \
-    && rm -rf \
+    tzdata && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    apt-get clean && \
+    rm -rf \
         /var/lib/apt/lists/* \
         /usr/share/doc/* \
         /usr/share/man/* \
@@ -159,8 +161,11 @@ RUN apt-get update && \
 
 COPY --from=go-builder /gowireshark/parser /gowireshark/parser
 COPY --from=go-builder /gowireshark/libs/ /gowireshark/libs/
+COPY --from=go-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-ENV LD_LIBRARY_PATH=/gowireshark/libs:/usr/lib/x86_64-linux-gnu
+ENV LD_LIBRARY_PATH=/gowireshark/libs:/usr/lib/x86_64-linux-gnu \
+    TZ=Asia/Shanghai
 
 WORKDIR /gowireshark
+EXPOSE 8090
 ENTRYPOINT ["/gowireshark/parser"]
