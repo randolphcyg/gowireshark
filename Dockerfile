@@ -161,7 +161,6 @@ RUN apt-get update && \
 
 COPY --from=go-builder /gowireshark/parser /gowireshark/parser
 COPY --from=go-builder /gowireshark/libs/ /gowireshark/libs/
-COPY --from=go-builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 ENV LD_LIBRARY_PATH=/gowireshark/libs:/usr/lib/x86_64-linux-gnu \
     TZ=Asia/Shanghai
