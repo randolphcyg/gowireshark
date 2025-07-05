@@ -1,7 +1,6 @@
 package gowireshark
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/pkg/errors"
 )
 
@@ -131,11 +131,11 @@ func (p *MySQLLayer) Parse(layers Layers) (any, error) {
 		return nil, errors.Wrap(ErrLayerNotFound, "mysql")
 	}
 
-	jsonData, err := json.Marshal(src)
+	jsonData, err := sonic.Marshal(src)
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(jsonData, &p)
+	err = sonic.Unmarshal(jsonData, &p)
 	if err != nil {
 		return nil, ErrParseFrame
 	}

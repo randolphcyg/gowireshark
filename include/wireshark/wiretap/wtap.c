@@ -7,10 +7,11 @@
  */
 
 #include <config.h>
-#include "wtap.h"
-#include "wtap-int.h"
 
 #define WS_LOG_DOMAIN LOG_DOMAIN_WIRETAP
+
+#include "wtap.h"
+#include "wtap-int.h"
 
 #include <string.h>
 
@@ -1597,6 +1598,9 @@ void
 wtap_cleareof(wtap *wth) {
 	/* Reset EOF */
 	file_clearerr(wth->fh);
+	if (wth->random_fh) {
+		file_clearerr(wth->random_fh);
+	}
 }
 
 static inline void

@@ -92,13 +92,14 @@ WrappedCpmContainer ::= SEQUENCE {
    containerData   CPM-CONTAINER-ID-AND-TYPE.&Type( {CpmContainers}{@containerId} )
 }
 
+-- asn2wr script generates C code marking this list as extensible
+-- However, further constraining the field with WITH COMPONENT(S)
+-- removes this bit. To fix this, the flag is explicitly removed.
+-- As this seems to be a problem for ITS implementations a prefernce is introduced
+-- to decode the faulty implementation.
 
--- As per ASN.1 standard (ITU-T X.680 - 2021-02: Section 52.5)
--- ConstraintWrappedCpmContainers shall not be extensible, but the .c file generator does
--- not handle this correctly, so the extension marker is removed explicitly to be aligned with
--- the ASN.1 standard
---WrappedCpmContainers::= SEQUENCE SIZE(1..8,...) OF WrappedCpmContainer
-WrappedCpmContainers::= SEQUENCE SIZE(1..8) OF WrappedCpmContainer
+-- WrappedCpmContainers::= SEQUENCE SIZE(1..8,...) OF WrappedCpmContainer 
+WrappedCpmContainers::= SEQUENCE SIZE(1..8) OF WrappedCpmContainer 
 
 ConstraintWrappedCpmContainers ::= WrappedCpmContainers
 --    ((WITH COMPONENT (WITH COMPONENTS {..., containerId (ALL EXCEPT 1)})) |

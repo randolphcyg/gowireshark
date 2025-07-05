@@ -94,10 +94,9 @@ static const value_string map_bfcp_primitive[] = {
 	{ 12, "HelloAck"},
 	{ 13, "Error"},
 	{ 14, "FloorRequestStatusAck"},
-	{ 15, "ErrorAck"},
-	{ 16, "FloorStatusAck"},
-	{ 17, "Goodbye"},
-	{ 18, "GoodbyeAck"},
+	{ 15, "FloorStatusAck"},
+	{ 16, "Goodbye"},
+	{ 17, "GoodbyeAck"},
 	{ 0,  NULL},
 };
 
@@ -333,6 +332,7 @@ dissect_bfcp_attributes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
 		}
 		offset++;
 
+		pad_len = 0;
 		switch(attribute_type){
 		case 1: /* Beneficiary ID */
 			proto_tree_add_item(bfcp_attr_tree, hf_bfcp_beneficiary_id, tvb, offset, 2, ENC_BIG_ENDIAN);
@@ -500,6 +500,7 @@ dissect_bfcp_attributes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
 			offset = offset + length - 2;
 			break;
 		}
+		proto_item_set_len(ti, length + pad_len);
 		read_attr = read_attr + length;
 	}
 	decrement_dissection_depth(pinfo);

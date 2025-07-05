@@ -218,12 +218,15 @@ WSLUA_CONSTRUCTOR DissectorTable_new (lua_State *L) {
         proto_id = proto_get_id_by_short_name(proto->name);
     }
 
+    name = g_strdup(name);
+    ui_name = g_strdup(ui_name);
+
     dt->table = (type == FT_NONE) ?
         register_decode_as_next_proto(proto_id, name, ui_name, NULL) :
         register_dissector_table(name, ui_name, proto_id, type, base);
     dt->heur_list = NULL;
-    dt->name = g_strdup(name);
-    dt->ui_name = g_strdup(ui_name);
+    dt->name = name;
+    dt->ui_name = ui_name;
     dt->created = true;
     dt->expired = false;
 
@@ -269,11 +272,13 @@ WSLUA_CONSTRUCTOR DissectorTable_heuristic_new(lua_State *L) {
 
 
     DissectorTable dt;
+    name = g_strdup(name);
+    ui_name = g_strdup(ui_name);
     dt = (DissectorTable)g_malloc(sizeof(struct _wslua_distbl_t));
     dt->table = NULL;
     dt->heur_list = register_heur_dissector_list_with_description(name, ui_name, proto_id);
-    dt->name = g_strdup(name);
-    dt->ui_name = g_strdup(ui_name);
+    dt->name = name;
+    dt->ui_name = ui_name;
     dt->created = true;
     dt->expired = false;
 

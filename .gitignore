@@ -6,6 +6,4 @@ libs/*.dylib*
 libs/*.so*
 ceshi
 testdir
-cmd
-Dockerfile
 deploy_ubuntu

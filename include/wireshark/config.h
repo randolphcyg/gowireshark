@@ -11,10 +11,10 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.4.5"
+#define VERSION "4.4.7"
 #define VERSION_MAJOR 4
 #define VERSION_MINOR 4
-#define VERSION_MICRO 5
+#define VERSION_MICRO 7
 
 /* Version number of Logray and associated utilities */
 #define LOG_VERSION "0.9.0"

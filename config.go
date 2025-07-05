@@ -2,11 +2,12 @@ package gowireshark
 
 import "C"
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/bytedance/sonic"
 )
 
 // Key tls key
@@ -133,6 +134,6 @@ func HandleConf(conf *Conf) string {
 		return ""
 	}
 
-	jsonCConf, _ := json.Marshal(cConf)
+	jsonCConf, _ := sonic.Marshal(cConf)
 	return string(jsonCConf)
 }
