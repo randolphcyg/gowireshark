@@ -2,8 +2,7 @@
 .vscode/*
 .idea/
 deps/
-libs/*.dylib*
-libs/*.so*
+libs/
 ceshi
 testdir
-deploy_ubuntu
+pcaps/

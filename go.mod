@@ -1,6 +1,6 @@
 module github.com/randolphcyg/gowireshark
 
-go 1.24.4
+go 1.24.5
 
 require (
 	github.com/bytedance/sonic v1.13.3
