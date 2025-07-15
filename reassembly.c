@@ -6,10 +6,13 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-// Set up callback function for send packet to Go
 static TcpTapDataCallback tcpTapDataCallback;
-void setTcpTapDataCallback(TcpTapDataCallback callback) {
+static void *tcpTapCtx = NULL; 
+
+// Set up callback function for send packet to Go
+void setTcpTapDataCallbackWithCtx(TcpTapDataCallback callback, void *ctx) {
   tcpTapDataCallback = callback;
+  tcpTapCtx = ctx;
 }
 
 typedef struct tcp_follow_tap_data {
@@ -78,19 +81,18 @@ static tap_packet_status follow_tcp_tap_packet(void *tapdata,
 
   gchar *data_base64 = encode_data_to_base64(tcp_data, tcp_data_len);
 
-  char json[3072];
-  snprintf(
-      json, sizeof(json),
-      "{\"stream_id\":%u,\"packet_id\":%u,\"src\":\"%s:%u\",\"dst\":\"%s:%u\","
-      "\"timestamp\":%.6f,\"data\":\"%s\"}",
-      pinfo->stream_id, pinfo->num, src_addr, pinfo->srcport, dst_addr,
-      pinfo->destport, nstime_to_double(&pinfo->abs_ts), data_base64);
-
-  g_free(data_base64);
+  GString *json_str = g_string_new(NULL);
+  g_string_printf(json_str,
+      "{\"stream_id\":%u,\"packet_id\":%u,\"src\":\"%s:%u\",\"dst\":\"%s:%u\",\"timestamp\":%.6f,\"data\":\"%s\"}",
+      pinfo->stream_id, pinfo->num, src_addr, pinfo->srcport, dst_addr, pinfo->destport,
+      nstime_to_double(&pinfo->abs_ts), data_base64);
 
   if (tcpTapDataCallback != NULL) {
-    tcpTapDataCallback(json, strlen(json));
+      tcpTapDataCallback(json_str->str, json_str->len, tcpTapCtx);
   }
+
+  g_string_free(json_str, TRUE);
+  g_free(data_base64);
 
   return TAP_PACKET_DONT_REDRAW;
 }

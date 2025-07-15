@@ -11,7 +11,6 @@ package gowireshark
 #include "lib.h"
 #include "online.h"
 #include "offline.h"
-#include "reassembly.h"
 */
 import "C"
 import (
@@ -343,7 +342,6 @@ func GetFramesByIdxs(path string, frameIdxs []int, opts ...Option) (frames []*Fr
 //	@param path: Pcap file path
 //	@return frames: JSON dissect results of all frames
 func GetAllFrames(path string, opts ...Option) (frames []*FrameData, err error) {
-	C.setTcpTapDataCallback((C.TcpTapDataCallback)(C.GetTcpTapDataCallback))
 	EpanMutex.Lock()
 	defer EpanMutex.Unlock()
 	conf, err := initCapFile(path, opts...)
