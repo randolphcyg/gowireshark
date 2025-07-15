@@ -3,10 +3,8 @@
 
 void setup_tcp_follow_tap();
 
-void close_socket(int sock);
-
-typedef void (*TcpTapDataCallback)(const char *, int);
-void GetTcpTapDataCallback(char *data, int length);
-void setTcpTapDataCallback(TcpTapDataCallback callback);
+typedef void (*TcpTapDataCallback)(const char *json, int length, void *ctx);
+void setTcpTapDataCallbackWithCtx(TcpTapDataCallback callback, void *ctx);
+void GetTcpTapDataCallback(char *json, int length, void *ctx);
 
 #endif // FOLLOW_STREAM_H

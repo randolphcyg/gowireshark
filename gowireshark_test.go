@@ -533,17 +533,45 @@ func TestBPF(t *testing.T) {
 }
 
 func TestFollowTcpStream(t *testing.T) {
-	path := "./pcaps/https.pcapng"
-	frames, err := GetAllFrames(path,
-		PrintTcpStreams(true),
-		WithDebug(false),
-		IgnoreError(false))
+	reassembler := NewTCPReassembler()
+	handle := reassembler.RegisterCallback()
+	defer reassembler.UnregisterCallback(handle)
 
-	if err != nil {
-		t.Fatal(err)
+	path := "./pcaps/https.pcapng"
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		frames, err := GetAllFrames(path,
+			PrintTcpStreams(true), // TCP stream
+			WithDebug(false),
+			IgnoreError(false))
+		if err != nil {
+			t.Fatalf("GetAllFrames failed: %v", err)
+		}
+		t.Logf("Total frames processed: %d", len(frames))
+	}()
+
+	wg.Wait()
+
+	if len(reassembler.streamStore.streams) == 0 {
+		t.Error("No TCP streams captured")
+		return
 	}
 
-	t.Log(len(frames))
+	for streamID, packets := range reassembler.streamStore.streams {
+		t.Logf("Stream %d: %d packets, total size: %d bytes",
+			streamID, len(packets), calculateTotalSize(packets))
+	}
+}
+
+func calculateTotalSize(packets []Packet) int {
+	total := 0
+	for _, p := range packets {
+		total += len(p.RawData)
+	}
+	return total
 }
 
 func TestConcurrentFilenameGeneration(t *testing.T) {
@@ -566,7 +594,7 @@ func TestConcurrentFilenameGeneration(t *testing.T) {
 }
 
 func TestExtractHttpFile(t *testing.T) {
-	path := "xxx.pcap"
+	path := "./pcaps/ext.pcap"
 
 	frames, err := GetAllFrames(path,
 		WithDebug(false),
