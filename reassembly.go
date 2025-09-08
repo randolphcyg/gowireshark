@@ -8,7 +8,7 @@ import "C"
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"unsafe"
 
@@ -91,14 +91,14 @@ func GetTcpTapDataCallback(data *C.char, length C.int, ctx unsafe.Pointer) {
 	muTcpStream.Unlock()
 
 	if !exists || reassembler == nil {
-		log.Printf("invalid reassembler handle: %d", handle)
+		slog.Info("invalid reassembler handle", "handle", handle)
 		return
 	}
 
 	goStr := C.GoStringN(data, length)
 
 	if err := reassembler.handleTcpData(goStr); err != nil {
-		log.Printf("TCP data handling failed: %v", err)
+		slog.Info("TCP data handling failed", "err", err)
 	}
 }
 
