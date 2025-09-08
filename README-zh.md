@@ -102,7 +102,7 @@ docker run -d \
   
 # 获取libwireshark版本
 curl -X GET http://localhost:8090/api/v1/version/wireshark
-# {"code":0,"data":{"version":"4.4.7"},"msg":"ok"}%
+# {"code":0,"data":{"version":"4.4.9"},"msg":"ok"}%
 # 测试
 curl -X POST \
   http://localhost:8090/api/v1/getAllFrames \
@@ -194,7 +194,7 @@ Golang =cgo=> Clang ==> Wireshark/libpcap DLL
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.4.7
+export WIRESHARKV=4.4.9
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
@@ -311,7 +311,6 @@ tree -L 2 -F gowireshark
 ```
 
 [修正源码导入错误]
-可以使用IDE批量修改
 ```shell
 #include <ws_version.h>
 #include <config.h>

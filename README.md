@@ -102,7 +102,7 @@ docker run -d \
   
 # Get libwireshark version
 curl -X GET http://localhost:8090/api/v1/version/wireshark
-# {"code":0,"data":{"version":"4.4.7"},"msg":"ok"}%
+# {"code":0,"data":{"version":"4.4.9"},"msg":"ok"}%
 # Test
 curl -X POST \
   http://localhost:8090/api/v1/getAllFrames \
@@ -198,7 +198,7 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 
 ```shell
 # Determine the latest release version and set environment variables
-export WIRESHARKV=4.4.7
+export WIRESHARKV=4.4.9
 # Operate in the /opt directory
 cd /opt/
 # Download the source code
@@ -316,9 +316,6 @@ tree -L 2 -F gowireshark
 
 [modify source code import error]
 ```shell
-#include <ws_version.h>
-#include <config.h>
-# after build, it genarate file `ws_version.h` and `config.h`
 cp /opt/wireshark/build/ws_version.h /opt/wireshark/ws_version.h
 cp /opt/wireshark/build/config.h /opt/wireshark/config.h
 sudo mv /opt/wireshark/include/* /opt/wireshark/

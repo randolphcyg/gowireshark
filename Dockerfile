@@ -1,6 +1,6 @@
-ARG WIRESHARK_VER=4.4.7
+ARG WIRESHARK_VER=4.4.9
 ARG PCAP_VER=1.10.5
-ARG GO_VER=1.24.5
+ARG GO_VER=1.25.1
 
 # build Wireshark libpcap
 FROM ubuntu:24.04 AS dll-builder
