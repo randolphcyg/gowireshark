@@ -1,6 +1,6 @@
-ARG WIRESHARK_VER=4.4.9
+ARG WIRESHARK_VER=4.6.0
 ARG PCAP_VER=1.10.5
-ARG GO_VER=1.25.1
+ARG GO_VER=1.25.3
 
 # build Wireshark libpcap
 FROM ubuntu:24.04 AS dll-builder
@@ -93,16 +93,16 @@ RUN mkdir -p /gowireshark/{include/wireshark,libs}
 
 # dll
 COPY --from=dll-builder \
-    /opt/wireshark/build/run/libwireshark.so.18 \
-    /opt/wireshark/build/run/libwiretap.so.15 \
-    /opt/wireshark/build/run/libwsutil.so.16 \
+    /opt/wireshark/build/run/libwireshark.so.19 \
+    /opt/wireshark/build/run/libwiretap.so.16 \
+    /opt/wireshark/build/run/libwsutil.so.17 \
     /opt/libpcap-${PCAP_VER}/libpcap.so.1 \
     /gowireshark/libs/
 # ln
 RUN cd /gowireshark/libs && \
-    ln -s libwireshark.so.18 libwireshark.so && \
-    ln -s libwiretap.so.15 libwiretap.so && \
-    ln -s libwsutil.so.16 libwsutil.so && \
+    ln -s libwireshark.so.19 libwireshark.so && \
+    ln -s libwiretap.so.16 libwiretap.so && \
+    ln -s libwsutil.so.17 libwsutil.so && \
     ldconfig
 
 # sub mod
@@ -115,10 +115,7 @@ COPY --from=dll-builder /opt/wireshark/include/* /gowireshark/include/wireshark/
 COPY --from=dll-builder /opt/wireshark/cfile.h \
                         /opt/wireshark/build/ws_version.h \
                         /opt/wireshark/build/config.h \
-                        /opt/wireshark/frame_tvbuff.h \
                         /gowireshark/include/wireshark/
-# frame_tvbuff
-COPY --from=dll-builder /opt/wireshark/frame_tvbuff.c /gowireshark/frame_tvbuff.c
 # libpcap
 COPY --from=dll-builder /opt/libpcap-${PCAP_VER}/pcap/ /gowireshark/libs/pcap/
 

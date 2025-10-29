@@ -568,13 +568,10 @@ static bool process_packet(struct device_map *device, gint64 offset,
                                 &device->content.cf_live->provider.ref,
                                 device->content.cf_live->provider.prev_dis);
 
-  tvbuff_t *tvb =
-      frame_tvbuff_new(&device->content.cf_live->provider, &fd, packet);
-
   // dissect pkg
   epan_dissect_run_with_taps(
       &device->content.edt, device->content.cf_live->cd_t, &device->content.rec,
-      tvb, &fd, &device->content.cf_live->cinfo);
+      &fd, &device->content.cf_live->cinfo);
 
   frame_data_set_after_dissect(&fd, &cum_bytes);
 
@@ -603,7 +600,7 @@ static bool process_packet(struct device_map *device, gint64 offset,
 void before_callback_init(struct device_map *device) {
   epan_dissect_init(&device->content.edt, device->content.cf_live->epan, TRUE,
                     TRUE);
-  wtap_rec_init(&device->content.rec);
+  wtap_rec_init(&device->content.rec, 1514);
 
   return;
 }
