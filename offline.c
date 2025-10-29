@@ -118,7 +118,7 @@ static void write_json_proto_node_no_value(proto_node *node,
       json_dumper_value_string(pdata->dumper, fi->rep->representation);
     } else {
       char label_str[ITEM_LABEL_LENGTH];
-      proto_item_fill_label(fi, label_str);
+      proto_item_fill_label(fi, label_str, NULL);
       json_dumper_value_string(pdata->dumper, label_str);
     }
   } else {
@@ -199,11 +199,11 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
                                        write_json_data *pdata) {
   json_dumper_begin_object(pdata->dumper);
 
-  // 创建哈希表
+  // hash table
   GHashTable *key_nodes =
       g_hash_table_new_full(g_str_hash, g_str_equal, NULL, NULL);
 
-  // 第一次遍历：将相同key的节点分组
+  // First traversal: Group nodes with the same key
   GSList *current_node = proto_node_list_head;
   while (current_node != NULL) {
     GSList *node_values_list = (GSList *)current_node->data;
@@ -214,7 +214,7 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     if (existing_list == NULL) {
       g_hash_table_insert(key_nodes, (gpointer)json_key, node_values_list);
     } else {
-      // 合并具有相同key的节点列表
+      // Merge the list of nodes with the same key
       GSList *combined_list = g_slist_concat(g_slist_copy(existing_list),
                                              g_slist_copy(node_values_list));
       g_hash_table_replace(key_nodes, (gpointer)json_key, combined_list);
@@ -223,7 +223,7 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     current_node = current_node->next;
   }
 
-  // 第二次遍历：输出合并后的节点
+  // Second traversal: output merged nodes
   GHashTableIter iter;
   gpointer key, value;
   g_hash_table_iter_init(&iter, key_nodes);
@@ -241,7 +241,7 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     gchar *label_ptr;
     if (!fi->rep) {
       label_ptr = label_str;
-      proto_item_fill_label(fi, label_str);
+      proto_item_fill_label(fi, label_str, NULL);
       char *value_ptr = strstr(label_ptr, ": ");
       if (value_ptr != NULL) {
         value_string_repr = value_ptr + 2;
@@ -267,7 +267,7 @@ static void write_json_proto_node_list(GSList *proto_node_list_head,
     }
   }
 
-  // 清理工作移到这里
+  // clean
   g_hash_table_destroy(key_nodes);
 
   json_dumper_end_object(pdata->dumper);

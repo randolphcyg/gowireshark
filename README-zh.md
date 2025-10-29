@@ -92,13 +92,13 @@ func main() {
 ### 1.3. 调用并打包服务为镜像
 
 ```shell
-docker build -t gowireshark:2.4.7 . --platform linux/amd64
+docker build -t gowireshark:2.5.0 . --platform linux/amd64
 
 docker run -d \
   --name gowireshark \
   -p 8090:8090 \
   -v /xxx/pcaps/:/gowireshark/pcaps/ \
-  gowireshark:2.4.7
+  gowireshark:2.5.0
   
 # 获取libwireshark版本
 curl -X GET http://localhost:8090/api/v1/version/wireshark
@@ -117,19 +117,13 @@ curl -X POST \
 ### 2.1. 项目目录
 ```
 gowireshark
-├── LICENSE
-├── README-zh.md
-├── README.md
 ├── cJSON.c
 ├── config.go
-├── frame_tvbuff.c
 ├── go.mod
 ├── go.sum
-├── gowireshark.go
 ├── gowireshark_test.go
 ├── include/
 │   ├── cJSON.h
-│   ├── frame_tvbuff.h
 │   ├── lib.h
 │   ├── libpcap/
 │   ├── offline.h
@@ -141,21 +135,16 @@ gowireshark
 ├── lib.c
 ├── libs/
 │   ├── libpcap.so.1
-│   ├── libwireshark.so.18.0.7
-│   ├── libwiretap.so.15.0.7
-│   └── libwsutil.so.16.0.0
+│   ├── libwireshark.so.19
+│   ├── libwiretap.so.16
+│   └── libwsutil.so.17
 ├── offline.c
+├── offline.go
 ├── online.c
 ├── online.go
 ├── pcaps/
-│   ├── https.key
-│   ├── https.pcapng
-│   ├── mysql.pcapng
-│   ├── server.key
-│   └── testInvalid.key
 ├── reassembly.c
 └── registry.go
-
 ```
 项目目录结构的详细说明：
 
@@ -163,7 +152,6 @@ gowireshark
 |-------------------------------------------------|-------------------------------------------------------|
 | `include/wireshark/`                            | wireshark 编译后源码                                       |
 | `include/libpcap/`                              | libpcap 未编译源码                                         |
-| `frame_tvbuff.c`、`include/frame_tvbuff.h`       | wireshark的源码文件、拷贝出来的、必须放在此处                           |
 | `libs/`                                         | wireshark、libpcap最新动态链接库文件                            |
 | `pcaps/`                                        | 用于测试的 pcap 数据包文件                                      |
 | `gowireshark_test.go`                           | 测试文件                                                  |
@@ -173,7 +161,7 @@ gowireshark
 | `include/lib.h、offline.h、online.h、reassembly.h` | 暴露给go的一些c接口                                           |
 | `layers.go`                                     | 通用协议层解析器                                              |
 | `registry.go`                                   | 用户注册自定义协议解析器                                          |
-| `online.go、gowireshark.go`                      | 用go封装最终的接口，用户go程序可直接使用                                |
+| `online.go、offline.go`                          | 用go封装最终的接口，用户go程序可直接使用                                |
 
 ### 2.2. 调用链
 
@@ -194,7 +182,7 @@ Golang =cgo=> Clang ==> Wireshark/libpcap DLL
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.4.9
+export WIRESHARKV=4.6.0
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
@@ -210,7 +198,7 @@ cd /opt/wireshark/
 cmake -LH ./
 
 # 如果没有 cmake，请先安装它
-export CMAKEV=3.31.6
+export CMAKEV=4.1.2
 sudo wget https://cmake.org/files/LatestRelease/cmake-$CMAKEV.tar.gz
 tar -xzf cmake-$CMAKEV.tar.gz
 mv cmake-$CMAKEV cmake
@@ -357,16 +345,17 @@ apt install bison
     - hex 16进制数据
     - ascii ascii字符
 
-2. 描述性值逻辑来源
+2. 描述性值逻辑
     - 原生的打印协议树接口`proto_tree_print`包含描述性值,而协议json输出接口`write_json_proto_tree`不包含描述性值,通过借鉴前者的实现逻辑`proto_tree_print_node`可以完善这个功能;
     - 主要参考`proto.h`函数的`proto_item_fill_label`函数:
         ```c
         /** Fill given label_str with a simple string representation of field.
-         @param finfo the item to get the info from
-         @param label_str the string to fill
-         @todo think about changing the parameter profile */
+        @param finfo the item to get the info from
+        @param label_str the string to fill
+        @param value_offset offset to the value in label_str
+        @todo think about changing the parameter profile */
         WS_DLL_PUBLIC void
-        proto_item_fill_label(field_info *finfo, gchar *label_str);
+        proto_item_fill_label(const field_info *finfo, char *label_str, size_t *value_offset);
         ```
 
 ## 3. 开发测试
@@ -383,8 +372,8 @@ apt install bison
    （只有当前目录是级别 1，不要向下遍历查找，即不格式化`include/wireshark/`与`include/libpcap/`下的源码文件）：
 
    ```shell
-   find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | grep -v 'frame_tvbuff.c' | xargs clang-format -i
-   find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | grep -v 'frame_tvbuff.h' | grep -v 'uthash.h' | xargs  clang-format -i
+   find . -maxdepth 1 -name '*.c' | grep -v 'cJSON.c' | xargs clang-format -i
+   find ./include -maxdepth 1 -name '*.h' | grep -v 'cJSON.h' | grep -v 'uthash.h' | xargs  clang-format -i
    ```
 6. 测试:
 
