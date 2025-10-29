@@ -1,4 +1,4 @@
--- 3GPP TS 38.331 V18.2.0 (2024-06)
+-- 3GPP TS 38.331 V18.6.0 (2025-06)
 
 NR-Sidelink-Preconf DEFINITIONS AUTOMATIC TAGS ::=
 
@@ -7,6 +7,8 @@ BEGIN
 IMPORTS
     SL-RelayUE-ConfigU2U-r18,
     SL-RemoteUE-ConfigU2U-r18,
+    SL-RelayUE-ConfigU2U-v1840,
+    SL-RemoteUE-ConfigU2U-v1830,
     SL-RemoteUE-Config-r17,
     SL-DRX-ConfigGC-BC-r17,
     SL-Freq-Id-r16,
@@ -21,7 +23,8 @@ IMPORTS
     TDD-UL-DL-ConfigCommon,
     maxNrofFreqSL-r16,
     maxNrofSLRB-r16,
-    maxSL-LCID-r16
+    maxSL-LCID-r16,
+    SL-FreqConfigCommonExt-v16k0
 FROM NR-RRC-Definitions;
 
 -- TAG-NR-SIDELINK-PRECONF-DEFINITIONS-STOP
@@ -29,7 +32,10 @@ FROM NR-RRC-Definitions;
 
 SL-PreconfigurationNR-r16 ::=             SEQUENCE {
     sidelinkPreconfigNR-r16                   SidelinkPreconfigNR-r16,
-    ...
+    ...,
+    [[
+    sidelinkPreconfigNR-v16k0                   SidelinkPreconfigNR-v16k0
+    ]]
 }
 
 SidelinkPreconfigNR-r16 ::=                 SEQUENCE {
@@ -61,7 +67,17 @@ SidelinkPreconfigNR-r16 ::=                 SEQUENCE {
     sl-SyncTxMultiFreq-r18                      ENUMERATED {true}                                                     OPTIONAL,
     sl-PreconfigDiscConfig-v1800                SL-PreconfigDiscConfig-v1800                                          OPTIONAL,
     sl-PosPreconfigFreqInfoList-r18             SEQUENCE (SIZE (1..maxNrofFreqSL-r16)) OF SL-FreqConfigCommon-r16     OPTIONAL
+    ]],
+    [[
+    t400-U2U-r18                                ENUMERATED {ms200, ms400, ms600, ms800, ms1200, ms2000, ms3000, ms4000} OPTIONAL
+    ]],
+    [[
+    sl-PreconfigDiscConfig-v1840                SL-PreconfigDiscConfig-v1840                                          OPTIONAL
     ]]
+}
+
+SidelinkPreconfigNR-v16k0 ::=           SEQUENCE {
+    sl-PreconfigFreqInfoListExt-v16k0       SEQUENCE (SIZE (1..maxNrofFreqSL-r16)) OF SL-FreqConfigCommonExt-v16k0    OPTIONAL
 }
 
 SL-TxProfileList-r17 ::=                    SEQUENCE (SIZE (1..256)) OF SL-TxProfile-r17
@@ -89,6 +105,11 @@ SL-RoHC-Profiles-r16 ::=              SEQUENCE {
 SL-PreconfigDiscConfig-v1800 ::=      SEQUENCE {
     sl-RelayUE-PreconfigU2U-r18           SL-RelayUE-ConfigU2U-r18,
     sl-RemoteUE-PreconfigU2U-r18          SL-RemoteUE-ConfigU2U-r18
+}
+
+SL-PreconfigDiscConfig-v1840 ::=      SEQUENCE {
+    sl-RelayUE-PreconfigU2U-v1840         SL-RelayUE-ConfigU2U-v1840,
+    sl-RemoteUE-PreconfigU2U-v1840        SL-RemoteUE-ConfigU2U-v1830
 }
 
 -- TAG-SL-PRECONFIGURATIONNR-STOP

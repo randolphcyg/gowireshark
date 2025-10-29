@@ -287,6 +287,7 @@ dissect_ubt(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
     proto_tree* message_tree, * message_subtree, * message_subtree2, * message_subtree3, * message_subtree4;
     unsigned offset_end = 0, msgtype = 0, offset = 0;
     tvbuff_t* next_tvb;
+    char* str_msgtype;
 
     /* Setting protocol column to UBT */
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "UBT");
@@ -305,8 +306,9 @@ dissect_ubt(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
     offset += PACKET_LENGTH_SIZE;
     ubt_msg_type = proto_tree_add_item_ret_uint(message_tree, hf_ubt_msg_type, tvb, offset, MESSAGE_TYPE_SIZE, ENC_BIG_ENDIAN, &msgtype);
 
-    proto_item_append_text(ubt_msg_type, "(%s)", val_to_str(msgtype, ubt_msgtype_vals, "Unknown Type (%02d)"));
-    col_append_str(pinfo->cinfo, COL_INFO, val_to_str(msgtype, ubt_msgtype_vals, "Unknown Type (%02d)"));
+    str_msgtype = val_to_str(pinfo->pool, msgtype, ubt_msgtype_vals, "Unknown Type (%02d)");
+    proto_item_append_text(ubt_msg_type, "(%s)", str_msgtype);
+    col_append_str(pinfo->cinfo, COL_INFO, str_msgtype);
 
     offset += MESSAGE_TYPE_SIZE;
 
@@ -320,7 +322,7 @@ dissect_ubt(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
     }
 
     /* adding Switch Sequence Number to tree */
-    proto_tree_add_item(message_tree, hf_ubt_switch_seqno, tvb, offset, SEQ_NO_SIZE, ENC_NA);
+    proto_tree_add_item(message_tree, hf_ubt_switch_seqno, tvb, offset, SEQ_NO_SIZE, ENC_BIG_ENDIAN);
 
     /* appending to info column */
     col_append_fstr(pinfo->cinfo, COL_INFO, " seq:%d", tvb_get_uint32(tvb, offset, ENC_NA));
@@ -352,13 +354,13 @@ dissect_ubt(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
 
         /* Adding TLV items to the tree */
         tlv = proto_tree_add_item(message_subtree, hf_ubt_tlv, tvb, offset, optlen + TYPE_SIZE + LENGTH_SIZE, ENC_NA);
-        proto_item_append_text(tlv, ": t=%d, l=%d, %s", type, optlen, val_to_str(type, ubt_dttype_vals, "Unknown Type (%02d)"));
+        proto_item_append_text(tlv, ": t=%d, l=%d, %s", type, optlen, val_to_str(pinfo->pool, type, ubt_dttype_vals, "Unknown Type (%02d)"));
         message_subtree2 = proto_item_add_subtree(tlv, ett_ubt_tlv);
 
         /* adding type & length to TLV subtree */
         proto_tree_add_item(message_subtree2, hf_ubt_type, tvb, offset, TYPE_SIZE, ENC_NA);
         offset += TYPE_SIZE;
-        proto_tree_add_item(message_subtree2, hf_ubt_length, tvb, offset, LENGTH_SIZE, ENC_NA);
+        proto_tree_add_item(message_subtree2, hf_ubt_length, tvb, offset, LENGTH_SIZE, ENC_BIG_ENDIAN);
         offset += LENGTH_SIZE;
 
         /* Different data types */
@@ -798,8 +800,8 @@ dissect_ubt(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
 
             /* adding User Authentication method as proto_item to the tree */
             tlv_item = proto_tree_add_item_ret_uint(message_subtree2, hf_ubt_dt_userauthmethod, tvb, offset, optlen, ENC_BIG_ENDIAN, &val);
-            proto_item_append_text(tlv, ": %u(%s)", val, val_to_str(val, ubt_authmethod_vals, "Unknown Type (%02d)"));
-            proto_item_append_text(tlv_item, "(%s)", val_to_str(val, ubt_authmethod_vals, "Unknown Type (%02d)"));
+            proto_item_append_text(tlv, ": %u(%s)", val, val_to_str(pinfo->pool, val, ubt_authmethod_vals, "Unknown Type (%02d)"));
+            proto_item_append_text(tlv_item, "(%s)", val_to_str(pinfo->pool, val, ubt_authmethod_vals, "Unknown Type (%02d)"));
             offset += optlen;
             break;
 

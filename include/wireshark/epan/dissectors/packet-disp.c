@@ -635,7 +635,7 @@ dissect_disp_StandardUpdate(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset
                                   &update);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(update, disp_StandardUpdate_vals, "unknown(%d)"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, update, disp_StandardUpdate_vals, "unknown(%d)"));
 
 
   return offset;
@@ -824,7 +824,7 @@ dissect_disp_CoordinateShadowUpdateResult(bool implicit_tag _U_, tvbuff_t *tvb _
                                  &update);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(update, disp_CoordinateShadowUpdateResult_vals, "unknown(%d)"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, update, disp_CoordinateShadowUpdateResult_vals, "unknown(%d)"));
 
 
   return offset;
@@ -846,7 +846,7 @@ dissect_disp_T_standard(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_
                                   &update);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(update, disp_T_standard_vals, "standard(%d"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, update, disp_T_standard_vals, "standard(%d"));
 
 
   return offset;
@@ -945,7 +945,7 @@ dissect_disp_RequestShadowUpdateResult(bool implicit_tag _U_, tvbuff_t *tvb _U_,
                                  &update);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(update, disp_RequestShadowUpdateResult_vals, "unknown(%d)"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, update, disp_RequestShadowUpdateResult_vals, "unknown(%d)"));
 
 
   return offset;
@@ -1255,7 +1255,7 @@ dissect_disp_RefreshInformation(bool implicit_tag _U_, tvbuff_t *tvb _U_, int of
                                  &update);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(update, disp_RefreshInformation_vals, "unknown(%d)"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, update, disp_RefreshInformation_vals, "unknown(%d)"));
 
 
   return offset;
@@ -1333,7 +1333,7 @@ dissect_disp_UpdateShadowResult(bool implicit_tag _U_, tvbuff_t *tvb _U_, int of
                                  &update);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(update, disp_UpdateShadowResult_vals, "unknown(%d)"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, update, disp_UpdateShadowResult_vals, "unknown(%d)"));
 
 
   return offset;
@@ -1364,7 +1364,7 @@ dissect_disp_ShadowProblem(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset 
                                                 &problem);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(problem, disp_ShadowProblem_vals, "ShadowProblem(%d)"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, problem, disp_ShadowProblem_vals, "ShadowProblem(%d)"));
 
   return offset;
 }
@@ -1610,7 +1610,7 @@ void proto_register_disp(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         "AreaSpecification", HFILL }},
     { &hf_disp_replication_attributes,
-      { "attributes", "disp.attributes",
+      { "attributes", "disp.replication_attributes",
         FT_UINT32, BASE_DEC, NULL, 0,
         "AttributeSelection", HFILL }},
     { &hf_disp_knowledge,
@@ -1734,7 +1734,7 @@ void proto_register_disp(void) {
         FT_UINT32, BASE_DEC, VALS(disp_T_updateStrategy_vals), 0,
         NULL, HFILL }},
     { &hf_disp_standardUpdate,
-      { "standard", "disp.standard",
+      { "standard", "disp.standardUpdate",
         FT_UINT32, BASE_DEC, VALS(disp_StandardUpdate_vals), 0,
         "StandardUpdate", HFILL }},
     { &hf_disp_other,
@@ -1798,7 +1798,7 @@ void proto_register_disp(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_disp_information_data,
-      { "information", "disp.information_element",
+      { "information", "disp.information_data_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InformationData", HFILL }},
     { &hf_disp_requestedStrategy,
@@ -1978,7 +1978,7 @@ void proto_register_disp(void) {
         FT_UINT32, BASE_DEC, NULL, 0,
         "RelativeDistinguishedName", HFILL }},
     { &hf_disp_subordinate_changes,
-      { "changes", "disp.changes_element",
+      { "changes", "disp.subordinate_changes_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "IncrementalStepRefresh", HFILL }},
     { &hf_disp_problem,

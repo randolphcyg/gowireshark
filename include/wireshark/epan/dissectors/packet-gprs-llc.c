@@ -45,7 +45,7 @@ static int hf_llcgprs_sapi;
 static int hf_llcgprs_sapib;
 static int hf_llcgprs_U_fmt; /* 3 upper bits in controlfield (UI format) */
 static int hf_llcgprs_sp_bits; /* Spare bits in control field */
-static int hf_llcgprs_NU; /* Transmited unconfirmed sequence number */
+static int hf_llcgprs_NU; /* Transmitted unconfirmed sequence number */
 static int hf_llcgprs_E_bit; /* Encryption mode bit */
 static int hf_llcgprs_PM_bit;
 static int hf_llcgprs_Un;
@@ -184,7 +184,7 @@ static const true_false_string cr_bit = {
 	"DownLink/UpLink = Command/Response",
 	"DownLink/UpLink = Response/Command"
 };
-/* bits are swaped comparing with "Table 3" in ETSI document */
+/* bits are swapped comparing with "Table 3" in ETSI document */
 static const value_string pme[] = {
 	{ 0, "unprotected,non-ciphered information" },
 	{ 1, "protected, non-ciphered information" },
@@ -402,13 +402,13 @@ llc_gprs_dissect_xid(tvbuff_t *tvb, packet_info *pinfo, proto_item *llcgprs_tree
 				}
 				uinfo_tree = proto_tree_add_subtree_format(xid_tree, tvb, location, item_len,
 					ett_llcgprs_ui, NULL, "XID Parameter Type: %s - Value: %u",
-					val_to_str_ext(tmp, &xid_param_type_str_ext, "Reserved Type:%X"), value);
+					val_to_str_ext(pinfo->pool, tmp, &xid_param_type_str_ext, "Reserved Type:%X"), value);
 			}
 			else
 			{
 				uinfo_tree = proto_tree_add_subtree_format(xid_tree, tvb, location, item_len,
 					ett_llcgprs_ui, NULL, "XID Parameter Type: %s",
-					val_to_str_ext(tmp, &xid_param_type_str_ext, "Reserved Type:%X"));
+					val_to_str_ext(pinfo->pool, tmp, &xid_param_type_str_ext, "Reserved Type:%X"));
 			}
 			proto_tree_add_uint(uinfo_tree, hf_llcgprs_xid_xl, tvb, location,
 				1, byte1);
@@ -506,7 +506,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 
 	sapi = addr_fld & 0xF;
 
-	col_add_fstr(pinfo->cinfo, COL_INFO, "SAPI: %s", val_to_str_ext(sapi, &sapi_abrv_ext, "Unknown (%u)"));
+	col_add_fstr(pinfo->cinfo, COL_INFO, "SAPI: %s", val_to_str_ext(pinfo->pool, sapi, &sapi_abrv_ext, "Unknown (%u)"));
 
 	/* In the interest of speed, if "tree" is NULL, don't do any work not
 		necessary to generate protocol tree items. */
@@ -514,13 +514,13 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 	{
 		ti = proto_tree_add_protocol_format(tree, proto_llcgprs, tvb, 0, -1,
 						    "MS-SGSN LLC (Mobile Station - Serving GPRS Support Node Logical Link Control)  SAPI: %s",
-						    val_to_str_ext(sapi, &sapi_t_ext, "Unknown (%u)"));
+						    val_to_str_ext(pinfo->pool, sapi, &sapi_t_ext, "Unknown (%u)"));
 
 		llcgprs_tree = proto_item_add_subtree(ti, ett_llcgprs);
 
 		/* add an item to the subtree, see section 1.6 for more information */
 		addres_field_item = proto_tree_add_uint_format(llcgprs_tree, hf_llcgprs_sapi,
-		     tvb, 0, 1, sapi, "Address field  SAPI: %s", val_to_str_ext(sapi, &sapi_abrv_ext, "Unknown (%u)"));
+		     tvb, 0, 1, sapi, "Address field  SAPI: %s", val_to_str_ext(pinfo->pool, sapi, &sapi_abrv_ext, "Unknown (%u)"));
 
 		ad_f_tree = proto_item_add_subtree(addres_field_item, ett_llcgprs_adf);
 		proto_tree_add_boolean(ad_f_tree, hf_llcgprs_pd, tvb, 0, 1, addr_fld );
@@ -553,7 +553,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 
 		epm = ctrl_fld_ui_s & 0x3;
 
-		col_append_str(pinfo->cinfo, COL_INFO, val_to_str(epm, cr_formats_ipluss, "Unknown (%d)"));
+		col_append_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, epm, cr_formats_ipluss, "Unknown (%d)"));
 		col_append_fstr(pinfo->cinfo, COL_INFO, ", N(S) = %u", ns);
 		col_append_fstr(pinfo->cinfo, COL_INFO, ", N(R) = %u", nr);
 
@@ -563,7 +563,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 
 			ctrl_f_tree = proto_tree_add_subtree_format(llcgprs_tree, tvb, offset,
 							      3, ett_llcgprs_sframe, NULL, "Information format: %s: N(S) = %u,  N(R) = %u",
-							      val_to_str(epm, cr_formats_ipluss, "Unknown (%d)"), ns, nr);
+							      val_to_str(pinfo->pool, epm, cr_formats_ipluss, "Unknown (%d)"), ns, nr);
 
 			/* retrieve the second octet */
 			tmpx = tvb_get_ntohs(tvb, offset)  << 16;
@@ -634,7 +634,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 		epm = ctrl_fld_ui_s & 0x3;
 		nu = (nu >>2)&0x01FF;
 
-		col_append_str(pinfo->cinfo, COL_INFO, val_to_str(epm, cr_formats_ipluss, "Unknown (%d)"));
+		col_append_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, epm, cr_formats_ipluss, "Unknown (%d)"));
 		col_append_fstr(pinfo->cinfo, COL_INFO, ", N(R) = %u", nu);
 
 		if (tree)
@@ -705,7 +705,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 			crc_length = llc_data_length;
 		}
 
-		col_append_str(pinfo->cinfo, COL_INFO, val_to_str(epm, pme, "Unknown (%d)"));
+		col_append_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, epm, pme, "Unknown (%d)"));
 		col_append_fstr(pinfo->cinfo, COL_INFO, ", N(U) = %u", nu);
 
 		if (tree)
@@ -731,11 +731,11 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 		tmp =  ctrl_fld_fb & 0xf;
 
 		col_append_str(pinfo->cinfo, COL_INFO,
-			       val_to_str(tmp, cr_formats_unnumb, "Unknown/invalid code:%X"));
+			       val_to_str(pinfo->pool, tmp, cr_formats_unnumb, "Unknown/invalid code:%X"));
 
 		ui_tree = proto_tree_add_subtree_format(llcgprs_tree, tvb, offset, (llc_data_length-1),
 						    ett_llcgprs_ui, NULL, "Unnumbered frame: %s",
-						    val_to_str(tmp, cr_formats_unnumb, "Unknown/invalid code:%X"));
+						    val_to_str(pinfo->pool, tmp, cr_formats_unnumb, "Unknown/invalid code:%X"));
 
 		proto_tree_add_uint(ui_tree, hf_llcgprs_Un, tvb, offset, 1, ctrl_fld_fb);
 		proto_tree_add_boolean(ui_tree, hf_llcgprs_PF, tvb, offset, 1, ctrl_fld_fb);
@@ -812,7 +812,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 				ctrl_f_tree = proto_tree_add_subtree_format(llcgprs_tree, tvb, offset,
 								      (llc_data_length-offset), ett_llcgprs_sframe, NULL,
 								      "TOM Envelope - Protocol: %s",
-								      val_to_str(tom_pd, tompd_formats, "Unknown (%d)"));
+								      val_to_str(pinfo->pool, tom_pd, tompd_formats, "Unknown (%d)"));
 
 				proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_rl, tvb, offset, 1, tom_byte);
 				proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_pd, tvb, offset, 1, tom_byte);
@@ -882,7 +882,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 				ctrl_f_tree = proto_tree_add_subtree_format(llcgprs_tree, tvb, offset,
 								      (llc_data_length-offset), ett_llcgprs_sframe, NULL,
 								      "TOM Envelope - Protocol: %s",
-								      val_to_str(tom_pd, tompd_formats, "Unknown (%d)"));
+								      val_to_str(pinfo->pool, tom_pd, tompd_formats, "Unknown (%d)"));
 
 				proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_rl, tvb, offset, 1, tom_byte);
 				proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_pd, tvb, offset, 1, tom_byte);
@@ -961,7 +961,7 @@ dissect_llcgprs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
 					ctrl_f_tree = proto_tree_add_subtree_format(llcgprs_tree, tvb, offset,
 									      (llc_data_length-offset), ett_llcgprs_sframe, NULL,
 									      "TOM Envelope - Protocol: %s",
-									      val_to_str(tom_pd, tompd_formats, "Unknown (%d)"));
+									      val_to_str(pinfo->pool, tom_pd, tompd_formats, "Unknown (%d)"));
 
 					proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_rl, tvb, offset, 1, tom_byte);
 					proto_tree_add_uint(ctrl_f_tree, hf_llcgprs_tom_pd, tvb, offset, 1, tom_byte);

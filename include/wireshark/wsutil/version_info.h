@@ -58,6 +58,10 @@ gather_pcre2_compile_info(feature_list l);
 
 WS_DLL_PUBLIC
 void
+gather_xxhash_compile_info(feature_list l);
+
+WS_DLL_PUBLIC
+void
 gather_zlib_compile_info(feature_list l);
 
 WS_DLL_PUBLIC
@@ -77,6 +81,10 @@ GString *get_compiled_version_info(gather_feature_func gather_compile);
 WS_DLL_PUBLIC
 void
 gather_pcre2_runtime_info(feature_list l);
+
+WS_DLL_PUBLIC
+void
+gather_xxhash_runtime_info(feature_list l);
 
 WS_DLL_PUBLIC
 void
@@ -103,12 +111,12 @@ WS_DLL_PUBLIC
 const char *get_ws_vcs_version_info(void);
 
 /*
- * Return a version number string for Logray, including, for builds
- * from a tree checked out from Logray's version control system,
+ * Return a version number string for Stratoshark, including, for builds
+ * from a tree checked out from Stratoshark's version control system,
  * something identifying what version was checked out.
  */
 WS_DLL_PUBLIC
-const char *get_lr_vcs_version_info(void);
+const char *get_ss_vcs_version_info(void);
 
 /*
  * Shorter version of get_ws_vcs_version_info().

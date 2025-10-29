@@ -43,6 +43,14 @@
 /* Dissector will use SCTP PPID 70, 71 or 72 or SCTP port 37464. */
 #define SCTP_PORT_E2AP 37464
 
+/* RC Version (can't infer from OIDs..) */
+enum manual_rc_version_choice {
+    RC_Version_1=1,
+    RC_Version_3=3
+};
+/* Default to later available version */
+static int e2ap_rc_version_pref_choice = (int)RC_Version_3;
+
 void proto_register_e2ap(void);
 void proto_reg_handoff_e2ap(void);
 
@@ -417,7 +425,7 @@ static int hf_e2ap_long_Macro_eNB_ID;             /* BIT_STRING_SIZE_21 */
 static int hf_e2ap_enb_ID_macro;                  /* BIT_STRING_SIZE_20 */
 static int hf_e2ap_enb_ID_shortmacro;             /* BIT_STRING_SIZE_18 */
 static int hf_e2ap_enb_ID_longmacro;              /* BIT_STRING_SIZE_21 */
-static int hf_e2ap_gNB_ID;                        /* BIT_STRING_SIZE_22_32 */
+static int hf_e2ap_gnb_id_bit_string;             /* BIT_STRING_SIZE_22_32 */
 static int hf_e2ap_gNB;                           /* GlobalE2node_gNB_ID */
 static int hf_e2ap_en_gNB;                        /* GlobalE2node_en_gNB_ID */
 static int hf_e2ap_ng_eNB;                        /* GlobalE2node_ng_eNB_ID */
@@ -429,7 +437,7 @@ static int hf_e2ap_global_ng_eNB_ID;              /* GlobalngeNB_ID */
 static int hf_e2ap_ngENB_DU_ID;                   /* NGENB_DU_ID */
 static int hf_e2ap_pLMN_Identity;                 /* PLMN_Identity */
 static int hf_e2ap_eNB_ID;                        /* ENB_ID */
-static int hf_e2ap_gNB_ID_01;                     /* ENGNB_ID */
+static int hf_e2ap_eNGNB_ID_choice;               /* ENGNB_ID */
 static int hf_e2ap_plmn_id;                       /* PLMN_Identity */
 static int hf_e2ap_gnb_id;                        /* T_gnb_id */
 static int hf_e2ap_enb_id;                        /* ENB_ID_Choice */
@@ -559,8 +567,9 @@ static int hf_e2ap_mME_Group_ID;                  /* MME_Group_ID */
 static int hf_e2ap_mME_Code;                      /* MME_Code */
 static int hf_e2ap_pLMNIdentity;                  /* PLMNIdentity */
 static int hf_e2ap_eUTRACellIdentity;             /* EUTRACellIdentity */
-static int hf_e2ap_gNB_ID_02;                     /* GNB_ID */
+static int hf_e2ap_gNB_ID_choice;                 /* GNB_ID */
 static int hf_e2ap_ngENB_ID;                      /* NgENB_ID */
+static int hf_e2ap_gNB_ID;                        /* BIT_STRING_SIZE_22_32 */
 static int hf_e2ap_aMFRegionID;                   /* AMFRegionID */
 static int hf_e2ap_aMFSetID;                      /* AMFSetID */
 static int hf_e2ap_aMFPointer;                    /* AMFPointer */
@@ -1009,7 +1018,7 @@ static int hf_e2ap_interfaceMessage;              /* NI_Message */
 static int hf_e2ap_callProcessID_Format1_01;      /* E2SM_NI_CallProcessID_Format1 */
 static int hf_e2ap_callProcessID_Format2;         /* E2SM_NI_CallProcessID_Format2 */
 static int hf_e2ap_callProcess_ID;                /* RANcallProcess_ID_number */
-static int hf_e2ap_callProcess_ID_01;             /* RANcallProcess_ID_string */
+static int hf_e2ap_callProcess_ID_format2;        /* RANcallProcess_ID_string */
 static int hf_e2ap_controlHeader_Format1_01;      /* E2SM_NI_ControlHeader_Format1 */
 static int hf_e2ap_interface_Direction;           /* NI_Direction */
 static int hf_e2ap_ric_Control_Message_Priority;  /* RIC_Control_Message_Priority */
@@ -1673,6 +1682,9 @@ struct e2ap_tap_t {
 #define MTYPE_RIC_SUBSCRIPTION_DELETE_REQUEST  25
 #define MTYPE_RIC_SUBSCRIPTION_DELETE_RESPONSE 26
 #define MTYPE_RIC_SUBSCRIPTION_DELETE_REQUIRED 27
+#define MTYPE_RIC_QUERY_REQUEST                28
+#define MTYPE_RIC_QUERY_RESPONSE               29
+#define MTYPE_RIC_QUERY_FAILURE                30
 
 /* Value Strings. TODO: ext? */
 static const value_string mtype_names[] = {
@@ -1703,6 +1715,9 @@ static const value_string mtype_names[] = {
     { MTYPE_RIC_SUBSCRIPTION_DELETE_REQUEST,     "RICsubscriptionDeleteRequest"},
     { MTYPE_RIC_SUBSCRIPTION_DELETE_RESPONSE,    "RICsubscriptionDeleteResponse"},
     { MTYPE_RIC_SUBSCRIPTION_DELETE_REQUIRED,    "RICsubscriptionDeleteRequired"},
+    { MTYPE_RIC_QUERY_REQUEST,                   "RICQueryRequest"},
+    { MTYPE_RIC_QUERY_RESPONSE,                  "RICQueryResponse"},
+    { MTYPE_RIC_QUERY_FAILURE,                   "RICQueryFailure"},
     { 0,  NULL }
 };
 
@@ -1752,7 +1767,8 @@ static const char* g_ran_function_name_table[MAX_RANFUNCTIONS] =
     "ORAN-E2SM-KPM",
     "ORAN-E2SM-RC",
     "ORAN-E2SM-NI",
-    "{"               /* For now, CCC is the only JSON-based RAN Function, so just match opening */
+    "{",              /* For now, CCC is the only JSON-based RAN Function, so just match opening */
+    "ORAN-E2SM-LLC"
 };
 
 
@@ -1783,6 +1799,8 @@ static const char *ran_function_to_str(ran_function_t ran_function)
             return "NI";
         case CCC_RANFUNCTIONS:
             return "CCC";
+        case LLC_RANFUNCTIONS:
+            return "LLC";
 
         default:
             return "Unknown";
@@ -1969,12 +1987,16 @@ static ran_function_dissector_t* lookup_ranfunction_dissector(packet_info *pinfo
                 ti = proto_tree_add_string(tree, hf_e2ap_frame_version, tvb, 0, 0, frame_version);
                 proto_item_set_generated(ti);
 
-                char *dissector_version = oid_resolved_from_string(pinfo->pool, table->entries[n].dissector->oid);
+                /* N.B. in case of RC, this won't work! Would also be nice to include minor_version, but string wouldn't match */
+                char dissector_version[16];
+                snprintf(dissector_version, 16, "%s v%u",
+                         ran_function_to_str(table->entries[n].ran_function),
+                         table->entries[n].dissector->major_version);
                 ti = proto_tree_add_string(tree, hf_e2ap_dissector_version, tvb, 0, 0, dissector_version);
                 proto_item_set_generated(ti);
 
-                if (strcmp(frame_version, dissector_version) != 0) {
-                    /* Expert info for version mismatch! */
+                if ((table->entries[n].ran_function != RC_RANFUNCTIONS) && (strcmp(frame_version, dissector_version) != 0)) {
+                    /* Expert info for version mismatch!  Have given up on RC though... */
                     expert_add_info_format(pinfo, ti, &ei_e2ap_ran_function_dissector_mismatch,
                                            "Dissector version mismatch - frame is %s but dissector is %s",
                                            frame_version, dissector_version);
@@ -2040,7 +2062,7 @@ static void update_dissector_using_oid(packet_info *pinfo, ran_function_t ran_fu
         return;
     }
 
-    // Get mapping in use
+    /* Get mapping in use */
     struct e2ap_private_data *e2ap_data = e2ap_get_private_data(pinfo);
     unsigned ran_function_id = e2ap_data->ran_function_id;
     ran_function_id_mapping_t *mapping = NULL;
@@ -2061,13 +2083,26 @@ static void update_dissector_using_oid(packet_info *pinfo, ran_function_t ran_fu
     }
 
     /* Set dissector pointer in ran_function_id_mapping_t */
-    for (uint32_t n=0; n < available->num_available_dissectors; n++) {
-        /* If exact match, set it */
-        if (strcmp(frame_oid, available->ran_function_dissectors[n]->oid) == 0) {
-            mapping->dissector = available->ran_function_dissectors[n];
-            found = true;
-            break;
+    if (ran_function != RC_RANFUNCTIONS) {
+        for (uint32_t n=0; n < available->num_available_dissectors; n++) {
+            /* If exact match, set it */
+            if (strcmp(frame_oid, available->ran_function_dissectors[n]->oid) == 0) {
+                mapping->dissector = available->ran_function_dissectors[n];
+                found = true;
+                break;
+            }
         }
+    }
+    else {
+        /* Special case for RC, which doesn't differentiate versions by OID. Lookup preference instead */
+        for (uint32_t n=0; n < available->num_available_dissectors; n++) {
+            if (available->ran_function_dissectors[n]->major_version == e2ap_rc_version_pref_choice) {
+                mapping->dissector = available->ran_function_dissectors[n];
+                found = true;
+                break;
+            }
+        }
+
     }
 
     /* If not exact match, just set to first one available (TODO: closest above better?) */
@@ -2163,8 +2198,6 @@ static int dissect_E2SM_NI_JSON_PDU(tvbuff_t *tvb, packet_info *pinfo, proto_tre
 /* Dissector tables */
 static dissector_table_t e2ap_ies_dissector_table;
 
-//static dissector_table_t e2ap_ies_p1_dissector_table;
-//static dissector_table_t e2ap_ies_p2_dissector_table;
 static dissector_table_t e2ap_extension_dissector_table;
 static dissector_table_t e2ap_proc_imsg_dissector_table;
 static dissector_table_t e2ap_proc_sout_dissector_table;
@@ -2245,7 +2278,7 @@ dissect_e2ap_ProcedureCode(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
   offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
                                                             0U, 255U, &e2ap_data->procedure_code, false);
 
-  //col_append_fstr(actx->pinfo->cinfo, COL_INFO, "%s", val_to_str(e2ap_data->procedure_code, e2ap_ProcedureCode_vals, "Unknown"));
+  //col_append_fstr(actx->pinfo->cinfo, COL_INFO, "%s", val_to_str(actx->pinfo->pool, e2ap_data->procedure_code, e2ap_ProcedureCode_vals, "Unknown"));
 
   return offset;
 }
@@ -2363,7 +2396,7 @@ dissect_e2ap_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str_ext(e2ap_data->protocol_ie_id, &e2ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
+                           val_to_str_ext(actx->pinfo->pool, e2ap_data->protocol_ie_id, &e2ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
   return offset;
 }
@@ -3212,7 +3245,7 @@ static const value_string e2ap_ENGNB_ID_vals[] = {
 };
 
 static const per_choice_t ENGNB_ID_choice[] = {
-  {   0, &hf_e2ap_gNB_ID         , ASN1_EXTENSION_ROOT    , dissect_e2ap_BIT_STRING_SIZE_22_32 },
+  {   0, &hf_e2ap_gnb_id_bit_string, ASN1_EXTENSION_ROOT    , dissect_e2ap_BIT_STRING_SIZE_22_32 },
   { 0, NULL, 0, NULL }
 };
 
@@ -3228,7 +3261,7 @@ dissect_e2ap_ENGNB_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
 
 static const per_sequence_t GlobalenGNB_ID_sequence[] = {
   { &hf_e2ap_pLMN_Identity  , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_e2ap_PLMN_Identity },
-  { &hf_e2ap_gNB_ID_01      , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_e2ap_ENGNB_ID },
+  { &hf_e2ap_eNGNB_ID_choice, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_e2ap_ENGNB_ID },
   { NULL, 0, 0, NULL }
 };
 
@@ -3433,9 +3466,18 @@ dissect_e2ap_RANfunctionDefinition(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
       /* Have we found a match on the name? */
       if (tvb_strneql(parameter_tvb, m, g_ran_function_name_table[n], name_len) == 0) {
         /* We don't yet know the OID (should be OK),
-           so for now just call with the first/only available dissector for this RAN Function name */
+	   so for now, call with the last/only available dissector for this RAN Function name */
+
         if (g_ran_functions_available_dissectors[n].num_available_dissectors) {
-          g_ran_functions_available_dissectors[n].ran_function_dissectors[0]->functions.ran_function_definition_dissector(parameter_tvb, actx->pinfo, tree, NULL);
+	  /* Choose the one with the highest major version number */
+	  unsigned best_index=0, highest_version=0;
+	  for (unsigned d=0; d < g_ran_functions_available_dissectors[n].num_available_dissectors; d++) {
+	    if (g_ran_functions_available_dissectors[n].ran_function_dissectors[d]->major_version > highest_version) {
+	      best_index = d;
+	    }
+	  }
+	  /* Use it */
+	  g_ran_functions_available_dissectors[n].ran_function_dissectors[best_index]->functions.ran_function_definition_dissector(parameter_tvb, actx->pinfo, tree, NULL);
           found = true;
           found_index = n;
           break;
@@ -4043,8 +4085,6 @@ static int
 dissect_e2ap_RICsubscriptionResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   set_message_label(actx, MTYPE_RIC_SUBSCRIPTION_RESPONSE);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_SUBSCRIPTION_RESPONSE);
-
-
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_RICsubscriptionResponse, RICsubscriptionResponse_sequence);
@@ -4754,7 +4794,6 @@ dissect_e2ap_RICindication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
   set_message_label(actx, MTYPE_RIC_IND);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_IND);
 
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_RICindication, RICindication_sequence);
 
@@ -4771,7 +4810,6 @@ static int
 dissect_e2ap_RICcontrolRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   set_message_label(actx, MTYPE_RIC_CONTROL_REQUEST);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_CONTROL_REQUEST);
-
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_RICcontrolRequest, RICcontrolRequest_sequence);
@@ -4821,6 +4859,9 @@ static const per_sequence_t RICQueryRequest_sequence[] = {
 
 static int
 dissect_e2ap_RICQueryRequest(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  set_message_label(actx, MTYPE_RIC_QUERY_REQUEST);
+  set_stats_message_type(actx->pinfo, MTYPE_RIC_QUERY_REQUEST);
+
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_RICQueryRequest, RICQueryRequest_sequence);
 
@@ -4835,6 +4876,9 @@ static const per_sequence_t RICQueryResponse_sequence[] = {
 
 static int
 dissect_e2ap_RICQueryResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  set_message_label(actx, MTYPE_RIC_QUERY_RESPONSE);
+  set_stats_message_type(actx->pinfo, MTYPE_RIC_QUERY_RESPONSE);
+
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_RICQueryResponse, RICQueryResponse_sequence);
 
@@ -4849,6 +4893,9 @@ static const per_sequence_t RICQueryFailure_sequence[] = {
 
 static int
 dissect_e2ap_RICQueryFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  set_message_label(actx, MTYPE_RIC_QUERY_FAILURE);
+  set_stats_message_type(actx->pinfo, MTYPE_RIC_QUERY_FAILURE);
+
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_RICQueryFailure, RICQueryFailure_sequence);
 
@@ -4865,7 +4912,6 @@ static int
 dissect_e2ap_ErrorIndication(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   set_message_label(actx, MTYPE_ERROR_INDICATION);
   set_stats_message_type(actx->pinfo, MTYPE_ERROR_INDICATION);
-
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_ErrorIndication, ErrorIndication_sequence);
@@ -4900,8 +4946,6 @@ static int
 dissect_e2ap_E2setupResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   set_message_label(actx, MTYPE_E2_SETUP_RESPONSE);
   set_stats_message_type(actx->pinfo, MTYPE_E2_SETUP_RESPONSE);
-
-
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_E2setupResponse, E2setupResponse_sequence);
@@ -5073,8 +5117,8 @@ static const per_sequence_t E2nodeConfigurationUpdate_sequence[] = {
 
 static int
 dissect_e2ap_E2nodeConfigurationUpdate(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  set_message_label(actx, MTYPE_E2_CONFIGURATION_UPDATE_FAIL);
-  set_stats_message_type(actx->pinfo, MTYPE_E2_CONFIGURATION_UPDATE_FAIL);
+  set_message_label(actx, MTYPE_E2_CONFIGURATION_UPDATE);
+  set_stats_message_type(actx->pinfo, MTYPE_E2_CONFIGURATION_UPDATE);
 
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
@@ -5354,7 +5398,6 @@ dissect_e2ap_ResetResponse(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
   set_message_label(actx, MTYPE_RESET_RESPONSE);
   set_stats_message_type(actx->pinfo, MTYPE_RESET_RESPONSE);
 
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_ResetResponse, ResetResponse_sequence);
 
@@ -5495,8 +5538,6 @@ dissect_e2ap_RICserviceUpdateFailure(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
   set_message_label(actx, MTYPE_RIC_SERVICE_UPDATE_FAIL);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_SERVICE_UPDATE_FAIL);
 
-
-
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_RICserviceUpdateFailure, RICserviceUpdateFailure_sequence);
 
@@ -5513,7 +5554,6 @@ static int
 dissect_e2ap_RICserviceQuery(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   set_message_label(actx, MTYPE_RIC_SERVICE_QUERY);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_SERVICE_QUERY);
-
 
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_e2ap_RICserviceQuery, RICserviceQuery_sequence);
@@ -5851,7 +5891,7 @@ dissect_e2ap_GNB_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 
 static const per_sequence_t GlobalGNB_ID_sequence[] = {
   { &hf_e2ap_pLMNIdentity   , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_e2ap_PLMNIdentity },
-  { &hf_e2ap_gNB_ID_02      , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_e2ap_GNB_ID },
+  { &hf_e2ap_gNB_ID_choice  , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_e2ap_GNB_ID },
   { NULL, 0, 0, NULL }
 };
 
@@ -11883,7 +11923,7 @@ dissect_e2ap_T_colletStartTime(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
     offset = dissect_e2ap_TimeStamp(tvb, offset, actx, tree, hf_index);
 
   /* Add as a generated field the timestamp decoded */
-  const char *time_str = tvb_ntp_fmt_ts_sec(tvb, (ts_offset+7)/8);
+  const char *time_str = tvb_ntp_fmt_ts_sec(actx->pinfo->pool, tvb, (ts_offset+7)/8);
   proto_item *ti = proto_tree_add_string(tree, hf_e2ap_timestamp_string, tvb, (ts_offset+7)/8, 4, time_str);
   proto_item_set_generated(ti);
 
@@ -12893,7 +12933,7 @@ dissect_e2ap_RANcallProcess_ID_string(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 
 
 static const per_sequence_t E2SM_NI_CallProcessID_Format2_sequence[] = {
-  { &hf_e2ap_callProcess_ID_01, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_e2ap_RANcallProcess_ID_string },
+  { &hf_e2ap_callProcess_ID_format2, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_e2ap_RANcallProcess_ID_string },
   { NULL, 0, 0, NULL }
 };
 
@@ -14528,7 +14568,7 @@ static int dissect_E2SM_NI_RANfunction_Description_PDU(tvbuff_t *tvb _U_, packet
 static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct e2ap_private_data *e2ap_data = e2ap_get_private_data(pinfo);
-  return (dissector_try_uint_new(e2ap_ies_dissector_table, e2ap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(e2ap_ies_dissector_table, e2ap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 
@@ -14554,21 +14594,21 @@ static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, pro
 {
   struct e2ap_private_data *e2ap_data = e2ap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(e2ap_proc_imsg_dissector_table, e2ap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(e2ap_proc_imsg_dissector_table, e2ap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct e2ap_private_data *e2ap_data = e2ap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(e2ap_proc_sout_dissector_table, e2ap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(e2ap_proc_sout_dissector_table, e2ap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct e2ap_private_data *e2ap_data = e2ap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(e2ap_proc_uout_dissector_table, e2ap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(e2ap_proc_uout_dissector_table, e2ap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 
@@ -14586,14 +14626,14 @@ e2ap_stats_tree_init(stats_tree *st)
 }
 
 static tap_packet_status
-e2ap_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_,
+e2ap_stats_tree_packet(stats_tree* st, packet_info* pinfo,
                        epan_dissect_t* edt _U_ , const void* p, tap_flags_t flags _U_)
 {
     const struct e2ap_tap_t *pi = (const struct e2ap_tap_t *)p;
 
     tick_stat_node(st, st_str_packets, 0, false);
     stats_tree_tick_pivot(st, st_node_packet_types,
-                          val_to_str(pi->e2ap_mtype, mtype_names,
+                          val_to_str(pinfo->pool, pi->e2ap_mtype, mtype_names,
                                      "Unknown packet type (%d)"));
     return TAP_PACKET_REDRAW;
 }
@@ -14791,26 +14831,25 @@ proto_reg_handoff_e2ap(void)
   /* KPM */
   oid_add_from_string("KPM v1",         "1.3.6.1.4.1.53148.1.1.2.2");
   oid_add_from_string("KPM v2",         "1.3.6.1.4.1.53148.1.2.2.2");
-  oid_add_from_string("KPM v3",         "1.2.6.1.4.1.53148.1.3.2.2");
-  oid_add_from_string("KPM v4",         "1.2.6.1.4.1.53148.1.4.2.2");
-  oid_add_from_string("KPM v5",         "1.2.6.1.4.1.53148.1.5.2.2");
-  oid_add_from_string("KPM v6",         "1.2.6.1.4.1.53148.1.6.2.2");
+  oid_add_from_string("KPM v3",         "1.3.6.1.4.1.53148.1.3.2.2");
+  oid_add_from_string("KPM v4",         "1.3.6.1.4.1.53148.1.4.2.2");
+  oid_add_from_string("KPM v5",         "1.3.6.1.4.1.53148.1.5.2.2");
+  oid_add_from_string("KPM v6",         "1.3.6.1.4.1.53148.1.6.2.2");
 
 
   /* RC */
   // TODO: appears to be the same???  Asking for clarification from ORAN..
-  oid_add_from_string("RC  v1",         "1.3.6.1.4.1.53148.1.1.2.3");
-  //oid_add_from_string("RC  v3",         "1.3.6.1.4.1.53148.1.1.2.3");
-  //oid_add_from_string("RC  v4",         "1.3.6.1.4.1.53148.1.1.2.3");
+  oid_add_from_string("RC v1",         "1.3.6.1.4.1.53148.1.1.2.3");
+  //oid_add_from_string("RC v3",         "1.3.6.1.4.1.53148.1.1.2.3");
+  //oid_add_from_string("RC v4",         "1.3.6.1.4.1.53148.1.1.2.3");
 
   /* NI */
-  oid_add_from_string("NI  v1",         "1.3.6.1.4.1.53148.1.1.2.1");
-  oid_add_from_string("NI  v2",         "1.3.6.1.4.1.53148.1.2.2.1");
-  oid_add_from_string("NI  v3",         "1.3.6.1.4.1.53148.1.3.2.1");
-  oid_add_from_string("NI  v4",         "1.3.6.1.4.1.53148.1.4.2.1");
-  oid_add_from_string("NI  v5",         "1.3.6.1.4.1.53148.1.5.2.1");
-  oid_add_from_string("NI  v6",         "1.3.6.1.4.1.53148.1.6.2.1");
-
+  oid_add_from_string("NI v1",         "1.3.6.1.4.1.53148.1.1.2.1");
+  oid_add_from_string("NI v2",         "1.3.6.1.4.1.53148.1.2.2.1");
+  oid_add_from_string("NI v3",         "1.3.6.1.4.1.53148.1.3.2.1");
+  oid_add_from_string("NI v4",         "1.3.6.1.4.1.53148.1.4.2.1");
+  oid_add_from_string("NI v5",         "1.3.6.1.4.1.53148.1.5.2.1");
+  oid_add_from_string("NI v6",         "1.3.6.1.4.1.53148.1.6.2.1");
 
   /* CCC */
   oid_add_from_string("CCC v1",         "1.3.6.1.4.1.53148.1.1.2.4");
@@ -14820,12 +14859,15 @@ proto_reg_handoff_e2ap(void)
   oid_add_from_string("CCC v5",         "1.3.6.1.4.1.53148.1.5.2.4");
   oid_add_from_string("CCC v6",         "1.3.6.1.4.1.53148.1.6.2.4");
 
+  /* LLC */
+  oid_add_from_string("LLC v1",         "1.3.6.1.4.1.53148.1.1.2.5");
+
 
   /*********************************************************/
   /* Register 'built-in' dissectors (i.e., from asn1/e2ap) */
 
   static ran_function_dissector_t kpm_v3 =
-  { "ORAN-E2SM-KPM", "1.2.6.1.4.1.53148.1.3.2.2", 3, 0,
+  { "ORAN-E2SM-KPM", "1.3.6.1.4.1.53148.1.3.2.2", 3, 0,
     {  dissect_E2SM_KPM_RANfunction_Description_PDU,
 
        NULL,
@@ -15797,8 +15839,8 @@ void proto_register_e2ap(void) {
       { "enb-ID-longmacro", "e2ap.enb_ID_longmacro",
         FT_BYTES, BASE_NONE, NULL, 0,
         "BIT_STRING_SIZE_21", HFILL }},
-    { &hf_e2ap_gNB_ID,
-      { "gNB-ID", "e2ap.gNB_ID",
+    { &hf_e2ap_gnb_id_bit_string,
+      { "gNB-ID", "e2ap.gnb_id_bit_string",
         FT_BYTES, BASE_NONE, NULL, 0,
         "BIT_STRING_SIZE_22_32", HFILL }},
     { &hf_e2ap_gNB,
@@ -15845,8 +15887,8 @@ void proto_register_e2ap(void) {
       { "eNB-ID", "e2ap.eNB_ID",
         FT_UINT32, BASE_DEC, VALS(e2ap_ENB_ID_vals), 0,
         NULL, HFILL }},
-    { &hf_e2ap_gNB_ID_01,
-      { "gNB-ID", "e2ap.gNB_ID",
+    { &hf_e2ap_eNGNB_ID_choice,
+      { "gNB-ID", "e2ap.eNGNB_ID_choice",
         FT_UINT32, BASE_DEC, VALS(e2ap_ENGNB_ID_vals), 0,
         "ENGNB_ID", HFILL }},
     { &hf_e2ap_plmn_id,
@@ -16126,15 +16168,15 @@ void proto_register_e2ap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_e2ap_initiatingMessagevalue,
-      { "value", "e2ap.value_element",
+      { "value", "e2ap.initiatingMessagevalue_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InitiatingMessage_value", HFILL }},
     { &hf_e2ap_successfulOutcome_value,
-      { "value", "e2ap.value_element",
+      { "value", "e2ap.successfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SuccessfulOutcome_value", HFILL }},
     { &hf_e2ap_unsuccessfulOutcome_value,
-      { "value", "e2ap.value_element",
+      { "value", "e2ap.unsuccessfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "UnsuccessfulOutcome_value", HFILL }},
     { &hf_e2ap_nR_CGI,
@@ -16365,14 +16407,18 @@ void proto_register_e2ap(void) {
       { "eUTRACellIdentity", "e2ap.eUTRACellIdentity",
         FT_BYTES, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-    { &hf_e2ap_gNB_ID_02,
-      { "gNB-ID", "e2ap.gNB_ID",
+    { &hf_e2ap_gNB_ID_choice,
+      { "gNB-ID", "e2ap.gNB_ID_choice",
         FT_UINT32, BASE_DEC, VALS(e2ap_GNB_ID_vals), 0,
         NULL, HFILL }},
     { &hf_e2ap_ngENB_ID,
       { "ngENB-ID", "e2ap.ngENB_ID",
         FT_UINT32, BASE_DEC, VALS(e2ap_NgENB_ID_vals), 0,
         NULL, HFILL }},
+    { &hf_e2ap_gNB_ID,
+      { "gNB-ID", "e2ap.gNB_ID",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "BIT_STRING_SIZE_22_32", HFILL }},
     { &hf_e2ap_aMFRegionID,
       { "aMFRegionID", "e2ap.aMFRegionID",
         FT_BYTES, BASE_NONE, NULL, 0,
@@ -18165,8 +18211,8 @@ void proto_register_e2ap(void) {
       { "callProcess-ID", "e2ap.callProcess_ID",
         FT_INT32, BASE_DEC, NULL, 0,
         "RANcallProcess_ID_number", HFILL }},
-    { &hf_e2ap_callProcess_ID_01,
-      { "callProcess-ID", "e2ap.callProcess_ID",
+    { &hf_e2ap_callProcess_ID_format2,
+      { "callProcess-ID", "e2ap.callProcess_ID_format2",
         FT_STRING, BASE_NONE, NULL, 0,
         "RANcallProcess_ID_string", HFILL }},
     { &hf_e2ap_controlHeader_Format1_01,
@@ -18939,7 +18985,7 @@ void proto_register_e2ap(void) {
      { &ei_e2ap_ran_function_names_no_match, { "e2ap.ran-function-names-no-match", PI_PROTOCOL, PI_WARN, "RAN Function name doesn't match known service models", EXPFILL }},
      { &ei_e2ap_ran_function_id_not_mapped,   { "e2ap.ran-function-id-not-known", PI_PROTOCOL, PI_WARN, "Service Model not known for RANFunctionID", EXPFILL }},
      { &ei_e2ap_ran_function_dissector_mismatch,   { "e2ap.ran-function-dissector-version-mismatch", PI_PROTOCOL, PI_WARN, "Available dissector does not match signalled", EXPFILL }},
-     { &ei_e2ap_ran_function_max_dissectors_registered,   { "e2ap.ran-function-max-dissectors-registered", PI_PROTOCOL, PI_WARN, "Available dissector does not match signalled", EXPFILL }},
+     { &ei_e2ap_ran_function_max_dissectors_registered,   { "e2ap.ran-function-max-dissectors-registered", PI_PROTOCOL, PI_WARN, "Max dissectors already registered in table", EXPFILL }},
 
   };
 
@@ -18955,6 +19001,7 @@ void proto_register_e2ap(void) {
   /* Register dissector */
   e2ap_handle = register_dissector("e2ap", dissect_e2ap, proto_e2ap);
 
+  module_t *e2ap_module;
   expert_e2ap = expert_register_protocol(proto_e2ap);
   expert_register_field_array(expert_e2ap, ei, array_length(ei));
 
@@ -18968,6 +19015,21 @@ void proto_register_e2ap(void) {
   e2ap_proc_sout_dissector_table = register_dissector_table("e2ap.proc.sout", "E2AP-ELEMENTARY-PROCEDURE SuccessfulOutcome", proto_e2ap, FT_UINT32, BASE_DEC);
   e2ap_proc_uout_dissector_table = register_dissector_table("e2ap.proc.uout", "E2AP-ELEMENTARY-PROCEDURE UnsuccessfulOutcome", proto_e2ap, FT_UINT32, BASE_DEC);
   e2ap_n2_ie_type_dissector_table = register_dissector_table("e2ap.n2_ie_type", "E2AP N2 IE Type", proto_e2ap, FT_STRING, STRING_CASE_SENSITIVE);
+
+  /* Preference settings */
+  e2ap_module = prefs_register_protocol(proto_e2ap, NULL);
+
+  static const enum_val_t rc_version_vals[] = {
+      {"version-1",        "Version-1",           RC_Version_1},
+      {"version-3",        "Version-3",           RC_Version_3},
+      {NULL, NULL, -1}
+  };
+
+  prefs_register_enum_preference(e2ap_module, "rc_manual_version_choice",
+      "Manual choice of RC dissector version to call",
+      "Set version of RC dissector to use for that RANFunction. Unfortunately, so far all "
+      "OIDs say they are version 1..",
+      &e2ap_rc_version_pref_choice, rc_version_vals, true);
 
   register_init_routine(&e2ap_init_protocol);
 

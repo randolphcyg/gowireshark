@@ -31,6 +31,7 @@
 #include <epan/wmem_scopes.h>
 #include <epan/to_str.h>
 #include <epan/strutil.h>
+#include <wsutil/array.h>
 #include "packet-dtls.h"
 #include "packet-coap.h"
 #include "packet-media-type.h"
@@ -267,7 +268,7 @@ static const value_string vals_opt_type[] = {
 	{ 0, NULL },
 };
 
-struct coap_option_range_t {
+static struct coap_option_range_t {
 	unsigned type;
 	int min;
 	int max;
@@ -323,6 +324,8 @@ static const value_string vals_ctype[] = {
 	{ 61, "application/cwt" },
 	{ 62, "application/multipart-core" },
 	{ 63, "application/cbor-seq" },
+	{ 64, "application/edhoc+cbor-seq" },
+	{ 65, "application/cid-edhoc+cbor-seq" },
 	{ 96, "application/cose; cose-type=\"cose-encrypt\"" },
 	{ 97, "application/cose; cose-type=\"cose-mac\"" },
 	{ 98, "application/cose; cose-type=\"cose-sign\"" },
@@ -748,7 +751,7 @@ dissect_coap_opt_proxy_scheme(tvbuff_t *tvb, packet_info *pinfo, proto_item *hea
 }
 
 static void
-dissect_coap_opt_ctype(tvbuff_t *tvb, proto_item *head_item, proto_tree *subtree, int offset, int opt_length, int hf, coap_info *coinfo)
+dissect_coap_opt_ctype(tvbuff_t *tvb, packet_info* pinfo, proto_item *head_item, proto_tree *subtree, int offset, int opt_length, int hf, coap_info *coinfo)
 {
 	if (opt_length == 0) {
 		coinfo->ctype_value = 0;
@@ -756,7 +759,7 @@ dissect_coap_opt_ctype(tvbuff_t *tvb, proto_item *head_item, proto_tree *subtree
 		coinfo->ctype_value = coap_get_opt_uint(tvb, offset, opt_length);
 	}
 
-	coinfo->ctype_str = val_to_str(coinfo->ctype_value, vals_ctype, "Unknown Type %u");
+	coinfo->ctype_str = val_to_str(pinfo->pool, coinfo->ctype_value, vals_ctype, "Unknown Type %u");
 
 	proto_tree_add_string(subtree, hf, tvb, offset, opt_length, coinfo->ctype_str);
 
@@ -765,7 +768,7 @@ dissect_coap_opt_ctype(tvbuff_t *tvb, proto_item *head_item, proto_tree *subtree
 }
 
 static void
-dissect_coap_opt_accept(tvbuff_t *tvb, proto_item *head_item, proto_tree *subtree, int offset, int opt_length, int hf)
+dissect_coap_opt_accept(tvbuff_t *tvb, packet_info* pinfo, proto_item *head_item, proto_tree *subtree, int offset, int opt_length, int hf)
 {
 	const uint8_t *str = NULL;
 
@@ -773,7 +776,7 @@ dissect_coap_opt_accept(tvbuff_t *tvb, proto_item *head_item, proto_tree *subtre
 		str = nullstr;
 	} else {
 		unsigned value = coap_get_opt_uint(tvb, offset, opt_length);
-		str = val_to_str(value, vals_ctype, "Unknown Type %u");
+		str = val_to_str(pinfo->pool, value, vals_ctype, "Unknown Type %u");
 	}
 
 	proto_tree_add_string(subtree, hf, tvb, offset, opt_length, str);
@@ -865,7 +868,7 @@ dissect_coap_options_main(tvbuff_t *tvb, packet_info *pinfo, proto_tree *coap_tr
 	int         orig_offset	       = offset;
 	proto_tree *subtree;
 	proto_item *item;
-	char	    strbuf[56];
+	char	   *strbuf2;
 
 	opt_jump = tvb_get_uint8(tvb, offset);
 	if (0xff == opt_jump)
@@ -965,22 +968,20 @@ dissect_coap_options_main(tvbuff_t *tvb, packet_info *pinfo, proto_tree *coap_tr
 		return -1;
 	}
 
-	snprintf(strbuf, sizeof(strbuf),
-	    "#%u: %s", opt_count, val_to_str(*opt_num, vals_opt_type,
+	strbuf2 = wmem_strdup_printf(pinfo->pool, "#%u: %s", opt_count, val_to_str(pinfo->pool, *opt_num, vals_opt_type,
 	    *opt_num % 14 == 0 ? "No-Op" : "Unknown Option (%d)"));
 	item = proto_tree_add_string(coap_tree, dissect_hf->hf.opt_name,
-	    tvb, orig_offset, offset - orig_offset + opt_length, strbuf);
+	    tvb, orig_offset, offset - orig_offset + opt_length, strbuf2);
 	subtree = proto_item_add_subtree(item, dissect_hf->ett.option);
 
 	coap_opt_check(pinfo, subtree, *opt_num, opt_length, dissect_hf);
 
-	snprintf(strbuf, sizeof(strbuf),
-	    "Type %u, %s, %s%s", *opt_num,
+	strbuf2 = wmem_strdup_printf(pinfo->pool, "Type %u, %s, %s%s", *opt_num,
 	    (*opt_num & 1) ? "Critical" : "Elective",
 	    (*opt_num & 2) ? "Unsafe" : "Safe",
 	    ((*opt_num & 0x1e) == 0x1c) ? ", NoCacheKey" : "");
 	proto_tree_add_string(subtree, dissect_hf->hf.opt_desc,
-	    tvb, orig_offset, offset - orig_offset + opt_length, strbuf);
+	    tvb, orig_offset, offset - orig_offset + opt_length, strbuf2);
 
 	proto_tree_add_item(subtree, dissect_hf->hf.opt_delta,  tvb, orig_offset, 1, ENC_BIG_ENDIAN);
 	proto_tree_add_item(subtree, dissect_hf->hf.opt_length, tvb, orig_offset, 1, ENC_BIG_ENDIAN);
@@ -994,7 +995,7 @@ dissect_coap_options_main(tvbuff_t *tvb, packet_info *pinfo, proto_tree *coap_tr
 	/* offset points the next to its option header */
 	switch (*opt_num) {
 	case COAP_OPT_CONTENT_TYPE:
-		dissect_coap_opt_ctype(tvb, item, subtree, offset,
+		dissect_coap_opt_ctype(tvb, pinfo, item, subtree, offset,
 		    opt_length, dissect_hf->hf.opt_ctype, coinfo);
 		break;
 	case COAP_OPT_MAX_AGE:
@@ -1057,7 +1058,7 @@ dissect_coap_options_main(tvbuff_t *tvb, packet_info *pinfo, proto_tree *coap_tr
 		    opt_length, dissect_hf->hf.opt_hop_limit);
 		break;
 	case COAP_OPT_ACCEPT:
-		dissect_coap_opt_accept(tvb, item, subtree, offset,
+		dissect_coap_opt_accept(tvb, pinfo, item, subtree, offset,
 		    opt_length, dissect_hf->hf.opt_accept);
 		break;
 	case COAP_OPT_IF_MATCH:
@@ -1228,7 +1229,7 @@ dissect_coap_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *coap_tree, p
 	proto_item_set_generated(length_item);
 	payload_tvb = tvb_new_subset_length(tvb, offset, payload_length);
 
-	content_info.type = MEDIA_CONTAINER_HTTP_OTHERS;
+	content_info.type = (code_class == 0) ? MEDIA_CONTAINER_HTTP_REQUEST : MEDIA_CONTAINER_HTTP_RESPONSE;
 	content_info.media_str = wmem_strbuf_get_str(coinfo->uri_str_strbuf);
 	/*
 	 * The Thread protocol uses application/octet-stream for its
@@ -1244,8 +1245,8 @@ dissect_coap_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *coap_tree, p
 		/*
 		 * Try the media type dissector table for CoAP-TMF first.
 		 */
-		result = dissector_try_string(coap_tmf_media_type_dissector_table,
-		    coap_ctype_str_dis, payload_tvb, pinfo, parent_tree,
+		result = dissector_try_string_with_data(coap_tmf_media_type_dissector_table,
+		    coap_ctype_str_dis, payload_tvb, pinfo, parent_tree, true,
 		    &content_info);
 	}
 	if (result == 0) {
@@ -1253,8 +1254,8 @@ dissect_coap_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *coap_tree, p
 		 * That either failed or we didn't try it.
 		 * Now try the regular media type table.
 		 */
-		dissector_try_string(media_type_dissector_table,
-		    coap_ctype_str_dis, payload_tvb, pinfo, parent_tree,
+		dissector_try_string_with_data(media_type_dissector_table,
+		    coap_ctype_str_dis, payload_tvb, pinfo, parent_tree, true,
 		    &content_info);
 	}
 	if (coinfo->object_security && !oscore) {
@@ -1397,15 +1398,15 @@ dissect_coap_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 
 		col_add_fstr(pinfo->cinfo, COL_INFO,
 			     "%s, MID:%u, %s",
-			     val_to_str(ttype, vals_ttype_short, "Unknown %u"),
+			     val_to_str(pinfo->pool, ttype, vals_ttype_short, "Unknown %u"),
 			     mid,
-			     val_to_str_ext(code, &coap_vals_code_ext, "Unknown %u"));
+			     val_to_str_ext(pinfo->pool, code, &coap_vals_code_ext, "Unknown %u"));
 
 		/* append the header information */
 		proto_item_append_text(coap_root,
 				       ", %s, %s, MID:%u",
-				       val_to_str(ttype, vals_ttype, "Unknown %u"),
-				       val_to_str_ext(code, &coap_vals_code_ext, "Unknown %u"),
+				       val_to_str(pinfo->pool, ttype, vals_ttype, "Unknown %u"),
+				       val_to_str_ext(pinfo->pool, code, &coap_vals_code_ext, "Unknown %u"),
 				       mid);
 	} else {
 		unsigned len = coap_length;
@@ -1421,12 +1422,12 @@ dissect_coap_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 		code = dissect_coap_code(tvb, coap_tree, &offset, &dissect_coap_hf, &code_class);
 
 		col_append_sep_str(pinfo->cinfo, COL_INFO, NULL,
-				   val_to_str_ext(code, &coap_vals_code_ext, "Unknown %u"));
+				   val_to_str_ext(pinfo->pool, code, &coap_vals_code_ext, "Unknown %u"));
 
 		/* append the header information */
 		proto_item_append_text(coap_root,
 				       ", %s",
-				       val_to_str_ext(code, &coap_vals_code_ext, "Unknown %u"));
+				       val_to_str_ext(pinfo->pool, code, &coap_vals_code_ext, "Unknown %u"));
 	}
 
 	/* initialize the external value */
@@ -1551,11 +1552,11 @@ dissect_coap_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 		}
 	}
 
-	/* dissect the payload */
+	/* dissect the payload after info column updates below */
+	tvbuff_t *payload_tvb = NULL;
 	if (coap_length > offset) {
 		if (coinfo->block_number == DEFAULT_COAP_BLOCK_NUMBER) {
-			dissect_coap_payload(tvb, pinfo, coap_tree, parent_tree, offset, coap_length,
-					     code_class, coinfo, &dissect_coap_hf, false);
+			payload_tvb = tvb_new_subset_remaining(tvb, offset);
 		} else {
 			proto_tree_add_bytes_format(coap_tree, hf_block_payload, tvb, offset,
 						    coap_length - offset, NULL, "Block Payload");
@@ -1565,13 +1566,8 @@ dissect_coap_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 			fragment_head *frag_msg = fragment_add_seq_check(&coap_block_reassembly_table, tvb, offset,
 									 pinfo, 0, NULL, coinfo->block_number,
 									 coap_length - offset, coinfo->block_mflag);
-			tvbuff_t *frag_tvb = process_reassembled_data(tvb, offset, pinfo, "Reassembled CoAP blocks",
+			payload_tvb = process_reassembled_data(tvb, offset, pinfo, "Reassembled CoAP blocks",
 								      frag_msg, &coap_block_frag_items, NULL, coap_tree);
-
-			if (frag_tvb) {
-				dissect_coap_payload(frag_tvb, pinfo, coap_tree, parent_tree, 0, tvb_reported_length(frag_tvb),
-						     code_class, coinfo, &dissect_coap_hf, false);
-			}
 		}
 	}
 
@@ -1651,6 +1647,11 @@ dissect_coap_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree,
 				proto_item_set_generated(pi);
 			}
 		}
+	}
+
+	if (payload_tvb) {
+		dissect_coap_payload(payload_tvb, pinfo, coap_tree, parent_tree, 0, tvb_reported_length(payload_tvb),
+							 code_class, coinfo, &dissect_coap_hf, false);
 	}
 
 	return coap_length;

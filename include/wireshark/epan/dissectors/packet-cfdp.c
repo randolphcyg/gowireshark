@@ -627,14 +627,14 @@ static uint32_t dissect_cfdp_filestore_req_tlv(tvbuff_t *tvb, proto_tree *tree, 
         proto_tree_add_uint(cfdp_filestore_req_tree, hf_cfdp_spare_four, tvb, offset, 1, aux_byte);
         offset += 1;
 
-        proto_tree_add_item_ret_uint(cfdp_filestore_req_tree, hf_cfdp_first_file_name_len, tvb, offset, 1, ENC_NA, &length);
+        proto_tree_add_item_ret_uint(cfdp_filestore_req_tree, hf_cfdp_first_file_name_len, tvb, offset, 1, ENC_BIG_ENDIAN, &length);
         offset += 1;
         if(length > 0){
             proto_tree_add_item(cfdp_filestore_req_tree, hf_cfdp_first_file_name, tvb, offset, length, ENC_ASCII);
         }
         offset += length;
 
-        proto_tree_add_item_ret_uint(cfdp_filestore_req_tree, hf_cfdp_second_file_name_len, tvb, offset, 1, ENC_NA, &length);
+        proto_tree_add_item_ret_uint(cfdp_filestore_req_tree, hf_cfdp_second_file_name_len, tvb, offset, 1, ENC_BIG_ENDIAN, &length);
         offset += 1;
         if(length > 0){
             proto_tree_add_item(cfdp_filestore_req_tree, hf_cfdp_second_file_name, tvb, offset, length, ENC_ASCII);
@@ -699,14 +699,14 @@ static uint32_t dissect_cfdp_filestore_resp_tlv(tvbuff_t *tvb, proto_tree *tree,
         }
         offset += 1;
 
-        proto_tree_add_item_ret_uint(cfdp_filestore_resp_tree, hf_cfdp_first_file_name_len, tvb, offset, 1, ENC_NA, &length);
+        proto_tree_add_item_ret_uint(cfdp_filestore_resp_tree, hf_cfdp_first_file_name_len, tvb, offset, 1, ENC_BIG_ENDIAN, &length);
         offset += 1;
         if(length > 0){
             proto_tree_add_item(cfdp_filestore_resp_tree, hf_cfdp_first_file_name, tvb, offset, length, ENC_ASCII);
         }
         offset += length;
 
-        proto_tree_add_item_ret_uint(cfdp_filestore_resp_tree, hf_cfdp_second_file_name_len, tvb, offset, 1, ENC_NA, &length);
+        proto_tree_add_item_ret_uint(cfdp_filestore_resp_tree, hf_cfdp_second_file_name_len, tvb, offset, 1, ENC_BIG_ENDIAN, &length);
         offset += 1;
         if(length > 0){
             proto_tree_add_item(cfdp_filestore_resp_tree, hf_cfdp_second_file_name, tvb, offset, length, ENC_ASCII);
@@ -714,7 +714,7 @@ static uint32_t dissect_cfdp_filestore_resp_tlv(tvbuff_t *tvb, proto_tree *tree,
         offset += length;
 
         /* Filestore Message */
-        proto_tree_add_item_ret_uint(cfdp_filestore_resp_tree, hf_cfdp_filestore_message_len, tvb, offset, 1, ENC_NA, &length);
+        proto_tree_add_item_ret_uint(cfdp_filestore_resp_tree, hf_cfdp_filestore_message_len, tvb, offset, 1, ENC_BIG_ENDIAN, &length);
         offset += 1;
         if(length > 0){
             proto_tree_add_item(cfdp_filestore_resp_tree, hf_cfdp_filestore_message, tvb, offset, length, ENC_NA);
@@ -1167,13 +1167,13 @@ static uint32_t dissect_cfdp_metadata_pdu(tvbuff_t *tvb, packet_info *pinfo, pro
     offset += 1;
     proto_tree_add_item(tree, hf_cfdp_file_size, tvb, offset, 4, ENC_BIG_ENDIAN);
     offset += 4;
-    proto_tree_add_item_ret_uint(tree, hf_cfdp_src_file_name_len, tvb, offset, 1, ENC_NA, &length);
+    proto_tree_add_item_ret_uint(tree, hf_cfdp_src_file_name_len, tvb, offset, 1, ENC_BIG_ENDIAN, &length);
     offset += 1;
     if(length >0){
         proto_tree_add_item(tree, hf_cfdp_src_file_name, tvb, offset, length, ENC_ASCII);
     }
     offset += length;
-    proto_tree_add_item_ret_uint(tree, hf_cfdp_dst_file_name_len, tvb, offset, 1, ENC_NA, &length);
+    proto_tree_add_item_ret_uint(tree, hf_cfdp_dst_file_name_len, tvb, offset, 1, ENC_BIG_ENDIAN, &length);
     offset += 1;
     if(length >0){
         proto_tree_add_item(tree, hf_cfdp_dst_file_name, tvb, offset, length, ENC_ASCII);
@@ -1345,7 +1345,7 @@ dissect_cfdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
         proto_tree_add_uint(cfdp_file_directive_header_tree, hf_cfdp_file_directive_type, tvb, offset, 1, directive_code);
         offset += 1;
 
-        col_add_fstr(pinfo->cinfo, COL_INFO, "%s PDU",  val_to_str(directive_code, cfdp_directive_codes, "Reserved (%d)"));
+        col_add_fstr(pinfo->cinfo, COL_INFO, "%s PDU",  val_to_str(pinfo->pool, directive_code, cfdp_directive_codes, "Reserved (%d)"));
 
         switch(directive_code)
         {
@@ -1485,7 +1485,7 @@ dissect_cfdp_as_subtree(tvbuff_t *tvb,  packet_info *pinfo, proto_tree *tree, in
         proto_tree_add_uint(cfdp_file_directive_header_tree, hf_cfdp_file_directive_type, tvb, offset, 1, directive_code);
         offset += 1;
 
-        col_add_fstr(pinfo->cinfo, COL_INFO, "%s PDU",  val_to_str(directive_code, cfdp_directive_codes, "Reserved (%d)"));
+        col_add_fstr(pinfo->cinfo, COL_INFO, "%s PDU",  val_to_str(pinfo->pool, directive_code, cfdp_directive_codes, "Reserved (%d)"));
 
         switch(directive_code)
         {

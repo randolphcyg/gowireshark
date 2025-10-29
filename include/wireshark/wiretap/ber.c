@@ -23,11 +23,11 @@ static int ber_file_type_subtype = -1;
 
 void register_ber(void);
 
-static bool ber_full_file_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool ber_full_file_read(wtap *wth, wtap_rec *rec,
                                    int *err, char **err_info,
                                    int64_t *data_offset)
 {
-  if (!wtap_full_file_read(wth, rec, buf, err, err_info, data_offset))
+  if (!wtap_full_file_read(wth, rec, err, err_info, data_offset))
     return false;
 
   /* Pass the file name. */
@@ -35,11 +35,10 @@ static bool ber_full_file_read(wtap *wth, wtap_rec *rec, Buffer *buf,
   return true;
 }
 
-static bool ber_full_file_seek_read(wtap *wth, int64_t seek_off,
-                                        wtap_rec *rec, Buffer *buf,
+static bool ber_full_file_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
                                         int *err, char **err_info)
 {
-  if (!wtap_full_file_seek_read(wth, seek_off, rec, buf, err, err_info))
+  if (!wtap_full_file_seek_read(wth, seek_off, rec, err, err_info))
     return false;
 
   /* Pass the file name. */
@@ -52,10 +51,10 @@ wtap_open_return_val ber_open(wtap *wth, int *err, char **err_info)
 #define BER_BYTES_TO_CHECK 8
   uint8_t bytes[BER_BYTES_TO_CHECK];
   uint8_t ber_id;
-  int8_t ber_class;
-  int8_t ber_tag;
+  uint8_t ber_class;
+  uint8_t ber_tag;
   bool ber_pc;
-  uint8_t oct, nlb = 0;
+  uint8_t oct, ntb = 0, nlb = 0;
   int len = 0;
   int64_t file_size;
   int offset = 0, i;
@@ -72,11 +71,16 @@ wtap_open_return_val ber_open(wtap *wth, int *err, char **err_info)
   ber_pc = (ber_id>>5) & 0x01;
   ber_tag = ber_id & 0x1F;
 
+  if (ber_tag == 0x1F) {
+    ber_tag = bytes[offset++];
+    ntb = 1; /* number of tag bytes */
+  }
+
   /* it must be constructed and either a SET or a SEQUENCE */
   /* or a CONTEXT/APPLICATION less than 32 (arbitrary) */
   if(!(ber_pc &&
        (((ber_class == BER_CLASS_UNI) && ((ber_tag == BER_UNI_TAG_SET) || (ber_tag == BER_UNI_TAG_SEQ))) ||
-        (((ber_class == BER_CLASS_CON) || (ber_class == BER_CLASS_APP)) && (ber_tag < 32)))))
+        (((ber_class == BER_CLASS_CON) || (ber_class == BER_CLASS_APP)) && (ber_tag < 0xFF)))))
     return WTAP_OPEN_NOT_MINE;
 
   /* now check the length */
@@ -101,7 +105,7 @@ wtap_open_return_val ber_open(wtap *wth, int *err, char **err_info)
       }
     }
 
-    len += (2 + nlb); /* add back Tag and Length bytes */
+    len += (2 + ntb + nlb); /* add back Tag and Length bytes */
     file_size = wtap_file_size(wth, err);
 
     if(len != file_size) {

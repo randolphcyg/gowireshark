@@ -14,6 +14,8 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/addr_resolv.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-udp.h"
 
 void proto_reg_handoff_shicp(void);
@@ -228,7 +230,7 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         else {
             error_pi = proto_tree_add_item_ret_uint(shicp_tree, hf_shicp_error, tvb, offset, SHICP_ERROR_SIZE, ENC_LITTLE_ENDIAN, &error_value);
             expert_add_info(pinfo, error_pi, &ei_shicp_error);
-            col_append_fstr(pinfo->cinfo, COL_INFO, "Error: %s", val_to_str(error_value, error_types, "%d"));
+            col_append_fstr(pinfo->cinfo, COL_INFO, "Error: %s", val_to_str(pinfo->pool, error_value, error_types, "%d"));
         }
     }
     else {
@@ -240,7 +242,7 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             COL_INFO,
             "%s, Type: %s",
             tfs_get_string(flags_value & SHICP_MSG_CLASS_FLAG, &tfs_response_request),
-            val_to_str(msgtype_value, message_types, "%d"));
+            val_to_str(pinfo->pool, msgtype_value, message_types, "%d"));
         payload_end = offset + payload_length;
         switch (msgtype_value)
         {
@@ -256,20 +258,20 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                     proto_tree_add_item(shicp_tree, hf_shicp_auth_req, tvb, offset, keyvalue_length, ENC_LITTLE_ENDIAN);
                     break;
                 case SHICP_DISCOVER_MODULE_VERSION_KEY:
-                    proto_tree_add_item(shicp_tree, hf_shicp_module_version, tvb, offset, keyvalue_length, ENC_ASCII | ENC_NA);
+                    proto_tree_add_item(shicp_tree, hf_shicp_module_version, tvb, offset, keyvalue_length, ENC_ASCII);
                     break;
                 case SHICP_DISCOVER_MODULE_DESC_KEY:
-                    proto_tree_add_item(shicp_tree, hf_shicp_module_desc, tvb, offset, keyvalue_length, ENC_ASCII | ENC_NA);
+                    proto_tree_add_item(shicp_tree, hf_shicp_module_desc, tvb, offset, keyvalue_length, ENC_ASCII);
                     break;
                 case SHICP_DISCOVER_SUPPORTED_MSG_KEY:
                     keyvalue_end = offset + keyvalue_length;
                     keyvalue_offset = offset;
                     supported_message_value = tvb_get_uint8(tvb, keyvalue_offset);
-                    wmem_strbuf_append(supported_messages, val_to_str(supported_message_value, message_types, "%d"));
+                    wmem_strbuf_append(supported_messages, val_to_str(pinfo->pool, supported_message_value, message_types, "%d"));
                     keyvalue_offset += 1;
                     while (keyvalue_offset < keyvalue_end) {
                         supported_message_value = tvb_get_uint8(tvb, keyvalue_offset);
-                        wmem_strbuf_append_printf(supported_messages, ", %s", val_to_str(supported_message_value, message_types, "%d"));
+                        wmem_strbuf_append_printf(supported_messages, ", %s", val_to_str(pinfo->pool, supported_message_value, message_types, "%d"));
                         keyvalue_offset += 1;
                     }
                     proto_tree_add_string(shicp_tree, hf_shicp_supported_msg, tvb, offset, keyvalue_length, wmem_strbuf_get_str(supported_messages));
@@ -293,7 +295,7 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                     proto_tree_add_item(shicp_tree, hf_shicp_dhcp, tvb, offset, keyvalue_length, ENC_LITTLE_ENDIAN);
                     break;
                 case SHICP_DISCOVER_HN_KEY:
-                    proto_tree_add_item(shicp_tree, hf_shicp_hn, tvb, offset, keyvalue_length, ENC_ASCII | ENC_NA);
+                    proto_tree_add_item(shicp_tree, hf_shicp_hn, tvb, offset, keyvalue_length, ENC_ASCII);
                     break;
                 case SHICP_DISCOVER_HN_MAX_LEN_KEY:
                     proto_tree_add_item(shicp_tree, hf_shicp_hn_max_len, tvb, offset, keyvalue_length, ENC_LITTLE_ENDIAN);
@@ -320,7 +322,7 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                 offset += SHICP_TOKEN_SIZE;
             }
             else if (payload_length == SHICP_ERROR_SIZE) {
-                proto_tree_add_item(shicp_tree, hf_shicp_error, tvb, offset, SHICP_ERROR_SIZE, ENC_ASCII | ENC_NA);
+                proto_tree_add_item(shicp_tree, hf_shicp_error, tvb, offset, SHICP_ERROR_SIZE, ENC_NA);
                 break;
             }
             while (offset < payload_end) {
@@ -349,10 +351,10 @@ dissect_shicp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                     proto_tree_add_item(shicp_tree, hf_shicp_dhcp, tvb, offset, keyvalue_length, ENC_LITTLE_ENDIAN);
                     break;
                 case SHICP_CONFIG_HN_KEY:
-                    proto_tree_add_item(shicp_tree, hf_shicp_hn, tvb, offset, keyvalue_length, ENC_ASCII | ENC_NA);
+                    proto_tree_add_item(shicp_tree, hf_shicp_hn, tvb, offset, keyvalue_length, ENC_ASCII);
                     break;
                 case SHICP_CONFIG_PSWD_KEY:
-                    proto_tree_add_item(shicp_tree, hf_shicp_pswd, tvb, offset, keyvalue_length, ENC_ASCII | ENC_NA);
+                    proto_tree_add_item(shicp_tree, hf_shicp_pswd, tvb, offset, keyvalue_length, ENC_ASCII);
                     break;
                 default:
                     break;

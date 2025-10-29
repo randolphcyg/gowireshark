@@ -125,7 +125,7 @@ typedef struct {
 #define RTU_CONFIG                          0x20
 #define RETURN_RTU_CONFIG                   0x25
 #define REPORT_EXCEPTION_DATA               0x0D
-#define RST_RESPONSE_CODE                   0x80
+#define RST_RESPONSE_CODE                   0x08
 
 /* Function code Lookup */
 static const value_string FunctionCodenames[] = {
@@ -808,7 +808,7 @@ static request_frame* copy_request_frame(tvbuff_t *tvb  )
         num_objects = frame->numberofcharacters;
         frame->requested_points = (uint8_t *)wmem_alloc(wmem_file_scope(), num_objects * sizeof(uint8_t));
         tvb_memcpy(tvb, frame->requested_points, offset, num_objects * sizeof(uint8_t));
-        offset += num_objects * sizeof(uint8_t);
+        /* offset += num_objects * sizeof(uint8_t); */
     }
 
     return frame;

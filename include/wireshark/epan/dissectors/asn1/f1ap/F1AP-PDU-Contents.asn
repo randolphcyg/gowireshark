@@ -1,4 +1,4 @@
--- 3GPP TS 38.473 V18.2.0 (2024-06)
+-- 3GPP TS 38.473 V18.6.0 (2025-06)
 -- 9.4.4	PDU Definitions
 -- **************************************************************
 --
@@ -439,8 +439,10 @@ IMPORTS
 	TAInformation-List,
 	NonIntegerDRXCycle,
 	AggregatedPosSRSResourceSetList,
-	F1U-PathFailure
-
+	F1U-PathFailure,
+	LTMResetInformation,
+	MobilityInitiation,
+	PLMNIndexNR
 
 
 FROM F1AP-IEs
@@ -1030,6 +1032,10 @@ FROM F1AP-Containers
 	id-AggregatedPosSRSResourceSetList,
 	id-RANSharingAssistanceInformation,
 	id-F1U-PathFailure,
+	id-LTMResetInformation,
+	id-PreconfiguredSRSInformation,
+	id-MobilityInitiation,
+	id-PLMNIndexNRAssistanceInfoForNetShar,
 	maxCellingNBDU,
 	maxnoofCandidateSpCells,
 	maxnoofDRBs,
@@ -1907,7 +1913,8 @@ UEContextReleaseCommandIEs F1AP-PROTOCOL-IES ::= {
 	{ ID id-targetCellsToCancel				CRITICALITY reject	TYPE TargetCellList					PRESENCE optional}|
 	{ ID id-PosContextRevIndication			CRITICALITY ignore	TYPE PosContextRevIndication			PRESENCE optional}|
 	{ ID id-CG-SDTKeptIndicator				CRITICALITY ignore	TYPE CG-SDTKeptIndicator			PRESENCE optional}|
-	{ ID id-LTMCells-ToBeReleased-List		CRITICALITY reject	TYPE LTMCells-ToBeReleased-List		PRESENCE optional	},
+	{ ID id-LTMCells-ToBeReleased-List		CRITICALITY reject	TYPE LTMCells-ToBeReleased-List		PRESENCE optional	}|
+	{ ID id-DLLBTFailureInformationRequest	CRITICALITY ignore	TYPE DLLBTFailureInformationRequest	PRESENCE optional},
 	...
 }
 
@@ -2041,7 +2048,8 @@ UEContextModificationRequestIEs F1AP-PROTOCOL-IES ::= {
 	{ ID id-LTEUESidelinkAggregateMaximumBitrateForA2X	CRITICALITY ignore	TYPE LTEUESidelinkAggregateMaximumBitrate			PRESENCE optional }|
 	{ ID id-DLLBTFailureInformationRequest				CRITICALITY ignore	TYPE DLLBTFailureInformationRequest				PRESENCE optional }|
 	{ ID id-SLPositioning-Ranging-Service-Info		CRITICALITY ignore	TYPE SLPositioning-Ranging-Service-Info						PRESENCE optional	}|
-	{ ID id-NonIntegerDRXCycle						CRITICALITY ignore	TYPE NonIntegerDRXCycle									PRESENCE optional	},
+	{ ID id-NonIntegerDRXCycle						CRITICALITY ignore	TYPE NonIntegerDRXCycle									PRESENCE optional	}|
+	{ ID id-LTMResetInformation						CRITICALITY ignore	TYPE LTMResetInformation								PRESENCE optional	},
 	...
 }
 
@@ -2732,7 +2740,8 @@ DLRRCMessageTransferIEs F1AP-PROTOCOL-IES ::= {
 	{ ID id-PLMNAssistanceInfoForNetShar				CRITICALITY ignore	TYPE PLMN-Identity									PRESENCE optional }|
 	{ ID id-new-gNB-CU-UE-F1AP-ID						CRITICALITY reject	TYPE GNB-CU-UE-F1AP-ID							PRESENCE optional }|
 	{ ID id-AdditionalRRMPriorityIndex					CRITICALITY ignore	TYPE AdditionalRRMPriorityIndex				PRESENCE optional }|
-	{ ID id-SRBMappingInfo								CRITICALITY ignore	TYPE UuRLCChannelID					 				PRESENCE optional },
+	{ ID id-SRBMappingInfo								CRITICALITY ignore	TYPE UuRLCChannelID					 				PRESENCE optional }|
+	{ ID id-PLMNIndexNRAssistanceInfoForNetShar					CRITICALITY ignore	TYPE PLMNIndexNR											PRESENCE optional },
 	...
 }
 -- **************************************************************
@@ -3222,26 +3231,26 @@ BH-Routing-Information-Added-List ::= SEQUENCE (SIZE(1.. maxnoofRoutingEntries))
 BH-Routing-Information-Removed-List ::= SEQUENCE (SIZE(1.. maxnoofRoutingEntries))	OF ProtocolIE-SingleContainer { { BH-Routing-Information-Removed-List-ItemIEs } }
 
 BH-Routing-Information-Added-List-ItemIEs	F1AP-PROTOCOL-IES ::= {
-	{ ID id-BH-Routing-Information-Added-List-Item				CRITICALITY ignore	TYPE BH-Routing-Information-Added-List-Item						PRESENCE optional},
+	{ ID id-BH-Routing-Information-Added-List-Item				CRITICALITY ignore	TYPE BH-Routing-Information-Added-List-Item						PRESENCE mandatory},
 	...
 }
 
 BH-Routing-Information-Removed-List-ItemIEs	F1AP-PROTOCOL-IES ::= {
-	{ ID id-BH-Routing-Information-Removed-List-Item				CRITICALITY ignore	TYPE BH-Routing-Information-Removed-List-Item						PRESENCE optional},
+	{ ID id-BH-Routing-Information-Removed-List-Item				CRITICALITY ignore	TYPE BH-Routing-Information-Removed-List-Item						PRESENCE mandatory},
 	...
 }
 
 BAP-Header-Rewriting-Added-List ::= SEQUENCE (SIZE(1.. maxnoofRoutingEntries))	OF ProtocolIE-SingleContainer { { BAP-Header-Rewriting-Added-List-ItemIEs } }
 
 BAP-Header-Rewriting-Added-List-ItemIEs F1AP-PROTOCOL-IES ::= {
-	{ ID id-BAP-Header-Rewriting-Added-List-Item	CRITICALITY ignore	TYPE BAP-Header-Rewriting-Added-List-Item PRESENCE optional},
+	{ ID id-BAP-Header-Rewriting-Added-List-Item	CRITICALITY ignore	TYPE BAP-Header-Rewriting-Added-List-Item PRESENCE mandatory},
 	...
 }
 
 BAP-Header-Rewriting-Removed-List ::= SEQUENCE (SIZE(1.. maxnoofRoutingEntries))	OF ProtocolIE-SingleContainer { { BAP-Header-Rewriting-Removed-List-ItemIEs } }
 
 BAP-Header-Rewriting-Removed-List-ItemIEs F1AP-PROTOCOL-IES ::= {
-	{ ID id-BAP-Header-Rewriting-Removed-List-Item	CRITICALITY ignore	TYPE BAP-Header-Rewriting-Removed-List-Item PRESENCE optional},
+	{ ID id-BAP-Header-Rewriting-Removed-List-Item	CRITICALITY ignore	TYPE BAP-Header-Rewriting-Removed-List-Item PRESENCE mandatory},
 	...
 }
 
@@ -4194,8 +4203,7 @@ PositioningActivationRequestIEs F1AP-PROTOCOL-IES ::= {
 	{ ID id-gNB-CU-UE-F1AP-ID		CRITICALITY reject	TYPE GNB-CU-UE-F1AP-ID			PRESENCE mandatory	}|
 	{ ID id-gNB-DU-UE-F1AP-ID		CRITICALITY reject	TYPE GNB-DU-UE-F1AP-ID			PRESENCE mandatory	}|
 	{ ID id-SRSType					CRITICALITY reject	TYPE SRSType					PRESENCE mandatory	}|
-	{ ID id-ActivationTime			CRITICALITY ignore	TYPE RelativeTime1900		PRESENCE optional	}|
-	{ ID id-AggregatedPosSRSResourceSetList	CRITICALITY ignore TYPE AggregatedPosSRSResourceSetList	PRESENCE optional},
+	{ ID id-ActivationTime			CRITICALITY ignore	TYPE RelativeTime1900		PRESENCE optional	},
 	...
 }
 
@@ -4217,7 +4225,8 @@ SemipersistentSRS ::= SEQUENCE {
 }
 
 SemipersistentSRS-ExtIEs F1AP-PROTOCOL-EXTENSION ::= {
-	{ ID id-SRSSpatialRelationPerSRSResource	CRITICALITY ignore	EXTENSION SpatialRelationPerSRSResource PRESENCE optional},
+	{ ID id-SRSSpatialRelationPerSRSResource	CRITICALITY ignore	EXTENSION SpatialRelationPerSRSResource PRESENCE optional}|
+	{ ID id-AggregatedPosSRSResourceSetList	CRITICALITY ignore EXTENSION AggregatedPosSRSResourceSetList	PRESENCE optional},
 	...
 }
 
@@ -4229,6 +4238,7 @@ AperiodicSRS ::= SEQUENCE {
 }
 
 AperiodicSRS-ExtIEs F1AP-PROTOCOL-EXTENSION ::= {
+	{ ID id-AggregatedPosSRSResourceSetList	CRITICALITY ignore EXTENSION AggregatedPosSRSResourceSetList	PRESENCE optional},
 	...
 }
 
@@ -4340,8 +4350,9 @@ SRSInformationReservationNotification ::= SEQUENCE {
 
 SRSInformationReservationNotificationIEs F1AP-PROTOCOL-IES ::= {
 	{ ID id-TransactionID			CRITICALITY reject	TYPE TransactionID					PRESENCE mandatory	}|
-	{ ID id-SRSReservationType		CRITICALITY ignore	TYPE SRSReservationType			PRESENCE mandatory	}|
-	{ ID id-SRSInformation			CRITICALITY ignore	TYPE RequestedSRSTransmissionCharacteristics				PRESENCE optional	},
+	{ ID id-SRSReservationType		CRITICALITY reject	TYPE SRSReservationType			PRESENCE mandatory	}|
+	{ ID id-SRSInformation			CRITICALITY ignore	TYPE RequestedSRSTransmissionCharacteristics				PRESENCE optional	}|
+	{ ID id-PreconfiguredSRSInformation	CRITICALITY ignore	TYPE RequestedSRSPreconfigurationCharacteristics-List				PRESENCE optional },
 	...
 }
 
@@ -4851,7 +4862,7 @@ UEIdentity-List-For-Paging-List	 ::= SEQUENCE (SIZE(1.. maxnoofUEIDforPaging)) O
 
 
 UEIdentity-List-For-Paging-ItemIEs F1AP-PROTOCOL-IES ::= {
-	{ ID id-UEIdentity-List-For-Paging-Item	CRITICALITY ignore	TYPE UEIdentity-List-For-Paging-Item 			PRESENCE optional }	,
+	{ ID id-UEIdentity-List-For-Paging-Item	CRITICALITY ignore	TYPE UEIdentity-List-For-Paging-Item 			PRESENCE mandatory }	,
 	...
 }
 
@@ -5206,7 +5217,8 @@ MulticastContextNotificationRefuse ::= SEQUENCE {
 MulticastContextNotificationRefuseIEs F1AP-PROTOCOL-IES ::= {
 	{ ID id-gNB-CU-MBS-F1AP-ID					CRITICALITY reject	TYPE GNB-CU-MBS-F1AP-ID							PRESENCE mandatory	}|
 	{ ID id-gNB-DU-MBS-F1AP-ID					CRITICALITY reject	TYPE GNB-DU-MBS-F1AP-ID							PRESENCE mandatory	}|
-	{ ID id-CriticalityDiagnostics				CRITICALITY ignore	TYPE CriticalityDiagnostics						PRESENCE optional		},
+	{ ID id-CriticalityDiagnostics				CRITICALITY ignore	TYPE CriticalityDiagnostics						PRESENCE optional		}|
+	{ ID id-Cause								CRITICALITY ignore	TYPE Cause										PRESENCE mandatory	},
 	...
 }
 
@@ -6013,6 +6025,31 @@ DUCUAccessAndMobilityIndication ::= SEQUENCE {
 DUCUAccessAndMobilityIndicationIEs F1AP-PROTOCOL-IES ::= {
 	{ ID id-TransactionID							CRITICALITY reject	TYPE TransactionID						PRESENCE mandatory }|
 	{ ID id-DLLBTFailureInformationList				CRITICALITY ignore	TYPE DLLBTFailureInformationList	PRESENCE optional},
+	...
+}
+
+
+-- **************************************************************
+--
+-- CU-DU MOBILITY INITIATION ELEMENTARY PROCEDURE
+--
+-- **************************************************************
+
+-- **************************************************************
+--
+-- CU-DU Mobility Initiation Request
+--
+-- **************************************************************
+
+CUDUMobilityInitiationRequest ::= SEQUENCE {
+	protocolIEs			ProtocolIE-Container       {{ CUDUMobilityInitiationRequestIEs }},
+	...
+}
+
+CUDUMobilityInitiationRequestIEs F1AP-PROTOCOL-IES ::= {
+	{ ID id-gNB-CU-UE-F1AP-ID		CRITICALITY reject	TYPE GNB-CU-UE-F1AP-ID				PRESENCE mandatory	}|
+	{ ID id-gNB-DU-UE-F1AP-ID		CRITICALITY reject	TYPE GNB-DU-UE-F1AP-ID				PRESENCE mandatory	}|
+	{ ID id-MobilityInitiation		CRITICALITY reject	TYPE MobilityInitiation				PRESENCE mandatory	},
 	...
 }
 

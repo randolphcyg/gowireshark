@@ -25,6 +25,8 @@
 #include <epan/expert.h>
 #include <epan/to_str.h>
 
+#include <wsutil/ws_padding_to.h>
+
 #include "packet-ldp.h"
 #include "packet-mpls.h"
 
@@ -570,11 +572,11 @@ static const value_string mpls_echo_tlv_ds_map_mp_proto[] = {
  * Dissector for FEC sub-TLVs
  */
 static void
-dissect_mpls_echo_tlv_fec(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, proto_tree *tree, int rem)
+dissect_mpls_echo_tlv_fec(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, proto_tree *tree, unsigned rem)
 {
     proto_tree *ti, *tlv_fec_tree;
     uint16_t    idx = 1, nil_idx = 1, type, saved_type;
-    int         length, nil_length, pad;
+    unsigned    length, nil_length, pad;
     uint32_t    label, adj_offset, adj_type, adj_proto;
     uint8_t     exp, bos, ttl;
 
@@ -590,10 +592,16 @@ dissect_mpls_echo_tlv_fec(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, pr
         ti = NULL;
         tlv_fec_tree = NULL;
 
+        /*
+         * FEC sub-TLVs are zero-padded to align to four-octet boundary.
+         * Compute the padding.
+         */
+        pad = WS_PADDING_TO_4(length);
+
         if (tree) {
-            tlv_fec_tree = proto_tree_add_subtree_format(tree, tvb, offset, length + (4-(length%4)),
+            tlv_fec_tree = proto_tree_add_subtree_format(tree, tvb, offset, length + pad,
                                      ett_mpls_echo_tlv_fec, NULL, "FEC Element %u: %s",
-                                     idx, val_to_str_ext(type, &mpls_echo_tlv_fec_names_ext,
+                                     idx, val_to_str_ext(pinfo->pool, type, &mpls_echo_tlv_fec_names_ext,
                                                          "Unknown FEC type (0x%04X)"));
 
             /* FEC sub-TLV Type and Length */
@@ -922,7 +930,7 @@ dissect_mpls_echo_tlv_fec(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, pr
             break;
         case TLV_FEC_STACK_SR_IGP_IPv4:
             proto_tree_add_item(tlv_fec_tree, hf_mpls_echo_tlv_fec_igp_ipv4,
-                                tvb, offset + 4, 4, ENC_NA);
+                                tvb, offset + 4, 4, ENC_BIG_ENDIAN);
             proto_tree_add_item(tlv_fec_tree, hf_mpls_echo_tlv_fec_igp_mask,
                                 tvb, offset + 8, 1, ENC_BIG_ENDIAN);
             proto_tree_add_item(tlv_fec_tree, hf_mpls_echo_tlv_fec_igp_protocol,
@@ -954,10 +962,10 @@ dissect_mpls_echo_tlv_fec(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, pr
             switch(adj_type) {
                 case SUB_TLV_FEC_SR_IGP_ADJ_IPv4:
                     proto_tree_add_item(tlv_fec_tree, hf_mpls_echo_tlv_fec_igp_adj_local_ipv4,
-                                        tvb, adj_offset, 4, ENC_NA);
+                                        tvb, adj_offset, 4, ENC_BIG_ENDIAN);
                     adj_offset += 4;
                     proto_tree_add_item(tlv_fec_tree, hf_mpls_echo_tlv_fec_igp_adj_remote_ipv4,
-                                        tvb, adj_offset, 4, ENC_NA);
+                                        tvb, adj_offset, 4, ENC_BIG_ENDIAN);
                     adj_offset += 4;
                     break;
                 case SUB_TLV_FEC_SR_IGP_ADJ_IPv6:
@@ -1012,10 +1020,8 @@ dissect_mpls_echo_tlv_fec(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, pr
 
         /*
          * Check for padding based on sub-TLV length alignment;
-         * FEC sub-TLVs is zero-padded to align to four-octet boundary.
          */
-        if (length  % 4) {
-            pad = 4 - (length % 4);
+        if (pad != 0) {
             if (length + 4 + pad > rem) {
                 expert_add_info_format(pinfo, ti, &ei_mpls_echo_tlv_fec_len,
                                        "Invalid FEC Sub-TLV Padded Length (claimed %u, found %u)",
@@ -1619,7 +1625,7 @@ dissect_mpls_echo_tlv(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, proto_
     if (tree) {
         mpls_echo_tlv_tree = proto_tree_add_subtree_format(tree, tvb, offset, length + 4, ett_mpls_echo_tlv, NULL,
                                   "%s%s", in_errored ? "Errored TLV Type: " : "",
-                                 val_to_str_ext(type, &mpls_echo_tlv_type_names_ext, "Unknown TLV type (0x%04X)"));
+                                 val_to_str_ext(pinfo->pool, type, &mpls_echo_tlv_type_names_ext, "Unknown TLV type (0x%04X)"));
 
         /* MPLS Echo TLV Type and Length */
         if (in_errored) {
@@ -1871,7 +1877,7 @@ dissect_mpls_echo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
     }
 
     col_add_str(pinfo->cinfo, COL_INFO,
-                val_to_str(msgtype, mpls_echo_msgtype, "Unknown Message Type (0x%02X)"));
+                val_to_str(pinfo->pool, msgtype, mpls_echo_msgtype, "Unknown Message Type (0x%02X)"));
 
 
     if (tree) {

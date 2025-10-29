@@ -1451,7 +1451,7 @@ static int hf_x2ap_e_RAB_MaximumBitrateUL;        /* BitRate */
 static int hf_x2ap_e_RAB_GuaranteedBitrateDL;     /* BitRate */
 static int hf_x2ap_e_RAB_GuaranteedBitrateUL;     /* BitRate */
 static int hf_x2ap_eNB_ID;                        /* ENB_ID */
-static int hf_x2ap_gNB_ID;                        /* GNB_ID */
+static int hf_x2ap_gnb_id_choice;                 /* GNB_ID */
 static int hf_x2ap_gNB;                           /* GlobalGNB_ID */
 static int hf_x2ap_choice_extension;              /* ProtocolIE_Single_Container */
 static int hf_x2ap_GTPTLAs_item;                  /* GTPTLA_Item */
@@ -1462,7 +1462,7 @@ static int hf_x2ap_GUGroupIDList_item;            /* GU_Group_ID */
 static int hf_x2ap_mME_Group_ID;                  /* MME_Group_ID */
 static int hf_x2ap_gU_Group_ID;                   /* GU_Group_ID */
 static int hf_x2ap_mME_Code;                      /* MME_Code */
-static int hf_x2ap_gNB_ID_01;                     /* BIT_STRING_SIZE_22_32 */
+static int hf_x2ap_gNB_ID;                        /* BIT_STRING_SIZE_22_32 */
 static int hf_x2ap_servingPLMN;                   /* PLMN_Identity */
 static int hf_x2ap_equivalentPLMNs;               /* EPLMNs */
 static int hf_x2ap_forbiddenTAs;                  /* ForbiddenTAs */
@@ -3436,7 +3436,7 @@ dissect_x2ap_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 
 
   if (tree) {
-    proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s", val_to_str_ext(x2ap_data->protocol_ie_id, &x2ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
+    proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s", val_to_str_ext(actx->pinfo->pool, x2ap_data->protocol_ie_id, &x2ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
   return offset;
 }
@@ -5344,7 +5344,7 @@ static const value_string x2ap_GNB_ID_vals[] = {
 };
 
 static const per_choice_t GNB_ID_choice[] = {
-  {   0, &hf_x2ap_gNB_ID_01      , ASN1_EXTENSION_ROOT    , dissect_x2ap_BIT_STRING_SIZE_22_32 },
+  {   0, &hf_x2ap_gNB_ID         , ASN1_EXTENSION_ROOT    , dissect_x2ap_BIT_STRING_SIZE_22_32 },
   { 0, NULL, 0, NULL }
 };
 
@@ -5360,7 +5360,7 @@ dissect_x2ap_GNB_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pro
 
 static const per_sequence_t GlobalGNB_ID_sequence[] = {
   { &hf_x2ap_pLMN_Identity  , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_x2ap_PLMN_Identity },
-  { &hf_x2ap_gNB_ID         , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_x2ap_GNB_ID },
+  { &hf_x2ap_gnb_id_choice  , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_x2ap_GNB_ID },
   { &hf_x2ap_iE_Extensions  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_x2ap_ProtocolExtensionContainer },
   { NULL, 0, 0, NULL }
 };
@@ -7746,7 +7746,7 @@ dissect_x2ap_T_startTimeStamp(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 
 
   if (timestamp_tvb) {
-    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
+    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(actx->pinfo->pool, timestamp_tvb, 0));
   }
 
   return offset;
@@ -7763,7 +7763,7 @@ dissect_x2ap_T_endTimeStamp(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 
 
   if (timestamp_tvb) {
-    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
+    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(actx->pinfo->pool, timestamp_tvb, 0));
   }
 
   return offset;
@@ -23481,14 +23481,14 @@ static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto
 {
   struct x2ap_private_data *x2ap_data = x2ap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(x2ap_ies_dissector_table, x2ap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(x2ap_ies_dissector_table, x2ap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct x2ap_private_data *x2ap_data = x2ap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(x2ap_extension_dissector_table, x2ap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(x2ap_extension_dissector_table, x2ap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
@@ -23496,7 +23496,7 @@ static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, pro
   struct x2ap_private_data *x2ap_data = x2ap_get_private_data(pinfo);
 
   x2ap_data->message_type = INITIATING_MESSAGE;
-  return (dissector_try_uint_new(x2ap_proc_imsg_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(x2ap_proc_imsg_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
@@ -23504,7 +23504,7 @@ static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, pro
   struct x2ap_private_data *x2ap_data = x2ap_get_private_data(pinfo);
 
   x2ap_data->message_type = SUCCESSFUL_OUTCOME;
-  return (dissector_try_uint_new(x2ap_proc_sout_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(x2ap_proc_sout_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
@@ -23512,7 +23512,7 @@ static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, p
   struct x2ap_private_data *x2ap_data = x2ap_get_private_data(pinfo);
 
   x2ap_data->message_type = UNSUCCESSFUL_OUTCOME;
-  return (dissector_try_uint_new(x2ap_proc_uout_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(x2ap_proc_uout_dissector_table, x2ap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
@@ -23708,7 +23708,7 @@ void proto_register_x2ap(void) {
         FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x08,
         NULL, HFILL }},
     { &hf_x2ap_measurementsToActivate_LoggingM1FromEventTriggered,
-      { "LoggingOfM1FromEventTriggeredMeasurementReports", "x2ap.measurementsToActivate.LoggingM1FromEventTriggered",
+      { "LoggingM1FromEventTriggeredMeasurementReports", "x2ap.measurementsToActivate.LoggingM1FromEventTriggered",
         FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x04,
         NULL, HFILL }},
     { &hf_x2ap_measurementsToActivate_M6,
@@ -25820,7 +25820,7 @@ void proto_register_x2ap(void) {
         FT_UINT32, BASE_DEC, VALS(x2ap_Criticality_vals), 0,
         NULL, HFILL }},
     { &hf_x2ap_protocolIE_Field_value,
-      { "value", "x2ap.value_element",
+      { "value", "x2ap.protocolIE_Field_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "ProtocolIE_Field_value", HFILL }},
     { &hf_x2ap_ProtocolExtensionContainer_item,
@@ -25828,7 +25828,7 @@ void proto_register_x2ap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_x2ap_extension_id,
-      { "id", "x2ap.id",
+      { "id", "x2ap.extension_id",
         FT_UINT32, BASE_DEC|BASE_EXT_STRING, &x2ap_ProtocolIE_ID_vals_ext, 0,
         "ProtocolIE_ID", HFILL }},
     { &hf_x2ap_extensionValue,
@@ -25840,11 +25840,11 @@ void proto_register_x2ap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_x2ap_private_id,
-      { "id", "x2ap.id",
+      { "id", "x2ap.private_id",
         FT_UINT32, BASE_DEC, VALS(x2ap_PrivateIE_ID_vals), 0,
         "PrivateIE_ID", HFILL }},
     { &hf_x2ap_privateIE_Field_value,
-      { "value", "x2ap.value_element",
+      { "value", "x2ap.privateIE_Field_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "PrivateIE_Field_value", HFILL }},
     { &hf_x2ap_fdd,
@@ -26747,8 +26747,8 @@ void proto_register_x2ap(void) {
       { "eNB-ID", "x2ap.eNB_ID",
         FT_UINT32, BASE_DEC, VALS(x2ap_ENB_ID_vals), 0,
         NULL, HFILL }},
-    { &hf_x2ap_gNB_ID,
-      { "gNB-ID", "x2ap.gNB_ID",
+    { &hf_x2ap_gnb_id_choice,
+      { "gNB-ID", "x2ap.gnb_id_choice",
         FT_UINT32, BASE_DEC, VALS(x2ap_GNB_ID_vals), 0,
         NULL, HFILL }},
     { &hf_x2ap_gNB,
@@ -26791,7 +26791,7 @@ void proto_register_x2ap(void) {
       { "mME-Code", "x2ap.mME_Code",
         FT_UINT8, BASE_DEC_HEX, NULL, 0,
         NULL, HFILL }},
-    { &hf_x2ap_gNB_ID_01,
+    { &hf_x2ap_gNB_ID,
       { "gNB-ID", "x2ap.gNB_ID",
         FT_BYTES, BASE_NONE, NULL, 0,
         "BIT_STRING_SIZE_22_32", HFILL }},
@@ -29040,11 +29040,11 @@ void proto_register_x2ap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_x2ap_initiatingMessage_value,
-      { "value", "x2ap.value_element",
+      { "value", "x2ap.initiatingMessage_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InitiatingMessage_value", HFILL }},
     { &hf_x2ap_successfulOutcome_value,
-      { "value", "x2ap.value_element",
+      { "value", "x2ap.successfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SuccessfulOutcome_value", HFILL }},
     { &hf_x2ap_value,

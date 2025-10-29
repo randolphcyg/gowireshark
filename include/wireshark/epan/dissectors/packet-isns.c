@@ -19,9 +19,9 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
-#include <epan/exceptions.h>
 #include <epan/prefs.h>
-
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-tcp.h"
 
 void proto_register_isns(void);
@@ -553,7 +553,7 @@ dissect_isns_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
 
     /* Add the function name in the info col */
     col_add_str(pinfo->cinfo, COL_INFO,
-                val_to_str_ext(function_id, &isns_function_ids_ext,
+                val_to_str_ext(pinfo->pool, function_id, &isns_function_ids_ext,
                                "Unknown function ID 0x%04x"));
 
     /* create display subtree for the protocol */
@@ -1376,12 +1376,12 @@ void proto_register_isns(void)
 
     { &hf_isns_heartbeat_tcp_port,
       { "Heartbeat TCP Port", "isns.heartbeat.tcpport",
-        FT_UINT16, BASE_DEC, NULL, 0x0,
+        FT_UINT16, BASE_PT_TCP, NULL, 0x0,
         "Server TCP Port", HFILL }},
 
     { &hf_isns_heartbeat_udp_port,
       { "Heartbeat UDP Port", "isns.heartbeat.udpport",
-        FT_UINT16, BASE_DEC, NULL, 0x0,
+        FT_UINT16, BASE_PT_UDP, NULL, 0x0,
         "Server UDP Port", HFILL }},
 
 

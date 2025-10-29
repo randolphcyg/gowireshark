@@ -33,7 +33,7 @@ struct _fvalue_t {
 	} value;
 };
 
-extern const ftype_t* type_list[FT_NUM_TYPES];
+extern const ftype_t* type_list[FT_ENUM_SIZE + 1];
 
 /* Given an ftenum number, return an ftype_t* */
 #define FTYPE_LOOKUP(ftype, result)		\
@@ -152,6 +152,7 @@ struct _ftype_t {
 	FvalueHashFunc		hash;
 	FvalueIs		is_zero;
 	FvalueIs		is_negative;
+	FvalueIs		is_nan;
 	FvalueLen		len;
 	FvalueSlice		slice;
 	FvalueBinaryOp		bitwise_and;

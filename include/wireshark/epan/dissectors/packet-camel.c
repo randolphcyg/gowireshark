@@ -1287,7 +1287,7 @@ camelstat_init(struct register_srt* srt _U_, GArray* srt_array)
   camel_srt_table = init_srt_table("CAMEL Commands", NULL, srt_array, NB_CAMELSRT_CATEGORY, NULL, NULL, NULL);
   for (i = 0; i < NB_CAMELSRT_CATEGORY; i++)
   {
-    tmp_str = val_to_str_wmem(NULL,i,camelSRTtype_naming,"Unknown (%d)");
+    tmp_str = val_to_str(NULL,i,camelSRTtype_naming,"Unknown (%d)");
     init_srt_table_row(camel_srt_table, i, tmp_str);
     wmem_free(NULL, tmp_str);
   }
@@ -2096,7 +2096,7 @@ proto_tree *subtree;
 	return offset;
  subtree = proto_item_add_subtree(actx->created_item, ett_camel_cause);
 
- dissect_q931_cause_ie(parameter_tvb, 0, tvb_reported_length_remaining(parameter_tvb,0), subtree, hf_camel_cause_indicator, &Cause_value, isup_parameter_type_value);
+ dissect_q931_cause_ie(parameter_tvb, actx->pinfo, 0, tvb_reported_length_remaining(parameter_tvb,0), subtree, hf_camel_cause_indicator, &Cause_value, isup_parameter_type_value);
 
   return offset;
 }
@@ -2329,12 +2329,12 @@ dissect_camel_T_local(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, 
 	if (camel_opcode_type == CAMEL_OPCODE_RETURN_ERROR){
 	  errorCode = opcode;
 	  col_append_str(actx->pinfo->cinfo, COL_INFO,
-	      val_to_str(errorCode, camel_err_code_string_vals, "Unknown CAMEL error (%u)"));
+	      val_to_str(actx->pinfo->pool, errorCode, camel_err_code_string_vals, "Unknown CAMEL error (%u)"));
 	  col_append_str(actx->pinfo->cinfo, COL_INFO, " ");
 	  col_set_fence(actx->pinfo->cinfo, COL_INFO);
 	}else{
 	  col_append_str(actx->pinfo->cinfo, COL_INFO,
-	     val_to_str(opcode, camel_opr_code_strings, "Unknown CAMEL (%u)"));
+	     val_to_str(actx->pinfo->pool, opcode, camel_opr_code_strings, "Unknown CAMEL (%u)"));
 	  col_append_str(actx->pinfo->cinfo, COL_INFO, " ");
 	  col_set_fence(actx->pinfo->cinfo, COL_INFO);
 	}
@@ -8119,7 +8119,7 @@ dissect_camel_camelPDU(bool implicit_tag _U_, tvbuff_t *tvb, int offset, asn1_ct
     camel_pdu_size = tvb_get_uint8(tvb, offset+1)+2;
 
     /* Populate the info column with PDU type*/
-    col_add_str(actx->pinfo->cinfo, COL_INFO, val_to_str(camel_pdu_type, camel_Component_vals, "Unknown Camel (%u)"));
+    col_add_str(actx->pinfo->cinfo, COL_INFO, val_to_str(actx->pinfo->pool, camel_pdu_type, camel_Component_vals, "Unknown Camel (%u)"));
     col_append_str(actx->pinfo->cinfo, COL_INFO, " ");
 
     is_ExtensionField =false;
@@ -8443,13 +8443,13 @@ void proto_register_camel(void) {
     { &hf_camelsrt_RequestFrame,
       { "Requested Frame",
         "camel.srt.reqframe",
-        FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+        FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0,
         "SRT Request Frame", HFILL }
     },
     { &hf_camelsrt_ResponseFrame,
       { "Response Frame",
         "camel.srt.rspframe",
-        FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+        FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
         "SRT Response Frame", HFILL }
     },
     //{ &hf_camelsrt_DeltaTime,
@@ -8763,11 +8763,11 @@ void proto_register_camel(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_camel_aocSubsequent_tariffSwitchInterval,
-      { "tariffSwitchInterval", "camel.tariffSwitchInterval",
+      { "tariffSwitchInterval", "camel.aocSubsequent_tariffSwitchInterval",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_86400", HFILL }},
     { &hf_camel_audibleIndicatorTone,
-      { "tone", "camel.tone",
+      { "tone", "camel.audibleIndicatorTone",
         FT_BOOLEAN, BASE_NONE, NULL, 0,
         "BOOLEAN", HFILL }},
     { &hf_camel_burstList,
@@ -8843,7 +8843,7 @@ void proto_register_camel(void) {
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_3", HFILL }},
     { &hf_camel_burstToneDuration,
-      { "toneDuration", "camel.toneDuration",
+      { "toneDuration", "camel.burstToneDuration",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_20", HFILL }},
     { &hf_camel_toneInterval,
@@ -8907,7 +8907,7 @@ void proto_register_camel(void) {
         FT_BOOLEAN, BASE_NONE, NULL, 0,
         "BOOLEAN", HFILL }},
     { &hf_camel_timeDurationCharging_tariffSwitchInterval,
-      { "tariffSwitchInterval", "camel.tariffSwitchInterval",
+      { "tariffSwitchInterval", "camel.timeDurationCharging_tariffSwitchInterval",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_86400", HFILL }},
     { &hf_camel_audibleIndicator,
@@ -8923,7 +8923,7 @@ void proto_register_camel(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_camel_timeDurationChargingResultpartyToCharge,
-      { "partyToCharge", "camel.partyToCharge",
+      { "partyToCharge", "camel.timeDurationChargingResultpartyToCharge",
         FT_UINT32, BASE_DEC, VALS(camel_ReceivingSideID_vals), 0,
         "ReceivingSideID", HFILL }},
     { &hf_camel_timeInformation,
@@ -8943,7 +8943,7 @@ void proto_register_camel(void) {
         FT_UINT32, BASE_DEC, VALS(camel_AChChargingAddress_vals), 0,
         NULL, HFILL }},
     { &hf_camel_fci_fCIBCCCAMELsequence1,
-      { "fCIBCCCAMELsequence1", "camel.fCIBCCCAMELsequence1_element",
+      { "fCIBCCCAMELsequence1", "camel.fci_fCIBCCCAMELsequence1_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "T_fci_fCIBCCCAMELsequence1", HFILL }},
     { &hf_camel_freeFormatData,
@@ -8951,7 +8951,7 @@ void proto_register_camel(void) {
         FT_BYTES, BASE_NONE, NULL, 0,
         "OCTET_STRING_SIZE_bound__minFCIBillingChargingDataLength_bound__maxFCIBillingChargingDataLength", HFILL }},
     { &hf_camel_fCIBCCCAMELsequence1partyToCharge,
-      { "partyToCharge", "camel.partyToCharge",
+      { "partyToCharge", "camel.fCIBCCCAMELsequence1partyToCharge",
         FT_UINT32, BASE_DEC, VALS(camel_SendingSideID_vals), 0,
         "SendingSideID", HFILL }},
     { &hf_camel_appendFreeFormatData,
@@ -8959,7 +8959,7 @@ void proto_register_camel(void) {
         FT_UINT32, BASE_DEC, VALS(camel_AppendFreeFormatData_vals), 0,
         NULL, HFILL }},
     { &hf_camel_fciGPRS_fCIBCCCAMELsequence1,
-      { "fCIBCCCAMELsequence1", "camel.fCIBCCCAMELsequence1_element",
+      { "fCIBCCCAMELsequence1", "camel.fciGPRS_fCIBCCCAMELsequence1_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "T_fciGPRS_fCIBCCCAMELsequence1", HFILL }},
     { &hf_camel_pDPID,
@@ -8967,7 +8967,7 @@ void proto_register_camel(void) {
         FT_BYTES, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_camel_fciSMS_fCIBCCCAMELsequence1,
-      { "fCIBCCCAMELsequence1", "camel.fCIBCCCAMELsequence1_element",
+      { "fCIBCCCAMELsequence1", "camel.fciSMS_fCIBCCCAMELsequence1_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "T_fciSMS_fCIBCCCAMELsequence1", HFILL }},
     { &hf_camel_aOCBeforeAnswer,
@@ -9247,7 +9247,7 @@ void proto_register_camel(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_camel_omidCallEvents,
-      { "midCallEvents", "camel.midCallEvents",
+      { "midCallEvents", "camel.omidCallEvents",
         FT_UINT32, BASE_DEC, VALS(camel_T_omidCallEvents_vals), 0,
         "T_omidCallEvents", HFILL }},
     { &hf_camel_dTMFDigitsCompleted,
@@ -9295,7 +9295,7 @@ void proto_register_camel(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_camel_tmidCallEvents,
-      { "midCallEvents", "camel.midCallEvents",
+      { "midCallEvents", "camel.tmidCallEvents",
         FT_UINT32, BASE_DEC, VALS(camel_T_tmidCallEvents_vals), 0,
         "T_tmidCallEvents", HFILL }},
     { &hf_camel_tDisconnectSpecificInfo,
@@ -9735,7 +9735,7 @@ void proto_register_camel(void) {
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_864000", HFILL }},
     { &hf_camel_timeIfTariffSwitch_tariffSwitchInterval,
-      { "tariffSwitchInterval", "camel.tariffSwitchInterval",
+      { "tariffSwitchInterval", "camel.timeIfTariffSwitch_tariffSwitchInterval",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_864000", HFILL }},
     { &hf_camel_timeIfNoTariffSwitch,
@@ -9807,7 +9807,7 @@ void proto_register_camel(void) {
         FT_BYTES, BASE_NONE, NULL, 0,
         "OCTET_STRING_SIZE_4", HFILL }},
     { &hf_camel_par_cancelFailedProblem,
-      { "problem", "camel.problem",
+      { "problem", "camel.par_cancelFailedProblem",
         FT_UINT32, BASE_DEC, VALS(camel_T_par_cancelFailedProblem_vals), 0,
         "T_par_cancelFailedProblem", HFILL }},
     { &hf_camel_operation,
@@ -10207,7 +10207,7 @@ void proto_register_camel(void) {
         FT_UINT32, BASE_DEC, VALS(camel_ChargingCharacteristics_vals), 0,
         NULL, HFILL }},
     { &hf_camel_applyChargingGPRS_tariffSwitchInterval,
-      { "tariffSwitchInterval", "camel.tariffSwitchInterval",
+      { "tariffSwitchInterval", "camel.applyChargingGPRS_tariffSwitchInterval",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_86400", HFILL }},
     { &hf_camel_chargingResult,
@@ -10399,7 +10399,7 @@ void proto_register_camel(void) {
         FT_UINT32, BASE_DEC, VALS(camel_T_linkedId_vals), 0,
         NULL, HFILL }},
     { &hf_camel_linkedIdPresent,
-      { "present", "camel.present",
+      { "present", "camel.linkedIdPresent",
         FT_INT32, BASE_DEC, NULL, 0,
         "T_linkedIdPresent", HFILL }},
     { &hf_camel_absent,
@@ -10419,7 +10419,7 @@ void proto_register_camel(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_camel_resultArgument,
-      { "result", "camel.result_element",
+      { "result", "camel.resultArgument_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "ResultArgument", HFILL }},
     { &hf_camel_errcode,
@@ -10439,15 +10439,15 @@ void proto_register_camel(void) {
         FT_INT32, BASE_DEC, VALS(camel_GeneralProblem_vals), 0,
         "GeneralProblem", HFILL }},
     { &hf_camel_invokeProblem,
-      { "invoke", "camel.invoke",
+      { "invoke", "camel.invokeProblem",
         FT_INT32, BASE_DEC, VALS(camel_InvokeProblem_vals), 0,
         "InvokeProblem", HFILL }},
     { &hf_camel_problemReturnResult,
-      { "returnResult", "camel.returnResult",
+      { "returnResult", "camel.problemReturnResult",
         FT_INT32, BASE_DEC, VALS(camel_ReturnResultProblem_vals), 0,
         "ReturnResultProblem", HFILL }},
     { &hf_camel_returnErrorProblem,
-      { "returnError", "camel.returnError",
+      { "returnError", "camel.returnErrorProblem",
         FT_INT32, BASE_DEC, VALS(camel_ReturnErrorProblem_vals), 0,
         "ReturnErrorProblem", HFILL }},
     { &hf_camel_present,
@@ -10686,7 +10686,7 @@ void proto_register_camel(void) {
   static ei_register_info ei[] = {
      { &ei_camel_unknown_invokeData, { "camel.unknown.invokeData", PI_MALFORMED, PI_WARN, "Unknown invokeData", EXPFILL }},
      { &ei_camel_unknown_returnResultData, { "camel.unknown.returnResultData", PI_MALFORMED, PI_WARN, "Unknown returnResultData", EXPFILL }},
-     { &ei_camel_unknown_returnErrorData, { "camel.unknown.returnErrorData", PI_MALFORMED, PI_WARN, "Unknown returnResultData", EXPFILL }},
+     { &ei_camel_unknown_returnErrorData, { "camel.unknown.returnErrorData", PI_MALFORMED, PI_WARN, "Unknown returnErrorData", EXPFILL }},
      { &ei_camel_par_wrong_length, { "camel.par_wrong_length", PI_PROTOCOL, PI_ERROR, "Wrong length of parameter", EXPFILL }},
      { &ei_camel_bcd_not_digit, { "camel.bcd_not_digit", PI_MALFORMED, PI_WARN, "BCD number contains a value that is not a digit", EXPFILL }},
   };
@@ -10773,6 +10773,8 @@ void proto_register_camel(void) {
 
   register_srt_table(proto_camel, PSNAME, 1, camelstat_packet, camelstat_init, NULL);
   register_stat_tap_table_ui(&camel_stat_table);
+
+  register_external_value_string("camelSRTtype_naming", camelSRTtype_naming);
 }
 
 /*

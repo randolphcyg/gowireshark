@@ -8,7 +8,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * Ref 3GPP TS 37.355 version 18.2.0 Release 18
+ * Ref 3GPP TS 37.355 version 18.4.0 Release 18
  * http://www.3gpp.org
  */
 
@@ -25,6 +25,7 @@
 
 #include "packet-per.h"
 #include "packet-lpp.h"
+#include "packet-media-type.h"
 
 #define PNAME  "LTE Positioning Protocol (LPP)"
 #define PSNAME "LPP"
@@ -2060,8 +2061,6 @@ lpp_mbs_beaconMeasElt_codePhase_fmt(char *s, uint32_t v)
   snprintf(s, ITEM_LABEL_LENGTH, "%gms (%u)", codePhase, v);
 }
 
-static const unit_name_string units_pa = { "Pa", NULL };
-
 #include "packet-lpp-fn.c"
 
 int dissect_lpp_AssistanceDataSIBelement_r15_PDU(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, lpp_pos_sib_type_t pos_sib_type) {
@@ -2165,6 +2164,8 @@ void
 proto_reg_handoff_lpp(void)
 {
   lppe_handle = find_dissector_add_dependency("lppe", proto_lpp);
+
+  dissector_add_string("media_type", "application/vnd.3gpp.lpp", create_dissector_handle(dissect_lpp, proto_lpp));
 }
 
 

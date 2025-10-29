@@ -66,12 +66,9 @@ int display_unicode_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 	int      len;
 
 	/* display a unicode string from the tree and return new offset */
-
-	str = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &len, ENC_UTF_16|ENC_LITTLE_ENDIAN);
-	proto_tree_add_string(tree, hf_index, tvb, offset, len, str);
+	proto_tree_add_item_ret_display_string_and_length(tree, hf_index, tvb, offset, -1, ENC_UTF_16 | ENC_LITTLE_ENDIAN, pinfo->pool, &str, &len);
 
 	/* Return a copy of the string if requested */
-
 	if (data)
 		*data = str;
 
@@ -89,7 +86,7 @@ int dissect_ms_compressed_string(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 	const char   *str = NULL;
 
 	/* The name data MUST start at offset 0 of the tvb */
-	compr_len = get_dns_name(tvb, offset, MAX_UNICODE_STR_LEN+3+1, 0, &str, &str_len);
+	compr_len = get_dns_name(pinfo->pool, tvb, offset, MAX_UNICODE_STR_LEN+3+1, 0, &str, &str_len);
 	proto_tree_add_string(tree, hf_index, tvb, offset, compr_len, format_text(pinfo->pool, str, str_len));
 
 	if (data)

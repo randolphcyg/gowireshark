@@ -23,8 +23,8 @@
 #include <glib.h>
 
 #include <stdio.h>
+#include <wsutil/application_flavor.h>
 #include <wsutil/filesystem.h>
-#include <epan/address.h>
 #include <epan/addr_resolv.h>
 #include <epan/oids.h>
 #include <epan/maxmind_db.h>
@@ -34,12 +34,12 @@
 #include <epan/strutil.h>
 #include <epan/column.h>
 #include <epan/decode_as.h>
-#include <capture_opts.h>
-#include "print.h"
+#include <ui/capture_opts.h>
 #include <wsutil/file_util.h>
 #include <wsutil/report_message.h>
 #include <wsutil/wslog.h>
 #include <wsutil/ws_assert.h>
+#include <wsutil/array.h>
 
 #include <epan/prefs-int.h>
 #include <epan/uat-int.h>
@@ -74,10 +74,6 @@ static bool prefs_is_column_fmt_visible(const char *cols_hidden, fmt_data *cfmt)
 static unsigned prefs_module_list_foreach(wmem_tree_t *module_list, module_cb callback,
                           void *user_data, bool skip_obsolete);
 static int find_val_for_string(const char *needle, const enum_val_t *haystack, int default_value);
-
-#define IS_PREF_OBSOLETE(p) ((p) & PREF_OBSOLETE)
-#define SET_PREF_OBSOLETE(p) ((p) |= PREF_OBSOLETE)
-#define RESET_PREF_OBSOLETE(p) ((p) &= ~PREF_OBSOLETE)
 
 #define PF_NAME         "preferences"
 #define OLD_GPF_NAME    "wireshark.conf" /* old name for global preferences file */
@@ -156,6 +152,21 @@ static const enum_val_t gui_selection_style[] = {
     {NULL, NULL, -1}
 };
 
+static const enum_val_t gui_color_scheme[] = {
+    {"system",  "System Default",   COLOR_SCHEME_DEFAULT},
+    {"light",   "Light Mode",       COLOR_SCHEME_LIGHT},
+    {"dark",    "Dark Mode",        COLOR_SCHEME_DARK},
+    {NULL, NULL, -1}
+};
+
+static const enum_val_t gui_packet_list_copy_format_options_for_keyboard_shortcut[] = {
+    {"TEXT", "Text", COPY_FORMAT_TEXT},
+    {"CSV",  "CSV",  COPY_FORMAT_CSV},
+    {"YAML", "YAML", COPY_FORMAT_YAML},
+    {"HTML", "HTML", COPY_FORMAT_HTML},
+    {NULL, NULL, -1}
+};
+
 /* None : Historical behavior, no deinterlacing */
 #define CONV_DEINT_CHOICE_NONE 0
 /* MI : MAC & Interface */
@@ -173,8 +184,14 @@ static const enum_val_t conv_deint_options[] = {
     {NULL, NULL, -1}
 };
 
-#if defined(HAVE_PCAP_CREATE)
-/* Can set monitor mode and buffer size. */
+static const enum_val_t abs_time_format_options[] = {
+    {"NEVER", "Never", ABS_TIME_ASCII_NEVER},
+    {"TREE", "Protocol tree only", ABS_TIME_ASCII_TREE},
+    {"COLUMN", "Protocol tree and columns", ABS_TIME_ASCII_COLUMN},
+    {"ALWAYS", "Always", ABS_TIME_ASCII_ALWAYS},
+    {NULL, NULL, -1}
+};
+
 static int num_capture_cols = 7;
 static const char *capture_cols[7] = {
     "INTERFACE",
@@ -187,32 +204,6 @@ static const char *capture_cols[7] = {
 };
 #define CAPTURE_COL_TYPE_DESCRIPTION \
     "Possible values: INTERFACE, LINK, PMODE, SNAPLEN, MONITOR, BUFFER, FILTER\n"
-#elif defined(CAN_SET_CAPTURE_BUFFER_SIZE)
-/* Can set buffer size but not monitor mode. */
-static int num_capture_cols = 6;
-static const char *capture_cols[6] = {
-    "INTERFACE",
-    "LINK",
-    "PMODE",
-    "SNAPLEN",
-    "BUFFER",
-    "FILTER"
-};
-#define CAPTURE_COL_TYPE_DESCRIPTION \
-    "Possible values: INTERFACE, LINK, PMODE, SNAPLEN, BUFFER, FILTER\n"
-#else
-/* Can neither set buffer size nor monitor mode. */
-static int num_capture_cols = 5;
-static const char *capture_cols[5] = {
-    "INTERFACE",
-    "LINK",
-    "PMODE",
-    "SNAPLEN",
-    "FILTER"
-};
-#define CAPTURE_COL_TYPE_DESCRIPTION \
-    "Possible values: INTERFACE, LINK, PMODE, SNAPLEN, FILTER\n"
-#endif
 
 static const enum_val_t gui_packet_list_elide_mode[] = {
     {"LEFT", "LEFT", ELIDE_LEFT},
@@ -228,7 +219,8 @@ struct preference {
     const char *title;               /**< title to use in GUI */
     const char *description;         /**< human-readable description of preference */
     int ordinal;                     /**< ordinal number of this preference */
-    int type;                        /**< type of that preference */
+    pref_type_e type;                /**< type of that preference */
+    bool obsolete;                   /**< obsolete preference flag */
     unsigned int effect_flags;       /**< Flags of types effected by preference (PREF_TYPE_DISSECTION, PREF_EFFECT_CAPTURE, etc).
                                           Flags must be non-zero to ensure saving to disk */
     union {                          /* The Qt preference code assumes that these will all be pointers (and unique) */
@@ -352,12 +344,8 @@ static void
 free_pref(void *data, void *user_data _U_)
 {
     pref_t *pref = (pref_t *)data;
-    int type = pref->type;
 
-    /* we reset the PREF_OBSOLETE bit in order to allow the original preference to be freed */
-    RESET_PREF_OBSOLETE(type);
-
-    switch (type) {
+    switch (pref->type) {
     case PREF_BOOL:
     case PREF_ENUM:
     case PREF_UINT:
@@ -506,10 +494,13 @@ prefs_register_module_or_subtree(module_t *parent, const char *name,
         module->description = description;
         module->help = help;
 
-        if (prefs_find_module(name) == NULL) {
-            wmem_tree_insert_string(prefs_modules, name, module,
-                                  WMEM_TREE_STRING_NOCASE);
+        /* Registering it as a module (not just as a subtree) twice is an
+         * error in the code for the same reason as below. */
+        if (prefs_find_module(name) != NULL) {
+            ws_error("Preference module \"%s\" is being registered twice", name);
         }
+        wmem_tree_insert_string(prefs_modules, name, module,
+                              WMEM_TREE_STRING_NOCASE);
 
         return module;
     }
@@ -1000,7 +991,7 @@ prefs_find_module_alias(const char *name)
  */
 static pref_t *
 register_preference(module_t *module, const char *name, const char *title,
-                    const char *description, int type)
+                    const char *description, pref_type_e type, bool obsolete)
 {
     pref_t *preference;
     const char *p;
@@ -1011,6 +1002,7 @@ register_preference(module_t *module, const char *name, const char *title,
     preference->title = title;
     preference->description = description;
     preference->type = type;
+    preference->obsolete = obsolete;
     /* Default to module's preference effects */
     preference->effect_flags = module->effect_flags;
 
@@ -1042,7 +1034,7 @@ register_preference(module_t *module, const char *name, const char *title,
     if (prefs_find_preference(module, name) != NULL)
         ws_error("Preference %s has already been registered", name);
 
-    if ((!IS_PREF_OBSOLETE(type)) &&
+    if ((!preference->obsolete) &&
         /* Don't compare if it's a subtree */
         (module->name != NULL)) {
         /*
@@ -1130,7 +1122,7 @@ module_find_pref_cb(const void *key _U_, void *value, void *data)
 
 /* Tries to find a preference, setting containing_module to the (sub)module
  * holding this preference. */
-static struct preference *
+static pref_t *
 prefs_find_preference_with_submodule(module_t *module, const char *name,
         module_t **containing_module)
 {
@@ -1162,10 +1154,10 @@ prefs_find_preference_with_submodule(module_t *module, const char *name,
     if (containing_module)
         *containing_module = arg.submodule ? arg.submodule : module;
 
-    return (struct preference *) list_entry->data;
+    return (pref_t *) list_entry->data;
 }
 
-struct preference *
+pref_t *
 prefs_find_preference(module_t *module, const char *name)
 {
     return prefs_find_preference_with_submodule(module, name, NULL);
@@ -1204,7 +1196,7 @@ prefs_register_uint_preference(module_t *module, const char *name,
     pref_t *preference;
 
     preference = register_preference(module, name, title, description,
-                                     PREF_UINT);
+                                     PREF_UINT, false);
     preference->varp.uint = var;
     preference->default_val.uint = *var;
     ws_assert(base > 0 && base != 1 && base < 37);
@@ -1229,7 +1221,7 @@ prefs_register_uint_custom_preference(module_t *module, const char *name,
     pref_t *preference;
 
     preference = register_preference(module, name, title, description,
-                                     PREF_CUSTOM);
+                                     PREF_CUSTOM, false);
 
     preference->custom_cbs = *custom_cbs;
     preference->varp.uint = var;
@@ -1247,7 +1239,7 @@ prefs_register_bool_preference(module_t *module, const char *name,
     pref_t *preference;
 
     preference = register_preference(module, name, title, description,
-                                     PREF_BOOL);
+                                     PREF_BOOL, false);
     preference->varp.boolp = var;
     preference->default_val.boolval = *var;
 }
@@ -1336,8 +1328,20 @@ prefs_register_enum_preference(module_t *module, const char *name,
 {
     pref_t *preference;
 
+    /* Validate that the "name one would use on the command line for the value"
+     * doesn't require quoting, etc. It's all treated case-insensitively so we
+     * don't care about upper vs lower case.
+     */
+    for (size_t i = 0; enumvals[i].name != NULL; i++) {
+        for (const char *p = enumvals[i].name; *p != '\0'; p++)
+            if (!(g_ascii_isalnum(*p) || *p == '_' || *p == '.' || *p == '-'))
+                ws_error("Preference \"%s.%s\" enum value name \"%s\" contains invalid characters",
+                    module->name, name, enumvals[i].name);
+    }
+
+
     preference = register_preference(module, name, title, description,
-                                     PREF_ENUM);
+                                     PREF_ENUM, false);
     preference->varp.enump = var;
     preference->default_val.enumval = *var;
     preference->info.enum_info.enumvals = enumvals;
@@ -1426,14 +1430,14 @@ prefs_set_custom_value(pref_t *pref, const char *value, pref_source_t source _U_
 static void
 register_string_like_preference(module_t *module, const char *name,
                                 const char *title, const char *description,
-                                char **var, int type,
+                                char **var, pref_type_e type,
                                 struct pref_custom_cbs* custom_cbs,
                                 bool free_tmp)
 {
     pref_t *pref;
     char *tmp;
 
-    pref = register_preference(module, name, title, description, type);
+    pref = register_preference(module, name, title, description, type, false);
 
     /*
      * String preference values should be non-null (as you can't
@@ -1598,11 +1602,11 @@ DIAG_ON(cast-qual)
 static pref_t*
 prefs_register_range_preference_common(module_t *module, const char *name,
                                 const char *title, const char *description,
-                                range_t **var, uint32_t max_value, int type)
+                                range_t **var, uint32_t max_value, pref_type_e type)
 {
     pref_t *preference;
 
-    preference = register_preference(module, name, title, description, type);
+    preference = register_preference(module, name, title, description, type, false);
     preference->info.max_value = max_value;
 
     /*
@@ -1801,7 +1805,7 @@ prefs_register_static_text_preference(module_t *module, const char *name,
                                       const char *title,
                                       const char *description)
 {
-    register_preference(module, name, title, description, PREF_STATIC_TEXT);
+    register_preference(module, name, title, description, PREF_STATIC_TEXT, false);
 }
 
 /*
@@ -1813,23 +1817,7 @@ prefs_register_uat_preference(module_t *module, const char *name,
                               const char *title, const char *description,
                               uat_t* uat)
 {
-
-    pref_t* preference = register_preference(module, name, title, description, PREF_UAT);
-
-    preference->varp.uat = uat;
-}
-
-/*
- * Register a uat 'preference' for QT only. It adds a button that opens the uat's window in the
- * preferences tab of the module.
- */
-extern void
-prefs_register_uat_preference_qt(module_t *module, const char *name,
-                              const char *title, const char *description,
-                              uat_t* uat)
-{
-
-    pref_t* preference = register_preference(module, name, title, description, PREF_UAT);
+    pref_t* preference = register_preference(module, name, title, description, PREF_UAT, false);
 
     preference->varp.uat = uat;
 }
@@ -1847,7 +1835,7 @@ prefs_register_color_preference(module_t *module, const char *name,
                                 const char *title, const char *description,
                                 color_t *color)
 {
-    pref_t* preference = register_preference(module, name, title, description, PREF_COLOR);
+    pref_t* preference = register_preference(module, name, title, description, PREF_COLOR, false);
 
     preference->varp.colorp = color;
     preference->default_val.color = *color;
@@ -1923,7 +1911,7 @@ prefs_register_list_custom_preference(module_t *module, const char *name,
                                       pref_custom_list_init_cb init_cb,
                                       GList** list)
 {
-    pref_t* preference = register_preference(module, name, title, description, PREF_CUSTOM);
+    pref_t* preference = register_preference(module, name, title, description, PREF_CUSTOM, false);
 
     preference->custom_cbs = *custom_cbs;
     init_cb(preference, list);
@@ -1938,7 +1926,7 @@ prefs_register_custom_preference(module_t *module, const char *name,
                                  struct pref_custom_cbs* custom_cbs,
                                  void **custom_data _U_)
 {
-    pref_t* preference = register_preference(module, name, title, description, PREF_CUSTOM);
+    pref_t* preference = register_preference(module, name, title, description, PREF_CUSTOM, false);
 
     preference->custom_cbs = *custom_cbs;
     /* XXX - wait until we can handle void** pointers
@@ -1966,7 +1954,7 @@ prefs_register_custom_preference_TCP_Analysis(module_t *module, const char *name
     pref_t *preference;
 
     preference = register_preference(module, name, title, description,
-                                     PREF_PROTO_TCP_SNDAMB_ENUM);
+                                     PREF_PROTO_TCP_SNDAMB_ENUM, false);
     preference->varp.enump = var;
     preference->default_val.enumval = *var;
     preference->stashed_val.list = NULL;
@@ -2065,7 +2053,13 @@ bool prefs_remove_decode_as_value(pref_t *pref, unsigned value, bool set_default
 void
 prefs_register_obsolete_preference(module_t *module, const char *name)
 {
-    register_preference(module, name, NULL, NULL, PREF_OBSOLETE);
+    register_preference(module, name, NULL, NULL, PREF_STATIC_TEXT, true);
+}
+
+bool
+prefs_is_preference_obsolete(pref_t *pref)
+{
+    return pref->obsolete;
 }
 
 void
@@ -2077,34 +2071,11 @@ prefs_set_preference_effect_fields(module_t *module, const char *name)
     }
 }
 
-/*
- * Check to see if a preference is obsolete.
- */
-extern bool
-prefs_get_preference_obsolete(pref_t *pref)
-{
-    if (pref)
-        return (IS_PREF_OBSOLETE(pref->type) ? true : false);
-
-    return true;
-}
-
-/*
- * Make a preference obsolete.
- */
-extern prefs_set_pref_e
-prefs_set_preference_obsolete(pref_t *pref)
-{
-    if (pref) {
-        SET_PREF_OBSOLETE(pref->type);
-        return PREFS_SET_OK;
-    }
-    return PREFS_SET_NO_SUCH_PREF;
-}
-
 unsigned
 pref_stash(pref_t *pref, void *unused _U_)
 {
+    ws_assert(!pref->obsolete);
+
     switch (pref->type) {
 
     case PREF_UINT:
@@ -2145,7 +2116,7 @@ pref_stash(pref_t *pref, void *unused _U_)
     case PREF_PROTO_TCP_SNDAMB_ENUM:
         break;
 
-    case PREF_OBSOLETE:
+    default:
         ws_assert_not_reached();
         break;
     }
@@ -2158,6 +2129,8 @@ pref_unstash(pref_t *pref, void *unstash_data_p)
     pref_unstash_data_t *unstash_data = (pref_unstash_data_t *)unstash_data_p;
     dissector_table_t sub_dissectors = NULL;
     dissector_handle_t handle = NULL;
+
+    ws_assert(!pref->obsolete);
 
     /* Revert the preference to its saved value. */
     switch (pref->type) {
@@ -2293,7 +2266,7 @@ pref_unstash(pref_t *pref, void *unstash_data_p)
     case PREF_CUSTOM:
         break;
 
-    case PREF_OBSOLETE:
+    default:
         ws_assert_not_reached();
         break;
     }
@@ -2302,6 +2275,9 @@ pref_unstash(pref_t *pref, void *unstash_data_p)
 
 void
 reset_stashed_pref(pref_t *pref) {
+
+    ws_assert(!pref->obsolete);
+
     switch (pref->type) {
 
     case PREF_UINT:
@@ -2348,7 +2324,7 @@ reset_stashed_pref(pref_t *pref) {
     case PREF_CUSTOM:
         break;
 
-    case PREF_OBSOLETE:
+    default:
         ws_assert_not_reached();
         break;
     }
@@ -2357,6 +2333,8 @@ reset_stashed_pref(pref_t *pref) {
 unsigned
 pref_clean_stash(pref_t *pref, void *unused _U_)
 {
+    ws_assert(!pref->obsolete);
+
     switch (pref->type) {
 
     case PREF_UINT:
@@ -2401,7 +2379,7 @@ pref_clean_stash(pref_t *pref, void *unused _U_)
         }
         break;
 
-    case PREF_OBSOLETE:
+    default:
         ws_assert_not_reached();
         break;
     }
@@ -2424,7 +2402,7 @@ prefs_pref_foreach(module_t *module, pref_cb callback, void *user_data)
 
     for (elem = g_list_first(module->prefs); elem != NULL; elem = g_list_next(elem)) {
         pref = (pref_t *)elem->data;
-        if (IS_PREF_OBSOLETE(pref->type)) {
+        if (!pref || pref->obsolete) {
             /*
              * This preference is no longer supported; it's
              * not a real preference, so we don't call the
@@ -2450,6 +2428,14 @@ static const enum_val_t st_sort_col_vals[] = {
     { "max",     "Maximum value of the node", ST_SORT_COL_MAX },
     { "burst",   "Burst rate of the node", ST_SORT_COL_BURSTRATE },
     { NULL,      NULL,         0 }
+};
+
+static const enum_val_t st_format_vals[] = {
+    { "text",  "Plain text",             ST_FORMAT_PLAIN },
+    { "csv",   "Comma separated values", ST_FORMAT_CSV   },
+    { "xml",   "XML document",           ST_FORMAT_XML   },
+    { "yaml",  "YAML document",          ST_FORMAT_YAML  },
+    { NULL,    NULL,                     0 }
 };
 
 static void
@@ -2675,21 +2661,13 @@ column_hidden_fmt_to_str_cb(pref_t* pref, bool default_val)
     while (clp) {
         char *prefs_fmt;
         cfmt = (fmt_data *) clp->data;
-        if ((cfmt->fmt == COL_CUSTOM) && (cfmt->custom_fields)) {
-            prefs_fmt = ws_strdup_printf("%s:%s:%d:%c",
-                    col_format_to_string(cfmt->fmt),
-                    cfmt->custom_fields,
-                    cfmt->custom_occurrence,
-                    cfmt->resolved ? 'R' : 'U');
-        } else {
-            prefs_fmt = g_strdup(col_format_to_string(cfmt->fmt));
-        }
         if (!cfmt->visible) {
             if (cols_hidden->len)
                 g_string_append (cols_hidden, ",");
+            prefs_fmt = column_fmt_data_to_str(cfmt);
             g_string_append(cols_hidden, prefs_fmt);
+            g_free(prefs_fmt);
         }
-        g_free(prefs_fmt);
         clp = clp->next;
     }
 
@@ -2771,7 +2749,7 @@ column_format_init_cb(pref_t* pref, GList** value)
             dest_cfmt->custom_occurrence = 0;
         }
         dest_cfmt->visible = src_cfmt->visible;
-        dest_cfmt->resolved = src_cfmt->resolved;
+        dest_cfmt->display = src_cfmt->display;
         pref->default_val.list = g_list_append(pref->default_val.list, dest_cfmt);
     }
 
@@ -2808,7 +2786,7 @@ column_format_reset_cb(pref_t* pref)
             dest_cfmt->custom_occurrence = 0;
         }
         dest_cfmt->visible = src_cfmt->visible;
-        dest_cfmt->resolved = src_cfmt->resolved;
+        dest_cfmt->display = src_cfmt->display;
         *pref->varp.list = g_list_append(*pref->varp.list, dest_cfmt);
     }
 
@@ -2931,7 +2909,7 @@ column_format_is_default_cb(pref_t* pref)
                     (cfmt->fmt != def_cfmt->fmt) ||
                     (((cfmt->fmt == COL_CUSTOM) && (cfmt->custom_fields)) &&
                      ((g_strcmp0(cfmt->custom_fields, def_cfmt->custom_fields) != 0) ||
-                      (cfmt->resolved != def_cfmt->resolved)))) {
+                      (cfmt->display != def_cfmt->display)))) {
                 is_default = false;
                 break;
             }
@@ -2951,23 +2929,13 @@ column_format_to_str_cb(pref_t* pref, bool default_val)
     GList       *clp = g_list_first(pref_l);
     GList       *col_l;
     fmt_data    *cfmt;
-    char        *prefs_fmt;
     char        *column_format_str;
 
     col_l = NULL;
     while (clp) {
         cfmt = (fmt_data *) clp->data;
         col_l = g_list_append(col_l, g_strdup(cfmt->title));
-        if ((cfmt->fmt == COL_CUSTOM) && (cfmt->custom_fields)) {
-            prefs_fmt = ws_strdup_printf("%s:%s:%d:%c",
-                    col_format_to_string(cfmt->fmt),
-                    cfmt->custom_fields,
-                    cfmt->custom_occurrence,
-                    cfmt->resolved ? 'R' : 'U');
-        } else {
-            prefs_fmt = g_strdup(col_format_to_string(cfmt->fmt));
-        }
-        col_l = g_list_append(col_l, prefs_fmt);
+        col_l = g_list_append(col_l, column_fmt_data_to_str(cfmt));
         clp = clp->next;
     }
 
@@ -3349,6 +3317,9 @@ prefs_register_modules(void)
     unsigned gui_color_effect_flags = gui_effect_flags | PREF_EFFECT_GUI_COLOR;
     prefs_set_module_effect_flags(gui_color_module, gui_color_effect_flags);
 
+    prefs_register_enum_preference(gui_color_module, "color_scheme", "Color scheme", "Color scheme",
+        &prefs.gui_color_scheme, gui_color_scheme, false);
+
     prefs_register_color_preference(gui_color_module, "active_frame.fg", "Foreground color for an active selected item",
         "Foreground color for an active selected item", &prefs.gui_active_fg);
 
@@ -3413,14 +3384,20 @@ prefs_register_modules(void)
         "Filter Colorized Background",
         &prefs.gui_colorized_bg, PREF_CUSTOM, &custom_cbs, true);
 
+    prefs_register_color_preference(gui_color_module, "color_filter_fg.valid", "Valid color filter foreground",
+        "Valid color filter foreground", &prefs.gui_filter_valid_fg);
     prefs_register_color_preference(gui_color_module, "color_filter_bg.valid", "Valid color filter background",
-        "Valid color filter background", &prefs.gui_text_valid);
+        "Valid color filter background", &prefs.gui_filter_valid_bg);
 
+    prefs_register_color_preference(gui_color_module, "color_filter_fg.invalid", "Invalid color filter foreground",
+        "Invalid color filter foreground", &prefs.gui_filter_invalid_fg);
     prefs_register_color_preference(gui_color_module, "color_filter_bg.invalid", "Invalid color filter background",
-        "Invalid color filter background", &prefs.gui_text_invalid);
+        "Invalid color filter background", &prefs.gui_filter_invalid_bg);
 
+    prefs_register_color_preference(gui_color_module, "color_filter_fg.deprecated", "Deprecated color filter foreground",
+        "Deprecated color filter foreground", &prefs.gui_filter_deprecated_fg);
     prefs_register_color_preference(gui_color_module, "color_filter_bg.deprecated", "Deprecated color filter background",
-        "Deprecated color filter background", &prefs.gui_text_deprecated);
+        "Deprecated color filter background", &prefs.gui_filter_deprecated_bg);
 
     prefs_register_enum_preference(gui_module, "fileopen.style",
                        "Where to start the File Open dialog box",
@@ -3698,6 +3675,16 @@ prefs_register_modules(void)
             " two files per RTP stream."
             ,&prefs.gui_rtp_player_use_disk2);
 
+    prefs_register_enum_preference(gui_layout_module, "gui_packet_list_copy_format_options_for_keyboard_shortcut",
+                                   "Allows text to be copied with selected format",
+                                   "Allows text to be copied with selected format when copied via keyboard",
+                                   (int*)(void*)(&prefs.gui_packet_list_copy_format_options_for_keyboard_shortcut),
+                                   gui_packet_list_copy_format_options_for_keyboard_shortcut, false);
+
+    prefs_register_bool_preference(gui_layout_module, "gui_packet_list_copy_text_with_aligned_columns",
+                                   "Allows text to be copied with aligned columns",
+                                   "Allows text to be copied with aligned columns when copied via menu or keyboard",
+                                   &prefs.gui_packet_list_copy_text_with_aligned_columns);
 
     prefs_register_bool_preference(gui_layout_module, "packet_list_show_related",
                                    "Show Related Packets",
@@ -3754,6 +3741,21 @@ prefs_register_modules(void)
         "Enables the legend of IO Graph",
         "Enables the legend of IO Graph",
         &prefs.gui_io_graph_enable_legend);
+
+    prefs_register_bool_preference(gui_module, "plot_automatic_update",
+        "Enables automatic updates for Plot",
+        "Enables automatic updates for Plot",
+        &prefs.gui_plot_automatic_update);
+
+    prefs_register_bool_preference(gui_module, "plot_enable_legend",
+        "Enables the legend of Plot",
+        "Enables the legend of Plot",
+        &prefs.gui_plot_enable_legend);
+
+    prefs_register_bool_preference(gui_module, "plot_enable_auto_scroll",
+        "Enables auto scroll of Plot",
+        "Enables auto scroll of Plot",
+        &prefs.gui_plot_enable_auto_scroll);
 
     prefs_register_bool_preference(gui_module, "show_byteview_in_dialog",
         "Show the byte view in the packet details dialog",
@@ -3945,20 +3947,20 @@ prefs_register_modules(void)
             "system is sorted.",
             &prefs.st_sort_defcolflag, st_sort_col_vals, false);
 
-     prefs_register_bool_preference(stats_module, "st_sort_defdescending",
+    prefs_register_bool_preference(stats_module, "st_sort_defdescending",
             "Default stats_tree sort order is descending",
             "When selected, statistics based on the stats_tree system will by default "
             "be sorted in descending order.",
             &prefs.st_sort_defdescending);
 
-     prefs_register_bool_preference(stats_module, "st_sort_casesensitve",
+    prefs_register_bool_preference(stats_module, "st_sort_casesensitve",
             "Case sensitive sort of stats_tree item names",
             "When selected, the item/node names of statistics based on the stats_tree "
             "system will be sorted taking case into account. Else the case of the name "
             "will be ignored.",
             &prefs.st_sort_casesensitve);
 
-     prefs_register_bool_preference(stats_module, "st_sort_rng_nameonly",
+    prefs_register_bool_preference(stats_module, "st_sort_rng_nameonly",
             "Always sort 'range' nodes by name",
             "When selected, the stats_tree nodes representing a range of values "
             "(0-49, 50-100, etc.) will always be sorted by name (the range of the "
@@ -3966,7 +3968,7 @@ prefs_register_modules(void)
             " the tree.",
             &prefs.st_sort_rng_nameonly);
 
-     prefs_register_bool_preference(stats_module, "st_sort_rng_fixorder",
+    prefs_register_bool_preference(stats_module, "st_sort_rng_fixorder",
             "Always sort 'range' nodes in ascending order",
             "When selected, the stats_tree nodes representing a range of values "
             "(0-49, 50-100, etc.) will always be sorted ascending; else it follows "
@@ -3974,12 +3976,29 @@ prefs_register_modules(void)
             "'range' nodes by name\" is also selected.",
             &prefs.st_sort_rng_fixorder);
 
-     prefs_register_bool_preference(stats_module, "st_sort_showfullname",
+    prefs_register_bool_preference(stats_module, "st_sort_showfullname",
             "Display the full stats_tree plug-in name",
             "When selected, the full name (including menu path) of the stats_tree "
             "plug-in is show in windows. If cleared the plug-in name is shown "
             "without menu path (only the part of the name after last '/' character.)",
             &prefs.st_sort_showfullname);
+
+    prefs_register_enum_preference(stats_module, "output_format",
+            "Default output format",
+            "Sets the default output format for statistical data. Only supported "
+            "by taps using the stats_tree system currently; other taps may honor "
+            "this preference in the future. ",
+            &prefs.st_format, st_format_vals, false);
+
+    module_t *conv_module;
+    // avoid using prefs_register_stat to prevent lint complaint about recursion
+    conv_module = prefs_register_module(stats_module, "conv", "Conversations",
+            "Conversations & Endpoints", NULL, NULL, true);
+    prefs_register_bool_preference(conv_module, "machine_readable",
+            "Display exact (machine-readable) byte counts",
+            "When enabled, exact machine-readable byte counts are displayed. "
+            "When disabled, human readable numbers with SI prefixes are displayed.",
+            &prefs.conv_machine_readable);
 
     /* Protocols */
     protocols_module = prefs_register_module(NULL, "protocols", "Protocols",
@@ -3994,6 +4013,15 @@ prefs_register_modules(void)
                                    "Display byte fields with a space character between bytes",
                                    "Display all byte fields with a space character between each byte in the packet list.",
                                    &prefs.display_byte_fields_with_spaces);
+
+    /*
+     * Note the -t /  option only affects the display of the packet timestamp
+     * in the default time column; this is for all other absolute times.
+     */
+    prefs_register_enum_preference(protocols_module, "display_abs_time_ascii",
+                                   "Format absolute times like asctime",
+                                   "When to format absolute times similar to asctime instead of ISO 8601, for backwards compatibility with older Wireshark.",
+                                   (int*)&prefs.display_abs_time_ascii, abs_time_format_options, false);
 
     prefs_register_bool_preference(protocols_module, "enable_incomplete_dissectors_check",
                                    "Look for incomplete dissectors",
@@ -4013,7 +4041,7 @@ prefs_register_modules(void)
 
     prefs_register_enum_preference(protocols_module, "conversation_deinterlacing_key",
                                    "Deinterlacing conversations key",
-                                   "Use this key for deinterlacing conversations.",
+                                   "Separate into different conversations frames that look like duplicates but have different Interface, MAC, or VLAN field values.",
                                    (int *)&prefs.conversation_deinterlacing_key, conv_deint_options, false);
 
     prefs_register_uint_preference(protocols_module, "ignore_dup_frames_cache_entries",
@@ -4272,7 +4300,7 @@ pre_init_prefs(void)
     static const char **col_fmt = col_fmt_packets;
     int num_cols = 7;
 
-    if (!is_packet_configuration_namespace()) {
+    if (application_flavor_is_stratoshark()) {
         static const char *col_fmt_logs[] = {
             "No.",              "%m",
             "Time",             "%t",
@@ -4341,26 +4369,44 @@ pre_init_prefs(void)
 
     if (gui_theme_is_dark) {
         // Green, red and yellow with HSV V = 84
-        prefs.gui_text_valid.red         = 0x0000; /* dark green */
-        prefs.gui_text_valid.green       = 0x66ff;
-        prefs.gui_text_valid.blue        = 0x0000;
-        prefs.gui_text_invalid.red       = 0x66FF; /* dark red */
-        prefs.gui_text_invalid.green     = 0x0000;
-        prefs.gui_text_invalid.blue      = 0x0000;
-        prefs.gui_text_deprecated.red    = 0x66FF; /* dark yellow / olive */
-        prefs.gui_text_deprecated.green  = 0x66FF;
-        prefs.gui_text_deprecated.blue   = 0x0000;
+        prefs.gui_filter_valid_bg.red         = 0x0000; /* dark green */
+        prefs.gui_filter_valid_bg.green       = 0x66ff;
+        prefs.gui_filter_valid_bg.blue        = 0x0000;
+        prefs.gui_filter_valid_fg.red         = 0xFFFF;
+        prefs.gui_filter_valid_fg.green       = 0xFFFF;
+        prefs.gui_filter_valid_fg.blue        = 0xFFFF;
+        prefs.gui_filter_invalid_bg.red       = 0x66FF; /* dark red */
+        prefs.gui_filter_invalid_bg.green     = 0x0000;
+        prefs.gui_filter_invalid_bg.blue      = 0x0000;
+        prefs.gui_filter_invalid_fg.red       = 0xFFFF;
+        prefs.gui_filter_invalid_fg.green     = 0xFFFF;
+        prefs.gui_filter_invalid_fg.blue      = 0xFFFF;
+        prefs.gui_filter_deprecated_bg.red    = 0x66FF; /* dark yellow / olive */
+        prefs.gui_filter_deprecated_bg.green  = 0x66FF;
+        prefs.gui_filter_deprecated_bg.blue   = 0x0000;
+        prefs.gui_filter_deprecated_fg.red    = 0xFFFF;
+        prefs.gui_filter_deprecated_fg.green  = 0xFFFF;
+        prefs.gui_filter_deprecated_fg.blue   = 0xFFFF;
     } else {
         // Green, red and yellow with HSV V = 20
-        prefs.gui_text_valid.red         = 0xAFFF; /* light green */
-        prefs.gui_text_valid.green       = 0xFFFF;
-        prefs.gui_text_valid.blue        = 0xAFFF;
-        prefs.gui_text_invalid.red       = 0xFFFF; /* light red */
-        prefs.gui_text_invalid.green     = 0xAFFF;
-        prefs.gui_text_invalid.blue      = 0xAFFF;
-        prefs.gui_text_deprecated.red    = 0xFFFF; /* light yellow */
-        prefs.gui_text_deprecated.green  = 0xFFFF;
-        prefs.gui_text_deprecated.blue   = 0xAFFF;
+        prefs.gui_filter_valid_bg.red         = 0xAFFF; /* light green */
+        prefs.gui_filter_valid_bg.green       = 0xFFFF;
+        prefs.gui_filter_valid_bg.blue        = 0xAFFF;
+        prefs.gui_filter_valid_fg.red         = 0x0000;
+        prefs.gui_filter_valid_fg.green       = 0x0000;
+        prefs.gui_filter_valid_fg.blue        = 0x0000;
+        prefs.gui_filter_invalid_bg.red       = 0xFFFF; /* light red */
+        prefs.gui_filter_invalid_bg.green     = 0xAFFF;
+        prefs.gui_filter_invalid_bg.blue      = 0xAFFF;
+        prefs.gui_filter_invalid_fg.red       = 0x0000;
+        prefs.gui_filter_invalid_fg.green     = 0x0000;
+        prefs.gui_filter_invalid_fg.blue      = 0x0000;
+        prefs.gui_filter_deprecated_bg.red    = 0xFFFF; /* light yellow */
+        prefs.gui_filter_deprecated_bg.green  = 0xFFFF;
+        prefs.gui_filter_deprecated_bg.blue   = 0xAFFF;
+        prefs.gui_filter_deprecated_fg.red    = 0x0000;
+        prefs.gui_filter_deprecated_fg.green  = 0x0000;
+        prefs.gui_filter_deprecated_fg.blue   = 0x0000;
     }
 
     prefs.gui_geometry_save_position = true;
@@ -4394,6 +4440,8 @@ pre_init_prefs(void)
     prefs.gui_layout_content_2       = layout_pane_content_pdetails;
     prefs.gui_layout_content_3       = layout_pane_content_pbytes;
     prefs.gui_packet_list_elide_mode = ELIDE_RIGHT;
+    prefs.gui_packet_list_copy_format_options_for_keyboard_shortcut = COPY_FORMAT_TEXT;
+    prefs.gui_packet_list_copy_text_with_aligned_columns = false;
     prefs.gui_packet_list_show_related = true;
     prefs.gui_packet_list_show_minimap = true;
     prefs.gui_packet_list_sortable     = true;
@@ -4422,7 +4470,7 @@ pre_init_prefs(void)
         cfmt = g_new0(fmt_data,1);
         cfmt->title = g_strdup(col_fmt[i * 2]);
         cfmt->visible = true;
-        cfmt->resolved = true;
+        cfmt->display = COLUMN_DISPLAY_STRINGS;
         parse_column_format(cfmt, col_fmt[(i * 2) + 1]);
         prefs.col_list = g_list_append(prefs.col_list, cfmt);
     }
@@ -4458,16 +4506,23 @@ pre_init_prefs(void)
     prefs.st_sort_defcolflag = ST_SORT_COL_COUNT;
     prefs.st_sort_defdescending = true;
     prefs.st_sort_showfullname = false;
+    prefs.conv_machine_readable = false;
 
     /* protocols */
     prefs.display_hidden_proto_items = false;
     prefs.display_byte_fields_with_spaces = false;
+    prefs.display_abs_time_ascii = ABS_TIME_ASCII_TREE;
     prefs.ignore_dup_frames = false;
     prefs.ignore_dup_frames_cache_entries = 10000;
 
     /* set the default values for the io graph dialog */
     prefs.gui_io_graph_automatic_update = true;
     prefs.gui_io_graph_enable_legend = true;
+
+    /* set the default values for the plot dialog */
+    prefs.gui_plot_automatic_update = true;
+    prefs.gui_plot_enable_legend = true;
+    prefs.gui_plot_enable_auto_scroll = false;
 
     /* set the default values for the packet dialog */
     prefs.gui_packet_dialog_layout   = layout_vertical;
@@ -4480,10 +4535,7 @@ pre_init_prefs(void)
 void
 reset_pref(pref_t *pref)
 {
-    int type;
     if (!pref) return;
-
-    type = pref->type;
 
     /*
      * This preference is no longer supported; it's not a
@@ -4491,12 +4543,10 @@ reset_pref(pref_t *pref)
      * treat it as if it weren't found in the list of
      * preferences, and we weren't called in the first place).
      */
-    if (IS_PREF_OBSOLETE(type))
+    if (pref->obsolete)
         return;
-    else
-        RESET_PREF_OBSOLETE(type);
 
-    switch (type) {
+    switch (pref->type) {
 
     case PREF_UINT:
         *pref->varp.uint = pref->default_val.uint;
@@ -4508,13 +4558,6 @@ reset_pref(pref_t *pref)
 
     case PREF_ENUM:
     case PREF_PROTO_TCP_SNDAMB_ENUM:
-        /*
-         * For now, we save the "description" value, so that if we
-         * save the preferences older versions of Wireshark can at
-         * least read preferences that they supported; we support
-         * either the short name or the description when reading
-         * the preferences file or a "-o" option.
-         */
         *pref->varp.enump = pref->default_val.enumval;
         break;
 
@@ -5098,7 +5141,7 @@ prefs_set_pref(char *prefarg, char **errmsg)
     return ret;
 }
 
-unsigned prefs_get_uint_value_real(pref_t *pref, pref_source_t source)
+unsigned prefs_get_uint_value(pref_t *pref, pref_source_t source)
 {
     switch (source)
     {
@@ -5114,15 +5157,6 @@ unsigned prefs_get_uint_value_real(pref_t *pref, pref_source_t source)
     }
 
     return 0;
-}
-
-unsigned prefs_get_uint_value(const char *module_name, const char* pref_name)
-{
-    pref_t *pref = prefs_find_preference(prefs_find_module(module_name), pref_name);
-    if (pref == NULL) {
-        return 0;
-    }
-    return prefs_get_uint_value_real(pref, pref_current);
 }
 
 char* prefs_get_password_value(pref_t *pref, pref_source_t source)
@@ -5288,8 +5322,8 @@ prefs_is_column_fmt_visible(const char *cols_hidden, fmt_data *cfmt)
             }
             if (cfmt->fmt == COL_CUSTOM) {
                 /*
-                 * A custom column has to have the same custom field,
-                 * occurrence and resolved settings.
+                 * A custom column has to have the same custom field
+                 * and occurrence.
                  */
                 if (cfmt_hidden.custom_fields && cfmt->custom_fields) {
                     if (strcmp(cfmt->custom_fields,
@@ -5299,9 +5333,8 @@ prefs_is_column_fmt_visible(const char *cols_hidden, fmt_data *cfmt)
                         cfmt_hidden.custom_fields = NULL;
                         continue;
                     }
-                    if ((cfmt->custom_occurrence != cfmt_hidden.custom_occurrence) ||
-                        (cfmt->resolved != cfmt_hidden.resolved)) {
-                        /* Different occurrences or resolved settings. */
+                    if (cfmt->custom_occurrence != cfmt_hidden.custom_occurrence) {
+                        /* Different occurrences settings. */
                         g_free(cfmt_hidden.custom_fields);
                         cfmt_hidden.custom_fields = NULL;
                         continue;
@@ -5871,7 +5904,6 @@ set_pref(char *pref_name, const char *value, void *private_data,
     static bool filter_enabled = false;
     module_t *module, *containing_module, *target_module;
     pref_t   *pref;
-    int type;
     bool converted_pref = false;
 
     target_module = (module_t*)private_data;
@@ -6321,12 +6353,8 @@ set_pref(char *pref_name, const char *value, void *private_data,
             return PREFS_SET_OK;
         }
 
-        type = pref->type;
-        if (IS_PREF_OBSOLETE(type)) {
+        if (pref->obsolete)
             return PREFS_SET_OBSOLETE;        /* no such preference any more */
-        } else {
-            RESET_PREF_OBSOLETE(type);
-        }
 
         if (converted_pref) {
             ws_warning("Preference \"%s\" has been converted to \"%s.%s\"\n"
@@ -6334,7 +6362,7 @@ set_pref(char *pref_name, const char *value, void *private_data,
                        pref_name, module->name ? module->name : module->parent->name, prefs_get_name(pref));
         }
 
-        switch (type) {
+        switch (pref->type) {
 
         case PREF_UINT:
             if (!ws_basestrtou32(value, NULL, &uval, pref->info.base))
@@ -6462,6 +6490,8 @@ set_pref(char *pref_name, const char *value, void *private_data,
 
         case PREF_STATIC_TEXT:
         case PREF_UAT:
+            break;
+
         case PREF_PROTO_TCP_SNDAMB_ENUM:
         {
             /* There's no point in setting the TCP sequence override
@@ -6486,95 +6516,91 @@ const char *
 prefs_pref_type_name(pref_t *pref)
 {
     const char *type_name = "[Unknown]";
-    int type;
 
     if (!pref) {
         return type_name; /* ...or maybe assert? */
     }
 
-    type = pref->type;
-
-    if (IS_PREF_OBSOLETE(type)) {
+    if (pref->obsolete) {
         type_name = "Obsolete";
     } else {
-        RESET_PREF_OBSOLETE(type);
-    }
+        switch (pref->type) {
 
-    switch (type) {
+        case PREF_UINT:
+            switch (pref->info.base) {
 
-    case PREF_UINT:
-        switch (pref->info.base) {
+            case 10:
+                type_name = "Decimal";
+                break;
 
-        case 10:
-            type_name = "Decimal";
+            case 8:
+                type_name = "Octal";
+                break;
+
+            case 16:
+                type_name = "Hexadecimal";
+                break;
+            }
             break;
 
-        case 8:
-            type_name = "Octal";
+        case PREF_BOOL:
+            type_name = "Boolean";
             break;
 
-        case 16:
-            type_name = "Hexadecimal";
+        case PREF_ENUM:
+        case PREF_PROTO_TCP_SNDAMB_ENUM:
+            type_name = "Choice";
+            break;
+
+        case PREF_STRING:
+            type_name = "String";
+            break;
+
+        case PREF_SAVE_FILENAME:
+        case PREF_OPEN_FILENAME:
+            type_name = "Filename";
+            break;
+
+        case PREF_DIRNAME:
+            type_name = "Directory";
+            break;
+
+        case PREF_RANGE:
+            type_name = "Range";
+            break;
+
+        case PREF_COLOR:
+            type_name = "Color";
+            break;
+
+        case PREF_CUSTOM:
+            if (pref->custom_cbs.type_name_cb)
+                return pref->custom_cbs.type_name_cb();
+            type_name = "Custom";
+            break;
+
+        case PREF_DECODE_AS_RANGE:
+            type_name = "Range (for Decode As)";
+            break;
+
+        case PREF_STATIC_TEXT:
+            type_name = "Static text";
+            break;
+
+        case PREF_UAT:
+            type_name = "UAT";
+            break;
+
+        case PREF_PASSWORD:
+            type_name = "Password";
+            break;
+
+        case PREF_DISSECTOR:
+            type_name = "Dissector";
             break;
         }
-        break;
-
-    case PREF_BOOL:
-        type_name = "Boolean";
-        break;
-
-    case PREF_ENUM:
-    case PREF_PROTO_TCP_SNDAMB_ENUM:
-        type_name = "Choice";
-        break;
-
-    case PREF_STRING:
-        type_name = "String";
-        break;
-
-    case PREF_SAVE_FILENAME:
-    case PREF_OPEN_FILENAME:
-        type_name = "Filename";
-        break;
-
-    case PREF_DIRNAME:
-        type_name = "Directory";
-        break;
-
-    case PREF_RANGE:
-        type_name = "Range";
-        break;
-
-    case PREF_COLOR:
-        type_name = "Color";
-        break;
-
-    case PREF_CUSTOM:
-        if (pref->custom_cbs.type_name_cb)
-            return pref->custom_cbs.type_name_cb();
-        type_name = "Custom";
-        break;
-
-    case PREF_DECODE_AS_RANGE:
-        type_name = "Range (for Decode As)";
-        break;
-
-    case PREF_STATIC_TEXT:
-        type_name = "Static text";
-        break;
-
-    case PREF_UAT:
-        type_name = "UAT";
-        break;
-
-    case PREF_PASSWORD:
-        type_name = "Password";
-        break;
-
-    case PREF_DISSECTOR:
-        type_name = "Dissector";
-        break;
     }
+
     return type_name;
 }
 
@@ -6628,129 +6654,133 @@ char *
 prefs_pref_type_description(pref_t *pref)
 {
     const char *type_desc = "An unknown preference type";
-    int type;
 
     if (!pref) {
         return ws_strdup_printf("%s.", type_desc); /* ...or maybe assert? */
     }
 
-    type = pref->type;
-
-    if (IS_PREF_OBSOLETE(type)) {
+    if (pref->obsolete) {
         type_desc = "An obsolete preference";
     } else {
-        RESET_PREF_OBSOLETE(type);
-    }
+        switch (pref->type) {
 
-    switch (type) {
+        case PREF_UINT:
+            switch (pref->info.base) {
 
-    case PREF_UINT:
-        switch (pref->info.base) {
+            case 10:
+                type_desc = "A decimal number";
+                break;
 
-        case 10:
-            type_desc = "A decimal number";
+            case 8:
+                type_desc = "An octal number";
+                break;
+
+            case 16:
+                type_desc = "A hexadecimal number";
+                break;
+            }
             break;
 
-        case 8:
-            type_desc = "An octal number";
+        case PREF_BOOL:
+            type_desc = "true or false (case-insensitive)";
             break;
 
-        case 16:
-            type_desc = "A hexadecimal number";
+        case PREF_ENUM:
+        case PREF_PROTO_TCP_SNDAMB_ENUM:
+        {
+            const enum_val_t *enum_valp = pref->info.enum_info.enumvals;
+            GString *enum_str = g_string_new("One of: ");
+            GString *desc_str = g_string_new("\nEquivalently, one of: ");
+            bool distinct = false;
+            while (enum_valp->name != NULL) {
+                g_string_append(enum_str, enum_valp->name);
+                g_string_append(desc_str, enum_valp->description);
+                if (g_strcmp0(enum_valp->name, enum_valp->description) != 0) {
+                    distinct = true;
+                }
+                enum_valp++;
+                if (enum_valp->name != NULL) {
+                    g_string_append(enum_str, ", ");
+                    g_string_append(desc_str, ", ");
+                }
+            }
+            if (distinct) {
+                g_string_append(enum_str, desc_str->str);
+            }
+            g_string_free(desc_str, TRUE);
+            g_string_append(enum_str, "\n(case-insensitive).");
+            return g_string_free(enum_str, FALSE);
+        }
+
+        case PREF_STRING:
+            type_desc = "A string";
+            break;
+
+        case PREF_SAVE_FILENAME:
+        case PREF_OPEN_FILENAME:
+            type_desc = "A path to a file";
+            break;
+
+        case PREF_DIRNAME:
+            type_desc = "A path to a directory";
+            break;
+
+        case PREF_RANGE:
+        {
+            type_desc = "A string denoting an positive integer range (e.g., \"1-20,30-40\")";
             break;
         }
-        break;
 
-    case PREF_BOOL:
-        type_desc = "true or false (case-insensitive)";
-        break;
-
-    case PREF_ENUM:
-    case PREF_PROTO_TCP_SNDAMB_ENUM:
-    {
-        const enum_val_t *enum_valp = pref->info.enum_info.enumvals;
-        GString *enum_str = g_string_new("One of: ");
-        while (enum_valp->name != NULL) {
-            g_string_append(enum_str, enum_valp->description);
-            enum_valp++;
-            if (enum_valp->name != NULL)
-                g_string_append(enum_str, ", ");
+        case PREF_COLOR:
+        {
+            type_desc = "A six-digit hexadecimal RGB color triplet (e.g. fce94f)";
+            break;
         }
-        g_string_append(enum_str, "\n(case-insensitive).");
-        return g_string_free(enum_str, FALSE);
+
+        case PREF_CUSTOM:
+            if (pref->custom_cbs.type_description_cb)
+                return pref->custom_cbs.type_description_cb();
+            type_desc = "A custom value";
+            break;
+
+        case PREF_DECODE_AS_RANGE:
+            type_desc = "A string denoting an positive integer range for Decode As";
+            break;
+
+        case PREF_STATIC_TEXT:
+            type_desc = "[Static text]";
+            break;
+
+        case PREF_UAT:
+            type_desc = "Configuration data stored in its own file";
+            break;
+
+        case PREF_PASSWORD:
+            type_desc = "Password (never stored on disk)";
+            break;
+
+        case PREF_DISSECTOR:
+            type_desc = "A dissector name";
+            break;
+
+        default:
+            break;
+        }
     }
 
-    case PREF_STRING:
-        type_desc = "A string";
-        break;
-
-    case PREF_SAVE_FILENAME:
-    case PREF_OPEN_FILENAME:
-        type_desc = "A path to a file";
-        break;
-
-    case PREF_DIRNAME:
-        type_desc = "A path to a directory";
-        break;
-
-    case PREF_RANGE:
-    {
-        type_desc = "A string denoting an positive integer range (e.g., \"1-20,30-40\")";
-        break;
-    }
-
-    case PREF_COLOR:
-    {
-        type_desc = "A six-digit hexadecimal RGB color triplet (e.g. fce94f)";
-        break;
-    }
-
-    case PREF_CUSTOM:
-        if (pref->custom_cbs.type_description_cb)
-            return pref->custom_cbs.type_description_cb();
-        type_desc = "A custom value";
-        break;
-
-    case PREF_DECODE_AS_RANGE:
-        type_desc = "A string denoting an positive integer range for Decode As";
-        break;
-
-    case PREF_STATIC_TEXT:
-        type_desc = "[Static text]";
-        break;
-
-    case PREF_UAT:
-        type_desc = "Configuration data stored in its own file";
-        break;
-
-    case PREF_PASSWORD:
-        type_desc = "Password (never stored on disk)";
-        break;
-
-    case PREF_DISSECTOR:
-        type_desc = "A dissector name";
-        break;
-
-    default:
-        break;
-    }
     return g_strdup(type_desc);
 }
 
 bool
 prefs_pref_is_default(pref_t *pref)
 {
-    int type;
     if (!pref) return false;
 
-    type = pref->type;
-    if (IS_PREF_OBSOLETE(type)) {
+    if (pref->obsolete) {
         return false;
-    } else {
-        RESET_PREF_OBSOLETE(type);
     }
 
-    switch (type) {
+    switch (pref->type) {
 
     case PREF_UINT:
         if (pref->default_val.uint == *pref->varp.uint)
@@ -6804,16 +6834,17 @@ prefs_pref_is_default(pref_t *pref)
         /* ws_assert_not_reached(); */
         break;
     }
+
     return false;
 }
 
 char *
-prefs_pref_to_str(pref_t *pref, pref_source_t source) {
+prefs_pref_to_str(pref_t *pref, pref_source_t source)
+{
     const char *pref_text = "[Unknown]";
     void *valp; /* pointer to preference value */
     color_t *pref_color;
     char *tmp_value, *ret_value;
-    int type;
 
     if (!pref) {
         return g_strdup(pref_text);
@@ -6839,100 +6870,100 @@ prefs_pref_to_str(pref_t *pref, pref_source_t source) {
             return g_strdup(pref_text);
     }
 
-    type = pref->type;
-    if (IS_PREF_OBSOLETE(type)) {
+    if (pref->obsolete) {
         pref_text = "[Obsolete]";
     } else {
-        RESET_PREF_OBSOLETE(type);
-    }
+        switch (pref->type) {
 
-    switch (type) {
+        case PREF_UINT:
+        {
+            unsigned pref_uint = *(unsigned *) valp;
+            switch (pref->info.base) {
 
-    case PREF_UINT:
-    {
-        unsigned pref_uint = *(unsigned *) valp;
-        switch (pref->info.base) {
+            case 10:
+                return ws_strdup_printf("%u", pref_uint);
 
-        case 10:
-            return ws_strdup_printf("%u", pref_uint);
+            case 8:
+                return ws_strdup_printf("%#o", pref_uint);
 
-        case 8:
-            return ws_strdup_printf("%#o", pref_uint);
-
-        case 16:
-            return ws_strdup_printf("%#x", pref_uint);
+            case 16:
+                return ws_strdup_printf("%#x", pref_uint);
+            }
+            break;
         }
-        break;
-    }
 
-    case PREF_BOOL:
-        return g_strdup((*(bool *) valp) ? "TRUE" : "FALSE");
+        case PREF_BOOL:
+            return g_strdup((*(bool *) valp) ? "TRUE" : "FALSE");
 
-    case PREF_ENUM:
-    case PREF_PROTO_TCP_SNDAMB_ENUM:
-    {
-        int pref_enumval = *(int *) valp;
-        /*
-         * For now, we return the "description" value, so that if we
-         * save the preferences older versions of Wireshark can at
-         * least read preferences that they supported; we support
-         * either the short name or the description when reading
-         * the preferences file or a "-o" option.
-         */
-        const enum_val_t *enum_valp = pref->info.enum_info.enumvals;
-        while (enum_valp->name != NULL) {
-            if (enum_valp->value == pref_enumval)
-                return g_strdup(enum_valp->description);
-            enum_valp++;
+        case PREF_ENUM:
+        case PREF_PROTO_TCP_SNDAMB_ENUM:
+        {
+            int pref_enumval = *(int *) valp;
+            const enum_val_t *enum_valp = pref->info.enum_info.enumvals;
+            /*
+            * TODO - We write the "description" value, because the "name" values
+            * weren't validated to be command line friendly until 5.0, and a few
+            * of them had to be changed. This allows older versions of Wireshark
+            * to read preferences that they supported, as we supported either
+            * the short name or the description when reading the preference files
+            * or an "-o" option. Once 5.0 is the oldest supported version, switch
+            * to writing the name below.
+            */
+            while (enum_valp->name != NULL) {
+                if (enum_valp->value == pref_enumval)
+                    return g_strdup(enum_valp->description);
+                enum_valp++;
+            }
+            break;
         }
-        break;
+
+        case PREF_STRING:
+        case PREF_SAVE_FILENAME:
+        case PREF_OPEN_FILENAME:
+        case PREF_DIRNAME:
+        case PREF_PASSWORD:
+        case PREF_DISSECTOR:
+            return g_strdup(*(const char **) valp);
+
+        case PREF_DECODE_AS_RANGE:
+        case PREF_RANGE:
+            /* Convert wmem to g_alloc memory */
+            tmp_value = range_convert_range(NULL, *(range_t **) valp);
+            ret_value = g_strdup(tmp_value);
+            wmem_free(NULL, tmp_value);
+            return ret_value;
+
+        case PREF_COLOR:
+            return ws_strdup_printf("%02x%02x%02x",
+                    (pref_color->red * 255 / 65535),
+                    (pref_color->green * 255 / 65535),
+                    (pref_color->blue * 255 / 65535));
+
+        case PREF_CUSTOM:
+            if (pref->custom_cbs.to_str_cb)
+                return pref->custom_cbs.to_str_cb(pref, source == pref_default ? true : false);
+            pref_text = "[Custom]";
+            break;
+
+        case PREF_STATIC_TEXT:
+            pref_text = "[Static text]";
+            break;
+
+        case PREF_UAT:
+        {
+            uat_t *uat = pref->varp.uat;
+            if (uat && uat->filename)
+                return ws_strdup_printf("[Managed in the file \"%s\"]", uat->filename);
+            else
+                pref_text = "[Managed in an unknown file]";
+            break;
+        }
+
+        default:
+            break;
+        }
     }
 
-    case PREF_STRING:
-    case PREF_SAVE_FILENAME:
-    case PREF_OPEN_FILENAME:
-    case PREF_DIRNAME:
-    case PREF_PASSWORD:
-    case PREF_DISSECTOR:
-        return g_strdup(*(const char **) valp);
-
-    case PREF_DECODE_AS_RANGE:
-    case PREF_RANGE:
-        /* Convert wmem to g_alloc memory */
-        tmp_value = range_convert_range(NULL, *(range_t **) valp);
-        ret_value = g_strdup(tmp_value);
-        wmem_free(NULL, tmp_value);
-        return ret_value;
-
-    case PREF_COLOR:
-        return ws_strdup_printf("%02x%02x%02x",
-                   (pref_color->red * 255 / 65535),
-                   (pref_color->green * 255 / 65535),
-                   (pref_color->blue * 255 / 65535));
-
-    case PREF_CUSTOM:
-        if (pref->custom_cbs.to_str_cb)
-            return pref->custom_cbs.to_str_cb(pref, source == pref_default ? true : false);
-        pref_text = "[Custom]";
-        break;
-
-    case PREF_STATIC_TEXT:
-        pref_text = "[Static text]";
-        break;
-
-    case PREF_UAT:
-    {
-        uat_t *uat = pref->varp.uat;
-        if (uat && uat->filename)
-            return ws_strdup_printf("[Managed in the file \"%s\"]", uat->filename);
-        else
-            pref_text = "[Managed in an unknown file]";
-        break;
-    }
-
-    default:
-        break;
-    }
     return g_strdup(pref_text);
 }
 
@@ -6946,11 +6977,8 @@ write_pref(void *data, void *user_data)
     write_pref_arg_t *arg = (write_pref_arg_t *)user_data;
     char **desc_lines;
     int i;
-    int type;
 
-    type = pref->type;
-
-    if (IS_PREF_OBSOLETE(type)) {
+    if (!pref || pref->obsolete) {
         /*
          * This preference is no longer supported; it's not a
          * real preference, so we don't write it out (i.e., we
@@ -6958,11 +6986,9 @@ write_pref(void *data, void *user_data)
          * preferences, and we weren't called in the first place).
          */
         return;
-    } else {
-        RESET_PREF_OBSOLETE(type);
     }
 
-    switch (type) {
+    switch (pref->type) {
 
     case PREF_STATIC_TEXT:
     case PREF_UAT:
@@ -7045,7 +7071,6 @@ count_non_uat_pref(void *data, void *user_data)
     switch (pref->type)
     {
     case PREF_UAT:
-    case PREF_OBSOLETE:
     case PREF_DECODE_AS_RANGE:
     case PREF_PROTO_TCP_SNDAMB_ENUM:
         //These types are not written in preference file

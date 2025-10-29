@@ -392,6 +392,7 @@ WS_DLL_PUBLIC int64_t tvb_get_int56(tvbuff_t *tvb, const int offset, const unsig
 WS_DEPRECATED_X("Use tvb_get_int56 instead")
 static inline int64_t tvb_get_gint56(tvbuff_t *tvb, const int offset, const unsigned encoding) { return tvb_get_int56(tvb, offset, encoding); }
 WS_DLL_PUBLIC uint64_t tvb_get_uint64(tvbuff_t *tvb, const int offset, const unsigned encoding);
+WS_DLL_PUBLIC uint64_t tvb_get_uint64_with_length(tvbuff_t *tvb, const int offset, unsigned length, const unsigned encoding);
 WS_DEPRECATED_X("Use tvb_get_uint64 instead")
 static inline uint64_t tvb_get_guint64(tvbuff_t *tvb, const int offset, const unsigned encoding) {return tvb_get_uint64(tvb, offset, encoding); }
 WS_DLL_PUBLIC int64_t tvb_get_int64(tvbuff_t *tvb, const int offset, const unsigned encoding);
@@ -512,7 +513,10 @@ WS_DLL_PUBLIC uint8_t* tvb_get_bits_array(wmem_allocator_t *scope, tvbuff_t *tvb
 
 /* Fetch a specified number of bits from bit offset in a tvb.  All of these
  * functions are equivalent, except for the type of the return value.  Note
- * that the parameter encoding (where supplied) is meaningless and ignored */
+ * that the parameter encoding (where supplied) indicates the *bit* ordering
+ * within each octet, but offsets 0-7 still indicate octet 0 in the buffer.
+ * Versions of Wireshark prior to 3.6 ignored the encoding parameter.
+ */
 
 /* get 1 - 8 bits returned in a uint8_t */
 WS_DLL_PUBLIC uint8_t tvb_get_bits8(tvbuff_t *tvb, unsigned bit_offset,
@@ -531,10 +535,11 @@ WS_DLL_PUBLIC uint64_t tvb_get_bits64(tvbuff_t *tvb, unsigned bit_offset,
     const int no_of_bits, const unsigned encoding);
 
 /**
- *  This function has EXACTLY the same behavior as
- *  tvb_get_bits32()
+ *  This function has EXACTLY the same behavior as tvb_get_bits32()
  */
-WS_DLL_PUBLIC uint32_t tvb_get_bits(tvbuff_t *tvb, const unsigned bit_offset,
+WS_DLL_PUBLIC
+WS_DEPRECATED_X("Use tvb_get_bits32() instead")
+uint32_t tvb_get_bits(tvbuff_t *tvb, const unsigned bit_offset,
     const int no_of_bits, const unsigned encoding);
 
 /** Returns target for convenience. Does not suffer from possible

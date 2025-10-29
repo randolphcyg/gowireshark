@@ -212,7 +212,7 @@ dissect_pcomtcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     if ( pcom_mode != PCOM_ASCII && pcom_mode != PCOM_BINARY )
         return 0;
 
-    pcom_mode_str = val_to_str(pcom_mode, pcomp_protocol_vals, "Unknown mode (%d)");
+    pcom_mode_str = val_to_str(pinfo->pool, pcom_mode, pcomp_protocol_vals, "Unknown mode (%d)");
 
     if (value_is_in_range(global_pcomtcp_tcp_ports, pinfo->srcport))
         pkt_type = "Reply";
@@ -269,7 +269,6 @@ dissect_pcomascii(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     unsigned     offset = 0;
     uint16_t     nvalues;
-    uint8_t      i;
     uint8_t      cc_len;
     uint32_t     cc;
     const char* cc_str;
@@ -292,7 +291,7 @@ dissect_pcomascii(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     }
 
     proto_tree_add_item(pcomascii_tree, hf_pcomascii_unitid, tvb,
-            offset, 2, ENC_ASCII|ENC_NA);
+            offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
 
     // CCs can be 2 or 3 hex chars
@@ -372,7 +371,7 @@ dissect_pcomascii(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             }
             if(op_type == 2) { // write only
                 nvalues = (tvb_reported_length(tvb)-3-offset) / op_size;
-                for (i = 0; i < nvalues; i++) {
+                for (unsigned i = 0; i < nvalues; i++) {
                     proto_tree_add_item(pcomascii_tree, hf_pcomascii_address_value,
                              tvb, offset, op_size , ENC_ASCII);
                     offset += op_size;
@@ -381,7 +380,7 @@ dissect_pcomascii(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         } else { // reply
              if(op_type == 1) { // read only
                 nvalues = (tvb_reported_length(tvb)-offset-3) / op_size;
-                for (i = 0; i < nvalues; i++) {
+                for (unsigned i = 0; i < nvalues; i++) {
                     proto_tree_add_item(pcomascii_tree, hf_pcomascii_address_value,
                              tvb, offset, op_size , ENC_ASCII);
                     offset += op_size;
@@ -498,7 +497,7 @@ dissect_pcombinary(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
     proto_tree_add_item(pcombinary_tree, hf_pcombinary_header_checksum, tvb,
-            offset, 2, ENC_NA);
+            offset, 2, ENC_LITTLE_ENDIAN);
     offset += 2;
     if ((tvb_reported_length(tvb) - 27) > 0) // ( -3 footer - 24 header)
         proto_tree_add_item(pcombinary_tree, hf_pcombinary_data, tvb,
@@ -680,19 +679,19 @@ proto_register_pcomtcp(void)
     static ei_register_info pcombinary_ei[] = {
         { &ei_pcombinary_reserved1_bad_value,
           { "pcombinary.reserved1.bad_value", PI_PROTOCOL, PI_WARN,
-            "Isn't  0xfe", EXPFILL }
+            "Isn't 0xfe", EXPFILL }
         },
         { &ei_pcombinary_reserved2_bad_value,
           { "pcombinary.reserved2.bad_value", PI_PROTOCOL, PI_WARN,
-            "Isn't  1", EXPFILL }
+            "Isn't 1", EXPFILL }
         },
         { &ei_pcombinary_reserved3_bad_value,
           { "pcombinary.reserved3.bad_value", PI_PROTOCOL, PI_WARN,
-            "Isn't  0", EXPFILL }
+            "Isn't 0", EXPFILL }
         },
         { &ei_pcombinary_reserved4_bad_value,
           { "pcombinary.reserved4.bad_value", PI_PROTOCOL, PI_WARN,
-            "Isn't  0", EXPFILL }
+            "Isn't 0", EXPFILL }
         },
         { &ei_pcombinary_command_unsupported,
           { "pcombinary.command.unsupported", PI_PROTOCOL, PI_WARN,

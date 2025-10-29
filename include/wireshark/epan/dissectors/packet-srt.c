@@ -515,7 +515,7 @@ static void srt_format_km(proto_tree* tree, tvbuff_t* tvb, int baseoff, int bloc
         u8bits, "%u (%s)", u8bits, try_val_to_str(u8bits, se_desc));
 
     proto_tree_add_item(tree, hf_srt_km_resv2, tvb, baseoff + 11, 1, ENC_NA);
-    proto_tree_add_item(tree, hf_srt_km_resv3, tvb, baseoff + 12, 2, ENC_NA);
+    proto_tree_add_item(tree, hf_srt_km_resv3, tvb, baseoff + 12, 2, ENC_BIG_ENDIAN);
 
     u8bits = tvb_get_uint8(tvb, baseoff + 14); // km.slen
     slen = 4 * u8bits;
@@ -537,7 +537,7 @@ static void srt_format_kmx(proto_tree* tree, tvbuff_t* tvb, int baseoff, int blo
     if (blocklen == 4)
     {
         // Error report. Format as KMX state.
-        proto_tree_add_item(tree, hf_srt_srtkm_error, tvb, baseoff, 4, ENC_NA);
+        proto_tree_add_item(tree, hf_srt_srtkm_error, tvb, baseoff, 4, ENC_BIG_ENDIAN);
     }
     else
     {
@@ -596,7 +596,7 @@ static void dissect_srt_hs_ext_field(proto_tree* tree,
     };
 
     proto_tree_add_bitmask_with_flags(tree, tvb, baseoff, hf_srt_handshake_ext_field_v5,
-                                      ett_srt_handshake_ext_field_flags, ext_hs_ext_field_flags, ENC_NA, BMT_NO_APPEND);
+                                      ett_srt_handshake_ext_field_flags, ext_hs_ext_field_flags, ENC_BIG_ENDIAN, BMT_NO_APPEND);
 
     return;
 }
@@ -695,7 +695,7 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
     {
     case UMSG_EXT:
         col_add_fstr(pinfo->cinfo, COL_INFO, "Control/ext: %s socket: %d",
-                        val_to_str(exttype, srt_ctrlmsg_exttypes,
+                        val_to_str(pinfo->pool, exttype, srt_ctrlmsg_exttypes,
                                    "Unknown EXT Control Type (%d)"),
                         tvb_get_ntohl(tvb, 12));
         break;
@@ -712,7 +712,7 @@ dissect_srt_control_packet(tvbuff_t *tvb, packet_info* pinfo,
         break;
     default:
         col_add_fstr(pinfo->cinfo, COL_INFO, "Control: %s socket: %d",
-                        val_to_str(type, srt_ctrlmsg_types,
+                        val_to_str(pinfo->pool, type, srt_ctrlmsg_types,
                                    "Unknown Control Type (%d)"),
                         tvb_get_ntohl(tvb, 12));
         break;

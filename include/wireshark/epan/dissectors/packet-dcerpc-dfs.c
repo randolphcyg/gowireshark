@@ -1180,11 +1180,11 @@ netdfs_dissect_struct_dfs_Info4(tvbuff_t *tvb _U_, int offset _U_, packet_info *
 
 
 /* IDL: bitmap { */
-/* IDL: 	DFS_PROPERTY_FLAG_INSITE_REFERRALS =  0x01 , */
-/* IDL: 	DFS_PROPERTY_FLAG_ROOT_SCALABILITY =  0x02 , */
-/* IDL: 	DFS_PROPERTY_FLAG_SITE_COSTING =  0x04 , */
-/* IDL: 	DFS_PROPERTY_FLAG_TARGET_FAILBACK =  0x08 , */
-/* IDL: 	DFS_PROPERTY_FLAG_CLUSTER_ENABLED =  0x10 , */
+/* IDL: 	DFS_PROPERTY_FLAG_INSITE_REFERRALS =  0x00000001 , */
+/* IDL: 	DFS_PROPERTY_FLAG_ROOT_SCALABILITY =  0x00000002 , */
+/* IDL: 	DFS_PROPERTY_FLAG_SITE_COSTING =  0x00000004 , */
+/* IDL: 	DFS_PROPERTY_FLAG_TARGET_FAILBACK =  0x00000008 , */
+/* IDL: 	DFS_PROPERTY_FLAG_CLUSTER_ENABLED =  0x00000010 , */
 /* IDL: } */
 
 int
@@ -3381,7 +3381,7 @@ netdfs_dissect_dfs_Add_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3475,7 +3475,7 @@ netdfs_dissect_dfs_Remove_response(tvbuff_t *tvb _U_, int offset _U_, packet_inf
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3583,7 +3583,7 @@ netdfs_dissect_dfs_SetInfo_response(tvbuff_t *tvb _U_, int offset _U_, packet_in
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3698,7 +3698,7 @@ netdfs_dissect_dfs_GetInfo_response(tvbuff_t *tvb _U_, int offset _U_, packet_in
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3788,7 +3788,7 @@ netdfs_dissect_dfs_Enum_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3821,7 +3821,7 @@ netdfs_dissect_dfs_Rename_response(tvbuff_t *tvb _U_, int offset _U_, packet_inf
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3846,7 +3846,7 @@ netdfs_dissect_dfs_Move_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3871,7 +3871,7 @@ netdfs_dissect_dfs_ManagerGetConfigInfo_response(tvbuff_t *tvb _U_, int offset _
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3896,7 +3896,7 @@ netdfs_dissect_dfs_ManagerSendSiteInfo_response(tvbuff_t *tvb _U_, int offset _U
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4038,7 +4038,7 @@ netdfs_dissect_dfs_AddFtRoot_response(tvbuff_t *tvb _U_, int offset _U_, packet_
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4165,7 +4165,7 @@ netdfs_dissect_dfs_RemoveFtRoot_response(tvbuff_t *tvb _U_, int offset _U_, pack
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4246,7 +4246,7 @@ netdfs_dissect_dfs_AddStdRoot_response(tvbuff_t *tvb _U_, int offset _U_, packet
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4311,7 +4311,7 @@ netdfs_dissect_dfs_RemoveStdRoot_response(tvbuff_t *tvb _U_, int offset _U_, pac
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4370,7 +4370,7 @@ netdfs_dissect_dfs_ManagerInitialize_response(tvbuff_t *tvb _U_, int offset _U_,
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4446,7 +4446,7 @@ netdfs_dissect_dfs_AddStdRootForced_response(tvbuff_t *tvb _U_, int offset _U_, 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4479,7 +4479,7 @@ netdfs_dissect_dfs_GetDcAddress_response(tvbuff_t *tvb _U_, int offset _U_, pack
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4504,7 +4504,7 @@ netdfs_dissect_dfs_SetDcAddress_response(tvbuff_t *tvb _U_, int offset _U_, pack
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4552,7 +4552,7 @@ netdfs_dissect_dfs_FlushFtTable_response(tvbuff_t *tvb _U_, int offset _U_, pack
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4581,7 +4581,7 @@ netdfs_dissect_dfs_Add2_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4606,7 +4606,7 @@ netdfs_dissect_dfs_Remove2_response(tvbuff_t *tvb _U_, int offset _U_, packet_in
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4700,7 +4700,7 @@ netdfs_dissect_dfs_EnumEx_response(tvbuff_t *tvb _U_, int offset _U_, packet_inf
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4735,7 +4735,7 @@ netdfs_dissect_dfs_SetInfo2_response(tvbuff_t *tvb _U_, int offset _U_, packet_i
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_netdfs_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -5054,15 +5054,15 @@ void proto_register_dcerpc_netdfs(void)
 	{ &hf_netdfs_dfs_ManagerInitialize_servername,
 	  { "Servername", "netdfs.dfs_ManagerInitialize.servername", FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL }},
 	{ &hf_netdfs_dfs_PropertyFlags_DFS_PROPERTY_FLAG_CLUSTER_ENABLED,
-	  { "DFS PROPERTY FLAG CLUSTER ENABLED", "netdfs.dfs_PropertyFlags.DFS_PROPERTY_FLAG_CLUSTER_ENABLED", FT_BOOLEAN, 32, TFS(&dfs_PropertyFlags_DFS_PROPERTY_FLAG_CLUSTER_ENABLED_tfs), ( 0x10 ), NULL, HFILL }},
+	  { "DFS PROPERTY FLAG CLUSTER ENABLED", "netdfs.dfs_PropertyFlags.DFS_PROPERTY_FLAG_CLUSTER_ENABLED", FT_BOOLEAN, 32, TFS(&dfs_PropertyFlags_DFS_PROPERTY_FLAG_CLUSTER_ENABLED_tfs), ( 0x00000010 ), NULL, HFILL }},
 	{ &hf_netdfs_dfs_PropertyFlags_DFS_PROPERTY_FLAG_INSITE_REFERRALS,
-	  { "DFS PROPERTY FLAG INSITE REFERRALS", "netdfs.dfs_PropertyFlags.DFS_PROPERTY_FLAG_INSITE_REFERRALS", FT_BOOLEAN, 32, TFS(&dfs_PropertyFlags_DFS_PROPERTY_FLAG_INSITE_REFERRALS_tfs), ( 0x01 ), NULL, HFILL }},
+	  { "DFS PROPERTY FLAG INSITE REFERRALS", "netdfs.dfs_PropertyFlags.DFS_PROPERTY_FLAG_INSITE_REFERRALS", FT_BOOLEAN, 32, TFS(&dfs_PropertyFlags_DFS_PROPERTY_FLAG_INSITE_REFERRALS_tfs), ( 0x00000001 ), NULL, HFILL }},
 	{ &hf_netdfs_dfs_PropertyFlags_DFS_PROPERTY_FLAG_ROOT_SCALABILITY,
-	  { "DFS PROPERTY FLAG ROOT SCALABILITY", "netdfs.dfs_PropertyFlags.DFS_PROPERTY_FLAG_ROOT_SCALABILITY", FT_BOOLEAN, 32, TFS(&dfs_PropertyFlags_DFS_PROPERTY_FLAG_ROOT_SCALABILITY_tfs), ( 0x02 ), NULL, HFILL }},
+	  { "DFS PROPERTY FLAG ROOT SCALABILITY", "netdfs.dfs_PropertyFlags.DFS_PROPERTY_FLAG_ROOT_SCALABILITY", FT_BOOLEAN, 32, TFS(&dfs_PropertyFlags_DFS_PROPERTY_FLAG_ROOT_SCALABILITY_tfs), ( 0x00000002 ), NULL, HFILL }},
 	{ &hf_netdfs_dfs_PropertyFlags_DFS_PROPERTY_FLAG_SITE_COSTING,
-	  { "DFS PROPERTY FLAG SITE COSTING", "netdfs.dfs_PropertyFlags.DFS_PROPERTY_FLAG_SITE_COSTING", FT_BOOLEAN, 32, TFS(&dfs_PropertyFlags_DFS_PROPERTY_FLAG_SITE_COSTING_tfs), ( 0x04 ), NULL, HFILL }},
+	  { "DFS PROPERTY FLAG SITE COSTING", "netdfs.dfs_PropertyFlags.DFS_PROPERTY_FLAG_SITE_COSTING", FT_BOOLEAN, 32, TFS(&dfs_PropertyFlags_DFS_PROPERTY_FLAG_SITE_COSTING_tfs), ( 0x00000004 ), NULL, HFILL }},
 	{ &hf_netdfs_dfs_PropertyFlags_DFS_PROPERTY_FLAG_TARGET_FAILBACK,
-	  { "DFS PROPERTY FLAG TARGET FAILBACK", "netdfs.dfs_PropertyFlags.DFS_PROPERTY_FLAG_TARGET_FAILBACK", FT_BOOLEAN, 32, TFS(&dfs_PropertyFlags_DFS_PROPERTY_FLAG_TARGET_FAILBACK_tfs), ( 0x08 ), NULL, HFILL }},
+	  { "DFS PROPERTY FLAG TARGET FAILBACK", "netdfs.dfs_PropertyFlags.DFS_PROPERTY_FLAG_TARGET_FAILBACK", FT_BOOLEAN, 32, TFS(&dfs_PropertyFlags_DFS_PROPERTY_FLAG_TARGET_FAILBACK_tfs), ( 0x00000008 ), NULL, HFILL }},
 	{ &hf_netdfs_dfs_RemoveFtRoot_dfsname,
 	  { "Dfsname", "netdfs.dfs_RemoveFtRoot.dfsname", FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL }},
 	{ &hf_netdfs_dfs_RemoveFtRoot_dns_servername,

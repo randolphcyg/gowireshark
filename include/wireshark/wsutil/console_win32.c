@@ -16,8 +16,8 @@
 
 #include <glib.h>
 
+#include <wsutil/application_flavor.h>
 #include <wsutil/file_util.h>
-#include <wsutil/filesystem.h>
 
 #include "console_win32.h"
 
@@ -163,10 +163,10 @@ do a FreeConsole() first. */
         if (AllocConsole()) {
             /* That succeeded. */
             console_wait = true;
-            if (is_packet_configuration_namespace()) {
+            if (application_flavor_is_wireshark()) {
                 SetConsoleTitle(_T("Wireshark Debug Console"));
             } else {
-                SetConsoleTitle(_T("Logray Debug Console"));
+                SetConsoleTitle(_T("Stratoshark Debug Console"));
             }
         } else {
             /* On Windows XP, this still fails; FreeConsole() apparently

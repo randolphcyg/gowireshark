@@ -119,9 +119,18 @@ extern "C" {
                                        *     "Intel(R) PRO/1000 MT Network Connection" /
                                        *     "NETGEAR WNA1000Mv2 N150 Wireless USB Micro Adapter"
                                        */
+#define OPT_IDB_TXSPEED        16    /**< A 64-bit unsigned integer indicating the interface transmit speed in
+                                       *     bits per second.
+                                       */
+#define OPT_IDB_RXSPEED        17    /**< A 64-bit unsigned integer indicating the interface receive speed in
+                                       *     bits per second.
+                                       */
+#define OPT_IDB_IANA_TZNAME    18    /**< A UTF-8 string that indicates the IANA time zone database timezone name
+                                       *     for the IANA database timezone in which the interface is located.
+                                       */
 
 /*
- * These are the flags for an EPB, but we use them for all WTAP_BLOCK_PACKET
+ * These are the options for an EPB, but we use them for all WTAP_BLOCK_PACKET
  */
 #define OPT_PKT_FLAGS        2
 #define OPT_PKT_HASH         3
@@ -129,6 +138,7 @@ extern "C" {
 #define OPT_PKT_PACKETID     5
 #define OPT_PKT_QUEUE        6
 #define OPT_PKT_VERDICT      7
+#define OPT_PKT_PROCIDTHRDID 8
 
 /* Name Resolution Block (NRB) */
 #define OPT_NS_DNSNAME       2
@@ -144,8 +154,22 @@ extern "C" {
 #define OPT_ISB_OSDROP       7
 #define OPT_ISB_USRDELIV     8
 
-struct wtap_block;
-typedef struct wtap_block *wtap_block_t;
+/* Darwin Process Info Block (DPIB) */
+#define OPT_DPIB_NAME        2   /**< Process name: NUL-terminated UTF8 string (limited to 16 characters including the NUL) */
+#define OPT_DPIB_UUID        4   /**< Process UUID: 16 byte */
+
+/* Darwin-specific options for EPB */
+#define OPT_PKT_DARWIN_PIB_ID               32769   /**< 32-bit number of the Darwin PIB that describes the Process ID. */
+#define	OPT_PKT_DARWIN_SVC_CODE	            32770   /**< 32-bit type of service code. */
+#define OPT_PKT_DARWIN_EFFECTIVE_PIB_ID     32771   /**< 32-bit number of the Darwin PIB that describes the Effective Process ID. */
+#define OPT_PKT_DARWIN_MD_FLAGS             32772   /**< 32-bit bitmask containing the packet metadata flags. */
+#define OPT_PKT_DARWIN_FLOW_ID              32773   /**< 32-bit opaque flow identifier. */
+#define OPT_PKT_DARWIN_TRACE_TAG            32774   /**< 16-bit opaque trace tag. */
+#define OPT_PKT_DARWIN_DROP_REASON          32775   /**< 32-bit drop reason. */
+#define OPT_PKT_DARWIN_DROP_LINE            32776   /**< 16-bit drop line. */
+#define OPT_PKT_DARWIN_DROP_FUNC            32777   /**< NUL-terminated name of the dropping function. */
+#define OPT_PKT_DARWIN_COMP_GENCNT          32778   /**< 32-bit current value of the compression generation count (epoch). */
+
 
 /*
  * Currently supported blocks; these are not the pcapng block type values
@@ -180,6 +204,32 @@ typedef struct wtap_block *wtap_block_t;
  * the Simple Packet Block, and the deprecated Packet Block) is not
  * currently used; it's reserved for future use.  The same applies
  * to WTAP_BLOCK_SYSTEMD_JOURNAL_EXPORT.
+ *
+ * WTAP_BLOCK_FT_SPECIFIC_EVENT contains filetype-specific "events",
+ * such as "carrier lost" or "moved to a new channel". The "events"
+ * are commonly time-stamped.
+ *
+ * WTAP_BLOCK_FT_SPECIFIC_REPORT contains filetype-specific "reports"
+ * such as "number of times the carrier has been lost".
+ * Similarly to "events", the "reports" are commonly time-stamped;
+ * in addition, the "reports" may include the "duration".
+ *
+ * WTAP_BLOCK_FT_SPECIFIC_INFORMATION contains filetype-specific
+ * "information", which is NOT timestamped.
+ *
+ * The distinction between the "events", "reports" and "information"
+ * is that both the "events" and "reports" describe something
+ * that has happened at some point in time, whereas the "information"
+ * does not have a time coordinate. Further, the "events" differ
+ * from the "reports" in the significance of the time coordinate.
+ * For the "events", the time stamp represents a state change,
+ * so that everything that happened before the "event" is
+ * qualitatively different from everything that followed.
+ * On the other hand, the time coordinates of "reports"
+ * do not have the same significance.
+ *
+ * WTAP_BLOCK_FT_SPECIFIC_INFORMATION is a block that contains
+ * informtaion
  */
 typedef enum {
     WTAP_BLOCK_SECTION = 0,
@@ -194,8 +244,40 @@ typedef enum {
     WTAP_BLOCK_META_EVENT,
     WTAP_BLOCK_SYSTEMD_JOURNAL_EXPORT,
     WTAP_BLOCK_CUSTOM,
+    WTAP_BLOCK_FT_SPECIFIC_INFORMATION,
     MAX_WTAP_BLOCK_TYPE_VALUE
 } wtap_block_type_t;
+
+struct wtap_block;
+typedef struct wtap_block* wtap_block_t;
+
+typedef void (*wtap_block_create_func)(wtap_block_t block);
+typedef void (*wtap_mand_free_func)(wtap_block_t block);
+typedef void (*wtap_mand_copy_func)(wtap_block_t dest_block, wtap_block_t src_block);
+
+/*
+ * Structure describing a type of block.
+ */
+typedef struct wtap_blocktype_t {
+    wtap_block_type_t block_type;    /**< internal type code for block */
+    const char* name;                /**< name of block */
+    const char* description;         /**< human-readable description of block */
+    wtap_block_create_func create;
+    wtap_mand_free_func free_mand;
+    wtap_mand_copy_func copy_mand;
+    GHashTable* options;             /**< hash table of known options */
+} wtap_blocktype_t;
+
+struct wtap_block
+{
+    struct wtap_blocktype_t* info;
+    void* mandatory_data;
+    GArray* options;
+    int ref_count;
+#ifdef DEBUG_COUNT_REFS
+    unsigned id;
+#endif
+};
 
 /**
  * Holds the required data from a WTAP_BLOCK_SECTION.
@@ -218,6 +300,14 @@ typedef struct wtapng_section_mandatory_s {
 typedef struct wtapng_iface_descriptions_s {
     GArray *interface_data;
 } wtapng_iface_descriptions_t;
+
+/** struct holding the information to lookup a Darwin PIB.
+ *  the dpibs array holds an array of wtap_block_t
+ *  representing Darwin PIBs, one per PIB.
+ */
+ typedef struct wtapng_dpib_lookup_info_s {
+    GArray     *dpibs;
+} wtapng_dpib_lookup_info_t;
 
 /**
  * Holds the required data from a WTAP_BLOCK_IF_ID_AND_INFO.
@@ -289,6 +379,13 @@ typedef struct wtapng_packet_mandatory_s {
 #endif
 
 /**
+ * Holds the required data from a WTAP_BLOCK_LEGACY_DARWIN_PROCESS_EVENT.
+ */
+ typedef struct wtapng_darwin_process_event_mandatory_s {
+    uint32_t               process_id;      /** Process ID */
+}  wtapng_darwin_process_event_mandatory_t;
+
+/**
  * Holds the required data from a WTAP_BLOCK_FT_SPECIFIC_REPORT.
  */
 typedef struct wtapng_ft_specific_mandatory_s {
@@ -310,7 +407,8 @@ typedef enum {
     WTAP_OPTTYPE_BYTES,
     WTAP_OPTTYPE_IPv4,
     WTAP_OPTTYPE_IPv6,
-    WTAP_OPTTYPE_CUSTOM,
+    WTAP_OPTTYPE_CUSTOM_STRING,
+    WTAP_OPTTYPE_CUSTOM_BINARY,
     WTAP_OPTTYPE_IF_FILTER,
     WTAP_OPTTYPE_PACKET_VERDICT,
     WTAP_OPTTYPE_PACKET_HASH,
@@ -327,41 +425,37 @@ typedef enum {
     WTAP_OPTTYPE_NUMBER_MISMATCH = -4,
     WTAP_OPTTYPE_ALREADY_EXISTS = -5,
     WTAP_OPTTYPE_BAD_BLOCK = -6,
+    WTAP_OPTTYPE_PEN_MISMATCH = -7,
 } wtap_opttype_return_val;
 
 /* https://www.iana.org/assignments/enterprise-numbers/enterprise-numbers */
-#define PEN_NFLX 10949
 #define PEN_VCTR 46254
 
 /*
- * Structure describing a custom option.
+ * Structure giving the value of a custom string option; the value
+ * includes both the Private Enterprise Number and the data following it.
  */
-
-typedef struct custom_opt_s {
-    uint32_t pen;
-    union {
-        struct generic_custom_opt_data {
-            size_t custom_data_len;
-            char *custom_data;
-        } generic_data;
-        struct nflx_custom_opt_data {
-            uint32_t type;
-            size_t custom_data_len;
-            char *custom_data;
-            bool use_little_endian;
-        } nflx_data;
-    } data;
-} custom_opt_t;
+typedef struct custom_string_opt_s {
+    uint32_t pen;     /* Private Enterprise Number of this option */
+    char* string;
+} custom_string_opt_t;
 
 /*
- * Structure describing a NFLX custom option.
+ * Structure giving the data of a custom binary option.
  */
-typedef struct nflx_custom_opt_s {
-    bool nflx_use_little_endian;
-    uint32_t nflx_type;
-    size_t nflx_custom_data_len;
-    char *nflx_custom_data;
-} nflx_custom_opt_t;
+typedef struct binary_optdata {
+    size_t custom_data_len;
+    void* custom_data;
+} binary_optdata_t;
+
+/*
+ * Structure giving the value of a custom binary option; the value
+ * includes both the Private Enterprise Number and the data following it.
+ */
+typedef struct custom_binary_opt_s {
+    uint32_t pen;     /* Private Enterprise Number of this option */
+    binary_optdata_t data;
+} custom_binary_opt_t;
 
 /* Interface description data - if_filter option structure */
 
@@ -431,7 +525,8 @@ typedef union {
     ws_in6_addr ipv6val;
     char *stringval;
     GBytes *byteval;
-    custom_opt_t custom_opt;
+    custom_string_opt_t custom_stringval;
+    custom_binary_opt_t custom_binaryval;
     if_filter_opt_t if_filterval;
     packet_verdict_opt_t packet_verdictval;
     packet_hash_opt_t packet_hash;
@@ -445,125 +540,22 @@ typedef struct {
     wtap_optval_t value; /**< value */
 } wtap_option_t;
 
-#define NFLX_OPT_TYPE_VERSION    1
-#define NFLX_OPT_TYPE_TCPINFO    2
-#define NFLX_OPT_TYPE_DUMPINFO   4
-#define NFLX_OPT_TYPE_DUMPTIME   5
-#define NFLX_OPT_TYPE_STACKNAME  6
-
-struct nflx_dumpinfo {
-    uint32_t tlh_version;
-    uint32_t tlh_type;
-    uint64_t tlh_length;
-    uint16_t tlh_ie_fport;
-    uint16_t tlh_ie_lport;
-    uint32_t tlh_ie_faddr_addr32[4];
-    uint32_t tlh_ie_laddr_addr32[4];
-    uint32_t tlh_ie_zoneid;
-    uint64_t tlh_offset_tv_sec;
-    uint64_t tlh_offset_tv_usec;
-    char    tlh_id[64];
-    char    tlh_reason[32];
-    char    tlh_tag[32];
-    uint8_t tlh_af;
-    uint8_t _pad[7];
-};
-
-/* Flags used in tlb_eventflags */
-#define NFLX_TLB_FLAG_RXBUF     0x0001 /* Includes receive buffer info */
-#define NFLX_TLB_FLAG_TXBUF     0x0002 /* Includes send buffer info */
-#define NFLX_TLB_FLAG_HDR       0x0004 /* Includes a TCP header */
-#define NFLX_TLB_FLAG_VERBOSE   0x0008 /* Includes function/line numbers */
-#define NFLX_TLB_FLAG_STACKINFO 0x0010 /* Includes stack-specific info */
-
-/* Flags used in tlb_flags */
-#define NFLX_TLB_TF_REQ_SCALE   0x00000020 /* Sent WS option */
-#define NFLX_TLB_TF_RCVD_SCALE  0x00000040 /* Received WS option */
-
-/* Values of tlb_state */
-#define NFLX_TLB_TCPS_ESTABLISHED 4
-#define NFLX_TLB_IS_SYNCHRONIZED(state) (state >= NFLX_TLB_TCPS_ESTABLISHED)
-
-struct nflx_tcpinfo {
-    uint64_t tlb_tv_sec;
-    uint64_t tlb_tv_usec;
-    uint32_t tlb_ticks;
-    uint32_t tlb_sn;
-    uint8_t tlb_stackid;
-    uint8_t tlb_eventid;
-    uint16_t tlb_eventflags;
-    int32_t tlb_errno;
-    uint32_t tlb_rxbuf_tls_sb_acc;
-    uint32_t tlb_rxbuf_tls_sb_ccc;
-    uint32_t tlb_rxbuf_tls_sb_spare;
-    uint32_t tlb_txbuf_tls_sb_acc;
-    uint32_t tlb_txbuf_tls_sb_ccc;
-    uint32_t tlb_txbuf_tls_sb_spare;
-    int32_t tlb_state;
-    uint32_t tlb_starttime;
-    uint32_t tlb_iss;
-    uint32_t tlb_flags;
-    uint32_t tlb_snd_una;
-    uint32_t tlb_snd_max;
-    uint32_t tlb_snd_cwnd;
-    uint32_t tlb_snd_nxt;
-    uint32_t tlb_snd_recover;
-    uint32_t tlb_snd_wnd;
-    uint32_t tlb_snd_ssthresh;
-    uint32_t tlb_srtt;
-    uint32_t tlb_rttvar;
-    uint32_t tlb_rcv_up;
-    uint32_t tlb_rcv_adv;
-    uint32_t tlb_flags2;
-    uint32_t tlb_rcv_nxt;
-    uint32_t tlb_rcv_wnd;
-    uint32_t tlb_dupacks;
-    int32_t tlb_segqlen;
-    int32_t tlb_snd_numholes;
-    uint32_t tlb_flex1;
-    uint32_t tlb_flex2;
-    uint32_t tlb_fbyte_in;
-    uint32_t tlb_fbyte_out;
-    uint8_t tlb_snd_scale:4,
-            tlb_rcv_scale:4;
-    uint8_t _pad[3];
-
-    /* The following fields might become part of a union */
-    uint64_t tlb_stackinfo_bbr_cur_del_rate;
-    uint64_t tlb_stackinfo_bbr_delRate;
-    uint64_t tlb_stackinfo_bbr_rttProp;
-    uint64_t tlb_stackinfo_bbr_bw_inuse;
-    uint32_t tlb_stackinfo_bbr_inflight;
-    uint32_t tlb_stackinfo_bbr_applimited;
-    uint32_t tlb_stackinfo_bbr_delivered;
-    uint32_t tlb_stackinfo_bbr_timeStamp;
-    uint32_t tlb_stackinfo_bbr_epoch;
-    uint32_t tlb_stackinfo_bbr_lt_epoch;
-    uint32_t tlb_stackinfo_bbr_pkts_out;
-    uint32_t tlb_stackinfo_bbr_flex1;
-    uint32_t tlb_stackinfo_bbr_flex2;
-    uint32_t tlb_stackinfo_bbr_flex3;
-    uint32_t tlb_stackinfo_bbr_flex4;
-    uint32_t tlb_stackinfo_bbr_flex5;
-    uint32_t tlb_stackinfo_bbr_flex6;
-    uint32_t tlb_stackinfo_bbr_lost;
-    uint16_t tlb_stackinfo_bbr_pacing_gain;
-    uint16_t tlb_stackinfo_bbr_cwnd_gain;
-    uint16_t tlb_stackinfo_bbr_flex7;
-    uint8_t tlb_stackinfo_bbr_bbr_state;
-    uint8_t tlb_stackinfo_bbr_bbr_substate;
-    uint8_t tlb_stackinfo_bbr_inhpts;
-    uint8_t tlb_stackinfo_bbr_ininput;
-    uint8_t tlb_stackinfo_bbr_use_lt_bw;
-    uint8_t tlb_stackinfo_bbr_flex8;
-    uint32_t tlb_stackinfo_bbr_pkt_epoch;
-
-    uint32_t tlb_len;
-};
-
 typedef void (*wtap_block_create_func)(wtap_block_t block);
 typedef void (*wtap_mand_free_func)(wtap_block_t block);
 typedef void (*wtap_mand_copy_func)(wtap_block_t dest_block, wtap_block_t src_block);
+
+/*
+ * Structure describing a type of option.
+ */
+typedef struct {
+    const char* name;                            /**< name of option */
+    const char* description;                     /**< human-readable description of option */
+    wtap_opttype_e data_type;                    /**< data type of that option */
+    unsigned flags;                                 /**< flags for the option */
+} wtap_opttype_t;
+
+#define GET_OPTION_TYPE(options, option_id) \
+    (const wtap_opttype_t *)g_hash_table_lookup((options), GUINT_TO_POINTER(option_id))
 
 /** Initialize block types.
  *
@@ -636,6 +628,13 @@ wtap_block_array_unref(GArray* block_array);
  */
 WS_DLL_PUBLIC void
 wtap_block_array_ref(GArray* block_array);
+
+/** Register a block type handler
+ *
+ * @param[in] blocktype Block type to be registered
+ */
+WS_DLL_PUBLIC void
+wtap_opttype_block_register(wtap_blocktype_t* blocktype);
 
 /** Provide type of a block
  *
@@ -943,11 +942,12 @@ wtap_block_add_string_option(wtap_block_t block, unsigned option_id, const char 
  * @param[in] block Block to which to add the option
  * @param[in] option_id Identifier value for option
  * @param[in] value Value of option
- * @return wtap_opttype_return_val - WTAP_OPTTYPE_SUCCESS if successful,
- * error code otherwise
+ * @return wtap_opttype_return_val - WTAP_OPTTYPE_SUCCESS if successful (caller no longer owns @p value),
+ * error code otherwise (caller still owns @p value)
+ * @note To avoid memory leaks, the caller @b must examine the return status to determine ownership of @p value.
  */
 WS_DLL_PUBLIC wtap_opttype_return_val
-wtap_block_add_string_option_owned(wtap_block_t block, unsigned option_id, char *value);
+wtap_block_add_string_option_owned(wtap_block_t block, unsigned option_id, char *value) G_GNUC_WARN_UNUSED_RESULT;
 
 /** Add a string option to a block with a printf-formatted string as its value
  *
@@ -1111,42 +1111,60 @@ wtap_block_get_bytes_option_value(wtap_block_t block, unsigned option_id, GBytes
 WS_DLL_PUBLIC wtap_opttype_return_val
 wtap_block_get_nth_bytes_option_value(wtap_block_t block, unsigned option_id, unsigned idx, GBytes** value) G_GNUC_WARN_UNUSED_RESULT;
 
-/** Add an NFLX custom option to a block
- *
- * @param[in] block Block to which to add the option
- * @param[in] nflx_type NFLX option type
- * @param[in] nflx_custom_data pointer to the data
- * @param[in] nflx_custom_data_len length of custom_data
- * @return wtap_opttype_return_val - WTAP_OPTTYPE_SUCCESS if successful,
- * error code otherwise
- */
-WS_DLL_PUBLIC wtap_opttype_return_val
-wtap_block_add_nflx_custom_option(wtap_block_t block, uint32_t nflx_type, const char *nflx_custom_data, size_t nflx_custom_data_len);
-
-/** Get an NFLX custom option value from a block
- *
- * @param[in] block Block from which to get the option value
- * @param[in] nflx_type type of the option
- * @param[out] nflx_custom_data Returned value of NFLX custom option value
- * @param[in] nflx_custom_data_len size of buffer provided in nflx_custom_data
- * @return wtap_opttype_return_val - WTAP_OPTTYPE_SUCCESS if successful,
- * error code otherwise
- */
-WS_DLL_PUBLIC wtap_opttype_return_val
-wtap_block_get_nflx_custom_option(wtap_block_t block, uint32_t nflx_type, char *nflx_custom_data, size_t nflx_custom_data_len);
-
-/** Add a custom option to a block
+/** Add a string custom option, with a particular Private Enterprise
+ * Number, to a block
  *
  * @param[in] block Block to which to add the option
  * @param[in] option_id Identifier value for option
- * @param[in] pen PEN
- * @param[in] custom_data pointer to the data
- * @param[in] custom_data_len length of custom_data
+ * @param[in] pen Private Enterprise Number value for option
+ * @param[in] value Value of option
+ * @param[in] value_length Maximum length of string to copy.
  * @return wtap_opttype_return_val - WTAP_OPTTYPE_SUCCESS if successful,
  * error code otherwise
  */
 WS_DLL_PUBLIC wtap_opttype_return_val
-wtap_block_add_custom_option(wtap_block_t block, unsigned option_id, uint32_t pen, const char *custom_data, size_t custom_data_len);
+wtap_block_add_custom_string_option(wtap_block_t block, unsigned option_id, uint32_t pen, const char *value, size_t value_length);
+
+/** Add a binary custom option, with a particular Private Enterprise
+ * Number, to a block
+ *
+ * @param[in] block Block to which to add the option
+ * @param[in] option_id Identifier value for option
+ * @param[in] pen Private Enterprise Number value for option
+ * @param[in] value Value of option
+ * @return wtap_opttype_return_val - WTAP_OPTTYPE_SUCCESS if successful,
+ * error code otherwise
+ */
+WS_DLL_PUBLIC wtap_opttype_return_val
+wtap_block_add_custom_binary_option(wtap_block_t block, unsigned option_id, uint32_t pen, binary_optdata_t *value);
+
+/** Add a binary custom option, with a particular Private Enterprise
+ * Number, to a block
+ *
+ * @param[in] block Block to which to add the option
+ * @param[in] option_id Identifier value for option
+ * @param[in] pen Private Enterprise Number value for option
+ * @param[in] data Raw data of option
+ * @param[in] data_size Size of raw data
+ * @return wtap_opttype_return_val - WTAP_OPTTYPE_SUCCESS if successful,
+ * error code otherwise
+ */
+WS_DLL_PUBLIC wtap_opttype_return_val
+wtap_block_add_custom_binary_option_from_data(wtap_block_t block, unsigned option_id, uint32_t pen, const void *data, size_t data_size);
+
+/** Get binary custom option value for the nth instance of a particular option,
+ * with a particular Private Enterprise Number, in a block
+ *
+ * @param[in] block Block from which to get the option value
+ * @param[in] option_id Identifier value for option
+ * @param[in] pen Private Enterprise Number value for option
+ * @param[in] idx Instance number of option with that ID
+ * @param[out] value Returned value of option
+ * @return wtap_opttype_return_val - WTAP_OPTTYPE_SUCCESS if successful,
+ * error code otherwise
+ */
+WS_DLL_PUBLIC wtap_opttype_return_val
+wtap_block_get_nth_custom_binary_option_value(wtap_block_t block, unsigned option_id, uint32_t pen, unsigned idx, binary_optdata_t *value);
 
 /** Add an if_filter option value to a block
  *

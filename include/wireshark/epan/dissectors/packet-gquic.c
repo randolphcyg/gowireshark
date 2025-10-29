@@ -1634,7 +1634,7 @@ dissect_gquic_tag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tree, uns
                 tag_offset += 2;
                 switch(addr_type){
                     case 2: /* IPv4 */
-                    proto_tree_add_item(tag_tree, hf_gquic_tag_cadr_addr_ipv4, tvb, tag_offset_start + tag_offset, 4, ENC_NA);
+                    proto_tree_add_item(tag_tree, hf_gquic_tag_cadr_addr_ipv4, tvb, tag_offset_start + tag_offset, 4, ENC_BIG_ENDIAN);
                     tag_offset += 4;
                     break;
                     case 10: /* IPv6 */
@@ -1795,7 +1795,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 offset += 8;
                 proto_tree_add_item_ret_uint(ft_tree, hf_gquic_frame_type_rsts_error_code, tvb, offset, 4, gquic_info->encoding, &error_code);
                 offset += 4;
-                proto_item_append_text(ti_ft, " Stream ID: %u, Error code: %s", stream_id, val_to_str_ext(error_code, &rststream_error_code_vals_ext, "Unknown (%d)"));
+                proto_item_append_text(ti_ft, " Stream ID: %u, Error code: %s", stream_id, val_to_str_ext(pinfo->pool, error_code, &rststream_error_code_vals_ext, "Unknown (%d)"));
                 col_set_str(pinfo->cinfo, COL_INFO, "RST STREAM");
                 }
             break;
@@ -1810,7 +1810,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 offset += 2;
                 proto_tree_add_item(ft_tree, hf_gquic_frame_type_cc_reason_phrase, tvb, offset, len_reason, ENC_ASCII);
                 offset += len_reason;
-                proto_item_append_text(ti_ft, " Error code: %s", val_to_str_ext(error_code, &error_code_vals_ext, "Unknown (%d)"));
+                proto_item_append_text(ti_ft, " Error code: %s", val_to_str_ext(pinfo->pool, error_code, &error_code_vals_ext, "Unknown (%d)"));
                 col_set_str(pinfo->cinfo, COL_INFO, "Connection Close");
                 }
             break;
@@ -1827,7 +1827,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
                 offset += 2;
                 proto_tree_add_item(ft_tree, hf_gquic_frame_type_goaway_reason_phrase, tvb, offset, len_reason, ENC_ASCII);
                 offset += len_reason;
-                proto_item_append_text(ti_ft, " Stream ID: %u, Error code: %s", last_good_stream_id, val_to_str_ext(error_code, &error_code_vals_ext, "Unknown (%d)"));
+                proto_item_append_text(ti_ft, " Stream ID: %u, Error code: %s", last_good_stream_id, val_to_str_ext(pinfo->pool, error_code, &error_code_vals_ext, "Unknown (%d)"));
                 col_set_str(pinfo->cinfo, COL_INFO, "GOAWAY");
                 }
             break;
@@ -1900,7 +1900,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
 	    } else { /* T050 and T051 */
                 tvbuff_t *next_tvb = tvb_new_subset_length(tvb, offset, (int)crypto_length);
                 col_set_writable(pinfo->cinfo, -1, false);
-                call_dissector_with_data(tls13_handshake_handle, next_tvb, pinfo, ft_tree, GUINT_TO_POINTER(crypto_offset));
+                call_dissector_with_data(tls13_handshake_handle, next_tvb, pinfo, ft_tree, GUINT_TO_POINTER((unsigned)crypto_offset));
                 col_set_writable(pinfo->cinfo, -1, true);
                 offset += (uint32_t)crypto_length;
 	    }
@@ -1955,6 +1955,7 @@ dissect_gquic_frame_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *gquic_tr
 
                     proto_item_append_text(ti_stream, " (Reserved for H2 HEADERS)");
 
+                    /* XXX - Set COL_PROTOCOL to "HTTP2"? */
                     col_set_str(pinfo->cinfo, COL_INFO, "H2");
 
                     tvb_h2 = tvb_new_subset_remaining(tvb, offset);

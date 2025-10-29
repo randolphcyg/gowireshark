@@ -20,6 +20,8 @@
 #include <epan/oids.h>
 #include <epan/asn1.h>
 #include <epan/strutil.h>
+#include <epan/export_object.h>
+#include <epan/proto_data.h>
 #include <wsutil/array.h>
 
 #include "packet-ber.h"
@@ -28,7 +30,7 @@
 #include "packet-x509if.h"
 #include "packet-x509sat.h"
 #include "packet-ldap.h"
-#include "packet-pkcs1.h"
+#include "packet-pkixalgs.h"
 #if defined(HAVE_LIBGNUTLS)
 #include <gnutls/gnutls.h>
 #endif
@@ -42,10 +44,15 @@ void proto_reg_handoff_x509af(void);
 
 static dissector_handle_t pkix_crl_handle;
 
+static int x509af_eo_tap;
+
 /* Initialize the protocol and registered fields */
 static int proto_x509af;
 static int hf_x509af_algorithm_id;
 static int hf_x509af_extension_id;
+static int hf_x509af_subjectPublicKey_dh;
+static int hf_x509af_subjectPublicKey_dsa;
+static int hf_x509af_subjectPublicKey_rsa;
 static int hf_x509af_x509af_Certificate_PDU;      /* Certificate */
 static int hf_x509af_SubjectPublicKeyInfo_PDU;    /* SubjectPublicKeyInfo */
 static int hf_x509af_CertificatePair_PDU;         /* CertificatePair */
@@ -125,6 +132,7 @@ static int hf_x509af_g;                           /* INTEGER */
 
 /* Initialize the subtree pointers */
 static int ett_pkix_crl;
+static int ett_x509af_SubjectPublicKey;
 static int ett_x509af_Certificate;
 static int ett_x509af_T_signedCertificate;
 static int ett_x509af_SubjectName;
@@ -161,6 +169,13 @@ static const char *algorithm_id;
 static void
 x509af_export_publickey(tvbuff_t *tvb, asn1_ctx_t *actx, int offset, int len);
 
+typedef struct _x509af_eo_t {
+  const char *subjectname;
+  char *serialnum;
+  tvbuff_t *payload;
+} x509af_eo_t;
+
+
 const value_string x509af_Version_vals[] = {
   {   0, "v1" },
   {   1, "v2" },
@@ -181,8 +196,18 @@ dissect_x509af_Version(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_,
 
 int
 dissect_x509af_CertificateSerialNumber(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  int start_offset = offset;
   offset = dissect_ber_integer64(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
+
+  x509af_eo_t *eo_info = p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_x509af, 0);
+  if (eo_info) {
+    uint32_t len;
+    start_offset = get_ber_identifier(tvb, start_offset, NULL, NULL, NULL);
+    start_offset = get_ber_length(tvb, start_offset, &len, NULL);
+    eo_info->serialnum = tvb_bytes_to_str(actx->pinfo->pool, tvb, start_offset, len);
+  }
+
 
   return offset;
 }
@@ -325,6 +350,10 @@ dissect_x509af_SubjectName(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset 
 
   str = x509if_get_last_dn();
   proto_item_append_text(proto_item_get_parent(tree), " (%s)", str?str:"");
+  x509af_eo_t *eo_info = p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_x509af, 0);
+  if (eo_info) {
+    eo_info->subjectname = str;
+  }
 
 
   return offset;
@@ -336,17 +365,23 @@ static int
 dissect_x509af_T_subjectPublicKey(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   tvbuff_t *bs_tvb = NULL;
 
-  dissect_ber_bitstring(false, actx, NULL, tvb, offset,
-                        NULL, 0, hf_index, -1, &bs_tvb);
+  offset = dissect_ber_bitstring(false, actx, tree, tvb, offset,
+                                 NULL, 0, hf_index, -1, &bs_tvb);
 
   /* See RFC 3279 for possible subjectPublicKey values given an Algorithm ID.
    * The contents of subjectPublicKey are always explicitly tagged. */
   if (bs_tvb && !g_strcmp0(algorithm_id, "1.2.840.113549.1.1.1")) { /* id-rsa */
-    offset += dissect_pkcs1_RSAPublicKey(false, bs_tvb, 0, actx, tree, hf_index);
+    proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_x509af_SubjectPublicKey);
+    dissect_pkixalgs_RSAPublicKey(false, bs_tvb, 0, actx, subtree, hf_x509af_subjectPublicKey_rsa);
 
-  } else {
-    offset = dissect_ber_bitstring(false, actx, tree, tvb, offset,
-                                   NULL, 0, hf_index, -1, NULL);
+  } else if (bs_tvb && !g_strcmp0(algorithm_id, "1.2.840.10040.4.1")) { /* id-dsa */
+    proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_x509af_SubjectPublicKey);
+    dissect_pkixalgs_DSAPublicKey(false, bs_tvb, 0, actx, subtree, hf_x509af_subjectPublicKey_dsa);
+
+  } else if (bs_tvb && !g_strcmp0(algorithm_id, "1.2.840.10046.2.1")) { /* dhpublicnumber */
+    proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_x509af_SubjectPublicKey);
+    dissect_pkixalgs_DHPublicKey(false, bs_tvb, 0, actx, subtree, hf_x509af_subjectPublicKey_dh);
+
   }
 
 
@@ -488,8 +523,23 @@ static const ber_sequence_t Certificate_sequence[] = {
 
 int
 dissect_x509af_Certificate(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
+  int start_offset = offset;
+  x509af_eo_t *eo_info = NULL;
+  if (have_tap_listener(x509af_eo_tap)) {
+    eo_info = wmem_new0(actx->pinfo->pool, x509af_eo_t);
+    p_add_proto_data(actx->pinfo->pool, actx->pinfo, proto_x509af, 0, eo_info);
+  }
+
+    offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Certificate_sequence, hf_index, ett_x509af_Certificate);
+
+
+  if (eo_info) {
+    eo_info->payload = tvb_new_subset_length(tvb, start_offset, offset - start_offset);
+    tap_queue_packet(x509af_eo_tap, actx->pinfo, eo_info);
+  }
+
+
 
   return offset;
 }
@@ -932,6 +982,39 @@ static int dissect_Userid_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_t
 }
 
 
+static tap_packet_status
+x509af_eo_packet(void *tapdata, packet_info *pinfo, epan_dissect_t *edt _U_, const void *data, tap_flags_t flags _U_)
+{
+  export_object_list_t *object_list = (export_object_list_t *)tapdata;
+  const x509af_eo_t *eo_info = (const x509af_eo_t *)data;
+  export_object_entry_t *entry;
+
+  if (data) {
+    entry = g_new0(export_object_entry_t, 1);
+
+    entry->pkt_num = pinfo->num;
+
+    // There should be a commonName
+    char *name = strstr(eo_info->subjectname, "id-at-commonName=");
+    if (name) {
+      name += strlen("id-at-commonName=");
+      entry->hostname = g_strndup(name, strcspn(name, ","));
+    }
+    entry->content_type = g_strdup("application/pkix-cert");
+
+    entry->filename = g_strdup_printf("%s.cer", eo_info->serialnum);
+
+    entry->payload_len = tvb_captured_length(eo_info->payload);
+    entry->payload_data = (uint8_t *)tvb_memdup(NULL, eo_info->payload, 0, entry->payload_len);
+
+    object_list->add_entry(object_list->gui_data, entry);
+
+    return TAP_PACKET_REDRAW;
+  } else {
+    return TAP_PACKET_DONT_REDRAW;
+  }
+}
+
 /* Exports the SubjectPublicKeyInfo structure as gnutls_datum_t.
  * actx->private_data is assumed to be a gnutls_datum_t pointer which will be
  * filled in if non-NULL. */
@@ -988,6 +1071,18 @@ void proto_register_x509af(void) {
     { &hf_x509af_extension_id,
       { "Extension Id", "x509af.extension.id",
         FT_OID, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_x509af_subjectPublicKey_dh,
+      { "DH Public Key", "x509af.subjectPublicKey.dh",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_x509af_subjectPublicKey_dsa,
+      { "DSA Public Key", "x509af.subjectPublicKey.dsa",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_x509af_subjectPublicKey_rsa,
+      { "RSA Public Key", "x509af.subjectPublicKey.rsa",
+        FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_x509af_x509af_Certificate_PDU,
       { "Certificate", "x509af.Certificate_element",
@@ -1174,7 +1269,7 @@ void proto_register_x509af(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_x509af_revokedUserCertificate,
-      { "userCertificate", "x509af.userCertificate",
+      { "userCertificate", "x509af.revokedUserCertificate",
         FT_BYTES, BASE_NONE, NULL, 0,
         "CertificateSerialNumber", HFILL }},
     { &hf_x509af_revocationDate,
@@ -1210,7 +1305,7 @@ void proto_register_x509af(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         "AttributeCertificateInfo", HFILL }},
     { &hf_x509af_info_subject,
-      { "subject", "x509af.subject",
+      { "subject", "x509af.info_subject",
         FT_UINT32, BASE_DEC, VALS(x509af_InfoSubject_vals), 0,
         "InfoSubject", HFILL }},
     { &hf_x509af_baseCertificateID,
@@ -1218,11 +1313,11 @@ void proto_register_x509af(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         "IssuerSerial", HFILL }},
     { &hf_x509af_infoSubjectName,
-      { "subjectName", "x509af.subjectName",
+      { "subjectName", "x509af.infoSubjectName",
         FT_UINT32, BASE_DEC, NULL, 0,
         "GeneralNames", HFILL }},
     { &hf_x509af_issuerName,
-      { "issuer", "x509af.issuer",
+      { "issuer", "x509af.issuerName",
         FT_UINT32, BASE_DEC, NULL, 0,
         "GeneralNames", HFILL }},
     { &hf_x509af_attCertValidityPeriod,
@@ -1258,15 +1353,15 @@ void proto_register_x509af(void) {
         FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0,
         "GeneralizedTime", HFILL }},
     { &hf_x509af_assertion_subject,
-      { "subject", "x509af.subject",
+      { "subject", "x509af.assertion_subject",
         FT_UINT32, BASE_DEC, VALS(x509af_AssertionSubject_vals), 0,
         "AssertionSubject", HFILL }},
     { &hf_x509af_assertionSubjectName,
-      { "subjectName", "x509af.subjectName",
+      { "subjectName", "x509af.assertionSubjectName",
         FT_UINT32, BASE_DEC, VALS(x509af_SubjectName_vals), 0,
         NULL, HFILL }},
     { &hf_x509af_assertionIssuer,
-      { "issuer", "x509af.issuer",
+      { "issuer", "x509af.assertionIssuer",
         FT_UINT32, BASE_DEC, VALS(x509if_Name_vals), 0,
         "Name", HFILL }},
     { &hf_x509af_attCertValidity,
@@ -1298,6 +1393,7 @@ void proto_register_x509af(void) {
   /* List of subtrees */
   static int *ett[] = {
     &ett_pkix_crl,
+    &ett_x509af_SubjectPublicKey,
     &ett_x509af_Certificate,
     &ett_x509af_T_signedCertificate,
     &ett_x509af_SubjectName,
@@ -1338,6 +1434,8 @@ void proto_register_x509af(void) {
   /* Register fields and subtrees */
   proto_register_field_array(proto_x509af, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
+
+  x509af_eo_tap = register_export_object(proto_x509af, x509af_eo_packet, NULL);
 
   register_cleanup_routine(&x509af_cleanup_protocol);
 

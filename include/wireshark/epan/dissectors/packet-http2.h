@@ -22,12 +22,15 @@ extern "C" {
 #define HTTP2_HEADER_METHOD_CONNECT "CONNECT"
 #define HTTP2_HEADER_TRANSFER_ENCODING "transfer-encoding"
 #define HTTP2_HEADER_PATH ":path"
+#define HTTP2_HEADER_LOCATION "location"
 #define HTTP2_HEADER_AUTHORITY ":authority"
 #define HTTP2_HEADER_SCHEME ":scheme"
 #define HTTP2_HEADER_CONTENT_TYPE "content-type"
+#define HTTP2_HEADER_PROTOCOL ":protocol"
 #define HTTP2_HEADER_UNKNOWN "<unknown>"
 /* http2 for grpc */
 #define HTTP2_HEADER_GRPC_ENCODING "grpc-encoding"
+#define HTTP2_HEADER_3GPP_SBI_CORRELATION_INFO "3gpp-sbi-correlation-info"
 
 int dissect_http2_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_ );
 
@@ -58,6 +61,33 @@ const char* http2_get_header_value(packet_info *pinfo, const char* name, bool th
  * Returns 0 if no HTTP/2 session was found.
  */
 uint32_t http2_get_stream_id(packet_info *pinfo);
+
+/**
+ * Set IMSI on active HTTP/2 Stream for the current PDU (typically the DATA frame).
+ * Only valid when called from a HTTP/2 subdissector.
+ */
+void
+http2_set_stream_imsi(packet_info *pinfo, char* imsi);
+
+/**
+ * Get IMSI of active HTTP/2 Stream for the current PDU (typically the DATA frame).
+ * Only valid when called from a HTTP/2 subdissector.
+ */
+const char*
+http2_get_stream_imsi(packet_info *pinfo);
+
+/**
+ * Add referenceid map to IMSI on active HTTP/2 Stream for the current PDU (typically the DATA frame).
+ * Only valid when called from a HTTP/2 subdissector.
+ */
+void
+http2_add_referenceid_imsi(char* referenceid, const char* imsi);
+
+/**
+ * Get IMSI from on referenceid mapping.
+ */
+char*
+http2_get_imsi_from_referenceid(const char* referenceid);
 
 /**
  * Retrieves the HTTP/2 Stream ID which is smaller than or equal to the provided

@@ -135,6 +135,10 @@ dfilter_apply_full(dfilter_t *df, proto_tree *tree, GPtrArray **fvals);
 void
 dfilter_prime_proto_tree(const dfilter_t *df, proto_tree *tree);
 
+/* Prime a proto_tree using the fields/protocols used in a dfilter, marked for print. */
+void
+dfilter_prime_proto_tree_print(const dfilter_t *df, proto_tree *tree);
+
 /* Refresh references in a compiled display filter. */
 WS_DLL_PUBLIC
 void
@@ -197,6 +201,10 @@ dfilter_text(dfilter_t *df);
 WS_DLL_PUBLIC
 const char *
 dfilter_syntax_tree(dfilter_t *df);
+
+WS_DLL_PUBLIC
+ftenum_t
+dfilter_get_return_type(dfilter_t *df);
 
 /* Print bytecode of dfilter to log */
 WS_DLL_PUBLIC

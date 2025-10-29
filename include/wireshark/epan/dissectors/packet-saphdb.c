@@ -28,6 +28,9 @@
 #include <wsutil/wmem/wmem.h>
 #include <epan/wmem_scopes.h>
 
+#include <wsutil/ws_roundup.h>
+#include <wsutil/ws_padding_to.h>
+
 #include "packet-tcp.h"
 #include "packet-tls.h"
 
@@ -552,7 +555,7 @@ static expert_field ei_saphdb_segments_number_incorrect;
 static expert_field ei_saphdb_segment_length;
 static expert_field ei_saphdb_buffer_length;
 static expert_field ei_saphdb_parts_number_incorrect;
-static expert_field ei_saphdb_varpartlenght_incorrect;
+static expert_field ei_saphdb_varpartlength_incorrect;
 
 
 /* Global highlight preference */
@@ -858,13 +861,14 @@ dissect_saphdb_part_buffer(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 			length -= 5;
 
 			if ((error_text_length > 0) && (tvb_reported_length_remaining(tvb, offset) >= error_text_length)) {
+				unsigned error_text_padding_length;
+
 				proto_tree_add_item(tree, hf_saphdb_part_error_text, tvb, offset, error_text_length, ENC_ASCII);
 				length -= error_text_length;
 
 				/* Align the error text length to 8 */
-				if ((error_text_length % 8) != 0) {
-					length += 8 - (error_text_length % 8);
-				}
+				error_text_padding_length = WS_PADDING_TO_8(error_text_length);
+				length += error_text_padding_length;
 			}
 			break;
 
@@ -971,9 +975,7 @@ dissect_saphdb_part(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *d
 	}
 
 	/* Align the buffer length to 8 */
-	if (bufferlength % 8 != 0) {
-		bufferlength += 8 - bufferlength % 8;
-	}
+	bufferlength = WS_ROUNDUP_8(bufferlength);
 
 	/* Adjust the length */
 	if (bufferlength < 0 || tvb_reported_length_remaining(tvb, offset) < bufferlength) {
@@ -1202,7 +1204,7 @@ dissect_saphdb_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
 
 			/* Check the length of the variable part against the remaining packet */
 			if ((uint32_t)tvb_reported_length_remaining(tvb, offset) != varpartlength) {
-				expert_add_info_format(pinfo, varpartlength_item, &ei_saphdb_varpartlenght_incorrect, "Length of variable part %d is invalid", varpartlength);
+				expert_add_info_format(pinfo, varpartlength_item, &ei_saphdb_varpartlength_incorrect, "Length of variable part %d is invalid", varpartlength);
 				varpartlength = tvb_reported_length_remaining(tvb, offset);
 			}
 
@@ -1249,7 +1251,7 @@ get_saphdb_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data
 static int
 dissect_saphdb_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-	return dissect_saphdb_message(tvb, pinfo, tree, false);
+	return dissect_saphdb_message(tvb, pinfo, tree, NULL);
 }
 
 static int
@@ -1437,7 +1439,7 @@ proto_register_saphdb(void)
 		{ &ei_saphdb_segment_length, { "saphdb.segment.segmentlength.invalid", PI_MALFORMED, PI_ERROR, "The segment length is incorrect", EXPFILL }},
 		{ &ei_saphdb_buffer_length, { "saphdb.segment.part.bufferlength.invalid", PI_MALFORMED, PI_ERROR, "The part buffer length is incorrect", EXPFILL }},
 		{ &ei_saphdb_parts_number_incorrect, { "saphdb.segment.noofparts.invalid", PI_MALFORMED, PI_ERROR, "The number of parts is incorrect", EXPFILL }},
-		{ &ei_saphdb_varpartlenght_incorrect, { "saphdb.varpartlength.invalid", PI_MALFORMED, PI_ERROR, "The length is incorrect", EXPFILL }},
+		{ &ei_saphdb_varpartlength_incorrect, { "saphdb.varpartlength.invalid", PI_MALFORMED, PI_ERROR, "The length is incorrect", EXPFILL }},
 	};
 
 	module_t *saphdb_module;

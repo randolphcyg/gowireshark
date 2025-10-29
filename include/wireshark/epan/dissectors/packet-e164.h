@@ -12,7 +12,7 @@
 #ifndef __PACKET_E164_H__
 #define __PACKET_E164_H__
 
-#include <epan/value_string.h>
+#include <wsutil/value_string.h>
 #include "ws_symbol_export.h"
 
 extern const value_string E164_country_code_value[];
@@ -42,7 +42,7 @@ typedef enum {
 } e164_encoding_t;
 
 extern void dissect_e164_number(tvbuff_t *tvb, proto_tree *tree, int offset, int length, e164_info_t e164_info);
-WS_DLL_PUBLIC void dissect_e164_cc(tvbuff_t *tvb, proto_tree *tree, int offset, e164_encoding_t encoding);
-WS_DLL_PUBLIC const char * dissect_e164_msisdn(tvbuff_t *tvb, proto_tree *tree, int offset, int length, e164_encoding_t encoding);
-WS_DLL_PUBLIC const char * dissect_e164_isdn(tvbuff_t *tvb, proto_tree *tree, int offset, int length, e164_encoding_t encoding);
+WS_DLL_PUBLIC void dissect_e164_cc(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, int offset, e164_encoding_t encoding);
+WS_DLL_PUBLIC const char * dissect_e164_msisdn(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, int offset, int length, e164_encoding_t encoding);
+WS_DLL_PUBLIC const char * dissect_e164_isdn(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, int offset, int length, e164_encoding_t encoding);
 #endif

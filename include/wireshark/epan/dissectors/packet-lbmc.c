@@ -3872,6 +3872,7 @@ typedef struct
 #define LBMC_UME_STOREID_MAX_STOREID 0x7FFF
 #define LBMC_UME_CAPABILITY_QC_FLAG 0x4000
 #define LBMC_UME_CAPABILITY_CLIENT_LIFETIME_FLAG 0x2000
+#define LBMC_UME_CAPABILITY_RANGED_RX_FLAG 0x1000
 #define LBMC_UME_PROXY_SRC_E_FLAG 0x4000
 #define LBMC_UME_PROXY_SRC_C_FLAG 0x2000
 #define LBMC_UME_RXREQ_T_FLAG 0x4000
@@ -4804,8 +4805,9 @@ static int hf_lbmc_ume_capability_next_hdr;
 static int hf_lbmc_ume_capability_hdr_len;
 static int hf_lbmc_ume_capability_flags;
 static int hf_lbmc_ume_capability_flags_ignore;
-static int hf_lbmc_ume_capability_flags_qc_flag;
 static int hf_lbmc_ume_capability_flags_client_lifetime_flag;
+static int hf_lbmc_ume_capability_flags_qc_flag;
+static int hf_lbmc_ume_capability_flags_ranged_rx_flag;
 static int hf_lbmc_ume_proxy_src;
 static int hf_lbmc_ume_proxy_src_next_hdr;
 static int hf_lbmc_ume_proxy_src_hdr_len;
@@ -6531,7 +6533,7 @@ static int dissect_nhdr_apphdr(tvbuff_t * tvb, int offset, packet_info * pinfo _
     return (len_dissected);
 }
 
-static int dissect_nhdr_apphdr_chain_element(tvbuff_t * tvb, int offset, packet_info * pinfo _U_, proto_tree * tree, uint8_t element)
+static int dissect_nhdr_apphdr_chain_element(tvbuff_t * tvb, int offset, packet_info * pinfo, proto_tree * tree, uint8_t element)
 {
     proto_item * subtree_item = NULL;
     proto_tree * subtree = NULL;
@@ -6541,7 +6543,7 @@ static int dissect_nhdr_apphdr_chain_element(tvbuff_t * tvb, int offset, packet_
     int len_dissected = 0;
 
     hdrlen = tvb_get_uint8(tvb, offset + O_LBMC_APPHDR_CHAIN_ELEMENT_T_HDR_LEN);
-    subtree_item = proto_tree_add_none_format(tree, hf_lbmc_apphdr_chain_element, tvb, offset, (int)hdrlen, "%s element", val_to_str(element, lbmc_apphdr_chain_type, "Unknown (0x%02x)"));
+    subtree_item = proto_tree_add_none_format(tree, hf_lbmc_apphdr_chain_element, tvb, offset, (int)hdrlen, "%s element", val_to_str(pinfo->pool, element, lbmc_apphdr_chain_type, "Unknown (0x%02x)"));
     subtree = proto_item_add_subtree(subtree_item, ett_lbmc_apphdr_chain_element);
     proto_tree_add_item(subtree, hf_lbmc_apphdr_chain_element_next_hdr, tvb, offset + O_LBMC_APPHDR_CHAIN_ELEMENT_T_NEXT_HDR, L_LBMC_APPHDR_CHAIN_ELEMENT_T_NEXT_HDR, ENC_BIG_ENDIAN);
     hdrlen_item = proto_tree_add_item(subtree, hf_lbmc_apphdr_chain_element_hdr_len, tvb, offset + O_LBMC_APPHDR_CHAIN_ELEMENT_T_HDR_LEN, L_LBMC_APPHDR_CHAIN_ELEMENT_T_HDR_LEN, ENC_BIG_ENDIAN);
@@ -6566,7 +6568,7 @@ static int dissect_nhdr_apphdr_chain_element(tvbuff_t * tvb, int offset, packet_
     return (len_dissected);
 }
 
-static int dissect_nhdr_apphdr_chain_msgprop_element(tvbuff_t * tvb, int offset, packet_info * pinfo _U_, proto_tree * tree, uint8_t element, uint32_t * msg_prop_len)
+static int dissect_nhdr_apphdr_chain_msgprop_element(tvbuff_t * tvb, int offset, packet_info * pinfo, proto_tree * tree, uint8_t element, uint32_t * msg_prop_len)
 {
     proto_item * subtree_item = NULL;
     proto_tree * subtree = NULL;
@@ -6576,7 +6578,7 @@ static int dissect_nhdr_apphdr_chain_msgprop_element(tvbuff_t * tvb, int offset,
     proto_item * hdrlen_item = NULL;
 
     hdrlen = tvb_get_uint8(tvb, offset + O_LBMC_APPHDR_CHAIN_MSGPROP_ELEMENT_T_HDR_LEN);
-    subtree_item = proto_tree_add_none_format(tree, hf_lbmc_apphdr_chain_msgprop, tvb, offset, (int)hdrlen, "%s element", val_to_str(element, lbmc_apphdr_chain_type, "Unknown (0x%02x)"));
+    subtree_item = proto_tree_add_none_format(tree, hf_lbmc_apphdr_chain_msgprop, tvb, offset, (int)hdrlen, "%s element", val_to_str(pinfo->pool, element, lbmc_apphdr_chain_type, "Unknown (0x%02x)"));
     subtree = proto_item_add_subtree(subtree_item, ett_lbmc_apphdr_chain_msgprop);
     proto_tree_add_item(subtree, hf_lbmc_apphdr_chain_msgprop_next_hdr, tvb, offset + O_LBMC_APPHDR_CHAIN_MSGPROP_ELEMENT_T_NEXT_HDR, L_LBMC_APPHDR_CHAIN_MSGPROP_ELEMENT_T_NEXT_HDR, ENC_BIG_ENDIAN);
     hdrlen_item = proto_tree_add_item(subtree, hf_lbmc_apphdr_chain_msgprop_hdr_len, tvb, offset + O_LBMC_APPHDR_CHAIN_MSGPROP_ELEMENT_T_HDR_LEN, L_LBMC_APPHDR_CHAIN_MSGPROP_ELEMENT_T_HDR_LEN, ENC_BIG_ENDIAN);
@@ -7111,6 +7113,7 @@ static int dissect_nhdr_ume_capability(tvbuff_t * tvb, int offset, packet_info *
         &hf_lbmc_ume_capability_flags_ignore,
         &hf_lbmc_ume_capability_flags_qc_flag,
         &hf_lbmc_ume_capability_flags_client_lifetime_flag,
+        &hf_lbmc_ume_capability_flags_ranged_rx_flag,
         NULL
     };
 
@@ -8383,7 +8386,7 @@ static int dissect_nhdr_ctxinfo(tvbuff_t * tvb, int offset, packet_info * pinfo 
         int namelen = (int) hdrlen - len_dissected;
         if (namelen > 0)
         {
-            proto_tree_add_item(subtree, hf_lbmc_ctxinfo_name, tvb, offset + L_LBMC_CNTL_CTXINFO_HDR_T, hdrlen - L_LBMC_CNTL_CTXINFO_HDR_T, ENC_ASCII | ENC_NA);
+            proto_tree_add_item(subtree, hf_lbmc_ctxinfo_name, tvb, offset + L_LBMC_CNTL_CTXINFO_HDR_T, hdrlen - L_LBMC_CNTL_CTXINFO_HDR_T, ENC_ASCII);
             len_dissected += namelen;
         }
         else
@@ -11744,7 +11747,7 @@ void proto_register_lbmc(void)
         { &hf_lbmc_tcp_request_qidx,
             { "Request Index", "lbmc.tcp_request.qidx", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmc_tcp_request_port,
-            { "Port", "lbmc.tcp_request.port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Port", "lbmc.tcp_request.port", FT_UINT16, BASE_PT_TCP, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmc_tcp_request_reserved,
             { "Reserved", "lbmc.tcp_request.reserved", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmc_tcp_request_ipaddr,
@@ -12173,6 +12176,8 @@ void proto_register_lbmc(void)
             { "Quorum/Consensus Capabilities", "lbmc.ume_capability.flags.qc_flag", FT_BOOLEAN, L_LBMC_CNTL_UME_CAPABILITY_HDR_T_FLAGS * 8, TFS(&tfs_set_notset), LBMC_UME_CAPABILITY_QC_FLAG, "Set if quorum/consensus supported", HFILL } },
         { &hf_lbmc_ume_capability_flags_client_lifetime_flag,
             { "Client Lifetime Capabilities", "lbmc.ume_capability.flags.client_lifetime_flag", FT_BOOLEAN, L_LBMC_CNTL_UME_CAPABILITY_HDR_T_FLAGS * 8, TFS(&tfs_set_notset), LBMC_UME_CAPABILITY_CLIENT_LIFETIME_FLAG, "Set if client lifetime enabled", HFILL } },
+        { &hf_lbmc_ume_capability_flags_ranged_rx_flag,
+            { "Ranged RX Capability", "lbmc.ume_capability.flags.ranged_rx_flag", FT_BOOLEAN, L_LBMC_CNTL_UME_CAPABILITY_HDR_T_FLAGS * 8, TFS(&tfs_set_notset), LBMC_UME_CAPABILITY_RANGED_RX_FLAG, "Set if Ranged RX is supported", HFILL } },
         { &hf_lbmc_ume_proxy_src,
             { "UME Proxy Source", "lbmc.ume_proxy_src", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmc_ume_proxy_src_next_hdr,
@@ -12216,7 +12221,7 @@ void proto_register_lbmc(void)
         { &hf_lbmc_ume_store_grp_idx,
             { "Group Index", "lbmc.ume_store.grp_idx", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmc_ume_store_store_tcp_port,
-            { "Store TCP Port", "lbmc.ume_store.store_tcp_port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Store TCP Port", "lbmc.ume_store.store_tcp_port", FT_UINT16, BASE_PT_TCP, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmc_ume_store_store_idx,
             { "Store Index", "lbmc.ume_store.store_idx", FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmc_ume_store_store_ip_addr,

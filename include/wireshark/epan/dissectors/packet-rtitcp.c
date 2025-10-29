@@ -24,6 +24,9 @@
 #include <epan/addr_resolv.h>
 #include <epan/wmem_scopes.h>
 #include <epan/conversation.h>
+
+#include <wsutil/ws_padding_to.h>
+
 #include "packet-tcp.h"
 
 #define RTITCP_MAGIC_NUMBER             0xdd54dd55
@@ -397,7 +400,7 @@ static unsigned dissect_attribute(tvbuff_t *tvb, packet_info *pinfo,
             break;
     }
 
-    padding = (4 - attribute_length%4)%4;
+    padding = WS_PADDING_TO_4(attribute_length);
     return (attribute_length+padding+4);
 }
 static proto_tree* print_header(proto_tree *tree, proto_tree *rtitcp_message, tvbuff_t *tvb, unsigned offset,
@@ -791,7 +794,7 @@ proto_register_rtitcp(void)
 
         { &hf_rtitcp_header_message_length, {
             "Message Length", "rtitcp.header.message_length",
-            FT_UINT16, BASE_DEC, NULL, 0,
+            FT_UINT24, BASE_DEC, NULL, 0,
             NULL, HFILL }
         },
 
@@ -911,13 +914,13 @@ proto_register_rtitcp(void)
 
         { &hf_rtitcp_response_in,
           { "Response In", "rtitcp.response_in",
-            FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+            FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
             "The response to this RTITCP request is in this frame", HFILL }
         },
 
         { &hf_rtitcp_response_to,
           { "Request In", "rtitcp.response_to",
-            FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+            FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0,
             "This is a response to the RTITCP request in this frame", HFILL }
         },
 

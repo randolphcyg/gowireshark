@@ -18,9 +18,9 @@
 #include <epan/prefs.h>
 #include <epan/expert.h>
 #include <epan/to_str.h>
-#include <epan/uat.h>
 #include <epan/stats_tree.h>
-
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-udp.h"
 #include "packet-someip.h"
 
@@ -338,7 +338,7 @@ dissect_someip_sd_pdu_option_configuration(tvbuff_t *tvb, packet_info *pinfo, pr
             break;
         }
 
-        proto_tree_add_item(subtree, hf_someip_sd_option_config_string_element, tvb, offset + pos, element_length, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(subtree, hf_someip_sd_option_config_string_element, tvb, offset + pos, element_length, ENC_ASCII);
         pos += element_length;
     }
 }
@@ -376,7 +376,7 @@ dissect_someip_sd_pdu_option_ipv4(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     proto_item         *ti_top = NULL;
 
     type = tvb_get_uint8(tvb, offset + 2);
-    description = val_to_str(type, sd_option_type, "(Unknown Option: %d)");
+    description = val_to_str(pinfo->pool, type, sd_option_type, "(Unknown Option: %d)");
     tree = proto_tree_add_subtree_format(tree, tvb, offset, length, ett_someip_sd_option, &ti_top, "%d: %s Option", optionnum, description);
 
     if (length != SD_OPTION_IPV4_LENGTH) {
@@ -394,7 +394,7 @@ dissect_someip_sd_pdu_option_ipv4(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     proto_tree_add_item(tree, hf_someip_sd_option_reserved, tvb, offset, 1, ENC_NA);
     offset += 1;
 
-    proto_tree_add_item(tree, hf_someip_sd_option_ipv4, tvb, offset, 4, ENC_NA);
+    proto_tree_add_item(tree, hf_someip_sd_option_ipv4, tvb, offset, 4, ENC_BIG_ENDIAN);
     ipstring = tvb_ip_to_str(pinfo->pool, tvb, offset);
     offset += 4;
 
@@ -402,7 +402,7 @@ dissect_someip_sd_pdu_option_ipv4(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     offset += 1;
 
     ti = proto_tree_add_item_ret_uint(tree, hf_someip_sd_option_proto, tvb, offset, 1, ENC_NA, &l4proto);
-    l4protoname = val_to_str(l4proto, sd_option_l4protos, "Unknown Transport Protocol: %d");
+    l4protoname = val_to_str(pinfo->pool, l4proto, sd_option_l4protos, "Unknown Transport Protocol: %d");
     proto_item_append_text(ti, " (%s)", l4protoname);
 
     if (type != SD_OPTION_IPV4_ENDPOINT && l4proto == SD_OPTION_L4PROTO_TCP) {
@@ -429,7 +429,7 @@ dissect_someip_sd_pdu_option_ipv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     proto_item         *ti_top = NULL;
 
     type = tvb_get_uint8(tvb, offset + 2);
-    description = val_to_str(type, sd_option_type, "(Unknown Option: %d)");
+    description = val_to_str(pinfo->pool, type, sd_option_type, "(Unknown Option: %d)");
 
     tree = proto_tree_add_subtree_format(tree, tvb, offset, length, ett_someip_sd_option, &ti_top, "%d: %s Option", optionnum, description);
 
@@ -455,7 +455,7 @@ dissect_someip_sd_pdu_option_ipv6(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
     offset += 1;
 
     ti = proto_tree_add_item_ret_uint(tree, hf_someip_sd_option_proto, tvb, offset, 1, ENC_NA, &l4proto);
-    l4protoname = val_to_str(l4proto, sd_option_l4protos, "(Unknown Transport Protocol: %d)");
+    l4protoname = val_to_str(pinfo->pool, l4proto, sd_option_l4protos, "(Unknown Transport Protocol: %d)");
     proto_item_append_text(ti, " (%s)", l4protoname);
 
     if (type != SD_OPTION_IPV6_ENDPOINT && l4proto == SD_OPTION_L4PROTO_TCP) {
@@ -885,7 +885,7 @@ dissect_someip_sd_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
     };
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, SOMEIP_SD_NAME);
-    col_set_str(pinfo->cinfo, COL_INFO, SOMEIP_SD_NAME_LONG);
+    col_set_str(pinfo->cinfo, COL_INFO, SOMEIP_SD_NAME);
 
     ti = proto_tree_add_item(tree, proto_someip_sd, tvb, offset, -1, ENC_NA);
     tree = proto_item_add_subtree(ti, ett_someip_sd);
@@ -990,24 +990,25 @@ stat_number_to_string_with_any(uint32_t value, unsigned max, char *format_string
 
 static void
 stat_create_entry_summary_string(const someip_sd_entries_tap_t *data, char *ret, size_t size_limit) {
-    char service_str[128];
-    char instance_str[128];
-    char majorver_str[128];
-    char minorver_str[128];
-    char eventgrp_str[128];
-    char tmp[128];
+    char service_str[16];
+    char instance_str[16];
+    char majorver_str[16];
+    char minorver_str[16];
+    char eventgrp_str[16];
+
+    int bytes_written;
 
     char *service_name  = someip_lookup_service_name(data->service_id);
     char *eventgrp_name = someip_lookup_eventgroup_name(data->service_id, data->eventgroup_id);
 
-    stat_number_to_string_with_any(data->service_id, UINT32_MAX, "0x%04x", service_str, sizeof(service_str) - 1);
-    stat_number_to_string_with_any(data->instance_id, UINT32_MAX, "0x%04x", instance_str, sizeof(instance_str) - 1);
-    stat_number_to_string_with_any(data->major_version, UINT8_MAX, "%d", majorver_str, sizeof(majorver_str) - 1);
+    stat_number_to_string_with_any(data->service_id, UINT32_MAX, "0x%04x", service_str, sizeof(service_str));
+    stat_number_to_string_with_any(data->instance_id, UINT32_MAX, "0x%04x", instance_str, sizeof(instance_str));
+    stat_number_to_string_with_any(data->major_version, UINT8_MAX, "%d", majorver_str, sizeof(majorver_str));
 
     switch (data->entry_type) {
     case SD_ENTRY_FIND_SERVICE:
     case SD_ENTRY_OFFER_SERVICE:
-        stat_number_to_string_with_any(data->minor_version, UINT32_MAX, "%d", minorver_str, sizeof(minorver_str) - 1);
+        stat_number_to_string_with_any(data->minor_version, UINT32_MAX, "%d", minorver_str, sizeof(minorver_str));
         if (service_name != NULL) {
             snprintf(ret, size_limit, "Service %s (%s) Version %s.%s Instance %s", service_str, service_name, majorver_str, minorver_str, instance_str);
         } else {
@@ -1017,14 +1018,14 @@ stat_create_entry_summary_string(const someip_sd_entries_tap_t *data, char *ret,
 
     case SD_ENTRY_SUBSCRIBE_EVENTGROUP:
     case SD_ENTRY_SUBSCRIBE_EVENTGROUP_ACK:
-        stat_number_to_string_with_any(data->eventgroup_id, UINT32_MAX, "0x%04x", eventgrp_str, sizeof(eventgrp_str) - 1);
+        stat_number_to_string_with_any(data->eventgroup_id, UINT32_MAX, "0x%04x", eventgrp_str, sizeof(eventgrp_str));
         if (service_name != NULL) {
-            snprintf(tmp, sizeof(tmp) - 1, "Service %s (%s) Version %s Instance %s Eventgroup %s", service_str, service_name, majorver_str, instance_str, eventgrp_str);
+            bytes_written = snprintf(ret, size_limit, "Service %s (%s) Version %s Instance %s Eventgroup %s", service_str, service_name, majorver_str, instance_str, eventgrp_str);
         } else {
-            snprintf(tmp, sizeof(tmp) - 1, "Service %s Version %s Instance %s Eventgroup %s", service_str, majorver_str, instance_str, eventgrp_str);
+            bytes_written = snprintf(ret, size_limit, "Service %s Version %s Instance %s Eventgroup %s", service_str, majorver_str, instance_str, eventgrp_str);
         }
-        if (eventgrp_name != NULL) {
-            snprintf(ret, size_limit, "%s (%s)", tmp, eventgrp_name);
+        if (bytes_written > 0 && ((size_t)bytes_written < size_limit) && eventgrp_name != NULL) {
+            snprintf(&ret[bytes_written], size_limit - bytes_written, " (%s)", eventgrp_name);
         }
         break;
     }

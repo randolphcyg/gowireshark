@@ -66,6 +66,7 @@
 #define OUI_NINTENDO        0x001F32
 #define OUI_TURBOCELL       0x0020F6    /* KarlNet, who brought you Turbocell */
 #define OUI_ODVA            0x00216C    /* ODVA */
+#define OUI_BBF             0x00256D    /* Broadband Forum */
 #define OUI_AVAYA           0x00400D    /* Avaya */
 #define OUI_CISCOWL         0x004096    /* Cisco Wireless (Aironet) */
 #define OUI_MARVELL         0x005043    /* Marvell Semiconductor */
@@ -79,6 +80,7 @@
 #define OUI_EXTREME         0x00E02B    /* Extreme EDP/ESRP */
 #define OUI_CABLE_BPDU      0x00E02F    /* DOCSIS spanning tree BPDU */
 #define OUI_FOUNDRY         0x00E052    /* Foundry */
+#define OUI_APPLE           0x0017f2    /* Apple, Inc */
 #define OUI_PROFINET_MULTICAST 0x010ECF   /* PROFIBUS Nutzerorganisation e.V. */
 #define OUI_SIEMENS         0x080006    /* Siemens AG */
 #define OUI_APPLE_ATALK     0x080007    /* Appletalk */

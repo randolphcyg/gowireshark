@@ -22,12 +22,12 @@
 #include <epan/prefs.h>
 #include <epan/conversation.h>
 #include <epan/expert.h>
-#include <epan/rtp_pt.h>
 #include <epan/addr_resolv.h>
 #include <epan/strutil.h>
 
 /* For setting up RTP/RTCP dissectors based on the RTPproxy's answers */
 #include "packet-rtp.h"
+#include "packet-rtp_pt.h"
 #include "packet-rtcp.h"
 
 void proto_register_rtpproxy(void);
@@ -310,7 +310,7 @@ rtpproxy_add_tag(tvbuff_t *tvb, packet_info* pinfo, proto_tree* rtpproxy_tree, u
         ti = proto_tree_add_item_ret_string(rtpproxy_tree, hf_rtpproxy_tag, tvb, begin, end - begin, ENC_ASCII | ENC_NA, pinfo->pool, &tmpstr);
         col_append_fstr(pinfo->cinfo, COL_INFO, ", Tag: %s", tmpstr);
         another_tree = proto_item_add_subtree(ti, ett_rtpproxy_tag);
-        ti = proto_tree_add_item(another_tree, hf_rtpproxy_mediaid, tvb, new_offset+1, 0, ENC_ASCII | ENC_NA);
+        ti = proto_tree_add_item(another_tree, hf_rtpproxy_mediaid, tvb, new_offset+1, 0, ENC_ASCII);
         proto_item_append_text(ti, "<skipped>");
         proto_item_set_generated(ti);
     }
@@ -347,7 +347,7 @@ rtpproxy_add_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rtpproxy_t
     rawstr = tvb_get_string_enc(pinfo->pool, tvb, begin, realsize, ENC_ASCII);
 
     while(offset < realsize){
-        ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_command_parameter, tvb, begin + offset, 1, ENC_ASCII | ENC_NA);
+        ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_command_parameter, tvb, begin + offset, 1, ENC_ASCII);
         offset++; /* Skip 1-byte parameter's type */
         switch (g_ascii_tolower(tvb_get_uint8(tvb, begin+offset-1)))
         {
@@ -418,7 +418,7 @@ rtpproxy_add_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rtpproxy_t
                 break;
             case 'p':
                 another_tree = proto_item_add_subtree(ti, ett_rtpproxy_command_parameters_proto);
-                proto_tree_add_item(another_tree, hf_rtpproxy_command_parameter_proto, tvb, begin+offset, 1, ENC_ASCII | ENC_NA);
+                proto_tree_add_item(another_tree, hf_rtpproxy_command_parameter_proto, tvb, begin+offset, 1, ENC_ASCII);
                 offset++;
                 break;
             case 't':
@@ -431,7 +431,7 @@ rtpproxy_add_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rtpproxy_t
                 break;
             case 'u':
                 another_tree = proto_item_add_subtree(ti, ett_rtpproxy_command_parameters_acc);
-                proto_tree_add_item(another_tree, hf_rtpproxy_command_parameter_acc, tvb, begin+offset, 1, ENC_ASCII | ENC_NA);
+                proto_tree_add_item(another_tree, hf_rtpproxy_command_parameter_acc, tvb, begin+offset, 1, ENC_ASCII);
                 offset++;
                 break;
             default:
@@ -621,7 +621,7 @@ dissect_rtpproxy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
                 ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_reply, tvb, offset, -1, ENC_NA);
 
                 rtpproxy_tree = proto_item_add_subtree(ti, ett_rtpproxy_reply);
-                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_status, tvb, offset, realsize - offset, ENC_ASCII | ENC_NA);
+                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_status, tvb, offset, realsize - offset, ENC_ASCII);
                 break;
             }
         /* FALL THROUGH */
@@ -634,7 +634,7 @@ dissect_rtpproxy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
             if(('1' <= tmp2) && (tmp2 <= '9') && (tvb_get_uint8(tvb, offset+2) == ':')){
                 col_set_str(pinfo->cinfo, COL_PROTOCOL, "RTPproxy-ng");
                 col_add_fstr(pinfo->cinfo, COL_INFO, "RTPproxy-ng: %s", rawstr);
-                ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_ng_bencode, tvb, offset, -1, ENC_ASCII | ENC_NA);
+                ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_ng_bencode, tvb, offset, -1, ENC_ASCII);
                 rtpproxy_tree = proto_item_add_subtree(ti, ett_rtpproxy_ng_bencode);
                 subtvb = tvb_new_subset_remaining(tvb, offset);
                 call_dissector(bencode_handle, subtvb, pinfo, rtpproxy_tree);
@@ -661,12 +661,12 @@ dissect_rtpproxy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
                 /* Skip whitespace between "VF" and "YYYYMMDD" tokens */
                 new_offset = tvb_skip_wsp(tvb, offset + ((unsigned)strlen("VF") + 1), -1);
                 ti = proto_tree_add_item_ret_string(rtpproxy_tree, hf_rtpproxy_version_request, tvb, new_offset, (int)strlen("YYYYMMDD"), ENC_ASCII | ENC_NA, pinfo->pool, &tmpstr);
-                proto_item_append_text(ti, " (%s)", str_to_str(tmpstr, versiontypenames, "Unknown"));
+                proto_item_append_text(ti, " (%s)", str_to_str_wmem(pinfo->pool, tmpstr, versiontypenames, "Unknown"));
                 break;
             }
 
             /* All other commands */
-            ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_command, tvb, offset, 1, ENC_ASCII | ENC_NA);
+            ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_command, tvb, offset, 1, ENC_ASCII);
 
             /* A specific case - handshake/ping */
             if (tmp == 'v')
@@ -742,7 +742,7 @@ dissect_rtpproxy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
             /* Extract Copy target */
             if (tmp == 'c'){
                 new_offset = tvb_find_uint8(tvb, offset, -1, ' ');
-                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_copy_target, tvb, offset, new_offset - offset, ENC_ASCII | ENC_NA);
+                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_copy_target, tvb, offset, new_offset - offset, ENC_ASCII);
                 /* Skip whitespace */
                 offset = tvb_skip_wsp(tvb, new_offset+1, -1);
             }
@@ -751,7 +751,7 @@ dissect_rtpproxy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
             if (tmp == 'p'){
                 /* Extract filename */
                 new_offset = tvb_find_uint8(tvb, offset, -1, ' ');
-                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_playback_filename, tvb, offset, new_offset - offset, ENC_ASCII | ENC_NA);
+                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_playback_filename, tvb, offset, new_offset - offset, ENC_ASCII);
                 /* Skip whitespace */
                 offset = tvb_skip_wsp(tvb, new_offset+1, -1);
 
@@ -779,7 +779,7 @@ dissect_rtpproxy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 
             /* Extract Notification address */
             if (tmp == 'u'){
-                ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_notify, tvb, offset, realsize - offset, ENC_ASCII | ENC_NA);
+                ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_notify, tvb, offset, realsize - offset, ENC_ASCII);
                 proto_item_set_text(ti, "Notify");
                 rtpproxy_tree = proto_item_add_subtree(ti, ett_rtpproxy_notify);
 
@@ -796,7 +796,7 @@ dissect_rtpproxy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
                 /* Skip whitespace */
                 offset = tvb_skip_wsp(tvb, new_offset+1, -1);
 
-                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_notify_tag, tvb, offset, realsize - offset, ENC_ASCII | ENC_NA);
+                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_notify_tag, tvb, offset, realsize - offset, ENC_ASCII);
             }
             break;
         case 'e':
@@ -827,8 +827,8 @@ dissect_rtpproxy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
             if (tmp == 'e'){
                 tmp = tvb_find_line_end(tvb, offset, -1, &new_offset, false);
                 tmpstr = tvb_get_string_enc(pinfo->pool, tvb, offset, tmp, ENC_ASCII);
-                ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_error, tvb, offset, (int)strlen(tmpstr), ENC_ASCII | ENC_NA);
-                proto_item_append_text(ti, " (%s)", str_to_str(tmpstr, errortypenames, "Unknown"));
+                ti = proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_error, tvb, offset, (int)strlen(tmpstr), ENC_ASCII);
+                proto_item_append_text(ti, " (%s)", str_to_str_wmem(pinfo->pool, tmpstr, errortypenames, "Unknown"));
                 break;
             }
 
@@ -839,7 +839,7 @@ dissect_rtpproxy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
              * https://github.com/sippy/rtpproxy/wiki/RTPP-%28RTPproxy-protocol%29-technical-specification#version-reply
              */
             if (((tmp == '0') || (tmp == '1')) && (realsize == offset + (int)strlen("X"))){
-                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_ok, tvb, offset, 1, ENC_ASCII | ENC_NA);
+                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_ok, tvb, offset, 1, ENC_ASCII);
                 break;
             }
 
@@ -850,7 +850,7 @@ dissect_rtpproxy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
              * then it's a version reply.
              */
             if (realsize == offset + (int)strlen("YYYYMMDD")){
-                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_version_supported, tvb, offset, (uint32_t)strlen("YYYYMMDD"), ENC_ASCII | ENC_NA);
+                proto_tree_add_item(rtpproxy_tree, hf_rtpproxy_version_supported, tvb, offset, (uint32_t)strlen("YYYYMMDD"), ENC_ASCII);
                 break;
             }
 
@@ -1385,7 +1385,7 @@ proto_register_rtpproxy(void)
                 "rtpproxy.request_in",
                 FT_FRAMENUM,
                 BASE_NONE,
-                NULL,
+                FRAMENUM_TYPE(FT_FRAMENUM_REQUEST),
                 0x0,
                 NULL,
                 HFILL
@@ -1399,7 +1399,7 @@ proto_register_rtpproxy(void)
                 "rtpproxy.response_in",
                 FT_FRAMENUM,
                 BASE_NONE,
-                NULL,
+                FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE),
                 0x0,
                 NULL,
                 HFILL

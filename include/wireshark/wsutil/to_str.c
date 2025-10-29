@@ -224,11 +224,14 @@ bytes_to_str_punct_maxlen(wmem_allocator_t *scope,
 	char *buf_ptr;
 	int truncated = 0;
 
-	ws_return_str_if(!src, scope);
-
+	/* src is an array of bytes, not necessarily null-terminated,
+	 * so check for a zero length first and allow it even with a
+	 * NULL src. */
 	if (!src_size) {
 		return wmem_strdup(scope, "");
 	}
+
+	ws_return_str_if(!src, scope);
 
 	if (!punct)
 		return bytes_to_str_maxlen(scope, src, src_size, max_bytes_len);
@@ -266,11 +269,14 @@ bytes_to_str_maxlen(wmem_allocator_t *scope,
 	char *buf_ptr;
 	int truncated = 0;
 
-	ws_return_str_if(!src, scope);
-
+	/* src is an array of bytes, not necessarily null-terminated,
+	 * so check for a zero length first and allow it even with a
+	 * NULL src. */
 	if (!src_size) {
 		return wmem_strdup(scope, "");
 	}
+
+	ws_return_str_if(!src, scope);
 
 	if (max_bytes_len == 0 || max_bytes_len > src_size) {
 		max_bytes_len = src_size;
@@ -667,7 +673,7 @@ eui64_to_str(wmem_allocator_t *scope, const uint64_t ad) {
 	buf=(char *)wmem_alloc(scope, WS_EUI64_STRLEN);
 
 	/* Copy and convert the address to network byte order. */
-	*(uint64_t *)(void *)(p_eui64) = pntoh64(&(ad));
+	*(uint64_t *)(void *)(p_eui64) = pntohu64(&(ad));
 
 	tmp = bytes_to_hexstr_punct(buf, p_eui64, 8, ':');
 	*tmp = '\0'; /* NULL terminate */
@@ -703,7 +709,7 @@ format_fractional_part_nsecs(char *buf, size_t buflen, uint32_t nsecs, const cha
 	int8_t *num_ptr;
 	size_t num_len;
 
-	ws_assert(precision != 0);
+	ws_assert(precision != WS_TSPREC_SEC);
 
 	if (buflen == 0) {
 		/*
@@ -775,63 +781,63 @@ format_fractional_part_nsecs(char *buf, size_t buflen, uint32_t nsecs, const cha
 	 */
 	switch (precision) {
 
-	case 1:
+	case WS_TSPREC_100_MSEC:
 		/*
 		 * Scale down to units of 1/10 second.
 		 */
 		frac_part = nsecs / 100000000U;
 		break;
 
-	case 2:
+	case WS_TSPREC_10_MSEC:
 		/*
 		 * Scale down to units of 1/100 second.
 		 */
 		frac_part = nsecs / 10000000U;
 		break;
 
-	case 3:
+	case WS_TSPREC_MSEC:
 		/*
 		 * Scale down to units of 1/1000 second.
 		 */
 		frac_part = nsecs / 1000000U;
 		break;
 
-	case 4:
+	case WS_TSPREC_100_USEC:
 		/*
 		 * Scale down to units of 1/10000 second.
 		 */
 		frac_part = nsecs / 100000U;
 		break;
 
-	case 5:
+	case WS_TSPREC_10_USEC:
 		/*
 		 * Scale down to units of 1/100000 second.
 		 */
 		frac_part = nsecs / 10000U;
 		break;
 
-	case 6:
+	case WS_TSPREC_USEC:
 		/*
 		 * Scale down to units of 1/1000000 second.
 		 */
 		frac_part = nsecs / 1000U;
 		break;
 
-	case 7:
+	case WS_TSPREC_100_NSEC:
 		/*
 		 * Scale down to units of 1/10000000 second.
 		 */
 		frac_part = nsecs / 100U;
 		break;
 
-	case 8:
+	case WS_TSPREC_10_NSEC:
 		/*
 		 * Scale down to units of 1/100000000 second.
 		 */
 		frac_part = nsecs / 10U;
 		break;
 
-	case 9:
+	case WS_TSPREC_NSEC:
 		/*
 		 * We're already in units of 1/1000000000 second.
 		 */
@@ -939,7 +945,7 @@ display_signed_time(char *buf, size_t buflen, const nstime_t *ns, int precision)
 	buf += num_len;
 	buflen -= num_len;
 
-	if (precision == 0) {
+	if (precision == WS_TSPREC_SEC) {
 		/*
 		 * Seconds precision, so no nanosecond.
 		 * Nothing more to do other than to
@@ -1000,13 +1006,36 @@ format_nstime_as_iso8601(char *buf, size_t buflen, const nstime_t *ns,
 	ptr += num_bytes;
 	remaining -= num_bytes;
 
+	num_bytes = 0;
 	if (precision != 0) {
 		/*
 		 * Append the fractional part.
 		 * Get the nsecs as a 32-bit unsigned value, as it should
 		 * never be negative, so we treat it as unsigned.
 		 */
-		format_fractional_part_nsecs(ptr, remaining, (uint32_t)ns->nsecs, decimal_point, precision);
+		num_bytes = format_fractional_part_nsecs(ptr, remaining, (uint32_t)ns->nsecs, decimal_point, precision);
+	}
+
+	if (!local) {
+		/*
+		 * format_fractional_part_nsecs, unlike snprintf, returns the
+		 * number of bytes copied (not "would have copied"), so we
+		 * don't check for overflow here.
+		 */
+		ptr += num_bytes;
+		remaining -= num_bytes;
+
+		if (remaining == 1 && num_bytes > 0) {
+			/*
+			 * If we copied a fractional part but there's only room
+			 * for the terminating '\0', replace the last digit of
+			 * the fractional part with the "Z". (Remaining is at
+			 * least 1, otherwise we would have returned above.)
+			 */
+			ptr--;
+			remaining++;
+		}
+		(void)g_strlcpy(ptr, "Z", remaining);
 	}
 }
 

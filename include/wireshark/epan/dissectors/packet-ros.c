@@ -215,7 +215,7 @@ ros_try_string(const char *oid, tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 
 		if(opdissector) {
 
-			opname = val_to_str(opcode_lcl, lookup, "Unknown opcode (%d)");
+			opname = val_to_str(pinfo->pool, opcode_lcl, lookup, "Unknown opcode (%d)");
 
 			col_set_str(pinfo->cinfo, COL_INFO, opname);
 			if(suffix)
@@ -237,7 +237,7 @@ call_ros_oid_callback(const char *oid, tvbuff_t *tvb, int offset, packet_info *p
 	next_tvb = tvb_new_subset_remaining(tvb, offset);
 
 	if(((len = ros_try_string(oid, next_tvb, pinfo, tree, session)) == 0) &&
-	   ((len = dissector_try_string(ros_oid_dissector_table, oid, next_tvb, pinfo, tree, session)) == 0)) {
+	   ((len = dissector_try_string_with_data(ros_oid_dissector_table, oid, next_tvb, pinfo, tree, true, session)) == 0)) {
 		proto_item *item;
 		proto_tree *next_tree;
 
@@ -625,7 +625,7 @@ dissect_ros_GeneralProblem(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset 
                                                 &problem);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(problem, ros_GeneralProblem_vals, "GeneralProblem(%d)"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, problem, ros_GeneralProblem_vals, "GeneralProblem(%d)"));
 
 
   return offset;
@@ -653,7 +653,7 @@ dissect_ros_InvokeProblem(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
                                                 &problem);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(problem, ros_InvokeProblem_vals, "InvokeProblem(%d)"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, problem, ros_InvokeProblem_vals, "InvokeProblem(%d)"));
 
 
   return offset;
@@ -676,7 +676,7 @@ dissect_ros_ReturnResultProblem(bool implicit_tag _U_, tvbuff_t *tvb _U_, int of
                                                 &problem);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(problem, ros_ReturnResultProblem_vals, "ReturnResultProblem(%d)"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, problem, ros_ReturnResultProblem_vals, "ReturnResultProblem(%d)"));
 
 
   return offset;
@@ -701,7 +701,7 @@ dissect_ros_ReturnErrorProblem(bool implicit_tag _U_, tvbuff_t *tvb _U_, int off
                                                 &problem);
 
 
-  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(problem, ros_ReturnErrorProblem_vals, "ReturnErrorProblem(%d)"));
+  col_append_fstr(actx->pinfo->cinfo, COL_INFO, " %s", val_to_str(actx->pinfo->pool, problem, ros_ReturnErrorProblem_vals, "ReturnErrorProblem(%d)"));
 
 
   return offset;
@@ -1022,11 +1022,11 @@ void proto_register_ros(void) {
   {
     { &hf_ros_response_in,
       { "Response In", "ros.response_in",
-	FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+	FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
 	"The response to this remote operation invocation is in this frame", HFILL }},
     { &hf_ros_response_to,
       { "Response To", "ros.response_to",
-	FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+	FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0,
 	"This is a response to the remote operation invocation in this frame", HFILL }},
     { &hf_ros_time,
       { "Time", "ros.time",
@@ -1094,7 +1094,7 @@ void proto_register_ros(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_ros_operationResult,
-      { "result", "ros.result_element",
+      { "result", "ros.operationResult_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "OperationResult", HFILL }},
     { &hf_ros_errcode,
@@ -1114,15 +1114,15 @@ void proto_register_ros(void) {
         FT_INT32, BASE_DEC, VALS(ros_GeneralProblem_vals), 0,
         "GeneralProblem", HFILL }},
     { &hf_ros_invokeProblem,
-      { "invoke", "ros.invoke",
+      { "invoke", "ros.invokeProblem",
         FT_INT32, BASE_DEC, VALS(ros_InvokeProblem_vals), 0,
         "InvokeProblem", HFILL }},
     { &hf_ros_rejectResult,
-      { "returnResult", "ros.returnResult",
+      { "returnResult", "ros.rejectResult",
         FT_INT32, BASE_DEC, VALS(ros_ReturnResultProblem_vals), 0,
         "ReturnResultProblem", HFILL }},
     { &hf_ros_rejectError,
-      { "returnError", "ros.returnError",
+      { "returnError", "ros.rejectError",
         FT_INT32, BASE_DEC, VALS(ros_ReturnErrorProblem_vals), 0,
         "ReturnErrorProblem", HFILL }},
     { &hf_ros_present,

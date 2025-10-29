@@ -328,7 +328,7 @@ dissect_mint_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	mint_port = tvb_get_ntohs(tvb, offset + 12);
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_SHORT_NAME);
-	col_add_str(pinfo->cinfo, COL_INFO, val_to_str(mint_port,
+	col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, mint_port,
 		mint_port_vals, "Type %03d"));
 
 	ti = proto_tree_add_item(tree, proto_mint, tvb,
@@ -387,7 +387,7 @@ dissect_mint_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 			offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
 		proto_tree_add_item(mint_data_tree, hf_mint_data_seqno, tvb,
-			offset, 4, ENC_NA);
+			offset, 4, ENC_BIG_ENDIAN);
 		offset += 4;
 		proto_tree_add_item(mint_data_tree, hf_mint_data_unknown1, tvb,
 			offset, 4, ENC_NA);

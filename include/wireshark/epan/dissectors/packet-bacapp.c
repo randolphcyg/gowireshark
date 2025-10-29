@@ -290,11 +290,12 @@ fTime(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, cons
  * @param pinfo the packet info of the current data
  * @param tree the tree to append this item to
  * @param offset the offset in the tvb
- * @param label the label of this item
+ * @param hfid the hfid of the item to use (e.g., hf_bacapp_object_identifier
+ *  or hf_bacapp_device_identifier)
  * @return modified offset
  */
 static unsigned
-fObjectIdentifier(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+fObjectIdentifier(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, int hfid);
 
 /**
  * BACnet-Confirmed-Service-Request ::= CHOICE {
@@ -2573,6 +2574,42 @@ fStageLimitValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned o
 static unsigned
 fObjectSelector(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset);
 
+static unsigned
+fDeviceAddressProxyTableEntry(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAccessToken(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAuthorizationConstraint(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAuthorizationScope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAuthenticationClient(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAuthorizationEvent(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAuthenticationPeer(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAuthenticationEvent(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAuthorizationPolicy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAuthorizationScopeDescription(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAuthorizationServer(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
+static unsigned
+fAuthorizationStatus(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label);
+
 
 /**
  * register_bacapp
@@ -2934,6 +2971,7 @@ BACnetBinaryLightingPV[] = {
     { 3, "warn-off" },
     { 4, "warn-relinquish" },
     { 5, "stop" },
+    { 6, "toggle" },
     { 0, NULL }
 };
 
@@ -3033,6 +3071,7 @@ BACnetNetworkPortCommand [] = {
     { 7, "restart-port"},
     { 8, "generate-csr-file"},
     { 9, "validate-changes"},
+    { 10, "restart-device-discovery"},
     { 0,  NULL}
 };
 
@@ -3376,6 +3415,10 @@ BACnetLightingOperation[] = {
     { 8, "warn-off" },
     { 9, "warn-relinquish" },
     { 10, "stop" },
+    { 11, "restore-on" },
+    { 12, "default-on" },
+    { 13, "toggle-restor" },
+    { 14, "toggle-default" },
     { 0, NULL }
 };
 
@@ -3427,6 +3470,7 @@ BACnetConfirmedServiceChoice[] = {
     { 31, "confirmedCovNotificationMultiple"},
     { 32, "confirmedAuditNotification"},
     { 33, "auditLogQuery"},
+    { 34, "aurthRequest" },
     { 0,  NULL}
 };
 
@@ -3560,6 +3604,75 @@ BACnetObjectType [] = {
 /* Enumerated values 0-127 are reserved for definition by ASHRAE.
    Enumerated values 128-1023 may be used by others subject to
    the procedures and constraints described in Clause 23. */
+};
+
+static const value_string
+BACnetObjectTypeAbbrev[] = {
+    {  0, "AI" },
+    {  1, "AO" },
+    {  2, "AV" },
+    {  3, "BI" },
+    {  4, "BO" },
+    {  5, "BV" },
+    {  6, "CAL" },
+    {  7, "CMD" },
+    {  8, "DEV" },
+    {  9, "EE" },
+    { 10, "FV" },
+    { 11, "G" },
+    { 12, "LP" },
+    { 13, "MSI" },
+    { 14, "MSO" },
+    { 15, "NC" },
+    { 16, "PROG" },
+    { 17, "SCH" },
+    { 18, "AVG" },
+    { 19, "MSVV" },
+    { 20, "TLV" },
+    { 21, "LSP" },
+    { 22, "LSZV" },
+    { 23, "ACM" },
+    { 24, "PC" },
+    { 25, "EL" },
+    { 26, "GG" },
+    { 27, "TLM" },
+    { 28, "LCV" },
+    { 29, "SV" },
+    { 30, "ACD" },
+    { 32, "ACC" },
+    { 33, "ACP" },
+    { 34, "ACR" },
+    { 35, "ACU" },
+    { 36, "ACZ" },
+    { 37, "CDI" },
+    { 38, "NS" },
+    { 39, "BSV" },
+    { 40, "CSV" },
+    { 41, "DPV" },
+    { 42, "DV" },
+    { 43, "DTPV" },
+    { 44, "DTV" },
+    { 45, "IVV" },
+    { 46, "LAV" },
+    { 47, "OSV" },
+    { 48, "UV" },
+    { 49, "TPV" },
+    { 50, "TVV" },
+    { 51, "NFV" },
+    { 52, "AE" },
+    { 53, "CH" },
+    { 54, "LO" },
+    { 55, "BLO" },
+    { 56, "NP" },
+    { 57, "EG" },
+    { 58, "ES" },
+    { 59, "L" },
+    { 60, "STG" },
+    { 61, "ALV" },
+    { 62, "AR" },
+    { 63, "CO" },
+    { 64, "CT" },
+    {  0, NULL }
 };
 
 static const value_string
@@ -4043,6 +4156,36 @@ BACnetErrorCode [] = {
     { 197, "tcp-error"},
     { 198, "ip-address-not-reachable"},
     { 199, "ip-error"},
+    { 200, "certificate-expired"},
+    { 201, "certificate-invalid"},
+    { 202, "certificate-malformed"},
+    { 203, "certificate-revoked"},
+    { 204, "unknown-key"},
+    { 205, "referenced-port-in-error"},
+    { 206, "not-enabled"},
+    { 207, "adjust-scope-required"},
+    { 208, "auth-scope-required"},
+    { 209, "bind-scope-required"},
+    { 210, "config-scope-required"},
+    { 211, "control-scope-required"},
+    { 212, "extended-scope-required"},
+    { 213, "incorrect-client"},
+    { 214, "install-scope-required"},
+    { 215, "insufficient-scope"},
+    { 216, "no-default-scope"},
+    { 217, "no-policy"},
+    { 218, "revoked-token"},
+    { 219, "override-scope-required"},
+    { 220, "inactive-token"},
+    { 221, "unknown-audience"},
+    { 222, "unknown-client"},
+    { 223, "unknown-scope"},
+    { 224, "view-scope-required"},
+    { 225, "incorrect-audience"},
+    { 226, "incorrect-client-origin"},
+    { 227, "invalid-array-size"},
+    { 228, "incorrect-issuer"},
+    { 229, "invalid-token"},
     { 0,   NULL}
 /* Enumerated values 0-255 are reserved for definition by ASHRAE.
    Enumerated values 256-65535 may be used by others subject to the
@@ -4582,6 +4725,18 @@ BACnetPropertyIdentifier [] = {
     { 4194335, "high_end_trim"},
     { 4194336, "low_end_trim"},
     { 4194337, "trim_fade_time"},
+    { 4194338, "device-address-proxy-enable"},
+    { 4194339, "device-address-proxy-table"},
+    { 4194340, "device-address-proxy-timeout"},
+    { 4194341, "default-on-value"},
+    { 4194342, "last-on-value"},
+    { 4194343, "authorization-cache"},
+    { 4194344, "authorization-groups"},
+    { 4194345, "authorization-policy"},
+    { 4194346, "authorization-scope"},
+    { 4194347, "authorization-server"},
+    { 4194348, "authorization-status"},
+    { 4194349, "max-proxied-i-ams-per-second"},
     { 0,   NULL}
 /* Enumerated values 0-511 are reserved for definition by ASHRAE.
    Enumerated values 512-4194303 may be used by others subject to
@@ -4917,9 +5072,12 @@ BACnetServicesSupported [] = {
     { 41, "subscribe-cov-property-multiple"},
     { 42, "confirmed-cov-notification-multiple"},
     { 43, "unconfirmed-cov-notification-multiple"},
-    { 44, "confirmed-audit-notification" },
-    { 45, "audit-log-query" },
-    { 46, "unconfirmed-audit-notification" },
+    { 44, "confirmed-audit-notification"},
+    { 45, "audit-log-query"},
+    { 46, "unconfirmed-audit-notification"},
+    { 47, "who-am-i"},
+    { 48, "you-are"},
+    { 49, "auth-request"},
     { 0,  NULL}
 };
 
@@ -5262,10 +5420,92 @@ BACnetSuccessFilter [] = {
     { 0, NULL }
 };
 
+static const value_string
+BACnetAuthorizationScopeStandard [] = {
+    { 0, "view" },
+    { 1, "adjust" },
+    { 2, "control" },
+    { 3, "override" },
+    { 4, "config" },
+    { 5, "bind" },
+    { 6, "install" },
+    { 7, "auth" },
+    { 8, "infrastructure" },
+    { 9, "reserved-9" },
+    { 10, "reserved-10" },
+    { 11, "reserved-11" },
+    { 12, "reserved-12" },
+    { 13, "reserved-13" },
+    { 14, "reserved-14" },
+    { 15, "reserved-15" },
+    { 16, "reserved-16" },
+    { 17, "reserved-17" },
+    { 18, "reserved-18" },
+    { 19, "reserved-19" },
+    { 20, "reserved-20" },
+    { 21, "reserved-21" },
+    { 22, "reserved-22" },
+    { 23, "reserved-23" },
+    { 0, NULL }
+};
+
+static const value_string
+BACnetAuthorizationPosture[] = {
+    { 0, "open" },
+    { 1, "proprietary" },
+    { 2, "configured" },
+    { 3, "misconfigured-partial" },
+    { 4, "misconfigured-total" },
+    { 0, NULL }
+};
+
+static const value_string
+BACnetAuthenticationDecision[] = {
+    { 0, "allow-match" },
+    { 1, "deny-mismatch" },
+    { 2, "deny-non-relay" },
+    { 0, NULL }
+};
+
+static const value_string
+BACnetAuthorizationDecision[] = {
+    { 0, "allow-by-token" },
+    { 1, "allow-by-local-polic" },
+    { 2, "deny-no-token-or-policy" },
+    { 3, "deny-not-before" },
+    { 4, "deny-not-after" },
+    { 5, "deny-target-device" },
+    { 6, "deny-target-group" },
+    { 7, "deny-client-device" },
+    { 8, "deny-client-method" },
+    { 9, "deny-scope" },
+    { 10, "deny-issuer" },
+    { 11, "deny-revoked" },
+    { 12, "deny-signature" },
+    { 13, "deny-other" },
+    { 0, NULL }
+};
+
+static const value_string
+BACnetAuthorizationConstraintOrigin[] = {
+    { 0, "direct-connect" },
+    { 1, "same-network" },
+    { 2, "any-network" },
+    { 0, NULL }
+};
+
+static const value_string
+BACnetAuthorizationConstraintAuthentication[] = {
+    { 0, "certified" },
+    { 1, "secure-path" },
+    { 2, "any-method" },
+    { 0, NULL }
+};
+
 
 /* These values are generated by tools/generate-bacnet-vendors.py from
  * https://bacnet.org/assigned-vendor-ids/
- * Version: "As of January 24, 2024"
+ * Version: "As of August 27, 2025"
  */
 
 static const value_string
@@ -5277,7 +5517,7 @@ BACnetVendorIdentifiers [] = {
     {    4, "PolarSoft" },
     {    5, "Johnson Controls, Inc." },
     {    6, "ABB (Formerly American Auto-Matrix)" },
-    {    7, "Siemens Schweiz AG (Formerly: Landis & Staefa Division Europe)" },
+    {    7, "Siemens Schweiz AG" },
     {    8, "Delta Controls" },
     {    9, "Siemens Schweiz AG" },
     {   10, "Schneider Electric" },
@@ -5292,7 +5532,7 @@ BACnetVendorIdentifiers [] = {
     {   19, "TAC AB" },
     {   20, "Hewlett-Packard Company" },
     {   21, "Dorsette’s Inc." },
-    {   22, "Siemens Schweiz AG (Formerly: Cerberus AG)" },
+    {   22, "Siemens Schweiz AG" },
     {   23, "York Controls Group" },
     {   24, "Automated Logic Corporation" },
     {   25, "CSI Control Systems International" },
@@ -5549,7 +5789,7 @@ BACnetVendorIdentifiers [] = {
     {  276, "GE Consumer & Industrial" },
     {  277, "Functional Devices, Inc." },
     {  278, "StudioSC" },
-    {  279, "M-System Co., Ltd." },
+    {  279, "MG CO., LTD." },
     {  280, "Yokota Co., Ltd." },
     {  281, "Hitranse Technology Co., LTD" },
     {  282, "Vigilent Corporation" },
@@ -5636,7 +5876,7 @@ BACnetVendorIdentifiers [] = {
     {  363, "CEAG Notlichtsysteme GmbH" },
     {  364, "Distech Controls Inc." },
     {  365, "Industrial Technology Research Institute" },
-    {  366, "ICONICS, Inc." },
+    {  366, "Mitsubishi Electric Iconics Digital Solutions" },
     {  367, "IQ Controls s.c." },
     {  368, "OJ Electronics A/S" },
     {  369, "Rolbit Ltd." },
@@ -5701,7 +5941,7 @@ BACnetVendorIdentifiers [] = {
     {  428, "SWG Stuckmann Wirtschaftliche Gebäudesysteme GmbH" },
     {  429, "SensorSwitch" },
     {  430, "Multitek Power Limited" },
-    {  431, "Aquametro AG" },
+    {  431, "Integra Metering AG" },
     {  432, "LG Electronics Inc." },
     {  433, "Electronic Theatre Controls, Inc." },
     {  434, "Mitsubishi Electric Corporation Nagoya Works" },
@@ -5815,7 +6055,7 @@ BACnetVendorIdentifiers [] = {
     {  542, "DOT CONTROLS a.s." },
     {  543, "BeaconMedæs" },
     {  544, "Midea Commercial Aircon" },
-    {  545, "WattMaster Controls" },
+    {  545, "AAON" },
     {  546, "Kamstrup A/S" },
     {  547, "CA Computer Automation GmbH" },
     {  548, "Laars Heating Systems Company" },
@@ -6463,7 +6703,7 @@ BACnetVendorIdentifiers [] = {
     { 1190, "ISDE ING SL" },
     { 1191, "ABM automation building messaging GmbH" },
     { 1192, "Kentec Electronics Ltd" },
-    { 1193, "Emerson Commercial and Residential Solutions" },
+    { 1193, "Copeland LP" },
     { 1194, "Powerside" },
     { 1195, "SMC Group" },
     { 1196, "EOS Weather Instruments" },
@@ -6538,7 +6778,7 @@ BACnetVendorIdentifiers [] = {
     { 1265, "Elmeasure India Pvt Ltd." },
     { 1266, "Pineshore Energy LLC" },
     { 1267, "Brasch Environmental Technologies, LLC" },
-    { 1268, "Lion Controls Co., LTD" },
+    { 1268, "ShenZhen ZhiXing Building Tech Co., Ltd" },
     { 1269, "Sinux" },
     { 1270, "Avnet Inc." },
     { 1271, "Somfy Activites SA" },
@@ -6643,7 +6883,7 @@ BACnetVendorIdentifiers [] = {
     { 1370, "Revolution Microelectronics (America) Inc." },
     { 1371, "Real-Time Systems GmbH" },
     { 1372, "ZedBee Technologies Pvt Ltd" },
-    { 1373, "Winmate Technology Solutions Pvt. Ltd." },
+    { 1373, "Wimate Technology Solutions Pvt. Ltd." },
     { 1374, "Senticon Ltd." },
     { 1375, "Rossaker AB" },
     { 1376, "OPIT Solutions Ltd" },
@@ -6754,6 +6994,86 @@ BACnetVendorIdentifiers [] = {
     { 1483, "Clouder Oy" },
     { 1484, "Gebäude Automatisierung GmbH" },
     { 1485, "solvimus GmbH" },
+    { 1486, "GuangZhou Wangkong Ltd." },
+    { 1487, "SafeSquare GmbH" },
+    { 1488, "Heklatech AB" },
+    { 1489, "Silvair" },
+    { 1490, "Adveco" },
+    { 1491, "Eura Drives Electric Co., Ltd." },
+    { 1492, "Caleb Controls" },
+    { 1493, "InBiot Monitoring S.L" },
+    { 1494, "Qingdao Haier Air Conditioner Electric Co., Ltd." },
+    { 1495, "Hangzhou Weiyl Technology Co., Ltd." },
+    { 1496, "yord sàrl" },
+    { 1497, "Infinitum Electric" },
+    { 1498, "Red Bean Systems Limited" },
+    { 1499, "Blue Time Concept SA" },
+    { 1500, "Shenzhen INVT Electric Co., Ltd." },
+    { 1501, "Messung Systems Pvt Ltd." },
+    { 1502, "ABB Electrification Canada Inc." },
+    { 1503, "Core Controls" },
+    { 1504, "Noord Tech d.o.o." },
+    { 1505, "Varibits AS" },
+    { 1506, "Roger Sp. z o.o. sp.k." },
+    { 1507, "Viega GmbH & Co. KG" },
+    { 1508, "Astersoft" },
+    { 1509, "BIG-EU" },
+    { 1510, "Inferrix Limited" },
+    { 1511, "Richards Electric Motor Co." },
+    { 1512, "dAPPControls" },
+    { 1513, "Entouch Controls" },
+    { 1514, "Mavili Elektronik Ticaret ve Sanayi Anonim Sirketi" },
+    { 1515, "BubblyNet" },
+    { 1516, "AlMayssan Technical Services Co. Ltd." },
+    { 1517, "Viridi Parente, Inc." },
+    { 1518, "Novel Apps Corp." },
+    { 1519, "Oventrop (China) HVAC System Technology Co., Ltd." },
+    { 1521, "Lacroix Sofrel" },
+    { 1522, "MachineSens loT Trading Co., LLC" },
+    { 1523, "Elmec Inc." },
+    { 1524, "Beijing Haishi Software Co., Ltd." },
+    { 1525, "Radix Electrosystems Pvt. Ltd." },
+    { 1526, "Värmebaronen AB" },
+    { 1527, "Treau Inc., dba Gradient" },
+    { 1528, "WEST Solution AG" },
+    { 1529, "Trueway Controls Hongkong Limited" },
+    { 1530, "BuildingLogiX" },
+    { 1531, "Ifesca GmbH" },
+    { 1532, "Fellowes Inc." },
+    { 1533, "Caleffi S.p.A." },
+    { 1534, "JDRF Electromag" },
+    { 1535, "Redwire Labs" },
+    { 1536, "Wecon Technology Co., Ltd." },
+    { 1537, "Acacia Green Technologies Ltd" },
+    { 1538, "Degree Analytics" },
+    { 1539, "Roltek Teknoloji A.S." },
+    { 1540, "Digital Control Technology Limited" },
+    { 1541, "Kentima AB" },
+    { 1542, "Pergamon Perceptive Technologies" },
+    { 1543, "Prefect Controls Ltd." },
+    { 1544, "SenTech Corporation" },
+    { 1545, "S+S Regeltechnik GmbH" },
+    { 1546, "AirBox, Inc." },
+    { 1547, "RVE" },
+    { 1548, "Motorola Solutions" },
+    { 1549, "BACSYS Innovations Private Limited" },
+    { 1550, "Ewattch" },
+    { 1551, "Builtlayer LLC" },
+    { 1552, "A&G Domotix S.R.L." },
+    { 1553, "Hytronik Industrial Limited" },
+    { 1554, "WHO Reinraumtechnik" },
+    { 1555, "TRICO Limited" },
+    { 1556, "SLKAutomation SRL" },
+    { 1557, "Zaphire AS" },
+    { 1558, "AJ Manufacturing" },
+    { 1559, "Future Motors Ltd." },
+    { 1560, "Himel Hong Kong Limited" },
+    { 1561, "Shenzhen Sunricher Technology Co., Ltd." },
+    { 1562, "Actility S.A." },
+    { 1563, "Oy Halton Group Ltd." },
+    { 1564, "AVTECH Software, Inc." },
+    { 1565, "InControl Engineering LLC" },
+    { 1566, "SoundWater Technologies LLC" },
     { 0, NULL }
 };
 static value_string_ext BACnetVendorIdentifiers_ext = VALUE_STRING_EXT_INIT(BACnetVendorIdentifiers);
@@ -6767,6 +7087,8 @@ static int hf_bacapp_SA;
 static int hf_bacapp_response_segments;
 static int hf_bacapp_max_adpu_size;
 static int hf_bacapp_invoke_id;
+static int hf_bacapp_object_identifier;
+static int hf_bacapp_device_identifier;
 static int hf_bacapp_objectType;
 static int hf_bacapp_object_name;
 static int hf_bacapp_instanceNumber;
@@ -6839,6 +7161,7 @@ static int ett_bacapp_control;
 static int ett_bacapp_tag;
 static int ett_bacapp_list;
 static int ett_bacapp_value;
+static int ett_bacapp_object_identifier;
 
 static expert_field ei_bacapp_bad_length;
 static expert_field ei_bacapp_bad_tag;
@@ -7113,6 +7436,27 @@ static const fragment_items msg_frag_items = {
     "Message fragments"
 };
 
+/* calculate an extended sequence number. The sequence number is an 8-bit
+ * counter, and can rollover with very large data length. */
+static uint32_t
+calculate_extended_seqno(uint32_t prev_seqno, uint8_t raw_seqno)
+{
+    uint32_t seqno = (prev_seqno & 0xffffff00) | raw_seqno;
+    /* The Window Size must be in a range 1 to 127 (see ANSI/ASHRAE Std
+     * 135-2016 5.3), and this guarantees that, e.g., sequence number 128
+     * will not be transmitted unless a SegmentACK has been received for
+     * sequence number 0, so any subsequent sequence number 0 must actually
+     * be sequence number 256 after rollover.
+     */
+    if (seqno + 0x80 < prev_seqno) {
+        seqno += 0x100;
+    } else if (prev_seqno + 0x80 < seqno) {
+        /* Unlikely, out-of-order packet backwards over the wrap boundary. */
+        seqno -= 0x100;
+    }
+    return seqno;
+}
+
 #if 0
 /* if BACnet uses the reserved values, then patch the corresponding values here, maximum 16 values are defined */
 /* FIXME: fGetMaxAPDUSize is commented out, as it is not used. It was used to set variables which were not later used. */
@@ -7132,21 +7476,15 @@ fGetMaxAPDUSize(uint8_t idx)
 }
 #endif
 
-static const char*
-val_to_split_str(uint32_t val, uint32_t split_val, const value_string *vs,
-    const char *fmt, const char *split_fmt)
-    G_GNUC_PRINTF(4, 0)
-    G_GNUC_PRINTF(5, 0);
-
 /* Used when there are ranges of reserved and proprietary enumerations */
 static const char*
-val_to_split_str(uint32_t val, uint32_t split_val, const value_string *vs,
+val_to_split_str(wmem_allocator_t* scope, uint32_t val, uint32_t split_val, const value_string *vs,
     const char *fmt, const char *split_fmt)
 {
     if (val < split_val)
-        return val_to_str(val, vs, fmt);
+        return val_to_str(scope, val, vs, fmt);
     else
-        return val_to_str(val, vs, split_fmt);
+        return val_to_str(scope, val, vs, split_fmt);
 }
 
 /* from clause 20.2.1.3.2 Constructed Data */
@@ -7335,7 +7673,7 @@ fTagHeaderTree(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             subtree = proto_tree_add_subtree_format(tree, tvb, offset, tag_len,
                     ett_bacapp_tag, &ti,
                     "Application Tag: %s, Length/Value/Type: %u",
-                    val_to_str(*tag_no, BACnetApplicationTagNumber,
+                    val_to_str(pinfo->pool, *tag_no, BACnetApplicationTagNumber,
                         ASHRAE_Reserved_Fmt),
                     *lvt);
         }
@@ -7492,7 +7830,7 @@ fEnumeratedTagSplit(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     if (fUnsigned32(tvb, offset+tag_len, lvt, &val)) {
         if (vs)
             subtree = proto_tree_add_subtree_format(tree, tvb, offset, lvt+tag_len,
-                ett_bacapp_tag, NULL, "%s %s (%u)", label, val_to_split_str(val, split_val, vs,
+                ett_bacapp_tag, NULL, "%s %s (%u)", label, val_to_split_str(pinfo->pool, val, split_val, vs,
                 ASHRAE_Reserved_Fmt, Vendor_Proprietary_Fmt), val);
         else
             subtree = proto_tree_add_subtree_format(tree, tvb, offset, lvt+tag_len,
@@ -7669,7 +8007,7 @@ fPresentValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offs
                 if (vs) {
                     subtree = proto_tree_add_subtree_format(tree, tvb, offset, lvt+tag_len, ett_bacapp_tag, NULL,
                         "Present Value (enum value): %s",
-                        val_to_split_str(enum_index,
+                        val_to_split_str(pinfo->pool, enum_index,
                         split_val,
                         vs,
                         ASHRAE_Reserved_Fmt,
@@ -7693,7 +8031,7 @@ fPresentValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offs
             object_type = object_id_type(object_id);
             subtree = proto_tree_add_subtree_format(tree, tvb, offset, tag_len + 4, ett_bacapp_tag, NULL,
                 "Present Value (enum value): %s",
-                val_to_split_str(object_type,
+                val_to_split_str(pinfo->pool, object_type,
                 128,
                 BACnetObjectType,
                 ASHRAE_Reserved_Fmt,
@@ -7863,9 +8201,9 @@ fWeekNDay(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
     dayOfWeek = tvb_get_uint8(tvb, offset+tag_len+2);
     subtree = proto_tree_add_subtree_format(tree, tvb, offset, lvt+tag_len,
                  ett_bacapp_tag, NULL, "%s %s, %s",
-                 val_to_str(month, months, "month (%d) not found"),
-                 val_to_str(weekOfMonth, weekofmonth, "week of month (%d) not found"),
-                 val_to_str(dayOfWeek, day_of_week, "day of week (%d) not found"));
+                 val_to_str(pinfo->pool, month, months, "month (%d) not found"),
+                 val_to_str(pinfo->pool, weekOfMonth, weekofmonth, "week of month (%d) not found"),
+                 val_to_str(pinfo->pool, dayOfWeek, day_of_week, "day of week (%d) not found"));
     fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
 
     return offset+tag_len+lvt;
@@ -7895,18 +8233,18 @@ fDate(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, cons
         subtree = proto_tree_add_subtree_format(tree, tvb, offset, lvt+tag_len,
             ett_bacapp_tag, NULL,
             "%s%s %d, %d, (Day of Week = %s)",
-            label, val_to_str(month,
+            label, val_to_str(pinfo->pool, month,
                 months,
                 "month (%d) not found"),
-            day, year, val_to_str(weekday,
+            day, year, val_to_str(pinfo->pool, weekday,
                 day_of_week,
                 "(%d) not found"));
     } else {
         subtree = proto_tree_add_subtree_format(tree, tvb, offset, lvt+tag_len,
             ett_bacapp_tag, NULL,
             "%s%s %d, any year, (Day of Week = %s)",
-            label, val_to_str(month, months, "month (%d) not found"),
-            day, val_to_str(weekday, day_of_week, "(%d) not found"));
+            label, val_to_str(pinfo->pool, month, months, "month (%d) not found"),
+            day, val_to_str(pinfo->pool, weekday, day_of_week, "(%d) not found"));
     }
     fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
 
@@ -8163,8 +8501,22 @@ fSessionKey(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset
     return fAddress(tvb, pinfo, tree, offset);
 }
 
+static void
+format_object_identifier(char *s, uint32_t object_id)
+{
+    uint32_t type = object_id_type(object_id);
+    const char* abbrev = try_val_to_str(type, BACnetObjectTypeAbbrev);
+    if (abbrev) {
+        snprintf(s, ITEM_LABEL_LENGTH,
+                "%s-%u", abbrev, object_id_instance(object_id));
+    } else {
+        snprintf(s, ITEM_LABEL_LENGTH,
+                "[%u]-%u", type, object_id_instance(object_id));
+    }
+}
+
 static unsigned
-fObjectIdentifier(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *label)
+fObjectIdentifier(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, int hfid)
 {
     uint8_t     tag_no, tag_info;
     uint32_t    lvt;
@@ -8176,8 +8528,8 @@ fObjectIdentifier(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned 
     object_id   = tvb_get_ntohl(tvb, offset+tag_length);
     object_type = object_id_type(object_id);
     subtree = proto_tree_add_subtree_format(tree, tvb, offset, tag_length + 4,
-            ett_bacapp_tag, NULL, "%s%s, %u", label,
-            val_to_split_str(object_type,
+            ett_bacapp_tag, NULL, "%s: %s, %u", proto_registrar_get_name(hfid),
+            val_to_split_str(pinfo->pool, object_type,
                 128,
                 BACnetObjectType,
                 ASHRAE_Reserved_Fmt,
@@ -8185,17 +8537,17 @@ fObjectIdentifier(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned 
             object_id_instance(object_id));
 
     col_append_fstr(pinfo->cinfo, COL_INFO, "%s,%u ",
-            val_to_split_str(object_type,
+            val_to_split_str(pinfo->pool, object_type,
                 128,
                 BACnetObjectType,
                 ASHRAE_Reserved_Fmt,
                 Vendor_Proprietary_Fmt),
-                object_id_instance(object_id));
+            object_id_instance(object_id));
 
     /* update BACnet Statistics */
     updateBacnetInfoValue(BACINFO_OBJECTID,
                   wmem_strdup(pinfo->pool,
-                    val_to_split_str(object_type, 128,
+                    val_to_split_str(pinfo->pool, object_type, 128,
                     BACnetObjectType, ASHRAE_Reserved_Fmt,
                     Vendor_Proprietary_Fmt)));
     updateBacnetInfoValue(BACINFO_INSTANCEID,
@@ -8206,8 +8558,13 @@ fObjectIdentifier(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned 
     /* here are the details of how we arrived at the above text */
     fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
     offset += tag_length;
-    proto_tree_add_item(subtree, hf_bacapp_objectType, tvb, offset, 4, ENC_BIG_ENDIAN);
-    proto_tree_add_item(subtree, hf_bacapp_instanceNumber, tvb, offset, 4, ENC_BIG_ENDIAN);
+    static int * const object_identifier_fields[] = {
+        &hf_bacapp_objectType,
+        &hf_bacapp_instanceNumber,
+        NULL
+    };
+    proto_tree_add_bitmask_with_flags(subtree, tvb, offset, hfid,
+        ett_bacapp_object_identifier, object_identifier_fields, ENC_BIG_ENDIAN, BMT_NO_APPEND);
     offset += 4;
 
     return offset;
@@ -8228,7 +8585,7 @@ fRecipient(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
     fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
     if (tag_no < 2) {
         if (tag_no == 0) { /* device */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier);
         }
         else {  /* address */
             offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
@@ -8330,7 +8687,7 @@ fCOVSubscription(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned o
 static unsigned
 fAddressBinding(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
 {
-    offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: ");
+    offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier);
     return fAddress(tvb, pinfo, tree, offset);
 }
 
@@ -8359,10 +8716,10 @@ fActionCommand(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned off
         switch (tag_no) {
 
         case 0: /* deviceIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "DeviceIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_device_identifier);
             break;
         case 1: /* objectIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         case 2: /* propertyIdentifier */
             offset = fPropertyIdentifier(tvb, pinfo, subtree, offset);
@@ -8464,7 +8821,7 @@ fPropertyAccessResult(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsig
 
     switch (tag_no) {
     case 0: /* objectIdentifier */
-        offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+        offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
         /* save the local object type because device id might overwrite it */
         save_inner_object_type = object_type;
         break;
@@ -8475,7 +8832,7 @@ fPropertyAccessResult(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsig
         offset = fPropertyArrayIndex(tvb, pinfo, tree, offset);
         break;
     case 3: /* deviceIdentifier */
-        offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: ");
+        offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier);
         /* restore the inner object type to decode the right property value */
         object_type = save_inner_object_type;
         break;
@@ -8527,12 +8884,12 @@ fPropertyIdentifier(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigne
         subtree = proto_tree_add_subtree_format(tree, tvb, offset, lvt+tag_len,
             ett_bacapp_tag, NULL,
             "%s: %s (%u)", label,
-            val_to_split_str(propertyIdentifier, 512,
+            val_to_split_str(pinfo->pool, propertyIdentifier, 512,
                 BACnetPropertyIdentifier,
                 ASHRAE_Reserved_Fmt,
                 Vendor_Proprietary_Fmt), propertyIdentifier);
         col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-                val_to_split_str(propertyIdentifier, 512,
+                val_to_split_str(pinfo->pool, propertyIdentifier, 512,
                     BACnetPropertyIdentifier,
                     ASHRAE_Reserved_Fmt,
                     Vendor_Proprietary_Fmt));
@@ -8785,7 +9142,7 @@ fBitStringTagVSBase(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigne
             if (src != NULL) {
                 proto_tree_add_boolean_format(subtree, hf_bacapp_bit, tvb, offset+i+1, 1,
                                             (tmp & (1 << (7 - j))), "%s = %s",
-                                            val_to_str((unsigned) (i*8 +j), src, ASHRAE_Reserved_Fmt),
+                                            val_to_str(pinfo->pool, (unsigned) (i*8 +j), src, ASHRAE_Reserved_Fmt),
                                             (tmp & (1 << (7 - j))) ? "TRUE" : "FALSE");
             } else {
                 bf_arr[MIN(255, (i*8)+j)] = tmp & (1 << (7 - j)) ? '1' : '0';
@@ -8860,7 +9217,7 @@ fApplicationTypesEnumeratedSplit(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
                 offset = fTime(tvb, pinfo, tree, offset, label);
                 break;
             case 12: /** BACnetObjectIdentifier 20.2.14 */
-                offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+                offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
                 break;
             case 13: /* reserved for ASHRAE */
             case 14:
@@ -9136,7 +9493,7 @@ fAbstractSyntaxNType(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsign
 
     if (propertyIdentifier >= 0) {
         snprintf(ar, sizeof(ar), "%s: ",
-            val_to_split_str(propertyIdentifier, 512,
+            val_to_split_str(pinfo->pool, propertyIdentifier, 512,
                 BACnetPropertyIdentifier,
                 ASHRAE_Reserved_Fmt,
                 Vendor_Proprietary_Fmt));
@@ -9262,7 +9619,7 @@ fAbstractSyntaxNType(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsign
             offset = fLOPR(tvb, pinfo, tree, offset);
             break;
         case 55: /* list-of-session-keys */
-            fSessionKey(tvb, pinfo, tree, offset);
+            offset = fSessionKey(tvb, pinfo, tree, offset);
             break;
         case 77: /* object-name */
             offset = fObjectName(tvb, pinfo, tree, offset);
@@ -9821,6 +10178,24 @@ fAbstractSyntaxNType(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsign
         case 4194334: /* color-command */
             offset = fColorCommand(tvb, pinfo, tree, offset, ar);
             break;
+        case 4194339: /* device-address-proxy-table */
+            offset = fDeviceAddressProxyTableEntry(tvb, pinfo, tree, offset, ar);
+            break;
+        case 4194343: /* authorization-cache */
+            offset = fAccessToken(tvb, pinfo, tree, offset, ar);
+            break;
+        case 4194345: /* authorization-policy */
+            offset = fAuthorizationPolicy(tvb, pinfo, tree, offset, ar);
+            break;
+        case 4194346: /* authorization-scope */
+            offset = fAuthorizationScopeDescription(tvb, pinfo, tree, offset, ar);
+            break;
+        case 4194347: /* authorization-server */
+            offset = fAuthorizationServer(tvb, pinfo, tree, offset, ar);
+            break;
+        case 4194348: /* authorization-status */
+            offset = fAuthorizationStatus(tvb, pinfo, tree, offset, ar);
+            break;
 
         case 85:  /* present-value */
             if ( object_type == 11 )    /* group object handling of present-value */
@@ -9994,7 +10369,7 @@ fSubscribeCOVPropertyRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
             offset = fUnsignedTag(tvb, pinfo, tree, offset, "subscriber Process Id: ");
             break;
         case 1: /* monitored ObjectId */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 2: /* issueConfirmedNotifications */
             offset = fBooleanTag(tvb, pinfo, tree, offset, "issue Confirmed Notifications: ");
@@ -10071,7 +10446,7 @@ fSubscribeCOVPropertyMultipleRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tr
 
                     switch (tag_no) {
                     case 0: /* monitored-object-identifier */
-                        offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+                        offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
                         break;
                     case 1: /* list-of-cov-references */
                       if (tag_is_opening(tag_info)) {
@@ -10171,7 +10546,7 @@ fSubscribeCOVPropertyMultipleError(tvbuff_t *tvb, packet_info *pinfo, proto_tree
 
                 switch (tag_no) {
                 case 0: /* monitored-object-identifier */
-                    offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+                    offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
                     break;
                 case 1: /* monitored-property-reference */
                     if (tag_is_opening(tag_info)) {
@@ -10222,7 +10597,7 @@ fWhoHas(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
             offset = fUnsignedTag(tvb, pinfo, tree, offset, "device Instance High Limit: ");
             break;
         case 2: /* BACnetObjectId */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 3: /* ObjectName */
             offset = fObjectName(tvb, pinfo, tree, offset);
@@ -10611,7 +10986,7 @@ fWeeklySchedule(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned of
             return offset; /* outer encoding will print out closing tag */
         }
         subtree = proto_tree_add_subtree(tree, tvb, offset, 0, ett_bacapp_value, NULL,
-                                val_to_str(i++, day_of_week, "day of week (%d) not found"));
+                                val_to_str(pinfo->pool, i++, day_of_week, "day of week (%d) not found"));
         offset = fDailySchedule(tvb, pinfo, subtree, offset);
         if (offset <= lastoffset) break;     /* nothing happened, exit loop */
     }
@@ -10805,7 +11180,7 @@ fConfirmedTextMessageRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
         lastoffset = offset;
         switch (fTagNo(tvb, offset)) {
         case 0: /* textMessageSourceDevice */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier);
             break;
         case 1: /* messageClass */
             offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
@@ -10946,7 +11321,7 @@ fLifeSafetyOperationRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                 "request: ", BACnetLifeSafetyOperation, 64);
             break;
         case 3: /* objectId */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         default:
             return offset;
@@ -11102,10 +11477,10 @@ fDeviceObjectPropertyValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
         }
         switch (tag_no) {
         case 0: /* deviceIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier);
             break;
         case 1: /* objectIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 2: /* propertyIdentifier */
             offset = fPropertyIdentifier(tvb, pinfo, tree, offset);
@@ -11170,7 +11545,7 @@ fDeviceObjectPropertyReference(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
         }
         switch (tag_no) {
         case 0: /* objectIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* propertyIdentifier */
             offset = fPropertyIdentifier(tvb, pinfo, tree, offset);
@@ -11180,7 +11555,7 @@ fDeviceObjectPropertyReference(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
                 "arrayIndex: ");
             break;
         case 3: /* deviceIdentifier - OPTIONAL */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier);
             break;
         default:
             return offset;
@@ -11367,10 +11742,10 @@ fNotificationParameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uns
             lastoffset = offset;
             switch (fTagNo(tvb, offset)) {
             case 0:
-                offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "DeviceIdentifier: "); /* buffer-device */
+                offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_device_identifier); /* buffer-device */
                 break;
             case 1:
-                offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: "); /* buffer-object */
+                offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier); /* buffer-object */
                 break;
             case 2:
                 offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
@@ -13029,7 +13404,7 @@ fCOVMultipleSubscription(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, un
                 }
                 switch (tag_no) {
                 case 0: /* monitored-object-identifier */
-                    offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+                    offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
                     break;
                 case 1: /* list-of-cov-references */
                     offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
@@ -13164,13 +13539,642 @@ fObjectSelector(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned of
             offset = fEnumeratedTagSplit(tvb, pinfo, tree, offset, "object-type: ", BACnetObjectType, 256);
             break;
         case 12: /* object */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         default:
             break;
         }
         if (offset <= lastoffset) break;     /* nothing happened, exit loop */
     }
+    return offset;
+}
+
+static unsigned
+fDeviceAddressProxyTableEntry(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        switch (tag_no) {
+        case 0: /* address */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fAddress(tvb, pinfo, subtree, offset);
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 1: /* i-am */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fIAmRequest(tvb, pinfo, subtree, offset);
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 2: /* last-i-am-time */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fDateTime(tvb, pinfo, subtree, offset, "issued: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        default:
+            break;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+static unsigned
+fAccessToken(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+    proto_tree *subsubtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        switch (tag_no) {
+        case 0: /* issuer */
+            offset = fUnsignedTag(tvb, pinfo, subtree, offset, "issuer: ");
+            break;
+        case 1: /* issued */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fDateTime(tvb, pinfo, subtree, offset, "issued: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 2: /* audience */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            subsubtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                      ett_bacapp_value, NULL, "%s", "audience:");
+
+            while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+                lastoffset = offset;
+                /* check the tag.  A closing tag means we are done */
+                fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+                if (tag_is_closing(tag_info)) {
+                    break;
+                }
+
+                offset = fSignedTag(tvb, pinfo, subsubtree, offset, "listener: ");
+                if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+            }
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 3: /* not-before */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fDateTime(tvb, pinfo, subtree, offset, "not-before: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 4: /* not-after */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fDateTime(tvb, pinfo, subtree, offset, "not-after: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 5: /* client */
+            offset = fUnsignedTag(tvb, pinfo, subtree, offset, "client: ");
+            break;
+        case 6: /* constraint */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fAuthorizationConstraint(tvb, pinfo, subtree, offset, "constraint: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 7: /* scope */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fAuthorizationScope(tvb, pinfo, subtree, offset, "scope: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 8: /* key-id */
+            offset = fUnsignedTag(tvb, pinfo, subtree, offset, "key-id: ");
+            break;
+        case 9: /* signature */
+            offset = fOctetString(tvb, pinfo, subtree, offset, "signature", lvt);
+            break;
+        default:
+            break;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+unsigned
+bacnet_dissect_token(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
+    unsigned offset, const char *lable)
+{
+    return fAccessToken(tvb, pinfo, tree, offset, lable);
+}
+
+static unsigned
+fAuthenticationClient(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        offset = fBooleanTag(tvb, pinfo, subtree, offset, "authenticated: ");
+        offset = fUnsignedTag(tvb, pinfo, subtree, offset, "device: ");
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+static unsigned
+fAuthorizationEvent(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        switch (tag_no) {
+        case 0: /* time-stamp */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fDateTime(tvb, pinfo, subtree, offset, "time-stamp: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 1: /* address */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fAddress(tvb, pinfo, subtree, offset);
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 2: /* client */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fAuthenticationClient(tvb, pinfo, subtree, offset, "client: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 3: /* token */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fAccessToken(tvb, pinfo, subtree, offset, "token: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 4: /* decision */
+            offset = fApplicationTypesEnumerated(tvb, pinfo, subtree, offset, "decision: ", BACnetAuthorizationDecision);
+            break;
+        case 5: /* decision-details */
+            offset = fCharacterString(tvb, pinfo, subtree, offset, "decision-details: ");
+            break;
+        default:
+            break;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+static unsigned
+fAuthenticationPeer(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        switch (tag_no) {
+        case 0: /* host */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fHostNPort(tvb, pinfo, subtree, offset, "host: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        default:
+            offset = fUnsignedTag(tvb, pinfo, subtree, offset, "device: ");
+            offset = fBooleanTag(tvb, pinfo, subtree, offset, "auth-aware: ");
+            offset = fBooleanTag(tvb, pinfo, subtree, offset, "router: ");
+            offset = fBooleanTag(tvb, pinfo, subtree, offset, "hub: ");
+            break;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+static unsigned
+fAuthenticationEvent(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        switch (tag_no) {
+    case 0: /* time-stamp */
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+      offset = fDateTime(tvb, pinfo, subtree, offset, "time-stamp: ");
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+    case 1: /* peer */
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+      offset = fAuthenticationPeer(tvb, pinfo, subtree, offset, "peer: ");
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+    case 2: /* client */
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+      offset = fAuthenticationClient(tvb, pinfo, subtree, offset, "client: ");
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+    case 3: /* decision */
+      offset = fApplicationTypesEnumerated(tvb, pinfo, subtree, offset, "decision: ", BACnetAuthenticationDecision);
+            break;
+    case 4: /* decision-details */
+      offset = fCharacterString(tvb, pinfo, subtree, offset, "decision-details: ");
+            break;
+        default:
+            break;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+static unsigned
+fAuthorizationPolicy(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+    proto_tree *subsubtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        switch (tag_no) {
+        case 0: /* not-before */
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+      offset = fDateTime(tvb, pinfo, subtree, offset, "not-before: ");
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 1: /* not-after */
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+      offset = fDateTime(tvb, pinfo, subtree, offset, "not-after: ");
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 2: /* clients */
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+      subsubtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", "clients:");
+
+      while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+          break;
+        }
+
+                offset = fApplicationTypes(tvb, pinfo, subsubtree, offset, "client: ");
+      }
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 3: /* constraint */
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+      offset = fAuthorizationConstraint(tvb, pinfo, subtree, offset, "constraint: ");
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 4: /* scope */
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+      offset = fAuthorizationScope(tvb, pinfo, subtree, offset, "scope: ");
+      offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        default:
+            break;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+static unsigned
+fAuthorizationConstraint(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+    offset = fApplicationTypesEnumerated(tvb, pinfo, subtree, offset, "origin: ", BACnetAuthorizationConstraintOrigin);
+    offset = fApplicationTypesEnumerated(tvb, pinfo, subtree, offset, "authentication: ", BACnetAuthorizationConstraintAuthentication);
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+static unsigned
+fAuthorizationScope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0, len;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+    proto_tree *subsubtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        switch (tag_no) {
+        case 0: /* extended */
+            if (tag_is_opening(tag_info)) {
+                subsubtree = proto_tree_add_subtree(subtree, tvb, offset, 1, ett_bacapp_value, NULL, "extended: ");
+                offset += fTagHeaderTree(tvb, pinfo, subsubtree, offset, &tag_no, &tag_info, &lvt);
+
+                while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {  /* exit loop if nothing happens inside */
+                    lastoffset = offset;
+                    len = fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+                    if (tag_is_closing(tag_info)) {
+                        fTagHeaderTree(tvb, pinfo, subsubtree, offset, &tag_no, &tag_info, &lvt);
+                        offset += len;
+                        break;
+                    }
+
+                    offset = fCharacterString(tvb, pinfo, subsubtree, offset, "scope: ");
+                    if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+                }
+            } else {
+                expert_add_info(pinfo, subtree, &ei_bacapp_bad_tag);
+            }
+            break;
+        default: /* standard */
+            offset = fBitStringTagVS(tvb, pinfo, subtree, offset, "standard: ", BACnetAuthorizationScopeStandard);
+            break;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+unsigned
+bacnet_dissect_scope(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
+    unsigned offset, const char *lable)
+{
+    return fAuthorizationScope(tvb, pinfo, tree, offset, lable);
+}
+
+static unsigned
+fAuthorizationScopeDescription(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+    lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        offset = fCharacterString(tvb, pinfo, subtree, offset, "name: ");
+        offset = fCharacterString(tvb, pinfo, subtree, offset, "description: ");
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+static unsigned
+fAuthorizationServer(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        switch (tag_no) {
+        case 0: /* auth-server */
+            offset = fUnsignedTag(tvb, pinfo, subtree, offset, "auth-server: ");
+            break;
+        case 1: /* signing-key #1 */
+            offset = fOctetString(tvb, pinfo, subtree, offset, "signing-key #1: ", lvt);
+            break;
+        case 2: /* signing-key #2 */
+            offset = fOctetString(tvb, pinfo, subtree, offset, "signing-key #2: ", lvt);
+            break;
+        default:
+            break;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
+    return offset;
+}
+
+static unsigned
+fAuthorizationStatus(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        switch (tag_no) {
+        case 0: /* posture */
+            offset = fApplicationTypesEnumerated(tvb, pinfo, subtree, offset, "posture: ", BACnetAuthorizationPosture);
+            break;
+        case 1: /* error */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fError(tvb, pinfo, subtree, offset);
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 2: /* error-source */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fObjectPropertyReference(tvb, pinfo, subtree, offset);
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 3: /* error-details */
+            offset = fCharacterString(tvb, pinfo, subtree, offset, "error-details: ");
+            break;
+        case 4: /* authentication-success */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+                lastoffset = offset;
+                /* check the tag.  A closing tag means we are done */
+                fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+                if (tag_is_closing(tag_info)) {
+                    break;
+                }
+
+                offset = fAuthenticationEvent(tvb, pinfo, subtree, offset, "authentication-success");
+                if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+            }
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 5: /* authentication-failure */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+                lastoffset = offset;
+                /* check the tag.  A closing tag means we are done */
+                fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+                if (tag_is_closing(tag_info)) {
+                    break;
+                }
+
+                offset = fAuthenticationEvent(tvb, pinfo, subtree, offset, "authentication-failure");
+                if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+            }
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 6: /* authorization-success */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+                lastoffset = offset;
+                /* check the tag.  A closing tag means we are done */
+                fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+                if (tag_is_closing(tag_info)) {
+                    break;
+                }
+
+                offset = fAuthorizationEvent(tvb, pinfo, subtree, offset, "authorization-success");
+                if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+            }
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 7: /* authorization-failure */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+                lastoffset = offset;
+                /* check the tag.  A closing tag means we are done */
+                fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+                if (tag_is_closing(tag_info)) {
+                    break;
+                }
+
+                offset = fAuthorizationEvent(tvb, pinfo, subtree, offset, "authorization-failure");
+                if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+            }
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        default:
+            break;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+
     return offset;
 }
 
@@ -13287,7 +14291,7 @@ fAuditNotificationInfo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsi
             break;
         case 3: /* source-object */
             subtree = proto_tree_add_subtree(tree, tvb, offset, 1, ett_bacapp_value, NULL, "source-object: ");
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         case 4: /* operation */
             fUnsigned32(tvb, offset, lvt, &operation);
@@ -13317,7 +14321,7 @@ fAuditNotificationInfo(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsi
             break;
         case 11: /* target-object */
             subtree = proto_tree_add_subtree(tree, tvb, offset, 1, ett_bacapp_value, NULL, "target-object: ");
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         case 12: /* target-property */
             subtree = proto_tree_add_subtree(tree, tvb, offset, 1, ett_bacapp_value, NULL, "target-property: ");
@@ -13674,10 +14678,10 @@ fConfirmedEventNotificationRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree
             offset  = fProcessId(tvb, pinfo, tree, offset);
             break;
         case 1: /* initiating ObjectId */
-            offset  = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset  = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 2: /* event ObjectId */
-            offset  = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset  = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 3: /* time stamp */
             offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
@@ -13750,7 +14754,7 @@ fConfirmedCOVNotificationMultipleRequest(tvbuff_t *tvb, packet_info *pinfo, prot
             offset = fProcessId(tvb, pinfo, tree, offset);
             break;
         case 1: /* initiating DeviceId */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier);
             break;
         case 2: /* time remaining */
             offset = fTimeSpan(tvb, pinfo, tree, offset, "Time remaining: ");
@@ -13779,7 +14783,7 @@ fConfirmedCOVNotificationMultipleRequest(tvbuff_t *tvb, packet_info *pinfo, prot
 
                     switch (tag_no) {
                     case 0: /* monitored-object-identifier */
-                        offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+                        offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
                         break;
                     case 1: /* list-of-values */
                         if (tag_is_opening(tag_info)) {
@@ -13872,10 +14876,10 @@ fConfirmedCOVNotificationRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
             offset = fProcessId(tvb, pinfo, tree, offset);
             break;
         case 1: /* initiating DeviceId */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "DeviceIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_device_identifier);
             break;
         case 2: /* monitored ObjectId */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         case 3: /* time remaining */
             offset = fTimeSpan(tvb, pinfo, tree, offset, "Time remaining: ");
@@ -13918,7 +14922,7 @@ fAcknowledgeAlarmRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, un
             offset = fUnsignedTag(tvb, pinfo, tree, offset, "acknowledging Process Id: ");
             break;
         case 1: /* eventObjectId */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 2: /* eventStateAcknowledged */
             offset = fEnumeratedTagSplit(tvb, pinfo, tree, offset,
@@ -14032,7 +15036,7 @@ fGetEventInformationRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
     if (tvb_reported_length_remaining(tvb, offset) > 0) {
         if (fTagNo(tvb, offset) == 0) {
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
         }
     }
     return offset;
@@ -14055,7 +15059,7 @@ flistOfEventSummaries(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsig
         }
         switch (tag_no) {
         case 0: /* ObjectId */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* eventState */
             offset = fEnumeratedTag(tvb, pinfo, tree, offset,
@@ -14187,7 +15191,7 @@ fAddListElementRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsi
 static unsigned
 fDeleteObjectRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
 {
-    return fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+    return fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
 }
 
 static unsigned
@@ -14349,7 +15353,7 @@ fAuditLogQueryByTargetParameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 
         switch (tag_no) {
         case 0: /* target-device-identifier */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier);
             break;
         case 1: /* target-device-address */
             offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
@@ -14357,7 +15361,7 @@ fAuditLogQueryByTargetParameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
             offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
             break;
         case 2: /* target-object-identifier */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 3: /* target-property-identifier */
             offset = fPropertyIdentifier(tvb, pinfo, tree, offset);
@@ -14400,7 +15404,7 @@ fAuditLogQueryBySourceParameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 
         switch (tag_no) {
         case 0: /* source-device-identifier */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier);
             break;
         case 1: /* source-device-address */
             offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
@@ -14408,7 +15412,7 @@ fAuditLogQueryBySourceParameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
             offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
             break;
         case 2: /* source-object-identifier */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 3: /* source-operation */
             offset  = fBitStringTagVS(tvb, pinfo, tree, offset,
@@ -14476,7 +15480,7 @@ fAuditLogQueryRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsig
 
         switch (tag_no) {
         case 0: /* audit-log */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* query-parameters */
             subtree = proto_tree_add_subtree(subtree, tvb, offset, 1, ett_bacapp_value, NULL, "query-parameters: ");
@@ -14545,7 +15549,7 @@ fAuditLogQueryAck(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned 
 
         switch (tag_no) {
         case 0: /* audit-log */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* records */
             subtree = proto_tree_add_subtree(subtree, tvb, offset, 1, ett_bacapp_value, NULL, "records: ");
@@ -14555,6 +15559,140 @@ fAuditLogQueryAck(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned 
             break;
         case 2: /* no-more-items */
             offset = fBooleanTag(tvb, pinfo, tree, offset, "no-more-items: ");
+            break;
+        default:
+            return offset;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+    return offset;
+}
+
+static unsigned
+fAuthRequestTokenRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset, const char *lable)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+    proto_tree *subsubtree = tree;
+
+    subtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+        ett_bacapp_value, NULL, "%s", lable);
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+        lastoffset = offset;
+        /* check the tag.  A closing tag means we are done */
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+        if (tag_is_closing(tag_info)) {
+            return offset;
+        }
+
+        switch (tag_no) {
+        case 0: /* client */
+            offset = fUnsignedTag(tvb, pinfo, subtree, offset, "client: ");
+            break;
+        case 1: /* audience */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            subsubtree = proto_tree_add_subtree_format(subtree, tvb, offset, 0,
+                      ett_bacapp_value, NULL, "%s", "audience:");
+
+            while (tvb_reported_length_remaining(tvb, offset) > 0 && offset > lastoffset) {
+                lastoffset = offset;
+                /* check the tag.  A closing tag means we are done */
+                fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+                if (tag_is_closing(tag_info)) {
+                    break;
+                }
+
+                offset = fSignedTag(tvb, pinfo, subsubtree, offset, "listener: ");
+                if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+            }
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        case 2: /* scope */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fAuthorizationScope(tvb, pinfo, subtree, offset, "scope: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        default:
+            return offset;
+        }
+    }
+
+    return offset;
+}
+
+static unsigned
+fAuthRequestRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0) {  /* exit loop if nothing happens inside */
+        lastoffset = offset;
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+
+        switch (tag_no) {
+        case 0: /* token */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fAuthRequestTokenRequest(tvb, pinfo, subtree, offset, "token: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        default:
+            return offset;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+    return offset;
+}
+
+static unsigned
+fAuthRequestAck(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0) {  /* exit loop if nothing happens inside */
+        lastoffset = offset;
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+
+        switch (tag_no) {
+        case 0: /* token */
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            offset = fAccessToken(tvb, pinfo, subtree, offset, "token: ");
+            offset += fTagHeaderTree(tvb, pinfo, subtree, offset, &tag_no, &tag_info, &lvt);
+            break;
+        default:
+            return offset;
+        }
+        if (offset <= lastoffset) break;     /* nothing happened, exit loop */
+    }
+    return offset;
+}
+
+static unsigned
+fAuthRequestError(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
+{
+    unsigned   lastoffset = 0;
+    uint8_t tag_no, tag_info;
+    uint32_t lvt;
+    proto_tree *subtree = tree;
+
+    while (tvb_reported_length_remaining(tvb, offset) > 0) {  /* exit loop if nothing happens inside */
+        lastoffset = offset;
+        fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
+
+        switch (tag_no) {
+        case 0: /* error */
+            offset = fContextTaggedError(tvb, pinfo, subtree, offset);
+            break;
+        case 1: /* details */
+            offset = fCharacterString(tvb, pinfo, subtree, offset, "details: ");
             break;
         default:
             return offset;
@@ -14779,11 +15917,11 @@ fRequestKeyRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned
     uint8_t tag_no, tag_info;
     uint32_t lvt;
 
-    offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: "); /* Requesting Device Identifier */
+    offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier); /* Requesting Device Identifier */
     offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
     offset = fAddress(tvb, pinfo, tree, offset);
     offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
-    offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: "); /* Remote Device Identifier */
+    offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier); /* Remote Device Identifier */
     offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
     offset = fAddress(tvb, pinfo, tree, offset);
     offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
@@ -14823,7 +15961,7 @@ fReadPropertyAck(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned o
         }
         switch (tag_no) {
         case 0: /* objectIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* propertyIdentifier */
             offset = fPropertyIdentifier(tvb, pinfo, subtree, offset);
@@ -14862,7 +16000,7 @@ fWritePropertyRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsig
 
         switch (tag_no) {
         case 0: /* objectIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* propertyIdentifier */
             offset = fPropertyIdentifier(tvb, pinfo, subtree, offset);
@@ -14902,7 +16040,7 @@ fWriteAccessSpecification(tvbuff_t *tvb, packet_info *pinfo, proto_tree *subtree
 
         switch (tag_no) {
         case 0: /* objectIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* listOfPropertyValues */
             if (tag_is_opening(tag_info)) {
@@ -14983,7 +16121,7 @@ fBACnetObjectPropertyReference(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
 
         switch (fTagNo(tvb, offset)) {
         case 0: /* ObjectIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* PropertyIdentifier and propertyArrayIndex */
             offset = fPropertyReference(tvb, pinfo, tree, offset, 1, 0);
@@ -15018,7 +16156,7 @@ fObjectPropertyValue(tvbuff_t *tvb, proto_tree *tree, unsigned offset)
         }
         switch (tag_no) {
         case 0: /* ObjectIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* PropertyIdentifier */
             offset = fPropertyIdentifier(tvb, pinfo, subtree, offset);
@@ -15044,7 +16182,7 @@ static unsigned
 // NOLINTNEXTLINE(misc-no-recursion)
 fPriorityArray(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
 {
-    char  i = 1, ar[256];
+    char  i = 1, *str_ar;
     unsigned lastoffset = 0;
     uint8_t tag_no;
     uint8_t tag_info;
@@ -15063,8 +16201,8 @@ fPriorityArray(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned off
     while (tvb_reported_length_remaining(tvb, offset) > 0) {
         /* exit loop if nothing happens inside */
         lastoffset = offset;
-        snprintf(ar, sizeof(ar), "%s[%d]: ",
-            val_to_split_str(87 , 512,
+        str_ar = wmem_strdup_printf(pinfo->pool, "%s[%d]: ",
+            val_to_split_str(pinfo->pool, 87 , 512,
                 BACnetPropertyIdentifier,
                 ASHRAE_Reserved_Fmt,
                 Vendor_Proprietary_Fmt),
@@ -15072,7 +16210,7 @@ fPriorityArray(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned off
         fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
         if ( ! tag_is_context_specific(tag_info)) {
             /* DMR Should be fAbstractNSyntax, but that's where we came from! */
-            offset = fApplicationTypes(tvb, pinfo, tree, offset, ar);
+            offset = fApplicationTypes(tvb, pinfo, tree, offset, str_ar);
         } else {
             if (tag_is_opening(tag_info) && tag_no == 0) {
                 offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
@@ -15089,7 +16227,7 @@ fPriorityArray(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned off
                 offset += fTagHeaderTree(tvb, pinfo, tree, offset, &tag_no, &tag_info, &lvt);
             } else {
                 /* DMR Should be fAbstractNSyntax, but that's where we came from! */
-                offset = fApplicationTypes(tvb, pinfo, tree, offset, ar);
+                offset = fApplicationTypes(tvb, pinfo, tree, offset, str_ar);
             }
         }
         /* there are only 16 priority array elements */
@@ -15118,10 +16256,10 @@ fDeviceObjectReference(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsi
         }
         switch (tag_no) {
         case 0: /* deviceIdentifier - OPTIONAL */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "DeviceIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_device_identifier);
             break;
         case 1: /* ObjectIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         default:
             return offset;
@@ -15154,7 +16292,7 @@ fSpecialEvent(tvbuff_t *tvb, packet_info *pinfo, proto_tree *subtree, unsigned o
             }
             break;
         case 1: /* calendarReference */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         case 2: /* list of BACnetTimeValue */
             if (tag_is_opening(tag_info)) {
@@ -15406,7 +16544,7 @@ fReadAccessSpecification(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, un
         fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
         switch (tag_no) {
         case 0: /* objectIdentifier */
-            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* listOfPropertyReferences */
             if (tag_is_opening(tag_info)) {
@@ -15466,7 +16604,7 @@ fReadAccessResult(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned 
 
         switch (tag_no) {
         case 0: /* objectSpecifier */
-            offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+            offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
             break;
         case 1: /* list of Results */
             if (tag_is_opening(tag_info)) {
@@ -15528,7 +16666,7 @@ fCreateObjectRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *subtree, uns
                     offset = fEnumeratedTagSplit(tvb, pinfo, subtree, offset, "Object Type: ", BACnetObjectType, 128);
                     break;
                 case 1: /* objectIdentifier */
-                    offset = fObjectIdentifier(tvb, pinfo, subtree, offset, "ObjectIdentifier: ");
+                    offset = fObjectIdentifier(tvb, pinfo, subtree, offset, hf_bacapp_object_identifier);
                     break;
                 default:
                     break;
@@ -15554,7 +16692,7 @@ fCreateObjectRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *subtree, uns
 static unsigned
 fCreateObjectAck(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
 {
-    return fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+    return fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
 }
 
 static unsigned
@@ -15720,7 +16858,7 @@ fAtomicReadFileRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsi
     uint32_t    lvt;
     proto_tree *subtree = tree;
 
-    offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: ");
+    offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier);
 
     fTagHeader(tvb, pinfo, offset, &tag_no, &tag_info, &lvt);
 
@@ -15739,7 +16877,7 @@ static unsigned
 fAtomicWriteFileRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offset)
 {
 
-    offset = fObjectIdentifier(tvb, pinfo, tree, offset, "ObjectIdentifier: "); /* file Identifier */
+    offset = fObjectIdentifier(tvb, pinfo, tree, offset, hf_bacapp_object_identifier); /* file Identifier */
     offset = fAccessMethod(tvb, pinfo, tree, offset);
 
     return offset;
@@ -15883,6 +17021,9 @@ fConfirmedServiceRequest(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, un
     case 33:
         offset = fAuditLogQueryRequest(tvb, pinfo, tree, offset);
         break;
+    case 34:
+        offset = fAuthRequestRequest(tvb, pinfo, tree, offset);
+        break;
     default:
         return offset;
     }
@@ -15940,6 +17081,9 @@ fConfirmedServiceAck(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsign
         break;
     case 33:
         offset = fAuditLogQueryAck(tvb, pinfo, tree, offset);
+        break;
+    case 34:
+        offset = fAuthRequestAck(tvb, pinfo, tree, offset);
         break;
     default:
         return offset;
@@ -16442,6 +17586,9 @@ fBACnetError(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned offse
     case 30:
         offset = fSubscribeCOVPropertyMultipleError(tvb, pinfo, tree, offset);
         break;
+    case 34:
+        offset = fAuthRequestError(tvb, pinfo, tree, offset);
+        break;
     default:
         offset = fError(tvb, pinfo, tree, offset);
         break;
@@ -16715,7 +17862,7 @@ dissect_bacapp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
         bacapp_invoke_id = tvb_get_uint8(tvb, offset + 1);
         bacapp_reason = tvb_get_uint8(tvb, offset + 2);
         col_append_fstr(pinfo->cinfo, COL_INFO, "%s[%3u] ", /* "original-invokeID" replaced */
-                        val_to_split_str(bacapp_reason,
+                        val_to_split_str(pinfo->pool, bacapp_reason,
                                          64,
                                          BACnetRejectReason,
                                          ASHRAE_Reserved_Fmt,
@@ -16726,7 +17873,7 @@ dissect_bacapp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 
         updateBacnetInfoValue(BACINFO_SERVICE,
                               wmem_strconcat(pinfo->pool, rejstr,
-                                             val_to_split_str(bacapp_reason, 64,
+                                             val_to_split_str(pinfo->pool, bacapp_reason, 64,
                                                               BACnetRejectReason,
                                                               ASHRAE_Reserved_Fmt,
                                                               Vendor_Proprietary_Fmt),
@@ -16736,7 +17883,7 @@ dissect_bacapp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
         bacapp_invoke_id = tvb_get_uint8(tvb, offset + 1);
         bacapp_reason = tvb_get_uint8(tvb, offset + 2);
         col_append_fstr(pinfo->cinfo, COL_INFO, "%s[%3u] ", /* "original-invokeID" replaced */
-                        val_to_split_str(bacapp_reason,
+                        val_to_split_str(pinfo->pool, bacapp_reason,
                                          64,
                                          BACnetAbortReason,
                                          ASHRAE_Reserved_Fmt,
@@ -16747,7 +17894,7 @@ dissect_bacapp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 
         updateBacnetInfoValue(BACINFO_SERVICE,
                               wmem_strconcat(pinfo->pool, abortstr,
-                                             val_to_split_str(bacapp_reason,
+                                             val_to_split_str(pinfo->pool, bacapp_reason,
                                                               64,
                                                               BACnetAbortReason,
                                                               ASHRAE_Reserved_Fmt,
@@ -16773,15 +17920,40 @@ dissect_bacapp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 
     if (fragment) { /* fragmented */
         fragment_head *frag_msg;
+        uint32_t ext_seqno = bacapp_seqno;
 
         pinfo->fragmented = true;
 
+        if (!PINFO_FD_VISITED(pinfo)) {
+            frag_msg = fragment_get(&msg_reassembly_table, pinfo, bacapp_invoke_id, NULL);
+            if (frag_msg && frag_msg->first_gap) {
+                /* If we have permanently lost segments then using the last
+                 * contiguous sequence number isn't quite right - but we
+                 * won't be able to defragment in that case anyway.
+                 */
+                uint32_t prev_seqno = frag_msg->first_gap->offset;
+                ext_seqno = calculate_extended_seqno(prev_seqno, bacapp_seqno);
+
+                if (ext_seqno != bacapp_seqno) {
+                    p_add_proto_data(wmem_file_scope(), pinfo, proto_bacapp, bacapp_seqno, GUINT_TO_POINTER(ext_seqno));
+                }
+            }
+        } else {
+            /* This is not really necessary (because the fragment number is not
+             * used by fragment_add_seq_check on the second pass) but makes the
+             * fragment number in the Info column be the extended one.
+             */
+            ext_seqno = GPOINTER_TO_UINT(p_get_proto_data(wmem_file_scope(), pinfo, proto_bacapp, bacapp_seqno));
+            if (ext_seqno == 0) {
+                ext_seqno = bacapp_seqno;
+            }
+        }
         frag_msg = fragment_add_seq_check(&msg_reassembly_table,
             tvb, data_offset,
             pinfo,
             bacapp_invoke_id,      /* ID for fragments belonging together */
             NULL,
-            bacapp_seqno,          /* fragment sequence number */
+            ext_seqno,             /* fragment sequence number */
             tvb_reported_length_remaining(tvb, data_offset), /* fragment length - to the end */
             flag & BACAPP_MORE_SEGMENTS); /* Last fragment reached? */
         new_tvb = process_reassembled_data(tvb, data_offset, pinfo,
@@ -16793,7 +17965,7 @@ dissect_bacapp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
                            " (Message Reassembled)");
         } else { /* Not last packet of reassembled Short Message */
             col_append_fstr(pinfo->cinfo, COL_INFO,
-                            " (Message fragment %u)", bacapp_seqno);
+                            " (Message fragment %u)", ext_seqno);
         }
         if (new_tvb) { /* take it all */
             switch (bacapp_type) {
@@ -16848,6 +18020,14 @@ proto_register_bacapp(void)
         { &hf_bacapp_response_segments,
           { "Max Response Segments accepted",           "bacapp.response_segments",
             FT_UINT8, BASE_DEC, VALS(BACnetMaxSegmentsAccepted), 0x70, NULL, HFILL }
+        },
+        { &hf_bacapp_object_identifier,
+          { "Object Identifier",           "bacapp.objectIdentifier",
+            FT_UINT32, BASE_CUSTOM, CF_FUNC(format_object_identifier), 0, NULL, HFILL }
+        },
+        { &hf_bacapp_device_identifier,
+          { "Device Identifier",           "bacapp.deviceIdentifier",
+            FT_UINT32, BASE_CUSTOM, CF_FUNC(format_object_identifier), 0, NULL, HFILL }
         },
         { &hf_bacapp_objectType,
           { "Object Type",           "bacapp.objectType",
@@ -17102,6 +18282,7 @@ proto_register_bacapp(void)
         &ett_bacapp_tag,
         &ett_bacapp_list,
         &ett_bacapp_value,
+        &ett_bacapp_object_identifier,
         &ett_msg_fragment,
         &ett_msg_fragments
 

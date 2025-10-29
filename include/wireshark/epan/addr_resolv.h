@@ -32,11 +32,15 @@ extern "C" {
 #endif /* __cplusplus */
 
 #ifndef MAXNAMELEN
-#define MAXNAMELEN  	64	/* max name length (hostname and port name) */
+#define MAXNAMELEN  	64	/* max name length (most names: DNS labels, services, eth) */
 #endif
 
 #ifndef MAXVLANNAMELEN
 #define MAXVLANNAMELEN  	128	/* max vlan name length */
+#endif
+
+#ifndef MAXDNSNAMELEN
+#define MAXDNSNAMELEN	256	/* max total length of a domain name in the DNS */
 #endif
 
 #define BASE_ENTERPRISES     BASE_CUSTOM
@@ -58,7 +62,7 @@ typedef struct _e_addr_resolve {
 } e_addr_resolve;
 
 #define ADDR_RESOLV_MACADDR(at) \
-    (((at)->type == AT_ETHER))
+    (((at)->type == AT_ETHER) || ((at)->type == AT_EUI64))
 
 #define ADDR_RESOLV_NETADDR(at) \
     (((at)->type == AT_IPv4) || ((at)->type == AT_IPv6) || ((at)->type == AT_IPX))
@@ -66,22 +70,23 @@ typedef struct _e_addr_resolve {
 struct hashether;
 typedef struct hashether hashether_t;
 
+struct hasheui64;
+typedef struct hasheui64 hasheui64_t;
+
 struct hashwka;
 typedef struct hashwka hashwka_t;
 
 struct hashmanuf;
 typedef struct hashmanuf hashmanuf_t;
 
-typedef struct serv_port {
-  const char       *udp_name;
-  const char       *tcp_name;
-  const char       *sctp_name;
-  const char       *dccp_name;
-  const char       *numeric;
-} serv_port_t;
+typedef struct _serv_port_key {
+    uint16_t          port;
+    port_type         type;
+} serv_port_key_t;
 
+/* Used for manually edited DNS resolved names */
 typedef struct _resolved_name {
-    char             name[MAXNAMELEN];
+    char             name[MAXDNSNAMELEN];
 } resolved_name_t;
 
 /*
@@ -210,11 +215,33 @@ WS_DLL_PUBLIC void disable_name_resolution(void);
  */
 WS_DLL_PUBLIC bool host_name_lookup_process(void);
 
-/* get_hostname returns the host name or "%d.%d.%d.%d" if not found */
+/* get_hostname returns the host name or "%d.%d.%d.%d" if not found.
+ * The string does not have to be freed; it will be freed when the
+ * address hashtables are emptied (e.g., when preferences change or
+ * redissection.) However, this increases persistent memory usage
+ * even when host name lookups are off.
+ *
+ * This might get deprecated in the future for get_hostname_wmem.
+ */
 WS_DLL_PUBLIC const char *get_hostname(const unsigned addr);
 
-/* get_hostname6 returns the host name, or numeric addr if not found */
+/* get_hostname_wmem returns the host name or "%d.%d.%d.%d" if not found
+ * The returned string is allocated according to the wmem scope allocator. */
+WS_DLL_PUBLIC char *get_hostname_wmem(wmem_allocator_t *allocator, const unsigned addr);
+
+/* get_hostname6 returns the host name, or numeric addr if not found.
+ * The string does not have to be freed; it will be freed when the
+ * address hashtables are emptied (e.g., when preferences change or
+ * upon redissection.) However, this increases persistent memory usage
+ * even when host name lookups are off.
+ *
+ * This might get deprecated in the future for get_hostname6_wmem.
+ */
 WS_DLL_PUBLIC const char *get_hostname6(const ws_in6_addr *ad);
+
+/* get_hostname6 returns the host name, or numeric addr if not found.
+ * The returned string is allocated according to the wmem scope allocator. */
+WS_DLL_PUBLIC char *get_hostname6_wmem(wmem_allocator_t *allocator, const ws_in6_addr *ad);
 
 /* get_ether_name returns the logical name if found in ethers files else
    "<vendor>_%02x:%02x:%02x" if the vendor code is known else
@@ -291,9 +318,18 @@ WS_DLL_PUBLIC const char *tvb_get_manuf_name(tvbuff_t *tvb, int offset);
  */
 WS_DLL_PUBLIC const char *tvb_get_manuf_name_if_known(tvbuff_t *tvb, int offset);
 
+/* get_eui64_name returns the logical name if found in ethers files else
+ * "<vendor>_%02x:%02x:%02x:%02x:%02x:%02x" if the vendor code is known
+ * (or as appropriate for MA-M and MA-S), and if not,
+ * "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
+*/
+extern const char *get_eui64_name(const uint8_t *addr);
+
 /* eui64_to_display returns "<vendor>_%02x:%02x:%02x:%02x:%02x:%02x" if the
  * vendor code is known (or as appropriate for MA-M and MA-S), and if not,
- * "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
+ * "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x". Gives the same results
+ * as address_to_display, but for when the EUI-64 address is a host endian
+ * uint64_t instead of bytes / an AT_EUI64 address.
 */
 extern char *eui64_to_display(wmem_allocator_t *allocator, const uint64_t addr);
 

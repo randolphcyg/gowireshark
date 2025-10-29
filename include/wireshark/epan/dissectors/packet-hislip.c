@@ -611,7 +611,7 @@ decode_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, hislipinfo *dat
                 datalength = data->payloadlength;
 
             col_append_fstr(pinfo->cinfo, COL_INFO, " %s", tvb_format_text(pinfo->pool, tvb, data->offset, (uint32_t)datalength));
-            proto_tree_add_item(tree, hf_hislip_data, tvb, data->offset, -1, ENC_UTF_8 |ENC_NA);
+            proto_tree_add_item(tree, hf_hislip_data, tvb, data->offset, -1, ENC_UTF_8);
 
             break;
 
@@ -629,7 +629,7 @@ decode_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, hislipinfo *dat
 
         default:
 
-            proto_tree_add_item(tree, hf_hislip_data, tvb, data->offset, -1, ENC_UTF_8 | ENC_NA);
+            proto_tree_add_item(tree, hf_hislip_data, tvb, data->offset, -1, ENC_UTF_8);
 
         }
     }
@@ -966,10 +966,10 @@ proto_register_hislip(void)
         { "Data", "hislip.data", FT_STRING, BASE_NONE, NULL, 0x0,
         "HiSLIP Payload", HFILL }},
         { &hf_hislip_request,
-        { "Request", "hislip.response", FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+        { "Request", "hislip.response", FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0,
         "This is a response to the HiSLIP request in this frame", HFILL }},
         { &hf_hislip_response,
-        { "Response", "hislip.request", FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+        { "Response", "hislip.request", FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
         "A Request in this frame", HFILL }},
         { &hf_hislip_syn,
         { "Synchronous Channel", "hislip.syn", FT_NONE, BASE_NONE, NULL, 0x0,

@@ -21,6 +21,7 @@
 #include <epan/expert.h>
 #include <wsutil/strtoi.h>
 #include <wsutil/inet_addr.h>
+#include <wsutil/array.h>
 
 void proto_register_rtpdump(void);
 void proto_reg_handoff_rtpdump(void);
@@ -255,12 +256,12 @@ proto_register_rtpdump(void)
               NULL, HFILL }
         },
         { &hf_rtpdump_txt_ipv4,
-            { "Text IPv4 address", "rtpdump.txt_addr",
+            { "Text IPv4 address", "rtpdump.txt_addr_ipv4",
               FT_IPv4, BASE_NONE, NULL, 0x0,
               NULL, HFILL }
         },
         { &hf_rtpdump_txt_ipv6,
-            { "Text IPv6 address", "rtpdump.txt_addr",
+            { "Text IPv6 address", "rtpdump.txt_addr_ipv6",
               FT_IPv6, BASE_NONE, NULL, 0x0,
               NULL, HFILL }
         },

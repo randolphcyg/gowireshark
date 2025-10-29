@@ -14,7 +14,7 @@
 #include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "packet.h"
+#include <epan/packet.h>
 
 #include "capture_dissectors.h"
 #include <wsutil/ws_assert.h>
@@ -35,7 +35,7 @@ struct capture_dissector_handle
 
 typedef struct capture_dissector_count
 {
-    uint32_t count;
+    uint64_t count;
 } capture_dissector_count_t;
 
 static GHashTable *registered_dissectors;
@@ -125,9 +125,7 @@ void capture_dissector_add_uint(const char *name, const uint32_t pattern, captur
     /* Make sure table exists */
     sub_dissectors = (struct capture_dissector_table*)g_hash_table_lookup( capture_dissector_tables, name );
     if (sub_dissectors == NULL) {
-            fprintf(stderr, "OOPS: Subdissector \"%s\" not found in capture_dissector_tables\n", name);
-            if (wireshark_abort_on_dissector_bug)
-                    abort();
+            ws_dissector_oops("Subdissector \"%s\" not found in capture_dissector_tables\n", name);
             return;
     }
 
@@ -163,7 +161,7 @@ bool call_capture_dissector(capture_dissector_handle_t handle, const uint8_t *pd
     return handle->dissector(pd, offset, len, cpinfo, pseudo_header);
 }
 
-uint32_t capture_dissector_get_count(packet_counts* counts, const int proto)
+uint64_t capture_dissector_get_count(packet_counts* counts, const int proto)
 {
     capture_dissector_count_t* hash_count = (capture_dissector_count_t*)g_hash_table_lookup(counts->counts_hash, GINT_TO_POINTER(proto));
     if (hash_count == NULL)

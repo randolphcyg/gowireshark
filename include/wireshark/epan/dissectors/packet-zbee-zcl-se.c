@@ -22,7 +22,6 @@
 #include <epan/unit_strings.h>
 
 #include <wsutil/array.h>
-#include <wsutil/epochs.h>
 
 #include "packet-zbee.h"
 #include "packet-zbee-aps.h"
@@ -42,7 +41,25 @@ static const value_string zbee_zcl_se_reporting_status_names[] = {
     { 0, NULL }
 };
 
-static void decode_zcl_se_utc_time(char *s, uint32_t value);
+/**
+ * These tables match Zigbee time values of 0x00000000 and 0xFFFFFFFF,
+ * which have special meanings when used in a Smart Energy context
+ */
+static const time_value_string zero_is_invalid_strings[] = {
+	{ NSTIME_INIT_ZBEE(0x00000000), "Invalid" },
+	{ NSTIME_INIT_ZERO, NULL }
+};
+
+/**
+ * XXX - we use thie for all Start Time fields; the 1.4a Zigbee Smart
+ * Energy specification describes most, but not all, Start Time fields
+ * as having 0xFFFFFFFF meaning "cancel a previous pending request".
+ */
+static const time_value_string now_or_cancel_strings[] = {
+	{ NSTIME_INIT_ZBEE(0x00000000), "Now" },
+	{ NSTIME_INIT_ZBEE(0xFFFFFFFF), "Cancel pending" },
+	{ NSTIME_INIT_ZERO, NULL }
+};
 
 /**
  *Dissect a ZigBee Date
@@ -108,9 +125,6 @@ VALUE_STRING_ARRAY(zbee_zcl_keep_alive_attr_names);
 void proto_register_zbee_zcl_keep_alive(void);
 void proto_reg_handoff_zbee_zcl_keep_alive(void);
 
-/* Attribute Dissector Helpers */
-static void dissect_zcl_keep_alive_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
-
 /*************************/
 /* Global Variables      */
 /*************************/
@@ -141,7 +155,7 @@ static int ett_zbee_zcl_keep_alive;
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_keep_alive_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_keep_alive_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch (attr_id) {
@@ -162,7 +176,7 @@ dissect_zcl_keep_alive_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offs
             break;
 
         default: /* Catch all */
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_keep_alive_attr_data*/
@@ -236,7 +250,7 @@ proto_reg_handoff_zbee_zcl_keep_alive(void)
                             hf_zbee_zcl_keep_alive_attr_id,
                             -1,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_keep_alive_attr_data
+                            dissect_zcl_keep_alive_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_keep_alive*/
 
@@ -1452,9 +1466,6 @@ VALUE_STRING_ARRAY(zbee_zcl_price_tariff_charging_scheme_names);
 void proto_register_zbee_zcl_price(void);
 void proto_reg_handoff_zbee_zcl_price(void);
 
-/* Attribute Dissector Helpers */
-static void dissect_zcl_price_attr_data  (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
-
 /* Command Dissector Helpers */
 static void dissect_zcl_price_get_current_price              (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 static void dissect_zcl_price_get_scheduled_prices           (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
@@ -1540,6 +1551,7 @@ static int hf_zbee_zcl_price_alternate_cost_unit;
 static int hf_zbee_zcl_price_alternate_cost_trailing_digit_mask;
 static int hf_zbee_zcl_price_alternate_cost_trailing_digit;
 static int hf_zbee_zcl_price_start_time;
+static int hf_zbee_zcl_price_start_time_with_cancel;
 static int hf_zbee_zcl_price_earliest_start_time;
 static int hf_zbee_zcl_price_latest_end_time;
 static int hf_zbee_zcl_price_current_time;
@@ -1663,7 +1675,7 @@ static int * const zbee_zcl_price_tariff_type_mask[] = {
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_price_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_price_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     switch (attr_id) {
         /* applies to all SE clusters */
@@ -1673,7 +1685,7 @@ dissect_zcl_price_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, u
             break;
 
         default: /* Catch all */
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_price_attr_data*/
@@ -1903,7 +1915,7 @@ static void
 dissect_zcl_price_get_scheduled_prices(tvbuff_t *tvb, proto_tree *tree, unsigned *offset)
 {
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Number of Events */
@@ -1930,7 +1942,7 @@ dissect_zcl_price_get_price_acknowledgement(tvbuff_t *tvb, proto_tree *tree, uns
     *offset += 4;
 
     /* Price Ack Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_price_ack_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_price_ack_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Price Control */
@@ -1949,7 +1961,7 @@ static void
 dissect_zcl_price_get_block_period(tvbuff_t *tvb, proto_tree *tree, unsigned *offset)
 {
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Number of Events */
@@ -1974,7 +1986,7 @@ static void
 dissect_zcl_price_get_conversion_factor(tvbuff_t *tvb, proto_tree *tree, unsigned *offset)
 {
     /* Earliest Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Min Issuer Event ID */
@@ -1998,7 +2010,7 @@ dissect_zcl_price_get_calorific_value(tvbuff_t *tvb, proto_tree *tree, unsigned 
 {
 
     /* Earliest Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Min Issuer Event ID */
@@ -2021,7 +2033,7 @@ static void
 dissect_zcl_price_get_tariff_information(tvbuff_t *tvb, proto_tree *tree, unsigned *offset)
 {
     /* Earliest Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Min Issuer Event ID */
@@ -2079,7 +2091,7 @@ static void
 dissect_zcl_price_get_co2_value(tvbuff_t *tvb, proto_tree *tree, unsigned *offset)
 {
     /* Earliest Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Min Issuer Event ID */
@@ -2123,7 +2135,7 @@ static void
 dissect_zcl_price_get_billing_period(tvbuff_t *tvb, proto_tree *tree, unsigned *offset)
 {
     /* Earliest Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Min Issuer Event ID */
@@ -2154,7 +2166,7 @@ dissect_zcl_price_get_consolidated_bill(tvbuff_t *tvb, proto_tree *tree, unsigne
 {
 
     /* Earliest Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_earliest_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Min Issuer Event ID */
@@ -2204,7 +2216,7 @@ dissect_zcl_price_get_credit_payment(tvbuff_t *tvb, proto_tree *tree, unsigned *
 {
 
     /* Latest End Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_latest_end_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_latest_end_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Number of Records */
@@ -2254,7 +2266,7 @@ dissect_zcl_price_publish_price(tvbuff_t *tvb, proto_tree *tree, unsigned *offse
     *offset += 4;
 
     /* Current Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_current_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_current_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Unit of Measure */
@@ -2274,7 +2286,7 @@ dissect_zcl_price_publish_price(tvbuff_t *tvb, proto_tree *tree, unsigned *offse
     *offset += 1;
 
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Duration in Minutes */
@@ -2370,7 +2382,7 @@ dissect_zcl_price_publish_block_period(tvbuff_t *tvb, proto_tree *tree, unsigned
     *offset += 4;
 
     /* Block Period Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_block_period_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_block_period_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Block Period Duration */
@@ -2414,7 +2426,7 @@ dissect_zcl_price_publish_conversion_factor(tvbuff_t *tvb, proto_tree *tree, uns
     *offset += 4;
 
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Conversion Factor */
@@ -2446,7 +2458,7 @@ dissect_zcl_price_publish_calorific_value(tvbuff_t *tvb, proto_tree *tree, unsig
     *offset += 4;
 
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Calorific Value */
@@ -2498,7 +2510,7 @@ dissect_zcl_price_publish_tariff_information(tvbuff_t *tvb, proto_tree *tree, un
     *offset += 4;
 
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Tariff Type / Charging Scheme */
@@ -2573,7 +2585,7 @@ dissect_zcl_price_publish_price_matrix(tvbuff_t *tvb, proto_tree *tree, unsigned
     *offset += 4;
 
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Issuer Tariff ID */
@@ -2639,7 +2651,7 @@ dissect_zcl_price_publish_block_thresholds(tvbuff_t *tvb, proto_tree *tree, unsi
     *offset += 4;
 
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Issuer Tariff ID */
@@ -2702,7 +2714,7 @@ dissect_zcl_price_publish_co2_value(tvbuff_t *tvb, proto_tree *tree, unsigned *o
     *offset += 4;
 
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time_with_cancel, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Tariff Type */
@@ -2790,7 +2802,7 @@ dissect_zcl_price_publish_billing_period(tvbuff_t *tvb, proto_tree *tree, unsign
     *offset += 4;
 
     /* Billing Period Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_billing_period_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_billing_period_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Billing Period Duration */
@@ -2830,7 +2842,7 @@ dissect_zcl_price_publish_consolidated_bill(tvbuff_t *tvb, proto_tree *tree, uns
     *offset += 4;
 
     /* Billing Period Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time_with_cancel, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Billing Period Duration */
@@ -2876,7 +2888,7 @@ dissect_zcl_price_publish_cpp_event(tvbuff_t *tvb, proto_tree *tree, unsigned *o
     *offset += 4;
 
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time_with_cancel, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Duration in Minutes */
@@ -2967,7 +2979,7 @@ dissect_zcl_price_publish_currency_conversion(tvbuff_t *tvb, proto_tree *tree, u
     *offset += 4;
 
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_price_start_time_with_cancel, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Old Currency */
@@ -3212,28 +3224,32 @@ proto_register_zbee_zcl_price(void)
         /* end Alternate Cost Trailing Digit */
 
         { &hf_zbee_zcl_price_start_time,
-            { "Start Time", "zbee_zcl_se.price.start_time", FT_UINT32, BASE_CUSTOM,
-                CF_FUNC(decode_zcl_se_utc_time), 0x00, NULL, HFILL } },
+            { "Start Time", "zbee_zcl_se.price.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC,
+                TIME_VALS(now_strings), 0x00, NULL, HFILL } },
+
+        { &hf_zbee_zcl_price_start_time_with_cancel,
+            { "Start Time", "zbee_zcl_se.price.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC,
+                TIME_VALS(now_or_cancel_strings), 0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_price_earliest_start_time,
-            { "Earliest Start Time", "zbee_zcl_se.price.earliest_start_time", FT_UINT32, BASE_CUSTOM,
-                CF_FUNC(decode_zcl_se_utc_time), 0x00, NULL, HFILL } },
+            { "Earliest Start Time", "zbee_zcl_se.price.earliest_start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC,
+               NULL, 0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_price_latest_end_time,
-            { "Latest End Time", "zbee_zcl_se.price.latest_end_time", FT_UINT32, BASE_CUSTOM,
-                CF_FUNC(decode_zcl_se_utc_time), 0x00, NULL, HFILL } },
+            { "Latest End Time", "zbee_zcl_se.price.latest_end_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC,
+                NULL, 0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_price_current_time,
-            { "Current Time", "zbee_zcl_se.price.current_time", FT_UINT32, BASE_CUSTOM,
-                CF_FUNC(decode_zcl_se_utc_time), 0x00, NULL, HFILL } },
+            { "Current Time", "zbee_zcl_se.price.current_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC,
+                NULL, 0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_price_price_ack_time,
-            { "Price Ack Time", "zbee_zcl_se.price.price_ack_time", FT_UINT32, BASE_CUSTOM,
-                CF_FUNC(decode_zcl_se_utc_time), 0x00, NULL, HFILL } },
+            { "Price Ack Time", "zbee_zcl_se.price.price_ack_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC,
+                NULL, 0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_price_block_period_start_time,
-            { "Block Period Start Time", "zbee_zcl_se.price.block_period.start_time", FT_UINT32, BASE_CUSTOM,
-                CF_FUNC(decode_zcl_se_utc_time), 0x00, NULL, HFILL } },
+            { "Block Period Start Time", "zbee_zcl_se.price.block_period.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC,
+                TIME_VALS(now_or_cancel_strings), 0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_price_block_period_duration,
             { "Block Period Duration", "zbee_zcl_se.price.block_period.duration", FT_UINT24, BASE_DEC, NULL,
@@ -3430,8 +3446,8 @@ proto_register_zbee_zcl_price(void)
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_price_billing_period_start_time,
-            { "Billing Period Start Time", "zbee_zcl_se.price.billing_period.start_time", FT_UINT32, BASE_CUSTOM,
-                CF_FUNC(decode_zcl_se_utc_time), 0x00, NULL, HFILL } },
+            { "Billing Period Start Time", "zbee_zcl_se.price.billing_period.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC,
+                TIME_VALS(now_or_cancel_strings), 0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_price_billing_period_duration,
             { "Billing Period Duration", "zbee_zcl_se.price.billing_period.duration", FT_UINT24, BASE_DEC, NULL,
@@ -3547,7 +3563,7 @@ proto_reg_handoff_zbee_zcl_price(void)
                             hf_zbee_zcl_price_attr_client_id,
                             hf_zbee_zcl_price_srv_rx_cmd_id,
                             hf_zbee_zcl_price_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_price_attr_data
+                            dissect_zcl_price_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_price*/
 
@@ -3664,8 +3680,6 @@ static void dissect_zcl_drlc_cancel_all_load_control_event  (tvbuff_t *tvb, prot
 static void dissect_zcl_drlc_report_event_status            (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 static void dissect_zcl_drlc_get_scheduled_events           (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 
-/* Attribute Dissector Helpers */
-static void dissect_zcl_drlc_attr_data                                  (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 /*************************/
 /* Global Variables      */
 /*************************/
@@ -3721,7 +3735,7 @@ static int hf_zbee_zcl_drlc_report_event_duty_cycle;
 static int hf_zbee_zcl_drlc_report_event_event_control;
 static int hf_zbee_zcl_drlc_report_event_signature_type;
 static int hf_zbee_zcl_drlc_report_event_signature;
-static int hf_zbee_zcl_drlc_get_scheduled_events_start_time;
+static int hf_zbee_zcl_drlc_get_scheduled_events_earliest_end_time;
 static int hf_zbee_zcl_drlc_get_scheduled_events_number_of_events;
 static int hf_zbee_zcl_drlc_get_scheduled_events_issuer_event_id;
 
@@ -3824,7 +3838,7 @@ static void decode_zcl_drlc_average_load_adjustment_percentage(char *s, int8_t v
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_drlc_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_drlc_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     switch (attr_id) {
         /* applies to all SE clusters */
@@ -3834,7 +3848,7 @@ dissect_zcl_drlc_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, ui
             break;
 
         default: /* Catch all */
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_drlc_attr_data*/
@@ -3867,7 +3881,7 @@ dissect_zcl_drlc_load_control_event(tvbuff_t *tvb, proto_tree *tree, unsigned *o
 
     /* Start Time */
     proto_tree_add_item(tree, hf_zbee_zcl_drlc_start_time, tvb,
-                        *offset, 4, ENC_LITTLE_ENDIAN);
+                        *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
     /* Duration In Minutes */
     proto_tree_add_item(tree, hf_zbee_zcl_drlc_duration_in_minutes, tvb,
@@ -3948,8 +3962,11 @@ dissect_zcl_drlc_cancel_load_control_event(tvbuff_t *tvb, proto_tree *tree, unsi
     *offset += 1;
 
     /* Effective Time */
+    /** XXX - expert info if it's not "Now? Other values are deprecated
+     * in the 1.4a spec.
+     */
     proto_tree_add_item(tree, hf_zbee_zcl_drlc_effective_time, tvb,
-                        *offset, 4, ENC_LITTLE_ENDIAN);
+                        *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
 }
@@ -4052,8 +4069,8 @@ dissect_zcl_drlc_get_scheduled_events(tvbuff_t *tvb, proto_tree *tree, unsigned 
 {
     int      rem_len;
 
-    /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_drlc_get_scheduled_events_start_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    /* Earliest Event Time */
+    proto_tree_add_item(tree, hf_zbee_zcl_drlc_get_scheduled_events_earliest_end_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Number of Events */
@@ -4252,7 +4269,7 @@ proto_register_zbee_zcl_drlc(void)
 
         { &hf_zbee_zcl_drlc_start_time,
             { "Start Time", "zbee_zcl_se.drlc.start_time",
-            FT_UINT32, BASE_CUSTOM, CF_FUNC(decode_zcl_se_utc_time), 0x0, NULL, HFILL } },
+            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_strings), 0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_drlc_duration_in_minutes,
             { "Duration In Minutes", "zbee_zcl_se.drlc.duration_in_minutes",
@@ -4316,7 +4333,7 @@ proto_register_zbee_zcl_drlc(void)
 
         { &hf_zbee_zcl_drlc_effective_time,
             { "Effective time", "zbee_zcl_se.drlc.effective_time",
-            FT_UINT32, BASE_CUSTOM, CF_FUNC(decode_zcl_se_utc_time), 0x0, NULL, HFILL } },
+            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_strings), 0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_drlc_report_event_issuer_event_id,
             { "Issuer Event ID", "zbee_zcl_se.drlc.report_event.issuer_id",
@@ -4328,7 +4345,7 @@ proto_register_zbee_zcl_drlc(void)
 
         { &hf_zbee_zcl_drlc_report_event_event_status_time,
             { "Event Status Time", "zbee_zcl_se.drlc.report_event.event_status_time",
-            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL, 0x0, NULL, HFILL } },
+            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(zero_is_invalid_strings), 0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_drlc_report_event_criticality_level_applied ,
             { "Criticality Level Applied", "zbee_zcl_se.drlc.report_event.criticality_level_applied",
@@ -4362,9 +4379,9 @@ proto_register_zbee_zcl_drlc(void)
             { "Signature", "zbee_zcl_se.drlc.report_event.signature",
             FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL } },
 
-        { &hf_zbee_zcl_drlc_get_scheduled_events_start_time,
-            { "Start Time", "zbee_zcl_se.drlc.get_scheduled_events.start_time",
-            FT_UINT32, BASE_CUSTOM, CF_FUNC(decode_zcl_se_utc_time), 0x0, NULL, HFILL } },
+        { & hf_zbee_zcl_drlc_get_scheduled_events_earliest_end_time,
+            { "Earliest End Time", "zbee_zcl_se.drlc.get_scheduled_events.earliest_end_time",
+            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_strings), 0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_drlc_get_scheduled_events_number_of_events,
             { "Number of Events", "zbee_zcl_se.drlc.get_scheduled_events.numbers_of_events",
@@ -4408,7 +4425,7 @@ proto_reg_handoff_zbee_zcl_drlc(void)
                             hf_zbee_zcl_drlc_attr_client_id,
                             hf_zbee_zcl_drlc_srv_rx_cmd_id,
                             hf_zbee_zcl_drlc_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_drlc_attr_data
+                            dissect_zcl_drlc_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_drlc*/
 
@@ -5502,9 +5519,6 @@ VALUE_STRING_ARRAY(zbee_zcl_met_snapshot_payload_type);
 void proto_register_zbee_zcl_met(void);
 void proto_reg_handoff_zbee_zcl_met(void);
 
-/* Attribute Dissector Helpers */
-static void dissect_zcl_met_attr_data  (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
-
 /* Command Dissector Helpers */
 static void dissect_zcl_met_get_profile                     (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 static void dissect_zcl_met_request_mirror_rsp              (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
@@ -5893,7 +5907,7 @@ static int ett_zbee_zcl_met_bit_field_allocation;
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_met_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_met_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     if (client_attr) {
         switch (attr_id) {
@@ -5934,7 +5948,7 @@ dissect_zcl_met_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uin
                 break;
 
             default: /* Catch all */
-                dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+                dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
                 break;
         }
     }
@@ -5947,7 +5961,7 @@ dissect_zcl_met_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uin
                 break;
 
             default: /* Catch all */
-                dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+                dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
                 break;
         }
     }
@@ -6415,7 +6429,7 @@ dissect_zcl_met_mirror_report_attribute_response(tvbuff_t *tvb, proto_tree *tree
             break;
     }
     if (noti_flags_count > 0) {
-        for (uint16_t noti_flags_number = 0; noti_flags_number < noti_flags_count; noti_flags_number++) {
+        for (int noti_flags_number = 0; noti_flags_number < noti_flags_count; noti_flags_number++) {
             dissect_zcl_met_notification_flags(tvb, tree, offset, noti_flags_number);
         }
     } else {
@@ -6617,21 +6631,12 @@ dissect_zcl_met_get_profile_response(tvbuff_t *tvb, proto_tree *tree, unsigned *
 static void
 dissect_zcl_met_request_fast_poll_mode_response(tvbuff_t *tvb, proto_tree *tree, unsigned *offset)
 {
-    uint32_t        end_time_utc;
-    nstime_t        end_time;
-    const uint8_t  *end_time_string;
-
     /* Applied Update Period */
     proto_tree_add_item(tree, hf_zbee_zcl_met_request_fast_poll_mode_response_applied_update_period, tvb, *offset, 1, ENC_NA);
     *offset += 1;
 
     /* Fast Poll End Time */
-    end_time_utc = (uint32_t)tvb_get_letohl(tvb, *offset);
-    end_time.secs =  end_time_utc + EPOCH_DELTA_2000_01_01_00_00_00_UTC;
-    end_time.nsecs = 0;
-    end_time_string = (const uint8_t *)abs_time_to_str(wmem_packet_scope(), &end_time, ABSOLUTE_TIME_UTC, true);
-    proto_tree_add_time_format(tree, hf_zbee_zcl_met_request_fast_poll_mode_response_fast_poll_mode_end_time, tvb, *offset, 4, &end_time,
-        "Fast Poll Mode End Time: %s (%u)", end_time_string, end_time_utc);
+    proto_tree_add_item(tree, hf_zbee_zcl_met_request_fast_poll_mode_response_fast_poll_mode_end_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 } /*dissect_zcl_met_request_fast_poll_mode_response*/
 
@@ -7445,7 +7450,7 @@ proto_register_zbee_zcl_met(void)
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_met_change_supply_implementation_date_time,
-            { "Implementation Date/Time", "zbee_zcl_se.met.change_supply.implementation_date_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "Implementation Date/Time", "zbee_zcl_se.met.change_supply.implementation_date_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_met_change_supply_proposed_supply_status,
@@ -7514,7 +7519,7 @@ proto_register_zbee_zcl_met(void)
 
         { &hf_zbee_zcl_met_get_profile_response_end_time,
             { "End Time", "zbee_zcl_se.met.get_profile_response.end_time",
-            FT_UINT32, BASE_CUSTOM, CF_FUNC(decode_zcl_se_utc_time), 0x00, NULL, HFILL } },
+            FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_strings), 0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_met_get_profile_response_status,
             { "Status", "zbee_zcl_se.met.get_profile_response.status", FT_UINT8, BASE_HEX, NULL,
@@ -7800,7 +7805,7 @@ proto_reg_handoff_zbee_zcl_met(void)
                             hf_zbee_zcl_met_attr_client_id,
                             hf_zbee_zcl_met_srv_rx_cmd_id,
                             hf_zbee_zcl_met_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_met_attr_data
+                            dissect_zcl_met_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_met*/
 
@@ -7848,8 +7853,6 @@ VALUE_STRING_ARRAY(zbee_zcl_msg_srv_tx_cmd_names);
 #define ZBEE_ZCL_MSG_EXT_CTRL_STATUS_MASK               0x01
 
 #define ZBEE_ZCL_MSG_CONFIRM_CTRL_MASK                  0x01
-
-#define ZBEE_ZCL_MSG_START_TIME_NOW                     0x00000000 /* Now */
 
 /*************************/
 /* Function Declarations */
@@ -8180,24 +8183,6 @@ decode_zcl_msg_duration(char *s, uint16_t value)
 } /*decode_zcl_msg_duration*/
 
 /**
- * This function decodes UTC time, with a special case for
- * ZBEE_ZCL_MSG_START_TIME_NOW which has special meaning when
- * used in a Smart Energy context
- *
- * @param s string to display
- * @param value value to decode
-*/
-static void
-decode_zcl_se_utc_time(char *s, uint32_t value)
-{
-    if (value == ZBEE_ZCL_MSG_START_TIME_NOW)
-        snprintf(s, ITEM_LABEL_LENGTH, "Now (0)");
-    else {
-        decode_zcl_utc_time(s,value);
-    }
-} /* decode_zcl_se_utc_time */
-
-/**
  *This function registers the ZCL Messaging dissector
  *
 */
@@ -8255,7 +8240,7 @@ proto_register_zbee_zcl_msg(void)
 /* End of 'Extended Message Control' fields */
 
         { &hf_zbee_zcl_msg_start_time,
-            { "Start Time", "zbee_zcl_se.msg.message.start_time", FT_UINT32, BASE_CUSTOM, CF_FUNC(decode_zcl_utc_time),
+            { "Start Time", "zbee_zcl_se.msg.message.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_msg_duration,
@@ -8377,9 +8362,6 @@ VALUE_STRING_ARRAY(zbee_zcl_tun_srv_tx_cmd_names);
 void proto_register_zbee_zcl_tun(void);
 void proto_reg_handoff_zbee_zcl_tun(void);
 
-/* Attribute Dissector Helpers */
-static void dissect_zcl_tun_attr_data  (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
-
 /* Private functions prototype */
 
 /*************************/
@@ -8462,7 +8444,7 @@ VALUE_STRING_ARRAY(zbee_zcl_tun_status_names);
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_tun_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_tun_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     switch (attr_id) {
         /* cluster specific attributes */
@@ -8478,7 +8460,7 @@ dissect_zcl_tun_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uin
             break;
 
         default: /* Catch all */
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_ias_zone_attr_data*/
@@ -8918,7 +8900,7 @@ proto_reg_handoff_zbee_zcl_tun(void)
                             -1,
                             hf_zbee_zcl_tun_srv_rx_cmd_id,
                             hf_zbee_zcl_tun_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_tun_attr_data
+                            dissect_zcl_tun_attr_data
                          );
 } /* proto_reg_handoff_zbee_zcl_tun */
 
@@ -9107,9 +9089,6 @@ VALUE_STRING_ARRAY(zbee_zcl_pp_srv_tx_cmd_names);
 void proto_register_zbee_zcl_pp(void);
 void proto_reg_handoff_zbee_zcl_pp(void);
 
-/* Attribute Dissector Helpers */
-static void dissect_zcl_pp_attr_data  (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
-
 /* Command Dissector Helpers */
 static void dissect_zcl_pp_select_available_emergency_credit    (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 static void dissect_zcl_pp_change_debt                          (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
@@ -9296,7 +9275,7 @@ static int ett_zbee_zcl_pp_publish_debt_log_entry[ZBEE_ZCL_SE_PP_NUM_PUBLISH_DEB
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_pp_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_pp_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     switch (attr_id) {
         /* applies to all SE clusters */
@@ -9311,7 +9290,7 @@ dissect_zcl_pp_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint
             *offset += 2;
             break;
         default: /* Catch all */
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_pp_attr_data*/
@@ -10039,7 +10018,7 @@ proto_register_zbee_zcl_pp(void)
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_change_debt_recovery_balance_percentage,
-            { "Debt Recovery Balance Percentage", "zbee_zcl_se.pp.change_debt.recovery_balance_percentage", FT_UINT16, BASE_DEC, NULL,
+            { "Debt Recovery Balance Percentage", "zbee_zcl_se.pp.change_debt.recovery_balance_percentage", FT_UINT8, BASE_DEC, NULL,
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_emergency_credit_setup_issuer_event_id,
@@ -10047,7 +10026,7 @@ proto_register_zbee_zcl_pp(void)
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_emergency_credit_setup_start_time,
-            { "Start Time", "zbee_zcl_se.pp.emc_setup.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "Start Time", "zbee_zcl_se.pp.emc_setup.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_emergency_credit_setup_emergency_credit_limit,
@@ -10071,7 +10050,7 @@ proto_register_zbee_zcl_pp(void)
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_credit_adjustment_start_time,
-            { "Start Time", "zbee_zcl_se.pp.credit_adjustment.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "Start Time", "zbee_zcl_se.pp.credit_adjustment.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_credit_adjustment_credit_adjustment_type,
@@ -10091,7 +10070,7 @@ proto_register_zbee_zcl_pp(void)
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_change_payment_mode_implementation_date_time,
-            { "Implementation Date/Time", "zbee_zcl_se.pp.change_payment_mode.implementation_date_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "Implementation Date/Time", "zbee_zcl_se.pp.change_payment_mode.implementation_date_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_change_payment_mode_proposed_payment_control_configuration,
@@ -10151,7 +10130,7 @@ proto_register_zbee_zcl_pp(void)
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_set_maximum_credit_limit_implementation_date_time,
-            { "Implementation Date/Time", "zbee_zcl_se.pp.set_maximum_credit_limit.implementation_date_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "Implementation Date/Time", "zbee_zcl_se.pp.set_maximum_credit_limit.implementation_date_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_set_maximum_credit_limit_maximum_credit_level,
@@ -10171,7 +10150,7 @@ proto_register_zbee_zcl_pp(void)
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_set_overall_debt_cap_limit_implementation_date_time,
-            { "Implementation Date/Time", "zbee_zcl_se.pp.set_overall_debt_cap_limit.implementation_date_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "Implementation Date/Time", "zbee_zcl_se.pp.set_overall_debt_cap_limit.implementation_date_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_pp_set_overall_debt_cap_limit_overall_debt_cap,
@@ -10401,7 +10380,7 @@ proto_reg_handoff_zbee_zcl_pp(void)
                             -1,
                             hf_zbee_zcl_pp_srv_rx_cmd_id,
                             hf_zbee_zcl_pp_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_pp_attr_data
+                            dissect_zcl_pp_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_pp*/
 
@@ -10447,9 +10426,6 @@ void proto_reg_handoff_zbee_zcl_energy_management(void);
 
 static void dissect_zbee_zcl_energy_management_manage_event             (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 static void dissect_zbee_zcl_energy_management_report_event_status      (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
-
-/* Attribute Dissector Helpers */
-static void dissect_zcl_energy_management_attr_data                     (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /*************************/
 /* Global Variables      */
@@ -10569,7 +10545,7 @@ static const range_string zbee_zcl_energy_management_load_control_event_critical
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_energy_management_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_energy_management_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     switch (attr_id) {
         /* applies to all SE clusters */
@@ -10579,7 +10555,7 @@ dissect_zcl_energy_management_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigne
             break;
 
         default: /* Catch all */
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_energy_management_attr_data*/
@@ -10945,7 +10921,7 @@ proto_reg_handoff_zbee_zcl_energy_management(void)
                             -1,
                             hf_zbee_zcl_energy_management_srv_rx_cmd_id,
                             hf_zbee_zcl_energy_management_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_energy_management_attr_data
+                            dissect_zcl_energy_management_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_energy_management*/
 
@@ -11001,9 +10977,6 @@ VALUE_STRING_ARRAY(zbee_zcl_calendar_srv_tx_cmd_names);
 void proto_register_zbee_zcl_calendar(void);
 void proto_reg_handoff_zbee_zcl_calendar(void);
 
-/* Attribute Dissector Helpers */
-static void dissect_zcl_calendar_attr_data  (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
-
 /* Command Dissector Helpers */
 static void dissect_zcl_calendar_get_calendar (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 static void dissect_zcl_calendar_get_day_profiles(tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
@@ -11030,6 +11003,7 @@ static int hf_zbee_zcl_calendar_attr_id;
 static int hf_zbee_zcl_calendar_attr_reporting_status;
 static int hf_zbee_zcl_calendar_type;
 static int hf_zbee_zcl_calendar_start_time;
+static int hf_zbee_zcl_calendar_start_time_with_cancel;
 static int hf_zbee_zcl_calendar_earliest_start_time;
 static int hf_zbee_zcl_calendar_time_reference;
 static int hf_zbee_zcl_calendar_name;
@@ -11108,7 +11082,7 @@ VALUE_STRING_ARRAY(zbee_zcl_calendar_time_reference_names);
  *@param client_attr ZCL client
  */
 static void
-dissect_zcl_calendar_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_calendar_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     switch (attr_id) {
         /* applies to all SE clusters */
@@ -11118,7 +11092,7 @@ dissect_zcl_calendar_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset
             break;
 
         default: /* Catch all */
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_calendar_attr_data*/
@@ -11629,7 +11603,7 @@ dissect_zcl_calendar_publish_special_days(tvbuff_t *tvb, proto_tree *tree, unsig
     *offset += 4;
 
     /* Start Time */
-    proto_tree_add_item(tree, hf_zbee_zcl_calendar_start_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_calendar_start_time_with_cancel, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Calendar Type */
@@ -11712,7 +11686,11 @@ proto_register_zbee_zcl_calendar(void)
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_calendar_start_time,
-            { "Start Time", "zbee_zcl_se.calendar.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "Start Time", "zbee_zcl_se.calendar.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_strings),
+            0x00, NULL, HFILL } },
+
+        { &hf_zbee_zcl_calendar_start_time_with_cancel,
+            { "Start Time", "zbee_zcl_se.calendar.start_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x00, NULL, HFILL } },
 
         { &hf_zbee_zcl_calendar_earliest_start_time,
@@ -11905,7 +11883,7 @@ proto_reg_handoff_zbee_zcl_calendar(void)
                             -1,
                             hf_zbee_zcl_calendar_srv_rx_cmd_id,
                             hf_zbee_zcl_calendar_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_calendar_attr_data
+                            dissect_zcl_calendar_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_calendar*/
 
@@ -11955,9 +11933,6 @@ VALUE_STRING_ARRAY(zbee_zcl_daily_schedule_srv_tx_cmd_names);
 /*************************/
 void proto_register_zbee_zcl_daily_schedule(void);
 void proto_reg_handoff_zbee_zcl_daily_schedule(void);
-
-/* Attribute Dissector Helpers */
-static void dissect_zcl_daily_schedule_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* Command Dissector Helpers */
 static void dissect_zcl_daily_schedule_get_schedule(tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
@@ -12291,12 +12266,12 @@ dissect_zcl_daily_schedule_get_day_profile(tvbuff_t *tvb, proto_tree *tree, unsi
  *@param data_type attribute data type
  */
 static void
-dissect_zcl_daily_schedule_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_daily_schedule_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     (void)attr_id;
     /* Catch all */
-    dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
-} /*dissect_zcl_calendar_attr_data*/
+    dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
+} /*dissect_zcl_daily_schedule_attr_data*/
 
 /**
  *This function registers the ZCL Calendar dissector
@@ -12407,9 +12382,9 @@ proto_reg_handoff_zbee_zcl_daily_schedule(void)
                             -1,
                             hf_zbee_zcl_daily_schedule_srv_rx_cmd_id,
                             hf_zbee_zcl_daily_schedule_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_daily_schedule_attr_data
+                            dissect_zcl_daily_schedule_attr_data
                          );
-} /*proto_reg_handoff_zbee_zcl_calendar*/
+} /*proto_reg_handoff_zbee_zcl_daily_schedule*/
 
 
 /* ########################################################################## */
@@ -12979,9 +12954,6 @@ VALUE_STRING_ARRAY(zbee_zcl_device_management_configuration_controls);
 void proto_register_zbee_zcl_device_management(void);
 void proto_reg_handoff_zbee_zcl_device_management(void);
 
-/* Attribute Dissector Helpers */
-static void dissect_zcl_device_management_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
-
 /*************************/
 /* Global Variables      */
 /*************************/
@@ -13111,7 +13083,7 @@ static int ett_zbee_zcl_device_management_proposed_tenancy_change_control;
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_device_management_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_device_management_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     switch (attr_id) {
         /* applies to all SE clusters */
@@ -13121,7 +13093,7 @@ dissect_zcl_device_management_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigne
             break;
 
         default: /* Catch all */
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_device_management_attr_data*/
@@ -13279,6 +13251,7 @@ dissect_zcl_device_management_request_new_password_response(proto_tree *tree, tv
     *offset += 4;
 
     /* Duration in minutes */
+    /* TODO: if really big endian, should use ENC_BIG_ENDIAN.. */
     proto_tree_add_item(tree, hf_zbee_zcl_device_management_request_new_password_duration_in_minutes, tvb, *offset, 2, ENC_NA);
     *offset += 2;
 
@@ -13633,7 +13606,7 @@ proto_register_zbee_zcl_device_management(void)
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_publish_change_of_tenancy_implementation_date,
-            { "Implementation Date/Time", "zbee_zcl_se.device_management.publish_change_of_tenancy.implementation_date", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "Implementation Date/Time", "zbee_zcl_se.device_management.publish_change_of_tenancy.implementation_date", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_publish_change_of_tenancy_proposed_tenancy_change_control,
@@ -13717,7 +13690,7 @@ proto_register_zbee_zcl_device_management(void)
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_publish_change_of_supplier_provider_change_implementation_time,
-            { "Provider Change Implementation Time", "zbee_zcl_se.device_management.publish_change_of_supplier.provider_change_implementation_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "Provider Change Implementation Time", "zbee_zcl_se.device_management.publish_change_of_supplier.provider_change_implementation_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_publish_change_of_supplier_provider_change_control,
@@ -13753,7 +13726,7 @@ proto_register_zbee_zcl_device_management(void)
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_update_site_id_site_id_time,
-            { "SiteID Time", "zbee_zcl_se.device_management.update_site_id.site_id_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "SiteID Time", "zbee_zcl_se.device_management.update_site_id.site_id_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_update_site_id_provider_id,
@@ -13773,7 +13746,7 @@ proto_register_zbee_zcl_device_management(void)
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_update_cin_cin_implementation_time,
-            { "CIN Implementation Time", "zbee_zcl_se.device_management.update_cin.cin_implementation_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL,
+            { "CIN Implementation Time", "zbee_zcl_se.device_management.update_cin.cin_implementation_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, TIME_VALS(now_or_cancel_strings),
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_device_management_update_cin_provider_id,
@@ -13851,7 +13824,7 @@ proto_reg_handoff_zbee_zcl_device_management(void)
                             hf_zbee_zcl_device_management_attr_client_id,
                             hf_zbee_zcl_device_management_srv_rx_cmd_id,
                             hf_zbee_zcl_device_management_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_device_management_attr_data
+                            dissect_zcl_device_management_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_device_management*/
 
@@ -14629,9 +14602,6 @@ VALUE_STRING_ARRAY(zbee_zcl_sub_ghz_srv_tx_cmd_names);
 void proto_register_zbee_zcl_sub_ghz(void);
 void proto_reg_handoff_zbee_zcl_sub_ghz(void);
 
-/* Attribute Dissector Helpers */
-static void dissect_zcl_sub_ghz_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
-
 /* Command Dissector Helpers */
 static void dissect_zcl_sub_ghz_suspend_zcl_messages(tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 
@@ -14666,7 +14636,7 @@ static int ett_zbee_zcl_sub_ghz;
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_sub_ghz_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_sub_ghz_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch (attr_id) {
@@ -14682,7 +14652,7 @@ dissect_zcl_sub_ghz_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset,
         case ZBEE_ZCL_ATTR_ID_SUB_GHZ_PAGE_30_CHANNEL_MASK:
         case ZBEE_ZCL_ATTR_ID_SUB_GHZ_PAGE_31_CHANNEL_MASK:
         default: /* Catch all */
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_sub_ghz_attr_data*/
@@ -14844,7 +14814,7 @@ proto_reg_handoff_zbee_zcl_sub_ghz(void)
                             -1,
                             hf_zbee_zcl_sub_ghz_srv_rx_cmd_id,
                             hf_zbee_zcl_sub_ghz_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_sub_ghz_attr_data
+                            dissect_zcl_sub_ghz_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_sub_ghz*/
 

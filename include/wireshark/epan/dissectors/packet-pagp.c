@@ -18,6 +18,8 @@
 #include <epan/expert.h>
 #include <epan/to_str.h>
 #include <epan/cisco_pid.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 void proto_register_pagp(void);
 void proto_reg_handoff_pagp(void);
@@ -283,11 +285,11 @@ dissect_pagp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
         switch (tlv) {
             case PAGP_TLV_DEVICE_NAME:
                 proto_tree_add_item(tlv_tree, hf_pagp_tlv_device_name,
-                                      tvb, offset+4, len-4, ENC_NA|ENC_ASCII);
+                                    tvb, offset+4, len-4, ENC_ASCII);
                 break;
             case PAGP_TLV_PORT_NAME:
                 proto_tree_add_item(tlv_tree, hf_pagp_tlv_port_name,
-                                      tvb, offset+4, len-4, ENC_NA|ENC_ASCII);
+                                    tvb, offset+4, len-4, ENC_ASCII);
                 break;
             case PAGP_TLV_AGPORT_MAC:
                 proto_tree_add_item(tlv_tree, hf_pagp_tlv_agport_mac,

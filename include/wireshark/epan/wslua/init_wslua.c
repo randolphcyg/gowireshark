@@ -195,6 +195,8 @@ static int dissector_error_handler(lua_State *LS) {
     proto_tree *tb_tree;
 
     // Add the expert info Lua error message
+    // XXX - Should this add the current protocol to the message, and add to
+    // COL_INFO and the log, like DissectorError does?
     proto_tree_add_expert_format(lua_tree->tree, lua_pinfo, &ei_lua_error, lua_tvb, 0, 0,
             "Lua Error: %s", lua_tostring(LS,-1));
 
@@ -790,7 +792,7 @@ static bool lua_load_plugin_script(const char* name,
                                    const char* dirname,
                                    const int file_count)
 {
-    ws_debug("Loading lua script: %s", filename);
+    ws_debug("Loading Lua script: %s", filename);
     if (file_count > 0 ? lua_load_script(filename, dirname, file_count) :
                          lua_load_plugin(filename)) {
         wslua_add_plugin(name, get_current_plugin_version(), filename);
@@ -835,7 +837,7 @@ static int lua_load_plugins(const char *dirname, register_cb cb, void *client_da
                 /* If we are in the root directory skip the special "init.lua"
                  * file that was already loaded before every other user script.
                  * (If we are below the root script directory we just treat it like any other
-                 * lua script.) */
+                 * Lua script.) */
                 continue;
             }
 
@@ -985,7 +987,7 @@ wslua_plugins_dump_all(void)
 }
 
 const char *wslua_plugin_type_name(void) {
-    return "lua script";
+    return "Lua script";
 }
 
 static ei_register_info* ws_lua_ei;
@@ -1021,6 +1023,7 @@ wslua_allocf(void *ud _U_, void *ptr, size_t osize _U_, size_t nsize)
 #define WSLUA_BASE_TABLE        "base"
 #define WSLUA_FTYPE_TABLE       "ftypes"
 #define WSLUA_FRAMETYPE_TABLE   "frametype"
+#define WSLUA_CONV_TYPE_TABLE   "convtypes"
 #define WSLUA_EXPERT_TABLE      "expert"
 #define WSLUA_EXPERT_GROUP_TABLE    "group"
 #define WSLUA_EXPERT_SEVERITY_TABLE "severity"
@@ -1108,6 +1111,8 @@ wslua_add_introspection(void)
     lua_newtable(L);
     lua_setglobal(L, WSLUA_FRAMETYPE_TABLE);
     lua_newtable(L);
+    lua_setglobal(L, WSLUA_CONV_TYPE_TABLE);
+    lua_newtable(L);
     lua_pushstring(L, WSLUA_EXPERT_GROUP_TABLE);
     lua_newtable(L);
     lua_settable(L, -3);
@@ -1153,6 +1158,13 @@ wslua_add_introspection(void)
             add_menu_group_symbol(ep->symbol + strlen("REGISTER_"), ep->value);
         }
         add_table_symbol(WSLUA_EPAN_ENUMS_TABLE, ep->symbol, ep->value);
+    }
+
+    for (const wslua_conv_types_t* ct = wslua_inspect_convtype_enum(); ct->str != NULL; ct++) {
+        const char *name = strchr(ct->str, '.');
+        if (name != NULL) {
+            add_table_symbol(WSLUA_CONV_TYPE_TABLE, name+1, ct->id);
+        }
     }
 
     /* Add empty tables to be populated. */
@@ -1362,7 +1374,6 @@ static int wslua_console_print(lua_State *_L)
             g_string_append(gstr, repr);
             lua_pop(_L, 1);
     }
-    g_string_append_c(gstr, '\n');
 
     if (wslua_gui_print_func_ptr == NULL) {
         ws_critical("GUI print function not registered; Trying to print: %s", gstr->str);
@@ -1582,7 +1593,7 @@ void wslua_init(register_cb cb, void *client_data) {
         { &ei_lua_proto_interface_error,    { "_ws.lua.proto.error",   PI_INTERFACE, PI_ERROR    ,"Protocol Error",   EXPFILL }},
 
         /* this one is for reporting errors executing Lua code */
-        { &ei_lua_error, { "_ws.lua.error", PI_UNDECODED, PI_ERROR ,"Lua Error", EXPFILL }},
+        { &ei_lua_error, { "_ws.lua.error", PI_DISSECTOR_BUG, PI_ERROR ,"Lua Error", EXPFILL }},
     };
 
     if (first_time) {

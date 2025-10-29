@@ -1,8 +1,8 @@
 /** @file
  * Collecting of Expert information.
  *
- * For further info, see:
- *    https://gitlab.com/wireshark/wireshark/-/wikis/Development/ExpertInfo
+ * For further info, see WSDG: 9.3. How to add an expert item:
+ *    https://www.wireshark.org/docs/wsdg_html/#ChDissectExpertInfo
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -16,7 +16,7 @@
 
 #include <epan/proto.h>
 #include <epan/packet_info.h>
-#include "value_string.h"
+#include <wsutil/value_string.h>
 #include "ws_symbol_export.h"
 
 #ifdef __cplusplus
@@ -26,8 +26,8 @@ extern "C" {
 /** only for internal and display use. */
 typedef struct expert_info_s {
 	uint32_t     packet_num;
-	int          group;
-	int          severity;
+	int          group;    /* from a bitfield, should probably be unsigned */
+	int          severity; /* from a bitfield, should probably be unsigned */
 	int          hf_index; /* hf_index of the expert item. Might be -1. */
 	const char *protocol;
 	char        *summary;
@@ -41,8 +41,8 @@ typedef struct expert_field
 	int hf;
 } expert_field;
 
-#define EI_INIT_EI -1
-#define EI_INIT_HF -1
+#define EI_INIT_EI 0
+#define EI_INIT_HF 0
 #define EI_INIT {EI_INIT_EI, EI_INIT_HF}
 
 typedef struct expert_field_info {

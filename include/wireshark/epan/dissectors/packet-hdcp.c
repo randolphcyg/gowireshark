@@ -106,7 +106,7 @@ dissect_hdcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
                     ptvcursor_current_offset(cursor)) == 0) {
             /* transmitter requests the content of a register */
             col_append_sep_fstr(pinfo->cinfo, COL_INFO, NULL, "request %s",
-                    val_to_str(reg, hdcp_reg, "unknown (0x%x)"));
+                    val_to_str(pinfo->pool, reg, hdcp_reg, "unknown (0x%x)"));
 
             if (PINFO_FD_VISITED(pinfo)) {
                 /* we've already dissected the receiver's response */
@@ -138,7 +138,7 @@ dissect_hdcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
         else {
             /* transmitter actually sends protocol data */
             col_append_sep_fstr(pinfo->cinfo, COL_INFO, NULL, "send %s",
-                    val_to_str(reg, hdcp_reg, "unknown (0x%x)"));
+                    val_to_str(pinfo->pool, reg, hdcp_reg, "unknown (0x%x)"));
             switch (reg) {
                 case REG_AKSV:
                     a_ksv = tvb_get_letoh40(tvb,
@@ -245,10 +245,10 @@ proto_register_hdcp(void)
             { "Register offset", "hdcp.reg", FT_UINT8, BASE_HEX,
                 VALS(hdcp_reg), 0, NULL, HFILL } },
         { &hf_hdcp_resp_in,
-            { "Response In", "hdcp.resp_in", FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+            { "Response In", "hdcp.resp_in", FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
                 "The response to this request is in this frame", HFILL }},
         { &hf_hdcp_resp_to,
-            { "Response To", "hdcp.resp_to", FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+            { "Response To", "hdcp.resp_to", FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0,
                 "This is the response to the request in this frame", HFILL }},
         { &hf_hdcp_a_ksv,
             { "Transmitter's key selection vector", "hdcp.a_ksv", FT_UINT40,

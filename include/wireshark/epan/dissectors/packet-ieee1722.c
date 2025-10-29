@@ -140,7 +140,7 @@ typedef struct _ieee1722_seq_data_t {
 #define IEEE_1722_QI2_MASK      0xc0
 #define IEEE_1722_FMT_MASK      0x3f
 #define IEEE_1722_FDF_TSF_MASK  0x80
-#define IEEE_1722_FDF_MASK      0xf8
+#define IEEE_1722_FDF_MASK      0xff
 
 /**************************************************************************************************/
 /* subtype AAF                                                                                    */
@@ -2640,7 +2640,7 @@ static int dissect_1722_acf_can_common(tvbuff_t *tvb, packet_info *pinfo, proto_
 
     /*
     * CAN sub-dissectors expect several flags to be merged into ID that is passed
-    * to dissector_try_payload_new. Add them
+    * to dissector_try_payload_with_data. Add them
     */
     can_info.id = parsed.id;
     if (parsed.is_xtd)
@@ -2737,7 +2737,7 @@ void proto_register_1722_acf_can(void)
               FT_UINT64, BASE_HEX, NULL, IEEE_1722_ACF_CAN_MSG_TIMESTAMP_MASK, NULL, HFILL }
         },
         { &hf_1722_can_rsv2,
-            { "Reserved", "can.reserved",
+            { "Reserved", "acf-can.rsv2",
               FT_UINT32, BASE_HEX, NULL, IEEE_1722_ACF_CAN_RSV2_MASK, NULL, HFILL }
         },
         { &hf_1722_can_identifier,
@@ -2874,7 +2874,7 @@ static int dissect_1722_acf_lin(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
         col_append_str(pinfo->cinfo, COL_INFO, tvb_bytes_to_str_punct(pinfo->pool, tvb, offset, payload_length, ' '));
 
         /* at the moment, there's no global LIN sub-protocols support. Use our own. */
-        if (dissector_try_payload_new(avb1722_acf_lin_dissector_table, next_tvb, pinfo, tree, true, &lin_id) <= 0)
+        if (dissector_try_payload_with_data(avb1722_acf_lin_dissector_table, next_tvb, pinfo, tree, true, &lin_id) <= 0)
         {
             call_data_dissector(next_tvb, pinfo, tree);
         }

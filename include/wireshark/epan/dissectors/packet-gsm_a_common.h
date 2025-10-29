@@ -88,6 +88,7 @@ extern const value_string protocol_discriminator_vals[];
 extern const value_string gsm_a_pd_short_str_vals[];
 
 extern uint16_t de_cld_party_bcd_num(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len);
+extern uint16_t de_clg_party_bcd_num(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len);
 
 /* Needed to share the packet-gsm_a_common.c functions */
 extern value_string_ext gsm_bssmap_elem_strings_ext;
@@ -234,7 +235,7 @@ extern int hf_3gpp_tmsi;
 #define NAS_5GS_PDU_TYPE_SM         18
 #define NAS_5GS_PDU_TYPE_UPDP       19
 
-extern const char* get_gsm_a_msg_string(int pdu_type, int idx);
+extern const char* get_gsm_a_msg_string(wmem_allocator_t* pool, int pdu_type, int idx);
 
 /*
  * this should be set on a per message basis, if possible
@@ -454,7 +455,7 @@ WS_DLL_PUBLIC uint16_t elem_v_short(tvbuff_t *tvb, proto_tree *tree, packet_info
             tvb, curr_offset, 0, \
             "Missing Mandatory element (0x%02x) %s%s, rest of dissection is suspect", \
             EMT_iei, \
-            get_gsm_a_msg_string(EMT_pdu_type, EMT_elem_idx), \
+            get_gsm_a_msg_string(pinfo->pool, EMT_pdu_type, EMT_elem_idx), \
             /* coverity[array_null] */ \
             (EMT_elem_name_addition == NULL) ? "" : EMT_elem_name_addition \
             ); \
@@ -480,7 +481,7 @@ WS_DLL_PUBLIC uint16_t elem_v_short(tvbuff_t *tvb, proto_tree *tree, packet_info
             tvb, curr_offset, 0, \
             "Missing Mandatory element (0x%02x) %s%s, rest of dissection is suspect", \
             EMT_iei, \
-            get_gsm_a_msg_string(EMT_pdu_type, EMT_elem_idx), \
+            get_gsm_a_msg_string(pinfo->pool, EMT_pdu_type, EMT_elem_idx), \
             /* coverity[array_null] */ \
             (EMT_elem_name_addition == NULL) ? "" : EMT_elem_name_addition \
             ); \
@@ -501,7 +502,7 @@ WS_DLL_PUBLIC uint16_t elem_v_short(tvbuff_t *tvb, proto_tree *tree, packet_info
             tvb, curr_offset, 0, \
             "Missing Mandatory element (0x%02x) %s%s, rest of dissection is suspect", \
             EMT_iei, \
-            get_gsm_a_msg_string(EMT_pdu_type, EMT_elem_idx), \
+            get_gsm_a_msg_string(pinfo->pool, EMT_pdu_type, EMT_elem_idx), \
             /* coverity[array_null] */ \
             (EMT_elem_name_addition == NULL) ? "" : EMT_elem_name_addition \
             ); \
@@ -551,7 +552,7 @@ WS_DLL_PUBLIC uint16_t elem_v_short(tvbuff_t *tvb, proto_tree *tree, packet_info
             tvb, curr_offset, 0, \
             "Missing Mandatory element (0x%02x) %s%s, rest of dissection is suspect", \
             EMT_iei, \
-            get_gsm_a_msg_string(EMT_pdu_type, EMT_elem_idx), \
+            get_gsm_a_msg_string(pinfo->pool, EMT_pdu_type, EMT_elem_idx), \
             /* coverity[array_null] */ \
             (EMT_elem_name_addition == NULL) ? "" : EMT_elem_name_addition \
         ); \
@@ -601,7 +602,7 @@ WS_DLL_PUBLIC uint16_t elem_v_short(tvbuff_t *tvb, proto_tree *tree, packet_info
         proto_tree_add_expert_format(tree, pinfo, &ei_mandatory,\
             tvb, curr_offset, 0, \
             "Missing Mandatory element %s%s, rest of dissection is suspect", \
-            get_gsm_a_msg_string(EML_pdu_type, EML_elem_idx), \
+            get_gsm_a_msg_string(pinfo->pool, EML_pdu_type, EML_elem_idx), \
             /* coverity[array_null] */ \
             (EML_elem_name_addition == NULL) ? "" : EML_elem_name_addition \
         ); \
@@ -621,7 +622,7 @@ WS_DLL_PUBLIC uint16_t elem_v_short(tvbuff_t *tvb, proto_tree *tree, packet_info
         proto_tree_add_expert_format(tree, pinfo, &ei_mandatory,\
             tvb, curr_offset, 0, \
             "Missing Mandatory element %s%s, rest of dissection is suspect", \
-            get_gsm_a_msg_string(EML_pdu_type, EML_elem_idx), \
+            get_gsm_a_msg_string(pinfo->pool, EML_pdu_type, EML_elem_idx), \
             /* coverity[array_null] */ \
             (EML_elem_name_addition == NULL) ? "" : EML_elem_name_addition \
         ); \
@@ -641,7 +642,7 @@ WS_DLL_PUBLIC uint16_t elem_v_short(tvbuff_t *tvb, proto_tree *tree, packet_info
         proto_tree_add_expert_format(tree, pinfo, &ei_mandatory,\
             tvb, curr_offset, 0, \
             "Missing Mandatory element %s%s, rest of dissection is suspect", \
-            get_gsm_a_msg_string(EMV_pdu_type, EMV_elem_idx), \
+            get_gsm_a_msg_string(pinfo->pool, EMV_pdu_type, EMV_elem_idx), \
             /* coverity[array_null] */ \
             (EMV_elem_name_addition == NULL) ? "" : EMV_elem_name_addition \
         ); \
@@ -662,8 +663,8 @@ WS_DLL_PUBLIC uint16_t elem_v_short(tvbuff_t *tvb, proto_tree *tree, packet_info
         proto_tree_add_expert_format(tree, pinfo, &ei_mandatory,\
             tvb, curr_offset, 0, \
             "Missing Mandatory elements %s %s, rest of dissection is suspect", \
-            get_gsm_a_msg_string(EMV_pdu_type1, EMV_elem_idx1), \
-            get_gsm_a_msg_string(EMV_pdu_type2, EMV_elem_idx2) \
+            get_gsm_a_msg_string(pinfo->pool, EMV_pdu_type1, EMV_elem_idx1), \
+            get_gsm_a_msg_string(pinfo->pool, EMV_pdu_type2, EMV_elem_idx2) \
             /* coverity[array_null] */ \
         ); \
     } \
@@ -742,6 +743,7 @@ uint16_t de_sm_apn(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t
 uint16_t de_sm_cause(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len);
 uint16_t de_sm_mbms_prot_conf_opt(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_);
 uint16_t de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len);
+WS_DLL_PUBLIC
 uint16_t de_sm_pdp_addr(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string _U_, int string_len _U_);
 WS_DLL_PUBLIC
 uint16_t de_sm_qos(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, unsigned len, char *add_string, int string_len);
@@ -837,17 +839,16 @@ uint16_t de_sgsap_ecgi(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint
  * without having to duplicate it. With MSVC and a
  * libwireshark.dll, we need a special declaration.
  */
-WS_DLL_PUBLIC const value_string gsm_a_bssmap_msg_strings[];
-WS_DLL_PUBLIC const value_string gsm_a_dtap_msg_mm_strings[];
-WS_DLL_PUBLIC const value_string gsm_a_dtap_msg_rr_strings[];
-WS_DLL_PUBLIC const value_string gsm_a_dtap_msg_cc_strings[];
-WS_DLL_PUBLIC const value_string gsm_a_dtap_msg_gmm_strings[];
-WS_DLL_PUBLIC const value_string gsm_a_dtap_msg_sms_strings[];
-WS_DLL_PUBLIC const value_string gsm_a_dtap_msg_sm_strings[];
-WS_DLL_PUBLIC const value_string gsm_a_dtap_msg_ss_strings[];
-WS_DLL_PUBLIC const value_string gsm_a_dtap_msg_tp_strings[];
-WS_DLL_PUBLIC const value_string gsm_a_rr_short_pd_msg_strings[];
-WS_DLL_PUBLIC const char *gsm_a_pd_str[];
+extern const value_string gsm_a_bssmap_msg_strings[];
+extern const value_string gsm_a_dtap_msg_mm_strings[];
+extern const value_string gsm_a_dtap_msg_rr_strings[];
+extern const value_string gsm_a_dtap_msg_cc_strings[];
+extern const value_string gsm_a_dtap_msg_gmm_strings[];
+extern const value_string gsm_a_dtap_msg_sms_strings[];
+extern const value_string gsm_a_dtap_msg_sm_strings[];
+extern const value_string gsm_a_dtap_msg_ss_strings[];
+extern const value_string gsm_a_dtap_msg_tp_strings[];
+extern const value_string gsm_a_rr_short_pd_msg_strings[];
 
 extern const value_string gsm_a_sm_qos_del_of_err_sdu_vals[];
 extern const value_string gsm_a_sm_qos_traffic_cls_vals[];
@@ -1549,7 +1550,7 @@ typedef enum
  * 10.5.2.68 VGCS AMR Configuration
  */
     DE_RR_CARRIER_IND,              /* 10.5.2.69 Carrier Indication */
-    DE_RR_FEATURE_INDICATOR,        /* 10.5.2.76 feature Inticator */
+    DE_RR_FEATURE_INDICATOR,        /* 10.5.2.76 feature Indicator */
     DE_RR_EXTENDED_TSC_SET,         /* 10.5.2.82 Extended TSC Set */
     DE_RR_EC_REQUEST_REFERENCE,     /* 10.5.2.83 EC Request reference */
     DE_RR_EC_PKT_CH_DSC1,           /* 10.5.2.84 EC Packet Channel Description Type 1 */
@@ -1586,6 +1587,7 @@ typedef enum
     DE_EMM_AUTH_FAIL_PAR,       /* 9.9.3.1  Authentication failure parameter (dissected in packet-gsm_a_dtap.c)*/
     DE_EMM_AUTN,                /* 9.9.3.2  Authentication parameter AUTN */
     DE_EMM_AUTH_PAR_RAND,       /* 9.9.3.3  Authentication parameter RAND */
+    DE_EMM_RAT_UTIL_CNTRL,      /* 9.9.3.3A RAT utilization control */
     DE_EMM_AUTH_RESP_PAR,       /* 9.9.3.4  Authentication response parameter */
     DE_EMM_SMS_SERVICES_STATUS, /* 9.9.3.4B SMS services status */
     DE_EMM_CSFB_RESP,           /* 9.9.3.5  CSFB response */

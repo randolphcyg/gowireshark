@@ -1,6 +1,6 @@
 /* packet-card_app_toolkit
  * Routines for packet dissection of
- *	ETSI TS 102 223 v12.2.0  (Release 12 / 2015-03)
+ *	ETSI TS 102 223 v18.2.0  (Release 18 / 2025-04)
  *	3GPP TS 11.14 v8.17.0 (Release 1999 / 2004-09)
  *	3GPP TS 31.111 v9.7.0 (Release 9 / 2012-03)
  * Copyright 2010-2011 by Harald Welte <laforge@gnumonks.org>
@@ -285,6 +285,8 @@ static const value_string cmd_qual_refresh_vals[] = {
 	{ 0x06, "NAA Session Reset, only applicable for a 3G platform" },
 	{ 0x07, "Steering of Roaming" },
 	{ 0x08, "Steering of Roaming for I-WLAN" },
+	{ 0x09, "eUICC Profile State Change" },
+	{ 0x0a, "Application Update" },
 	{ 0, NULL }
 };
 
@@ -418,6 +420,7 @@ static const value_string cmd_type_vals[] = {
 	{ 0x71, "CONTACTLESS STATE CHANGED" },
 	{ 0x72, "COMMAND CONTAINER" },
 	{ 0x73, "ENCAPSULATED SESSION CONTROL" },
+	{ 0x79, "LSI COMMAND" },
 	{ 0x81, "End of the proactive session" },
 	{ 0, NULL }
 };
@@ -476,6 +479,7 @@ static const value_string result_vals[] = {
 	{ 0x25, "Interaction with call control by NAA temporary problem" },
 	{ 0x26, "Launch browser generic error code" },
 	{ 0x27, "MMS temporary problem" },
+	{ 0x28, "Bearer Independent Protocol temporary error" },
 	{ 0x30, "Command beyond terminal's capabilities" },
 	{ 0x31, "Command type not understood by terminal" },
 	{ 0x32, "Command data not understood by terminal" },
@@ -555,6 +559,10 @@ static const value_string result_bip_vals[] = {
 	{ 0x10, "Port not available" },
 	{ 0x11, "Launch parameters missing or incorrect" },
 	{ 0x12, "Application launch failed" },
+	{ 0x13, "Channel cannot be established permanently" },
+	{ 0x14, "IPv4 only allowed" },
+	{ 0x15, "IPv6 only allowed" },
+	{ 0x16, "IPv6 not allowed due to IP layer failures" },
 	{ 0, NULL }
 };
 static value_string_ext result_bip_vals_ext = VALUE_STRING_EXT_INIT(result_bip_vals);
@@ -648,6 +656,9 @@ static const value_string event_list_vals[] = {
 	{ 0x1a, "Void" },
 	{ 0x1b, "Secured Profile Container" },
 	{ 0x1c, "Poll Interval Negotiation" },
+	{ 0x1d, "Data Connection Status Change" },
+	{ 0x1e, "CAG cell selection" },
+	{ 0x1f, "Slices Status Change" },
 	{ 0, NULL }
 };
 static value_string_ext event_list_vals_ext = VALUE_STRING_EXT_INIT(event_list_vals);
@@ -827,6 +838,9 @@ static const value_string access_tech_vals[] = {
 	{ 0x07, "cdma2000 HRPD (TIA/EIA/IS-856)" },
 	{ 0x08, "E-UTRAN" },
 	{ 0x09, "eHRPD" },
+	{ 0x0a, "3GPP NG-RAN" },
+	{ 0x0b, "3GPP Satellite NG-RAN" },
+	{ 0x0c, "3GPP Satellite E-UTRAN" },
 	{ 0, NULL }
 };
 
@@ -1079,12 +1093,12 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 #if 1
 		ti = proto_tree_add_bytes_format(cat_tree, hf_cat_tlv, tvb, pos,
 					    len, ptr, "%s: %s",
-					    val_to_str_ext(tag, &comp_tlv_tag_vals_ext, "%02x"),
+					    val_to_str_ext(pinfo->pool, tag, &comp_tlv_tag_vals_ext, "%02x"),
 					    (len > 0) ? tvb_bytes_to_str(pinfo->pool, tvb, pos, len) : "");
 #else
 		ti = proto_tree_add_bytes_format(cat_tree, hf_cat_tlv, tvb, pos,
 					    len, ptr, "%s:   ",
-					    val_to_str_ext(tag, &comp_tlv_tag_vals_ext, "%02x"));
+					    val_to_str_ext(pinfo->pool, tag, &comp_tlv_tag_vals_ext, "%02x"));
 #endif
 		elem_tree = proto_item_add_subtree(ti, ett_elem);
 
@@ -1100,7 +1114,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			}
 			/* append command type to INFO column */
 			col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-					val_to_str_ext(g8, &cmd_type_vals_ext, "%02x "));
+					val_to_str_ext(pinfo->pool, g8, &cmd_type_vals_ext, "%02x "));
 			switch (g8) {
 			case 0x01:
 				proto_tree_add_item_ret_uint(elem_tree, hf_ctlv_cmd_qual_refresh, tvb, pos+2, 1, ENC_BIG_ENDIAN, &cmd_qual);
@@ -1229,7 +1243,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			}
 			switch (g8) {
 			case 0x00: /* 7bit */
-				proto_tree_add_item(elem_tree, hf_ctlv_text_string, tvb, pos+1, len-1, ENC_3GPP_TS_23_038_7BITS|ENC_NA);
+				proto_tree_add_item(elem_tree, hf_ctlv_text_string, tvb, pos+1, len-1, ENC_3GPP_TS_23_038_7BITS);
 				break;
 			case 0x04: /* 8bit */
 				/* XXX - ASCII, or some extended ASCII? */
@@ -1297,7 +1311,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 				}
 				proto_tree_add_uint(elem_tree, hf_ctlv_event, tvb, pos+i, 1, event);
 				col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-						val_to_str_ext(event, &event_list_vals_ext, "%02x "));
+						val_to_str_ext(pinfo->pool, event, &event_list_vals_ext, "%02x "));
 			}
 			break;
 		case 0x1b:	/* location status */
@@ -1438,7 +1452,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			proto_tree_add_item_ret_uint(elem_tree, hf_ctlv_other_address_coding, tvb, pos, 1, ENC_BIG_ENDIAN, &g8);
 			switch (g8) {
 			case 0x21:
-				proto_tree_add_item(elem_tree, hf_ctlv_other_address_ipv4, tvb, pos+1, 4, ENC_NA);
+				proto_tree_add_item(elem_tree, hf_ctlv_other_address_ipv4, tvb, pos+1, 4, ENC_BIG_ENDIAN);
 				break;
 			case 0x57:
 				proto_tree_add_item(elem_tree, hf_ctlv_other_address_ipv6, tvb, pos+1, 16, ENC_NA);
@@ -1456,7 +1470,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 				proto_tree_add_item_ret_uint(elem_tree, hf_ctlv_dns_server_address_coding, tvb, pos, 1, ENC_BIG_ENDIAN, &g8);
 				switch (g8) {
 				case 0x21:
-					proto_tree_add_item(elem_tree, hf_ctlv_dns_server_address_ipv4, tvb, pos+1, 4, ENC_NA);
+					proto_tree_add_item(elem_tree, hf_ctlv_dns_server_address_ipv4, tvb, pos+1, 4, ENC_BIG_ENDIAN);
 					break;
 				case 0x57:
 					proto_tree_add_item(elem_tree, hf_ctlv_dns_server_address_ipv6, tvb, pos+1, 16, ENC_NA);
@@ -1488,7 +1502,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			break;
 		case 0x76:	/* Geographical Location Parameters / IARI */
 			if (ims_event) {
-				proto_tree_add_item(elem_tree, hf_ctlv_iari, tvb, pos, len, ENC_UTF_8 | ENC_NA);
+				proto_tree_add_item(elem_tree, hf_ctlv_iari, tvb, pos, len, ENC_UTF_8);
 			}
 			break;
 		case 0x77:	/* GAD Shapes / IMPU list */
@@ -1497,7 +1511,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 				while (i < len) {
 					if (tvb_get_uint8(tvb, pos+i) == 0x80) {
 						g8 = tvb_get_uint8(tvb, pos+i+1);
-						proto_tree_add_item(elem_tree, hf_ctlv_impu, tvb, pos+i+2, g8, ENC_UTF_8 | ENC_NA);
+						proto_tree_add_item(elem_tree, hf_ctlv_impu, tvb, pos+i+2, g8, ENC_UTF_8);
 						i += 2+g8;
 					} else {
 						break;
@@ -1509,7 +1523,7 @@ dissect_cat(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 			if (ims_event) {
 				uint8_t *status_code = tvb_get_string_enc(pinfo->pool, tvb, pos, len, ENC_ASCII);
 				proto_tree_add_string_format_value(elem_tree, hf_ctlv_ims_status_code, tvb, pos, len,
-					status_code, "%s (%s)", status_code, str_to_str(status_code, ims_status_code, "Unknown"));
+					status_code, "%s (%s)", status_code, str_to_str_wmem(pinfo->pool, status_code, ims_status_code, "Unknown"));
 			}
 			break;
 		case 0x79:	/* PLMN list */

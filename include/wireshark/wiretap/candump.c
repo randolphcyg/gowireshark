@@ -12,210 +12,228 @@
 #include <config.h>
 #include "candump.h"
 
-#include <wtap-int.h>
 #include <file_wrappers.h>
-#include <wsutil/exported_pdu_tlvs.h>
-#include <string.h>
-#include <inttypes.h>
 #include <errno.h>
-#include "candump_priv.h"
+#include <wsutil/exported_pdu_tlvs.h>
+#include <wsutil/strtoi.h>
+#include <wsutil/str_util.h>
+#include <wiretap/socketcan.h>
+#include <epan/dissectors/packet-socketcan.h>
 
-static bool candump_read(wtap *wth, wtap_rec *rec, Buffer *buf,
-                             int *err, char **err_info,
-                             int64_t *data_offset);
-static bool candump_seek_read(wtap *wth, int64_t seek_off,
-                                  wtap_rec *rec, Buffer *buf,
-                                  int *err, char **err_info);
+#define CANDUMP_MAX_LINE_SIZE 4096 // J1939 logs could contain long lines
 
 static int candump_file_type_subtype = -1;
 
-void register_candump(void);
+/*
+ * Following 3 functions taken from gsmdecode-0.7bis, with permission:
+ *
+ *   https://web.archive.org/web/20091218112927/http://wiki.thc.org/gsm
+ */
+/*
+* TODO: Find a better replacement for this
+*/
+static int
+hex2bin(uint8_t* out, uint8_t* out_end, char* in)
+{
+    uint8_t* out_start = out;
+    int is_low = 0;
+    int c;
+
+    while (*in != '\0')
+    {
+        c = ws_xton(*in);
+        if (c < 0)
+        {
+            in++;
+            continue;
+        }
+        if (out == out_end)
+        {
+            /* Too much data */
+            return -1;
+        }
+        if (is_low == 0)
+        {
+            *out = c << 4;
+            is_low = 1;
+        }
+        else {
+            *out |= (c & 0x0f);
+            is_low = 0;
+            out++;
+        }
+        in++;
+    }
+
+    return (int)(out - out_start);
+}
 
 /*
  * This is written by the candump utility on Linux.
  */
 
 static bool
-candump_gen_packet(wtap_rec *rec, Buffer *buf, const msg_t *msg, int *err,
-                     char **err_info)
+candump_parse(wtap *wth, FILE_T fh, wtap_can_msg_t *msg, int64_t *offset,
+              int *err, char **err_info)
 {
-    /* Generate Exported PDU tags for the packet info */
-    ws_buffer_clean(buf);
+    gint64 seek_off = 0;
+    char line_buffer[CANDUMP_MAX_LINE_SIZE];
+    char** tokens = NULL;
+    char* data_start;
+    bool ext_msg;
+    int secs = 0,
+        nsecs = 0;
 
-    if (msg->is_fd)
+    //Start with unknown interface ID
+    msg->interface_id = WTAP_SOCKETCAN_INVALID_INTERFACE_ID;
+
+    while(!file_eof(fh))
     {
-        canfd_frame_t canfd_frame = {0};
-
-        /*
-         * There's a maximum of CANFD_MAX_DLEN bytes in a CAN-FD frame.
-         */
-        if (msg->data.length > CANFD_MAX_DLEN) {
-            *err = WTAP_ERR_BAD_FILE;
-            if (err_info != NULL) {
-	        *err_info = ws_strdup_printf("candump: File has %u-byte CAN FD packet, bigger than maximum of %u",
-                                             msg->data.length, CANFD_MAX_DLEN);
-            }
-            return false;
-        }
-
-        canfd_frame.can_id = g_htonl(msg->id);
-        canfd_frame.flags  = msg->flags | CANFD_FDF;
-        canfd_frame.len    = msg->data.length;
-        memcpy(canfd_frame.data, msg->data.data, msg->data.length);
-
-        ws_buffer_append(buf, (uint8_t *)&canfd_frame, sizeof(canfd_frame));
-    }
-    else
-    {
-        can_frame_t can_frame = {0};
-
-        /*
-         * There's a maximum of CAN_MAX_DLEN bytes in a CAN frame.
-         */
-        if (msg->data.length > CAN_MAX_DLEN) {
-            *err = WTAP_ERR_BAD_FILE;
-            if (err_info != NULL) {
-	        *err_info = ws_strdup_printf("candump: File has %u-byte CAN packet, bigger than maximum of %u",
-                                             msg->data.length, CAN_MAX_DLEN);
-            }
-            return false;
-        }
-
-        can_frame.can_id  = g_htonl(msg->id);
-        can_frame.can_dlc = msg->data.length;
-        memcpy(can_frame.data, msg->data.data, msg->data.length);
-
-        ws_buffer_append(buf, (uint8_t *)&can_frame, sizeof(can_frame));
-    }
-
-    rec->rec_type       = REC_TYPE_PACKET;
-    rec->block          = wtap_block_create(WTAP_BLOCK_PACKET);
-    rec->presence_flags = WTAP_HAS_TS;
-    rec->ts             = msg->ts;
-    rec->tsprec         = WTAP_TSPREC_USEC;
-
-    rec->rec_header.packet_header.caplen = (uint32_t)ws_buffer_length(buf);
-    rec->rec_header.packet_header.len    = (uint32_t)ws_buffer_length(buf);
-
-    return true;
-}
-
-static bool
-candump_parse(FILE_T fh, msg_t *msg, int64_t *offset, int *err, char **err_info)
-{
-    candump_state_t state = {0};
-    bool            ok;
-    int64_t         seek_off;
-
-#ifdef CANDUMP_DEBUG
-    candump_debug_printf("%s: Trying candump file decoder\n", G_STRFUNC);
-#endif
-
-    state.fh = fh;
-
-    do
-    {
-        if (file_eof(fh))
-            return false;
 
         seek_off = file_tell(fh);
-#ifdef CANDUMP_DEBUG
-        candump_debug_printf("%s: Starting parser at offset %" PRIi64 "\n", G_STRFUNC, seek_off);
-#endif
-        state.file_bytes_read = 0;
-        ok = run_candump_parser(&state, err, err_info);
 
-        /* Rewind the file to the offset we have finished parsing */
-        if (file_seek(fh, seek_off + state.file_bytes_read, SEEK_SET, err) == -1)
+        if (file_gets(line_buffer, CANDUMP_MAX_LINE_SIZE, fh) == NULL)
         {
-            g_free(*err_info);
-            *err      = errno;
-            *err_info = g_strdup(g_strerror(errno));
+            /* Error reading file, bail out */
+            *err = file_error(fh, err_info);
             return false;
         }
+
+        tokens = g_strsplit(line_buffer, " ", 3);
+
+        if (tokens[0] == NULL)
+            break;
+        if (sscanf(tokens[0], "(%d.%d)", &secs, &nsecs) != 2)
+            break;
+
+        msg->ts.secs = secs;
+        msg->ts.nsecs = nsecs*1000;
+
+        if (tokens[1] == NULL)
+            break;
+
+        if (tokens[2] == NULL)
+            break;
+        char* id_end = strstr(tokens[2], "#");
+        if (id_end == NULL)
+            break;
+
+        if (!ws_hexstrtou32(tokens[2], (const char**)&id_end, &msg->id))
+            break;
+
+        ext_msg = (msg->id > CAN_SFF_MASK);
+        msg->type = ext_msg ? MSG_TYPE_EXT : MSG_TYPE_STD;
+
+        //Skip over the (first) #
+        id_end++;
+        data_start = id_end;
+        bool valid = false;
+        switch(*id_end)
+        {
+        case 0:
+            //Packet with no data
+            valid = true;
+            break;
+        case '#':
+        {
+            char strflags[2] = {0};
+            char* flag_start = id_end + 1;
+            if (!g_ascii_isxdigit(*flag_start))
+                break;
+
+            strflags[0] = *flag_start;
+
+            if (!ws_hexstrtou8(strflags, NULL, &msg->flags))
+                break;
+            valid = true;
+            msg->type = ext_msg ? MSG_TYPE_EXT_FD : MSG_TYPE_STD_FD;
+
+            //Skip the flags
+            data_start = id_end+2;
+            break;
+        }
+        case 'R':
+        {
+            char rvalue = *(id_end + 1);
+            if (g_ascii_isdigit(rvalue))
+            {
+                msg->data.length = rvalue - '0';
+            }
+            else
+            {
+                msg->data.length = 0;
+            }
+
+            msg->type = ext_msg ? MSG_TYPE_EXT_RTR : MSG_TYPE_STD_RTR;
+
+            //No data
+            data_start = NULL;
+            valid = true;
+            break;
+        }
+        default:
+            if (!g_ascii_isxdigit(*id_end) && (!g_ascii_isspace(*id_end)))
+            {
+                g_strfreev(tokens);
+                return false;
+            }
+            valid = true;
+            break;
+        }
+
+        if (!valid)
+            break;
+
+        //Now grab the data
+        if (data_start != NULL)
+            msg->data.length = hex2bin(msg->data.data, &msg->data.data[CANFD_MAX_DLEN], data_start);
+
+	/*
+	 * No errors - if we're reading a file of our own,
+	 * get the interface ID.
+	 *
+         * The interface name is tokens[1].  Try to find the entry
+         * with that name.
+         */
+        if (wth != NULL) {
+            msg->interface_id = wtap_socketcan_find_or_create_new_interface(wth, tokens[1]);
+        }
+
+        g_strfreev(tokens);
+
+        if (offset != NULL)
+            *offset = seek_off;
+
+        return true;
     }
-    while (ok && !state.is_msg_valid);
 
-    if (!ok)
-        return false;
-
-#ifdef CANDUMP_DEBUG
-    candump_debug_printf("%s: Success\n", G_STRFUNC);
-#endif
-
-    if (offset)
-        *offset = seek_off;
-
-    if (msg)
-        *msg = state.msg;
-
-    return true;
-}
-
-wtap_open_return_val
-candump_open(wtap *wth, int *err, char **err_info)
-{
-    if (!candump_parse(wth->fh, NULL, NULL, err, err_info))
-    {
-        g_free(*err_info);
-
-        *err      = 0;
-        *err_info = NULL;
-
-        return WTAP_OPEN_NOT_MINE;
-    }
-
-#ifdef CANDUMP_DEBUG
-    candump_debug_printf("%s: This is our file\n", G_STRFUNC);
-#endif
-
-    if (file_seek(wth->fh, 0, SEEK_SET, err) == -1)
-    {
-        *err      = errno;
-        *err_info = g_strdup(g_strerror(errno));
-
-        return WTAP_OPEN_ERROR;
-    }
-
-    wth->priv              = NULL;
-    wth->file_type_subtype = candump_file_type_subtype;
-    wth->file_encap        = WTAP_ENCAP_SOCKETCAN;
-    wth->file_tsprec       = WTAP_TSPREC_USEC;
-    wth->subtype_read      = candump_read;
-    wth->subtype_seek_read = candump_seek_read;
-
-    return WTAP_OPEN_MINE;
+    g_strfreev(tokens);
+    return false;
 }
 
 static bool
-candump_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, char **err_info,
+candump_read(wtap *wth, wtap_rec *rec, int *err, char **err_info,
              int64_t *data_offset)
 {
-    msg_t msg;
+    wtap_can_msg_t msg = {0};
 
-#ifdef CANDUMP_DEBUG
-    candump_debug_printf("%s: Try reading at offset %" PRIi64 "\n", G_STRFUNC, file_tell(wth->fh));
-#endif
+    ws_debug("%s: Try reading at offset %" PRIi64 "\n", G_STRFUNC, file_tell(wth->fh));
 
-    if (!candump_parse(wth->fh, &msg, data_offset, err, err_info))
+    if (!candump_parse(wth, wth->fh, &msg, data_offset, err, err_info))
         return false;
 
-#ifdef CANDUMP_DEBUG
-    candump_debug_printf("%s: Stopped at offset %" PRIi64 "\n", G_STRFUNC, file_tell(wth->fh));
-#endif
+    ws_debug("%s: Stopped at offset %" PRIi64 "\n", G_STRFUNC, file_tell(wth->fh));
 
-    return candump_gen_packet(rec, buf, &msg, err, err_info);
+    return wtap_socketcan_gen_packet(wth, rec, &msg, "candump", err, err_info);
 }
 
 static bool
 candump_seek_read(wtap *wth , int64_t seek_off, wtap_rec *rec,
-                  Buffer *buf, int *err, char **err_info)
+                  int *err, char **err_info)
 {
-    msg_t msg;
+    wtap_can_msg_t msg = {0};
 
-#ifdef CANDUMP_DEBUG
-    candump_debug_printf("%s: Read at offset %" PRIi64 "\n", G_STRFUNC, seek_off);
-#endif
+    ws_debug("%s: Read at offset %" PRIi64 "\n", G_STRFUNC, seek_off);
 
     if (file_seek(wth->random_fh, seek_off, SEEK_SET, err) == -1)
     {
@@ -225,10 +243,50 @@ candump_seek_read(wtap *wth , int64_t seek_off, wtap_rec *rec,
         return false;
     }
 
-    if (!candump_parse(wth->random_fh, &msg, NULL, err, err_info))
+    if (!candump_parse(wth, wth->random_fh, &msg, NULL, err, err_info))
         return false;
 
-    return candump_gen_packet(rec, buf, &msg, err, err_info);
+    return wtap_socketcan_gen_packet(wth, rec, &msg, "candump", err, err_info);
+}
+
+wtap_open_return_val
+candump_open(wtap* wth, int* err, char** err_info)
+{
+    wtap_can_msg_t temp_msg = {0};
+
+    /*
+     * We don't pass wth to candump_parse(), because we haven't yet
+     * decided whether this is a candump file, and haven't set up
+     * the hash table for interface names, and thus don't want it
+     * trying to look up those names and adding new interfaces if
+     * it doesn't find them; we do that in the read code.
+     */
+    if (!candump_parse(NULL, wth->fh, &temp_msg, NULL, err, err_info))
+    {
+        if (*err != 0 && *err != WTAP_ERR_SHORT_READ)
+            return WTAP_OPEN_ERROR;
+
+        *err = 0;
+        *err_info = NULL;
+        return WTAP_OPEN_NOT_MINE;
+    }
+
+    ws_debug("%s: This is our file\n", G_STRFUNC);
+
+    if (file_seek(wth->fh, 0, SEEK_SET, err) == -1)
+    {
+        *err = errno;
+        *err_info = g_strdup(g_strerror(errno));
+
+        return WTAP_OPEN_ERROR;
+    }
+
+    /* This is a candump file (no private data needed) */
+    wtap_set_as_socketcan(wth, candump_file_type_subtype, WTAP_TSPREC_USEC, NULL, NULL);
+    wth->subtype_read = candump_read;
+    wth->subtype_seek_read = candump_seek_read;
+
+    return WTAP_OPEN_MINE;
 }
 
 static const struct supported_block_type candump_blocks_supported[] = {

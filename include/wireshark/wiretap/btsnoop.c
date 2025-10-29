@@ -64,12 +64,12 @@ struct btsnooprec_hdr {
 
 static const int64_t KUnixTimeBase = INT64_C(0x00dcddb30f2f8000); /* offset from symbian - unix time */
 
-static bool btsnoop_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool btsnoop_read(wtap *wth, wtap_rec *rec,
     int *err, char **err_info, int64_t *offset);
 static bool btsnoop_seek_read(wtap *wth, int64_t seek_off,
-    wtap_rec *rec, Buffer *buf, int *err, char **err_info);
+    wtap_rec *rec, int *err, char **err_info);
 static bool btsnoop_read_record(wtap *wth, FILE_T fh,
-    wtap_rec *rec, Buffer *buf, int *err, char **err_info);
+    wtap_rec *rec, int *err, char **err_info);
 
 static int btsnoop_file_type_subtype = -1;
 
@@ -154,25 +154,25 @@ wtap_open_return_val btsnoop_open(wtap *wth, int *err, char **err_info)
     return WTAP_OPEN_MINE;
 }
 
-static bool btsnoop_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool btsnoop_read(wtap *wth, wtap_rec *rec,
                              int *err, char **err_info, int64_t *offset)
 {
     *offset = file_tell(wth->fh);
 
-    return btsnoop_read_record(wth, wth->fh, rec, buf, err, err_info);
+    return btsnoop_read_record(wth, wth->fh, rec, err, err_info);
 }
 
 static bool btsnoop_seek_read(wtap *wth, int64_t seek_off,
-                                  wtap_rec *rec, Buffer *buf, int *err, char **err_info)
+                                  wtap_rec *rec, int *err, char **err_info)
 {
     if (file_seek(wth->random_fh, seek_off, SEEK_SET, err) == -1)
         return false;
 
-    return btsnoop_read_record(wth, wth->random_fh, rec, buf, err, err_info);
+    return btsnoop_read_record(wth, wth->random_fh, rec, err, err_info);
 }
 
 static bool btsnoop_read_record(wtap *wth, FILE_T fh,
-                                    wtap_rec *rec, Buffer *buf, int *err, char **err_info)
+                                    wtap_rec *rec, int *err, char **err_info)
 {
     struct btsnooprec_hdr hdr;
     uint32_t packet_size;
@@ -202,7 +202,7 @@ static bool btsnoop_read_record(wtap *wth, FILE_T fh,
     ts = GINT64_FROM_BE(hdr.ts_usec);
     ts -= KUnixTimeBase;
 
-    rec->rec_type = REC_TYPE_PACKET;
+    wtap_setup_packet_rec(rec, wth->file_encap);
     rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
     rec->presence_flags = WTAP_HAS_TS|WTAP_HAS_CAP_LEN;
     rec->ts.secs = (unsigned)(ts / 1000000);
@@ -236,7 +236,9 @@ static bool btsnoop_read_record(wtap *wth, FILE_T fh,
 
 
     /* Read packet data. */
-    return wtap_read_packet_bytes(fh, buf, rec->rec_header.packet_header.caplen, err, err_info);
+    return wtap_read_bytes_buffer(fh, &rec->data,
+                                  rec->rec_header.packet_header.caplen,
+                                  err, err_info);
 }
 
 /* Returns 0 if we could write the specified encapsulation type,
@@ -260,11 +262,11 @@ static int btsnoop_dump_can_write_encap(int encap)
     return 0;
 }
 
-static bool btsnoop_dump(wtap_dumper *wdh,
-    const wtap_rec *rec,
-    const uint8_t *pd, int *err, char **err_info)
+static bool btsnoop_dump(wtap_dumper *wdh, const wtap_rec *rec,
+    int *err, char **err_info)
 {
     const union wtap_pseudo_header *pseudo_header = &rec->rec_header.packet_header.pseudo_header;
+    const uint8_t *pd;
     struct btsnooprec_hdr rec_hdr;
     uint32_t flags;
     int64_t nsecs;
@@ -273,6 +275,7 @@ static bool btsnoop_dump(wtap_dumper *wdh,
     /* We can only write packet records. */
     if (rec->rec_type != REC_TYPE_PACKET) {
         *err = WTAP_ERR_UNWRITABLE_REC_TYPE;
+        *err_info = wtap_unwritable_rec_type_err_string(rec);
         return false;
     }
 
@@ -293,6 +296,8 @@ static bool btsnoop_dump(wtap_dumper *wdh,
 
     rec_hdr.incl_len = GUINT32_TO_BE(rec->rec_header.packet_header.caplen);
     rec_hdr.orig_len = GUINT32_TO_BE(rec->rec_header.packet_header.len);
+
+    pd = ws_buffer_start_ptr(&rec->data);
 
     switch (wdh->file_encap) {
 

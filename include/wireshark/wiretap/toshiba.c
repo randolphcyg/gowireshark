@@ -14,6 +14,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <wsutil/pint.h>
+
+/*
+ * Toshiba ISDN Router
+ *
+ * An under-documented command that the router supports in a telnet session
+ * is "snoop" (not related to the Solaris "snoop" command). If you give
+ * it the "dump" option (either by letting "snoop" query you for its next
+ * argument, or typing "snoop dump" on the command line), you'll get a hex
+ * dump of all packets across the router (except of your own telnet session
+ * -- good thinking Toshiba!). You can select a certain channel to sniff
+ * (LAN, B1, B2, D), but the default is all channels.  You save this hex
+ * dump to disk with 'script' or by 'telnet | tee'. Wiretap will read the
+ * ASCII hex dump and convert it to binary data.
+*/
+
 /* This module reads the output of the 'snoop' command in the Toshiba
  * TR-600 and TR-650 "Compact" ISDN Routers. You can telnet to the
  * router and run 'snoop' on the different channels, and at different
@@ -86,14 +102,14 @@ static const char toshiba_hdr_magic[]  =
 static const char toshiba_rec_magic[]  = { '[', 'N', 'o', '.' };
 #define TOSHIBA_REC_MAGIC_SIZE  array_length(toshiba_rec_magic)
 
-static bool toshiba_read(wtap *wth, wtap_rec *rec, Buffer *buf,
-	int *err, char **err_info, int64_t *data_offset);
-static bool toshiba_seek_read(wtap *wth, int64_t seek_off,
-	wtap_rec *rec, Buffer *buf, int *err, char **err_info);
+static bool toshiba_read(wtap *wth, wtap_rec *rec, int *err,
+	char **err_info, int64_t *data_offset);
+static bool toshiba_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
+	int *err, char **err_info);
 static bool parse_single_hex_dump_line(char* rec, uint8_t *buf,
 	unsigned byte_offset);
-static bool parse_toshiba_packet(FILE_T fh, wtap_rec *rec,
-	Buffer *buf, int *err, char **err_info);
+static bool parse_toshiba_packet(FILE_T fh, wtap_rec *rec, int *err,
+	char **err_info);
 
 static int toshiba_file_type_subtype = -1;
 
@@ -199,8 +215,8 @@ wtap_open_return_val toshiba_open(wtap *wth, int *err, char **err_info)
 }
 
 /* Find the next packet and parse it; called from wtap_read(). */
-static bool toshiba_read(wtap *wth, wtap_rec *rec, Buffer *buf,
-    int *err, char **err_info, int64_t *data_offset)
+static bool toshiba_read(wtap *wth, wtap_rec *rec, int *err,
+	char **err_info, int64_t *data_offset)
 {
 	int64_t	offset;
 
@@ -211,19 +227,18 @@ static bool toshiba_read(wtap *wth, wtap_rec *rec, Buffer *buf,
 	*data_offset = offset;
 
 	/* Parse the packet */
-	return parse_toshiba_packet(wth->fh, rec, buf, err, err_info);
+	return parse_toshiba_packet(wth->fh, rec, err, err_info);
 }
 
 /* Used to read packets in random-access fashion */
 static bool
-toshiba_seek_read(wtap *wth, int64_t seek_off,
-	wtap_rec *rec, Buffer *buf,
-	int *err, char **err_info)
+toshiba_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec, int *err,
+	char **err_info)
 {
 	if (file_seek(wth->random_fh, seek_off - 1, SEEK_SET, err) == -1)
 		return false;
 
-	if (!parse_toshiba_packet(wth->random_fh, rec, buf, err, err_info)) {
+	if (!parse_toshiba_packet(wth->random_fh, rec, err, err_info)) {
 		if (*err == 0)
 			*err = WTAP_ERR_SHORT_READ;
 		return false;
@@ -233,8 +248,7 @@ toshiba_seek_read(wtap *wth, int64_t seek_off,
 
 /* Parses a packet. */
 static bool
-parse_toshiba_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
-    int *err, char **err_info)
+parse_toshiba_packet(FILE_T fh, wtap_rec *rec, int *err, char **err_info)
 {
 	union wtap_pseudo_header *pseudo_header = &rec->rec_header.packet_header.pseudo_header;
 	char	line[TOSHIBA_LINE_LENGTH];
@@ -313,7 +327,7 @@ parse_toshiba_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
 		return false;
 	}
 
-	rec->rec_type = REC_TYPE_PACKET;
+	wtap_setup_packet_rec(rec, WTAP_ENCAP_UNKNOWN);
 	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 	rec->presence_flags = WTAP_HAS_TS|WTAP_HAS_CAP_LEN;
 	rec->ts.secs = hr * 3600 + min * 60 + sec;
@@ -343,8 +357,8 @@ parse_toshiba_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
 	}
 
 	/* Make sure we have enough room for the packet */
-	ws_buffer_assure_space(buf, pkt_len);
-	pd = ws_buffer_start_ptr(buf);
+	ws_buffer_assure_space(&rec->data, pkt_len);
+	pd = ws_buffer_start_ptr(&rec->data);
 
 	/* Calculate the number of hex dump lines, each
 	 * containing 16 bytes of data */
@@ -422,8 +436,7 @@ parse_single_hex_dump_line(char* rec, uint8_t *buf, unsigned byte_offset) {
 		rec[pos+4] = '\0';
 
 		word_value = (uint16_t) strtoul(&rec[pos], NULL, 16);
-		buf[byte_offset + i * 2 + 0] = (uint8_t) (word_value >> 8);
-		buf[byte_offset + i * 2 + 1] = (uint8_t) (word_value & 0x00ff);
+		phtonu16(&buf[byte_offset + i * 2], word_value);
 		pos += 5;
 	}
 

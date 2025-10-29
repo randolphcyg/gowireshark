@@ -14,7 +14,8 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/to_str.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 #include "packet-zbee.h"
 #include "packet-zbee-aps.h"
@@ -28,8 +29,6 @@
 /*************************/
 /* Defines               */
 /*************************/
-
-#define ZBEE_ZCL_SHADE_CONFIGURATION_NUM_ETT                                       2
 
 /*Attributes*/
 #define ZBEE_ZCL_ATTR_ID_SHADE_CONFIGURATION_PHYSICAL_CLOSED_LIMIT                 0x0000  /* Physical Closed Limit */
@@ -54,9 +53,6 @@
 
 void proto_register_zbee_zcl_shade_configuration(void);
 void proto_reg_handoff_zbee_zcl_shade_configuration(void);
-
-/* Command Dissector Helpers */
-static void dissect_zcl_shade_configuration_attr_data      (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* Private functions prototype */
 
@@ -132,8 +128,8 @@ dissect_zbee_zcl_shade_configuration(tvbuff_t *tvb _U_, packet_info *pinfo _U_, 
  *@param data_type attribute data type
  *@param client_attr ZCL client
 */
-void
-dissect_zcl_shade_configuration_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+static void
+dissect_zcl_shade_configuration_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     static int * const shade_config_status[] = {
         &hf_zbee_zcl_shade_configuration_status_shade_operational,
@@ -160,7 +156,7 @@ dissect_zcl_shade_configuration_attr_data(proto_tree *tree, tvbuff_t *tvb, unsig
         case ZBEE_ZCL_ATTR_ID_SHADE_CONFIGURATION_MOTOR_STEP_SIZE:
         case ZBEE_ZCL_ATTR_ID_SHADE_CONFIGURATION_CLOSED_LIMIT:
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 
@@ -209,10 +205,10 @@ proto_register_zbee_zcl_shade_configuration(void)
     };
 
     /* ZCL Shade Configuration subtrees */
-    static int *ett[ZBEE_ZCL_SHADE_CONFIGURATION_NUM_ETT];
-
-    ett[0] = &ett_zbee_zcl_shade_configuration;
-    ett[1] = &ett_zbee_zcl_shade_configuration_status;
+    static int *ett[] = {
+        &ett_zbee_zcl_shade_configuration,
+        &ett_zbee_zcl_shade_configuration_status
+    };
 
     /* Register the ZigBee ZCL Shade Configuration cluster protocol name and description */
     proto_zbee_zcl_shade_configuration = proto_register_protocol("ZigBee ZCL Shade Configuration", "ZCL Shade Configuration", ZBEE_PROTOABBREV_ZCL_SHADE_CONFIG);
@@ -238,7 +234,7 @@ proto_reg_handoff_zbee_zcl_shade_configuration(void)
                             hf_zbee_zcl_shade_configuration_attr_id,
                             hf_zbee_zcl_shade_configuration_attr_id,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_shade_configuration_attr_data
+                            dissect_zcl_shade_configuration_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_shade_configuration*/
 
@@ -250,8 +246,6 @@ proto_reg_handoff_zbee_zcl_shade_configuration(void)
 /*************************/
 /* Defines               */
 /*************************/
-
-#define ZBEE_ZCL_DOOR_LOCK_NUM_ETT                                  1
 
 /* Attributes */
 #define ZBEE_ZCL_ATTR_ID_DOOR_LOCK_LOCK_STATE                       0x0000  /* Lock State */
@@ -280,8 +274,6 @@ void proto_reg_handoff_zbee_zcl_door_lock(void);
 
 /* Command Dissector Helpers */
 static void dissect_zcl_door_lock_lock_unlock_door_response        (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
-
-static void dissect_zcl_door_lock_attr_data                        (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* Private functions prototype */
 
@@ -465,8 +457,8 @@ dissect_zcl_door_lock_lock_unlock_door_response(tvbuff_t *tvb, proto_tree *tree,
  *@param data_type attribute data type
  *@param client_attr ZCL client
 */
-void
-dissect_zcl_door_lock_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+static void
+dissect_zcl_door_lock_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch ( attr_id ) {
@@ -495,7 +487,7 @@ dissect_zcl_door_lock_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offse
         case ZBEE_ZCL_ATTR_ID_DOOR_LOCK_DOOR_CLOSED_EVENTS:
         case ZBEE_ZCL_ATTR_ID_DOOR_LOCK_OPEN_PERIOD:
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 
@@ -547,8 +539,9 @@ proto_register_zbee_zcl_door_lock(void)
     };
 
     /* ZCL Door Lock subtrees */
-    static int *ett[ZBEE_ZCL_DOOR_LOCK_NUM_ETT];
-    ett[0] = &ett_zbee_zcl_door_lock;
+    static int *ett[] = {
+        &ett_zbee_zcl_door_lock
+    };
 
     /* Register the ZigBee ZCL Door Lock cluster protocol name and description */
     proto_zbee_zcl_door_lock = proto_register_protocol("ZigBee ZCL Door Lock", "ZCL Door Lock", ZBEE_PROTOABBREV_ZCL_DOOR_LOCK);
@@ -577,7 +570,7 @@ proto_reg_handoff_zbee_zcl_door_lock(void)
                             hf_zbee_zcl_door_lock_attr_id,
                             hf_zbee_zcl_door_lock_srv_rx_cmd_id,
                             hf_zbee_zcl_door_lock_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_door_lock_attr_data
+                            dissect_zcl_door_lock_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_door_lock*/
 
@@ -588,8 +581,6 @@ proto_reg_handoff_zbee_zcl_door_lock(void)
 /*************************/
 /* Defines               */
 /*************************/
-
-#define ZBEE_ZCL_WINDOW_COVERING_NUM_ETT                                  1
 
 /*Attributes*/
 #define ZBEE_ZCL_ATTR_ID_WINDOW_COVERING_TYPE                                  0x0000  /* Type of shutter */
@@ -742,7 +733,7 @@ dissect_zcl_window_covering_go_to_percentage(tvbuff_t *tvb, proto_tree *tree, un
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_window_covering_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_window_covering_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch ( attr_id ) {
@@ -763,7 +754,7 @@ dissect_zcl_window_covering_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned 
             break;
 
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 
@@ -805,8 +796,9 @@ proto_register_zbee_zcl_window_covering(void)
     };
 
     /* ZCL Window Covering subtrees */
-    static int *ett[ZBEE_ZCL_WINDOW_COVERING_NUM_ETT];
-    ett[0] = &ett_zbee_zcl_window_covering;
+    static int *ett[] = {
+        &ett_zbee_zcl_window_covering
+    };
 
     /* Register the ZigBee ZCL Window Covering cluster protocol name and description */
     proto_zbee_zcl_window_covering = proto_register_protocol("ZigBee ZCL Window Covering", "ZCL Window Covering", ZBEE_PROTOABBREV_ZCL_WINDOW_COVERING);
@@ -835,7 +827,7 @@ proto_reg_handoff_zbee_zcl_window_covering(void)
                             hf_zbee_zcl_window_covering_attr_id,
                             hf_zbee_zcl_window_covering_srv_rx_cmd_id,
                             -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_window_covering_attr_data
+                            dissect_zcl_window_covering_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_window_covering*/
 

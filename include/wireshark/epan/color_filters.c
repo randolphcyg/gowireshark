@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <wsutil/application_flavor.h>
 #include <wsutil/filesystem.h>
 #include <wsutil/file_util.h>
 #include <wsutil/report_message.h>
@@ -33,6 +34,16 @@
 #include <epan/dfilter/dfilter.h>
 #include <epan/prefs.h>
 #include <epan/epan_dissect.h>
+
+/*
+ * Each line in the colorfilters file has the following format:
+ *
+ * @<filter name>@<filter string>@[<background>][<foreground>]
+ * Background and foreground colors are 16-bit comma-separated RGB
+ * triplets. Colors are 16 bits because that's what GdkColor used.
+ * We might want to use a more standard, copy+paste-able color scheme
+ * such as #RRGGBB instead.
+ */
 
 #define RED_COMPONENT(x)   (uint16_t) (((((x) >> 16) & 0xff) * 65535 / 255))
 #define GREEN_COMPONENT(x) (uint16_t) (((((x) >>  8) & 0xff) * 65535 / 255))
@@ -855,7 +866,7 @@ write_filters_file(GSList *cfl, FILE *f, bool only_selected)
     data.f = f;
     data.only_selected = only_selected;
 
-    fprintf(f,"# This file was created by %s. Edit with care.\n", get_configuration_namespace());
+    fprintf(f,"# This file was created by %s. Edit with care.\n", application_flavor_name_proper());
     g_slist_foreach(cfl, write_filter, &data);
     return true;
 }

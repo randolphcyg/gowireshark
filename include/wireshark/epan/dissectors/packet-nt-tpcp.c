@@ -14,6 +14,8 @@
 
 #include <epan/packet.h>
 #include <epan/addr_resolv.h> /* this is for get_hostname and udp_port_to_display */
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 void proto_register_tpcp(void);
 void proto_reg_handoff_tpcp(void);
@@ -124,7 +126,7 @@ dissect_tpcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	type = tvb_get_uint8(tvb, 1);
 	proto_tree_add_item(tpcp_tree, hf_tpcp_type, tvb, 1, 1, ENC_BIG_ENDIAN);
 
-	proto_tree_add_bitmask(tpcp_tree, tvb, 2, hf_tpcp_flags, ett_tpcp_flags, tpcp_flags, ENC_NA);
+	proto_tree_add_bitmask(tpcp_tree, tvb, 2, hf_tpcp_flags, ett_tpcp_flags, tpcp_flags, ENC_BIG_ENDIAN);
 
 	/* N.B., flags are 8 bits, so byte at offset 3 skipped.. */
 

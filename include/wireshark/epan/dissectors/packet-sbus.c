@@ -14,6 +14,8 @@
 #include <epan/packet.h>
 #include <epan/conversation.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 void proto_register_sbus(void);
 void proto_reg_handoff_sbus(void);
@@ -2532,13 +2534,13 @@ proto_register_sbus(void)
 
               { &hf_sbus_response_in,
                      { "Response in frame nr.", "sbus.response_in",
-                     FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+                     FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
                      "The response to this Ether-S-Bus request is in this frame", HFILL }
               },
 
               { &hf_sbus_response_to,
                      { "Request in frame nr.", "sbus.response_to",
-                     FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+                     FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0,
                      "This is a response to the Ether-S-Bus request in this frame", HFILL }
               },
 

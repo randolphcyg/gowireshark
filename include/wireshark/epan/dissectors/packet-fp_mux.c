@@ -164,7 +164,7 @@ static int dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
     col_clear(pinfo->cinfo, COL_INFO);
 
     while (offset != total_length) {
-        ext_flag = tvb_get_bits(tvb, (offset+2)*8, 1, ENC_NA) == 0x01;
+        ext_flag = tvb_get_bits8(tvb, (offset+2)*8, 1) == 0x01;
         header_length = ext_flag ? 4 : 3;
 
         /* Adding another FP Mux tree */
@@ -217,7 +217,7 @@ static int dissect_fp_mux(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
         /* Dissecting Payload */
         next_tvb = tvb_new_subset_length(tvb,offset,length);
         if(payload_index >= MAX_PAYLOADS) {
-            /* Too many FP payloads. Showing error and aboring dissection*/
+            /* Too many FP payloads. Showing error and aborting dissection*/
             proto_tree_add_expert_format(fpmux_tree, pinfo, &ei_fpm_too_many_payloads, tvb, offset, -1,
                 "Too many FP packets muxed in a single packet ( Maximum expected: %d )", MAX_PAYLOADS);
             return total_length;

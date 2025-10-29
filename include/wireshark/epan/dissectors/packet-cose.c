@@ -27,6 +27,8 @@
 #include <epan/media_params.h>
 #include <epan/expert.h>
 #include <epan/exceptions.h>
+#include <wsutil/array.h>
+#include <gcrypt.h>
 #include <inttypes.h>
 
 void proto_register_cose(void);
@@ -316,7 +318,8 @@ static ei_register_info expertitems[] = {
     {&ei_value_partial_decode, { "cose.partial_decode", PI_MALFORMED, PI_WARN, "Value is only partially decoded", EXPFILL}},
 };
 
-unsigned cose_param_key_hash(const void *ptr) {
+/* Compatible with GHashFunc signature. */
+static unsigned cose_param_key_hash(const void *ptr) {
     const cose_param_key_t *obj = (const cose_param_key_t *)ptr;
     unsigned val = 0;
     if (obj->principal) {
@@ -328,7 +331,8 @@ unsigned cose_param_key_hash(const void *ptr) {
     return val;
 }
 
-gboolean cose_param_key_equal(const void *a, const void *b) {
+/* Compatible with GEqualFunc signature. */
+static gboolean cose_param_key_equal(const void *a, const void *b) {
     const cose_param_key_t *aobj = (const cose_param_key_t *)a;
     const cose_param_key_t *bobj = (const cose_param_key_t *)b;
 
@@ -352,7 +356,8 @@ gboolean cose_param_key_equal(const void *a, const void *b) {
     return match;
 }
 
-void cose_param_key_free(void *ptr) {
+/* Compatible with GDestroyNotify signature. */
+static void cose_param_key_free(void *ptr) {
     cose_param_key_t *obj = (cose_param_key_t *)ptr;
     if (obj->principal) {
         g_variant_unref(obj->principal);
@@ -361,6 +366,85 @@ void cose_param_key_free(void *ptr) {
         g_variant_unref(obj->label);
     }
     g_free(obj);
+}
+
+/// Known hash properties
+static const cose_hash_props_t cose_hash_props_list[] = {
+    {-45, GCRY_MD_SHAKE256, 64},
+    {-44, GCRY_MD_SHA512, 64},
+    {-43, GCRY_MD_SHA384, 48},
+    {-18, GCRY_MD_SHAKE128, 32},
+    {-17, GCRY_MD_SHA512, 32}, // truncated
+    {-16, GCRY_MD_SHA256, 32},
+    {-15, GCRY_MD_SHA256, 16}, // truncated
+    {-14, GCRY_MD_SHA1, 20},
+};
+/// Derived lookup map
+static GHashTable *cose_hash_props_map = NULL;
+
+const cose_hash_props_t * cose_get_hash_props(int64_t alg) {
+    if (cose_hash_props_map) {
+        // fast lookup when available
+        return g_hash_table_lookup(cose_hash_props_map, &alg);
+    }
+    else {
+        return NULL;
+    }
+}
+
+/// Known AEAD properties
+static const cose_aead_props_t cose_aead_props_list[] = {
+    {1, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_GCM, 16, 12, 16},
+    {2, GCRY_CIPHER_AES192, GCRY_CIPHER_MODE_GCM, 24, 12, 16},
+    {3, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_GCM, 32, 12, 16},
+
+    {10, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CCM, 16, 13, 8},
+    {11, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CCM, 32, 13, 8},
+    {12, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CCM, 16, 7, 8},
+    {13, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CCM, 32, 7, 8},
+
+    {24, GCRY_CIPHER_CHACHA20, GCRY_CIPHER_MODE_POLY1305, 32, 12, 16},
+
+    {30, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CCM, 16, 13, 16},
+    {31, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CCM, 32, 13, 16},
+    {32, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CCM, 16, 7, 16},
+    {33, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CCM, 32, 7, 16},
+};
+/// Derived lookup map
+static GHashTable *cose_aead_props_map = NULL;
+
+const cose_aead_props_t * cose_get_aead_props(int64_t alg) {
+    if (cose_aead_props_map) {
+        // fast lookup when available
+        return g_hash_table_lookup(cose_aead_props_map, &alg);
+    }
+    else {
+        return NULL;
+    }
+}
+
+/// Known curve properties
+static const cose_ecc_props_t cose_ecc_props_list[] = {
+    {1, 32}, // P-256
+    {2, 48}, // P-384
+    {3, 66}, // P-521
+    {4, 32}, // X25519
+    {5, 57}, // X448
+    {6, 32}, // Ed25519
+    {7, 57}, // Ed448
+    {8, 32}, // secp256k1
+};
+/// Derived lookup map
+static GHashTable *cose_ecc_props_map = NULL;
+
+const cose_ecc_props_t * cose_get_ecc_props(int64_t crv) {
+    if (cose_ecc_props_map) {
+        // fast lookup when available
+        return g_hash_table_lookup(cose_ecc_props_map, &crv);
+    }
+    else {
+        return NULL;
+    }
 }
 
 /** Get a specific item value (map key or value) from a header map.
@@ -446,8 +530,9 @@ static bool dissect_header_pair(dissector_table_t dis_table, cose_header_context
         dissector = dissector_get_custom_table_handle(dis_table, &key);
     }
     const char *dis_name = dissector_handle_get_description(dissector);
-    if (dis_name) {
-        proto_item_set_text(item_label, "Label: %s (%s)", dis_name, label_str);
+    if (item_label && dis_name) {
+        proto_item_set_text(item_label, "%s: %s (%s)",
+                            PITEM_HFINFO(item_label)->name, dis_name, label_str);
     }
 
     tree_label = proto_item_add_subtree(item_label, ett_hdr_label);
@@ -1016,12 +1101,13 @@ static void dissect_value_x5cert(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
         char *info_text = wmem_strdup(pinfo->pool, col_get_text(pinfo->cinfo, COL_INFO));
 
         TRY {
-            dissector_try_string(
+            dissector_try_string_with_data(
                 table_media,
                 "application/pkix-cert",
                 tvb_item,
                 pinfo,
                 tree,
+                true,
                 NULL
             );
         }
@@ -1313,12 +1399,14 @@ static void register_keyparam_dissector(dissector_t dissector, GVariant *kty, GV
     dissector_add_custom_table_handle("cose.keyparam", key, dis_h);
 }
 
-/// Initialize for a new file load
-static void cose_init(void) {
-}
-
-/// Cleanup after a file
-static void cose_cleanup(void) {
+/// Shutdown global stores
+static void cose_shutdown(void) {
+    g_hash_table_unref(cose_hash_props_map);
+    cose_hash_props_map = NULL;
+    g_hash_table_unref(cose_aead_props_map);
+    cose_aead_props_map = NULL;
+    g_hash_table_unref(cose_ecc_props_map);
+    cose_ecc_props_map = NULL;
 }
 
 /// Re-initialize after a configuration change
@@ -1327,10 +1415,25 @@ static void cose_reinit(void) {
 
 /// Overall registration of the protocol
 void proto_register_cose(void) {
-    proto_cose = proto_register_protocol("CBOR Object Signing and Encryption", proto_name_cose, "cose");
-    register_init_routine(&cose_init);
-    register_cleanup_routine(&cose_cleanup);
+    // Global scope data
+    register_shutdown_routine(&cose_shutdown);
+    cose_hash_props_map = g_hash_table_new(g_int64_hash, g_int64_equal);
+    for (const cose_hash_props_t *item = cose_hash_props_list;
+            item < cose_hash_props_list + array_length(cose_hash_props_list); ++item) {
+        g_hash_table_insert(cose_hash_props_map, (void *)&(item->value), (void *)item);
+    }
+    cose_aead_props_map = g_hash_table_new(g_int64_hash, g_int64_equal);
+    for (const cose_aead_props_t *item = cose_aead_props_list;
+            item < cose_aead_props_list + array_length(cose_aead_props_list); ++item) {
+        g_hash_table_insert(cose_aead_props_map, (void *)&(item->value), (void *)item);
+    }
+    cose_ecc_props_map = g_hash_table_new(g_int64_hash, g_int64_equal);
+    for (const cose_ecc_props_t *item = cose_ecc_props_list;
+            item < cose_ecc_props_list + array_length(cose_ecc_props_list); ++item) {
+        g_hash_table_insert(cose_ecc_props_map, (void *)&(item->value), (void *)item);
+    }
 
+    proto_cose = proto_register_protocol("CBOR Object Signing and Encryption", proto_name_cose, "cose");
     proto_cose_params = proto_register_protocol_in_name_only(
         "COSE Parameter Subdissectors",
         "COSE Parameter Subdissectors",

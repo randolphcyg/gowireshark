@@ -83,6 +83,10 @@ char string_to_name_resolve(const char *string, struct _e_addr_resolve *name_res
 
 #define COLOR_STYLE_ALPHA       0.25
 
+#define COLOR_SCHEME_DEFAULT    0
+#define COLOR_SCHEME_LIGHT      1
+#define COLOR_SCHEME_DARK       2
+
 /*
  * Types of layout of summary/details/hex panes.
  */
@@ -136,6 +140,19 @@ typedef enum {
     ELIDE_NONE
 } elide_mode_e;
 
+typedef enum {
+    COPY_FORMAT_TEXT,
+    COPY_FORMAT_CSV,
+    COPY_FORMAT_YAML,
+    COPY_FORMAT_HTML
+} copy_format_e;
+
+typedef enum {
+    ABS_TIME_ASCII_NEVER,
+    ABS_TIME_ASCII_TREE,
+    ABS_TIME_ASCII_COLUMN,
+    ABS_TIME_ASCII_ALWAYS,
+} abs_time_format_e;
 
 /*
  * Update channel.
@@ -149,10 +166,12 @@ typedef struct _e_prefs {
   GList       *col_list;
   int          num_cols;
   color_t      st_client_fg, st_client_bg, st_server_fg, st_server_bg;
-  color_t      gui_text_valid, gui_text_invalid, gui_text_deprecated;
+  color_t      gui_filter_valid_fg, gui_filter_invalid_fg, gui_filter_deprecated_fg;
+  color_t      gui_filter_valid_bg, gui_filter_invalid_bg, gui_filter_deprecated_bg;
   bool         restore_filter_after_following_stream;
   int          gui_toolbar_main_style;
   char        *gui_font_name;
+  int          gui_color_scheme;
   color_t      gui_active_fg;
   color_t      gui_active_bg;
   int          gui_active_style;
@@ -195,6 +214,9 @@ typedef struct _e_prefs {
   bool         gui_interfaces_remote_display;
   bool         gui_io_graph_automatic_update;
   bool         gui_io_graph_enable_legend;
+  bool         gui_plot_automatic_update;
+  bool         gui_plot_enable_legend;
+  bool         gui_plot_enable_auto_scroll;
   bool         gui_packet_details_show_byteview;
   char        *capture_device;
   char        *capture_devices_linktypes;
@@ -217,6 +239,7 @@ typedef struct _e_prefs {
   unsigned     tap_update_interval;
   bool         display_hidden_proto_items;
   bool         display_byte_fields_with_spaces;
+  abs_time_format_e display_abs_time_ascii;
   bool         enable_incomplete_dissectors_check;
   bool         incomplete_dissectors_check_debug;
   bool         strict_conversation_tracking_heuristics;
@@ -237,6 +260,8 @@ typedef struct _e_prefs {
   bool         gui_show_selected_packet;
   bool         gui_show_file_load_time;
   elide_mode_e gui_packet_list_elide_mode;
+  copy_format_e gui_packet_list_copy_format_options_for_keyboard_shortcut;
+  bool         gui_packet_list_copy_text_with_aligned_columns;
   bool         gui_packet_list_show_related;
   bool         gui_packet_list_show_minimap;
   bool         gui_packet_list_sortable;
@@ -257,6 +282,8 @@ typedef struct _e_prefs {
   int          st_sort_defcolflag;
   bool         st_sort_defdescending;
   bool         st_sort_showfullname;
+  int          st_format;
+  bool         conv_machine_readable;
   bool         extcap_save_on_start;
 } e_prefs;
 
@@ -672,27 +699,6 @@ WS_DLL_PUBLIC void prefs_register_uat_preference(module_t *module,
     const char *name, const char* title, const char *description,  struct epan_uat* uat);
 
 /**
- * Register a uat 'preference' for QT only. It adds a button that opens the uat's window in the
- * preferences tab of the module.
- * @param module the preferences module returned by prefs_register_protocol() or
- *               prefs_register_protocol_subtree()
- * @param name the preference's identifier. This is appended to the name of the
- *             protocol, with a "." between them, to create a unique identifier.
- *             The identifier should not include the protocol name, as the name in
- *             the preference file will already have it. Make sure that
- *             only lower-case ASCII letters, numbers, underscores and
- *             dots appear in the preference name.
- * @param title Field's title in the preferences dialog
- * @param description description to include in the preferences file
- *                    and shown as tooltip in the GUI, or NULL
- * @param uat the uat object that will be updated when the
- *                    field is changed in the preference dialog box
- */
-WS_DLL_PUBLIC void prefs_register_uat_preference_qt(module_t *module,
-    const char *name, const char* title, const char *description,  struct epan_uat* uat);
-
-
-/**
  * Register a color preference.  Currently does not have any "GUI Dialog" support
  * so the color data needs to be managed independently.  Currently used by the
  * "GUI preferences" to aid in reading/writing the preferences file, but the
@@ -933,6 +939,15 @@ char *prefs_pref_type_description(pref_t *pref);
 WS_DLL_PUBLIC
 char *prefs_pref_to_str(pref_t *pref, pref_source_t source);
 
+/** Fetch whether a preference is marked obsolete.
+ *
+ * @param pref A preference.
+ *
+ * @return A boolean indication the obsolesence of the preference.
+ */
+WS_DLL_PUBLIC
+bool prefs_is_preference_obsolete(pref_t *pref);
+
 /**
  * Read the preferences file, fill in "prefs", and return a pointer to it.
  * If we got an error (other than "it doesn't exist") we report it through
@@ -980,35 +995,6 @@ typedef enum {
  * @return the result from attempting to set the preference
  */
 WS_DLL_PUBLIC prefs_set_pref_e prefs_set_pref(char *prefarg, char **errmsg);
-
-/**
- * Get or set a preference's obsolete status. These can be used to make a
- * preference obsolete after startup so that we can fetch its value but
- * keep it from showing up in the prefrences dialog.
- *
- * @param pref A preference.
- * @return true if the preference is obsolete, otherwise false
- */
-bool prefs_get_preference_obsolete(pref_t *pref);
-
-/**
- * Make a preference obsolete
- *
- * @param pref a preference.
- * @return the result from attempting to set the preference
- */
-prefs_set_pref_e prefs_set_preference_obsolete(pref_t *pref);
-
-/**
- * Get current preference uint value. This allows the preference structure
- * to remain hidden from those that doesn't really need it
- *
- * @param module_name the preference module name. Usually the same as the protocol
- *                    name, e.g. "tcp".
- * @param pref_name the preference name, e.g. "desegment".
- * @return the preference's value
- */
-WS_DLL_PUBLIC unsigned prefs_get_uint_value(const char *module_name, const char* pref_name);
 
 /**
  * Get the current range preference value (maintained by pref, so it doesn't need to be freed). This allows the

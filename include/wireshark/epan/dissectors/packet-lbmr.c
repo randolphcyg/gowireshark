@@ -1060,6 +1060,7 @@ typedef struct
 #define L_LBMR_LBMR_OPT_HDR_T (int) sizeof(lbmr_lbmr_opt_hdr_t)
 
 #define LBMR_LBMR_OPT_HDR_FLAG_IGNORE 0x8000
+#define LBMR_LBMR_OPT_HDR_FLAG_VIRAL  0x0001
 
 /* LBMR packet option length header */
 typedef struct
@@ -1442,7 +1443,7 @@ typedef struct
     lbm_uint16_t num_domains;
     lbm_uint32_t ip;
     lbm_uint16_t port;
-    lbm_uint16_t reserved;
+    lbm_uint16_t route_index;
     lbm_uint32_t length;
     /* lbm_uint32_t domains[num_domains]; */
 } lbmr_remote_domain_route_hdr_t;
@@ -1456,8 +1457,8 @@ typedef struct
 #define L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_IP SIZEOF(lbmr_remote_domain_route_hdr_t, ip)
 #define O_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_PORT OFFSETOF(lbmr_remote_domain_route_hdr_t, port)
 #define L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_PORT SIZEOF(lbmr_remote_domain_route_hdr_t, port)
-#define O_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_RESERVED OFFSETOF(lbmr_remote_domain_route_hdr_t, reserved)
-#define L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_RESERVED SIZEOF(lbmr_remote_domain_route_hdr_t, reserved)
+#define O_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_ROUTE_INDEX OFFSETOF(lbmr_remote_domain_route_hdr_t, route_index)
+#define L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_ROUTE_INDEX SIZEOF(lbmr_remote_domain_route_hdr_t, route_index)
 #define O_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_LENGTH OFFSETOF(lbmr_remote_domain_route_hdr_t, length)
 #define L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_LENGTH SIZEOF(lbmr_remote_domain_route_hdr_t, length)
 #define L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T (int) sizeof(lbmr_remote_domain_route_hdr_t)
@@ -2023,8 +2024,8 @@ static tap_packet_status lbmr_match_packet(packet_info * pinfo, const lbmr_tag_e
     if ((pinfo->dst.type != AT_IPv4) || (pinfo->dst.len != 4) ||
         (pinfo->src.type != AT_IPv4) || (pinfo->src.len != 4))
         return (TAP_PACKET_DONT_REDRAW);
-    dest_addr_h = pntoh32(pinfo->dst.data);
-    src_addr_h = pntoh32(pinfo->src.data);
+    dest_addr_h = pntohu32(pinfo->dst.data);
+    src_addr_h = pntohu32(pinfo->src.data);
 
     if (IN_MULTICAST(dest_addr_h))
     {
@@ -2477,6 +2478,7 @@ static int hf_lbmr_opt_local_domain_type;
 static int hf_lbmr_opt_local_domain_len;
 static int hf_lbmr_opt_local_domain_flags;
 static int hf_lbmr_opt_local_domain_flags_ignore;
+static int hf_lbmr_opt_local_domain_flags_viral;
 static int hf_lbmr_opt_local_domain_local_domain_id;
 static int hf_lbmr_opt_unknown;
 static int hf_lbmr_opt_unknown_type;
@@ -2567,7 +2569,7 @@ static int hf_lbmr_tnwg_opt_name_name;
 static int hf_lbmr_remote_domain_route_hdr_num_domains;
 static int hf_lbmr_remote_domain_route_hdr_ip;
 static int hf_lbmr_remote_domain_route_hdr_port;
-static int hf_lbmr_remote_domain_route_hdr_reserved;
+static int hf_lbmr_remote_domain_route_hdr_route_index;
 static int hf_lbmr_remote_domain_route_hdr_length;
 static int hf_lbmr_remote_domain_route_hdr_domain;
 static int hf_lbmr_rctxinfo_len;
@@ -2771,35 +2773,35 @@ static int lbmr_stats_tree_handle_queue_queries_receiver = -1;
 /* Statistics tree utility functions.                                         */
 /*----------------------------------------------------------------------------*/
 
-static void add_contents_tqr(lbmr_contents_t * contents, const char * topic)
+static void add_contents_tqr(wmem_allocator_t* allocator, lbmr_contents_t * contents, const char * topic)
 {
     tqr_node_t * node = NULL;
 
-    node = wmem_new(wmem_packet_scope(), tqr_node_t);
-    node->topic = wmem_strdup(wmem_packet_scope(), topic);
+    node = wmem_new(allocator, tqr_node_t);
+    node->topic = wmem_strdup(allocator, topic);
     node->next = contents->contents.topic.tqr;
     contents->contents.topic.tqr = node;
     contents->contents.topic.tqr_count++;
 }
 
-static void add_contents_wctqr(lbmr_contents_t * contents, unsigned char type, const char * pattern)
+static void add_contents_wctqr(wmem_allocator_t* allocator, lbmr_contents_t * contents, unsigned char type, const char * pattern)
 {
     wctqr_node_t * node = NULL;
 
-    node = wmem_new(wmem_packet_scope(), wctqr_node_t);
+    node = wmem_new(allocator, wctqr_node_t);
     node->type = type;
-    node->pattern = wmem_strdup(wmem_packet_scope(), pattern);
+    node->pattern = wmem_strdup(allocator, pattern);
     node->next = contents->contents.topic.wctqr;
     contents->contents.topic.wctqr = node;
     contents->contents.topic.wctqr_count++;
 }
 
-static void add_contents_tir(lbmr_contents_t * contents, const char * topic, char * source, uint32_t topic_index)
+static void add_contents_tir(wmem_allocator_t* allocator, lbmr_contents_t * contents, const char * topic, char * source, uint32_t topic_index)
 {
     tir_node_t * node = NULL;
 
-    node = wmem_new(wmem_packet_scope(), tir_node_t);
-    node->topic = wmem_strdup(wmem_packet_scope(), topic);
+    node = wmem_new(allocator, tir_node_t);
+    node->topic = wmem_strdup(allocator, topic);
     node->source_string = source;
     node->idx = topic_index;
     node->next = contents->contents.topic.tir;
@@ -2807,24 +2809,24 @@ static void add_contents_tir(lbmr_contents_t * contents, const char * topic, cha
     contents->contents.topic.tir_count++;
 }
 
-static void add_contents_qqr(lbmr_contents_t * contents, const char * queue)
+static void add_contents_qqr(wmem_allocator_t* allocator, lbmr_contents_t * contents, const char * queue)
 {
     qqr_node_t * node = NULL;
 
-    node = wmem_new(wmem_packet_scope(), qqr_node_t);
-    node->queue = wmem_strdup(wmem_packet_scope(), queue);
+    node = wmem_new(allocator, qqr_node_t);
+    node->queue = wmem_strdup(allocator, queue);
     node->next = contents->contents.queue.qqr;
     contents->contents.queue.qqr = node;
     contents->contents.queue.qqr_count++;
 }
 
-static void add_contents_qir(lbmr_contents_t * contents, const char * queue, const char * topic, uint16_t port)
+static void add_contents_qir(wmem_allocator_t* allocator, lbmr_contents_t * contents, const char * queue, const char * topic, uint16_t port)
 {
     qir_node_t * node = NULL;
 
-    node = wmem_new(wmem_packet_scope(), qir_node_t);
-    node->queue = wmem_strdup(wmem_packet_scope(), queue);
-    node->topic = wmem_strdup(wmem_packet_scope(), topic);
+    node = wmem_new(allocator, qir_node_t);
+    node->queue = wmem_strdup(allocator, queue);
+    node->topic = wmem_strdup(allocator, topic);
     node->port = port;
     node->next = contents->contents.queue.qir;
     contents->contents.queue.qir = node;
@@ -2852,8 +2854,8 @@ static tap_packet_status lbmr_topic_ads_topic_stats_tree_packet(stats_tree * tre
 
     tick_stat_node(tree, lbmr_stat_tree_name_topic_ads_topic, 0, false);
     topic_node = tick_stat_node(tree, info->topic, lbmr_stats_tree_handle_topic_ads_topic, true);
-    source_node = tick_stat_node(tree, address_to_str(wmem_packet_scope(), &pinfo->net_src), topic_node, true);
-    full_source_string = wmem_strdup_printf(wmem_packet_scope(), "%s[%" PRIu32 "]", info->source, info->topic_index);
+    source_node = tick_stat_node(tree, address_to_str(pinfo->pool, &pinfo->net_src), topic_node, true);
+    full_source_string = wmem_strdup_printf(pinfo->pool, "%s[%" PRIu32 "]", info->source, info->topic_index);
     tick_stat_node(tree, full_source_string, source_node, true);
     return (TAP_PACKET_REDRAW);
 }
@@ -2878,9 +2880,9 @@ static tap_packet_status lbmr_topic_ads_source_stats_tree_packet(stats_tree * tr
     char * full_source_string;
 
     tick_stat_node(tree, lbmr_stat_tree_name_topic_ads_source, 0, false);
-    source_node = tick_stat_node(tree, address_to_str(wmem_packet_scope(), &pinfo->net_src), lbmr_stats_tree_handle_topic_ads_source, true);
+    source_node = tick_stat_node(tree, address_to_str(pinfo->pool, &pinfo->net_src), lbmr_stats_tree_handle_topic_ads_source, true);
     topic_node = tick_stat_node(tree, info->topic, source_node, true);
-    full_source_string = wmem_strdup_printf(wmem_packet_scope(), "%s[%" PRIu32 "]", info->source, info->topic_index);
+    full_source_string = wmem_strdup_printf(pinfo->pool, "%s[%" PRIu32 "]", info->source, info->topic_index);
     tick_stat_node(tree, full_source_string, topic_node, true);
     return (TAP_PACKET_REDRAW);
 }
@@ -2904,7 +2906,7 @@ static tap_packet_status lbmr_topic_ads_transport_stats_tree_packet(stats_tree *
 
     tick_stat_node(tree, lbmr_stat_tree_name_topic_ads_transport, 0, false);
     transport_node = tick_stat_node(tree, info->source, lbmr_stats_tree_handle_topic_ads_transport, true);
-    full_source_string = wmem_strdup_printf(wmem_packet_scope(), "%s [%" PRIu32 "]", info->topic, info->topic_index);
+    full_source_string = wmem_strdup_printf(pinfo->pool, "%s [%" PRIu32 "]", info->topic, info->topic_index);
     tick_stat_node(tree, full_source_string, transport_node, true);
     return (TAP_PACKET_REDRAW);
 }
@@ -2927,7 +2929,7 @@ static tap_packet_status lbmr_topic_queries_topic_stats_tree_packet(stats_tree *
 
     tick_stat_node(tree, lbmr_stat_tree_name_topic_queries_topic, 0, false);
     topic_node = tick_stat_node(tree, info->topic, lbmr_stats_tree_handle_topic_queries_topic, true);
-    tick_stat_node(tree, address_to_str(wmem_packet_scope(), &pinfo->net_src), topic_node, true);
+    tick_stat_node(tree, address_to_str(pinfo->pool, &pinfo->net_src), topic_node, true);
     return (TAP_PACKET_REDRAW);
 }
 
@@ -2948,7 +2950,7 @@ static tap_packet_status lbmr_topic_queries_receiver_stats_tree_packet(stats_tre
     int receiver_node;
 
     tick_stat_node(tree, lbmr_stat_tree_name_topic_queries_receiver, 0, false);
-    receiver_node = tick_stat_node(tree, address_to_str(wmem_packet_scope(), &pinfo->net_src), lbmr_stats_tree_handle_topic_queries_receiver, true);
+    receiver_node = tick_stat_node(tree, address_to_str(pinfo->pool, &pinfo->net_src), lbmr_stats_tree_handle_topic_queries_receiver, true);
     tick_stat_node(tree, info->topic, receiver_node, true);
     return (TAP_PACKET_REDRAW);
 }
@@ -2971,11 +2973,11 @@ static tap_packet_status lbmr_topic_queries_pattern_stats_tree_packet(stats_tree
     char * pattern_str;
 
     tick_stat_node(tree, lbmr_stat_tree_name_topic_queries_pattern, 0, false);
-    pattern_str = wmem_strdup_printf(wmem_packet_scope(), "%s (%s)",
+    pattern_str = wmem_strdup_printf(pinfo->pool, "%s (%s)",
         info->pattern,
-        val_to_str(info->type, lbm_wildcard_pattern_type_short, "UNKN[0x%02x]"));
+        val_to_str(pinfo->pool, info->type, lbm_wildcard_pattern_type_short, "UNKN[0x%02x]"));
     pattern_node = tick_stat_node(tree, pattern_str, lbmr_stats_tree_handle_topic_queries_pattern, true);
-    tick_stat_node(tree, address_to_str(wmem_packet_scope(), &pinfo->net_src), pattern_node, true);
+    tick_stat_node(tree, address_to_str(pinfo->pool, &pinfo->net_src), pattern_node, true);
     return (TAP_PACKET_REDRAW);
 }
 
@@ -2997,10 +2999,10 @@ static tap_packet_status lbmr_topic_queries_pattern_receiver_stats_tree_packet(s
     char * pattern_str;
 
     tick_stat_node(tree, lbmr_stat_tree_name_topic_queries_pattern_receiver, 0, false);
-    receiver_node = tick_stat_node(tree, address_to_str(wmem_packet_scope(), &pinfo->net_src), lbmr_stats_tree_handle_topic_queries_pattern_receiver, true);
-    pattern_str = wmem_strdup_printf(wmem_packet_scope(), "%s (%s)",
+    receiver_node = tick_stat_node(tree, address_to_str(pinfo->pool, &pinfo->net_src), lbmr_stats_tree_handle_topic_queries_pattern_receiver, true);
+    pattern_str = wmem_strdup_printf(pinfo->pool, "%s (%s)",
         info->pattern,
-        val_to_str(info->type, lbm_wildcard_pattern_type_short, "UNKN[0x%02x]"));
+        val_to_str(pinfo->pool, info->type, lbm_wildcard_pattern_type_short, "UNKN[0x%02x]"));
     tick_stat_node(tree, pattern_str, receiver_node, true);
     return (TAP_PACKET_REDRAW);
 }
@@ -3024,7 +3026,7 @@ static tap_packet_status lbmr_queue_ads_queue_stats_tree_packet(stats_tree * tre
 
     tick_stat_node(tree, lbmr_stat_tree_name_queue_ads_queue, 0, false);
     queue_node = tick_stat_node(tree, info->queue, lbmr_stats_tree_handle_queue_ads_queue, true);
-    str = wmem_strdup_printf(wmem_packet_scope(), "%s:%" PRIu16, address_to_str(wmem_packet_scope(), &pinfo->net_src), info->port);
+    str = wmem_strdup_printf(pinfo->pool, "%s:%" PRIu16, address_to_str(pinfo->pool, &pinfo->net_src), info->port);
     tick_stat_node(tree, str, queue_node, true);
     return (TAP_PACKET_REDRAW);
 }
@@ -3047,8 +3049,8 @@ static tap_packet_status lbmr_queue_ads_source_stats_tree_packet(stats_tree * tr
     char * str;
 
     tick_stat_node(tree, lbmr_stat_tree_name_queue_ads_source, 0, false);
-    source_node = tick_stat_node(tree, address_to_str(wmem_packet_scope(), &pinfo->net_src), lbmr_stats_tree_handle_queue_ads_source, true);
-    str = wmem_strdup_printf(wmem_packet_scope(), "%s:%" PRIu16, info->queue, info->port);
+    source_node = tick_stat_node(tree, address_to_str(pinfo->pool, &pinfo->net_src), lbmr_stats_tree_handle_queue_ads_source, true);
+    str = wmem_strdup_printf(pinfo->pool, "%s:%" PRIu16, info->queue, info->port);
     tick_stat_node(tree, str, source_node, true);
     return (TAP_PACKET_REDRAW);
 }
@@ -3071,7 +3073,7 @@ static tap_packet_status lbmr_queue_queries_queue_stats_tree_packet(stats_tree *
 
     tick_stat_node(tree, lbmr_stat_tree_name_queue_queries_queue, 0, false);
     queue_node = tick_stat_node(tree, info->queue, lbmr_stats_tree_handle_queue_queries_queue, true);
-    tick_stat_node(tree, address_to_str(wmem_packet_scope(), &pinfo->net_src), queue_node, true);
+    tick_stat_node(tree, address_to_str(pinfo->pool, &pinfo->net_src), queue_node, true);
     return (TAP_PACKET_REDRAW);
 }
 
@@ -3092,7 +3094,7 @@ static tap_packet_status lbmr_queue_queries_receiver_stats_tree_packet(stats_tre
     int receiver_node;
 
     tick_stat_node(tree, lbmr_stat_tree_name_queue_queries_receiver, 0, false);
-    receiver_node = tick_stat_node(tree, address_to_str(wmem_packet_scope(), &pinfo->net_src), lbmr_stats_tree_handle_queue_queries_receiver, true);
+    receiver_node = tick_stat_node(tree, address_to_str(pinfo->pool, &pinfo->net_src), lbmr_stats_tree_handle_queue_queries_receiver, true);
     tick_stat_node(tree, info->queue, receiver_node, true);
     return (TAP_PACKET_REDRAW);
 }
@@ -3418,7 +3420,7 @@ static int dissect_lbmr_tnwg(tvbuff_t * tvb, int offset, packet_info * pinfo, pr
 /*----------------------------------------------------------------------------*/
 /* LBMR Topic Management dissection functions.                                */
 /*----------------------------------------------------------------------------*/
-static int dissect_lbmr_tmr(tvbuff_t * tvb, int offset, packet_info * pinfo _U_, proto_tree * tree)
+static int dissect_lbmr_tmr(tvbuff_t * tvb, int offset, packet_info * pinfo, proto_tree * tree)
 {
     int namelen = 0;
     int name_offset = 0;
@@ -3442,7 +3444,7 @@ static int dissect_lbmr_tmr(tvbuff_t * tvb, int offset, packet_info * pinfo _U_,
     tmr_flags = tvb_get_uint8(tvb, offset + O_LBMR_TMR_T_FLAGS);
     name_offset = offset + L_LBMR_TMR_T;
 
-    name = tvb_get_stringz_enc(wmem_packet_scope(), tvb, name_offset, &namelen, ENC_ASCII);
+    name = tvb_get_stringz_enc(pinfo->pool, tvb, name_offset, &namelen, ENC_ASCII);
 
     switch (tmr_type)
     {
@@ -3461,7 +3463,7 @@ static int dissect_lbmr_tmr(tvbuff_t * tvb, int offset, packet_info * pinfo _U_,
             break;
     }
     ti = proto_tree_add_none_format(tree, hf_lbmr_tmr, tvb, offset, tmr_len, "%s: %s%s, Length %" PRIu16,
-        name, val_to_str(tmr_type, lbmr_tmr_type, "Unknown (0x%02x)"), info_string, tmr_len);
+        name, val_to_str(pinfo->pool, tmr_type, lbmr_tmr_type, "Unknown (0x%02x)"), info_string, tmr_len);
     tinfo_tree = proto_item_add_subtree(ti, ett_lbmr_tmr);
     proto_tree_add_item(tinfo_tree, hf_lbmr_tmr_len, tvb, offset + O_LBMR_TMR_T_LEN, L_LBMR_TMR_T_LEN, ENC_BIG_ENDIAN);
     proto_tree_add_item(tinfo_tree, hf_lbmr_tmr_type, tvb, offset + O_LBMR_TMR_T_TYPE, L_LBMR_TMR_T_TYPE, ENC_BIG_ENDIAN);
@@ -3504,45 +3506,40 @@ static int dissect_lbmr_tmb(tvbuff_t * tvb, int offset, packet_info * pinfo, pro
 /*----------------------------------------------------------------------------*/
 /* LBMR Topic Query Record dissection functions.                              */
 /*----------------------------------------------------------------------------*/
-static int dissect_lbmr_tqr(tvbuff_t * tvb, int offset, packet_info * pinfo _U_, proto_tree * tree, bool wildcard_tqr, lbmr_contents_t * contents)
+static int dissect_lbmr_tqr(tvbuff_t * tvb, int offset, packet_info * pinfo, proto_tree * tree, bool wildcard_tqr, lbmr_contents_t * contents)
 {
-    int namelen = 0;
-    unsigned reclen = 0;
-    char * name = NULL;
-    uint8_t pattern_type;
+    unsigned reclen;
+    const char * name = NULL;
+    uint32_t pattern_type;
     proto_item * tqr_item = NULL;
     proto_tree * tqr_tree = NULL;
     int name_offset = offset;
 
     if (wildcard_tqr)
     {
-        pattern_type = tvb_get_uint8(tvb, offset);
         name_offset++;
-        reclen++;
-    }
-    name = tvb_get_stringz_enc(wmem_packet_scope(), tvb, name_offset, &namelen, ENC_ASCII);
-    reclen += namelen;
-
-    if (wildcard_tqr)
-    {
-        tqr_item = proto_tree_add_none_format(tree, hf_lbmr_tqr, tvb, offset, reclen, "Wildcard TQR: %s", name);
+        reclen = tvb_strsize(tvb, name_offset) + 1;
+        tqr_item = proto_tree_add_none_format(tree, hf_lbmr_tqr, tvb, offset, reclen, "Wildcard TQR");
     }
     else
     {
-        tqr_item = proto_tree_add_none_format(tree, hf_lbmr_tqr, tvb, offset, reclen, "TQR: %s", name);
+        reclen = tvb_strsize(tvb, name_offset);
+        tqr_item = proto_tree_add_item(tree, hf_lbmr_tqr, tvb, offset, reclen, ENC_NA);
     }
     tqr_tree = proto_item_add_subtree(tqr_item, ett_lbmr_tqr);
     if (wildcard_tqr)
     {
-        proto_tree_add_item(tqr_tree, hf_lbmr_tqr_pattern_type, tvb, offset, 1, ENC_BIG_ENDIAN);
-        proto_tree_add_item(tqr_tree, hf_lbmr_tqr_pattern, tvb, offset, namelen, ENC_ASCII);
-        add_contents_wctqr(contents, pattern_type, name);
+        proto_tree_add_item_ret_uint(tqr_tree, hf_lbmr_tqr_pattern_type, tvb, offset, 1, ENC_BIG_ENDIAN, &pattern_type);
+        offset++;
+        proto_tree_add_item_ret_string(tqr_tree, hf_lbmr_tqr_pattern, tvb, offset, -1, ENC_ASCII, pinfo->pool, (const uint8_t **)&name);
+        add_contents_wctqr(pinfo->pool, contents, (unsigned char)pattern_type, name);
     }
     else
     {
-        proto_tree_add_item(tqr_tree, hf_lbmr_tqr_name, tvb, offset, namelen, ENC_ASCII);
-        add_contents_tqr(contents, name);
+        proto_tree_add_item_ret_string(tqr_tree, hf_lbmr_tqr_name, tvb, offset, -1, ENC_ASCII, pinfo->pool, (const uint8_t **)&name);
+        add_contents_tqr(pinfo->pool, contents, name);
     }
+    proto_item_append_text(tqr_item, ": %s", name);
     return (reclen);
 }
 
@@ -3924,7 +3921,7 @@ static int dissect_lbmr_tir_transport(tvbuff_t * tvb, int offset, lbm_uint8_t tr
                 }
                 lbttcp_transport = lbttcp_transport_add(&(pinfo->src), port, session_id, pinfo->num);
                 channel = lbttcp_transport->channel;
-                add_contents_tir(contents, topic_name, lbttcp_transport_source_string(&(pinfo->src), port, session_id), topic_index);
+                add_contents_tir(pinfo->pool, contents, topic_name, lbttcp_transport_source_string(pinfo->pool, &(pinfo->src), port, session_id), topic_index);
             }
             break;
         case LBMR_TRANSPORT_LBTRM:
@@ -3950,7 +3947,7 @@ static int dissect_lbmr_tir_transport(tvbuff_t * tvb, int offset, lbm_uint8_t tr
                 proto_tree_add_item(lbtrm_tree, hf_lbmr_tir_lbtrm_src_ucast_port, tvb, offset + O_LBMR_TIR_LBTRM_T_SRC_UCAST_PORT, L_LBMR_TIR_LBTRM_T_SRC_UCAST_PORT, ENC_BIG_ENDIAN);
                 lbtrm_transport = lbtrm_transport_add(&(pinfo->src), src_ucast_port, session_id, &multicast_group, udp_dest_port, pinfo->num);
                 channel = lbtrm_transport->channel;
-                add_contents_tir(contents, topic_name, lbtrm_transport_source_string(&(pinfo->src), src_ucast_port, session_id, &multicast_group, udp_dest_port), topic_index);
+                add_contents_tir(pinfo->pool, contents, topic_name, lbtrm_transport_source_string(&(pinfo->src), src_ucast_port, session_id, &multicast_group, udp_dest_port), topic_index);
                 len += L_LBMR_TIR_LBTRM_T;
                 if (transport_len != L_LBMR_TIR_LBTRM_T)
                 {
@@ -3992,7 +3989,7 @@ static int dissect_lbmr_tir_transport(tvbuff_t * tvb, int offset, lbm_uint8_t tr
                 }
                 lbtru_transport = lbtru_transport_add(&(pinfo->src), port, session_id, pinfo->num);
                 channel = lbtru_transport->channel;
-                add_contents_tir(contents, topic_name, lbtru_transport_source_string(&(pinfo->src), port, session_id), topic_index);
+                add_contents_tir(pinfo->pool, contents, topic_name, lbtru_transport_source_string(&(pinfo->src), port, session_id), topic_index);
             }
             break;
         case LBMR_TRANSPORT_LBTIPC:
@@ -4019,7 +4016,7 @@ static int dissect_lbmr_tir_transport(tvbuff_t * tvb, int offset, lbm_uint8_t tr
                 proto_tree_add_item(lbtipc_tree, hf_lbmr_tir_lbtipc_xport_id, tvb, offset + O_LBMR_TIR_LBTIPC_T_XPORT_ID, L_LBMR_TIR_LBTIPC_T_XPORT_ID, ENC_BIG_ENDIAN);
                 lbtipc_transport = lbtipc_transport_add(host_id, session_id, xport_id);
                 channel = lbtipc_transport->channel;
-                add_contents_tir(contents, topic_name, lbtipc_transport_source_string(host_id, session_id, xport_id), topic_index);
+                add_contents_tir(pinfo->pool, contents, topic_name, lbtipc_transport_source_string(host_id, session_id, xport_id), topic_index);
                 len += L_LBMR_TIR_LBTIPC_T;
             }
             break;
@@ -4047,7 +4044,7 @@ static int dissect_lbmr_tir_transport(tvbuff_t * tvb, int offset, lbm_uint8_t tr
                 proto_tree_add_item(lbtrdma_tree, hf_lbmr_tir_lbtrdma_port, tvb, offset + O_LBMR_TIR_LBTRDMA_T_PORT, L_LBMR_TIR_LBTRDMA_T_PORT, ENC_BIG_ENDIAN);
                 lbtrdma_transport = lbtrdma_transport_add(&source_addr, port, session_id);
                 channel = lbtrdma_transport->channel;
-                add_contents_tir(contents, topic_name, lbtrdma_transport_source_string(&source_addr, port, session_id), topic_index);
+                add_contents_tir(pinfo->pool, contents, topic_name, lbtrdma_transport_source_string(&source_addr, port, session_id), topic_index);
                 len += L_LBMR_TIR_LBTRDMA_T;
             }
             break;
@@ -4074,7 +4071,7 @@ static int dissect_lbmr_tir_transport(tvbuff_t * tvb, int offset, lbm_uint8_t tr
                 proto_tree_add_item(lbtsmx_tree, hf_lbmr_tir_lbtsmx_xport_id, tvb, offset + O_LBMR_TIR_LBTSMX_T_XPORT_ID, L_LBMR_TIR_LBTSMX_T_XPORT_ID, ENC_BIG_ENDIAN);
                 lbtsmx_transport = lbtsmx_transport_add(host_id, session_id, xport_id);
                 channel = lbtsmx_transport->channel;
-                add_contents_tir(contents, topic_name, lbtsmx_transport_source_string(host_id, session_id, xport_id), topic_index);
+                add_contents_tir(pinfo->pool, contents, topic_name, lbtsmx_transport_source_string(host_id, session_id, xport_id), topic_index);
                 len += L_LBMR_TIR_LBTSMX_T;
             }
             break;
@@ -4110,7 +4107,7 @@ static int dissect_lbmr_tir_entry(tvbuff_t * tvb, int offset, packet_info * pinf
     int curr_offset;
     proto_item * transport_len_item = NULL;
 
-    name = tvb_get_stringz_enc(wmem_packet_scope(), tvb, offset, &namelen, ENC_ASCII);
+    name = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &namelen, ENC_ASCII);
     reclen += namelen;
     curr_offset = offset + namelen;
     tinfo_offset = curr_offset;
@@ -4122,7 +4119,7 @@ static int dissect_lbmr_tir_entry(tvbuff_t * tvb, int offset, packet_info * pinf
     curr_offset += L_LBMR_TIR_T;
 
     ti = proto_tree_add_none_format(tree, hf_lbmr_tir, tvb, offset, reclen, "%s: %s, Length %u, Index %" PRIu32 ", TTL %" PRIu16,
-        name, val_to_str((transport & LBMR_TIR_TRANSPORT), lbmr_transport_type, "Unknown (0x%02x)"), tlen, idx, ttl);
+        name, val_to_str(pinfo->pool, (transport & LBMR_TIR_TRANSPORT), lbmr_transport_type, "Unknown (0x%02x)"), tlen, idx, ttl);
     tinfo_tree = proto_item_add_subtree(ti, ett_lbmr_tir);
     proto_tree_add_item(tinfo_tree, hf_lbmr_tir_name, tvb, offset, namelen, ENC_ASCII);
     proto_tree_add_item(tinfo_tree, hf_lbmr_tir_transport_opts, tvb, tinfo_offset + O_LBMR_TIR_T_TRANSPORT, L_LBMR_TIR_T_TRANSPORT, ENC_BIG_ENDIAN);
@@ -4166,15 +4163,15 @@ static int dissect_lbmr_tirs(tvbuff_t * tvb, int offset, uint16_t tir_count, pac
 /*----------------------------------------------------------------------------*/
 /* LBMR Queue Query Record dissection functions.                              */
 /*----------------------------------------------------------------------------*/
-static int dissect_lbmr_qqr(tvbuff_t * tvb, int offset, packet_info * pinfo _U_, proto_tree * tree, lbmr_contents_t * contents)
+static int dissect_lbmr_qqr(tvbuff_t * tvb, int offset, packet_info * pinfo, proto_tree * tree, lbmr_contents_t * contents)
 {
     int namelen = 0;
     unsigned reclen = 0;
     char * name = NULL;
 
-    name = tvb_get_stringz_enc(wmem_packet_scope(), tvb, offset, &namelen, ENC_ASCII);
+    name = tvb_get_stringz_enc(pinfo->pool, tvb, offset, &namelen, ENC_ASCII);
     reclen += namelen;
-    add_contents_qqr(contents, name);
+    add_contents_qqr(pinfo->pool, contents, name);
     proto_tree_add_item(tree, hf_lbmr_qqr_name, tvb, offset, namelen, ENC_ASCII);
     return (reclen);
 }
@@ -4218,7 +4215,7 @@ static int dissect_lbmr_qir_queue_blk(tvbuff_t * tvb, int offset, packet_info * 
     proto_tree_add_item(blk_tree, hf_lbmr_qir_queue_blk_idx, tvb, offset + O_LBMR_QIR_QUEUE_BLK_T_IDX, L_LBMR_QIR_QUEUE_BLK_T_IDX, ENC_BIG_ENDIAN);
     proto_tree_add_item(blk_tree, hf_lbmr_qir_queue_blk_grp_idx, tvb, offset + O_LBMR_QIR_QUEUE_BLK_T_GRP_IDX, L_LBMR_QIR_QUEUE_BLK_T_GRP_IDX, ENC_BIG_ENDIAN);
     proto_tree_add_item(blk_tree, hf_lbmr_qir_queue_blk_reserved, tvb, offset + O_LBMR_QIR_QUEUE_BLK_T_RESERVED, L_LBMR_QIR_QUEUE_BLK_T_RESERVED, ENC_BIG_ENDIAN);
-    add_contents_qir(contents, queue_name, topic_name, port);
+    add_contents_qir(pinfo->pool, contents, queue_name, topic_name, port);
     return ((int)L_LBMR_QIR_QUEUE_BLK_T);
 }
 
@@ -4274,11 +4271,11 @@ static int dissect_lbmr_qir_entry(tvbuff_t * tvb, int offset, packet_info * pinf
     */
     curr_offset = offset;
     qnameoffset = curr_offset;
-    qname = tvb_get_stringz_enc(wmem_packet_scope(), tvb, qnameoffset, &qnamelen, ENC_ASCII);
+    qname = tvb_get_stringz_enc(pinfo->pool, tvb, qnameoffset, &qnamelen, ENC_ASCII);
     curr_offset += qnamelen;
     reclen += qnamelen;
     tnameoffset = curr_offset;
-    tname = tvb_get_stringz_enc(wmem_packet_scope(), tvb, tnameoffset, &tnamelen, ENC_ASCII);
+    tname = tvb_get_stringz_enc(pinfo->pool, tvb, tnameoffset, &tnamelen, ENC_ASCII);
     curr_offset += tnamelen;
     reclen += tnamelen;
     queue_id = tvb_get_ntohl(tvb, curr_offset + O_LBMR_QIR_T_QUEUE_ID);
@@ -4674,7 +4671,7 @@ static int dissect_lbmr_remote_domain_route(tvbuff_t * tvb, int offset, packet_i
     proto_tree_add_item(tree, hf_lbmr_remote_domain_route_hdr_num_domains, tvb, offset + O_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_NUM_DOMAINS, L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_NUM_DOMAINS, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_lbmr_remote_domain_route_hdr_ip, tvb, offset + O_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_IP, L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_IP, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_lbmr_remote_domain_route_hdr_port, tvb, offset + O_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_PORT, L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_PORT, ENC_BIG_ENDIAN);
-    proto_tree_add_item(tree, hf_lbmr_remote_domain_route_hdr_reserved, tvb, offset + O_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_RESERVED, L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_RESERVED, ENC_BIG_ENDIAN);
+    proto_tree_add_item(tree, hf_lbmr_remote_domain_route_hdr_route_index, tvb, offset + O_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_ROUTE_INDEX, L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_ROUTE_INDEX, ENC_BIG_ENDIAN);
     proto_tree_add_item(tree, hf_lbmr_remote_domain_route_hdr_length, tvb, offset + O_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_LENGTH, L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T_LENGTH, ENC_BIG_ENDIAN);
     len_dissected = L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T;
     ofs = offset + L_LBMR_REMOTE_DOMAIN_ROUTE_HDR_T;
@@ -4951,6 +4948,7 @@ static int dissect_lbmr_opt_local_domain(tvbuff_t * tvb, int offset, packet_info
     static int * const flags[] =
     {
         &hf_lbmr_opt_local_domain_flags_ignore,
+        &hf_lbmr_opt_local_domain_flags_viral,
         NULL
     };
 
@@ -5040,7 +5038,7 @@ static void lbmr_tap_queue_packet(packet_info * pinfo, const lbmr_contents_t * c
                 tqr_node_t * tqr = topic->tqr;
                 while (tqr != NULL)
                 {
-                    lbm_lbmr_topic_query_tap_info_t * tqr_tap = wmem_new0(wmem_packet_scope(), lbm_lbmr_topic_query_tap_info_t);
+                    lbm_lbmr_topic_query_tap_info_t * tqr_tap = wmem_new0(pinfo->pool, lbm_lbmr_topic_query_tap_info_t);
                     tqr_tap->size = (uint16_t) sizeof(lbm_lbmr_topic_query_tap_info_t);
                     tqr_tap->topic_length = (uint8_t)strlen(tqr->topic);
                     memcpy(tqr_tap->topic, tqr->topic, tqr_tap->topic_length);
@@ -5053,7 +5051,7 @@ static void lbmr_tap_queue_packet(packet_info * pinfo, const lbmr_contents_t * c
                 tir_node_t * tir = topic->tir;
                 while (tir != NULL)
                 {
-                    lbm_lbmr_topic_advertisement_tap_info_t * tir_tap = wmem_new0(wmem_packet_scope(), lbm_lbmr_topic_advertisement_tap_info_t);
+                    lbm_lbmr_topic_advertisement_tap_info_t * tir_tap = wmem_new0(pinfo->pool, lbm_lbmr_topic_advertisement_tap_info_t);
                     tir_tap->size = (uint16_t) sizeof(lbm_lbmr_topic_advertisement_tap_info_t);
                     tir_tap->topic_length = (uint8_t)strlen(tir->topic);
                     tir_tap->source_length = (uint8_t)strlen(tir->source_string);
@@ -5069,7 +5067,7 @@ static void lbmr_tap_queue_packet(packet_info * pinfo, const lbmr_contents_t * c
                 wctqr_node_t * wctqr = topic->wctqr;
                 while (wctqr != NULL)
                 {
-                    lbm_lbmr_pattern_query_tap_info_t * wctqr_tap = wmem_new0(wmem_packet_scope(), lbm_lbmr_pattern_query_tap_info_t);
+                    lbm_lbmr_pattern_query_tap_info_t * wctqr_tap = wmem_new0(pinfo->pool, lbm_lbmr_pattern_query_tap_info_t);
                     wctqr_tap->size = (uint16_t) sizeof(lbm_lbmr_pattern_query_tap_info_t);
                     wctqr_tap->type = wctqr->type;
                     wctqr_tap->pattern_length = (uint8_t)strlen(wctqr->pattern);
@@ -5086,7 +5084,7 @@ static void lbmr_tap_queue_packet(packet_info * pinfo, const lbmr_contents_t * c
                 qqr_node_t * qqr = queue->qqr;
                 while (qqr != NULL)
                 {
-                    lbm_lbmr_queue_query_tap_info_t * qqr_tap = wmem_new0(wmem_packet_scope(), lbm_lbmr_queue_query_tap_info_t);
+                    lbm_lbmr_queue_query_tap_info_t * qqr_tap = wmem_new0(pinfo->pool, lbm_lbmr_queue_query_tap_info_t);
                     qqr_tap->size = (uint16_t) sizeof(lbm_lbmr_queue_query_tap_info_t);
                     qqr_tap->queue_length = (uint8_t)strlen(qqr->queue);
                     memcpy(qqr_tap->queue, qqr->queue, qqr_tap->queue_length);
@@ -5099,7 +5097,7 @@ static void lbmr_tap_queue_packet(packet_info * pinfo, const lbmr_contents_t * c
                 qir_node_t * qir = queue->qir;
                 while (qir != NULL)
                 {
-                    lbm_lbmr_queue_advertisement_tap_info_t * qir_tap = wmem_new0(wmem_packet_scope(), lbm_lbmr_queue_advertisement_tap_info_t);
+                    lbm_lbmr_queue_advertisement_tap_info_t * qir_tap = wmem_new0(pinfo->pool, lbm_lbmr_queue_advertisement_tap_info_t);
                     qir_tap->size = (uint16_t) sizeof(lbm_lbmr_queue_advertisement_tap_info_t);
                     qir_tap->port = qir->port;
                     qir_tap->queue_length = (uint8_t)strlen(qir->queue);
@@ -5184,17 +5182,17 @@ static int dissect_lbmr(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, 
         proto_item * ext_type_item = NULL;
 
         ext_type = tvb_get_uint8(tvb, O_LBMR_HDR_EXT_TYPE_T_EXT_TYPE);
-        ext_string = val_to_str(ext_type, lbmr_ext_packet_type, "Unknown(0x%02x)");
+        ext_string = val_to_str(pinfo->pool, ext_type, lbmr_ext_packet_type, "Unknown(0x%02x)");
         col_append_sep_fstr(pinfo->cinfo, COL_INFO, " ", "ExtType %s", ext_string);
         if (tag_name != NULL)
         {
             ti = proto_tree_add_protocol_format(tree, proto_lbmr, tvb, O_LBMR_HDR_EXT_TYPE_T_VER_TYPE, -1, "LBM Topic Resolution Protocol (Tag: %s): Version %u, Type 0x%x (%s), ExtType %s",
-                tag_name, ver, type, val_to_str(type, lbmr_packet_type, "Unknown(0x%02x)"), ext_string);
+                tag_name, ver, type, val_to_str(pinfo->pool, type, lbmr_packet_type, "Unknown(0x%02x)"), ext_string);
         }
         else
         {
             ti = proto_tree_add_protocol_format(tree, proto_lbmr, tvb, O_LBMR_HDR_EXT_TYPE_T_VER_TYPE, -1, "LBM Topic Resolution Protocol: Version %u, Type 0x%x (%s), ExtType %s",
-                ver, type, val_to_str(type, lbmr_packet_type, "Unknown(0x%02x)"), ext_string);
+                ver, type, val_to_str(pinfo->pool, type, lbmr_packet_type, "Unknown(0x%02x)"), ext_string);
         }
         lbmr_tree = proto_item_add_subtree(ti, ett_lbmr);
         if (tag_name != NULL)
@@ -5309,12 +5307,12 @@ static int dissect_lbmr(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, 
                 if (tag_name != NULL)
                 {
                     ti = proto_tree_add_protocol_format(tree, proto_lbmr, tvb, O_LBMR_HDR_T_VER_TYPE, -1, "LBM Topic Resolution Protocol (Tag: %s): Version %u, Type 0x%x (%s) QQRs %u, QIRs %" PRIu16,
-                        tag_name, ver, type, val_to_str(type, lbmr_packet_type, "Unknown(0x%02x)"), tqrs, tirs);
+                        tag_name, ver, type, val_to_str(pinfo->pool, type, lbmr_packet_type, "Unknown(0x%02x)"), tqrs, tirs);
                 }
                 else
                 {
                     ti = proto_tree_add_protocol_format(tree, proto_lbmr, tvb, O_LBMR_HDR_T_VER_TYPE, -1, "LBM Topic Resolution Protocol: Version %u, Type 0x%x (%s) QQRs %u, QIRs %" PRIu16,
-                        ver, type, val_to_str(type, lbmr_packet_type, "Unknown(0x%02x)"), tqrs, tirs);
+                        ver, type, val_to_str(pinfo->pool, type, lbmr_packet_type, "Unknown(0x%02x)"), tqrs, tirs);
                 }
                 break;
             default:
@@ -5323,17 +5321,17 @@ static int dissect_lbmr(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, 
                     if (rd_keepalive)
                     {
                         ti = proto_tree_add_protocol_format(tree, proto_lbmr, tvb, O_LBMR_HDR_T_VER_TYPE, -1, "LBM Topic Resolution Protocol (Tag: %s): Version %u, Type 0x%x (%s) Unicast Resolver Keepalive",
-                            tag_name, ver, type, val_to_str(type, lbmr_packet_type, "Unknown(0x%02x)"));
+                            tag_name, ver, type, val_to_str(pinfo->pool, type, lbmr_packet_type, "Unknown(0x%02x)"));
                     }
                     else if (topic_mgmt)
                     {
                         ti = proto_tree_add_protocol_format(tree, proto_lbmr, tvb, O_LBMR_HDR_T_VER_TYPE, -1, "LBM Topic Resolution Protocol (Tag: %s): Version %u, Type 0x%x (%s) Topic Management",
-                            tag_name, ver, type, val_to_str(type, lbmr_packet_type, "Unknown(0x%02x)"));
+                            tag_name, ver, type, val_to_str(pinfo->pool, type, lbmr_packet_type, "Unknown(0x%02x)"));
                     }
                     else
                     {
                         ti = proto_tree_add_protocol_format(tree, proto_lbmr, tvb, O_LBMR_HDR_T_VER_TYPE, -1, "LBM Topic Resolution Protocol (Tag: %s): Version %u, Type 0x%x (%s) TQRs %u, TIRs %" PRIu16,
-                            tag_name, ver, type, val_to_str(type, lbmr_packet_type, "Unknown(0x%02x)"), tqrs, tirs);
+                            tag_name, ver, type, val_to_str(pinfo->pool, type, lbmr_packet_type, "Unknown(0x%02x)"), tqrs, tirs);
                     }
                 }
                 else
@@ -5341,17 +5339,17 @@ static int dissect_lbmr(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, 
                     if (rd_keepalive)
                     {
                         ti = proto_tree_add_protocol_format(tree, proto_lbmr, tvb, O_LBMR_HDR_T_VER_TYPE, -1, "LBM Topic Resolution Protocol: Version %u, Type 0x%x (%s) Unicast Resolver Keepalive",
-                            ver, type, val_to_str(type, lbmr_packet_type, "Unknown(0x%02x)"));
+                            ver, type, val_to_str(pinfo->pool, type, lbmr_packet_type, "Unknown(0x%02x)"));
                     }
                     else if (topic_mgmt)
                     {
                         ti = proto_tree_add_protocol_format(tree, proto_lbmr, tvb, O_LBMR_HDR_T_VER_TYPE, -1, "LBM Topic Resolution Protocol: Version %u, Type 0x%x (%s) Topic Management",
-                            ver, type, val_to_str(type, lbmr_packet_type, "Unknown(0x%02x)"));
+                            ver, type, val_to_str(pinfo->pool, type, lbmr_packet_type, "Unknown(0x%02x)"));
                     }
                     else
                     {
                         ti = proto_tree_add_protocol_format(tree, proto_lbmr, tvb, O_LBMR_HDR_T_VER_TYPE, -1, "LBM Topic Resolution Protocol: Version %u, Type 0x%x (%s) TQRs %u, TIRs %" PRIu16,
-                            ver, type, val_to_str(type, lbmr_packet_type, "Unknown(0x%02x)"), tqrs, tirs);
+                            ver, type, val_to_str(pinfo->pool, type, lbmr_packet_type, "Unknown(0x%02x)"), tqrs, tirs);
                     }
                 }
                 break;
@@ -5380,7 +5378,7 @@ static int dissect_lbmr(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, 
 
         offset = L_LBMR_HDR_T;
         total_len_dissected = L_LBMR_HDR_T;
-        contents = wmem_new0(wmem_packet_scope(), lbmr_contents_t);
+        contents = wmem_new0(pinfo->pool, lbmr_contents_t);
         switch (type)
         {
             case LBMR_HDR_TYPE_QUEUE_RES:
@@ -5526,9 +5524,9 @@ void proto_register_lbmr(void)
         { &hf_lbmr_tqr_pattern_type,
             { "Pattern Type", "lbmr.tqr.pattern_type", FT_UINT8, BASE_DEC, VALS(lbm_wildcard_pattern_type), 0x0, NULL, HFILL } },
         { &hf_lbmr_tqr_pattern,
-            { "Pattern", "lbmr.tqr.pattern", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL } },
+            { "Pattern", "lbmr.tqr.pattern", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_tqr_name,
-            { "Topic Name", "lbmr.tqr.name", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL } },
+            { "Topic Name", "lbmr.tqr.name", FT_STRINGZ, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_tirs,
             { "TIRs", "lbmr.tirs", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_tir,
@@ -5552,7 +5550,7 @@ void proto_register_lbmr(void)
         { &hf_lbmr_tir_tcp_session_id,
             { "Session ID", "lbmr.tir.tcp.session_id", FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_tir_tcp_port,
-            { "Source Port", "lbmr.tir.tcp.port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Source Port", "lbmr.tir.tcp.port", FT_UINT16, BASE_PT_TCP, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_tir_lbtrm,
             { "LBTRM Transport", "lbmr.tir.lbtrm", FT_NONE, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_tir_lbtrm_src_addr,
@@ -5562,7 +5560,7 @@ void proto_register_lbmr(void)
         { &hf_lbmr_tir_lbtrm_session_id,
             { "Session ID", "lbmr.tir.lbtrm.sessid", FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_tir_lbtrm_udp_dest_port,
-            { "Destination Port", "lbmr.tir.lbtrm.dport", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Destination Port", "lbmr.tir.lbtrm.dport", FT_UINT16, BASE_PT_UDP, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_tir_lbtrm_src_ucast_port,
             { "Source Port", "lbmr.tir.lbtrm.sport", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_tir_lbtru,
@@ -5632,7 +5630,7 @@ void proto_register_lbmr(void)
         { &hf_lbmr_topt_ume_store_tcp_port,
             { "Store TCP Port", "lbmr.topt.ume.store_tcp_port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_ume_src_tcp_port,
-            { "Source TCP Port", "lbmr.topt.ume.src_tcp_port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Source TCP Port", "lbmr.topt.ume.src_tcp_port", FT_UINT16, BASE_PT_TCP, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_ume_store_tcp_addr,
             { "Store TCP Address", "lbmr.topt.ume.store_tcp_addr", FT_IPv4, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_ume_src_tcp_addr,
@@ -5658,7 +5656,7 @@ void proto_register_lbmr(void)
         { &hf_lbmr_topt_ume_store_grp_idx,
             { "Group Index", "lbmr.topt.ume_store.grp_idx", FT_UINT8, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_ume_store_store_tcp_port,
-            { "Store TCP Port", "lbmr.topt.ume_store.store_tcp_port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Store TCP Port", "lbmr.topt.ume_store.store_tcp_port", FT_UINT16, BASE_PT_TCP, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_ume_store_store_idx,
             { "Store Index", "lbmr.topt.ume_store.store_idx", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_ume_store_store_ip_addr,
@@ -5694,7 +5692,7 @@ void proto_register_lbmr(void)
         { &hf_lbmr_topt_latejoin_flags_acktosrc,
             { "Send ACKs to Source", "lbmr.topt.latejoin.flags.acktosrc", FT_BOOLEAN, L_LBMR_TOPIC_OPT_LATEJOIN_T_FLAGS * 8, TFS(&tfs_set_notset), LBMR_TOPIC_OPT_LATEJOIN_FLAG_ACKTOSRC, "If set, ACKs are sent to source", HFILL } },
         { &hf_lbmr_topt_latejoin_src_tcp_port,
-            { "Source TCP Port", "lbmr.topt.latejoin.src_tcp_port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Source TCP Port", "lbmr.topt.latejoin.src_tcp_port", FT_UINT16, BASE_PT_TCP, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_latejoin_reserved,
             { "Reserved", "lbmr.topt.latejoin.reserved", FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_latejoin_src_ip_addr,
@@ -5812,7 +5810,7 @@ void proto_register_lbmr(void)
         { &hf_lbmr_topt_ulb_src_ip_addr,
             { "Source IP Address", "lbmr.topt.ulb.src_ip_addr", FT_IPv4, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_ulb_src_tcp_port,
-            { "Source TCP Port", "lbmr.topt.ulb.src_tcp_port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
+            { "Source TCP Port", "lbmr.topt.ulb.src_tcp_port", FT_UINT16, BASE_PT_TCP, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_ulb_reserved,
             { "Reserved", "lbmr.topt.ulb.reserved", FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_topt_ctxinstq,
@@ -6044,7 +6042,9 @@ void proto_register_lbmr(void)
         { &hf_lbmr_opt_local_domain_flags,
             { "Flags", "lbmr.opt.local_domain.flags", FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_opt_local_domain_flags_ignore,
-            { "Ignore", "lbmr.opt.local_domain.flags.ignore", FT_BOOLEAN, L_LBMR_LBMR_OPT_LOCAL_DOMAIN_T_FLAGS * 8, TFS(&lbm_ignore_flag), LBMR_LBMR_OPT_VERSION_FLAG_IGNORE, NULL, HFILL } },
+            { "Ignore", "lbmr.opt.local_domain.flags.ignore", FT_BOOLEAN, L_LBMR_LBMR_OPT_LOCAL_DOMAIN_T_FLAGS * 8, TFS(&lbm_ignore_flag), LBMR_LBMR_OPT_HDR_FLAG_IGNORE, NULL, HFILL } },
+        { &hf_lbmr_opt_local_domain_flags_viral,
+            { "Viral", "lbmr.opt.local_domain.flags.viral", FT_BOOLEAN, L_LBMR_LBMR_OPT_LOCAL_DOMAIN_T_FLAGS * 8, TFS(&tfs_set_notset), LBMR_LBMR_OPT_HDR_FLAG_VIRAL, NULL, HFILL } },
         { &hf_lbmr_opt_local_domain_local_domain_id,
             { "Local Domain ID", "lbmr.opt.local_domain.local_domain_id", FT_UINT32, BASE_DEC_HEX, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_opt_unknown,
@@ -6225,8 +6225,8 @@ void proto_register_lbmr(void)
             { "IP Address", "lbmr.remote_domain_route.ip", FT_IPv4, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_remote_domain_route_hdr_port,
             { "Port", "lbmr.remote_domain_route.port", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
-        { &hf_lbmr_remote_domain_route_hdr_reserved,
-            { "Reserved", "lbmr.remote_domain_route.reserved", FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL } },
+        { &hf_lbmr_remote_domain_route_hdr_route_index,
+            { "Route Index", "lbmr.remote_domain_route.route_index", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_remote_domain_route_hdr_length,
             { "Length", "lbmr.remote_domain_route.length", FT_UINT32, BASE_DEC_HEX, NULL, 0x0, NULL, HFILL } },
         { &hf_lbmr_remote_domain_route_hdr_domain,

@@ -113,7 +113,7 @@ dissect_xyplex(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
     padding = tvb_get_uint8(tvb, offset+1);
     reply = tvb_get_ntohs(tvb, offset+2);
     col_add_fstr(pinfo->cinfo, COL_INFO, "Registration Reply: %s",
-                 val_to_str(reply, xyplex_reg_vals, "Unknown (0x%02x)"));
+                 val_to_str(pinfo->pool, reply, xyplex_reg_vals, "Unknown (0x%02x)"));
 
     if (tree) {
       proto_tree_add_uint(xyplex_tree, hf_xyplex_type, tvb,
@@ -157,12 +157,12 @@ proto_register_xyplex(void)
 
     { &hf_xyplex_server_port,
       { "Server Port",        "xyplex.server_port",
-        FT_UINT16, BASE_DEC, NULL, 0x0,
+        FT_UINT16, BASE_PT_TCP, NULL, 0x0,
         NULL, HFILL }},
 
     { &hf_xyplex_return_port,
       { "Return Port",   "xyplex.return_port",
-        FT_UINT16, BASE_DEC, NULL, 0x0,
+        FT_UINT16, BASE_PT_TCP, NULL, 0x0,
         NULL, HFILL }},
 
     { &hf_xyplex_reserved,

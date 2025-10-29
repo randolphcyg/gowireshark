@@ -11,8 +11,8 @@
 
 /*
  * Sources for specification:
- * https://www.autosar.org/fileadmin/user_upload/standards/classic/21-11/AUTOSAR_SWS_DiagnosticLogAndTrace.pdf
- * https://www.autosar.org/fileadmin/user_upload/standards/foundation/21-11/AUTOSAR_PRS_LogAndTraceProtocol.pdf
+ * https://www.autosar.org/fileadmin/standards/R24-11/CP/AUTOSAR_CP_SWS_DiagnosticLogAndTrace.pdf
+ * https://www.autosar.org/fileadmin/standards/R24-11/FO/AUTOSAR_FO_PRS_LogAndTraceProtocol.pdf
  * https://github.com/COVESA/dlt-viewer
  */
 
@@ -32,8 +32,8 @@ static int autosar_dlt_file_type_subtype = -1;
 
 
 void register_autosar_dlt(void);
-static bool autosar_dlt_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, char **err_info, int64_t *data_offset);
-static bool autosar_dlt_seek_read(wtap *wth, int64_t seek_off, wtap_rec* rec, Buffer *buf, int *err, char **err_info);
+static bool autosar_dlt_read(wtap *wth, wtap_rec *rec, int *err, char **err_info, int64_t *data_offset);
+static bool autosar_dlt_seek_read(wtap *wth, int64_t seek_off, wtap_rec* rec, int *err, char **err_info);
 static void autosar_dlt_close(wtap *wth);
 
 
@@ -59,7 +59,6 @@ typedef struct autosar_dlt_data {
 typedef struct autosar_dlt_params {
     wtap           *wth;
     wtap_rec       *rec;
-    Buffer         *buf;
     FILE_T          fh;
 
     autosar_dlt_t  *dlt_data;
@@ -84,14 +83,6 @@ autosar_dlt_add_interface(autosar_dlt_params_t *params, uint8_t ecu[4]) {
     if_descr_mand->num_stat_entries = 0;
     if_descr_mand->interface_statistics = NULL;
     wtap_add_idb(params->wth, int_data);
-
-    if (params->wth->file_encap == WTAP_ENCAP_UNKNOWN) {
-        params->wth->file_encap = if_descr_mand->wtap_encap;
-    } else {
-        if (params->wth->file_encap != if_descr_mand->wtap_encap) {
-            params->wth->file_encap = WTAP_ENCAP_PER_PACKET;
-        }
-    }
 
     int32_t key = autosar_dlt_calc_key(ecu);
     uint32_t iface_id = params->dlt_data->next_interface_id++;
@@ -135,7 +126,7 @@ autosar_dlt_read_block(autosar_dlt_params_t *params, int64_t start_pos, int *err
     autosar_dlt_itemheader_t  item_header;
 
     while (1) {
-        params->buf->first_free = params->buf->start;
+        params->rec->data.first_free = params->rec->data.start;
 
         if (!wtap_read_bytes_or_eof(params->fh, &header, sizeof header, err, err_info)) {
             if (*err == WTAP_ERR_SHORT_READ) {
@@ -170,7 +161,7 @@ autosar_dlt_read_block(autosar_dlt_params_t *params, int64_t start_pos, int *err
             return false;
         }
 
-        ws_buffer_assure_space(params->buf, (size_t)(item_header.length + sizeof header));
+        ws_buffer_assure_space(&params->rec->data, (size_t)(item_header.length + sizeof header));
 
         /* Creating AUTOSAR DLT Encapsulation Header:
          * uint32_t   time_s
@@ -182,12 +173,13 @@ autosar_dlt_read_block(autosar_dlt_params_t *params, int64_t start_pos, int *err
         void *tmpbuf = g_malloc0(sizeof header);
         if (!wtap_read_bytes_or_eof(params->fh, tmpbuf, sizeof header - 4, err, err_info)) {
             /* this would have been caught before ...*/
+            g_free(tmpbuf);
             *err = WTAP_ERR_BAD_FILE;
             g_free(*err_info);
             *err_info = ws_strdup_printf("AUTOSAR DLT: Internal Error! Not enough bytes for storage header at pos 0x%" PRIx64 "!", start_pos);
             return false;
         }
-        ws_buffer_append(params->buf, tmpbuf, (size_t)(sizeof header));
+        ws_buffer_append(&params->rec->data, tmpbuf, (size_t)(sizeof header));
         g_free(tmpbuf);
 
         tmpbuf = g_try_malloc0(item_header.length);
@@ -197,15 +189,16 @@ autosar_dlt_read_block(autosar_dlt_params_t *params, int64_t start_pos, int *err
         }
 
         if (!wtap_read_bytes_or_eof(params->fh, tmpbuf, item_header.length, err, err_info)) {
+            g_free(tmpbuf);
             *err = WTAP_ERR_BAD_FILE;
             g_free(*err_info);
             *err_info = ws_strdup_printf("AUTOSAR DLT: Capture file cut short! Not enough bytes for item at pos 0x%" PRIx64 "!", start_pos);
             return false;
         }
-        ws_buffer_append(params->buf, tmpbuf, (size_t)(item_header.length));
+        ws_buffer_append(&params->rec->data, tmpbuf, (size_t)(item_header.length));
         g_free(tmpbuf);
 
-        params->rec->rec_type = REC_TYPE_PACKET;
+        wtap_setup_packet_rec(params->rec, WTAP_ENCAP_AUTOSAR_DLT);
         params->rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
         params->rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN | WTAP_HAS_INTERFACE_ID;
         params->rec->tsprec = WTAP_TSPREC_USEC;
@@ -214,7 +207,6 @@ autosar_dlt_read_block(autosar_dlt_params_t *params, int64_t start_pos, int *err
 
         params->rec->rec_header.packet_header.caplen = (uint32_t)(item_header.length + sizeof header);
         params->rec->rec_header.packet_header.len = (uint32_t)(item_header.length + sizeof header);
-        params->rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_AUTOSAR_DLT;
         params->rec->rec_header.packet_header.interface_id = autosar_dlt_lookup_interface(params, header.ecu_id);
 
         return true;
@@ -223,13 +215,12 @@ autosar_dlt_read_block(autosar_dlt_params_t *params, int64_t start_pos, int *err
     return false;
 }
 
-static bool autosar_dlt_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, char **err_info, int64_t *data_offset) {
+static bool autosar_dlt_read(wtap *wth, wtap_rec *rec, int *err, char **err_info, int64_t *data_offset) {
     autosar_dlt_params_t dlt_tmp;
 
     dlt_tmp.wth = wth;
     dlt_tmp.fh = wth->fh;
     dlt_tmp.rec = rec;
-    dlt_tmp.buf = buf;
     dlt_tmp.dlt_data = (autosar_dlt_t *)wth->priv;
 
     *data_offset = file_tell(wth->fh);
@@ -242,13 +233,12 @@ static bool autosar_dlt_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, ch
     return true;
 }
 
-static bool autosar_dlt_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec, Buffer *buf, int *err, char **err_info) {
+static bool autosar_dlt_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec, int *err, char **err_info) {
     autosar_dlt_params_t dlt_tmp;
 
     dlt_tmp.wth = wth;
     dlt_tmp.fh = wth->random_fh;
     dlt_tmp.rec = rec;
-    dlt_tmp.buf = buf;
     dlt_tmp.dlt_data = (autosar_dlt_t *)wth->priv;
 
     if (file_seek(wth->random_fh, seek_off, SEEK_SET, err) == -1)
@@ -305,7 +295,7 @@ autosar_dlt_open(wtap *wth, int *err, char **err_info) {
     dlt->next_interface_id = 0;
 
     wth->priv = (void *)dlt;
-    wth->file_encap = WTAP_ENCAP_UNKNOWN;
+    wth->file_encap = WTAP_ENCAP_AUTOSAR_DLT;
     wth->snapshot_length = 0;
     wth->file_tsprec = WTAP_TSPREC_UNKNOWN;
     wth->subtype_read = autosar_dlt_read;

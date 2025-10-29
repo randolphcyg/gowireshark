@@ -21,7 +21,8 @@
 #include <epan/addr_resolv.h>
 #include <epan/oui.h>
 #include <epan/expert.h>
-
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include <wsutil/str_util.h>
 
 /* General declarations */
@@ -738,7 +739,7 @@ proto_register_ossp(void)
 
     /* Register the protocol name and description */
 
-    proto_ossp = proto_register_protocol("OSSP", "Organization Specific Slow Protocol", "ossp");
+    proto_ossp = proto_register_protocol("Organization Specific Slow Protocol", "OSSP", "ossp");
 
     /* Required function calls to register the header fields and subtrees used */
 

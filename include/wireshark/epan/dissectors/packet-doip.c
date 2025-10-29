@@ -5,19 +5,7 @@
  * By Gerald Combs <gerald@wireshark.org>
  * Copyright 1998 Gerald Combs
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "config.h"
@@ -449,17 +437,6 @@ typedef struct _generic_one_id_string {
     char   *name;
 } generic_one_id_string_t;
 
-static void
-doip_uat_free_key(void *key) {
-    wmem_free(wmem_epan_scope(), key);
-}
-
-static void
-simple_free(void *data) {
-    /* we need to free because of the g_strdup in post_update*/
-    g_free(data);
-}
-
 /* ID -> Name */
 static void *
 copy_generic_one_id_string_cb(void* n, const void* o, size_t size _U_) {
@@ -496,36 +473,6 @@ free_generic_one_id_string_cb(void*r) {
     rec->name = NULL;
 }
 
-static void
-post_update_one_id_string_template_cb(generic_one_id_string_t *data, unsigned data_num, GHashTable *ht) {
-    unsigned   i;
-    int    *key = NULL;
-
-    for (i = 0; i < data_num; i++) {
-        key = wmem_new(wmem_epan_scope(), int);
-        *key = data[i].id;
-
-        g_hash_table_insert(ht, key, g_strdup(data[i].name));
-    }
-}
-
-static char*
-ht_lookup_name(GHashTable* ht, unsigned int identifier) {
-    char           *tmp = NULL;
-    unsigned int   *id = NULL;
-
-    if (ht == NULL) {
-        return NULL;
-    }
-
-    id = wmem_new(wmem_epan_scope(), unsigned int);
-    *id = (unsigned int)identifier;
-    tmp = (char *)g_hash_table_lookup(ht, id);
-    wmem_free(wmem_epan_scope(), id);
-
-    return tmp;
-}
-
 /*
  * UAT DoIP Diagnostic Addresses
  */
@@ -543,12 +490,23 @@ post_update_doip_diag_addresses(void) {
     /* destroy old hash table, if it exists */
     if (data_doip_diag_addresses) {
         g_hash_table_destroy(data_doip_diag_addresses);
-        data_doip_diag_addresses = NULL;
     }
 
     /* create new hash table */
-    data_doip_diag_addresses = g_hash_table_new_full(g_int_hash, g_int_equal, &doip_uat_free_key, &simple_free);
-    post_update_one_id_string_template_cb(doip_diag_addresses, doip_diag_address_count, data_doip_diag_addresses);
+    data_doip_diag_addresses = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
+
+    for (unsigned i = 0; i < doip_diag_address_count; i++) {
+        g_hash_table_insert(data_doip_diag_addresses, GUINT_TO_POINTER(doip_diag_addresses[i].id), doip_diag_addresses[i].name);
+    }
+}
+
+static void
+reset_doip_diag_addresses_cb(void) {
+    /* destroy hash table, if it exists */
+    if (data_doip_diag_addresses) {
+        g_hash_table_destroy(data_doip_diag_addresses);
+        data_doip_diag_addresses = NULL;
+    }
 }
 
 static proto_item *
@@ -558,7 +516,12 @@ doip_prototree_add_with_resolv(proto_tree* doip_tree, int hfindex, int hfindex_n
     proto_tree *tree;
 
     ti = proto_tree_add_item_ret_uint(doip_tree, hfindex, tvb, start, length, encoding, &diag_addr_tmp);
-    const char *name = ht_lookup_name(data_doip_diag_addresses, diag_addr_tmp);
+    const char *name = NULL;
+
+    if (data_doip_diag_addresses != NULL) {
+        name = g_hash_table_lookup(data_doip_diag_addresses, GUINT_TO_POINTER(diag_addr_tmp));
+    }
+
     if (name != NULL) {
         proto_item_append_text(ti, " (%s)", name);
         tree = proto_item_add_subtree(ti, ett_address);
@@ -593,18 +556,32 @@ post_update_doip_payload_types(void) {
     /* destroy old hash table, if it exists */
     if (data_doip_payload_types) {
         g_hash_table_destroy(data_doip_payload_types);
-        data_doip_payload_types = NULL;
     }
 
     /* create new hash table */
-    data_doip_payload_types = g_hash_table_new_full(g_int_hash, g_int_equal, &doip_uat_free_key, &simple_free);
-    post_update_one_id_string_template_cb(doip_payload_types, doip_payload_type_count, data_doip_payload_types);
+    data_doip_payload_types = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
+
+    for (unsigned i = 0; i < doip_payload_type_count; i++) {
+        g_hash_table_insert(data_doip_payload_types, GUINT_TO_POINTER(doip_payload_types[i].id), doip_payload_types[i].name);
+    }
+}
+
+static void
+reset_doip_payload_type_cb(void) {
+    /* destroy hash table, if it exists */
+    if (data_doip_payload_types) {
+        g_hash_table_destroy(data_doip_payload_types);
+        data_doip_payload_types = NULL;
+    }
 }
 
 static const char*
-resolve_doip_payload_type(wmem_allocator_t *scope, uint16_t payload_type, bool is_col)
-{
-    const char *tmp = ht_lookup_name(data_doip_payload_types, payload_type);
+resolve_doip_payload_type(wmem_allocator_t *scope, uint16_t payload_type, bool is_col) {
+    const char *tmp = NULL;
+
+    if (data_doip_payload_types != NULL) {
+        tmp = g_hash_table_lookup(data_doip_payload_types, GUINT_TO_POINTER(payload_type));
+    }
 
     /* lets look at the static values, if nothing is configured */
     if (tmp == NULL) {
@@ -665,7 +642,7 @@ add_vehicle_identification_eid_fields(proto_tree *doip_tree, tvbuff_t *tvb)
 static void
 add_vehicle_identification_vin_fields(proto_tree *doip_tree, tvbuff_t *tvb)
 {
-    proto_tree_add_item(doip_tree, hf_vin, tvb, DOIP_VEHICLE_IDENTIFICATION_VIN_OFFSET, DOIP_COMMON_VIN_LEN, ENC_ASCII | ENC_NA);
+    proto_tree_add_item(doip_tree, hf_vin, tvb, DOIP_VEHICLE_IDENTIFICATION_VIN_OFFSET, DOIP_COMMON_VIN_LEN, ENC_ASCII);
 }
 
 
@@ -675,7 +652,7 @@ add_routing_activation_request_fields(proto_tree *doip_tree, tvbuff_t *tvb, uint
     doip_prototree_add_with_resolv(doip_tree, hf_source_address, hf_source_address_name, tvb, DOIP_ROUTING_ACTIVATION_REQ_SRC_OFFSET, DOIP_ROUTING_ACTIVATION_REQ_SRC_LEN, ENC_BIG_ENDIAN, NULL);
 
     if (version == ISO13400_2010) {
-        proto_tree_add_item(doip_tree, hf_activation_type_v1, tvb, DOIP_ROUTING_ACTIVATION_REQ_TYPE_OFFSET, DOIP_ROUTING_ACTIVATION_REQ_TYPE_LEN_V1, ENC_NA);
+        proto_tree_add_item(doip_tree, hf_activation_type_v1, tvb, DOIP_ROUTING_ACTIVATION_REQ_TYPE_OFFSET, DOIP_ROUTING_ACTIVATION_REQ_TYPE_LEN_V1, ENC_BIG_ENDIAN);
         proto_tree_add_item(doip_tree, hf_reserved_iso, tvb, DOIP_ROUTING_ACTIVATION_REQ_ISO_OFFSET_V1, DOIP_ROUTING_ACTIVATION_REQ_ISO_LEN, ENC_BIG_ENDIAN);
 
         if ( tvb_bytes_exist(tvb, DOIP_ROUTING_ACTIVATION_REQ_OEM_OFFSET_V1, DOIP_ROUTING_ACTIVATION_REQ_OEM_LEN) ) {
@@ -709,7 +686,7 @@ add_routing_activation_response_fields(proto_tree *doip_tree, tvbuff_t *tvb)
 static void
 add_vehicle_announcement_message_fields(proto_tree *doip_tree, tvbuff_t *tvb)
 {
-    proto_tree_add_item(doip_tree, hf_vin, tvb, DOIP_VEHICLE_ANNOUNCEMENT_VIN_OFFSET, DOIP_COMMON_VIN_LEN, ENC_ASCII | ENC_NA);
+    proto_tree_add_item(doip_tree, hf_vin, tvb, DOIP_VEHICLE_ANNOUNCEMENT_VIN_OFFSET, DOIP_COMMON_VIN_LEN, ENC_ASCII);
     doip_prototree_add_with_resolv(doip_tree, hf_logical_address, hf_logical_address_name, tvb, DOIP_VEHICLE_ANNOUNCEMENT_ADDRESS_OFFSET, DOIP_VEHICLE_ANNOUNCEMENT_ADDRESS_LEN, ENC_BIG_ENDIAN, NULL);
     proto_tree_add_item(doip_tree, hf_eid, tvb, DOIP_VEHICLE_ANNOUNCEMENT_EID_OFFSET, DOIP_COMMON_EID_LEN, ENC_NA);
     proto_tree_add_item(doip_tree, hf_gid, tvb, DOIP_VEHICLE_ANNOUNCEMENT_GID_OFFSET, DOIP_VEHICLE_ANNOUNCEMENT_GID_LEN, ENC_NA);
@@ -1300,7 +1277,7 @@ proto_register_doip(void)
         update_generic_one_identifier_16bit,    /* update callback       */
         free_generic_one_id_string_cb,          /* free callback         */
         post_update_doip_diag_addresses,        /* post update callback  */
-        NULL,                                   /* reset callback        */
+        reset_doip_diag_addresses_cb,           /* reset callback        */
         doip_diag_addr_uat_fields               /* UAT field definitions */
     );
 
@@ -1319,7 +1296,7 @@ proto_register_doip(void)
         update_generic_one_identifier_16bit,    /* update callback       */
         free_generic_one_id_string_cb,          /* free callback         */
         post_update_doip_payload_types,         /* post update callback  */
-        NULL,                                   /* reset callback        */
+        reset_doip_payload_type_cb,             /* reset callback        */
         doip_payload_type_uat_fields            /* UAT field definitions */
     );
 

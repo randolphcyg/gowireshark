@@ -1,5 +1,6 @@
 #include <cJSON.h>
 #include <cfile.h>
+#include <epan/packet.h>
 #include <epan/charsets.h>
 #include <epan/column.h>
 #include <epan/epan.h>
@@ -12,7 +13,6 @@
 #include <epan/tap.h>
 #include <epan/timestamp.h>
 #include <epan/tvbuff.h>
-#include <frame_tvbuff.h>
 #include <pcap/bpf.h>
 #include <pcap/pcap.h>
 #include <stdio.h>
@@ -21,6 +21,7 @@
 #include <wsutil/json_dumper.h>
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
+#include <wsutil/wslog.h>
 
 // Init policies、wtap mod、epan mod
 bool init_env();

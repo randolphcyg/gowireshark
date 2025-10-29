@@ -27,33 +27,16 @@ extern "C" {
  *
  * Get the pathname of the directory from which the executable came,
  * and save it for future use.
- *
- * Set our configuration namespace, which determines the top-level
- * configuration directory name and environment variable prefixes.
- * Default is "Wireshark".
+ * If you change the default application flavor, you should should do
+ * so before calling this.
  *
  * @param arg0 Executable name hint. Should be argv[0].
- * @param namespace_name The namespace to use. "Wireshark" or NULL uses
- *        the Wireshark namespace. "Logray" uses the Logray namespace.
  * @return NULL on success, and a g_mallocated string containing an error on failure.
  */
-WS_DLL_PUBLIC char *configuration_init(const char *arg0, const char *namespace_name);
-
-/**
- * Get the configuration namespace name.
- * @return The namespace name. One of "Wireshark" or "Logray".
- */
-WS_DLL_PUBLIC const char *get_configuration_namespace(void);
-
-/**
- * Check to see if the configuration namespace is for packet analysis
- * (Wireshark) or log analysis (Logray).
- * @return true if the configuration namespace is for packets.
- */
-WS_DLL_PUBLIC bool is_packet_configuration_namespace(void);
+WS_DLL_PUBLIC char *configuration_init(const char *arg0);
 
 /*
- * Get the directory in which the main (Wireshark, TShark, Logray, etc)
+ * Get the directory in which the main (Wireshark, TShark, Stratoshark, etc)
  * program resides.
  * Extcaps should use get_extcap_dir() to get their path.
  *

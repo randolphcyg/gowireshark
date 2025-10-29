@@ -391,6 +391,9 @@ static int ett_rtp_events;
 
 static dissector_handle_t rtp_events_handle;
 
+/* Cached protocol identifier */
+static int proto_rtp;
+
 static struct _rtp_event_info rtp_event_info;
 
 static int
@@ -422,7 +425,7 @@ dissect_rtp_events( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 	/* get tap info */
 	rtp_event_info.info_rtp_evt = rtp_evt;
 
-	p_packet_data = (struct _rtp_packet_info *)p_get_proto_data(wmem_file_scope(), pinfo, proto_get_id_by_filter_name("rtp"), RTP_CONVERSATION_PROTO_DATA);
+	p_packet_data = (struct _rtp_packet_info *)p_get_proto_data(wmem_file_scope(), pinfo, proto_rtp, RTP_CONVERSATION_PROTO_DATA);
 	if (p_packet_data)
 		rtp_event_info.info_setup_frame_num = p_packet_data->frame_number;
 	else
@@ -431,7 +434,7 @@ dissect_rtp_events( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 
 	col_add_fstr( pinfo->cinfo, COL_INFO,
 		"Payload type=RTP Event, %s",
-		val_to_str_ext( rtp_evt, &rtp_event_type_values_ext, "Unknown (%u)" ));
+		val_to_str_ext(pinfo->pool, rtp_evt, &rtp_event_type_values_ext, "Unknown (%u)" ));
 
 	ti = proto_tree_add_item( tree, proto_rtp_events, tvb, offset, -1, ENC_NA );
 	rtp_events_tree = proto_item_add_subtree( ti, ett_rtp_events );
@@ -558,6 +561,8 @@ proto_register_rtp_events(void)
 
 	rtp_events_handle = register_dissector("rtpevent", dissect_rtp_events, proto_rtp_events);
 	rtp_event_tap = register_tap("rtpevent");
+
+	register_external_value_string_ext("rtp_event_type_values_ext", &rtp_event_type_values_ext);
 }
 
 
@@ -568,6 +573,8 @@ proto_reg_handoff_rtp_events(void)
 	dissector_add_string("rtp_dyn_payload_type", "telephone-event", rtp_events_handle);
 	dissector_add_string("rtp_dyn_payload_type", "X-NSE", rtp_events_handle);
 	dissector_add_uint_range_with_preference("rtp.pt", RTP_EVENT_DEFAULT_PT_RANGE, rtp_events_handle);
+
+	proto_rtp = proto_get_id_by_filter_name("rtp");
 }
 
 /*

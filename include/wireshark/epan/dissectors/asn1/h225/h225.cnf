@@ -304,9 +304,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
   if (h225_pi != NULL) {
-    char temp[50];
-    snprintf(temp, 50, "%%s %%s", h225_pi->frame_label, codec_str);
-    (void) g_strlcpy(h225_pi->frame_label, temp, 50);
+    h225_pi->frame_label = wmem_strdup_printf(actx->pinfo->pool, "%%s %%s", h225_pi->frame_label, codec_str);
     h225_pi->is_faststart = true;
   }
   contains_faststart = true;
@@ -413,10 +411,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
 #.FN_FTR Status-UUIE
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
-  if (h225_pi != NULL) {
-    h225_pi->cs_type = H225_STATUS;
-    snprintf(h225_pi->frame_label, 50, "%s", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
-  }
+  h225_set_cs_type(actx->pinfo, h225_pi, H225_STATUS, false);
 #.END
 #----------------------------------------------------------------------------------------
 #.FN_HDR Information-UUIE
@@ -426,10 +421,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
 #.FN_FTR Information-UUIE
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
-  if (h225_pi != NULL) {
-    h225_pi->cs_type = H225_INFORMATION;
-    snprintf(h225_pi->frame_label, 50, "%s", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
-  }
+  h225_set_cs_type(actx->pinfo, h225_pi, H225_INFORMATION, false);
 #.END
 #----------------------------------------------------------------------------------------
 #.FN_HDR Progress-UUIE
@@ -439,15 +431,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
 #.FN_FTR Progress-UUIE
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
-  if (h225_pi != NULL) {
-    h225_pi->cs_type = H225_PROGRESS;
-    if (contains_faststart) {
-      char temp[50];
-      snprintf(temp, 50, "%s OLC (%s)", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"), h225_pi->frame_label);
-      (void) g_strlcpy(h225_pi->frame_label, temp, 50);
-    } else
-      snprintf(h225_pi->frame_label, 50, "%s", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
-  }
+  h225_set_cs_type(actx->pinfo, h225_pi, H225_PROGRESS, contains_faststart);
 #.END
 #----------------------------------------------------------------------------------------
 #.FN_HDR SetupAcknowledge-UUIE
@@ -457,10 +441,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
 #.FN_FTR SetupAcknowledge-UUIE
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
-  if (h225_pi != NULL) {
-    h225_pi->cs_type = H225_SETUP_ACK;
-    snprintf(h225_pi->frame_label, 50, "%s", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
-  }
+  h225_set_cs_type(actx->pinfo, h225_pi, H225_SETUP_ACK, false);
 #.END
 #----------------------------------------------------------------------------------------
 #.FN_HDR Facility-UUIE
@@ -470,10 +451,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
 #.FN_FTR Facility-UUIE
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
-  if (h225_pi != NULL) {
-    h225_pi->cs_type = H225_FACILITY;
-    snprintf(h225_pi->frame_label, 50, "%s", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
-  }
+  h225_set_cs_type(actx->pinfo, h225_pi, H225_FACILITY, false);
 #.END
 #----------------------------------------------------------------------------------------
 #.FN_HDR H323-UU-PDU/h245Tunnelling
@@ -496,15 +474,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
 #.FN_FTR Setup-UUIE
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
-  if (h225_pi != NULL) {
-    h225_pi->cs_type = H225_SETUP;
-    if (contains_faststart) {
-      char temp[50];
-      snprintf(temp, 50, "%s OLC (%s)", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"), h225_pi->frame_label);
-      (void) g_strlcpy(h225_pi->frame_label, temp, 50);
-    } else
-      snprintf(h225_pi->frame_label, 50, "%s", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
-  }
+  h225_set_cs_type(actx->pinfo, h225_pi, H225_SETUP, contains_faststart);
 #.END
 #----------------------------------------------------------------------------------------
 #.FN_HDR CallProceeding-UUIE
@@ -514,15 +484,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
 #.FN_FTR CallProceeding-UUIE
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
-  if (h225_pi != NULL) {
-    h225_pi->cs_type = H225_CALL_PROCEDING;
-    if (contains_faststart) {
-      char temp[50];
-      snprintf(temp, 50, "%s OLC (%s)", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"), h225_pi->frame_label);
-      (void) g_strlcpy(h225_pi->frame_label, temp, 50);
-    } else
-      snprintf(h225_pi->frame_label, 50, "%s", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
-  }
+  h225_set_cs_type(actx->pinfo, h225_pi, H225_CALL_PROCEDING, contains_faststart);
 #.END
 #----------------------------------------------------------------------------------------
 #.FN_HDR Alerting-UUIE
@@ -532,15 +494,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
 #.FN_FTR Alerting-UUIE
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
-  if (h225_pi != NULL) {
-    h225_pi->cs_type = H225_ALERTING;
-    if (contains_faststart) {
-      char temp[50];
-      snprintf(temp, 50, "%s OLC (%s)", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"), h225_pi->frame_label);
-      (void) g_strlcpy(h225_pi->frame_label, temp, 50);
-    } else
-      snprintf(h225_pi->frame_label, 50, "%s", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
-  }
+  h225_set_cs_type(actx->pinfo, h225_pi, H225_ALERTING, contains_faststart);
 #.END
 #----------------------------------------------------------------------------------------
 #.FN_HDR ReleaseComplete-UUIE
@@ -550,10 +504,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
 #.FN_FTR ReleaseComplete-UUIE
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
-  if (h225_pi != NULL) {
-    h225_pi->cs_type = H225_RELEASE_COMPLET;
-    snprintf(h225_pi->frame_label, 50, "%s", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
-  }
+  h225_set_cs_type(actx->pinfo, h225_pi, H225_RELEASE_COMPLET, false);
 #.END
 #----------------------------------------------------------------------------------------
 #.FN_HDR Connect-UUIE
@@ -563,15 +514,7 @@ IsupNumber/nationalStandardPartyNumber isupNationalStandardPartyNumber
 #.FN_FTR Connect-UUIE
   /* Add to packet info */
   h225_pi = (h225_packet_info*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_h225, 0);
-  if (h225_pi != NULL) {
-    h225_pi->cs_type = H225_CONNECT;
-    if (contains_faststart) {
-      char temp[50];
-      snprintf(temp, 50, "%s OLC (%s)", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"), h225_pi->frame_label);
-      (void) g_strlcpy(h225_pi->frame_label, temp, 50);
-    } else
-      snprintf(h225_pi->frame_label, 50, "%s", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
-  }
+  h225_set_cs_type(actx->pinfo, h225_pi, H225_CONNECT, contains_faststart);
 #.END
 #----------------------------------------------------------------------------------------
 #.FN_HDR H245TransportAddress
@@ -887,7 +830,7 @@ H221NonStandard/manufacturerCode  VAL_PTR = &manufacturerCode
   if (gefx) {
     ti = proto_tree_add_string(tree, hf_h225_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
   proto_item_set_hidden(ti);
-    dissector_try_string_new(gef_name_dissector_table, gefx->key, tvb_new_subset_length_caplen(tvb, offset>>3, 0, 0), actx->pinfo, tree, false, actx);
+    dissector_try_string_with_data(gef_name_dissector_table, gefx->key, tvb_new_subset_length_caplen(tvb, offset>>3, 0, 0), actx->pinfo, tree, false, actx);
   }
   actx->private_data = gefx;  /* subdissector could overwrite it */
 #.END
@@ -921,7 +864,7 @@ H221NonStandard/manufacturerCode  VAL_PTR = &manufacturerCode
   if (gefx) {
     ti = proto_tree_add_string(tree, hf_h225_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
   proto_item_set_hidden(ti);
-    dissector_try_string(gef_content_dissector_table, gefx->key, value_tvb, actx->pinfo, %(TREE)s, actx);
+    dissector_try_string_with_data(gef_content_dissector_table, gefx->key, value_tvb, actx->pinfo, %(TREE)s, true, actx);
   }
 #.END
 

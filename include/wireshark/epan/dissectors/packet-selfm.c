@@ -48,7 +48,10 @@
  * the Wireshark conversation functionality.
  */
 
+#define WS_LOG_DOMAIN "packet-selfm"
+
 #include "config.h"
+#include <wireshark.h>
 
 #include <epan/packet.h>
 #include "packet-tcp.h"
@@ -1229,7 +1232,7 @@ dissect_fmdata_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int of
     proto_item       *fmdata_item, *fmdata_dig_ch_item;
     proto_item       *fmdata_ai_sf_item;
     proto_tree       *fmdata_tree, *fmdata_ai_tree=NULL, *fmdata_dig_tree=NULL, *fmdata_ai_ch_tree=NULL, *fmdata_dig_ch_tree=NULL;
-    uint8_t          len, idx=0, j=0;
+    uint8_t          len, j=0;
     uint16_t         config_cmd;
     int16_t          ai_int16val;
     int              cnt = 0, ch_size=0;
@@ -1306,7 +1309,7 @@ dissect_fmdata_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int of
                         }
 
                         /* For each analog channel we encounter... */
-                        for (idx = 0; idx < cnt; idx++) {
+                        for (int idx = 0; idx < cnt; idx++) {
 
                             fm_analog_info *ai = &(cfg_data->analogs[idx]);
 
@@ -1402,9 +1405,9 @@ dissect_fmdata_frame(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, int of
                     fmdata_dig_tree = proto_tree_add_subtree_format(fmdata_tree, tvb, offset, cfg_data->num_dig,
                                         ett_selfm_fmdata_dig, NULL, "Digital Channels (%d)", cfg_data->num_dig);
 
-                    for (idx=0; idx < cfg_data->num_dig; idx++) {
+                    for (unsigned idx=0; idx < cfg_data->num_dig; idx++) {
 
-                        fmdata_dig_ch_tree = proto_tree_add_subtree_format(fmdata_dig_tree, tvb, offset, 1, ett_selfm_fmdata_dig_ch, &fmdata_dig_ch_item, "Digital Word Bit Row: %2d", idx+1);
+                        fmdata_dig_ch_tree = proto_tree_add_subtree_format(fmdata_dig_tree, tvb, offset, 1, ett_selfm_fmdata_dig_ch, &fmdata_dig_ch_item, "Digital Word Bit Row: %2u", idx+1);
 
                         /* Display the bit pattern on the digital channel proto_item */
                         proto_item_append_text(fmdata_dig_ch_item, " [  %d %d %d %d %d %d %d %d  ]",
@@ -2683,9 +2686,8 @@ dissect_selfm_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
             new_selfm_PDU_len = tvb_get_uint8(selfm_tvb, selfm_PDU_len+2);
             /* If we still don't have enough data to accommodate the 2 PDUs... */
             if (selfm_tvb_len < (selfm_PDU_len + new_selfm_PDU_len)) {
-#if 0
-                fprintf(stderr, "On Packet: %d, continuing to desegment. PDU: %d NewPDU: %d  Still need %d bytes.. \n", pinfo->fd->num, selfm_PDU_len, new_selfm_PDU_len, (selfm_PDU_len + new_selfm_PDU_len) - selfm_tvb_len);
-#endif
+                ws_debug("On Packet: %d, continuing to desegment. PDU: %d NewPDU: %d  Still need %d bytes..", pinfo->fd->num, selfm_PDU_len, new_selfm_PDU_len, (selfm_PDU_len + new_selfm_PDU_len) - selfm_tvb_len);
+
                 /* If the current selfm_tvb length is less than the combined reported selfm length of the 2 PDUs, continue TCP desegmentation */
                 /* The desegment_len field will be used to report how many additional bytes remain to be reassembled */
                 pinfo->desegment_offset = 0;
@@ -2699,9 +2701,7 @@ dissect_selfm_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
     while (offset < selfm_tvb_len) {
         /* If random ASCII data makes its way onto the end of an SEL protocol PDU, ignore it */
         if (tvb_get_uint8(selfm_tvb, offset) != 0xA5) {
-#if 0
-            fprintf(stderr, "On Packet: %d, extraneous data (starts with: %x).. \n", pinfo->fd->num, tvb_get_uint8(selfm_tvb, offset));
-#endif
+            ws_debug("On Packet: %d, extraneous data (starts with: %x)..", pinfo->fd->num, tvb_get_uint8(selfm_tvb, offset));
             break;
         }
         /* Create new selfm_pdu_tvb that contains only a single PDU worth of data */

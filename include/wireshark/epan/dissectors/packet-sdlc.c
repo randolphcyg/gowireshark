@@ -12,7 +12,9 @@
 
 #include <epan/packet.h>
 #include <wiretap/wtap.h>
-#include <epan/xdlc.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
+#include "packet-xdlc.h"
 
 /*
  * See:
@@ -22,7 +24,7 @@
  * http://web.archive.org/web/20150522015710/http://www.protocols.com/pbook/sna.htm
  *
  * Systems Network Architecture Formats, GA27-3136-20:
- * https://publibz.boulder.ibm.com/cgi-bin/bookmgr/BOOKS/D50A5007/CCONTENTS
+ * https://publibfp.dhe.ibm.com/epubs/pdf/d50a5007.pdf
  */
 void proto_register_sdlc(void);
 void proto_reg_handoff_sdlc(void);

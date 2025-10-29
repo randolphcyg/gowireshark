@@ -23,6 +23,7 @@
 #include <config.h>
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <wsutil/array.h>
 #include <wsutil/mpeg-audio.h>
 
 void proto_reg_handoff_id3v2(void);
@@ -290,7 +291,7 @@ dissect_id3v2_apic_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, un
 	id3v2_dissect_textz_item(pinfo->pool, tvb, tree, &offset, id3_encoding, hf_id3v2_frame_apic_description);
 
 	image_tvb = tvb_new_subset_length(tvb, offset, (end - offset));
-	dissector_try_string(media_type_dissector_table, mime_type, image_tvb, pinfo, tree, NULL);
+	dissector_try_string_with_data(media_type_dissector_table, mime_type, image_tvb, pinfo, tree, true, NULL);
 }
 
 static char *
@@ -337,7 +338,7 @@ dissect_id3v2_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigne
 
 	proto_tree_add_item(frame_tree, hf_id3v2_frame_id, tvb, offset, 4, ENC_ISO_8859_1);
 	offset += 4;
-	proto_item_set_text(frame_item, "%s", str_to_str(frame_id, id3v2_tag_names, "Unknown: %s"));
+	proto_item_set_text(frame_item, "%s", str_to_str_wmem(pinfo->pool, frame_id, id3v2_tag_names, "Unknown: %s"));
 
 	if (id3_version == 0x04)
 		size = decode_synchsafe_int(tvb_get_uint32(tvb, offset, ENC_BIG_ENDIAN));
@@ -349,7 +350,7 @@ dissect_id3v2_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigne
 	offset += 4;
 
 	/* TODO: decode each flag */
-	proto_tree_add_item(frame_tree, hf_id3v2_frame_flags, tvb, offset, 2, ENC_NA);
+	proto_tree_add_item(frame_tree, hf_id3v2_frame_flags, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset += 2;
 
 	if (frame_id[0] == 'T') {
@@ -400,7 +401,7 @@ dissect_id3v2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 {
 	proto_item *id3v2_item;
 	proto_tree *id3v2_tree;
-        tvbuff_t   *id3v2_tvb;
+	tvbuff_t   *id3v2_tvb;
 	unsigned    offset = 0;
 	uint32_t    size;
 	uint8_t     id3_version;
@@ -426,7 +427,7 @@ dissect_id3v2(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
 
 	size = decode_synchsafe_int(tvb_get_uint32(tvb, 6, ENC_BIG_ENDIAN));
 	/* `size` does not include the 10-byte header */
-        id3v2_tvb = tvb_new_subset_length(tvb, offset, size+10);
+	id3v2_tvb = tvb_new_subset_length(tvb, offset, size+10);
 	id3v2_item = proto_tree_add_item(tree, proto_id3v2, id3v2_tvb, offset, tvb_captured_length(id3v2_tvb), ENC_NA);
 	id3v2_tree = proto_item_add_subtree(id3v2_item, ett_id3v2);
 

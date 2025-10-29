@@ -25,8 +25,7 @@
 
 #include "wsutil/nstime.h"
 #include "tvbuff.h"
-#include "value_string.h"
-#include "tfs.h"
+#include <wsutil/value_string.h>
 #include "packet_info.h"
 #include "ftypes/ftypes.h"
 #include "register.h"
@@ -66,6 +65,9 @@ struct expert_field;
 
 /** Something to satisfy checkAPIs when you have a pointer to a value_string_ext (e.g., one built with value_string_ext_new()) */
 #define VALS_EXT_PTR(x) (cast_same(value_string_ext*, (x)))
+
+/** Make a const time_value_string[] look like a _value_string pointer, used to set header_field_info.strings */
+#define TIME_VALS(x)     (cast_same(const struct _time_value_string*, (x)))
 
 /** Make a const true_false_string[] look like a _true_false_string pointer, used to set header_field_info.strings */
 #define TFS(x)      (cast_same(const struct true_false_string*, (x)))
@@ -519,7 +521,7 @@ void proto_report_dissector_bug(const char *format, ...)
 
 /* Encodings for BCD strings
  * Depending if the BCD string has even or odd number of digits
- * we may need to strip of the last digit/High nibble
+ * we may need to strip off the last digit/High nibble.
  */
 #define ENC_BCD_ODD_NUM_DIG     0x00010000
 #define ENC_BCD_SKIP_FIRST      0x00020000
@@ -806,6 +808,8 @@ typedef struct hf_register_info {
 /** string representation, if one of the proto_tree_add_..._format() functions used */
 typedef struct _item_label_t {
     char representation[ITEM_LABEL_LENGTH];
+    size_t value_pos;  /**< position of the value in the string */
+    size_t value_len;  /**< length of the value in the string */
 } item_label_t;
 
 /** Contains the field information for the proto_item. */
@@ -894,6 +898,9 @@ typedef struct {
     bool                 fake_protocols;
     unsigned             count;
     struct _packet_info *pinfo;
+    tvbuff_t            *idle_count_ds_tvb;
+    int                  max_start;
+    unsigned             start_idle_count;
 } tree_data_t;
 
 /** Each proto_tree, proto_item is one of these. */
@@ -902,6 +909,7 @@ typedef struct _proto_node {
     struct _proto_node *last_child;
     struct _proto_node *next;
     struct _proto_node *parent;
+    const header_field_info *hfinfo;
     field_info         *finfo;
     tree_data_t        *tree_data;
 } proto_node;
@@ -969,8 +977,8 @@ typedef proto_node proto_item;
 #define PI_DISSECTOR_BUG        0x11000000
 
 /*
- * add more, see
- *    https://gitlab.com/wireshark/wireshark/-/wikis/Development/ExpertInfo
+ * add more, see WSDG: 9.3. How to add an expert item:
+ *    https://www.wireshark.org/docs/wsdg_html/#ChDissectExpertInfo
  */
 
 /** Retrieve the field_info from a proto_node */
@@ -981,6 +989,15 @@ typedef proto_node proto_item;
 
 /** Retrieve the field_info from a proto_tree */
 #define PTREE_FINFO(proto_tree)  PNODE_FINFO(proto_tree)
+
+/** Retrieve the header_field_info from a proto_node */
+#define PNODE_HFINFO(proto_node)  ((proto_node)->hfinfo)
+
+/** Retrieve the header_field_info from a proto_item */
+#define PITEM_HFINFO(proto_item)  PNODE_HFINFO(proto_item)
+
+/** Retrieve the header_field_info from a proto_tree */
+#define PTREE_HFINFO(proto_tree)  PNODE_HFINFO(proto_tree)
 
 /** Retrieve the tree_data_t from a proto_tree */
 #define PTREE_DATA(proto_tree)   ((proto_tree)->tree_data)
@@ -993,11 +1010,12 @@ typedef proto_node proto_item;
  * @param ti The item to check. May be NULL.
  * @return true if the item is hidden, false otherwise.
  */
-static inline bool proto_item_is_hidden(proto_item *ti) {
-    if (ti) {
+static inline bool proto_item_is_hidden(const proto_item *ti) {
+    if (ti && PITEM_FINFO(ti)) {
         return FI_GET_FLAG(PITEM_FINFO(ti), FI_HIDDEN);
     }
-    return false;
+    /* XXX - Is a NULL item hidden? */
+    return true;
 }
 #define PROTO_ITEM_IS_HIDDEN(ti) proto_item_is_hidden((ti))
 
@@ -1026,7 +1044,8 @@ static inline void proto_item_set_visible(proto_item *ti) {
  * @param ti The item to check. May be NULL.
  * @return true if the item is generated, false otherwise.
  */
-static inline bool proto_item_is_generated(proto_item *ti) {
+static inline bool proto_item_is_generated(const proto_item *ti)
+{
     if (ti) {
         return FI_GET_FLAG(PITEM_FINFO(ti), FI_GENERATED);
     }
@@ -1049,7 +1068,8 @@ static inline void proto_item_set_generated(proto_item *ti) {
  * @param ti The item to check. May be NULL.
  * @return true if the item is a URL, false otherwise.
  */
-static inline bool proto_item_is_url(proto_item *ti) {
+static inline bool proto_item_is_url(const proto_item *ti)
+{
     if (ti) {
         return FI_GET_FLAG(PITEM_FINFO(ti), FI_URL);
     }
@@ -1087,6 +1107,21 @@ void proto_init(GSList *register_all_plugin_protocols_list,
 
 /** Frees memory used by proto routines. Called at program shutdown */
 extern void proto_cleanup(void);
+
+typedef void (*proto_execute_in_directory_func)(void* param);
+
+/** Execute a function for a protocol in a specific directory.
+ * This will change the current working directory, then execute
+ * the function and then restore the current working directory to
+ * its previous value.  This is intended to be called during protocol
+ * initialization (i.e. not thread safe)
+ *
+ * @param dir The new current working directory
+ * @param func Function to be called once the directory has been successfully changed
+ * @param param Optional parameter to be passed into the handling function
+ */
+WS_DLL_PUBLIC void proto_execute_in_directory(const char* dir, proto_execute_in_directory_func func, void* param);
+
 
 /** This function takes a tree and a protocol id as parameter and
     will return true/false for whether the protocol or any of the filterable
@@ -1187,6 +1222,12 @@ WS_DLL_PUBLIC void proto_item_set_bits_offset_len(proto_item *ti, int bits_offse
 /** Get the display representation of a proto_item.
  * Can be used, for example, to append that to the parent item of
  * that item.
+ @warning You probably don't want to use this. This returns an empty string
+ if the proto_item is "faked". That means the string won't show up in the
+ Info column, or in other places we don't have a visible tree, unless the
+ field is being filtered or in a custom column. In other words, this is only
+ really useful for adding to parent text-only fields.
+
  @param scope the wmem scope to use to allocate the string
  @param pi the item from which to get the display representation
  @return the display representation */
@@ -2542,9 +2583,10 @@ proto_tree_add_debug_text(proto_tree *tree, const char *format,
 /** Fill given label_str with a simple string representation of field.
  @param finfo the item to get the info from
  @param label_str the string to fill
+ @param value_offset offset to the value in label_str
  @todo think about changing the parameter profile */
 WS_DLL_PUBLIC void
-proto_item_fill_label(const field_info *finfo, char *label_str);
+proto_item_fill_label(const field_info *finfo, char *label_str, size_t *value_offset);
 
 /** Fill the given display_label_str with the string representation of a field
  * formatted according to its type and field display specifier.
@@ -2634,6 +2676,13 @@ proto_deregister_field (const int parent, int hf_id);
 WS_DLL_PUBLIC void
 proto_add_deregistered_data (void *data);
 
+/** Deregister all registered fields of a protocol that match a prefix.
+ @param parent the protocol handle from proto_register_protocol()
+ @prefix a prefix to select which fields to deregister
+*/
+WS_DLL_PUBLIC void
+proto_deregister_all_fields_with_prefix(const int parent, const gchar *prefix);
+
 /** Add a memory slice to be freed when deregistered fields are freed.
  @param block_size the size of the block
  @param mem_block a pointer to the block to free */
@@ -2647,7 +2696,12 @@ proto_add_deregistered_slice (size_t block_size, void *mem_block);
 WS_DLL_PUBLIC void
 proto_free_field_strings (ftenum_t field_type, unsigned int field_display, const void *field_strings);
 
-/** Free fields deregistered in proto_deregister_field(). */
+/** Free fields deregistered in proto_deregister_field().
+ @note Dissectors should not call this function (including in preference
+ callbacks) because something might hold a reference to a field. This will
+ be automatically called when it is safe to do so. If there is other data
+ that needs to be freed along with the fields, e.g. a dynamically allocated
+ array of hf_id pointers, add it with proto_add_deregistered_data. */
 WS_DLL_PUBLIC void
 proto_free_deregistered_fields (void);
 
@@ -2824,6 +2878,15 @@ WS_DLL_PUBLIC bool proto_is_frame_protocol(const wmem_list_t *layers, const char
  */
 WS_DLL_PUBLIC char * proto_list_layers(const packet_info *pinfo);
 
+/** Retrieve the layer number for a given protocol, i.e. the number of
+ * times a dissector for that protocol has been called for the current
+ * frame.
+ * @param pinfo Pointer to packet info
+ * @param proto_id protocol id (0-indexed)
+ * @return The layer number for proto_id in the current frame.
+ */
+WS_DLL_PUBLIC uint8_t proto_get_layer_num(const packet_info *pinfo, const int proto_id);
+
 /** Mark protocol with the given item number as disabled by default.
  @param proto_id protocol id (0-indexed) */
 WS_DLL_PUBLIC void proto_disable_by_default(const int proto_id);
@@ -2854,7 +2917,10 @@ extern bool proto_check_for_protocol_or_field(const proto_tree* tree, const int 
     tree. Only works with primed trees, and is fast.
  @param tree tree of interest
  @param hfindex primed hfindex
- @return GPtrArray pointer */
+ @return GPtrArray pointer
+
+   The caller should *not* free the GPtrArray*; proto_tree_free_node()
+   handles that. */
 WS_DLL_PUBLIC GPtrArray* proto_get_finfo_ptr_array(const proto_tree *tree, const int hfindex);
 
 /** Return whether we're tracking any interesting fields.
@@ -2868,7 +2934,10 @@ WS_DLL_PUBLIC bool proto_tracking_interesting_fields(const proto_tree *tree);
     proto_get_finfo_ptr_array because it has to search through the tree.
  @param tree tree of interest
  @param hfindex index of field info of interest
- @return GPtrArry pointer */
+ @return GPtrArry pointer
+
+    The caller does need to free the returned GPtrArray with
+    g_ptr_array_free(<array>, true). */
 WS_DLL_PUBLIC GPtrArray* proto_find_finfo(proto_tree *tree, const int hfindex);
 
 /** Return GPtrArray* of field_info pointer for first hfindex that appear in
@@ -2876,13 +2945,19 @@ tree. Works with any tree, primed or unprimed, and is slower than
 proto_get_finfo_ptr_array because it has to search through the tree.
 @param tree tree of interest
 @param hfindex index of field info of interest
-@return GPtrArry pointer */
+@return GPtrArry pointer
+
+    The caller does need to free the returned GPtrArray with
+    g_ptr_array_free(<array>, true). */
 WS_DLL_PUBLIC GPtrArray* proto_find_first_finfo(proto_tree *tree, const int hfindex);
 
 /** Return GPtrArray* of field_info pointers containg all hfindexes that appear
     in tree.
  @param tree tree of interest
- @return GPtrArry pointer */
+ @return GPtrArry pointer
+
+    The caller does need to free the returned GPtrArray with
+    g_ptr_array_free(<array>, true). */
 WS_DLL_PUBLIC GPtrArray* proto_all_finfos(proto_tree *tree);
 
 /** Dumps a glossary of the protocol registrations to STDOUT */
@@ -2902,7 +2977,7 @@ WS_DLL_PUBLIC bool proto_registrar_dump_fieldcount(void);
 WS_DLL_PUBLIC void proto_registrar_dump_fields(void);
 
 /** Dumps protocol and field abbreviations to STDOUT which start with prefix. */
-WS_DLL_PUBLIC bool proto_registrar_dump_field_completions(char *prefix);
+WS_DLL_PUBLIC bool proto_registrar_dump_field_completions(const char *prefix);
 
 /** Dumps a glossary field types and descriptive names to STDOUT */
 WS_DLL_PUBLIC void proto_registrar_dump_ftypes(void);
@@ -3497,12 +3572,14 @@ proto_check_field_name_lower(const char *field_name);
  @param tree the tree to append this item to
  @param field_id the field ids used for custom column
  @param occurrence the occurrence of the field used for custom column
+ @param display_details if true, use formatted field value
  @param result the buffer to fill with the field string
  @param expr the filter expression
  @param size the size of the string buffer */
 const char *
 proto_custom_set(proto_tree* tree, GSList *field_id,
                              int occurrence,
+                             bool display_details,
                              char *result,
                              char *expr, const int size );
 
@@ -3513,11 +3590,6 @@ proto_custom_set(proto_tree* tree, GSList *field_id,
  @return allocated display filter string.  Needs to be freed with g_free(...) */
 char *
 proto_custom_get_filter(struct epan_dissect *edt, GSList *field_id, int occurrence);
-
-/** @} */
-
-const char *
-hfinfo_char_value_format_display(int display, char buf[7], uint32_t value);
 
 #ifdef __cplusplus
 }

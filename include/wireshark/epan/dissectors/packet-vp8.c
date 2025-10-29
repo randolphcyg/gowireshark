@@ -20,6 +20,8 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 void proto_reg_handoff_vp8(void);
 void proto_register_vp8(void);
@@ -195,7 +197,7 @@ dissect_vp8(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
     dissect_vp8_payload(tvb, pinfo, vp8_tree, &offset, &frametype, &partition1_size);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " - %s",
-        val_to_str(frametype, vp8_type_values, "Unknown Type (%u)"));
+        val_to_str(pinfo->pool, frametype, vp8_type_values, "Unknown Type (%u)"));
 
     return tvb_captured_length(tvb);
 }

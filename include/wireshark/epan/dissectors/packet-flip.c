@@ -235,7 +235,7 @@ dissect_flip(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
     /* Fill in the info column. */
     col_add_fstr(pinfo->cinfo, COL_INFO,
-                 "FlowID %s", val_to_str(basic_hdr_flow_id, NULL, "0x%08x"));
+                 "FlowID %s", val_to_str(pinfo->pool, basic_hdr_flow_id, NULL, "0x%08x"));
 
     flip_tvb = tvb_new_subset_length(tvb, 0, frame_len);
 
@@ -244,7 +244,7 @@ dissect_flip(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
         ti = proto_tree_add_protocol_format(
                 tree, proto_flip, flip_tvb, 0, flip_len,
                 "NSN FLIP, FlowID %s",
-                val_to_str(basic_hdr_flow_id, NULL, "0x%08x"));
+                val_to_str(pinfo->pool, basic_hdr_flow_id, NULL, "0x%08x"));
         flip_tree = proto_item_add_subtree(ti, ett_flip);
 
         /* basic header */
@@ -357,7 +357,7 @@ dissect_flip(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
         payload_tvb = tvb_new_subset_length(flip_tvb, offset, payload_len);
 
-        data_len = dissector_try_payload(subdissector_table, payload_tvb, pinfo, tree);
+        data_len = dissector_try_payload_with_data(subdissector_table, payload_tvb, pinfo, tree, true, NULL);
         if (data_len <= 0)
         {
             data_len = call_data_dissector(payload_tvb, pinfo, tree);

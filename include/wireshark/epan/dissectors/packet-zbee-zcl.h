@@ -13,6 +13,8 @@
 #ifndef PACKET_ZBEE_ZCL_H
 #define PACKET_ZBEE_ZCL_H
 
+#include <wsutil/epochs.h>
+
 /*  Structure to contain the ZCL frame information */
 typedef struct{
     bool        mfr_spec;
@@ -45,8 +47,8 @@ typedef struct{
 #define ZBEE_ZCL_CMD_WRITE_ATTR_STRUCT_RESP     0x10
 #define ZBEE_ZCL_CMD_DISCOVER_CMDS_REC          0x11
 #define ZBEE_ZCL_CMD_DISCOVER_CMDS_REC_RESP     0x12
-#define ZBEE_ZCL_CMD_DISCOVER_CMDS_GEN          0X13
-#define ZBEE_ZCL_CMD_DISCOVER_CMDS_GEN_RESP     0X14
+#define ZBEE_ZCL_CMD_DISCOVER_CMDS_GEN          0x13
+#define ZBEE_ZCL_CMD_DISCOVER_CMDS_GEN_RESP     0x14
 #define ZBEE_ZCL_CMD_DISCOVER_ATTR_EXTENDED     0x15
 #define ZBEE_ZCL_CMD_DISCOVER_ATTR_EXTENDED_RESP 0x16
 
@@ -176,7 +178,7 @@ typedef struct{
 /* ZigBee ZCL Cluster Key */
 #define ZCL_CLUSTER_MFR_KEY(cluster_id,mfr_code)    (((mfr_code)<<16) | (cluster_id))
 
-typedef void (*zbee_zcl_fn_attr_data)(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
+typedef void (*zbee_zcl_fn_attr_data)(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 typedef struct _zbee_zcl_cluster_desc {
     int         proto_id;
@@ -196,23 +198,25 @@ extern const value_string zbee_zcl_short_data_type_names[];
 extern const value_string zbee_mfr_code_names[];
 extern const value_string zbee_zcl_status_names[];
 
+extern const time_value_string now_strings[];
+extern const time_value_string zbee_zcl_utctime_strings[];
+
 /* Dissector functions */
 extern void dissect_zcl_read_attr (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned *offset, uint16_t cluster_id, uint16_t mfr_code, bool direction);
 extern void dissect_zcl_write_attr (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned *offset, uint16_t cluster_id, uint16_t mfr_code, bool direction);
 extern void dissect_zcl_report_attr(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsigned *offset, uint16_t cluster_id, uint16_t mfr_code, bool direction);
 extern void dissect_zcl_read_attr_resp (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned *offset, uint16_t cluster_id, uint16_t mfr_code, bool direction);
 extern void dissect_zcl_attr_id(tvbuff_t *tvb, proto_tree *tree, unsigned *offset, uint16_t cluster_id, uint16_t mfr_code, bool client_attr);
-extern void dissect_zcl_attr_data_type_val(tvbuff_t *tvb, proto_tree *tree, unsigned *offset, uint16_t attr_id, uint16_t cluster_id, uint16_t mfr_code, bool client_attr);
+extern void dissect_zcl_attr_data_type_val(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, unsigned *offset, uint16_t attr_id, uint16_t cluster_id, uint16_t mfr_code, bool client_attr);
 extern unsigned dissect_zcl_attr_uint8 (tvbuff_t *tvb, proto_tree *tree, unsigned *offset, int *length);
 
 /* Helper functions */
 
 /* Exported DLL functions */
-void decode_zcl_utc_time (char *s, uint32_t value);
 WS_DLL_PUBLIC void decode_zcl_time_in_100ms (char *s, uint16_t value);
 WS_DLL_PUBLIC void decode_zcl_time_in_seconds (char *s, uint16_t value);
 WS_DLL_PUBLIC void decode_zcl_time_in_minutes (char *s, uint16_t value);
-WS_DLL_PUBLIC void dissect_zcl_attr_data (tvbuff_t *tvb, proto_tree *tree, unsigned *offset, unsigned data_type, bool client_attr);
+WS_DLL_PUBLIC void dissect_zcl_attr_data (tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, unsigned *offset, unsigned data_type, bool client_attr);
 
 WS_DLL_PUBLIC void zbee_zcl_init_cluster(const char *proto_abbrev, int proto, int ett, uint16_t cluster_id, uint16_t mfr_code, int hf_attr_server_id, int hf_attr_client_id, int hf_cmd_rx_id, int hf_cmd_tx_id, zbee_zcl_fn_attr_data fn_attr_data);
 
@@ -245,5 +249,12 @@ WS_DLL_PUBLIC void zbee_zcl_init_cluster(const char *proto_abbrev, int proto, in
 #define ZBEE_ZCL_CSC_THERMOSTAT_C_SWS_SP_C          0x02
 #define ZBEE_ZCL_CSC_THERMOSTAT_C_SWS_SP_H          0x01
 #define ZBEE_ZCL_CSC_THERMOSTAT_S_GWSR              0x00
+
+/*
+ * Convert a given Zigbee time value to an nstime_t, for initializing
+ * fields in a time_value_string.
+ */
+#define NSTIME_INIT_ZBEE(t) \
+    NSTIME_INIT_SECS(((uint32_t)(t)) + EPOCH_DELTA_2000_01_01_00_00_00_UTC)
 
 #endif /* PACKET_ZBEE_ZCL_H*/

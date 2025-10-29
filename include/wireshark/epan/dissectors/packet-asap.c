@@ -208,17 +208,17 @@ dissect_error_causes(tvbuff_t *error_causes_tvb, packet_info *pinfo, proto_tree 
 /* Dissectors for parameters. This is common for ASAP and ENRP. */
 
 static void
-dissect_ipv4_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_ipv4_parameter(tvbuff_t *parameter_tvb, packet_info* pinfo, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   proto_tree_add_item(parameter_tree, hf_parameter_ipv4_address, parameter_tvb, IPV4_ADDRESS_OFFSET, IPV4_ADDRESS_LENGTH, ENC_BIG_ENDIAN);
-  proto_item_append_text(parameter_item, " (%s)", tvb_ip_to_str(wmem_packet_scope(), parameter_tvb, IPV4_ADDRESS_OFFSET));
+  proto_item_append_text(parameter_item, " (%s)", tvb_ip_to_str(pinfo->pool, parameter_tvb, IPV4_ADDRESS_OFFSET));
 }
 
 static void
-dissect_ipv6_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree, proto_item *parameter_item)
+dissect_ipv6_parameter(tvbuff_t *parameter_tvb, packet_info* pinfo, proto_tree *parameter_tree, proto_item *parameter_item)
 {
   proto_tree_add_item(parameter_tree, hf_parameter_ipv6_address, parameter_tvb, IPV6_ADDRESS_OFFSET, IPV6_ADDRESS_LENGTH, ENC_NA);
-  proto_item_append_text(parameter_item, " (%s)", tvb_ip6_to_str(wmem_packet_scope(), parameter_tvb, IPV6_ADDRESS_OFFSET));
+  proto_item_append_text(parameter_item, " (%s)", tvb_ip6_to_str(pinfo->pool, parameter_tvb, IPV6_ADDRESS_OFFSET));
 }
 
 static void
@@ -347,7 +347,7 @@ dissect_pool_member_selection_policy_parameter(tvbuff_t *parameter_tvb, proto_tr
 }
 
 static void
-dissect_pool_handle_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tree)
+dissect_pool_handle_parameter(tvbuff_t *parameter_tvb, packet_info* pinfo, proto_tree *parameter_tree)
 {
   uint16_t handle_length;
   proto_item*    pi;
@@ -356,7 +356,7 @@ dissect_pool_handle_parameter(tvbuff_t *parameter_tvb, proto_tree *parameter_tre
   pi = proto_tree_add_item(parameter_tree, hf_pool_handle, parameter_tvb, POOL_HANDLE_OFFSET, handle_length, ENC_NA);
 
   proto_item_append_text(pi, " (%s)",
-                         tvb_format_text(wmem_packet_scope(), parameter_tvb, POOL_HANDLE_OFFSET, handle_length));
+                         tvb_format_text(pinfo->pool, parameter_tvb, POOL_HANDLE_OFFSET, handle_length));
 }
 
 static void
@@ -464,10 +464,10 @@ dissect_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *asap_
   increment_dissection_depth(pinfo);
   switch(type) {
   case IPV4_ADDRESS_PARAMETER_TYPE:
-    dissect_ipv4_parameter(parameter_tvb, parameter_tree, parameter_item);
+    dissect_ipv4_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
     break;
   case IPV6_ADDRESS_PARAMETER_TYPE:
-    dissect_ipv6_parameter(parameter_tvb, parameter_tree, parameter_item);
+    dissect_ipv6_parameter(parameter_tvb, pinfo, parameter_tree, parameter_item);
     break;
   case DCCP_TRANSPORT_PARAMETER_TYPE:
     dissect_dccp_transport_parameter(parameter_tvb, pinfo, parameter_tree);
@@ -488,7 +488,7 @@ dissect_parameter(tvbuff_t *parameter_tvb, packet_info *pinfo, proto_tree *asap_
     dissect_pool_member_selection_policy_parameter(parameter_tvb, parameter_tree);
     break;
   case POOL_HANDLE_PARAMETER_TYPE:
-    dissect_pool_handle_parameter(parameter_tvb, parameter_tree);
+    dissect_pool_handle_parameter(parameter_tvb, pinfo, parameter_tree);
     break;
   case POOL_ELEMENT_PARAMETER_TYPE:
     dissect_pool_element_parameter(parameter_tvb, pinfo, parameter_tree);
@@ -902,10 +902,10 @@ proto_register_asap(void)
     { &hf_dccp_port,              { "Port",                        "asap.dccp_transport_port",                      FT_UINT16,  BASE_DEC,  NULL,                             0x0,                       NULL, HFILL } },
     { &hf_dccp_reserved,          { "Reserved",                    "asap.dccp_transport_reserved",                  FT_UINT16,  BASE_DEC,  NULL,                             0x0,                       NULL, HFILL } },
     { &hf_dccp_service_code,      { "Service Code",                "asap.dccp_transport_service_code",              FT_UINT16,  BASE_DEC,  NULL,                             0x0,                       NULL, HFILL } },
-    { &hf_sctp_port,              { "Port",                        "asap.sctp_transport_port",                      FT_UINT16,  BASE_DEC,  NULL,                             0x0,                       NULL, HFILL } },
+    { &hf_sctp_port,              { "Port",                        "asap.sctp_transport_port",                      FT_UINT16,  BASE_PT_SCTP,  NULL,                             0x0,                       NULL, HFILL } },
     { &hf_transport_use,          { "Transport Use",               "asap.transport_use",                            FT_UINT16,  BASE_DEC,  VALS(transport_use_values),       0x0,                       NULL, HFILL } },
-    { &hf_tcp_port,               { "Port",                        "asap.tcp_transport_port",                       FT_UINT16,  BASE_DEC,  NULL,                             0x0,                       NULL, HFILL } },
-    { &hf_udp_port,               { "Port",                        "asap.udp_transport_port",                       FT_UINT16,  BASE_DEC,  NULL,                             0x0,                       NULL, HFILL } },
+    { &hf_tcp_port,               { "Port",                        "asap.tcp_transport_port",                       FT_UINT16,  BASE_PT_TCP,  NULL,                             0x0,                       NULL, HFILL } },
+    { &hf_udp_port,               { "Port",                        "asap.udp_transport_port",                       FT_UINT16,  BASE_PT_UDP,  NULL,                             0x0,                       NULL, HFILL } },
     { &hf_udp_reserved,           { "Reserved",                    "asap.udp_transport_reserved",                   FT_UINT16,  BASE_DEC,  NULL,                             0x0,                       NULL, HFILL } },
     { &hf_udp_lite_port,          { "Port",                        "asap.udp_lite_transport_port",                  FT_UINT16,  BASE_DEC,  NULL,                             0x0,                       NULL, HFILL } },
     { &hf_udp_lite_reserved,      { "Reserved",                    "asap.udp_lite_transport_reserved",              FT_UINT16,  BASE_DEC,  NULL,                             0x0,                       NULL, HFILL } },

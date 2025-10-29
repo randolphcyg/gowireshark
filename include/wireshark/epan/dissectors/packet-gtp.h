@@ -23,7 +23,7 @@ typedef struct gtp_msg_hash_entry {
 typedef struct _gtp_hdr {
   uint8_t flags;  /* GTP header flags */
   uint8_t message; /* Message type */
-  uint16_t length; /* Length of header */
+  uint32_t length; /* Length of header */
   int64_t teid; /* Tunnel End-point ID */
 } gtp_hdr_t;
 
@@ -134,7 +134,16 @@ typedef struct _gtp_hdr {
 #define GTP_MSG_END_MARKER          0xFE /* 254 */
 #define GTP_MSG_TPDU                0xFF
 
+/* Used by custom dissector */
 extern value_string_ext cause_type_ext;
+
+static const value_string gtp_sel_mode_vals[] = {
+    { 0, "MS or network provided APN, subscription verified" },
+    { 1, "MS provided APN, subscription not verified" },
+    { 2, "Network provided APN, subscription not verified" },
+    { 3, "For future use. Shall not be sent. If received, shall be interpreted as the value 2 (Network provided APN, subscription not verified)" },
+    { 0, NULL }
+};
 
 /** GTP header extension info
 * This structure is used to transfer infotmation to users of the "gtp.hdr_ext" dissector table
@@ -158,10 +167,14 @@ typedef struct session_args {
     uint32_t last_teid;
     address last_ip;
     uint8_t last_cause;
+    const char *imsi;
 } session_args_t;
 
 /* Relation between frame -> session */
 extern wmem_map_t* session_table;
+
+/* Relation between session -> IMSI */
+extern wmem_map_t* session_imsi;
 
 /* Relation between <teid,ip> -> frame */
 extern wmem_map_t* frame_map;
@@ -180,8 +193,13 @@ void fill_map(wmem_list_t *teid_list, wmem_list_t *ip_list, uint32_t frame);
 
 bool is_cause_accepted(uint8_t cause, uint32_t version);
 
+/* Add teid map to IMSI from ex NGAP where both are known. */
+void gtp_add_teid_imsi(uint32_t teid, const char* imsi);
+
+WS_DLL_PUBLIC
 int decode_qos_umts(tvbuff_t * tvb, int offset, packet_info * pinfo, proto_tree * tree, const char * qos_str, uint8_t type);
 
+WS_DLL_PUBLIC
 void dissect_gtp_uli(tvbuff_t * tvb, int offset, packet_info * pinfo, proto_tree * tree, session_args_t * args _U_);
 
 #endif /* __PACKET_GTP_H*/

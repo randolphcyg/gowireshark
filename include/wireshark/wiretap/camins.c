@@ -56,6 +56,7 @@
 
 #include <glib.h>
 #include <string.h>
+#include <wsutil/pint.h>
 #include "wtap-int.h"
 #include "file_wrappers.h"
 
@@ -271,7 +272,7 @@ find_next_pkt_info(FILE_T fh,
                 break;
             default:
                 if (IS_TIMESTAMP(block[1]))
-                    process_timestamp(pletoh16(block), time_us);
+                    process_timestamp(pletohu16(block), time_us);
                 break;
         }
     } while (size_stat != SIZE_HAVE_ALL);
@@ -307,7 +308,7 @@ read_packet_data(FILE_T fh, uint8_t dat_trans_type, uint8_t *buf, uint16_t dat_l
             bytes_count++;
         }
         else if (IS_TIMESTAMP(block[1])) {
-                process_timestamp(pletoh16(block), time_us);
+                process_timestamp(pletohu16(block), time_us);
         }
         else if (IS_TRANS_SIZE(block[1])) {
             /* go back before the size transaction block
@@ -339,15 +340,14 @@ create_pseudo_hdr(uint8_t *buf, uint8_t dat_trans_type, uint16_t dat_len,
         return -1;
     }
 
-    buf[2] = (dat_len>>8) & 0xFF;
-    buf[3] = dat_len & 0xFF;
+    phtonu16(&buf[2], dat_len);
 
     return DVB_CI_PSEUDO_HDR_LEN;
 }
 
 
 static bool
-camins_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
+camins_read_packet(wtap *wth, FILE_T fh, wtap_rec *rec,
     uint64_t *time_us, int *err, char **err_info)
 {
     uint8_t     dat_trans_type;
@@ -365,8 +365,8 @@ camins_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
      * it.
      */
 
-    ws_buffer_assure_space(buf, DVB_CI_PSEUDO_HDR_LEN+dat_len);
-    p = ws_buffer_start_ptr(buf);
+    ws_buffer_assure_space(&rec->data, DVB_CI_PSEUDO_HDR_LEN+dat_len);
+    p = ws_buffer_start_ptr(&rec->data);
     offset = create_pseudo_hdr(p, dat_trans_type, dat_len, err_info);
     if (offset<0) {
         /* shouldn't happen, all invalid packets must be detected by
@@ -384,10 +384,9 @@ camins_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
         return false;
     offset += bytes_read;
 
-    rec->rec_type = REC_TYPE_PACKET;
+    wtap_setup_packet_rec(rec, wth->file_encap);
     rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
     rec->presence_flags = 0; /* we may or may not have a time stamp */
-    rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_DVBCI;
     if (time_us) {
         rec->presence_flags = WTAP_HAS_TS;
         rec->ts.secs = (time_t)(*time_us / (1000 * 1000));
@@ -401,24 +400,24 @@ camins_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
 
 
 static bool
-camins_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
+camins_read(wtap *wth, wtap_rec *rec, int *err,
     char **err_info, int64_t *data_offset)
 {
     *data_offset = file_tell(wth->fh);
 
-    return camins_read_packet(wth->fh, rec, buf, (uint64_t *)(wth->priv),
+    return camins_read_packet(wth, wth->fh, rec, (uint64_t *)(wth->priv),
                               err, err_info);
 }
 
 
 static bool
-camins_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec, Buffer *buf,
+camins_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
                  int *err, char **err_info)
 {
     if (-1 == file_seek(wth->random_fh, seek_off, SEEK_SET, err))
         return false;
 
-    return camins_read_packet(wth->random_fh, rec, buf, NULL, err, err_info);
+    return camins_read_packet(wth, wth->random_fh, rec, NULL, err, err_info);
 }
 
 

@@ -364,7 +364,7 @@ static int dissect_nano_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *na
 
     nano_magic_number = tvb_get_string_enc(pinfo->pool, tvb, offset, 2, ENC_ASCII);
     proto_tree_add_string_format_value(header_tree, hf_nano_magic_number, tvb, 0,
-            2, nano_magic_number, "%s (%s)", str_to_str(nano_magic_number, nano_magic_numbers, "Unknown"), nano_magic_number);
+            2, nano_magic_number, "%s (%s)", str_to_str_wmem(pinfo->pool, nano_magic_number, nano_magic_numbers, "Unknown"), nano_magic_number);
     offset += 2;
 
     proto_tree_add_item(header_tree, hf_nano_version_max, tvb, offset, 1, ENC_NA);
@@ -418,7 +418,7 @@ static int dissect_nano(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
             nano_block_type = (unsigned)((extensions >> 8) & 0xF);
             col_add_fstr(pinfo->cinfo, COL_INFO, "%s (%s)",
                     val_to_str_const(nano_packet_type, VALS(nano_packet_type_strings), " "),
-                    val_to_str(nano_block_type, VALS(nano_block_type_strings), "Unknown (%d)"));
+                    val_to_str(pinfo->pool, nano_block_type, VALS(nano_block_type_strings), "Unknown (%d)"));
 
             // if it's a Confirm Ack packet, we first have a vote
             if (nano_packet_type == NANO_PACKET_TYPE_CONFIRM_ACK) {
@@ -447,7 +447,7 @@ static int dissect_nano(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 
         default:
             col_add_str(pinfo->cinfo, COL_INFO,
-                    val_to_str(nano_packet_type, VALS(nano_packet_type_strings), "Unknown (%d)"));
+                    val_to_str(pinfo->pool, nano_packet_type, VALS(nano_packet_type_strings), "Unknown (%d)"));
     }
 
     return tvb_captured_length(tvb);

@@ -62,9 +62,9 @@ struct _color_filter; /* Forward */
 DIAG_OFF_PEDANTIC
 typedef struct _frame_data {
   uint32_t     num;          /**< Frame number */
+  uint32_t     dis_num;      /**< Displayed frame number */
   uint32_t     pkt_len;      /**< Packet length */
   uint32_t     cap_len;      /**< Amount actually captured */
-  uint32_t     cum_bytes;    /**< Cumulative bytes into the capture */
   int64_t      file_off;     /**< File offset */
   /* These two are pointers, meaning 64-bit on LP64 (64-bit UN*X) and
      LLP64 (64-bit Windows) platforms.  Put them here, one after the
@@ -72,6 +72,8 @@ typedef struct _frame_data {
   GSList      *pfd;          /**< Per frame proto data */
   GHashTable  *dependent_frames;     /**< A hash table of frames which this one depends on */
   const struct _color_filter *color_filter;  /**< Per-packet matching color_filter_t object */
+  uint32_t     cum_bytes;    /**< Cumulative bytes into the capture */
+  /* XXX - cum_bytes presumably ought to be 64-bit as well now */
   uint8_t      tcp_snd_manual_analysis;   /**< TCP SEQ Analysis Overriding, 0 = none, 1 = OOO, 2 = RET , 3 = Fast RET, 4 = Spurious RET  */
   /* Keep the bitfields below to 24 bits, so this plus the previous field
      are 32 bits. (XXX - The previous field could be a bitfield too.) */
@@ -89,7 +91,10 @@ typedef struct _frame_data {
   unsigned int tsprec           : 4; /**< Time stamp precision -2^tsprec gives up to femtoseconds */
   nstime_t     abs_ts;       /**< Absolute timestamp */
   nstime_t     shift_offset; /**< How much the abs_tm of the frame is shifted */
-  uint32_t     frame_ref_num; /**< Previous reference frame (0 if this is one) */
+  uint32_t     frame_ref_num; /**< Reference frame for relative timestamps (can be this frame) */
+  /* frame_ref_num == num if ref_time == true, but also if this is the first
+   * record that has_ts (or if somehow a record without a TS is a reference
+   * time frame, the first frame after that with has_ts == true.) */
   uint32_t     prev_dis_num; /**< Previous displayed frame (0 if first one) */
 } frame_data;
 DIAG_ON_PEDANTIC
@@ -105,8 +110,21 @@ WS_DLL_PUBLIC void frame_data_init(frame_data *fdata, uint32_t num,
                 const wtap_rec *rec, int64_t offset,
                 uint32_t cum_bytes);
 
-extern void frame_delta_abs_time(const struct epan_session *epan, const frame_data *fdata,
-                uint32_t prev_num, nstime_t *delta);
+extern bool frame_rel_first_frame_time(const struct epan_session *epan,
+                                       const frame_data *fdata,
+                                       nstime_t *delta);
+
+extern bool frame_rel_time(const struct epan_session *epan,
+                           const frame_data *fdata, nstime_t *delta);
+
+extern bool frame_delta_time_prev_captured(const struct epan_session *epan,
+                                           const frame_data *fdata,
+                                           nstime_t *delta);
+
+extern bool frame_delta_time_prev_displayed(const struct epan_session *epan,
+                                            const frame_data *fdata,
+                                            nstime_t *delta);
+
 /**
  * Sets the frame data struct values before dissection.
  */

@@ -629,7 +629,7 @@ dissect_comrej(tvbuff_t *tvb, int offset, packet_info *pinfo _U_, proto_tree *tr
         offset += 2;
         break;
 
-    case 0x0002: /* Invalid CID in requets */
+    case 0x0002: /* Invalid CID in requests */
         proto_tree_add_item(tree, hf_btl2cap_scid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
         offset += 2;
 
@@ -2318,10 +2318,10 @@ dissect_b_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         proto_item_set_generated(psm_item);
 
         /* call next dissector */
-        if (!dissector_try_uint_new(l2cap_cid_dissector_table, (uint32_t) cid, next_tvb, pinfo, tree, true, l2cap_data)) {
-            if (!dissector_try_uint_new(l2cap_psm_dissector_table, (uint32_t) psm, next_tvb, pinfo, tree, true, l2cap_data)) {
+        if (!dissector_try_uint_with_data(l2cap_cid_dissector_table, (uint32_t) cid, next_tvb, pinfo, tree, true, l2cap_data)) {
+            if (!dissector_try_uint_with_data(l2cap_psm_dissector_table, (uint32_t) psm, next_tvb, pinfo, tree, true, l2cap_data)) {
                 /* not a known fixed PSM, try to find a registered service to a dynamic PSM */
-                if (!dissector_try_string(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &uuid), next_tvb, pinfo, tree, l2cap_data)) {
+                if (!dissector_try_string_with_data(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &uuid), next_tvb, pinfo, tree, true,l2cap_data)) {
                     /* unknown protocol. declare as data */
                     proto_tree_add_item(btl2cap_tree, hf_btl2cap_payload, tvb, offset, length, ENC_NA);
                 }
@@ -2329,7 +2329,7 @@ dissect_b_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         }
         offset = tvb_captured_length(tvb);
     } else {
-        if (!dissector_try_uint_new(l2cap_cid_dissector_table, (uint32_t) cid, next_tvb, pinfo, tree, true, l2cap_data))
+        if (!dissector_try_uint_with_data(l2cap_cid_dissector_table, (uint32_t) cid, next_tvb, pinfo, tree, true, l2cap_data))
             proto_tree_add_item(btl2cap_tree, hf_btl2cap_payload, tvb, offset, length, ENC_NA);
         offset = tvb_captured_length(tvb);
     }
@@ -2457,10 +2457,10 @@ dissect_le_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     if (new_tvb) {
         if (psm) {
-            if (!dissector_try_uint_new(l2cap_cid_dissector_table, (uint32_t)cid, new_tvb, pinfo, tree, true, l2cap_data)) {
-                if (!dissector_try_uint_new(l2cap_psm_dissector_table, (uint32_t)psm, new_tvb, pinfo, tree, true, l2cap_data)) {
+            if (!dissector_try_uint_with_data(l2cap_cid_dissector_table, (uint32_t)cid, new_tvb, pinfo, tree, true, l2cap_data)) {
+                if (!dissector_try_uint_with_data(l2cap_psm_dissector_table, (uint32_t)psm, new_tvb, pinfo, tree, true, l2cap_data)) {
                     /* not a known fixed PSM, try to find a registered service to a dynamic PSM */
-                    if (!dissector_try_string(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &uuid), new_tvb, pinfo, tree, l2cap_data)) {
+                    if (!dissector_try_string_with_data(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &uuid), new_tvb, pinfo, tree, true, l2cap_data)) {
                         /* unknown protocol. declare as data */
                         proto_tree_add_item(btl2cap_tree, hf_btl2cap_payload, tvb, offset, length, ENC_NA);
                     }
@@ -2468,7 +2468,7 @@ dissect_le_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             }
         } else {
             /* call next dissector */
-            if (!dissector_try_uint_new(l2cap_cid_dissector_table, (uint32_t)cid, new_tvb, pinfo, tree, true, l2cap_data)) {
+            if (!dissector_try_uint_with_data(l2cap_cid_dissector_table, (uint32_t)cid, new_tvb, pinfo, tree, true, l2cap_data)) {
                 proto_tree_add_item(btl2cap_tree, hf_btl2cap_payload, tvb, offset, length, ENC_NA);
             }
         }
@@ -2642,9 +2642,9 @@ dissect_i_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             proto_item_set_generated(psm_item);
 
             /* call next dissector */
-            if (!dissector_try_uint_new(l2cap_psm_dissector_table, (uint32_t) psm, next_tvb, pinfo, tree, true, l2cap_data)) {
+            if (!dissector_try_uint_with_data(l2cap_psm_dissector_table, (uint32_t) psm, next_tvb, pinfo, tree, true, l2cap_data)) {
                 /* not a known fixed PSM, try to find a registered service to a dynamic PSM */
-                if (!dissector_try_string(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &uuid), next_tvb, pinfo, tree, l2cap_data)) {
+                if (!dissector_try_string_with_data(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &uuid), next_tvb, pinfo, tree, true,l2cap_data)) {
                     /* unknown protocol. declare as data */
                     proto_tree_add_item(btl2cap_tree, hf_btl2cap_payload, next_tvb, 0, tvb_reported_length(next_tvb), ENC_NA);
                 }
@@ -2991,7 +2991,7 @@ dissect_btl2cap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         next_tvb = tvb_new_subset_length(tvb, offset, length);
 
         /* call next dissector */
-        if (!dissector_try_uint_new(l2cap_psm_dissector_table, (uint32_t) psm, next_tvb, pinfo, tree, true, l2cap_data)) {
+        if (!dissector_try_uint_with_data(l2cap_psm_dissector_table, (uint32_t) psm, next_tvb, pinfo, tree, true, l2cap_data)) {
             /* not a known fixed PSM, try to find a registered service to a dynamic PSM */
             uint16_t bt_uuid;
             bluetooth_uuid_t  uuid;
@@ -3011,7 +3011,7 @@ dissect_btl2cap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
                 p_add_proto_data(pinfo->pool, pinfo, proto_bluetooth, PROTO_DATA_BLUETOOTH_SERVICE_UUID, value_data);
             }
 
-            if (!dissector_try_string(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &uuid), next_tvb, pinfo, tree, l2cap_data)) {
+            if (!dissector_try_string_with_data(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &uuid), next_tvb, pinfo, tree, true, l2cap_data)) {
                 /* unknown protocol. declare as data */
                 proto_tree_add_item(btl2cap_tree, hf_btl2cap_payload, tvb, offset, length, ENC_NA);
             }
@@ -3049,7 +3049,7 @@ dissect_btl2cap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
             next_tvb = tvb_new_subset_length_caplen(tvb, offset, tvb_captured_length_remaining(tvb, offset), length);
         }
         /* call next dissector */
-        if (next_tvb && !dissector_try_uint_new(l2cap_cid_dissector_table, (uint32_t) cid,
+        if (next_tvb && !dissector_try_uint_with_data(l2cap_cid_dissector_table, (uint32_t) cid,
                     next_tvb, pinfo, tree, true, l2cap_data)) {
             /* unknown protocol. declare as data */
             proto_tree_add_item(btl2cap_tree, hf_btl2cap_payload, tvb, offset, length, ENC_NA);

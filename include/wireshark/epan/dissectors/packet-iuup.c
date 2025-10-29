@@ -28,25 +28,11 @@
 #include <wsutil/crc10.h>
 #include <wsutil/crc6.h>
 
+#include "packet-rtp.h"
+#include "packet-iuup.h"
+
 void proto_reg_handoff_iuup(void);
 void proto_register_iuup(void);
-
-typedef struct _iuup_rfci_t {
-    unsigned id;
-    unsigned sum_len;
-    unsigned num_of_subflows;
-    struct {
-        unsigned len;
-    } subflow[8];
-    struct _iuup_rfci_t* next;
-} iuup_rfci_t;
-
-typedef struct {
-    uint32_t id;
-    unsigned num_of_subflows;
-    iuup_rfci_t* rfcis;
-    iuup_rfci_t* last_rfci;
-} iuup_circuit_t;
 
 static int proto_iuup;
 
@@ -130,10 +116,6 @@ static dissector_handle_t iuup_handle;
 
 static bool dissect_fields;
 static bool two_byte_pseudoheader;
-
-#define PDUTYPE_DATA_WITH_CRC 0
-#define PDUTYPE_DATA_NO_CRC 1
-#define PDUTYPE_DATA_CONTROL_PROC 14
 
 static const value_string iuup_pdu_types[] = {
     {PDUTYPE_DATA_WITH_CRC,"Data with CRC"},
@@ -319,8 +301,29 @@ iuup_proto_tree_add_bits(packet_info *pinfo, proto_tree* tree, int hf, tvbuff_t*
     return pi;
 }
 
-static void dissect_iuup_payload(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, unsigned rfci_id, int offset, uint32_t circuit_id) {
-    iuup_circuit_t* iuup_circuit;
+static iuup_circuit_t *find_iuup_circuit(packet_info *pinfo)
+{
+    iuup_circuit_t *iuup_circuit;
+    conversation_t *p_conv;
+
+    if (two_byte_pseudoheader) {
+        uint32_t circuit_id = conversation_get_id_from_elements(pinfo, CONVERSATION_IUUP, USE_LAST_ENDPOINT);
+        iuup_circuit = (iuup_circuit_t *)wmem_map_lookup(circuits,GUINT_TO_POINTER(circuit_id));
+        return iuup_circuit;
+    }
+
+    p_conv = find_conversation(pinfo->num,
+                               &pinfo->net_dst, &pinfo->net_src,
+                               CONVERSATION_IUUP,
+                               pinfo->destport, pinfo->srcport, 0);
+    if (!p_conv)
+        return NULL;
+    iuup_circuit = (iuup_circuit_t *)conversation_get_proto_data(p_conv, proto_iuup);
+    return iuup_circuit;
+}
+
+static void dissect_iuup_payload(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, unsigned rfci_id, int offset) {
+    iuup_circuit_t *iuup_circuit;
     iuup_rfci_t *rfci;
     int last_offset = tvb_reported_length(tvb) - 1;
     unsigned bit_offset = 0;
@@ -331,10 +334,9 @@ static void dissect_iuup_payload(tvbuff_t* tvb, packet_info* pinfo, proto_tree* 
 
     pi = proto_tree_add_item(tree,hf_iuup_payload,tvb,offset,-1,ENC_NA);
 
-    if ( ! dissect_fields ) {
+    if (!dissect_fields)
         return;
-    } else if ( ! circuit_id
-                || ! ( iuup_circuit  = (iuup_circuit_t *)wmem_map_lookup(circuits,GUINT_TO_POINTER(circuit_id)) ) ) {
+    if (!(iuup_circuit = find_iuup_circuit(pinfo))) {
         expert_add_info(pinfo, pi, &ei_iuup_payload_undecoded);
         return;
     }
@@ -379,13 +381,14 @@ static void dissect_iuup_payload(tvbuff_t* tvb, packet_info* pinfo, proto_tree* 
     } while (offset <= last_offset);
 }
 
-static unsigned dissect_rfcis(tvbuff_t* tvb, packet_info* pinfo _U_, proto_tree* tree, int* offset, iuup_circuit_t* iuup_circuit) {
+static unsigned dissect_rfcis(tvbuff_t* tvb, packet_info* pinfo _U_, proto_tree* tree, int* offset, iuup_circuit_t *iuup_circuit) {
     proto_item* pi;
     proto_tree* pt;
     uint8_t oct;
     unsigned c = 0;
     unsigned i;
 
+    DISSECTOR_ASSERT(iuup_circuit);
     do {
         iuup_rfci_t *rfci = wmem_new0(wmem_file_scope(), iuup_rfci_t);
         unsigned len = 0;
@@ -439,7 +442,7 @@ static unsigned dissect_rfcis(tvbuff_t* tvb, packet_info* pinfo _U_, proto_tree*
     return c - 1;
 }
 
-static void dissect_iuup_init(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, uint32_t circuit_id) {
+static void dissect_iuup_init(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree) {
     int offset = 4;
     uint8_t oct = tvb_get_uint8(tvb,offset);
     unsigned n = (oct & 0x0e) >> 1;
@@ -449,27 +452,33 @@ static void dissect_iuup_init(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tre
     proto_item* pi;
     proto_tree* support_tree = NULL;
     proto_tree* iptis_tree;
-    iuup_circuit_t* iuup_circuit = NULL;
+    iuup_circuit_t *iuup_circuit = NULL;
+    uint32_t circuit_id = 0;
 
-    if (circuit_id) {
-        iuup_circuit = (iuup_circuit_t *)wmem_map_lookup(circuits,GUINT_TO_POINTER(circuit_id));
-
+    if (two_byte_pseudoheader) {
+        iuup_circuit = find_iuup_circuit(pinfo);
         if (iuup_circuit) {
-            wmem_map_remove(circuits,GUINT_TO_POINTER(circuit_id));
+            circuit_id = iuup_circuit->id;
+            wmem_map_remove(circuits,GUINT_TO_POINTER(iuup_circuit->id));
+            iuup_circuit = NULL;
+        } else {
+            circuit_id = conversation_get_id_from_elements(pinfo, CONVERSATION_IUUP, USE_LAST_ENDPOINT);
         }
-
-        iuup_circuit = wmem_new0(wmem_file_scope(), iuup_circuit_t);
-    } else {
-        iuup_circuit = wmem_new0(pinfo->pool, iuup_circuit_t);
     }
 
+    iuup_circuit = wmem_new0(wmem_file_scope(), iuup_circuit_t);
     iuup_circuit->id = circuit_id;
     iuup_circuit->num_of_subflows = n;
     iuup_circuit->rfcis = NULL;
     iuup_circuit->last_rfci = NULL;
 
-    if (circuit_id) {
-        wmem_map_insert(circuits,GUINT_TO_POINTER(iuup_circuit->id),iuup_circuit);
+    if (two_byte_pseudoheader) {
+        wmem_map_insert(circuits,GUINT_TO_POINTER(circuit_id),iuup_circuit);
+    } else {
+        conversation_t *p_conv;
+        p_conv = conversation_new(pinfo->num, &pinfo->net_dst, &pinfo->net_src, CONVERSATION_IUUP,
+                                  pinfo->destport, pinfo->srcport, 0);
+        conversation_add_proto_data(p_conv, proto_iuup, iuup_circuit);
     }
 
     if (tree) {
@@ -567,19 +576,155 @@ static void add_payload_crc(tvbuff_t* tvb, packet_info* pinfo, proto_item* iuup_
     }
 }
 
-#define ACKNACK_MASK  0x0c
-#define PROCEDURE_MASK  0x0f
-#define FQC_MASK 0xc0
-#define PDUTYPE_MASK 0xf0
-static int dissect_iuup(tvbuff_t* tvb_in, packet_info* pinfo, proto_tree* tree, void* data _U_) {
-    proto_item* pi;
+static int dissect_iuup_data(tvbuff_t* tvb, packet_info* pinfo,
+                              proto_tree* iuup_tree, void* data _U_, uint8_t pdutype)
+{
+    proto_item *pi;
+    uint8_t first_octet;
+    uint8_t second_octet;
+    uint8_t payload_offset;
+
+    first_octet = tvb_get_uint8(tvb,0);
+    second_octet = tvb_get_uint8(tvb,1);
+
+    col_append_fstr(pinfo->cinfo, COL_INFO,"FN: %x RFCI: %u", (unsigned)(first_octet & 0x0f), (unsigned)(second_octet & 0x3f));
+
+    proto_tree_add_item(iuup_tree,hf_iuup_frame_number,tvb,0,1,ENC_BIG_ENDIAN);
+    pi = proto_tree_add_item(iuup_tree,hf_iuup_fqc,tvb,1,1,ENC_BIG_ENDIAN);
+
+    if (first_octet & FQC_MASK) {
+        expert_add_info(pinfo, pi, &ei_iuup_error_response);
+    }
+
+    proto_tree_add_item(iuup_tree,hf_iuup_rfci,tvb,1,1,ENC_BIG_ENDIAN);
+    add_hdr_crc(tvb, pinfo, iuup_tree);
+    switch (pdutype) {
+    case PDUTYPE_DATA_WITH_CRC:
+        add_payload_crc(tvb, pinfo, iuup_tree);
+        payload_offset = 4;
+        break;
+    case PDUTYPE_DATA_NO_CRC:
+        payload_offset = 3;
+        break;
+    }
+    dissect_iuup_payload(tvb,pinfo,iuup_tree,second_octet & 0x3f, payload_offset);
+    return tvb_captured_length(tvb);
+}
+
+static int dissect_iuup_control(tvbuff_t* tvb, packet_info* pinfo,
+                                 proto_tree* iuup_tree, void* data _U_)
+{
+    proto_item *pi;
+    proto_item *proc_item = NULL;
+    proto_item *ack_item = NULL;
+    uint8_t first_octet;
+    uint8_t second_octet;
+
+    first_octet = tvb_get_uint8(tvb,0);
+    second_octet = tvb_get_uint8(tvb,1);
+
+    if (iuup_tree) {
+        ack_item = proto_tree_add_item(iuup_tree,hf_iuup_ack_nack,tvb,0,1,ENC_BIG_ENDIAN);
+        proto_tree_add_item(iuup_tree,hf_iuup_frame_number_t14,tvb,0,1,ENC_BIG_ENDIAN);
+        proto_tree_add_item(iuup_tree,hf_iuup_mode_version,tvb,1,1,ENC_BIG_ENDIAN);
+        proc_item = proto_tree_add_item(iuup_tree,hf_iuup_procedure_indicator,tvb,1,1,ENC_BIG_ENDIAN);
+        add_hdr_crc(tvb, pinfo, iuup_tree);
+    }
+
+    col_append_str(pinfo->cinfo, COL_INFO,
+                    val_to_str(pinfo->pool, first_octet & ACKNACK_MASK,
+                                iuup_colinfo_acknack_vals, "[action:%u] "));
+
+    col_append_str(pinfo->cinfo, COL_INFO,
+                    val_to_str(pinfo->pool, second_octet & PROCEDURE_MASK,
+                                iuup_colinfo_procedures, "[proc:%u] "));
+
+    switch ( first_octet & ACKNACK_MASK ) {
+        case ACKNACK_ACK:
+            switch(second_octet & PROCEDURE_MASK) {
+                case PROC_INIT:
+                    proto_tree_add_item(iuup_tree,hf_iuup_spare_03,tvb,2,1,ENC_BIG_ENDIAN);
+                    proto_tree_add_item(iuup_tree,hf_iuup_spare_ff,tvb,3,1,ENC_BIG_ENDIAN);
+                    return tvb_captured_length(tvb);
+                case PROC_RATE:
+                    dissect_iuup_ratectl(tvb,pinfo,iuup_tree);
+                    return tvb_captured_length(tvb);
+                case PROC_TIME:
+                case PROC_ERROR:
+                    break;
+                default:
+                    expert_add_info(pinfo, proc_item, &ei_iuup_procedure_indicator);
+                    return tvb_captured_length(tvb);
+            }
+            break;
+        case ACKNACK_NACK:
+            pi = proto_tree_add_item(iuup_tree,hf_iuup_error_cause_val,tvb,4,1,ENC_BIG_ENDIAN);
+            expert_add_info(pinfo, pi, &ei_iuup_error_response);
+            return tvb_captured_length(tvb);
+        case ACKNACK_RESERVED:
+            expert_add_info(pinfo, ack_item, &ei_iuup_ack_nack);
+            return tvb_captured_length(tvb);
+        case ACKNACK_PROC:
+            break;
+    }
+
+    switch( second_octet & PROCEDURE_MASK ) {
+        case PROC_INIT:
+            add_payload_crc(tvb, pinfo, iuup_tree);
+            dissect_iuup_init(tvb,pinfo,iuup_tree);
+            return tvb_captured_length(tvb);
+        case PROC_RATE:
+            add_payload_crc(tvb, pinfo, iuup_tree);
+            dissect_iuup_ratectl(tvb,pinfo,iuup_tree);
+            return tvb_captured_length(tvb);
+        case PROC_TIME:
+        {
+            proto_tree* time_tree;
+            unsigned ta;
+
+            ta = tvb_get_uint8(tvb,4);
+
+            pi = proto_tree_add_item(iuup_tree,hf_iuup_time_align,tvb,4,1,ENC_BIG_ENDIAN);
+            time_tree = proto_item_add_subtree(pi,ett_time);
+
+            if (ta >= 1 && ta <= 80) {
+                pi = proto_tree_add_uint(time_tree,hf_iuup_delay,tvb,4,1,ta * 500);
+                proto_item_set_generated(pi);
+                pi = proto_tree_add_float(time_tree,hf_iuup_delta,tvb,4,1,((float)((int)(ta) * 500))/(float)1000000.0);
+                proto_item_set_generated(pi);
+            } else if (ta >= 129 && ta <= 208) {
+                pi = proto_tree_add_uint(time_tree,hf_iuup_advance,tvb,4,1,(ta-128) * 500);
+                proto_item_set_generated(pi);
+                pi = proto_tree_add_float(time_tree,hf_iuup_delta,tvb,4,1,((float)((int)(-(((int)ta)-128))) * 500)/(float)1000000.0);
+                proto_item_set_generated(pi);
+            } else {
+                expert_add_info(pinfo, pi, &ei_iuup_time_align);
+            }
+
+            proto_tree_add_item(iuup_tree,hf_iuup_spare_bytes,tvb,5,-1,ENC_NA);
+            return tvb_captured_length(tvb);
+        }
+        case PROC_ERROR:
+            col_append_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, tvb_get_uint8(tvb,4) & 0x3f,iuup_error_causes,"Unknown (%u)"));
+
+            proto_tree_add_item(iuup_tree,hf_iuup_error_distance,tvb,4,1,ENC_BIG_ENDIAN);
+            pi = proto_tree_add_item(iuup_tree,hf_iuup_errorevt_cause_val,tvb,4,1,ENC_BIG_ENDIAN);
+            expert_add_info(pinfo, pi, &ei_iuup_error_response);
+            proto_tree_add_item(iuup_tree,hf_iuup_spare_bytes,tvb,5,-1,ENC_NA);
+            return tvb_captured_length(tvb);
+        default: /* bad */
+            expert_add_info(pinfo, proc_item, &ei_iuup_procedure_indicator);
+            return tvb_captured_length(tvb);
+    }
+    return tvb_captured_length(tvb);
+}
+
+static int dissect_iuup(tvbuff_t *tvb_in, packet_info *pinfo, proto_tree *tree, void *data) {
     proto_item* iuup_item = NULL;
     proto_item* pdutype_item = NULL;
     proto_tree* iuup_tree = NULL;
-    proto_item* proc_item = NULL;
-    proto_item* ack_item = NULL;
+    struct _rtp_info *rtp_info = NULL;
     uint8_t first_octet;
-    uint8_t second_octet;
     uint8_t pdutype;
     unsigned phdr = 0;
     tvbuff_t* tvb = tvb_in;
@@ -599,11 +744,13 @@ static int dissect_iuup(tvbuff_t* tvb_in, packet_info* pinfo, proto_tree* tree, 
         conversation_set_elements_by_id(pinfo, CONVERSATION_IUUP, phdr);
 
         tvb = tvb_new_subset_length(tvb_in,2,len);
+    } else if (data) {
+        /* Coming from RTP */
+        rtp_info = (struct _rtp_info*)data;
+        rtp_info->info_is_iuup = true;
     }
 
-    first_octet =  tvb_get_uint8(tvb,0);
-    second_octet =  tvb_get_uint8(tvb,1);
-
+    first_octet = tvb_get_uint8(tvb,0);
     pdutype = ( first_octet & PDUTYPE_MASK ) >> 4;
 
     if (tree) {
@@ -613,132 +760,14 @@ static int dissect_iuup(tvbuff_t* tvb_in, packet_info* pinfo, proto_tree* tree, 
         pdutype_item = proto_tree_add_item(iuup_tree,hf_iuup_pdu_type,tvb,0,1,ENC_BIG_ENDIAN);
     }
 
-    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pdutype, iuup_colinfo_pdu_types, "Unknown PDU Type(%u) "));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, pdutype, iuup_colinfo_pdu_types, "Unknown PDU Type(%u) "));
 
     switch(pdutype) {
         case PDUTYPE_DATA_WITH_CRC:
-            col_append_fstr(pinfo->cinfo, COL_INFO,"FN: %x RFCI: %u", (unsigned)(first_octet & 0x0f) ,(unsigned)(second_octet & 0x3f));
-
-            proto_tree_add_item(iuup_tree,hf_iuup_frame_number,tvb,0,1,ENC_BIG_ENDIAN);
-            pi = proto_tree_add_item(iuup_tree,hf_iuup_fqc,tvb,1,1,ENC_BIG_ENDIAN);
-
-            if (first_octet & FQC_MASK) {
-                expert_add_info(pinfo, pi, &ei_iuup_error_response);
-            }
-
-            proto_tree_add_item(iuup_tree,hf_iuup_rfci,tvb,1,1,ENC_BIG_ENDIAN);
-            add_hdr_crc(tvb, pinfo, iuup_tree);
-            add_payload_crc(tvb, pinfo, iuup_tree);
-            dissect_iuup_payload(tvb,pinfo,iuup_tree,second_octet & 0x3f,4, conversation_get_id_from_elements(pinfo, CONVERSATION_IUUP, USE_LAST_ENDPOINT));
-            return tvb_captured_length(tvb);
         case PDUTYPE_DATA_NO_CRC:
-            col_append_fstr(pinfo->cinfo, COL_INFO," RFCI %u", (unsigned)(second_octet & 0x3f));
-
-            proto_tree_add_item(iuup_tree,hf_iuup_frame_number,tvb,0,1,ENC_BIG_ENDIAN);
-            pi = proto_tree_add_item(iuup_tree,hf_iuup_fqc,tvb,1,1,ENC_BIG_ENDIAN);
-
-            if (first_octet & FQC_MASK) {
-                expert_add_info(pinfo, pi, &ei_iuup_error_response);
-            }
-
-            proto_tree_add_item(iuup_tree,hf_iuup_rfci,tvb,1,1,ENC_BIG_ENDIAN);
-            add_hdr_crc(tvb, pinfo, iuup_tree);
-            dissect_iuup_payload(tvb,pinfo,iuup_tree,second_octet & 0x3f,3, conversation_get_id_from_elements(pinfo, CONVERSATION_IUUP, USE_LAST_ENDPOINT));
-            return tvb_captured_length(tvb);
+            return dissect_iuup_data(tvb, pinfo, iuup_tree, data, pdutype);
         case PDUTYPE_DATA_CONTROL_PROC:
-            if (tree) {
-                ack_item = proto_tree_add_item(iuup_tree,hf_iuup_ack_nack,tvb,0,1,ENC_BIG_ENDIAN);
-                proto_tree_add_item(iuup_tree,hf_iuup_frame_number_t14,tvb,0,1,ENC_BIG_ENDIAN);
-                proto_tree_add_item(iuup_tree,hf_iuup_mode_version,tvb,1,1,ENC_BIG_ENDIAN);
-                proc_item = proto_tree_add_item(iuup_tree,hf_iuup_procedure_indicator,tvb,1,1,ENC_BIG_ENDIAN);
-                add_hdr_crc(tvb, pinfo, iuup_tree);
-            }
-
-            col_append_str(pinfo->cinfo, COL_INFO,
-                           val_to_str(first_octet & ACKNACK_MASK,
-                                      iuup_colinfo_acknack_vals, "[action:%u] "));
-
-            col_append_str(pinfo->cinfo, COL_INFO,
-                           val_to_str(second_octet & PROCEDURE_MASK,
-                                      iuup_colinfo_procedures, "[proc:%u] "));
-
-            switch ( first_octet & ACKNACK_MASK ) {
-                case ACKNACK_ACK:
-                    switch(second_octet & PROCEDURE_MASK) {
-                        case PROC_INIT:
-                            proto_tree_add_item(iuup_tree,hf_iuup_spare_03,tvb,2,1,ENC_BIG_ENDIAN);
-                            proto_tree_add_item(iuup_tree,hf_iuup_spare_ff,tvb,3,1,ENC_BIG_ENDIAN);
-                            return tvb_captured_length(tvb);
-                        case PROC_RATE:
-                            dissect_iuup_ratectl(tvb,pinfo,iuup_tree);
-                            return tvb_captured_length(tvb);
-                        case PROC_TIME:
-                        case PROC_ERROR:
-                            break;
-                        default:
-                            expert_add_info(pinfo, proc_item, &ei_iuup_procedure_indicator);
-                            return tvb_captured_length(tvb);
-                    }
-                    break;
-                case ACKNACK_NACK:
-                    pi = proto_tree_add_item(iuup_tree,hf_iuup_error_cause_val,tvb,4,1,ENC_BIG_ENDIAN);
-                    expert_add_info(pinfo, pi, &ei_iuup_error_response);
-                    return tvb_captured_length(tvb);
-                case ACKNACK_RESERVED:
-                    expert_add_info(pinfo, ack_item, &ei_iuup_ack_nack);
-                    return tvb_captured_length(tvb);
-                case ACKNACK_PROC:
-                    break;
-            }
-
-            switch( second_octet & PROCEDURE_MASK ) {
-                case PROC_INIT:
-                    add_payload_crc(tvb, pinfo, iuup_tree);
-                    dissect_iuup_init(tvb,pinfo,iuup_tree, conversation_get_id_from_elements(pinfo, CONVERSATION_IUUP, USE_LAST_ENDPOINT));
-                    return tvb_captured_length(tvb);
-                case PROC_RATE:
-                    add_payload_crc(tvb, pinfo, iuup_tree);
-                    dissect_iuup_ratectl(tvb,pinfo,iuup_tree);
-                    return tvb_captured_length(tvb);
-                case PROC_TIME:
-                {
-                    proto_tree* time_tree;
-                    unsigned ta;
-
-                    ta = tvb_get_uint8(tvb,4);
-
-                    pi = proto_tree_add_item(iuup_tree,hf_iuup_time_align,tvb,4,1,ENC_BIG_ENDIAN);
-                    time_tree = proto_item_add_subtree(pi,ett_time);
-
-                    if (ta >= 1 && ta <= 80) {
-                        pi = proto_tree_add_uint(time_tree,hf_iuup_delay,tvb,4,1,ta * 500);
-                        proto_item_set_generated(pi);
-                        pi = proto_tree_add_float(time_tree,hf_iuup_delta,tvb,4,1,((float)((int)(ta) * 500))/(float)1000000.0);
-                        proto_item_set_generated(pi);
-                    } else if (ta >= 129 && ta <= 208) {
-                        pi = proto_tree_add_uint(time_tree,hf_iuup_advance,tvb,4,1,(ta-128) * 500);
-                        proto_item_set_generated(pi);
-                        pi = proto_tree_add_float(time_tree,hf_iuup_delta,tvb,4,1,((float)((int)(-(((int)ta)-128))) * 500)/(float)1000000.0);
-                        proto_item_set_generated(pi);
-                    } else {
-                        expert_add_info(pinfo, pi, &ei_iuup_time_align);
-                    }
-
-                    proto_tree_add_item(iuup_tree,hf_iuup_spare_bytes,tvb,5,-1,ENC_NA);
-                    return tvb_captured_length(tvb);
-                }
-                case PROC_ERROR:
-                    col_append_str(pinfo->cinfo, COL_INFO, val_to_str(tvb_get_uint8(tvb,4) & 0x3f,iuup_error_causes,"Unknown (%u)"));
-
-                    proto_tree_add_item(iuup_tree,hf_iuup_error_distance,tvb,4,1,ENC_BIG_ENDIAN);
-                    pi = proto_tree_add_item(iuup_tree,hf_iuup_errorevt_cause_val,tvb,4,1,ENC_BIG_ENDIAN);
-                    expert_add_info(pinfo, pi, &ei_iuup_error_response);
-                    proto_tree_add_item(iuup_tree,hf_iuup_spare_bytes,tvb,5,-1,ENC_NA);
-                    return tvb_captured_length(tvb);
-                default: /* bad */
-                    expert_add_info(pinfo, proc_item, &ei_iuup_procedure_indicator);
-                    return tvb_captured_length(tvb);
-            }
+            return dissect_iuup_control(tvb, pinfo, iuup_tree, data);
         default:
             expert_add_info(pinfo, pdutype_item, &ei_iuup_pdu_type);
             break;

@@ -6,16 +6,7 @@
  * By Gerald Combs <gerald@wireshark.org>
  * Copyright 1998 Gerald Combs
  *
- * This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later
- * version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License along with this program; if not, write to the Free
- * Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "config.h"
@@ -359,9 +350,9 @@ dissect_greb_filter_list(packet_info *pinfo, tvbuff_t *tvb, proto_tree *attrb_tr
         proto_tree_add_item(filter_item_tree, hf_greb_attr_filter_item_enabled, tvb, offset + 4, 2, ENC_BIG_ENDIAN);
         proto_tree_add_item(filter_item_tree, hf_greb_attr_filter_item_desc_length, tvb, offset + 6, 2, ENC_BIG_ENDIAN);
         proto_tree_add_item(filter_item_tree, hf_greb_attr_filter_item_desc_val, tvb, offset + 8,
-            filter_item_desc_length, ENC_UTF_8 | ENC_NA);
+            filter_item_desc_length, ENC_UTF_8);
         proto_tree_add_item(filter_item_tree, hf_greb_attr_filter_item_val, tvb, offset + 8 + filter_item_desc_length,
-            filter_item_length - 4 - filter_item_desc_length, ENC_UTF_8 | ENC_NA);
+            filter_item_length - 4 - filter_item_desc_length, ENC_UTF_8);
 
         offset += filter_item_length + 4;
     }
@@ -392,8 +383,8 @@ dissect_greb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "GREbond");
     ti = proto_tree_add_protocol_format(tree, proto_greb, tvb, offset, -1, "Huawei GRE bonding control message (%s)",
-        val_to_str(message_type, greb_message_types, "0x%01X (unknown)"));
-    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(message_type, greb_message_types, "0x%02X (unknown)"));
+        val_to_str(pinfo->pool, message_type, greb_message_types, "0x%01X (unknown)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, message_type, greb_message_types, "0x%02X (unknown)"));
 
     greb_tree = proto_item_add_subtree(ti, ett_grebonding);
     proto_tree_add_item(greb_tree, hf_greb_message_type, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -406,14 +397,14 @@ dissect_greb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
         unsigned attrb_length = tvb_get_uint16(tvb, offset + 1, ENC_BIG_ENDIAN);
 
         it_attrb = proto_tree_add_none_format(greb_tree, hf_greb_attr, tvb, offset, attrb_length + 3, "Attribute - %s",
-            val_to_str(attrb_type, greb_attribute_types, "unknown (%d)"));
+            val_to_str(pinfo->pool, attrb_type, greb_attribute_types, "unknown (%d)"));
 
         attrb_tree = proto_item_add_subtree(it_attrb, ett_grebonding_attrb);
         proto_tree_add_item(attrb_tree, hf_greb_attr_type, tvb, offset, 1, ENC_BIG_ENDIAN);
         proto_tree_add_item(attrb_tree, hf_greb_attr_length, tvb, offset + 1, 2, ENC_BIG_ENDIAN);
         offset += 3;
 
-        // bound attrb_length to not exced packet
+        // bound attrb_length to not exceed packet
         if (attrb_length > (unsigned) tvb_reported_length_remaining(tvb, offset))
             attrb_length = tvb_reported_length_remaining(tvb, offset);
 
@@ -431,7 +422,7 @@ dissect_greb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
                 case GREB_ATTRB_TIME:
                     proto_tree_add_item(attrb_tree, hf_greb_attr_val_time, tvb, offset, attrb_length,
-                        ENC_TIME_TIMEVAL);
+                        ENC_TIME_SECS_USECS|ENC_BIG_ENDIAN);
                     break;
 
                 case GREB_ATTRB_FILTER_LIST:
@@ -444,12 +435,12 @@ dissect_greb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
                 case GREB_ATTRB_CIN:
                     proto_tree_add_item(attrb_tree, hf_greb_attr_val_string, tvb, offset, attrb_length,
-                        ENC_UTF_8 | ENC_NA);
+                        ENC_UTF_8);
                     break;
 
                 case GREB_ATTRB_DT_BRAS_NAME:
                     proto_tree_add_item(attrb_tree, hf_greb_attr_dt_bras_name, tvb, offset, attrb_length,
-                        ENC_UTF_8 | ENC_NA);
+                        ENC_UTF_8);
                     break;
 
                 case GREB_ATTRB_ERROR:

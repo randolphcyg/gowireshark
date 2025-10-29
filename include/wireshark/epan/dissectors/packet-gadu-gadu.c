@@ -504,7 +504,7 @@ _tvb_memcpy_reverse(tvbuff_t *tvb, void *target, int offset, size_t length)
 }
 
 static int
-dissect_gadu_gadu_login_protocol(tvbuff_t *tvb, proto_tree *tree, int offset)
+dissect_gadu_gadu_login_protocol(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, int offset)
 {
 	proto_item *ti;
 
@@ -512,7 +512,7 @@ dissect_gadu_gadu_login_protocol(tvbuff_t *tvb, proto_tree *tree, int offset)
 
 	protocol = tvb_get_letohl(tvb, offset) & 0xff;
 	proto_tree_add_item(tree, hf_gadu_gadu_login_protocol, tvb, offset, 4, ENC_LITTLE_ENDIAN);
-	ti = proto_tree_add_string(tree, hf_gadu_gadu_login_version, tvb, offset, 4, val_to_str(protocol, gadu_gadu_version_vals, "Unknown (0x%x)"));
+	ti = proto_tree_add_string(tree, hf_gadu_gadu_login_version, tvb, offset, 4, val_to_str(pinfo->pool, protocol, gadu_gadu_version_vals, "Unknown (0x%x)"));
 	proto_item_set_generated(ti);
 	offset += 4;
 
@@ -546,7 +546,7 @@ dissect_gadu_gadu_login(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
 	proto_tree_add_item(tree, hf_gadu_gadu_login_status, tvb, offset, 4, ENC_LITTLE_ENDIAN);
 	offset += 4;
 
-	offset = dissect_gadu_gadu_login_protocol(tvb, tree, offset);
+	offset = dissect_gadu_gadu_login_protocol(tvb, pinfo, tree, offset);
 
 	proto_tree_add_item(tree, hf_gadu_gadu_login_local_ip, tvb, offset, 4, ENC_BIG_ENDIAN);
 	offset += 4;
@@ -619,7 +619,7 @@ dissect_gadu_gadu_login70(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, i
 	proto_tree_add_item(tree, hf_gadu_gadu_login_status, tvb, offset, 4, ENC_LITTLE_ENDIAN);
 	offset += 4;
 
-	offset = dissect_gadu_gadu_login_protocol(tvb, tree, offset);
+	offset = dissect_gadu_gadu_login_protocol(tvb, pinfo, tree, offset);
 
 	proto_tree_add_item(tree, hf_gadu_gadu_data, tvb, offset, 1, ENC_NA);	/* 00 */
 	offset += 1;
@@ -648,7 +648,7 @@ dissect_gadu_gadu_login80(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, i
 	proto_tree_add_item(tree, hf_gadu_gadu_login_uin, tvb, offset, 4, ENC_LITTLE_ENDIAN);
 	offset += 4;
 
-	proto_tree_add_item(tree, hf_gadu_gadu_login80_lang, tvb, offset, 2, ENC_ASCII | ENC_NA);
+	proto_tree_add_item(tree, hf_gadu_gadu_login80_lang, tvb, offset, 2, ENC_ASCII);
 	offset += 2;
 
 	offset = dissect_gadu_gadu_login_hash(tvb, tree, offset);
@@ -1459,7 +1459,7 @@ dissect_gadu_gadu_dcc7_new(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 	proto_tree_add_item(tree, hf_dcc_type, tvb, offset, 4, ENC_LITTLE_ENDIAN);
 	offset += 4;
 
-	proto_tree_add_item(tree, hf_dcc_filename, tvb, offset, 255, ENC_ASCII | ENC_NA);
+	proto_tree_add_item(tree, hf_dcc_filename, tvb, offset, 255, ENC_ASCII);
 	offset += 255;
 
 	return offset;
@@ -1498,7 +1498,7 @@ dissect_gadu_gadu_pubdir50_request(tvbuff_t *tvb, packet_info *pinfo, proto_tree
 
 	while ((pos = tvb_find_uint8(tvb, offset, -1, '\0')) > 0) {
 		/* XXX, display it better, field=value */
-		proto_tree_add_item(tree, hf_gadu_gadu_pubdir_request_str, tvb, offset, (pos - offset) + 1, ENC_NA | ENC_WINDOWS_1250);
+		proto_tree_add_item(tree, hf_gadu_gadu_pubdir_request_str, tvb, offset, (pos - offset) + 1, ENC_WINDOWS_1250);
 		offset = pos + 1;
 	}
 
@@ -1521,7 +1521,7 @@ dissect_gadu_gadu_pubdir50_reply(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 
 	while ((pos = tvb_find_uint8(tvb, offset, -1, '\0')) > 0) {
 		/* XXX, display it better, field=value */
-		proto_tree_add_item(tree, hf_gadu_gadu_pubdir_reply_str, tvb, offset, (pos - offset) + 1, ENC_NA | ENC_WINDOWS_1250);
+		proto_tree_add_item(tree, hf_gadu_gadu_pubdir_reply_str, tvb, offset, (pos - offset) + 1, ENC_WINDOWS_1250);
 		offset = pos + 1;
 	}
 

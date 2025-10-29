@@ -93,22 +93,13 @@ WSLUA_METHOD Dissector_call(lua_State* L) {
     Tvb tvb = checkTvb(L,WSLUA_ARG_Dissector_call_TVB);
     Pinfo pinfo = checkPinfo(L,WSLUA_ARG_Dissector_call_PINFO);
     TreeItem ti = checkTreeItem(L,WSLUA_ARG_Dissector_call_TREE);
-    const char *volatile error = NULL;
-    int len = 0;
+    volatile int len = 0;
 
     if (! ( d && tvb && pinfo) ) return 0;
 
-    TRY {
+    WRAP_NON_LUA_EXCEPTIONS(
         len = call_dissector(d, tvb->ws_tvb, pinfo->ws_pinfo, ti->tree);
-        /* XXX Are we sure about this??? is this the right/only thing to catch */
-    } CATCH_BOUNDS_AND_DISSECTOR_ERRORS {
-        show_exception(tvb->ws_tvb, pinfo->ws_pinfo, ti->tree, EXCEPT_CODE, GET_MESSAGE);
-        error = GET_MESSAGE ? GET_MESSAGE : "Malformed frame";
-    } ENDTRY;
-
-    /* XXX: Some exceptions, like FragmentBoundsError and ScsiBoundsError,
-       are normal conditions and possibly don't need the Lua traceback. */
-    if (error) { WSLUA_ERROR(Dissector_call,error); }
+    )
 
     lua_pushinteger(L,(lua_Integer)len);
     WSLUA_RETURN(1); /* Number of bytes dissected.  Note that some dissectors always return number of bytes in incoming buffer, so be aware. */
@@ -120,6 +111,71 @@ WSLUA_METAMETHOD Dissector__call(lua_State* L) {
 #define WSLUA_ARG_Dissector__call_PINFO 3 /* The packet info. */
 #define WSLUA_ARG_Dissector__call_TREE 4 /* The tree on which to add the protocol items. */
     return Dissector_call(L);
+}
+
+WSLUA_METHOD Dissector_decrypt(lua_State* L) {
+    /* Calls a dissector against a given packet (or part of it). */
+#define WSLUA_ARG_Dissector_decrypt_TVB 2 /* The buffer to dissect. */
+#define WSLUA_ARG_Dissector_decrypt_PINFO 3 /* The packet info. */
+#define WSLUA_ARG_Dissector_decrypt_TREE 4 /* The tree on which to add the protocol items. */
+
+    Dissector volatile d = checkDissector(L,1);
+    Tvb tvb = checkTvb(L,WSLUA_ARG_Dissector_decrypt_TVB);
+    Pinfo pinfo = checkPinfo(L,WSLUA_ARG_Dissector_decrypt_PINFO);
+    TreeItem ti = checkTreeItem(L,WSLUA_ARG_Dissector_decrypt_TREE);
+    volatile int len = 0;
+    struct data_source *ds, *ds_DTLS, *ds_TLS;
+    tvbuff_t *tvb_decrypted = NULL;
+    char *decrypted = "";
+
+    if (! ( d && tvb && pinfo) ) return 0;
+
+    WRAP_NON_LUA_EXCEPTIONS(
+        len = call_dissector(d, tvb->ws_tvb, pinfo->ws_pinfo, ti->tree);
+    )
+
+    ds_DTLS = get_data_source_by_name(pinfo->ws_pinfo, "Decrypted DTLS");
+    ds_TLS = get_data_source_by_name(pinfo->ws_pinfo, "Decrypted TLS");
+
+    if (ds_DTLS) {
+        ds = ds_DTLS;
+    }
+    else if (ds_TLS) {
+        ds = ds_TLS;
+    }
+    else {
+        ds = NULL;
+    }
+
+    if (ds) {
+        tvb_decrypted = get_data_source_tvb(ds);
+        if (tvb_decrypted) {
+            wmem_allocator_t *scope = NULL;
+            const int offset = 0;
+
+            len = tvb_reported_length(tvb_decrypted);
+            decrypted = (uint8_t *)wmem_alloc(scope, len + 1);
+            tvb_memcpy(tvb_decrypted, decrypted, offset, len);
+            decrypted[len] = '\0';
+        }
+    }
+
+    lua_pushinteger(L,(lua_Integer)len);
+    lua_pushstring(L,(const char *) decrypted);
+    if (tvb_decrypted) {
+        push_Tvb(L,tvb_decrypted);
+    } else {
+        lua_pushnil(L);
+    }
+    WSLUA_RETURN(3); /* Number of bytes dissected and decrypted content */
+}
+
+WSLUA_METAMETHOD Dissector__decrypt(lua_State* L) {
+    /* Calls a dissector against a given packet (or part of it). */
+#define WSLUA_ARG_Dissector__decrypt_TVB 2 /* The buffer to dissect. */
+#define WSLUA_ARG_Dissector__decrypt_PINFO 3 /* The packet info. */
+#define WSLUA_ARG_Dissector__decrypt_TREE 4 /* The tree on which to add the protocol items. */
+    return Dissector_decrypt(L);
 }
 
 WSLUA_METAMETHOD Dissector__tostring(lua_State* L) {
@@ -140,12 +196,14 @@ WSLUA_METHODS Dissector_methods[] = {
     WSLUA_CLASS_FNREG(Dissector,get),
     WSLUA_CLASS_FNREG(Dissector,call),
     WSLUA_CLASS_FNREG(Dissector,list),
+    WSLUA_CLASS_FNREG(Dissector,decrypt),
     { NULL, NULL }
 };
 
 WSLUA_META Dissector_meta[] = {
     WSLUA_CLASS_MTREG(Dissector,tostring),
     WSLUA_CLASS_MTREG(Dissector,call),
+    WSLUA_CLASS_MTREG(Dissector,decrypt),
     { NULL, NULL }
 };
 
@@ -747,7 +805,7 @@ WSLUA_METHOD DissectorTable_try (lua_State *L) {
         if (type == FT_STRING) {
             const char* pattern = luaL_checkstring(L,WSLUA_ARG_DissectorTable_try_PATTERN);
 
-            len = dissector_try_string(dt->table,pattern,tvb->ws_tvb,pinfo->ws_pinfo,ti->tree, NULL);
+            len = dissector_try_string_with_data(dt->table,pattern,tvb->ws_tvb,pinfo->ws_pinfo,ti->tree, true, NULL);
             if (len > 0) {
                 handled = true;
             }
@@ -757,7 +815,7 @@ WSLUA_METHOD DissectorTable_try (lua_State *L) {
             const e_guid_t* guid = fvalue_get_guid(fval);
             guid_key gk = {*guid, 0};
 
-            len = dissector_try_guid(dt->table, &gk,tvb->ws_tvb,pinfo->ws_pinfo,ti->tree);
+            len = dissector_try_guid_with_data(dt->table, &gk,tvb->ws_tvb,pinfo->ws_pinfo,ti->tree, true, NULL);
             if (len > 0) {
                 handled = true;
             }
@@ -768,10 +826,10 @@ WSLUA_METHOD DissectorTable_try (lua_State *L) {
             if (len > 0) {
                 handled = true;
             }
-	} else if ( type == FT_NONE ) {
-	    len = dissector_try_payload(dt->table,tvb->ws_tvb,pinfo->ws_pinfo,ti->tree);
-	    if (len > 0) {
-	        handled = true;
+        } else if ( type == FT_NONE ) {
+            len = dissector_try_payload_with_data(dt->table,tvb->ws_tvb,pinfo->ws_pinfo,ti->tree, true, NULL);
+            if (len > 0) {
+                handled = true;
             }
         } else {
             error = "No such type of dissector table";
@@ -796,7 +854,7 @@ WSLUA_METHOD DissectorTable_get_dissector (lua_State *L) {
     /*
      Try to obtain a dissector from a table.
      */
-#define WSLUA_ARG_DissectorTable_get_dissector_PATTERN 2 /* The pattern to be matched (either an integer or a string depending on the table's type). */
+#define WSLUA_ARG_DissectorTable_get_dissector_PATTERN 2 /* The pattern to be matched, depending on the table's type. */
 
     DissectorTable dt = checkDissectorTable(L,1);
     ftenum_t type;
@@ -815,9 +873,13 @@ WSLUA_METHOD DissectorTable_get_dissector (lua_State *L) {
         const e_guid_t* guid = fvalue_get_guid(fval);
         guid_key gk = {*guid, 0};
         handle = dissector_get_guid_handle(dt->table,&gk);
-    } else if ( type == FT_UINT32 || type == FT_UINT16 || type ==  FT_UINT8 || type ==  FT_UINT24 ) {
+    } else if ( type == FT_UINT8 || type == FT_UINT16 || type == FT_UINT24 || type == FT_UINT32 ) {
         uint32_t port = wslua_checkuint32(L, WSLUA_ARG_DissectorTable_get_dissector_PATTERN);
         handle = dissector_get_uint_handle(dt->table,port);
+    } else if ( type == FT_NONE ) {
+        handle = dissector_get_payload_handle(dt->table);
+    } else {
+        luaL_error(L,"Strange type %d for DissectorTable %s",type,dt->name);
     }
 
     if (handle) {

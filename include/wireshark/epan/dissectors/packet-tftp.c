@@ -409,7 +409,7 @@ static void dissect_tftp_message(tftp_conv_info_t *tftp_info,
   opcode = tvb_get_ntohs(tvb, offset);
   proto_tree_add_uint(tftp_tree, hf_tftp_opcode, tvb, offset, 2, opcode);
   col_add_str(pinfo->cinfo, COL_INFO,
-              val_to_str(opcode, tftp_opcode_vals, "Unknown (0x%04x)"));
+              val_to_str(pinfo->pool, opcode, tftp_opcode_vals, "Unknown (0x%04x)"));
   offset += 2;
 
   /* read and write requests contain file names
@@ -697,7 +697,7 @@ static void dissect_tftp_message(tftp_conv_info_t *tftp_info,
                         error);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, ", Code: %s",
-                    val_to_str(error, tftp_error_code_vals, "Unknown (%u)"));
+                    val_to_str(pinfo->pool, error, tftp_error_code_vals, "Unknown (%u)"));
 
     offset += 2;
 
@@ -814,8 +814,11 @@ static conversation_t* create_tftp_conversation(packet_info *pinfo)
   conversation_t* conversation = NULL;
   if (!PINFO_FD_VISITED(pinfo)) {
     /* New read or write request on first pass, so create conversation with client port only */
-    conversation = conversation_new(pinfo->num, &pinfo->src, &pinfo->dst, CONVERSATION_UDP,
-                                    pinfo->srcport, 0, NO_PORT2);
+    conversation = find_conversation_strat(pinfo, CONVERSATION_UDP, NO_PORT_B, false);
+    if(!conversation) {
+        conversation = conversation_new_strat(pinfo, CONVERSATION_UDP, NO_PORT2);
+    }
+
     conversation_set_dissector(conversation, tftp_handle);
     /* Store conversation in this frame */
     p_add_proto_data(wmem_file_scope(), pinfo, proto_tftp, CONVERSATION_KEY,
@@ -930,8 +933,8 @@ dissect_tftp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
   {
     /* Not the initial read or write request */
     /* Look for wildcarded conversation based upon client port */
-    if ((conversation = find_conversation(pinfo->num, &pinfo->dst, &pinfo->src, CONVERSATION_UDP,
-                                     pinfo->destport, 0, NO_PORT_B)) && conversation_get_dissector(conversation, pinfo->num) == tftp_handle) {
+    if ((conversation = find_conversation_strat(pinfo, CONVERSATION_UDP,
+                                     NO_PORT_B, false)) && conversation_get_dissector(conversation, pinfo->num) == tftp_handle) {
 #if 0
       /* XXX: While setting the wildcarded port makes sense, if we do that,
        * it's more complicated to find the correct conversation if ports are
@@ -944,8 +947,8 @@ dissect_tftp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
       if (pinfo->destport == conversation_key_port1(conversation->key_ptr))
         conversation_set_port2(conversation, pinfo->srcport);
 #endif
-    } else if ((conversation = find_conversation(pinfo->num, &pinfo->src, &pinfo->dst, CONVERSATION_UDP,
-                                     pinfo->srcport, 0, NO_PORT_B)) && conversation_get_dissector(conversation, pinfo->num) == tftp_handle) {
+    } else if ((conversation = find_conversation_strat(pinfo, CONVERSATION_UDP,
+                                     NO_PORT_B, false)) && conversation_get_dissector(conversation, pinfo->num) == tftp_handle) {
 
     } else {
       /* How did we get here? We must have matched one of the TFTP ports
@@ -954,7 +957,7 @@ dissect_tftp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
        * such servers out there (issue #18122), and since the default port
        * is IANA assigned it doesn't do harm to process it. Note that in
        * that case the conversation won't have the tftp dissector set. */
-      conversation = find_conversation_pinfo(pinfo, 0);
+      conversation = find_conversation_pinfo_strat(pinfo, 0);
       if (conversation == NULL) {
         return 0;
       }

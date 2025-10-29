@@ -70,6 +70,9 @@ static int hf_wlan_radio_11ac_nss;
 static int hf_wlan_radio_11ac_fec;
 static int hf_wlan_radio_11ac_gid;
 static int hf_wlan_radio_11ac_p_aid;
+static int hf_wlan_radio_11ax_mcs;
+static int hf_wlan_radio_11ax_bandwidth;
+static int hf_wlan_radio_11ax_short_gi;
 static int hf_wlan_radio_data_rate;
 static int hf_wlan_radio_channel;
 static int hf_wlan_radio_frequency;
@@ -269,7 +272,7 @@ struct mcs_info {
   float data_bits_per_symbol; /* assuming 20MHz / 52 subcarriers */
 };
 
-#define EHT_MAX_MCS   14
+#define EHT_MAX_MCS   16
 static const struct mcs_info ieee80211_mcsinfo[EHT_MAX_MCS] = {
   /* MCS  0  */
   { "BPSK",  "1/2", 26 },
@@ -298,7 +301,11 @@ static const struct mcs_info ieee80211_mcsinfo[EHT_MAX_MCS] = {
   /* MCS  12  */
   { "4096-QAM", "3/4", 468 },
   /* MCS  13  */
-  { "4096-QAM", "5/6", 520 }
+  { "4096-QAM", "5/6", 520 },
+  /* MCS  14  */
+  { "BPSK-DCM", "1/2", 6.5f },
+  /* MCS  15  */
+  { "BPSK-DCM", "1/2", 13 }
 };
 
 /* map a bandwidth index to the number of data subcarriers */
@@ -410,7 +417,7 @@ static float ieee80211_vhtrate(int mcs_index, unsigned bandwidth_index, bool sho
 #define HE_MAX_MCS  12
 #define HE_SU_MAX_BW   4
 #define HE_MAX_GI   3
-static float he_ofdm_tab[HE_MAX_NSTS][HE_MAX_MCS][HE_SU_MAX_BW][HE_MAX_GI] = {
+static const float he_ofdm_tab[HE_MAX_NSTS][HE_MAX_MCS][HE_SU_MAX_BW][HE_MAX_GI] = {
   {
       {{     8.6f,     8.1f,    7.3f},{     17.2f,    16.3f,    14.6f},{     36.0f,    34.0f,    30.6f},{     72.1f,    68.1f,    61.3f}},
       {{    17.2f,    16.3f,   14.6f},{     34.4f,    32.5f,    29.3f},{     72.1f,    68.1f,    61.3f},{    144.1f,   136.1f,   122.5f}},
@@ -537,7 +544,7 @@ static float ieee80211_he_ofdm_rate(unsigned nsts, unsigned mcs, unsigned bw, un
  * indexed by (NSTS,MCS,RU,GI)
  */
 #define HE_MU_MAX_RU 6
-static float he_mu_ofdma_tab[HE_MAX_NSTS][HE_MAX_MCS][HE_MU_MAX_RU][HE_MAX_GI] = {
+static const float he_mu_ofdma_tab[HE_MAX_NSTS][HE_MAX_MCS][HE_MU_MAX_RU][HE_MAX_GI] = {
   {
       {{    0.9f,    0.8f,    0.8f},{     1.8f,    1.7f,    1.5f},{     3.8f,    3.5f,    3.2f},{      8.6f,     8.1f,    7.3f},{     17.2f,    16.3f,    14.6f},{     36.0f,    34.0f,    30.6f}},
       {{    1.8f,    1.7f,    1.5f},{     3.5f,    3.3f,    3.0f},{     7.5f,    7.1f,    6.4f},{     17.2f,    16.3f,   14.6f},{     34.4f,    32.5f,    29.3f},{     72.1f,    68.1f,    61.3f}},
@@ -669,7 +676,7 @@ static float ieee80211_he_mu_ofdma_rate(unsigned nsts, unsigned mcs, unsigned ru
 #define EHT_MAX_NSTS  8
 #define EHT_MAX_BW    IEEE80211_RADIOTAP_EHT_RU_4_TIMES_994 + 1
 #define EHT_MAX_GI    3
-static float eht_mcs_tab[EHT_MAX_MCS][EHT_MAX_BW][EHT_MAX_GI] = {
+static const float eht_mcs_tab[EHT_MAX_MCS][EHT_MAX_BW][EHT_MAX_GI] = {
       /*    ru-26                  |     ru-52                  |     ru-106                 |     ru-242 / 20 MHz        |    ru-484 / 40 MHz         |    ru-996 / 80 MHz         |     2 * ru-996 / 160 MHz      |    4 * ru-996 / 320 MHz  */
       {{    0.9f,    0.8f,    0.8f},{    1.8f,    1.7f,    1.5f},{    3.8f,    3.5f,    3.2f},{    8.6f,    8.1f,    7.3f},{   17.2f,   16.3f,   14.6f},{   36.0f,   34.0f,   30.6f},{    72.1f,    68.1f,    61.3f},{   144.1f,   136.1f,   122.5f}},
       {{    1.8f,    1.7f,    1.5f},{    3.5f,    3.3f,    3.0f},{    7.5f,    7.1f,    6.4f},{   17.2f,   16.3f,   14.6f},{   34.4f,   32.5f,   29.3f},{   72.1f,   68.1f,   61.3f},{   144.1f,   136.1f,   122.5f},{   288.2f,   272.2f,   245.0f}},
@@ -684,7 +691,9 @@ static float eht_mcs_tab[EHT_MAX_MCS][EHT_MAX_BW][EHT_MAX_GI] = {
       {{   13.2f,   12.5f,   11.3f},{   26.5f,   25.0f,   22.5f},{   56.3f,   53.1f,   47.8f},{  129.0f,  121.9f,  109.7f},{  258.1f,  243.8f,  219.4f},{  540.4f,  510.4f,  459.4f},{  1080.9f,  1020.8f,   918.8f},{  2161.8f,  2041.7f,  1837.5f}},
       {{   14.7f,   13.9f,   12.5f},{   29.4f,   27.8f,   25.0f},{   62.5f,   59.0f,   53.1f},{  143.4f,  135.4f,  121.9f},{  286.8f,  270.8f,  243.8f},{  600.5f,  567.1f,  510.4f},{  1201.0f,  1134.3f,  1020.8f},{  2402.0f,  2268.5f,  2041.7f}},
       {{   15.9f,   15.0f,   13.5f},{   31.8f,   30.0f,   27.0f},{   67.5f,   63.8f,   57.4f},{  154.9f,  146.3f,  131.6f},{  309.7f,  292.5f,  263.3f},{  648.5f,  612.5f,  551.3f},{  1297.1f,  1225.0f,  1102.5f},{  2594.1f,  2450.0f,  2205.0f}},
-      {{   17.6f,   16.7f,   15.0f},{   35.3f,   33.3f,   30.0f},{   75.0f,   70.8f,   63.8f},{  172.1f,  162.5f,  146.3f},{  344.1f,  325.0f,  292.5f},{  720.6f,  680.6f,  612.5f},{  1441.2f,  1361.1f,  1225.0f},{  2882.4f,  2722.2f,  2450.0f}}
+      {{   17.6f,   16.7f,   15.0f},{   35.3f,   33.3f,   30.0f},{   75.0f,   70.8f,   63.8f},{  172.1f,  162.5f,  146.3f},{  344.1f,  325.0f,  292.5f},{  720.6f,  680.6f,  612.5f},{  1441.2f,  1361.1f,  1225.0f},{  2882.4f,  2722.2f,  2450.0f}},
+      {{    0.0f,    0.0f,    0.0f},{    0.0f,    0.0f,    0.0f},{    0.0f,    0.0f,    0.0f},{    0.0f,   0.0f,     0.0f},{    0.0f,    0.0f,    0.0f},{    8.6f,    8.1f,    7.3f},{    18.0f,    17.0f,    15.3f},{    36.0f,    34.0f,    30.6f}},
+      {{    0.4f,    0.4f,    0.4f},{    0.9f,    0.8f,    0.8f},{    1.8f,    1.7f,    1.6f},{    4.3f,   4.0f,     3.6f},{    8.6f,    8.1f,    7.3f},{   18.0f,   17.0f,   15.3f},{    36.0f,    34.0f,    30.6f},{    72.1f,    68.1f,    61.3f}}
 };
 
 
@@ -1142,7 +1151,7 @@ dissect_wlan_radio_phdr(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, 
       case PHDR_802_11_PHY_11AX:
       {
         struct ieee_802_11ax *info_ax = &phy_info->info_11ax;
-        if (info_ax->has_gi && info_ax->has_bwru && info_ax->has_mcs_index) {
+        if (info_ax->has_gi && info_ax->has_bwru && info_ax->has_mcs_index && !have_data_rate) {
           if (info_ax->bwru < HE_SU_MAX_BW) {
             data_rate = ieee80211_he_ofdm_rate(info_ax->nsts,info_ax->mcs,info_ax->bwru,info_ax->gi);
           } else {
@@ -1151,6 +1160,17 @@ dissect_wlan_radio_phdr(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, 
           if (data_rate != 0.0f) {
             have_data_rate = true;
           }
+        }
+        if (info_ax->has_gi) {
+          proto_tree_add_boolean(radio_tree, hf_wlan_radio_11ax_short_gi, tvb, 0, 0, info_ax->gi);
+        }
+
+        if (info_ax->has_bwru) {
+          proto_tree_add_uint(radio_tree, hf_wlan_radio_11ax_bandwidth, tvb, 0, 0, info_ax->bwru);
+        }
+
+        if (info_ax->has_mcs_index) {
+          proto_tree_add_uint(radio_tree, hf_wlan_radio_11ax_mcs, tvb, 0, 0, info_ax->mcs);
         }
       }
       break;
@@ -1181,10 +1201,23 @@ dissect_wlan_radio_phdr(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree, 
             /* 20,40,80,160 and 320MHz overlap with mcs table index for ru-242 and above.
              * So add the offset.
              * Punctured modes not considered yet. */
-            bw_idx = info_11be->bandwidth + IEEE80211_RADIOTAP_EHT_RU_242;
+            if (info_11be->bandwidth == IEEE80211_RADIOTAP_USIG_BW_320_2) {
+              /* The overlap works for 320MHz-1 but not for 320MHz-2. As the workaround,
+               * use the same index for 320MHz-1 and 320MHz-2 */
+              bw_idx = IEEE80211_RADIOTAP_USIG_BW_320_1 + IEEE80211_RADIOTAP_EHT_RU_242;
+            } else {
+              bw_idx = info_11be->bandwidth + IEEE80211_RADIOTAP_EHT_RU_242;
+            }
           } else {
             bw_idx = info_11be->ru_mru_size;
           }
+
+          /* Handle specificities of MCS 14 & 15 */
+          if (nsts != 1 && (info_11be->user[i].mcs == 14 ||
+               info_11be->user[i].mcs == 15)) {
+            can_calculate_rate = false;
+          }
+
           proto_item *it;
           proto_tree *user_tree;
 
@@ -1787,6 +1820,18 @@ void proto_register_ieee80211_radio(void)
      {"Partial AID", "wlan_radio.11ac.paid", FT_UINT16, BASE_DEC, NULL, 0x0,
       NULL, HFILL }},
 
+    { &hf_wlan_radio_11ax_mcs,
+     {"MCS index", "wlan_radio.11ax.mcs", FT_UINT32, BASE_DEC, NULL, 0x0,
+      "Modulation and Coding Scheme index", HFILL } },
+
+    { &hf_wlan_radio_11ax_bandwidth,
+     {"Bandwidth", "wlan_radio.11ax.bandwidth", FT_UINT32, BASE_DEC, VALS(bandwidth_vals), 0,
+      NULL, HFILL } },
+
+    { &hf_wlan_radio_11ax_short_gi,
+     {"Short GI", "wlan_radio.11ax.short_gi", FT_BOOLEAN, BASE_NONE, NULL, 0,
+      NULL, HFILL } },
+
     {&hf_wlan_radio_11be_user,
      {"User", "wlan_radio.11be.user", FT_NONE, BASE_NONE, NULL, 0x0,
       NULL, HFILL }},
@@ -1928,7 +1973,7 @@ void proto_register_ieee80211_radio(void)
         "No fec type information was available, assuming bcc fec.", EXPFILL }},
 
     { &ei_wlan_radio_11be_num_users,
-      { "wlan_radio.assumed.bcc_fec", PI_MALFORMED, PI_WARN,
+      { "wlan_radio.11be_num_users", PI_MALFORMED, PI_WARN,
         "Number of users in the 802.11be header exceeds available slots.", EXPFILL }},
   };
 

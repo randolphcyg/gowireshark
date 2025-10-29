@@ -436,6 +436,7 @@ json_key_lookup(proto_tree* tree, tvbparse_elem_t* tok, const char* key_str, pac
 {
 	proto_item* ti;
 	int hf_id;
+	int offset, len;
 
 	json_data_decoder_t* json_data_decoder_rec = (json_data_decoder_t*)g_hash_table_lookup(json_header_fields_hash, key_str);
 	if (json_data_decoder_rec == NULL) {
@@ -450,17 +451,49 @@ json_key_lookup(proto_tree* tree, tvbparse_elem_t* tok, const char* key_str, pac
 		return NULL;
 	}
 
+	/*
+	 * use_compact == true: "tok is the composed element of the member"
+	 *	This is only called from before_member when the value is a
+	 /	JSON_TOKEN_STRING.
+	 * use_compact == false: "tok is the composed element whose subelement is the value"
+	 *	For this, arrays with matching key are passed in before_array,
+	 *	strings are passed in after_value, and other types aren't passed in.
+	 */
+	const tvbparse_elem_t* value_tok = tok;
 	if (use_compact) {
-		int str_len = (int)strlen(key_str);
-		ti = proto_tree_add_item(tree, hf_id, tok->tvb, tok->offset + (4 + str_len), tok->len - (5 + str_len), ENC_NA);
-		if (json_data_decoder_rec->json_data_decoder) {
-			(*json_data_decoder_rec->json_data_decoder)(tok->tvb, tree, pinfo, tok->offset + (4 + str_len), tok->len - (5 + str_len), key_str, use_compact);
-		}
-	} else {
-		ti = proto_tree_add_item(tree, hf_id, tok->tvb, tok->offset, tok->len, ENC_NA);
-		if (json_data_decoder_rec->json_data_decoder) {
-			(*json_data_decoder_rec->json_data_decoder)(tok->tvb, tree, pinfo, tok->offset, tok->len, key_str, use_compact);
-		}
+		/* tok refers to the member ("key":"value")
+		 * tok->sub is the key string
+		 * tok->sub->next is the ':'
+		 * tok->sub->last is a set with one element
+		 * tok->sub->last->sub is the value
+		 */
+		DISSECTOR_ASSERT(tok->sub);
+		value_tok = tok->sub->last;
+	}
+	/* tok is a set with one element
+	 * tok->sub is the value
+	 */
+	DISSECTOR_ASSERT(value_tok && value_tok->sub);
+	value_tok = value_tok->sub;
+
+	json_token_type_t value_id = (json_token_type_t)value_tok->id;
+
+	offset = value_tok->offset;
+	len = value_tok->len;
+	/* Remove the quotation marks from strings (the decoder functions
+	 * apparently expect that.)
+	 */
+	if (value_id == JSON_TOKEN_STRING && len >= 2) {
+		offset += 1;
+		len -= 2;
+	}
+	/* XXX - Every hf_id in packet-json_3gpp.c is a FT_STRING. Should other
+	 * types be supported (perhaps verified against the JSON token type?)
+	 * Should the encoding be ENC_UTF_8? Should the string be unescaped here?
+	 */
+	ti = proto_tree_add_item(tree, hf_id, tok->tvb, offset, len, ENC_ASCII);
+	if (json_data_decoder_rec->json_data_decoder) {
+		(*json_data_decoder_rec->json_data_decoder)(value_tok->tvb, tree, pinfo, offset, len, key_str);
 	}
 	return ti;
 
@@ -507,20 +540,13 @@ dissect_json(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 	/* Save pinfo*/
 	parser_data.pinfo = pinfo;
 	/* JSON dissector can be called in a JSON native file or when transported
-	 * by another protocol, will make entry in the Protocol column on summary display accordingly
+	 * by another protocol; for a JSON file, this dissector is called by the
+	 * frame dissector, which only sets COL_PROTOCOL and COL_INFO if the
+	 * dissector it calls fails, so this will make the entry in the Protocol
+	 * column accordingly.
 	 */
-	wmem_list_frame_t *proto = wmem_list_frame_prev(wmem_list_tail(pinfo->layers));
-	if (proto) {
-		const char *name = proto_get_protocol_filter_name(GPOINTER_TO_INT(wmem_list_frame_data(proto)));
-
-		if (strcmp(name, "frame")) {
-			col_append_sep_str(pinfo->cinfo, COL_PROTOCOL, "/", "JSON");
-			col_append_sep_str(pinfo->cinfo, COL_INFO, NULL, "JSON");
-		} else {
-			col_set_str(pinfo->cinfo, COL_PROTOCOL, "JSON");
-			col_set_str(pinfo->cinfo, COL_INFO, "JSON");
-		}
-	}
+	col_append_sep_str(pinfo->cinfo, COL_PROTOCOL, "/", "JSON");
+	col_append_sep_str(pinfo->cinfo, COL_INFO, NULL, "JSON");
 
 	data_name = pinfo->match_string;
 	if (! (data_name && data_name[0])) {

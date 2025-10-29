@@ -35,7 +35,8 @@
 #include "config.h"
 #include <epan/expert.h>
 #include <epan/packet.h>
-#include <epan/strutil.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include <epan/uat.h>
 #include "packet-tcp.h"
 #include "packet-tls.h"
@@ -984,7 +985,7 @@ static int dissect_mqtt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
   mqtt_msg_type = mqtt_fixed_hdr >> 4;
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "MQTT");
-  col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", val_to_str_ext(mqtt_msg_type, &mqtt_msgtype_vals_ext, "Unknown (0x%02x)"));
+  col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", val_to_str_ext(pinfo->pool, mqtt_msg_type, &mqtt_msgtype_vals_ext, "Unknown (0x%02x)"));
 
   /* Add the MQTT branch to the main tree */
   mqtt_ti = proto_tree_add_item(tree, proto_mqtt, tvb, 0, -1, ENC_NA);
@@ -1006,7 +1007,7 @@ static int dissect_mqtt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
   mqtt_msg_len = (int) msg_len;
 
   /* Add the type to the MQTT tree item */
-  proto_item_append_text(mqtt_tree, ", %s", val_to_str_ext(mqtt_msg_type, &mqtt_msgtype_vals_ext, "Unknown (0x%02x)"));
+  proto_item_append_text(mqtt_tree, ", %s", val_to_str_ext(pinfo->pool, mqtt_msg_type, &mqtt_msgtype_vals_ext, "Unknown (0x%02x)"));
 
   if ((mqtt_msg_type != MQTT_CONNECT) && (mqtt->runtime_proto_version == 0))
   {
@@ -1227,8 +1228,8 @@ static int dissect_mqtt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
       if (mqtt_properties.content_type)
       {
         tvbuff_t *msg_tvb = tvb_new_subset_length(tvb, offset, mqtt_payload_len);
-        int bytes_read = dissector_try_string(media_type_dissector_table, mqtt_properties.content_type,
-                                              msg_tvb, pinfo, tree, NULL);
+        int bytes_read = dissector_try_string_with_data(media_type_dissector_table, mqtt_properties.content_type,
+                                              msg_tvb, pinfo, tree, true, NULL);
 
         msg_handled = msg_handled | (bytes_read != 0);
       }
@@ -1801,7 +1802,7 @@ void proto_register_mqtt(void)
                                &mqtt_message_decodes,
                                &num_mqtt_message_decodes,
                                UAT_AFFECTS_DISSECTION, /* affects dissection of packets, but not set of named fields */
-                               "ChMQTTMessageDecoding",
+                               NULL,
                                mqtt_message_decode_copy_cb,
                                mqtt_message_decode_update_cb,
                                mqtt_message_decode_free_cb,

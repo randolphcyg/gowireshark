@@ -10,8 +10,12 @@
  */
 
 #include "config.h"
+
 #include <epan/packet.h>
 #include <epan/address_types.h>
+
+#include <wsutil/ws_roundup.h>
+
 #include "packet-mtp3.h"
 
 #define INVALID_SSN	0xff
@@ -144,7 +148,7 @@ dissect_ppcap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 	{
 		msg_type = tvb_get_ntohs(tvb, offset);
 		ppcap_tree1 = proto_tree_add_subtree(ppcap_tree, tvb, offset, 2, ett_ppcap1, NULL,
-					val_to_str(msg_type, payload_tag_values, "Unknown PPCAP message type (%u)"));
+					val_to_str(pinfo->pool, msg_type, payload_tag_values, "Unknown PPCAP message type (%u)"));
 		offset  = offset + 2;
 		switch (msg_type) {
 		case 1:
@@ -223,8 +227,7 @@ dissect_ppcap_payload_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree * ppcap
 
 	proto_tree_add_item(ppcap_tree1, hf_ppcap_payload_type, tvb, offset, msg_len, ENC_UTF_8);
 
-	if (msg_len%4)
-		msg_len = msg_len+(4-(msg_len%4));
+	msg_len = WS_ROUNDUP_4(msg_len);
 	offset += msg_len;
 	return offset;
 }
@@ -269,8 +272,7 @@ dissect_ppcap_source_address(tvbuff_t *tvb, packet_info *pinfo, proto_tree * ppc
 		mtp3_addr_opc->ni = 0;
 		/*set_address(&pinfo->net_src, ss7pc_address_type, sizeof(mtp3_addr_pc_t), (uint8_t *) mtp3_addr_opc);*/
 		set_address(&pinfo->src, ss7pc_address_type, sizeof(mtp3_addr_pc_t), (uint8_t *) mtp3_addr_opc);
-		if (msg_len%4)
-			msg_len = msg_len + (4 - (msg_len%4));
+		msg_len = WS_ROUNDUP_4(msg_len);
 
 		offset += msg_len-1;
 		return offset;
@@ -291,7 +293,7 @@ dissect_ppcap_source_address(tvbuff_t *tvb, packet_info *pinfo, proto_tree * ppc
 		if (msg_len%16 != 0)
 		{
 
-			proto_tree_add_item(ppcap_tree1, hf_ppcap_source_ip_address1, tvb, offset, msg_len, ENC_NA);
+			proto_tree_add_item(ppcap_tree1, hf_ppcap_source_ip_address1, tvb, offset, msg_len, ENC_BIG_ENDIAN);
 			set_address_tvb(&pinfo->net_src, AT_IPv4, 4, tvb, offset);
 			copy_address_shallow(&pinfo->src, &pinfo->net_src);
 		}
@@ -310,8 +312,7 @@ dissect_ppcap_source_address(tvbuff_t *tvb, packet_info *pinfo, proto_tree * ppc
 		set_address_tvb(&pinfo->net_src, AT_STRINGZ, msg_len, tvb, offset);
 		copy_address_shallow(&pinfo->src, &pinfo->net_src);
 	}
-	if (msg_len%4)
-		msg_len = msg_len + (4 - (msg_len%4));
+	msg_len = WS_ROUNDUP_4(msg_len);
 	offset += msg_len;
 	return offset;
 }
@@ -359,8 +360,7 @@ dissect_ppcap_destination_address(tvbuff_t *tvb, packet_info * pinfo, proto_tree
 		mtp3_addr_dpc->ni = 0;
 		set_address(&pinfo->dst, ss7pc_address_type, sizeof(mtp3_addr_pc_t), (uint8_t *) mtp3_addr_dpc);
 
-		if (msg_len%4)
-			msg_len = msg_len + (4 - (msg_len%4));
+		msg_len = WS_ROUNDUP_4(msg_len);
 
 		offset += msg_len-1;
 		return offset;
@@ -381,7 +381,7 @@ dissect_ppcap_destination_address(tvbuff_t *tvb, packet_info * pinfo, proto_tree
 	{
 		if (msg_len%16 != 0)
 		{
-			proto_tree_add_item(ppcap_tree1, hf_ppcap_destination_ip_address1, tvb, offset, msg_len, ENC_NA);
+			proto_tree_add_item(ppcap_tree1, hf_ppcap_destination_ip_address1, tvb, offset, msg_len, ENC_BIG_ENDIAN);
 			set_address_tvb(&pinfo->net_dst, AT_IPv4, 4, tvb, offset);
 			copy_address_shallow(&pinfo->dst, &pinfo->net_dst);
 		}
@@ -401,8 +401,7 @@ dissect_ppcap_destination_address(tvbuff_t *tvb, packet_info * pinfo, proto_tree
 		copy_address_shallow(&pinfo->dst, &pinfo->net_dst);
 	}
 
-	if (msg_len%4)
-		msg_len = msg_len+(4-(msg_len%4));
+	msg_len = WS_ROUNDUP_4(msg_len);
 
 	offset += msg_len;
 
@@ -427,8 +426,7 @@ dissect_ppcap_info_string(tvbuff_t *tvb, proto_tree * ppcap_tree1, int offset)
 	offset  = offset + 2;
 	proto_tree_add_item(ppcap_tree1, hf_ppcap_info, tvb, offset, msg_len, ENC_ASCII);
 
-	if (msg_len%4)
-		msg_len = msg_len +( 4- (msg_len%4));
+	msg_len = WS_ROUNDUP_4(msg_len);
 	offset += msg_len;
 	return offset;
 }
@@ -480,7 +478,7 @@ dissect_ppcap_transport_protocol(tvbuff_t *tvb,proto_tree * ppcap_tree1, int off
 {
 	proto_tree_add_item(ppcap_tree1, hf_ppcap_length, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset = offset + 2;
-	proto_tree_add_item(ppcap_tree1, hf_ppcap_transport_prot, tvb, offset, 4, ENC_ASCII | ENC_NA);
+	proto_tree_add_item(ppcap_tree1, hf_ppcap_transport_prot, tvb, offset, 4, ENC_ASCII);
 	offset += 4;
 
 	return offset;
@@ -495,7 +493,7 @@ dissect_ppcap_sctp_assoc(tvbuff_t *tvb _U_, proto_tree * tree _U_, int offset)
 	proto_tree_add_item(tree, hf_ppcap_length, tvb, offset, 2, ENC_BIG_ENDIAN);
 	offset = offset + 2;
 
-	proto_tree_add_item(tree, hf_ppcap_sctp_assoc, tvb, offset, length, ENC_ASCII | ENC_NA);
+	proto_tree_add_item(tree, hf_ppcap_sctp_assoc, tvb, offset, length, ENC_ASCII);
 
 	/* The string can be 1 -15 characters long but the IE is padded to 16 bytes*/
 
@@ -522,8 +520,7 @@ dissect_ppcap_payload_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree * ppcap
 	offset  = offset + 2;
 	proto_tree_add_item(ppcap_tree1, hf_ppcap_payload_data, tvb, offset, msg_len, ENC_NA);
 
-	if (msg_len%4)
-		msg_len = msg_len +( 4- (msg_len%4));
+	msg_len = WS_ROUNDUP_4(msg_len);
 
 	next_tvb = tvb_new_subset_remaining(tvb, offset);
 

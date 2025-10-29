@@ -317,7 +317,7 @@ setup_dissector(void)
     for (; NULL != *vector; vector++ )
     {
         if ( *vector && g_ascii_strtoll(*vector, NULL, 10) > 0 )
-            wmem_list_append(global_filter_list, GINT_TO_POINTER(g_ascii_strtoll(*vector, NULL, 10)));
+            wmem_list_append(global_filter_list, GINT_TO_POINTER((int)g_ascii_strtoll(*vector, NULL, 10)));
     }
 
     heur_entry = find_heur_dissector_by_unique_short_name("opensafety_sercosiii");
@@ -1093,7 +1093,7 @@ dissect_opensafety_ssdo_message(tvbuff_t *message_tvb, packet_info *pinfo, proto
 {
     proto_item    *item;
     proto_tree    *ssdo_tree, *ssdo_payload;
-    uint16_t       taddr                = 0, sdn = 0, server = 0, client = 0, n = 0, ct = 0;
+    uint16_t       taddr                = 0, sdn = 0, server = 0, client = 0, ct = 0;
     uint32_t       abortcode, ssdoIndex = 0, ssdoSubIndex = 0, payloadSize, fragmentId = 0, entry = 0;
     uint8_t        db0Offset, db0, payloadOffset, preload;
     unsigned       dataLength;
@@ -1360,7 +1360,7 @@ dissect_opensafety_ssdo_message(tvbuff_t *message_tvb, packet_info *pinfo, proto
                     if ( ssdoIndex == OPENSAFETY_SOD_DVI && ssdoSubIndex == 0x06 )
                     {
                         proto_tree_add_item( ssdo_tree, hf_oss_sod_par_timestamp, message_tvb, payloadOffset, 4, ENC_LITTLE_ENDIAN );
-                        for ( n = 4; n < payloadSize; n+=4 )
+                        for (unsigned n = 4; n < payloadSize; n+=4)
                         {
                             entry = tvb_get_letohl ( message_tvb, payloadOffset + n );
                             proto_tree_add_uint_format_value ( ssdo_tree, hf_oss_sod_par_checksum, message_tvb, (payloadOffset + n ),
@@ -1479,6 +1479,7 @@ dissect_opensafety_snmt_message(tvbuff_t *message_tvb, packet_info *pinfo, proto
         /* Handle a normal SN Fail */
         if ( byte != OPENSAFETY_ERROR_GROUP_ADD_PARAMETER )
         {
+            char* str_error;
             if ( (db0 ^ OPENSAFETY_MSG_SNMT_EXT_SN_FAIL) == 0 )
             {
                 proto_tree_add_uint(snmt_tree, hf_oss_snmt_service_id, message_tvb,
@@ -1492,15 +1493,16 @@ dissect_opensafety_snmt_message(tvbuff_t *message_tvb, packet_info *pinfo, proto
                 col_append_fstr(pinfo->cinfo, COL_INFO, ", %s", val_to_str_const(db0, opensafety_message_service_type, "Unknown"));
             }
 
+            str_error = val_to_str(pinfo->pool, byte, opensafety_sn_fail_error_group, "Reserved [%d]");
             proto_tree_add_uint_format_value(snmt_tree, hf_oss_snmt_error_group, message_tvb, OSS_FRAME_POS_DATA + packet->frame.subframe1 + 1, 1,
-                    byte, "%s", ( byte == 0 ? "Device" : val_to_str(byte, opensafety_sn_fail_error_group, "Reserved [%d]" ) ) );
+                    byte, "%s", ( byte == 0 ? "Device" : str_error) );
 
             errcode = tvb_get_uint8(message_tvb, OSS_FRAME_POS_DATA + packet->frame.subframe1 + 2);
             proto_tree_add_uint_format_value(snmt_tree, hf_oss_snmt_error_code, message_tvb, OSS_FRAME_POS_DATA + packet->frame.subframe1 + 2, 1,
                     errcode, "%s [%d]", ( errcode == 0 ? "Default" : "Vendor Specific" ), errcode );
 
             col_append_fstr(pinfo->cinfo, COL_INFO, " - Group: %s; Code: %s",
-                ( byte == 0 ? "Device" : val_to_str(byte, opensafety_sn_fail_error_group, "Reserved [%d]" ) ),
+                ( byte == 0 ? "Device" : str_error),
                 ( errcode == 0 ? "Default" : "Vendor Specific" )
             );
 
@@ -1862,7 +1864,7 @@ dissect_opensafety_message(opensafety_packet_info *packet,
     if ( packet->msg_type != OPENSAFETY_SPDO_MESSAGE_TYPE )
     {
         col_append_fstr(pinfo->cinfo, COL_INFO, (u_nrInPackage > 1 ? " | %s" : "%s" ),
-            val_to_str(packet->msg_id, opensafety_message_type_values, "Unknown Message (0x%02X) "));
+            val_to_str(pinfo->pool, packet->msg_id, opensafety_message_type_values, "Unknown Message (0x%02X) "));
     }
 
     item = proto_tree_add_uint(opensafety_tree, hf_oss_byte_offset, packet->frame.frame_tvb, 0, 1, packet->frame.byte_offset);
@@ -1910,7 +1912,7 @@ dissect_opensafety_message(opensafety_packet_info *packet,
             if ( previous_msg_id != packet->msg_id )
             {
                 col_append_fstr(pinfo->cinfo, COL_INFO, (u_nrInPackage > 1 ? " | %s - 0x%03X" : "%s - 0x%03X" ),
-                            val_to_str(packet->msg_id, opensafety_message_type_values, "Unknown Message (0x%02X) "),
+                            val_to_str(pinfo->pool, packet->msg_id, opensafety_message_type_values, "Unknown Message (0x%02X) "),
                             packet->sender );
             } else {
                 col_append_fstr(pinfo->cinfo, COL_INFO, ", 0x%03X", packet->sender );
@@ -2043,7 +2045,7 @@ opensafety_package_dissector(const char *protocolName, const char *sub_diss_hand
     unsigned            length, len, frameOffset, frameLength, nodeAddress, gapStart;
     uint8_t            *swbytes;
     bool                handled, dissectorCalled, call_sub_dissector, markAsMalformed;
-    uint8_t             type, found, i, tempByte, previous_msg_id;
+    uint8_t             type, found, tempByte, previous_msg_id;
     uint16_t            frameStart1, frameStart2, byte_offset;
     int                 reported_len;
     dissector_handle_t  protocol_dissector = NULL;
@@ -2092,7 +2094,7 @@ opensafety_package_dissector(const char *protocolName, const char *sub_diss_hand
         /* Wordswapping for modbus detection */
         /* Only a even number of bytes can be swapped */
         len = (length / 2);
-        for ( i = 0; i < len; i++ )
+        for (unsigned i = 0; i < len; i++)
         {
             tempByte = swbytes [ 2 * i ]; swbytes [ 2 * i ] = swbytes [ 2 * i + 1 ]; swbytes [ 2 * i + 1 ] = tempByte;
         }

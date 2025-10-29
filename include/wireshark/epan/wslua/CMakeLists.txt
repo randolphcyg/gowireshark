@@ -15,6 +15,7 @@ set(WSLUA_MODULES
 	${CMAKE_CURRENT_SOURCE_DIR}/wslua_byte_array.c
 	${CMAKE_CURRENT_SOURCE_DIR}/wslua_capture_info.c
 	${CMAKE_CURRENT_SOURCE_DIR}/wslua_column.c
+	${CMAKE_CURRENT_SOURCE_DIR}/wslua_conversation.c
 	${CMAKE_CURRENT_SOURCE_DIR}/wslua_dir.c
 	${CMAKE_CURRENT_SOURCE_DIR}/wslua_dissector.c
 	${CMAKE_CURRENT_SOURCE_DIR}/wslua_dumper.c
@@ -38,6 +39,7 @@ set(WSLUA_MODULES
 	${CMAKE_CURRENT_SOURCE_DIR}/wslua_tvb.c
 	${CMAKE_CURRENT_SOURCE_DIR}/wslua_utility.c
 	${CMAKE_CURRENT_SOURCE_DIR}/wslua_wtap.c
+	${CMAKE_CURRENT_SOURCE_DIR}/wslua_gcrypt.c
 )
 
 set(WSLUA_FILES
@@ -119,6 +121,8 @@ endif()
 
 target_include_directories(wslua
 	SYSTEM PRIVATE
+		${GCRYPT_INCLUDE_DIRS}
+		${GNUTLS_INCLUDE_DIRS}
 		${LUA_INCLUDE_DIRS}
 	PRIVATE
 		${CMAKE_CURRENT_BINARY_DIR}

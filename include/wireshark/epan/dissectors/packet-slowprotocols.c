@@ -85,7 +85,7 @@ dissect_slow_protocols(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
     }
 
     next_tvb = tvb_new_subset_remaining(tvb, 1);
-    if (!dissector_try_uint_new(slow_protocols_dissector_table, subtype,
+    if (!dissector_try_uint_with_data(slow_protocols_dissector_table, subtype,
                                 next_tvb, pinfo, tree, true, NULL))
         call_data_dissector(next_tvb, pinfo, tree);
     set_actual_length(tvb, tvb_captured_length(next_tvb) + 1);
@@ -116,7 +116,7 @@ proto_register_slow_protocols(void)
 
     /* Register the protocol name and description */
 
-    proto_slow = proto_register_protocol("Slow Protocols", "802.3 Slow protocols", "slow");
+    proto_slow = proto_register_protocol("802.3 Slow protocols", "Slow Protocols", "slow");
 
     /* Required function calls to register the header fields and subtrees used */
 

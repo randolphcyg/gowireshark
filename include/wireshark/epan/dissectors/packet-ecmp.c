@@ -921,7 +921,7 @@ static void add_attributes(packet_info* pinfo, int offset, tvbuff_t *tvb, proto_
 							wmem_strbuf_append_hex(pStr, check);
 						}
 					}
-					/*display last version summary parameter, e.g 'FW', 'BL', 'HW' as no deliminator to check for, just prints out rest of version string*/
+					/*display last version summary parameter, e.g 'FW', 'BL', 'HW' as no delimiter to check for, just prints out rest of version string*/
 					proto_tree_add_string(ecmp_attribute_data_tree, hf_ecmp_version_summary, tvb, offset-b, b, wmem_strbuf_get_str(pStr));
 					offset-= 1;
 				}
@@ -1009,7 +1009,7 @@ static int add_command_codes(packet_info* pinfo, int offset, tvbuff_t *tvb, prot
 	const char* command_str;
 	uint8_t command = tvb_get_uint8(tvb, offset);
 	*command_value = command & 0x7F;
-	command_str = val_to_str(*command_value, command_vals, "Unknown Type (0x%02x)");
+	command_str = val_to_str(pinfo->pool, *command_value, command_vals, "Unknown Type (0x%02x)");
 
 	/*display command subtree*/
 	ecmp_command_tree = proto_tree_add_subtree_format(ecmp_tree, tvb, offset, 1, ett_ecmp_command, NULL, "Request Response Code: %s", command_str);
@@ -1283,7 +1283,7 @@ static int get_data_type(packet_info* pinfo, int offset, uint8_t data_type, tvbu
 		offset+= 7;
 		break;
 	case 30: /*display string ID*/
-		proto_tree_add_item(ecmp_current_tree, hf_ecmp_string_id, tvb, offset, 2, ENC_NA|ENC_ASCII);
+		proto_tree_add_item(ecmp_current_tree, hf_ecmp_string_id, tvb, offset, 2, ENC_ASCII);
 		offset++;
 		break;
 	case 32: /*display (ECMP) string*/
@@ -1446,8 +1446,8 @@ static void get_object_info_response(packet_info* pinfo, int offset, tvbuff_t *t
 	proto_item* ecmp_response_item = NULL;
 	proto_tree* ecmp_parameter_number_tree = NULL;
 	proto_tree* ecmp_parameter_response_tree = NULL;
-	uint8_t count = 0; /*stores number of parameter read responses */
-	uint8_t a = 0; /*counting varables */
+	uint8_t count = 0; /* stores number of parameter read responses */
+	uint8_t a = 0; /* counting variables */
 	uint8_t n = 0;
 	uint8_t info_type0 = 0;
 	uint16_t length = 0;
@@ -1548,7 +1548,7 @@ static void get_object_info_response(packet_info* pinfo, int offset, tvbuff_t *t
 				case 6:
 					/*display Units- ID string */
 					offset++;
-					proto_tree_add_item(ecmp_parameter_response_tree, hf_ecmp_string_id, tvb, offset, 2, ENC_NA|ENC_ASCII);
+					proto_tree_add_item(ecmp_parameter_response_tree, hf_ecmp_string_id, tvb, offset, 2, ENC_ASCII);
 					offset++;
 					break;
 				case 7:
@@ -1571,8 +1571,8 @@ static int get_parameter_responses(packet_info* pinfo, int offset, uint8_t comma
 	proto_item* ecmp_response_item = NULL;
 	proto_tree* ecmp_parameter_number_tree = NULL;
 	proto_tree* ecmp_parameter_response_tree = NULL;
-	uint8_t count = 0; /*stores number of parameter read responses */
-	uint8_t a = 0; /*counting varables */
+	uint8_t count = 0; /* stores number of parameter read responses */
+	uint8_t a = 0; /* counting variables */
 	uint8_t data_type = 0;
 	uint8_t unit_id = 0;
 	int8_t dec = 0;
@@ -2211,7 +2211,7 @@ static void cyclic_setup(packet_info* pinfo, uint16_t offset, bool request, tvbu
 				/* link direction */
 				proto_tree_add_item(ecmp_tree, hf_ecmp_cyclic_setup_dir, tvb, offset++, 1, ENC_BIG_ENDIAN);
 
-				/* add the attributesd as a tree */
+				/* add the attributes as a tree */
 				add_cyclic_setup_attributes(pinfo, offset, length, tvb, ecmp_tree);
 			}
 			break;
@@ -2330,7 +2330,7 @@ static void cyclic_setup(packet_info* pinfo, uint16_t offset, bool request, tvbu
 			case 11: /* get */
 			case 12: /* get mappings */
 			case 6: /* info */
-				/* add the attributesd as a tree */
+				/* add the attributes as a tree */
 				add_cyclic_setup_attributes(pinfo, offset, length, tvb, ecmp_tree);
 			break;
 
@@ -3042,7 +3042,7 @@ static int dissect_ecmp_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
 	/* Information displayed in the Info column*/
 	col_add_fstr(pinfo->cinfo, COL_INFO, "%s, %s. Transaction ID: %d",
-					val_to_str(command_value, command_vals, "Unknown Type:0x%02x"),
+					val_to_str(pinfo->pool, command_value, command_vals, "Unknown Type:0x%02x"),
 					tfs_get_string((type_value & 0x80) >> 7, &tfs_response_request),
 					transaction_id_value);
 
@@ -3102,7 +3102,7 @@ static int dissect_ecmp_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 	return tvb_reported_length(tvb);
 }
 
-/* Function to register the protcol*/
+/* Function to register the protocol */
 /* Wireshark literally scans this file (packet-ecmp.c) to find this function  */
 /* note: this function MUST start in column 1, due to the scanning mentioned above */
 void proto_register_ecmp (void)

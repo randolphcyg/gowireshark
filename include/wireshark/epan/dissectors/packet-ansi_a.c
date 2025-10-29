@@ -253,7 +253,7 @@ const ext_value_string_t ansi_a_ios401_dtap_strings[] =
     { 0, NULL, 0 }
 };
 
-const ext_value_string_t ansi_a_ios401_elem_1_strings[] =
+static const ext_value_string_t ansi_a_ios401_elem_1_strings[] =
 {
     { 0x20,     "Access Network Identifiers",                                   0 },
     { 0x3D,     "ADDS User Part",                                               1 },
@@ -458,7 +458,7 @@ const ext_value_string_t ansi_a_ios501_dtap_strings[] =
  * ansi_a_ios401_elem_1_strings when the same element
  * is being described.
  */
-const ext_value_string_t ansi_a_ios501_elem_1_strings[] =
+static const ext_value_string_t ansi_a_ios501_elem_1_strings[] =
 {
     { 0x20,     "Access Network Identifiers",                                   0 },
     { 0x3D,     "ADDS User Part",                                               1 },
@@ -10161,7 +10161,7 @@ static void (*dtap_msg_fcn[])(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     NULL        /* NONE */
 };
 
-/* Utillity function to dissect CDMA200 A1 elements in ANSI MAP messages */
+/* Utility function to dissect CDMA200 A1 elements in ANSI MAP messages */
 void
 dissect_cdma2000_a1_elements(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t offset, unsigned len)
 {
@@ -12532,7 +12532,7 @@ proto_register_ansi_a(void)
         },
         { &hf_ansi_a_a2p_bearer_sess_udp_port,
             { "Session UDP Port", "ansi_a_bsmap.a2p_bearer_sess.udp_port",
-            FT_UINT16, BASE_DEC, NULL, 0,
+            FT_UINT16, BASE_PT_UDP, NULL, 0,
             NULL, HFILL }
         },
         { &hf_ansi_a_a2p_bearer_form_num_formats,
@@ -12582,7 +12582,7 @@ proto_register_ansi_a(void)
         },
         { &hf_ansi_a_a2p_bearer_form_format_udp_port,
             { "Bearer UDP Port", "ansi_a_bsmap.a2p_bearer_form.format.udp_port",
-            FT_UINT16, BASE_DEC, NULL, 0,
+            FT_UINT16, BASE_PT_UDP, NULL, 0,
             NULL, HFILL }
         },
         { &hf_ansi_a_a2p_bearer_form_format_ext_len,
@@ -12735,7 +12735,7 @@ proto_register_ansi_a(void)
         },
         { &ei_ansi_a_is2000_chan_id_pilot_pn,
             { "ansi_a.is2000_chan_id_pilot_pn", PI_PROTOCOL, PI_NOTE,
-            "This parameter has a unique encoding.  The most significant bit comes after the LSBs unlike typical IOS octet split values.",
+            "This parameter has a unique encoding. The most significant bit comes after the LSBs unlike typical IOS octet split values.",
             EXPFILL }
         },
         { &ei_ansi_a_unknown_dtap_msg,

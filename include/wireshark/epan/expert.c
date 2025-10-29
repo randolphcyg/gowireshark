@@ -14,9 +14,8 @@
 #define WS_LOG_DOMAIN LOG_DOMAIN_EPAN
 
 #include <stdio.h>
-#include <stdlib.h>
 
-#include "packet.h"
+#include <epan/packet.h>
 #include "expert.h"
 #include "uat.h"
 #include "prefs.h"
@@ -26,6 +25,7 @@
 
 #include <wsutil/str_util.h>
 #include <wsutil/wslog.h>
+#include <wsutil/array.h>
 
 /* proto_expert cannot be static because it's referenced in the
  * print routines
@@ -338,6 +338,7 @@ expert_deregister_expertinfo (const char *abbrev)
 	if (expinfo) {
 		g_ptr_array_add(deregistered_expertinfos, gpa_expertinfo.ei[expinfo->id]);
 		g_hash_table_steal(gpa_name_map, abbrev);
+		expinfo->hf_info.hfinfo.blurb = NULL;
 	}
 }
 
@@ -456,6 +457,7 @@ expert_register_field_array(expert_module_t *module, ei_register_info *exp, cons
 		ptr->eiinfo.hf_info.p_id = &ptr->ids->hf;
 		ptr->eiinfo.hf_info.hfinfo.name = ptr->eiinfo.summary;
 		ptr->eiinfo.hf_info.hfinfo.abbrev = ptr->eiinfo.name;
+		ptr->eiinfo.hf_info.hfinfo.blurb = "Expert_Item";
 
 		proto_register_field_array(module->proto_id, &ptr->eiinfo.hf_info, 1);
 	}
@@ -517,15 +519,15 @@ expert_set_item_flags(proto_item *pi, const int group, const unsigned severity)
 }
 
 static proto_tree*
-expert_create_tree(proto_item *pi, int group, int severity, const char *msg)
+expert_create_tree(proto_item *pi, packet_info* pinfo, int group, int severity, const char *msg)
 {
 	proto_tree *tree;
 	proto_item *ti;
 
 	tree = proto_item_add_subtree(pi, ett_expert);
 	ti = proto_tree_add_protocol_format(tree, proto_expert, NULL, 0, 0, "Expert Info (%s/%s): %s",
-					    val_to_str(severity, expert_severity_vals, "Unknown (%u)"),
-					    val_to_str(group, expert_group_vals, "Unknown (%u)"),
+					    val_to_str(pinfo->pool, severity, expert_severity_vals, "Unknown (%u)"),
+					    val_to_str(pinfo->pool, group, expert_group_vals, "Unknown (%u)"),
 					    msg);
 	proto_item_set_generated(ti);
 
@@ -558,18 +560,30 @@ expert_set_info_vformat(packet_info *pinfo, proto_item *pi, int group, int sever
 		return NULL;
 	}
 
+	/* severity - the severity of this item
+	 * highest_severity - the highest severity in the entire capture,
+	 *	used to set the color/tooltip in the main status bar
+	 * pinfo->expert_severity - the highest severity of an item in the
+	 *	entire frame, used for setting COL_EXPERT. We always have
+	 *	packet_info at this point.
+	 * FI_GET_FLAG(PITEM_FINFO(pi)) - the highest severity of an item
+	 *	or its descendants, used to set the background color in
+	 *	proto_tree_model.cpp. Note we can't set or get this if an item
+	 *	is faked.
+	 */
 	if (severity > highest_severity) {
 		highest_severity = severity;
 	}
 
-	/* XXX: can we get rid of these checks and make them programming errors instead now? */
+	/* The item might be faked, but we still need to tap it even so, e.g.,
+	 * for the Expert Info dialog or CLI tap. */
 	if (pi != NULL && PITEM_FINFO(pi) != NULL) {
 		expert_set_item_flags(pi, group, severity);
 	}
 
-	if ((pi == NULL) || (PITEM_FINFO(pi) == NULL) ||
-		((unsigned)severity >= FI_GET_FLAG(PITEM_FINFO(pi), PI_SEVERITY_MASK))) {
-		col_add_str(pinfo->cinfo, COL_EXPERT, val_to_str(severity, expert_severity_vals, "Unknown (%u)"));
+	if ((unsigned)severity > pinfo->expert_severity) {
+		pinfo->expert_severity = (unsigned)severity;
+		col_add_str(pinfo->cinfo, COL_EXPERT, val_to_str(pinfo->pool, severity, expert_severity_vals, "Unknown (%u)"));
 	}
 
 	if (use_vaformat) {
@@ -586,7 +600,7 @@ expert_set_info_vformat(packet_info *pinfo, proto_item *pi, int group, int sever
 		ws_utf8_truncate(formatted, ITEM_LABEL_LENGTH - 1);
 	}
 
-	tree = expert_create_tree(pi, group, severity, formatted);
+	tree = expert_create_tree(pi, pinfo, group, severity, formatted);
 
 	if (hf_index <= 0) {
 		/* If no filterable expert info, just add the message */
@@ -626,7 +640,6 @@ expert_set_info_vformat(packet_info *pinfo, proto_item *pi, int group, int sever
 	if (pi != NULL && PITEM_FINFO(pi) != NULL) {
 		ei->pitem = pi;
 	}
-	/* XXX: remove this because we don't have an internal-only function now? */
 	else {
 		ei->pitem = NULL;
 	}

@@ -18,9 +18,10 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/charsets.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 #include "packet-t38.h"
-#include "packet-t30.h"
 
 void proto_register_t30(void);
 
@@ -1397,6 +1398,11 @@ proto_register_t30(void)
     expert_register_field_array(expert_t30, ei, array_length(ei));
 
     register_dissector("t30.hdlc", dissect_t30_hdlc, proto_t30);
+
+    register_external_value_string_ext("t30_facsimile_control_field_vals_ext", &t30_facsimile_control_field_vals_ext);
+    register_external_value_string_ext("t30_facsimile_control_field_vals_short_ext", &t30_facsimile_control_field_vals_short_ext);
+
+
 
 }
 

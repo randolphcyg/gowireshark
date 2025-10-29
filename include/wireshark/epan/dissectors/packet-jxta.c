@@ -28,6 +28,8 @@
 #include <epan/to_str.h>
 #include <epan/address_types.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include <wsutil/str_util.h>
 
 #include "packet-jxta.h"
@@ -2066,7 +2068,7 @@ static int dissect_media( const char* fullmediatype, tvbuff_t * tvb, packet_info
                 }
             }
         } else {
-            dissected = dissector_try_string(media_type_dissector_table, mediatype, tvb, pinfo, tree, &content_info) ? tvb_captured_length(tvb) : 0;
+            dissected = dissector_try_string_with_data(media_type_dissector_table, mediatype, tvb, pinfo, tree, true, &content_info) ? tvb_captured_length(tvb) : 0;
 
             if( dissected != (int) tvb_captured_length(tvb) ) {
                 /* ws_message( "%s : %d expected, %d dissected", mediatype, tvb_captured_length(tvb), dissected ); */

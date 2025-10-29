@@ -1108,7 +1108,7 @@ afpstat_init(struct register_srt* srt _U_, GArray* srt_array)
 	afp_srt_table = init_srt_table("AFP Commands", NULL, srt_array, AFP_NUM_PROCEDURES, NULL, "afp.command", NULL);
 	for (i = 0; i < AFP_NUM_PROCEDURES; i++)
 	{
-		char* tmp_str = val_to_str_ext_wmem(NULL, i, &CommandCode_vals_ext, "Unknown(%u)");
+		char* tmp_str = val_to_str_ext(NULL, i, &CommandCode_vals_ext, "Unknown(%u)");
 		init_srt_table_row(afp_srt_table, i, tmp_str);
 		wmem_free(NULL, tmp_str);
 	}
@@ -5162,12 +5162,12 @@ dissect_afp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
 	afp_command = request_val->command;
 	col_add_fstr(pinfo->cinfo, COL_INFO, "%s %s",
-		     val_to_str_ext(afp_command, &CommandCode_vals_ext,
+		     val_to_str_ext(pinfo->pool, afp_command, &CommandCode_vals_ext,
 				"Unknown command (%u)"),
 		     atp_asp_dsi_info->reply ? "reply" : "request");
 	if (atp_asp_dsi_info->reply && atp_asp_dsi_info->code != 0) {
 		col_append_fstr(pinfo->cinfo, COL_INFO, ": %s (%d)",
-			val_to_str_ext(atp_asp_dsi_info->code, &asp_error_vals_ext,
+			val_to_str_ext(pinfo->pool, atp_asp_dsi_info->code, &asp_error_vals_ext,
 				"Unknown error (%u)"), atp_asp_dsi_info->code);
 	}
 
@@ -5588,7 +5588,7 @@ proto_register_afp(void)
 
 		{ &hf_afp_response_to,
 		  { "Response to",	"afp.response_to",
-		    FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+		    FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0,
 		    "This packet is a response to the packet in this frame", HFILL }},
 
 		{ &hf_afp_time,
@@ -5598,7 +5598,7 @@ proto_register_afp(void)
 
 		{ &hf_afp_response_in,
 		  { "Response in",	"afp.response_in",
-		    FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+		    FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
 		    "The response to this packet is in this packet", HFILL }},
 
 		{ &hf_afp_login_flags,
@@ -7249,7 +7249,7 @@ proto_register_afp(void)
 	};
 
 	static ei_register_info ei[] = {
-		{ &ei_afp_subquery_count_over_safety_limit, { "afp.subquery_count_over_safety_limit", PI_MALFORMED, PI_ERROR, "Subquery count > safety limit ", EXPFILL }},
+		{ &ei_afp_subquery_count_over_safety_limit, { "afp.subquery_count_over_safety_limit", PI_MALFORMED, PI_ERROR, "Subquery count > safety limit", EXPFILL }},
 		{ &ei_afp_subquery_count_over_query_count, { "afp.subquery_count_over_query_count", PI_MALFORMED, PI_ERROR, "Subquery count > query count", EXPFILL }},
 		{ &ei_afp_abnormal_num_subqueries, { "afp.abnormal_num_subqueries", PI_PROTOCOL, PI_WARN, "Abnormal number of subqueries", EXPFILL }},
 		{ &ei_afp_too_many_acl_entries, { "afp.too_many_acl_entries", PI_UNDECODED, PI_WARN, "Too many ACL entries", EXPFILL }},

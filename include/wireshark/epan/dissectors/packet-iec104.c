@@ -22,8 +22,9 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
-#include <epan/exceptions.h>
 #include <epan/reassemble.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include <wsutil/str_util.h>
 #include "packet-tcp.h"
 
@@ -728,7 +729,7 @@ static const true_false_string tfs_not_topical_topical = { "Not Topical", "Topic
 static const true_false_string tfs_transient_not_transient = { "Transient", "Not Transient" };
 static const true_false_string tfs_overflow_no_overflow = { "Overflow", "No overflow" };
 static const true_false_string tfs_select_execute = { "Select", "Execute" };
-static const true_false_string tfs_local_dst = { "DST", "Local" };
+static const true_false_string tfs_summer_standard_time = { "Summer time", "Standard time" };
 static const true_false_string tfs_coi_i = { "Initialisation after change of local parameters", "Initialisation with unchanged local parameters" };
 static const true_false_string tfs_adjusted_not_adjusted = { "Adjusted", "Not Adjusted" };
 
@@ -2006,7 +2007,7 @@ static void get_ErrorText(tvbuff_t *tvb, uint8_t *offset, proto_tree *iec104_hea
 {
 	if (length)
 	{
-		proto_tree_add_item(iec104_header_tree, hf_error_text, tvb, *offset, length, ENC_UTF_8 | ENC_NA);
+		proto_tree_add_item(iec104_header_tree, hf_error_text, tvb, *offset, length, ENC_UTF_8);
 		(*offset) += length;
 	}
 }
@@ -2170,7 +2171,7 @@ static void dissect_iec60870_segment(tvbuff_t *tvb, packet_info *pinfo, proto_tr
 {
 	uint32_t msg_seqid = 0;
 
-	bool final_segment = tvb_get_bits(tvb, (*offset << 3) + 0, 1, ENC_LITTLE_ENDIAN) == 1;
+	bool final_segment = tvb_get_bits8(tvb, (*offset << 3) + 0, 1) == 1;
 
 	proto_tree_add_item(tree, hf_asn_fin, tvb, *offset, 1, ENC_LITTLE_ENDIAN);
 	proto_tree_add_item(tree, hf_asn_fir, tvb, *offset, 1, ENC_LITTLE_ENDIAN);
@@ -2288,9 +2289,9 @@ static int dissect_iec60870_asdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 		}
 	}
 
-	cause_str = val_to_str(asduh.TNCause & F_CAUSE, causetx_types, " <CauseTx=%u>");
+	cause_str = val_to_str(pinfo->pool, asduh.TNCause & F_CAUSE, causetx_types, " <CauseTx=%u>");
 
-	wmem_strbuf_append_printf(res, "ASDU=%u %s %s", asduh.Addr, val_to_str(asduh.TypeId, asdu_types, "<TypeId=%u>"), cause_str);
+	wmem_strbuf_append_printf(res, "ASDU=%u %s %s", asduh.Addr, val_to_str(pinfo->pool, asduh.TypeId, asdu_types, "<TypeId=%u>"), cause_str);
 
 	if (asduh.TNCause & F_NEGA)
 		wmem_strbuf_append(res, "_NEGA");
@@ -3007,7 +3008,7 @@ proto_register_iec60870_asdu(void)
 		    "CP56Time hours", HFILL }},
 
 		{ &hf_cp56time_su,
-		  { "SU", "iec60870_asdu.cp56time.su", FT_BOOLEAN, 8, TFS(&tfs_local_dst), 0x80,
+		  { "SU", "iec60870_asdu.cp56time.su", FT_BOOLEAN, 8, TFS(&tfs_summer_standard_time), 0x80,
 		    "CP56Time summer time", HFILL }},
 
 		{ &hf_cp56time_day,
@@ -3287,7 +3288,7 @@ proto_register_iec60870_asdu(void)
 		    "Error time stamp hours", HFILL }},
 
 		{ &hf_etm_su,
-		  { "SU", "iec60870_asdu.etm.su", FT_BOOLEAN, 8, TFS(&tfs_local_dst), 0x80,
+		  { "SU", "iec60870_asdu.etm.su", FT_BOOLEAN, 8, TFS(&tfs_summer_standard_time), 0x80,
 		    "Error time stamp summer time", HFILL }},
 
 		{ &hf_etm_day,

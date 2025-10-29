@@ -1,7 +1,7 @@
 /* packet-xnap.c
  * Routines for dissecting NG-RAN Xn application protocol (XnAP)
  * 3GPP TS 38.423 packet dissection
- * Copyright 2018-2024, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2018-2025, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Ref:
- * 3GPP TS 38.423 V18.2.0 (2024-06)
+ * 3GPP TS 38.423 V18.6.0 (2025-06)
  */
 
 #include "config.h"
@@ -112,6 +112,7 @@ static int hf_xnap_nodemeasurementFailedReportCharacteristics_AveragePacketDelay
 static int hf_xnap_nodemeasurementFailedReportCharacteristics_AveragePacketLossDL;
 static int hf_xnap_nodemeasurementFailedReportCharacteristics_MeasuredUETrajectory;
 static int hf_xnap_nodemeasurementFailedReportCharacteristics_Reserved;
+static int hf_xnap_extensionValue_data;
 #include "packet-xnap-hf.c"
 
 /* Initialize the subtree pointers */
@@ -329,35 +330,37 @@ static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(xnap_ies_dissector_table, xnap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(xnap_ies_dissector_table, xnap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(xnap_extension_dissector_table, xnap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  if (!dissector_try_uint_with_data(xnap_extension_dissector_table, xnap_data->protocol_ie_id, tvb, pinfo, tree, false, NULL))
+    proto_tree_add_item(tree, hf_xnap_extensionValue_data, tvb, 0, -1, ENC_NA);
+  return tvb_captured_length(tvb);
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(xnap_proc_imsg_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(xnap_proc_imsg_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(xnap_proc_sout_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(xnap_proc_sout_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   struct xnap_private_data *xnap_data = xnap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(xnap_proc_uout_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(xnap_proc_uout_dissector_table, xnap_data->procedure_code, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
@@ -438,7 +441,7 @@ void proto_register_xnap(void) {
         FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x04,
         NULL, HFILL }},
     { &hf_xnap_primaryRATRestriction_nR_OTHERSAT,
-      { "nR-unlicensed", "xnap.primaryRATRestriction.nR_OTHERSAT",
+      { "nR-OTHERSAT", "xnap.primaryRATRestriction.nR_OTHERSAT",
         FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x02,
         NULL, HFILL }},
     { &hf_xnap_primaryRATRestriction_e_UTRA_LEO,
@@ -454,7 +457,7 @@ void proto_register_xnap(void) {
         FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x40,
         NULL, HFILL }},
     { &hf_xnap_primaryRATRestriction_e_UTRA_OTHERSAT,
-      { "e-UTRA-unlicensed", "xnap.primaryRATRestriction.e_UTRA_OTHERSAT",
+      { "e-UTRA-OTHERSAT", "xnap.primaryRATRestriction.e_UTRA_OTHERSAT",
         FT_BOOLEAN, 8, TFS(&tfs_restricted_not_restricted), 0x20,
         NULL, HFILL }},
     { &hf_xnap_primaryRATRestriction_reserved,
@@ -510,7 +513,7 @@ void proto_register_xnap(void) {
         FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x08,
         NULL, HFILL }},
     { &hf_xnap_MeasurementsToActivate_LoggingM1FromEventTriggered,
-      { "LoggingOfM1FromEventTriggeredMeasurementReports", "xnap.MeasurementsToActivate.LoggingM1FromEventTriggered",
+      { "LoggingM1FromEventTriggeredMeasurementReports", "xnap.MeasurementsToActivate.LoggingM1FromEventTriggered",
         FT_BOOLEAN, 8, TFS(&tfs_activate_do_not_activate), 0x04,
         NULL, HFILL }},
     { &hf_xnap_MeasurementsToActivate_M6,
@@ -632,6 +635,10 @@ void proto_register_xnap(void) {
     { &hf_xnap_nodemeasurementFailedReportCharacteristics_Reserved,
       { "Reserved", "xnap.nodemeasurementFailedReportCharacteristics.Reserved",
         FT_UINT32, BASE_HEX, NULL, 0x03ffffff,
+        NULL, HFILL }},
+    { &hf_xnap_extensionValue_data,
+      { "Data", "xnap.extensionValue.data",
+        FT_BYTES, BASE_NONE|BASE_ALLOW_ZERO, NULL, 0,
         NULL, HFILL }},
 #include "packet-xnap-hfarr.c"
   };

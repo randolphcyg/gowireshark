@@ -509,7 +509,7 @@ void proto_register_pkixtsp(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_pkixtsp_pki_status,
-      { "status", "pkixtsp.status",
+      { "status", "pkixtsp.pki_status",
         FT_INT32, BASE_DEC, VALS(pkixtsp_PKIStatus_vals), 0,
         "PKIStatus", HFILL }},
     { &hf_pkixtsp_failInfo,
@@ -517,7 +517,7 @@ void proto_register_pkixtsp(void) {
         FT_BYTES, BASE_NONE, NULL, 0,
         "PKIFailureInfo", HFILL }},
     { &hf_pkixtsp_tst_version,
-      { "version", "pkixtsp.version",
+      { "version", "pkixtsp.tst_version",
         FT_INT32, BASE_DEC, VALS(pkixtsp_Tst_version_vals), 0,
         "Tst_version", HFILL }},
     { &hf_pkixtsp_policy,
@@ -681,8 +681,8 @@ void proto_register_pkixtsp(void) {
   proto_register_field_array(proto_pkixtsp, hf, array_length(hf));
   proto_register_subtree_array(ett, array_length(ett));
 
-  timestamp_reply_handle = register_dissector(PFNAME "_reply", dissect_timestamp_reply, proto_pkixtsp);
-  timestamp_query_handle = register_dissector(PFNAME "_query", dissect_timestamp_query, proto_pkixtsp);
+  timestamp_reply_handle = register_dissector_with_description(PFNAME "_reply", PSNAME " Response", dissect_timestamp_reply, proto_pkixtsp);
+  timestamp_query_handle = register_dissector_with_description(PFNAME "_query", PSNAME " Request", dissect_timestamp_query, proto_pkixtsp);
 
   register_ber_syntax_dissector("TimeStampReq", proto_pkixtsp, dissect_TimeStampReq_PDU);
   register_ber_syntax_dissector("TimeStampResp", proto_pkixtsp, dissect_TimeStampResp_PDU);

@@ -37,7 +37,8 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/exceptions.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include <epan/prefs.h>
 
 void proto_register_rtp_midi(void);
@@ -2952,9 +2953,9 @@ decode_note_off(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned in
 	const char	*note_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
 	note = tvb_get_uint8( tvb, offset );
-	note_str = val_to_str_ext( note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
+	note_str = val_to_str_ext(pinfo->pool, note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
 	velocity = tvb_get_uint8( tvb, offset + 1 );
 
 	if ( using_rs ) {
@@ -2994,9 +2995,9 @@ decode_note_on(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsigned int
 	const char	*note_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
 	note = tvb_get_uint8( tvb, offset );
-	note_str = val_to_str_ext( note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
+	note_str = val_to_str_ext(pinfo->pool, note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
 	velocity = tvb_get_uint8( tvb, offset + 1 );
 
 	/* special case velocity=0 for Note-On means Note-Off (to preserve running-status!) */
@@ -3043,9 +3044,9 @@ decode_poly_pressure(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsign
 	const char	*note_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
 	note = tvb_get_uint8( tvb, offset );
-	note_str = val_to_str_ext( note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
+	note_str = val_to_str_ext(pinfo->pool, note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
 	pressure = tvb_get_uint8( tvb, offset + 1 );
 
 	if ( using_rs ) {
@@ -3083,7 +3084,7 @@ decode_channel_pressure(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uns
 	const char	*status_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
 	pressure = tvb_get_uint8( tvb, offset );
 
 	if ( using_rs ) {
@@ -3122,7 +3123,7 @@ decode_pitch_bend_change(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 	const char	*status_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
 	octet1 = tvb_get_uint8( tvb, offset );
 	octet2 = tvb_get_uint8( tvb, offset + 1 );
 	pitch = ( octet1 << 7 ) | octet2;
@@ -3162,7 +3163,7 @@ decode_program_change(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsig
 	const char	*status_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
 	program = tvb_get_uint8( tvb, offset );
 
 	if ( using_rs ) {
@@ -3202,9 +3203,9 @@ decode_control_change(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, unsig
 	const char	*ctrl_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  status >> 4, rtp_midi_channel_status, rtp_midi_unknown_value_hex );
 	controller = tvb_get_uint8( tvb, offset );
-	ctrl_str = val_to_str_ext( controller, &rtp_midi_controller_values_ext, "Unknown: %d" );
+	ctrl_str = val_to_str_ext(pinfo->pool, controller, &rtp_midi_controller_values_ext, "Unknown: %d" );
 	value = tvb_get_uint8( tvb, offset + 1 );
 
 	if ( using_rs ) {
@@ -3564,7 +3565,7 @@ decode_sysex_common_tuning( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
 		offset	 += 16;
 
 		for ( i=0; i < 128; i++ ) {
-			note_str = val_to_str_ext( i, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
+			note_str = val_to_str_ext(pinfo->pool, i, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
 
 			tune_tree = proto_tree_add_subtree_format(tree, tvb, offset, 3, ett_rtp_midi_sysex_common_tune_note, NULL, "Note: %s", note_str );
 
@@ -3594,7 +3595,7 @@ decode_sysex_common_tuning( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *t
 
 			note = tvb_get_uint8( tvb, offset );
 
-			note_str = val_to_str_ext( note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
+			note_str = val_to_str_ext(pinfo->pool, note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
 
 			tune_tree = proto_tree_add_subtree_format(tree, tvb, offset, 3, ett_rtp_midi_sysex_common_tune_note, NULL, "Note: %s", note_str );
 
@@ -3834,7 +3835,7 @@ decode_sysex_common_nrt( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 
 	common_nrt = tvb_get_uint8( tvb, offset );
 
-	nrt_str = val_to_str( common_nrt, rtp_midi_sysex_common_nrt, "Unknown 0x%02x" );
+	nrt_str = val_to_str(pinfo->pool,  common_nrt, rtp_midi_sysex_common_nrt, "Unknown 0x%02x" );
 
 	command_tree = proto_tree_add_subtree(tree, tvb, offset, data_len, ett_rtp_midi_sysex_common_nrt, NULL, nrt_str );
 	proto_tree_add_item( command_tree, hf_rtp_midi_sysex_common_non_realtime, tvb, offset, 1, ENC_BIG_ENDIAN );
@@ -4166,7 +4167,7 @@ decode_sysex_common_rt( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 	}
 
 	common_rt = tvb_get_uint8( tvb, offset );
-	rt_str = val_to_str( common_rt, rtp_midi_sysex_common_rt, "Unknown 0x%02x" );
+	rt_str = val_to_str(pinfo->pool,  common_rt, rtp_midi_sysex_common_rt, "Unknown 0x%02x" );
 
 	command_tree = proto_tree_add_subtree(tree, tvb, offset, data_len, ett_rtp_midi_sysex_common_rt, NULL, rt_str );
 	proto_tree_add_item( command_tree, hf_rtp_midi_sysex_common_realtime, tvb, offset, 1, ENC_BIG_ENDIAN );
@@ -4277,7 +4278,7 @@ decode_sysex_start(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsi
 	int		 data_len;
 	int		 ext_consumed	= 0;
 
-	status_str = val_to_str( RTP_MIDI_STATUS_COMMON_SYSEX_END, rtp_midi_common_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  RTP_MIDI_STATUS_COMMON_SYSEX_END, rtp_midi_common_status, rtp_midi_unknown_value_hex );
 
 	/* we need to parse "away" data until the next command */
 	while ( cmd_len ) {
@@ -4374,7 +4375,7 @@ decode_mtc_quarter_frame(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 	const char	*status_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( RTP_MIDI_STATUS_COMMON_MTC_QUARTER_FRAME, rtp_midi_common_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  RTP_MIDI_STATUS_COMMON_MTC_QUARTER_FRAME, rtp_midi_common_status, rtp_midi_unknown_value_hex );
 
 	command_tree = proto_tree_add_subtree(tree, tvb, offset - 1, 2, ett_rtp_midi_command, NULL, status_str );
 	proto_tree_add_item( command_tree, hf_rtp_midi_common_status, tvb, offset - 1, 1, ENC_BIG_ENDIAN );
@@ -4400,7 +4401,7 @@ decode_song_position_pointer(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *
 	const char	*status_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( RTP_MIDI_STATUS_COMMON_SONG_POSITION_POINTER, rtp_midi_common_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  RTP_MIDI_STATUS_COMMON_SONG_POSITION_POINTER, rtp_midi_common_status, rtp_midi_unknown_value_hex );
 	octet1 = tvb_get_uint8( tvb, offset );
 	octet2 = tvb_get_uint8( tvb, offset + 1 );
 	position = ( octet1 << 7 ) | octet2;
@@ -4426,7 +4427,7 @@ decode_song_select(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsi
 	const char	*status_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( RTP_MIDI_STATUS_COMMON_SONG_SELECT, rtp_midi_common_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  RTP_MIDI_STATUS_COMMON_SONG_SELECT, rtp_midi_common_status, rtp_midi_unknown_value_hex );
 	song_nr = tvb_get_uint8( tvb, offset );
 
 	command_tree = proto_tree_add_subtree_format(tree, tvb, offset - 1, 2, ett_rtp_midi_command, NULL, "%s (s=%d)", status_str, song_nr );
@@ -4450,7 +4451,7 @@ decode_undefined_f4(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, uns
 	proto_tree	*command_tree;
 	int		 consumed	= 0;
 
-	status_str = val_to_str( RTP_MIDI_STATUS_COMMON_UNDEFINED_F4, rtp_midi_common_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  RTP_MIDI_STATUS_COMMON_UNDEFINED_F4, rtp_midi_common_status, rtp_midi_unknown_value_hex );
 
 	/* we need to parse "away" data until the next command */
 	while ( cmd_len ) {
@@ -4487,7 +4488,7 @@ decode_undefined_f5(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, uns
 	proto_tree	*command_tree;
 	int		 consumed	= 0;
 
-	status_str = val_to_str( RTP_MIDI_STATUS_COMMON_UNDEFINED_F5, rtp_midi_common_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  RTP_MIDI_STATUS_COMMON_UNDEFINED_F5, rtp_midi_common_status, rtp_midi_unknown_value_hex );
 
 	/* we need to parse "away" data until the next command */
 	while ( cmd_len ) {
@@ -4522,7 +4523,7 @@ decode_tune_request(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, uns
 	const char	*status_str;
 	proto_tree	*command_tree;
 
-	status_str = val_to_str( RTP_MIDI_STATUS_COMMON_TUNE_REQUEST, rtp_midi_common_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  RTP_MIDI_STATUS_COMMON_TUNE_REQUEST, rtp_midi_common_status, rtp_midi_unknown_value_hex );
 	command_tree = proto_tree_add_subtree(tree, tvb, offset - 1, 1, ett_rtp_midi_command, NULL, status_str );
 	proto_tree_add_item( command_tree, hf_rtp_midi_common_status, tvb, offset - 1, 1, ENC_BIG_ENDIAN );
 
@@ -4543,7 +4544,7 @@ decode_sysex_end(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsign
 	proto_tree	*command_tree;
 	int		 consumed = 0;
 
-	status_str = val_to_str( RTP_MIDI_STATUS_COMMON_SYSEX_END, rtp_midi_common_status, rtp_midi_unknown_value_hex );
+	status_str = val_to_str(pinfo->pool,  RTP_MIDI_STATUS_COMMON_SYSEX_END, rtp_midi_common_status, rtp_midi_unknown_value_hex );
 
 	/* we need to parse "away" data until the next command */
 	while ( cmd_len ) {
@@ -4630,7 +4631,7 @@ decodemidi(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, unsigned int
 		proto_tree  *command_tree;
 		const char *valstr;
 
-		valstr =  val_to_str( octet, rtp_midi_common_status, rtp_midi_unknown_value_hex );
+		valstr =  val_to_str(pinfo->pool,  octet, rtp_midi_common_status, rtp_midi_unknown_value_hex );
 		command_tree = proto_tree_add_subtree(tree, tvb, offset, 1, ett_rtp_midi_command, NULL, valstr );
 		proto_tree_add_item( command_tree, hf_rtp_midi_common_status, tvb, offset, 1, ENC_BIG_ENDIAN );
 
@@ -5061,7 +5062,7 @@ decode_cj_chapter_n( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, un
 			note = tvb_get_uint8( tvb, offset ) & 0x7f;
 			velocity = tvb_get_uint8( tvb, offset + 1 ) & 0x7f;
 
-			note_str = val_to_str_ext( note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
+			note_str = val_to_str_ext(pinfo->pool, note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
 
 			rtp_midi_loglist_tree = proto_tree_add_subtree_format(rtp_midi_loglist_tree, tvb, offset, 2,
 						ett_rtp_midi_cj_chapter_n_logitem, NULL, "%s (n=%s, v=%d)", RTP_MIDI_TREE_NAME_CJ_CHAPTER_N_LOGITEM, note_str, velocity );
@@ -5136,7 +5137,7 @@ decode_cj_chapter_e( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, un
 		octet = tvb_get_uint8( tvb, offset + 1 );
 		count_vel = octet & 0x7f;
 
-		note_str = val_to_str_ext( note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
+		note_str = val_to_str_ext(pinfo->pool, note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
 
 		if ( octet & 0x80 ) {
 			log_tree = proto_tree_add_subtree_format(rtp_midi_loglist_tree, tvb, offset, 2, ett_rtp_midi_cj_chapter_e_logitem, NULL,
@@ -5207,7 +5208,7 @@ decode_cj_chapter_a( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, un
 		note	 = tvb_get_uint8( tvb, offset ) & 0x7f;
 		pressure = tvb_get_uint8( tvb, offset + 1 ) & 0x7f;
 
-		note_str = val_to_str_ext( note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
+		note_str = val_to_str_ext(pinfo->pool, note, &rtp_midi_note_values_ext, rtp_midi_unknown_value_dec );
 
 		log_tree = proto_tree_add_subtree_format(rtp_midi_loglist_tree, tvb, offset, 2, ett_rtp_midi_cj_chapter_a_logitem, NULL,
 				"%s (n=%s, p=%d)", RTP_MIDI_TREE_NAME_CJ_CHAPTER_A_LOGITEM, note_str, pressure );
@@ -5248,7 +5249,7 @@ decode_channel_journal( tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
 	chanjourlen = ( chanflags & RTP_MIDI_CJ_MASK_LENGTH ) >> 8;
 
 	rtp_midi_chanjournal_tree = proto_tree_add_subtree( tree, tvb, offset, chanjourlen, ett_rtp_midi_channeljournal, NULL,
-			val_to_str( ( chanflags & RTP_MIDI_CJ_MASK_CHANNEL ) >> RTP_MIDI_CJ_CHANNEL_SHIFT, rtp_midi_channels, rtp_midi_unknown_value_hex ) );
+			val_to_str(pinfo->pool,  ( chanflags & RTP_MIDI_CJ_MASK_CHANNEL ) >> RTP_MIDI_CJ_CHANNEL_SHIFT, rtp_midi_channels, rtp_midi_unknown_value_hex ) );
 
 	proto_tree_add_item( rtp_midi_chanjournal_tree, hf_rtp_midi_chanjour_sflag, tvb, offset, 3, ENC_BIG_ENDIAN );
 	proto_tree_add_item( rtp_midi_chanjournal_tree, hf_rtp_midi_chanjour_chan, tvb, offset, 3, ENC_BIG_ENDIAN );

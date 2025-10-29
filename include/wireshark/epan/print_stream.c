@@ -141,7 +141,7 @@ set_color_24bit_escape(FILE *fh, const color_t *fg, const color_t *bg)
      * background colour" options to the Select Graphic Rendition control
      * sequence; those are reserved in ECMA-48, and are specified in ISO
      * standard 8613-6/ITU-T Recommendation T.416, "Open Document Architecture
-     * (ODA) and Interchange Format: Chararcter Content Architectures",
+     * (ODA) and Interchange Format: Character Content Architectures",
      * section 13.1.8 "Select Graphic Rendition (SGR)".  We use the
      * "direct colour in RGB space" option, with a parameter value of 2.
      *
@@ -279,7 +279,7 @@ destroy_print_stream(print_stream_t *self)
     return (self && self->ops && self->ops->destroy) ? (self->ops->destroy)(self) : true;
 }
 
-#define MAX_INDENT    160
+#define MAX_INDENT    1024
 
 /* returns true if the print succeeded, false if there was an error */
 static bool

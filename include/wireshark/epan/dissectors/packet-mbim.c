@@ -1113,6 +1113,8 @@ static int ett_mbim_bulk_ndp_ctrl;
 
 static dissector_table_t dss_dissector_table;
 static dissector_handle_t bertlv_handle;
+static dissector_handle_t gsm_sim_cmd_handle;
+static dissector_handle_t gsm_sim_rsp_handle;
 static dissector_handle_t etsi_cat_handle;
 static dissector_handle_t gsm_sms_handle;
 static dissector_handle_t cdma_sms_handle;
@@ -1123,6 +1125,7 @@ static dissector_handle_t data_handle;
 static dissector_handle_t bulk_ndp_ctrl_handle;
 static dissector_handle_t mbim_control_handle;
 static dissector_handle_t iso7816_atr_handle;
+static dissector_handle_t iso7816_handle;
 
 static bool mbim_control_decode_unknown_itf;
 
@@ -1176,6 +1179,19 @@ static int preferred_mbim_extended_version = MBIM_Extended_Version_1;
 #define SHOULD_MBIM_EX4_AND_HIGHER_BE_APPLIED(mbim_conv) \
             (mbim_conv->mbim_extended_version >= MBIM_Extended_Version_4 || \
             (mbim_conv->mbim_extended_version == MBIM_Extended_Version_Unknown && preferred_mbim_extended_version >= MBIM_Extended_Version_4)) ? 1 : 0
+
+enum {
+    UICC_APDU_GSM_SIM,
+    UICC_APDU_ISO_7816
+};
+
+static const enum_val_t mbim_uicc_apdu_dissector_vals[] = {
+    {"gsm_sim", "GSM SIM", UICC_APDU_GSM_SIM},
+    {"iso7816", "ISO 7816", UICC_APDU_ISO_7816},
+    {NULL, NULL, -1}
+};
+
+static int mbim_uicc_apdu_dissector = UICC_APDU_GSM_SIM;
 
 #define ROUND_UP_COUNT(Count,Pow2) \
         ( ((Count)+(Pow2)-1) & (~(((int)(Pow2))-1)) )
@@ -3461,13 +3477,13 @@ mbim_dissect_tcs(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, int* offse
                 *offset += 16;
                 proto_tree_add_item_ret_uint(subtree, hf_mbim_ms_ursp_tc_length, tvb, *offset, 1, ENC_BIG_ENDIAN, &tc_value_length);
                 *offset += 1;
-                proto_tree_add_item(subtree, hf_mbim_ms_ursp_tc_app_id, tvb, *offset, tc_value_length, ENC_ASCII | ENC_NA);
+                proto_tree_add_item(subtree, hf_mbim_ms_ursp_tc_app_id, tvb, *offset, tc_value_length, ENC_ASCII);
                 *offset += tc_value_length;
                 break;
             case URSP_TC_TYPE_IPV4:
-                proto_tree_add_item(subtree, hf_mbim_ms_ursp_tc_ipv4, tvb, *offset, 4, ENC_NA);
+                proto_tree_add_item(subtree, hf_mbim_ms_ursp_tc_ipv4, tvb, *offset, 4, ENC_BIG_ENDIAN);
                 *offset += 4;
-                proto_tree_add_item(subtree, hf_mbim_ms_ursp_tc_ipv4_mask, tvb, *offset, 4, ENC_NA);
+                proto_tree_add_item(subtree, hf_mbim_ms_ursp_tc_ipv4_mask, tvb, *offset, 4, ENC_BIG_ENDIAN);
                 *offset += 4;
                 break;
             case URSP_TC_TYPE_IPV6:
@@ -3529,7 +3545,7 @@ mbim_dissect_tcs(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, int* offse
             case URSP_TC_TYPE_DNN:
                 proto_tree_add_item_ret_uint(subtree, hf_mbim_ms_ursp_tc_length, tvb, *offset, 1, ENC_LITTLE_ENDIAN, &tc_value_length);
                 *offset += 1;
-                proto_tree_add_item(subtree, hf_mbim_ms_ursp_tc_dnn, tvb, *offset, tc_value_length, ENC_APN_STR | ENC_NA);
+                proto_tree_add_item(subtree, hf_mbim_ms_ursp_tc_dnn, tvb, *offset, tc_value_length, ENC_APN_STR);
                 *offset += tc_value_length;
                 break;
             case URSP_TC_TYPE_CONNECTION_CAPABILITY:
@@ -3544,7 +3560,7 @@ mbim_dissect_tcs(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, int* offse
             case URSP_TC_TYPE_FQDN:
                 proto_tree_add_item_ret_uint(subtree, hf_mbim_ms_ursp_tc_length, tvb, *offset, 1, ENC_LITTLE_ENDIAN, &tc_value_length);
                 *offset += 1;
-                proto_tree_add_item(subtree, hf_mbim_ms_ursp_tc_fqdn, tvb, *offset, tc_value_length, ENC_APN_STR | ENC_NA);
+                proto_tree_add_item(subtree, hf_mbim_ms_ursp_tc_fqdn, tvb, *offset, tc_value_length, ENC_APN_STR);
                 *offset += tc_value_length;
                 break;
             case URSP_TC_TYPE_APPID:
@@ -4464,7 +4480,7 @@ mbim_dissect_ipv4_element(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, i
         expert_add_info_format(pinfo, ti, &ei_mbim_illegal_on_link_prefix_length,
                                "Illegal On Link Prefix Length %u (max is 32)", on_link_prefix_length);
     }
-    proto_tree_add_item(tree, hf_mbim_ipv4_element_ipv4_address, tvb, *offset, 4, ENC_NA);
+    proto_tree_add_item(tree, hf_mbim_ipv4_element_ipv4_address, tvb, *offset, 4, ENC_BIG_ENDIAN);
     *offset += 4;
 }
 
@@ -4540,7 +4556,7 @@ mbim_dissect_ip_configuration_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree
     }
     if (ipv4_gateway_offset) {
         proto_tree_add_item(tree, hf_mbim_ip_configuration_info_ipv4_gateway,
-                            tvb, base_offset + ipv4_gateway_offset, 4, ENC_NA);
+                            tvb, base_offset + ipv4_gateway_offset, 4, ENC_BIG_ENDIAN);
     }
     if (ipv6_gateway_offset) {
         proto_tree_add_item(tree, hf_mbim_ip_configuration_info_ipv6_gateway,
@@ -4550,7 +4566,7 @@ mbim_dissect_ip_configuration_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree
         offset = base_offset + ipv4_dns_offset;
         for (i = 0; i < ipv4_dns_count; i++) {
             proto_tree_add_item(tree, hf_mbim_ip_configuration_info_ipv4_dns,
-                                tvb, offset, 4, ENC_NA);
+                                tvb, offset, 4, ENC_BIG_ENDIAN);
             offset += 4;
         }
     }
@@ -4975,7 +4991,7 @@ mbim_dissect_sms_cdma_record(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *
     }
     if (timestamp_offset && timestamp_size) {
         it = proto_tree_add_item(tree, hf_mbim_sms_cdma_record_timestamp, tvb, base_offset + timestamp_offset,
-                                 timestamp_size, ENC_NA|ENC_ASCII);
+                                 timestamp_size, ENC_ASCII);
         if (timestamp_size > 21) {
             expert_add_info(pinfo, it, &ei_mbim_oversized_string);
         }
@@ -5198,7 +5214,7 @@ mbim_dissect_set_ussd(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int o
             case SMS_ENCODING_7BIT:
             case SMS_ENCODING_7BIT_LANG:
                 proto_tree_add_item(subtree, hf_mbim_set_ussd_ussd_payload_text,
-                                    ussd_tvb, 0, ussd_payload_length, ENC_3GPP_TS_23_038_7BITS|ENC_NA);
+                                    ussd_tvb, 0, ussd_payload_length, ENC_3GPP_TS_23_038_7BITS);
                 break;
             case SMS_ENCODING_8BIT:
                 /* XXX - ASCII, or some extended ASCII? */
@@ -5251,7 +5267,7 @@ mbim_dissect_ussd_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int 
             case SMS_ENCODING_7BIT:
             case SMS_ENCODING_7BIT_LANG:
                 proto_tree_add_item(subtree, hf_mbim_ussd_info_ussd_payload_text,
-                                    ussd_tvb, 0, ussd_payload_length, ENC_3GPP_TS_23_038_7BITS|ENC_NA);
+                                    ussd_tvb, 0, ussd_payload_length, ENC_3GPP_TS_23_038_7BITS);
                 break;
             case SMS_ENCODING_8BIT:
                 /* XXX - ASCII, or some extended ASCII? */
@@ -7164,7 +7180,7 @@ mbim_dissect_ms_close_channel(tvbuff_t* tvb, proto_tree* tree, int offset, struc
 }
 
 static void
-mbim_dissect_ms_apdu(tvbuff_t* tvb, proto_tree* tree, int offset, struct mbim_conv_info* mbim_conv)
+mbim_dissect_ms_apdu(tvbuff_t* tvb, packet_info *pinfo, proto_tree* tree, int offset, struct mbim_conv_info* mbim_conv)
 {
     uint32_t base_offset = offset;
     uint32_t command_offset, command_size;
@@ -7183,12 +7199,27 @@ mbim_dissect_ms_apdu(tvbuff_t* tvb, proto_tree* tree, int offset, struct mbim_co
         proto_tree_add_item(tree, hf_mbim_ms_slot_id, tvb, offset, 4, ENC_LITTLE_ENDIAN);
     }
     if (command_offset && command_size) {
-        proto_tree_add_item(tree, hf_mbim_ms_apdu_command, tvb, base_offset + command_offset, command_size, ENC_NA);
+        proto_item *item;
+        proto_tree *sub_tree;
+
+        item = proto_tree_add_item(tree, hf_mbim_ms_apdu_command, tvb, base_offset + command_offset, command_size, ENC_NA);
+        if (mbim_uicc_apdu_dissector == UICC_APDU_GSM_SIM) {
+            if (gsm_sim_cmd_handle) {
+                sub_tree = proto_item_add_subtree(item, ett_mbim_buffer);
+                call_dissector(gsm_sim_cmd_handle, tvb_new_subset_length(tvb, base_offset + command_offset, command_size), pinfo, sub_tree);
+            }
+        } else {
+            if (iso7816_handle) {
+                sub_tree = proto_item_add_subtree(item, ett_mbim_buffer);
+                pinfo->p2p_dir = P2P_DIR_SENT;
+                call_dissector(iso7816_handle, tvb_new_subset_length(tvb, base_offset + command_offset, command_size), pinfo, sub_tree);
+            }
+        }
     }
 }
 
 static void
-mbim_dissect_ms_apdu_info(tvbuff_t* tvb, proto_tree* tree, int offset)
+mbim_dissect_ms_apdu_info(tvbuff_t* tvb, packet_info *pinfo, proto_tree* tree, int offset)
 {
     uint32_t base_offset = offset;
     uint32_t response_offset, response_length;
@@ -7200,7 +7231,22 @@ mbim_dissect_ms_apdu_info(tvbuff_t* tvb, proto_tree* tree, int offset)
     proto_tree_add_item_ret_uint(tree, hf_mbim_ms_uicc_response_offset, tvb, offset, 4, ENC_LITTLE_ENDIAN, &response_offset);
 
     if (response_offset && response_length) {
-        proto_tree_add_item(tree, hf_mbim_ms_uicc_response, tvb, base_offset + response_offset, response_length, ENC_NA);
+        proto_item *item;
+        proto_tree *sub_tree;
+
+        item = proto_tree_add_item(tree, hf_mbim_ms_uicc_response, tvb, base_offset + response_offset, response_length, ENC_NA);
+        if (mbim_uicc_apdu_dissector == UICC_APDU_GSM_SIM) {
+            if (gsm_sim_rsp_handle) {
+                sub_tree = proto_item_add_subtree(item, ett_mbim_buffer);
+                call_dissector(gsm_sim_rsp_handle, tvb_new_subset_length(tvb, base_offset + response_offset, response_length), pinfo, sub_tree);
+            }
+        } else {
+            if (iso7816_handle) {
+                sub_tree = proto_item_add_subtree(item, ett_mbim_buffer);
+                pinfo->p2p_dir = P2P_DIR_RECV;
+                call_dissector(iso7816_handle, tvb_new_subset_length(tvb, base_offset + response_offset, response_length), pinfo, sub_tree);
+            }
+        }
     }
 }
 
@@ -7290,7 +7336,7 @@ mbim_dissect_ms_app_info_elements(tvbuff_t* tvb, packet_info* pinfo _U_, proto_t
         proto_tree_add_item(tree, hf_mbim_ms_app_info_app_id, tvb, base_offset + app_id_offset, app_id_size, ENC_NA);
     }
     if (app_name_offset && app_name_size) {
-        proto_tree_add_item(tree, hf_mbim_ms_app_info_app_name, tvb, base_offset + app_name_offset, app_name_size, ENC_UTF_8 | ENC_NA);
+        proto_tree_add_item(tree, hf_mbim_ms_app_info_app_name, tvb, base_offset + app_name_offset, app_name_size, ENC_UTF_8);
     }
     if (num_pins) {
         proto_tree_add_item(tree, hf_mbim_ms_app_info_pin_ref, tvb, base_offset + pin_ref_offset, pin_ref_size, ENC_NA);
@@ -7449,7 +7495,7 @@ mbim_dissect_ms_access_binary(tvbuff_t* tvb, packet_info* pinfo _U_, proto_tree*
     }
     if (local_pin_offset && local_pin_size) {
         proto_tree_add_item(tree, hf_mbim_ms_access_binary_local_pin, tvb, base_offset + local_pin_offset,
-            local_pin_size, ENC_UTF_8 | ENC_NA);
+            local_pin_size, ENC_UTF_8);
     }
     if (binary_data_offset && binary_data_size) {
         proto_tree_add_item(tree, hf_mbim_ms_access_binary_binary_data, tvb, base_offset + binary_data_offset,
@@ -8489,7 +8535,7 @@ dissect_mbim_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
                                 break;
                             case MBIM_CID_MS_UICC_APDU:
                                 if (cmd_type == MBIM_COMMAND_SET) {
-                                    mbim_dissect_ms_apdu(frag_tvb, subtree, offset, mbim_conv);
+                                    mbim_dissect_ms_apdu(frag_tvb, pinfo, subtree, offset, mbim_conv);
                                 } else {
                                     proto_tree_add_expert(subtree, pinfo, &ei_mbim_unexpected_msg, frag_tvb, offset, -1);
                                 }
@@ -9459,7 +9505,7 @@ dissect_mbim_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
                                 break;
                             case MBIM_CID_MS_UICC_APDU:
                                 if (msg_type == MBIM_COMMAND_DONE) {
-                                    mbim_dissect_ms_apdu_info(frag_tvb, subtree, offset);
+                                    mbim_dissect_ms_apdu_info(frag_tvb, pinfo, subtree, offset);
                                 } else {
                                     proto_tree_add_expert(subtree, pinfo, &ei_mbim_unexpected_msg, frag_tvb, offset, -1);
                                 }
@@ -15145,11 +15191,14 @@ proto_register_mbim(void)
         "SMS PDU format",
         "Format used for SMS PDU decoding",
         &mbim_sms_pdu_format, mbim_sms_pdu_format_vals, false);
-
     prefs_register_enum_preference(mbim_module, "extended_version",
         "Preferred MBIM Extended Version for decoding when MBIM_CID_VERSION not captured",
         NULL,
         &preferred_mbim_extended_version, preferred_mbim_extended_version_vals, false);
+    prefs_register_enum_preference(mbim_module, "uicc_apdu_dissector",
+        "Dissector used for UICC APDU decoding",
+        NULL,
+        &mbim_uicc_apdu_dissector, mbim_uicc_apdu_dissector_vals, false);
 }
 
 void
@@ -15160,6 +15209,8 @@ proto_reg_handoff_mbim(void)
     if (!initialized) {
         dissector_handle_t mbim_decode_as_handle = create_dissector_handle(dissect_mbim_decode_as, proto_mbim);
         bertlv_handle = find_dissector_add_dependency("gsm_sim.bertlv", proto_mbim);
+        gsm_sim_cmd_handle = find_dissector_add_dependency("gsm_sim.command", proto_mbim);
+        gsm_sim_rsp_handle = find_dissector_add_dependency("gsm_sim.response", proto_mbim);
         etsi_cat_handle = find_dissector_add_dependency("etsi_cat", proto_mbim);
         gsm_sms_handle = find_dissector_add_dependency("gsm_sms", proto_mbim);
         cdma_sms_handle = find_dissector_add_dependency("ansi_637_trans", proto_mbim);
@@ -15167,6 +15218,7 @@ proto_reg_handoff_mbim(void)
         eth_fcs_handle = find_dissector_add_dependency("eth_withfcs", proto_mbim);
         ip_handle = find_dissector_add_dependency("ip", proto_mbim);
         iso7816_atr_handle = find_dissector_add_dependency("iso7816.atr", proto_mbim);
+        iso7816_handle = find_dissector_add_dependency("iso7816", proto_mbim);
         data_handle = find_dissector("data");
         bulk_ndp_ctrl_handle = create_dissector_handle(dissect_mbim_bulk_ndp_ctrl, proto_mbim);
         heur_dissector_add("usb.bulk", dissect_mbim_bulk_heur, "MBIM USB bulk endpoint", "mbim_usb_bulk", proto_mbim, HEURISTIC_ENABLE);

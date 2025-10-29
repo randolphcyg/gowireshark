@@ -559,7 +559,7 @@ raknet_dissect_unconnected_pong(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
     offset += 2;
 
     proto_tree_add_item(sub_tree, hf_raknet_0x1C_server_id_str, tvb, offset,
-                        str_size, ENC_NA|ENC_ASCII);
+                        str_size, ENC_ASCII);
     offset += str_size;
 
     return offset;
@@ -813,7 +813,7 @@ init_raknet_offline_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     *offset += 1;
 
     col_add_str(pinfo->cinfo, COL_INFO,
-                val_to_str(message_id, raknet_offline_message_names, "Unknown offline message: %#x"));
+                val_to_str(pinfo->pool, message_id, raknet_offline_message_names, "Unknown offline message: %#x"));
 
     /*
      * Append description to the raknet item.
@@ -1106,13 +1106,13 @@ raknet_dissect_common_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *rak
         payload_tree = proto_item_add_subtree(ti, ett_raknet_system_message);
 
         proto_item_append_text(ti, " (%s)",
-                               val_to_str(message_id, raknet_system_message_names, "Unknown ID: %#x"));
+                               val_to_str(pinfo->pool, message_id, raknet_system_message_names, "Unknown ID: %#x"));
 
         proto_item_append_text(msg_ti, "ID %#x (%s)", message_id,
                                val_to_str_const(message_id, raknet_system_message_names, "Unknown"));
 
         col_add_str(pinfo->cinfo, COL_INFO,
-                    val_to_str(message_id, raknet_system_message_names, "Unknown system message ID: %#x"));
+                    val_to_str(pinfo->pool, message_id, raknet_system_message_names, "Unknown system message ID: %#x"));
 
         proto_tree_add_item(payload_tree, hf_raknet_system_message_id,
                             next_tvb, 0, 1, ENC_NA);
@@ -1409,7 +1409,7 @@ dissect_raknet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 
     message_id = tvb_get_uint8(tvb, 0);
 
-    dissected = dissector_try_uint_new(raknet_offline_message_dissectors, message_id, tvb,
+    dissected = dissector_try_uint_with_data(raknet_offline_message_dissectors, message_id, tvb,
                                        pinfo, tree, true, data);
     if (!dissected) {
         raknet_dissect_connected_message(tvb, pinfo, tree, data);

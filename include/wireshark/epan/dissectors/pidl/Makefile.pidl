@@ -4,19 +4,7 @@
 # By Gerald Combs <gerald@wireshark.org>
 # Copyright 2004 Gerald Combs
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# SPDX-License-Identifier: GPL-2.0-or-later
 
 PIDL = ../../../../tools/pidl/pidl --ws-parser
 
@@ -44,6 +32,7 @@ SUBDIRS = \
 	mdssvc		\
 	misc		\
 	nspi		\
+	rcg		\
 	rfr		\
 	samr		\
 	svcctl		\
@@ -158,6 +147,11 @@ $(SUBDIRS) $(DONT_BUILD_SUBDIRS): %: ../packet-dcerpc-%.c ../packet-dcerpc-%.h
 ../packet-dcerpc-nspi.c \
 ../packet-dcerpc-nspi.h: nspi/nspi.idl nspi/nspi.cnf \
 				idl_types.h mapicodes_enum.h mapitags_enum.h
+	cd $(<D) && $(PIDL) $(pidl_out) $(pidl_inc) -- $(<F)
+
+../packet-dcerpc-rcg.c \
+../packet-dcerpc-rcg.h: rcg/rcg.idl rcg/rcg.cnf \
+				idl_types.h  mapicodes_enum.h
 	cd $(<D) && $(PIDL) $(pidl_out) $(pidl_inc) -- $(<F)
 
 ../packet-dcerpc-rfr.c \

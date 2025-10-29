@@ -19,6 +19,7 @@
 
 #include <config.h>
 #include <epan/packet.h>
+#include <packet-tcp.h>
 
 void proto_reg_handoff_trdp(void);
 void proto_register_trdp(void);
@@ -130,6 +131,7 @@ static int dissect_trdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     uint16_t ver;
     uint32_t remaining, datalen, seq, comid, etb_topo, opr_topo, msgtype, header_len;
     tvbuff_t *next_tvb;
+    char* str_msgtype;
 
     if (tvb_reported_length(tvb) < TRDP_PD_HEADER_LEN)
         return 0;
@@ -168,8 +170,9 @@ static int dissect_trdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
         proto_tree_add_item(trdp_tree, hf_trdp_header_fcs, tvb, 112, 4, ENC_BIG_ENDIAN);
     }
     /* Append descriptions */
-    proto_item_append_text(ti, ", Type: %s, Comid: %d, Seq: %d, ETB Topo: 0x%08x, Opr Topo: 0x%08x", val_to_str(msgtype, msgtype_names_short, "0x%x"), comid, seq, etb_topo, opr_topo);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "Type=%s Comid=%d Seq=%d", val_to_str(msgtype, msgtype_names_short, "0x%x"), comid, seq);
+    str_msgtype = val_to_str(pinfo->pool, msgtype, msgtype_names_short, "0x%x");
+    proto_item_append_text(ti, ", Type: %s, Comid: %d, Seq: %d, ETB Topo: 0x%08x, Opr Topo: 0x%08x", str_msgtype, comid, seq, etb_topo, opr_topo);
+    col_add_fstr(pinfo->cinfo, COL_INFO, "Type=%s Comid=%d Seq=%d", str_msgtype, comid, seq);
 
     /* Extract possible padding */
     remaining = tvb_captured_length_remaining(tvb, header_len);
@@ -191,6 +194,26 @@ static int dissect_trdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     /* Return the amount of data this dissector was able to dissect (which may
      * or may not be the total captured packet as we return here). */
     return tvb_captured_length(tvb);
+}
+
+static unsigned get_trdp_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset _U_, void *data _U_)
+{
+    uint32_t plen;
+
+    plen = tvb_get_uint32(tvb, 20, ENC_BIG_ENDIAN);
+
+    return TRDP_MD_HEADER_LEN + plen;
+}
+
+static int dissect_trdp_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+    /* Only Message Data over TCP */
+    if (!tvb_bytes_exist(tvb, 0, TRDP_MD_HEADER_LEN))
+        return 0;
+
+    tcp_dissect_pdus(tvb, pinfo, tree, true, TRDP_MD_HEADER_LEN,
+                     get_trdp_pdu_len, dissect_trdp, data);
+    return tvb_reported_length(tvb);
 }
 
 void proto_register_trdp(void)
@@ -270,11 +293,13 @@ void proto_register_trdp(void)
 
 void proto_reg_handoff_trdp(void)
 {
-    static dissector_handle_t trdp_handle;
+    static dissector_handle_t trdp_handle, trdp_tcp_handle;
 
     trdp_handle = create_dissector_handle(dissect_trdp, proto_trdp);
+    trdp_tcp_handle = create_dissector_handle(dissect_trdp_tcp, proto_trdp);
     dissector_add_uint("udp.port", TRDP_PD_UDP_PORT, trdp_handle);
     dissector_add_uint("udp.port", TRDP_MD_TCP_UDP_PORT, trdp_handle);
+    dissector_add_uint("tcp.port", TRDP_MD_TCP_UDP_PORT, trdp_tcp_handle);
 
     data_handle = find_dissector_add_dependency("data", proto_trdp);
 }

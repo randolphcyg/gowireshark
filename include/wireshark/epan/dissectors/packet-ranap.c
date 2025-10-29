@@ -2165,7 +2165,7 @@ dissect_ranap_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
                                                             0U, 65535U, &ProtocolIE_ID, false);
 
   if (tree) {
-    proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s", val_to_str_ext(ProtocolIE_ID, &ranap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
+    proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s", val_to_str_ext(actx->pinfo->pool, ProtocolIE_ID, &ranap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
   return offset;
 }
@@ -3345,7 +3345,7 @@ dissect_ranap_TransportLayerAddress(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
       /* IPv4 */
       private_data_set_transportLayerAddress_ipv4(actx, tvb_get_ipv4(parameter_tvb, 3));
     }
-    dissect_nsap(nsap_tvb, 0, 20, nsap_tree);
+    dissect_nsap(nsap_tvb, actx->pinfo, 0, 20, nsap_tree);
   }
 
 
@@ -14799,16 +14799,16 @@ dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
     case id_RelocationPreparation:
       if((ProtocolIE_ID == id_Source_ToTarget_TransparentContainer)||(ProtocolIE_ID == id_Target_ToSource_TransparentContainer)){
         key = SPECIAL | ProtocolIE_ID;
-        ret = (dissector_try_uint_new(ranap_ies_dissector_table, key, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+        ret = (dissector_try_uint_with_data(ranap_ies_dissector_table, key, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
         break;
       }
       /* Fall through */
     default:
       /* no special handling */
-      ret = (dissector_try_uint_new(ranap_ies_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+      ret = (dissector_try_uint_with_data(ranap_ies_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
       if (ret == 0) {
         key = pdu_type | ProtocolIE_ID;
-        ret = (dissector_try_uint_new(ranap_ies_dissector_table, key, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+        ret = (dissector_try_uint_with_data(ranap_ies_dissector_table, key, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
       }
       break;
   }
@@ -14818,19 +14818,19 @@ dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 static int
 dissect_ProtocolIEFieldPairFirstValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(ranap_ies_p1_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(ranap_ies_p1_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
 dissect_ProtocolIEFieldPairSecondValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(ranap_ies_p2_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(ranap_ies_p2_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
 dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(ranap_extension_dissector_table, ProtocolExtensionID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(ranap_extension_dissector_table, ProtocolExtensionID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
@@ -14839,7 +14839,7 @@ dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
   bool ret;
 
   pdu_type = IMSG;
-  ret = dissector_try_uint_new(ranap_proc_imsg_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL);
+  ret = dissector_try_uint_with_data(ranap_proc_imsg_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL);
   pdu_type = 0;
   return ret ? tvb_captured_length(tvb) : 0;
 }
@@ -14850,7 +14850,7 @@ dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
   bool ret;
 
   pdu_type = SOUT;
-  ret = dissector_try_uint_new(ranap_proc_sout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL);
+  ret = dissector_try_uint_with_data(ranap_proc_sout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL);
   pdu_type = 0;
   return ret ? tvb_captured_length(tvb) : 0;
 }
@@ -14858,13 +14858,13 @@ dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
 static int
 dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(ranap_proc_uout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(ranap_proc_uout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
 dissect_OutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(ranap_proc_out_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(ranap_proc_out_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
@@ -16389,7 +16389,7 @@ void proto_register_ranap(void) {
         FT_UINT32, BASE_DEC, VALS(ranap_Criticality_vals), 0,
         NULL, HFILL }},
     { &hf_ranap_ie_field_value,
-      { "value", "ranap.value_element",
+      { "value", "ranap.ie_field_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "T_ie_field_value", HFILL }},
     { &hf_ranap_ProtocolIE_ContainerPair_item,
@@ -16425,7 +16425,7 @@ void proto_register_ranap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_ranap_ext_id,
-      { "id", "ranap.id",
+      { "id", "ranap.ext_id",
         FT_UINT8, BASE_DEC|BASE_EXT_STRING, &ranap_ProtocolIE_ID_vals_ext, 0,
         "ProtocolExtensionID", HFILL }},
     { &hf_ranap_extensionValue,
@@ -16437,11 +16437,11 @@ void proto_register_ranap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_ranap_private_id,
-      { "id", "ranap.id",
+      { "id", "ranap.private_id",
         FT_UINT32, BASE_DEC, VALS(ranap_PrivateIE_ID_vals), 0,
         "PrivateIE_ID", HFILL }},
     { &hf_ranap_private_value,
-      { "value", "ranap.value_element",
+      { "value", "ranap.private_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "T_private_value", HFILL }},
     { &hf_ranap_old_LAI,
@@ -16777,7 +16777,7 @@ void proto_register_ranap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_ranap_item_repetitionNumber,
-      { "repetitionNumber", "ranap.repetitionNumber",
+      { "repetitionNumber", "ranap.item_repetitionNumber",
         FT_UINT32, BASE_DEC, NULL, 0,
         "RepetitionNumber1", HFILL }},
     { &hf_ranap_lAC,
@@ -17589,7 +17589,7 @@ void proto_register_ranap(void) {
         FT_UINT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
     { &hf_ranap_exponent_1_8,
-      { "exponent", "ranap.exponent",
+      { "exponent", "ranap.exponent_1_8",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_6", HFILL }},
     { &hf_ranap_SDU_FormatInformationParameters_item,
@@ -17949,7 +17949,7 @@ void proto_register_ranap(void) {
         FT_UINT32, BASE_DEC, NULL, 0,
         "ProtocolExtensionContainer", HFILL }},
     { &hf_ranap_rab_dl_UnsuccessfullyTransmittedDataVolume,
-      { "dl-UnsuccessfullyTransmittedDataVolume", "ranap.dl_UnsuccessfullyTransmittedDataVolume",
+      { "dl-UnsuccessfullyTransmittedDataVolume", "ranap.rab_dl_UnsuccessfullyTransmittedDataVolume",
         FT_UINT32, BASE_DEC, NULL, 0,
         "DataVolumeList", HFILL }},
     { &hf_ranap_dL_GTP_PDU_SequenceNumber,
@@ -18149,15 +18149,15 @@ void proto_register_ranap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_ranap_initiatingMessagevalue,
-      { "value", "ranap.value_element",
+      { "value", "ranap.initiatingMessagevalue_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InitiatingMessage_value", HFILL }},
     { &hf_ranap_successfulOutcome_value,
-      { "value", "ranap.value_element",
+      { "value", "ranap.successfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SuccessfulOutcome_value", HFILL }},
     { &hf_ranap_unsuccessfulOutcome_value,
-      { "value", "ranap.value_element",
+      { "value", "ranap.unsuccessfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "UnsuccessfulOutcome_value", HFILL }},
     { &hf_ranap_value,

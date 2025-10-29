@@ -27,14 +27,15 @@
 
 #include <epan/packet.h>
 #include <epan/conversation.h>
-#include <epan/xdlc.h>
 #include <epan/crc16-tvb.h>
 #include <epan/prefs.h>
 #include <wiretap/wtap.h>
 #include <epan/lapd_sapi.h>
 #include <epan/expert.h>
 #include <epan/proto_data.h>
-#include "packet-l2tp.h"
+#include <epan/tfs.h>
+#include <wsutil/array.h>
+#include "packet-xdlc.h"
 
 void proto_register_lapd(void);
 void proto_reg_handoff_lapd(void);

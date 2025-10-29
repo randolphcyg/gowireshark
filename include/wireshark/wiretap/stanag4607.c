@@ -19,6 +19,7 @@
 #include "wtap-int.h"
 #include "file_wrappers.h"
 #include <wsutil/buffer.h>
+#include <wsutil/pint.h>
 
 typedef struct {
   time_t base_secs;
@@ -43,7 +44,7 @@ static bool is_valid_id(uint16_t version_id)
 }
 
 static bool stanag4607_read_file(wtap *wth, FILE_T fh, wtap_rec *rec,
-                               Buffer *buf, int *err, char **err_info)
+                                 int *err, char **err_info)
 {
   stanag4607_t *stanag4607 = (stanag4607_t *)wth->priv;
   uint32_t millisecs, secs, nsecs;
@@ -58,17 +59,17 @@ static bool stanag4607_read_file(wtap *wth, FILE_T fh, wtap_rec *rec,
     return false;
   offset += sizeof stanag_pkt_hdr;
 
-  if (!is_valid_id(pntoh16(&stanag_pkt_hdr[0]))) {
+  if (!is_valid_id(pntohu16(&stanag_pkt_hdr[0]))) {
     *err = WTAP_ERR_BAD_FILE;
     *err_info = g_strdup("Bad version number");
     return false;
   }
 
-  rec->rec_type = REC_TYPE_PACKET;
+  wtap_setup_packet_rec(rec, wth->file_encap);
   rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 
   /* The next 4 bytes are the packet length */
-  packet_size = pntoh32(&stanag_pkt_hdr[2]);
+  packet_size = pntohu32(&stanag_pkt_hdr[2]);
   if (packet_size > WTAP_MAX_PACKET_SIZE_STANDARD) {
     /*
      * Probably a corrupt capture file; don't blow up trying
@@ -113,7 +114,7 @@ static bool stanag4607_read_file(wtap *wth, FILE_T fh, wtap_rec *rec,
       return false;
     offset += sizeof mseg;
 
-    tm.tm_year = pntoh16(&mseg[35]) - 1900;
+    tm.tm_year = pntohu16(&mseg[35]) - 1900;
     tm.tm_mon = mseg[37] - 1;
     tm.tm_mday = mseg[38];
     tm.tm_hour = 0;
@@ -134,7 +135,7 @@ static bool stanag4607_read_file(wtap *wth, FILE_T fh, wtap_rec *rec,
     if (!wtap_read_bytes(fh, &dseg, sizeof dseg, err, err_info))
       return false;
     offset += sizeof dseg;
-    millisecs = pntoh32(&dseg[15]);
+    millisecs = pntohu32(&dseg[15]);
   }
   if (0 != millisecs) {
     secs = millisecs/1000;
@@ -147,25 +148,24 @@ static bool stanag4607_read_file(wtap *wth, FILE_T fh, wtap_rec *rec,
   if (file_seek(fh, - offset, SEEK_CUR, err) == -1)
     return false;
 
-  return wtap_read_packet_bytes(fh, buf, packet_size, err, err_info);
+  return wtap_read_bytes_buffer(fh, &rec->data, packet_size, err, err_info);
 }
 
-static bool stanag4607_read(wtap *wth, wtap_rec *rec, Buffer *buf,
-                                int *err, char **err_info, int64_t *data_offset)
+static bool stanag4607_read(wtap *wth, wtap_rec *rec,
+                            int *err, char **err_info, int64_t *data_offset)
 {
   *data_offset = file_tell(wth->fh);
 
-  return stanag4607_read_file(wth, wth->fh, rec, buf, err, err_info);
+  return stanag4607_read_file(wth, wth->fh, rec, err, err_info);
 }
 
-static bool stanag4607_seek_read(wtap *wth, int64_t seek_off,
-                               wtap_rec *rec,
-                               Buffer *buf, int *err, char **err_info)
+static bool stanag4607_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
+                                 int *err, char **err_info)
 {
   if (file_seek(wth->random_fh, seek_off, SEEK_SET, err) == -1)
     return false;
 
-  return stanag4607_read_file(wth, wth->random_fh, rec, buf, err, err_info);
+  return stanag4607_read_file(wth, wth->random_fh, rec, err, err_info);
 }
 
 wtap_open_return_val stanag4607_open(wtap *wth, int *err, char **err_info)

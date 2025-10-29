@@ -17,6 +17,9 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
+
 #include "packet-tcp.h"
 
 void proto_register_llrp(void);
@@ -1527,7 +1530,7 @@ dissect_llrp_impinj_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *par
 
     subtype = tvb_get_ntohl(tvb, suboffset);
     proto_item_append_text(param_tree, " (Impinj - %s)",
-            val_to_str_ext(subtype, &impinj_param_type_ext, "Unknown Type: %d"));
+            val_to_str_ext(pinfo->pool, subtype, &impinj_param_type_ext, "Unknown Type: %d"));
     proto_tree_add_item(param_tree, hf_llrp_impinj_param_type, tvb, suboffset, 4, ENC_BIG_ENDIAN);
     suboffset += 4;
 
@@ -1553,7 +1556,7 @@ dissect_llrp_impinj_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *par
         suboffset += 2;
         break;
     case LLRP_IMPINJ_PARAM_TAG_DIRECTION_REPORTING:
-        proto_tree_add_item(param_tree, hf_llrp_impinj_en_tag_dir, tvb, suboffset, 2, ENC_NA);
+        proto_tree_add_item(param_tree, hf_llrp_impinj_en_tag_dir, tvb, suboffset, 2, ENC_BIG_ENDIAN);
         suboffset += 2;
         proto_tree_add_item(param_tree, hf_llrp_impinj_antenna_conf, tvb, suboffset, 2, ENC_BIG_ENDIAN);
         suboffset += 2;
@@ -1842,7 +1845,7 @@ dissect_llrp_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
             ti = proto_tree_add_none_format(tree, hf_llrp_param, tvb,
                     offset, real_len, "TLV Parameter: %s",
-                    val_to_str_ext(type, &tlv_type_ext, "Unknown Type: %d"));
+                    val_to_str_ext(pinfo->pool, type, &tlv_type_ext, "Unknown Type: %d"));
             param_tree = proto_item_add_subtree(ti, ett_llrp_param);
 
             proto_tree_add_item(param_tree, hf_llrp_tlv_type, tvb,
@@ -1961,7 +1964,7 @@ dissect_llrp_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                 suboffset = dissect_llrp_parameters(tvb, pinfo, param_tree, suboffset, param_end, depth+1);
                 break;
             case LLRP_TLV_FREQ_HOP_TABLE:
-                proto_tree_add_item(param_tree, hf_llrp_hop_table_id, tvb, suboffset, 1, ENC_NA);
+                proto_tree_add_item(param_tree, hf_llrp_hop_table_id, tvb, suboffset, 1, ENC_BIG_ENDIAN);
                 suboffset += 1;
                 proto_tree_add_item(param_tree, hf_llrp_rfu, tvb, suboffset, 1, ENC_NA);
                 suboffset += 1;
@@ -2573,7 +2576,7 @@ dissect_llrp_parameters(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
             ti = proto_tree_add_none_format(tree, hf_llrp_param, tvb,
                     offset, real_len + 1, "TV Parameter : %s",
-                    val_to_str_ext(type, &tv_type_ext, "Unknown Type: %d"));
+                    val_to_str_ext(pinfo->pool, type, &tv_type_ext, "Unknown Type: %d"));
             param_tree = proto_item_add_subtree(ti, ett_llrp_param);
 
             proto_tree_add_item(param_tree, hf_llrp_tv_type, tvb,
@@ -2655,7 +2658,7 @@ dissect_llrp_impinj_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     subtype = tvb_get_uint8(tvb, offset);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " (Impinj - %s)",
-            val_to_str_ext(subtype, &impinj_msg_subtype_ext, "Unknown Type: %d"));
+            val_to_str_ext(pinfo->pool, subtype, &impinj_msg_subtype_ext, "Unknown Type: %d"));
     proto_tree_add_item(tree, hf_llrp_impinj_msg_type, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset += 1;
 
@@ -2885,7 +2888,7 @@ dissect_llrp_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
     type = tvb_get_ntohs(tvb, offset) & 0x03FF;
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " (%s)",
-                    val_to_str_ext(type, &message_types_ext, "Unknown Type: %d"));
+                    val_to_str_ext(pinfo->pool, type, &message_types_ext, "Unknown Type: %d"));
 
     ti = proto_tree_add_item(tree, proto_llrp, tvb, offset, -1, ENC_NA);
     llrp_tree = proto_item_add_subtree(ti, ett_llrp);
@@ -3329,7 +3332,7 @@ proto_register_llrp(void)
           NULL, HFILL }},
 
         { &hf_llrp_gpi_state,
-        { "GPI state", "llrp.param.gpi_state", FT_UINT16, BASE_DEC, NULL, 0,
+        { "GPI state", "llrp.param.gpi_state", FT_UINT8, BASE_DEC, NULL, 0,
           NULL, HFILL }},
 
         { &hf_llrp_hold_events_and_reports,
@@ -3992,8 +3995,8 @@ proto_register_llrp(void)
     };
 
     static ei_register_info ei[] = {
-        { &ei_llrp_invalid_length, { "llrp.invalid_length_of_string_claimed", PI_MALFORMED, PI_ERROR, "invalid length of string: claimed %u, available %u.", EXPFILL }},
-        { &ei_llrp_req_conf, { "llrp.req_conf.invalid", PI_PROTOCOL, PI_ERROR, "Unrecognized configuration request: %u", EXPFILL }},
+        { &ei_llrp_invalid_length, { "llrp.invalid_length_of_string_claimed", PI_MALFORMED, PI_ERROR, "Invalid Length", EXPFILL }},
+        { &ei_llrp_req_conf, { "llrp.req_conf.invalid", PI_PROTOCOL, PI_ERROR, "Unrecognized configuration request", EXPFILL }},
     };
 
     expert_module_t* expert_llrp;

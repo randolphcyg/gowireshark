@@ -11,6 +11,7 @@
 
 #include "dfvm.h"
 
+#include <tfs.h>
 #include <ftypes/ftypes.h>
 #include <wsutil/array.h>
 #include <wsutil/ws_assert.h>
@@ -59,7 +60,6 @@ dfvm_opcode_tostr(dfvm_opcode_t code)
 		case DFVM_SET_CLEAR:		return "SET_CLEAR";
 		case DFVM_SLICE:		return "SLICE";
 		case DFVM_LENGTH:		return "LENGTH";
-		case DFVM_VALUE_STRING:		return "VALUE_STRING";
 		case DFVM_BITWISE_AND:		return "BITWISE_AND";
 		case DFVM_UNARY_MINUS:		return "UNARY_MINUS";
 		case DFVM_ADD:			return "ADD";
@@ -92,6 +92,7 @@ dfvm_value_free(dfvm_value_t *v)
 		case EMPTY:
 		case HFINFO:
 		case RAW_HFINFO:
+		case HFINFO_VS:
 		case INSN_NUMBER:
 		case REGISTER:
 		case INTEGER:
@@ -188,11 +189,13 @@ dfvm_value_new_fvalue(fvalue_t *fv)
 }
 
 dfvm_value_t*
-dfvm_value_new_hfinfo(header_field_info *hfinfo, bool raw)
+dfvm_value_new_hfinfo(header_field_info *hfinfo, bool raw, bool val_str)
 {
 	dfvm_value_t *v;
 
-	if (raw)
+	if (val_str)
+		v = dfvm_value_new(HFINFO_VS);
+	else if (raw)
 		v = dfvm_value_new(RAW_HFINFO);
 	else
 		v = dfvm_value_new(HFINFO);
@@ -255,6 +258,9 @@ dfvm_value_tostr(dfvm_value_t *v)
 		case RAW_HFINFO:
 			s = ws_strdup_printf("@%s", v->value.hfinfo->abbrev);
 			break;
+		case HFINFO_VS:
+			s = ws_strdup_printf("%s::value_string", v->value.hfinfo->abbrev);
+			break;
 		case FVALUE:
 			s = fvalue_to_debug_repr(NULL, dfvm_value_get_fvalue(v));
 			break;
@@ -297,6 +303,9 @@ value_type_tostr(dfvm_value_t *v, bool show_ftype)
 			break;
 		case RAW_HFINFO:
 			s = "FT_BYTES";
+			break;
+		case HFINFO_VS:
+			s = "FT_STRING";
 			break;
 		case FVALUE:
 			s = fvalue_type_name(dfvm_value_get_fvalue(v));
@@ -476,13 +485,6 @@ append_op_args(wmem_strbuf_t *buf, dfvm_insn_t *insn, GSList **stack_print,
 						arg1_str, arg1_str_type);
 			indent2(buf, col_start);
 			append_to_register(buf, arg2_str);
-			break;
-
-		case DFVM_VALUE_STRING:
-			wmem_strbuf_append_printf(buf, "%s::VS(%s%s)",
-						arg1_str, arg2_str, arg2_str_type);
-			indent2(buf, col_start);
-			append_to_register(buf, arg3_str);
 			break;
 
 		case DFVM_ALL_EQ:
@@ -723,6 +725,10 @@ dfvm_dump_str(wmem_allocator_t *alloc, dfilter_t *df, uint16_t flags)
 		}
 	}
 
+	if (flags & DF_DUMP_SHOW_FTYPE) {
+		wmem_strbuf_append_printf(buf, "\nReturn Type: <%s>", ftype_name(df->ret_type));
+	}
+
 	return wmem_strbuf_finalize(buf);
 }
 
@@ -809,8 +815,20 @@ dfvm_get_raw_fvalue(const field_info *fi)
 	return fv;
 }
 
+static fvalue_t *
+dfvm_get_vs_fvalue(const field_info *fi)
+{
+	char label_buf[ITEM_LABEL_LENGTH];
+	fvalue_t *fv = NULL;
+
+	proto_item_fill_display_label(fi, label_buf, ITEM_LABEL_LENGTH);
+	fv = fvalue_new(FT_STRING);
+	fvalue_set_string(fv, label_buf);
+	return fv;
+}
+
 static size_t
-filter_finfo_fvalues(df_cell_t *rp, GPtrArray *finfos, drange_t *range, bool raw)
+filter_finfo_fvalues(df_cell_t *rp, GPtrArray *finfos, drange_t *range, bool raw, bool val_str)
 {
 	int length; /* maximum proto layer number. The numbers are sequential. */
 	field_info *last_finfo, *finfo;
@@ -830,11 +848,15 @@ filter_finfo_fvalues(df_cell_t *rp, GPtrArray *finfos, drange_t *range, bool raw
 		if (cookie == layer) {
 			if (cookie_matches) {
 				if (rp != NULL) {
-					if (raw)
+					if (val_str) {
+						fv = dfvm_get_vs_fvalue(finfo);
+					} else if (raw) {
 						fv = dfvm_get_raw_fvalue(finfo);
-					else
+					} else {
 						fv = finfo->value;
-					df_cell_append(rp, fv);
+					}
+					if (fv)
+						df_cell_append(rp, fv);
 				}
 				count++;
 			}
@@ -844,11 +866,15 @@ filter_finfo_fvalues(df_cell_t *rp, GPtrArray *finfos, drange_t *range, bool raw
 			cookie_matches = drange_contains_layer(range, layer, length);
 			if (cookie_matches) {
 				if (rp != NULL) {
-					if (raw)
+					if (val_str) {
+						fv = dfvm_get_vs_fvalue(finfo);
+					} else if (raw) {
 						fv = dfvm_get_raw_fvalue(finfo);
-					else
+					} else {
 						fv = finfo->value;
-					df_cell_append(rp, fv);
+					}
+					if (fv)
+						df_cell_append(rp, fv);
 				}
 				count++;
 			}
@@ -859,11 +885,12 @@ filter_finfo_fvalues(df_cell_t *rp, GPtrArray *finfos, drange_t *range, bool raw
 
 static bool
 read_tree_finfos(df_cell_t *rp, proto_tree *tree,
-			header_field_info *hfinfo, drange_t *range, bool raw)
+			header_field_info *hfinfo, drange_t *range, bool raw,
+			bool val_str)
 {
 	GPtrArray	*finfos;
 	field_info	*finfo;
-	fvalue_t	*fv;
+	fvalue_t	*fv = NULL;
 
 	/* The caller should NOT free the GPtrArray. */
 	finfos = proto_get_finfo_ptr_array(tree, hfinfo->id);
@@ -871,16 +898,21 @@ read_tree_finfos(df_cell_t *rp, proto_tree *tree,
 		return false;
 	}
 	if (range) {
-		return filter_finfo_fvalues(rp, finfos, range, raw) > 0;
+		return filter_finfo_fvalues(rp, finfos, range, raw, val_str) > 0;
 	}
 
 	for (unsigned i = 0; i < finfos->len; i++) {
 		finfo = g_ptr_array_index(finfos, i);
-		if (raw)
+		if (val_str) {
+			fv = dfvm_get_vs_fvalue(finfo);
+		} else if (raw) {
 			fv = dfvm_get_raw_fvalue(finfo);
-		else
+		} else {
 			fv = finfo->value;
-		df_cell_append(rp, fv);
+		}
+
+		if (fv)
+			df_cell_append(rp, fv);
 	}
 	return true;
 }
@@ -893,11 +925,12 @@ read_tree(dfilter_t *df, proto_tree *tree,
 				dfvm_value_t *arg3)
 {
 	drange_t	*range = NULL;
-	bool		raw;
+	bool		raw, val_str;
 	df_cell_t	*rp;
 
 	header_field_info *hfinfo = arg1->value.hfinfo;
 	raw = arg1->type == RAW_HFINFO;
+	val_str = arg1->type == HFINFO_VS;
 
 	int reg = arg2->value.numeric;
 
@@ -912,7 +945,7 @@ read_tree(dfilter_t *df, proto_tree *tree,
 		return !df_cell_is_empty(rp);
 	}
 
-	if (raw) {
+	if (raw || val_str) {
 		df_cell_init(rp, true);
 	}
 	else {
@@ -921,7 +954,7 @@ read_tree(dfilter_t *df, proto_tree *tree,
 	}
 
 	while (hfinfo) {
-		read_tree_finfos(rp, tree, hfinfo, range, raw);
+		read_tree_finfos(rp, tree, hfinfo, range, raw, val_str);
 		hfinfo = hfinfo->same_name_next;
 	}
 
@@ -1010,7 +1043,6 @@ enum match_how {
 };
 
 typedef ft_bool_t (*DFVMCompareFunc)(const fvalue_t*, const fvalue_t*);
-typedef ft_bool_t (*DFVMTestFunc)(const fvalue_t*);
 
 static bool
 cmp_test_internal(enum match_how how, DFVMCompareFunc match_func,
@@ -1036,33 +1068,18 @@ cmp_test_internal(enum match_how how, DFVMCompareFunc match_func,
 }
 
 static bool
-cmp_test_unary(enum match_how how, DFVMTestFunc test_func,
-			const fvalue_t **fv_ptr, size_t fv_count)
-{
-	bool want_all = (how == MATCH_ALL);
-	bool want_any = (how == MATCH_ANY);
-	ft_bool_t have_match;
-
-	for (size_t idx = 0; idx < fv_count; idx++) {
-		have_match = test_func(fv_ptr[idx]);
-		if (want_all && have_match == FT_FALSE) {
-			return false;
-		}
-		else if (want_any && have_match == FT_TRUE) {
-			return true;
-		}
-	}
-	/* want_all || !want_any */
-	return want_all;
-}
-
-static bool
-all_test_unary(dfilter_t *df, DFVMTestFunc func, dfvm_value_t *arg1)
+all_zero(dfilter_t *df, dfvm_value_t *arg1)
 {
 	ws_assert(arg1->type == REGISTER);
 	df_cell_t *rp = &df->registers[arg1->value.numeric];
-	return cmp_test_unary(MATCH_ALL, func,
-			(const fvalue_t **)df_cell_array(rp), df_cell_size(rp));
+
+	for (size_t idx = 0; idx < df_cell_size(rp); idx++) {
+		if(!fvalue_is_zero(df_cell_array(rp)[idx])) {
+			return false;
+		}
+	}
+	return true;
+
 }
 
 static bool
@@ -1296,113 +1313,6 @@ mk_length(dfilter_t *df, dfvm_value_t *from_arg, dfvm_value_t *to_arg)
 		fvalue_set_uinteger(new_fv, (uint32_t)fvalue_length2(old_fv));
 		df_cell_append(to_rp, new_fv);
 	}
-}
-
-static const char *
-try_value_string(const header_field_info *hfinfo, fvalue_t *fv_num, char *buf)
-{
-	/* Note: The return value might be a pointer to buf (e.g., in the case
-	 * of BASE_CUSTOM). */
-	uint64_t val;
-
-	/* We checked this in the semantic check, but unfortunately there are
-	 * abbreviations shared by incompatible fields so we have to make sure.
-	 */
-	if (!ftype_can_val_to_uinteger64(hfinfo->type)) {
-		return NULL;
-	}
-
-	/* XXX - What about BASE_UNIT_STRING? Should we guarantee that we
-	 * don't get here for unit strings in semcheck.c (currently we
-	 * do for OP_MATCHES instead of disallowing it, which will result
-	 * in a legal filter that always compares false as this returns NULL.)
-	 */
-	if (fvalue_to_uinteger64(fv_num, &val) != FT_OK)
-		return NULL;
-
-	/* XXX We should find or create instead a suitable function in proto.h
-	 * to perform this mapping. hf_try_val[64]_to_str are similar, though
-	 * don't handle BASE_CUSTOM but do handle BASE_UNIT_STRING */
-
-	if (hfinfo->type == FT_FRAMENUM) {
-		/* FT_FRAMENUM can be converted to an integer (and is compatible
-		 * with the integer types), but if it has an hfinfo->strings it
-		 * is not a value_string and will crash if treated as one.
-		 * Handle the corner case of a FT_FRAMENUM field registered with
-		 * the same abbreviation as a field with a value string.
-		 * (FT_PROTOCOL is caught above because it cannot be converted
-		 * to an integer.)
-		 */
-		return NULL;
-	}
-
-	if (hfinfo->display & BASE_RANGE_STRING) {
-		return try_rval_to_str((uint32_t)val, hfinfo->strings);
-	}
-	else if (hfinfo->display & BASE_EXT_STRING) {
-		if (hfinfo->display & BASE_VAL64_STRING) {
-			return try_val64_to_str_ext(val, (val64_string_ext *)hfinfo->strings);
-		} else {
-			return try_val_to_str_ext((uint32_t)val, (value_string_ext *)hfinfo->strings);
-		}
-	}
-	else if (hfinfo->display & BASE_VAL64_STRING) {
-		return try_val64_to_str(val, hfinfo->strings);
-	}
-	else if (hfinfo->display == BASE_CUSTOM) {
-		if (FT_IS_INT32(hfinfo->type) || FT_IS_UINT32(hfinfo->type))
-			((custom_fmt_func_t)hfinfo->strings)(buf, (uint32_t)val);
-		else if (FT_IS_INT64(hfinfo->type) || FT_IS_UINT64(hfinfo->type))
-			((custom_fmt_func_64_t)hfinfo->strings)(buf, val);
-		else
-			ws_assert_not_reached();
-		/* XXX - This is ok because the caller immediately calls
-		 * fvalue_set_string on the return value, which copies it,
-		 * before the buffer passes out of scope. It might be safer
-		 * to declare the buffer on the stack here and have this
-		 * function return the fvalue_t* or NULL.
-		 */
-		return buf;
-	}
-	else {
-		return try_val_to_str((uint32_t)val, hfinfo->strings);
-	}
-	ws_assert_not_reached();
-}
-
-static bool
-mk_value_string(dfilter_t *df, dfvm_value_t *vs_arg, dfvm_value_t *from_arg, dfvm_value_t *to_arg)
-{
-	df_cell_t *from_rp, *to_rp;
-	df_cell_iter_t from_iter;
-	const header_field_info *hfinfo;
-	const char *str;
-	fvalue_t *old_fv;
-	fvalue_t *new_fv;
-	char label_buf[ITEM_LABEL_LENGTH];
-
-	hfinfo = vs_arg->value.hfinfo;
-
-	to_rp = &df->registers[to_arg->value.numeric];
-	df_cell_init(to_rp, true);
-	from_rp = &df->registers[from_arg->value.numeric];
-
-	df_cell_iter_init(from_rp, &from_iter);
-	while ((old_fv = df_cell_iter_next(&from_iter)) != NULL) {
-		str = try_value_string(hfinfo, old_fv, label_buf);
-		if (str) {
-			new_fv = fvalue_new(FT_STRING);
-			fvalue_set_string(new_fv, str);
-			df_cell_append(to_rp, new_fv);
-		}
-		/* XXX - If there's no match we could have a NULL result
-		 * as now (and return false), or use a string like "Unknown"
-		 * the way columns do. We could fall back to a string
-		 * representation of the value if BASE_SPECIAL_VALS if set.
-		 */
-	}
-
-	return !df_cell_is_empty(to_rp);
 }
 
 static bool
@@ -1654,7 +1564,7 @@ check_exists_finfos(proto_tree *tree, header_field_info *hfinfo, drange_t *range
 	if (range == NULL) {
 		return true;
 	}
-	return filter_finfo_fvalues(NULL, finfos, range, false) > 0;
+	return filter_finfo_fvalues(NULL, finfos, range, false, false) > 0;
 }
 
 static bool
@@ -1748,10 +1658,6 @@ dfvm_apply_full(dfilter_t *df, proto_tree *tree, GPtrArray **fvals)
 				mk_length(df, arg1, arg2);
 				break;
 
-			case DFVM_VALUE_STRING:
-				accum = mk_value_string(df, arg1, arg2, arg3);
-				break;
-
 			case DFVM_ALL_EQ:
 				accum = all_test(df, fvalue_eq, arg1, arg2);
 				break;
@@ -1825,7 +1731,7 @@ dfvm_apply_full(dfilter_t *df, proto_tree *tree, GPtrArray **fvals)
 				break;
 
 			case DFVM_NOT_ALL_ZERO:
-				accum = !all_test_unary(df, fvalue_is_zero, arg1);
+				accum = !all_zero(df, arg1);
 				break;
 
 			case DFVM_ALL_CONTAINS:

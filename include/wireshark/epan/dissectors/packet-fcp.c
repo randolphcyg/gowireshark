@@ -470,7 +470,7 @@ dissect_fcp_rsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, prot
     status = tvb_get_uint8(tvb, offset+11);
 
     col_append_fstr(pinfo->cinfo, COL_INFO, ":%s",
-                         val_to_str(status, scsi_status_val, "0x%x"));
+                         val_to_str(pinfo->pool, status, scsi_status_val, "0x%x"));
 
     /* Save the response frame */
     if (request_data != NULL) {
@@ -604,7 +604,7 @@ dissect_fcp_els(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, fc_hdr *fch
     uint8_t op;
 
     op = tvb_get_uint8(tvb, 0);
-    col_add_str(pinfo->cinfo, COL_INFO, val_to_str_ext(op, &fc_els_proto_val_ext, "0x%x"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str_ext(pinfo->pool, op, &fc_els_proto_val_ext, "0x%x"));
     proto_tree_add_item(tree, hf_fcp_els_op, tvb, 0, 1, ENC_NA);
 
     switch (op) {   /* XXX should switch based on conv for LS_ACC */
@@ -643,12 +643,12 @@ dissect_fcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     r_ctl &= 0xF;
 
     col_add_str(pinfo->cinfo, COL_INFO,
-                     val_to_str(r_ctl, els ? fcp_els_iu_val : fcp_iu_val,
+                     val_to_str(pinfo->pool, r_ctl, els ? fcp_els_iu_val : fcp_iu_val,
                                  "0x%x"));
 
     ti = proto_tree_add_protocol_format(tree, proto_fcp, tvb, 0, -1,
                                             "FCP: %s",
-                                            val_to_str(r_ctl,
+                                            val_to_str(pinfo->pool, r_ctl,
                                             els ? fcp_els_iu_val :
                                             fcp_iu_val, "Unknown 0x%02x"));
     fcp_tree = proto_item_add_subtree(ti, ett_fcp);
@@ -922,12 +922,12 @@ proto_register_fcp(void)
 
         { &hf_fcp_request_in,
           { "Request In", "fcp.request_in",
-            FT_FRAMENUM, BASE_NONE, NULL, 0,
+            FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0,
             "The frame number for the request", HFILL }},
 
         { &hf_fcp_response_in,
           { "Response In", "fcp.response_in",
-            FT_FRAMENUM, BASE_NONE, NULL, 0,
+            FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0,
             "The frame number of the response", HFILL }},
 
         { &hf_fcp_time,

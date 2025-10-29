@@ -28,16 +28,31 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/proto_data.h>
-
+#include <wsutil/array.h>
 #include "packet-tcp.h"
 #include "packet-tls.h"
 #include "packet-thrift.h"
 
-/* Line  30: Constants and early declarations. */
-/* Line 180: Protocol data structure and helper functions. */
-/* Line 300: Helper functions to use within custom sub-dissectors. */
-/* Line 630: Generic functions to dissect TBinaryProtocol message content. */
-/* Line 900: Generic functions to dissect Thrift message header. */
+/* Line   40: Constants and macros declarations. */
+/* Line  200: Protocol data structure and early declarations. */
+/* Line  340: Generic helper functions for various purposes. */
+/* Line  900: Helper functions to use within custom sub-dissectors (with some mutualization function). */
+/* Line 2100: Generic functions to dissect TBinaryProtocol message content. */
+/* Line 2420: Generic functions to dissect TCompactProtocol message content. */
+/* Line 2900: Generic functions to dissect Thrift message header. */
+
+/* ==== Note about the use of THRIFT_REQUEST_REASSEMBLY and THRIFT_SUBDISSECTOR_ERROR. ==== */
+/* From the sub-dissection code, only the return value gives an information about the type of error.
+ * In this case, THRIFT_REQUEST_REASSEMBLY is used for reassembly and THRIFT_SUBDISSECTOR_ERROR for everything else.
+ *
+ * From the generic dissection code (dissect_thrift_binary_* and dissect_thrift_compact_*) the functions also update
+ * the offset passed as a reference. In this case, THRIFT_REQUEST_REASSEMBLY is the only error code used in order to
+ * simplify propagation and the reference offset indicates the type of issue:
+ * - THRIFT_REQUEST_REASSEMBLY indicates reassembly is required.
+ * - Any positive value indicates where the non-reassembly error happened
+ *   and the Thrift dissector consumes all the data available until now.
+ */
+
 
 void proto_register_thrift(void);
 void proto_reg_handoff_thrift(void);
@@ -623,10 +638,6 @@ dissect_thrift_field_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                 proto_item *bool_item = proto_tree_add_boolean(tree, hf_thrift_bool, tvb, header->type_offset, TBP_THRIFT_TYPE_LEN, 2 - header->type.compact);
                 proto_item_set_generated(bool_item);
             }
-            if (gen_bool && is_thrift_compact_bool_type(header->type.compact)) {
-                proto_item *bool_item = proto_tree_add_boolean(tree, hf_thrift_bool, tvb, header->type_offset, TBP_THRIFT_TYPE_LEN, 2 - header->type.compact);
-                proto_item_set_generated(bool_item);
-            }
         } else {
             header->type_pi = proto_tree_add_item(header->fh_tree, hf_thrift_type, tvb, header->type_offset, TBP_THRIFT_TYPE_LEN, ENC_BIG_ENDIAN);
         }
@@ -730,7 +741,7 @@ dissect_thrift_varint(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int *
                 /* We continue anyway as the varint was indeed decoded. */
             } else {
                 if (raw_dissector != NULL) {
-                    uint8_t *data = wmem_alloc(wmem_packet_scope(), TBP_THRIFT_I16_LEN);
+                    uint8_t *data = wmem_alloc(pinfo->pool, TBP_THRIFT_I16_LEN);
                     data[0] = (varint >> 8) & 0xFF;
                     data[1] =  varint       & 0xFF;
                     tvbuff_t* sub_tvb = tvb_new_child_real_data(tvb, data, TBP_THRIFT_I16_LEN, TBP_THRIFT_I16_LEN);
@@ -749,7 +760,7 @@ dissect_thrift_varint(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int *
                 /* We continue anyway as the varint was indeed decoded. */
             } else {
                 if (raw_dissector != NULL) {
-                    uint8_t *data = wmem_alloc(wmem_packet_scope(), TBP_THRIFT_I32_LEN);
+                    uint8_t *data = wmem_alloc(pinfo->pool, TBP_THRIFT_I32_LEN);
                     data[0] = (varint >> 24) & 0xFF;
                     data[1] = (varint >> 16) & 0xFF;
                     data[2] = (varint >>  8) & 0xFF;
@@ -766,7 +777,7 @@ dissect_thrift_varint(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int *
         case TCP_THRIFT_MAX_I64_LEN:
         default:
             if (raw_dissector != NULL) {
-                uint8_t *data = wmem_alloc(wmem_packet_scope(), TBP_THRIFT_I64_LEN);
+                uint8_t *data = wmem_alloc(pinfo->pool, TBP_THRIFT_I64_LEN);
                 data[0] = (varint >> 56) & 0xFF;
                 data[1] = (varint >> 48) & 0xFF;
                 data[2] = (varint >> 40) & 0xFF;
@@ -970,8 +981,8 @@ dissect_thrift_t_field_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     if (generic_type != expected) {
         proto_tree_add_expert_format(tree, pinfo, &ei_thrift_wrong_type, tvb, offset, TBP_THRIFT_TYPE_LEN,
                 "Sub-dissector expects type = %s, found %s.",
-                val_to_str(expected, thrift_type_vals, "%02x"),
-                val_to_str(generic_type, thrift_type_vals, "%02x"));
+                val_to_str(pinfo->pool, expected, thrift_type_vals, "%02x"),
+                val_to_str(pinfo->pool, generic_type, thrift_type_vals, "%02x"));
         return THRIFT_SUBDISSECTOR_ERROR;
     }
 
@@ -1268,7 +1279,7 @@ dissect_thrift_raw_double(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, i
         tvbuff_t* sub_tvb;
         if (thrift_opt->tprotocol & PROTO_THRIFT_COMPACT) {
             /* Create a sub-tvbuff_t in big endian format as documented. */
-            uint8_t *data = wmem_alloc(wmem_packet_scope(), TBP_THRIFT_DOUBLE_LEN);
+            uint8_t *data = wmem_alloc(pinfo->pool, TBP_THRIFT_DOUBLE_LEN);
             data[0] = tvb_get_uint8(tvb, offset + 7);
             data[1] = tvb_get_uint8(tvb, offset + 6);
             data[2] = tvb_get_uint8(tvb, offset + 5);
@@ -2755,13 +2766,16 @@ dissect_thrift_compact_struct(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
  *
  * This function is used only for linear containers (list, set, map).
  * It uses the same type identifiers as TCompactProtocol, except for
- * the bool type which is encoded in the same way as BOOL_FALSE (2).
+ * the bool type which is encoded either as BOOL_TRUE (1) or BOOL_FALSE (2)
+ * depending on the implementation (due to a wide-spread bug that became a
+ * de-facto standard in large parts of the library).
  */
 static int
 // NOLINTNEXTLINE(misc-no-recursion)
 dissect_thrift_compact_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int *offset, thrift_option_data_t *thrift_opt, proto_tree *header_tree, int type, proto_item *type_pi)
 {
     switch (type) {
+    case DE_THRIFT_C_BOOL_TRUE:
     case DE_THRIFT_C_BOOL_FALSE:
         ABORT_ON_INCOMPLETE_PDU(TBP_THRIFT_BOOL_LEN);
         proto_tree_add_item(tree, hf_thrift_bool, tvb, *offset, TBP_THRIFT_BOOL_LEN, ENC_BIG_ENDIAN);
@@ -3081,7 +3095,7 @@ dissect_thrift_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int o
     /*****************************************************/
     /* Create the header tree with the extracted fields. */
     /*****************************************************/
-    col_append_sep_fstr(pinfo->cinfo, COL_INFO, ", ", "%s %s", val_to_str(mtype, thrift_mtype_vals, "%d"), method_str);
+    col_append_sep_fstr(pinfo->cinfo, COL_INFO, ", ", "%s %s", val_to_str(pinfo->pool, mtype, thrift_mtype_vals, "%d"), method_str);
 
     if (thrift_tree) {
         offset = start_offset; /* Reset parsing position. */
@@ -3091,7 +3105,7 @@ dissect_thrift_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int o
         }
         sub_tree = proto_tree_add_subtree_format(thrift_tree, tvb, header_offset, data_offset - header_offset, ett_thrift_header, &data_pi,
                 "%s [version: %d, seqid: %d, method: %s]",
-                val_to_str(mtype, thrift_mtype_vals, "%d"),
+                val_to_str(pinfo->pool, mtype, thrift_mtype_vals, "%d"),
                 version, seq_id, method_str);
         /* Decode the header depending on compact, strict (new) or old. */
         if (is_compact) {
@@ -3140,7 +3154,7 @@ dissect_thrift_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int o
     }
 
     /***********************************************************/
-    /* Call method dissector here using dissector_try_string() */
+    /* Call method dissector here using dissector_try_string_with_data() */
     /* except in case of EXCEPTION for detailed dissection.    */
     /***********************************************************/
     thrift_opt->previous_field_id = 0;
@@ -3173,7 +3187,7 @@ dissect_thrift_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int o
     }
     if (thrift_opt->mtype != ME_THRIFT_T_EXCEPTION) {
         if (pinfo->can_desegment > 0) pinfo->can_desegment++;
-        len = dissector_try_string(thrift_method_name_dissector_table, method_str, msg_tvb, pinfo, tree, thrift_opt);
+        len = dissector_try_string_with_data(thrift_method_name_dissector_table, method_str, msg_tvb, pinfo, tree, true, thrift_opt);
         if (pinfo->can_desegment > 0) pinfo->can_desegment--;
     } else {
         /* Attach the expert_info to the method type as it is a protocol-level exception. */

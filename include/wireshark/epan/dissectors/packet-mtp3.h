@@ -66,30 +66,22 @@ typedef struct _mtp3_tap_rec_t {
 extern "C" {
 #endif /* __cplusplus */
 
-extern char*   mtp3_pc_to_str(const uint32_t pc);
+extern char* mtp3_pc_to_str(wmem_allocator_t* allocator, const uint32_t pc);
 extern bool mtp3_pc_structured(void);
 extern uint32_t mtp3_pc_hash(const mtp3_addr_pc_t *addr_pc_p);
-extern int mtp3_addr_len(void);
 
-#ifdef __PROTO_H__
-/* epan/to_str.c includes this file, but it does not include proto.h so
- * it doesn't know about things like proto_tree.  This function is not
- * needed by to_str.c, so just don't prototype it there (or anywhere
- * without proto.h).
- */
-extern void dissect_mtp3_3byte_pc(tvbuff_t *tvb, unsigned offset,
+extern void dissect_mtp3_3byte_pc(tvbuff_t *tvb, packet_info* pinfo, unsigned offset,
 				  proto_tree *tree, int ett_pc,
 				  int hf_pc_string, int hf_pc_network,
 				  int hf_pc_cluster, int hf_pc_member,
 				  int hf_dpc, int hf_pc);
-#endif
 
 /*
  * the following allows TAP code access to the messages
  * without having to duplicate it. With MSVC and a
  * libwireshark.dll, we need a special declaration.
  */
-WS_DLL_PUBLIC const value_string mtp3_service_indicator_code_short_vals[];
+extern const value_string mtp3_service_indicator_code_short_vals[];
 
 #define MTP_SI_SNM	0x0
 #define MTP_SI_MTN	0x1

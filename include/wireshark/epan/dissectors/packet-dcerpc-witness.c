@@ -216,6 +216,7 @@ static int witness_dissect_element_RegisterEx_client_computer_name(tvbuff_t *tvb
 static int witness_dissect_element_RegisterEx_client_computer_name_(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
 static int witness_dissect_element_RegisterEx_flags(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
 static int witness_dissect_element_RegisterEx_timeout(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_);
+ #include <wsutil/ws_roundup.h>
  #include "to_str.h"
 static int
 witness_dissect_notifyResponse_message(tvbuff_t *tvb _U_, int offset _U_, packet_info *pinfo _U_, proto_tree *parent_tree _U_, dcerpc_info* di _U_, uint8_t *drep _U_, int hf_index _U_, uint32_t param _U_);
@@ -358,8 +359,8 @@ PIDL_dissect_ipv4address(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tr
 		/* just a run to handle conformant arrays, no scalars to dissect */
 		return offset;
 	}
-	if (!di->no_align && (offset % 4)) {
-		offset += 4 - (offset % 4);
+	if (!di->no_align) {
+		offset = WS_ROUNDUP_4(offset);
 	}
 	proto_tree_add_item(tree, hfindex, tvb, offset, 4, ENC_BIG_ENDIAN);
 	if (param & PIDL_SET_COL_INFO) {
@@ -377,8 +378,8 @@ PIDL_dissect_ipv6address(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tr
 		/* just a run to handle conformant arrays, no scalars to dissect */
 		return offset;
 	}
-	if (!di->no_align && (offset % 2)) {
-		offset += 2 - (offset % 2);
+	if (!di->no_align) {
+		offset = WS_ROUNDUP_2(offset);
 	}
 	proto_tree_add_item(tree, hfindex, tvb, offset, 16, ENC_BIG_ENDIAN);
 	if (param & PIDL_SET_COL_INFO) {
@@ -413,9 +414,9 @@ witness_dissect_enum_version(tvbuff_t *tvb _U_, int offset _U_, packet_info *pin
 
 
 /* IDL: enum { */
-/* IDL: 	WITNESS_STATE_UNKNOWN=0x00, */
-/* IDL: 	WITNESS_STATE_AVAILABLE=0x01, */
-/* IDL: 	WITNESS_STATE_UNAVAILABLE=0xff, */
+/* IDL: 	WITNESS_STATE_UNKNOWN=0x0000, */
+/* IDL: 	WITNESS_STATE_AVAILABLE=0x0001, */
+/* IDL: 	WITNESS_STATE_UNAVAILABLE=0x00ff, */
 /* IDL: } */
 
 int
@@ -434,9 +435,9 @@ witness_dissect_enum_interfaceInfo_state(tvbuff_t *tvb _U_, int offset _U_, pack
 
 
 /* IDL: bitmap { */
-/* IDL: 	WITNESS_INFO_IPv4_VALID =  0x01 , */
-/* IDL: 	WITNESS_INFO_IPv6_VALID =  0x02 , */
-/* IDL: 	WITNESS_INFO_WITNESS_IF =  0x04 , */
+/* IDL: 	WITNESS_INFO_IPv4_VALID =  0x00000001 , */
+/* IDL: 	WITNESS_INFO_IPv6_VALID =  0x00000002 , */
+/* IDL: 	WITNESS_INFO_WITNESS_IF =  0x00000004 , */
 /* IDL: } */
 
 int
@@ -734,10 +735,10 @@ witness_dissect_struct_ResourceChange(tvbuff_t *tvb _U_, int offset _U_, packet_
 
 
 /* IDL: bitmap { */
-/* IDL: 	WITNESS_IPADDR_V4 =  0x01 , */
-/* IDL: 	WITNESS_IPADDR_V6 =  0x02 , */
-/* IDL: 	WITNESS_IPADDR_ONLINE =  0x08 , */
-/* IDL: 	WITNESS_IPADDR_OFFLINE =  0x10 , */
+/* IDL: 	WITNESS_IPADDR_V4 =  0x00000001 , */
+/* IDL: 	WITNESS_IPADDR_V6 =  0x00000002 , */
+/* IDL: 	WITNESS_IPADDR_ONLINE =  0x00000008 , */
+/* IDL: 	WITNESS_IPADDR_OFFLINE =  0x00000010 , */
 /* IDL: } */
 
 int
@@ -987,8 +988,8 @@ witness_dissect_element_notifyResponse_num(tvbuff_t *tvb _U_, int offset _U_, pa
 
 
 /* IDL: bitmap { */
-/* IDL: 	WITNESS_REGISTER_NONE =  0x00 , */
-/* IDL: 	WITNESS_REGISTER_IP_NOTIFICATION =  0x01 , */
+/* IDL: 	WITNESS_REGISTER_NONE =  0x00000000 , */
+/* IDL: 	WITNESS_REGISTER_IP_NOTIFICATION =  0x00000001 , */
 /* IDL: } */
 
 int
@@ -1058,7 +1059,7 @@ witness_dissect_GetInterfaceList_response(tvbuff_t *tvb _U_, int offset _U_, pac
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_witness_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1171,7 +1172,7 @@ witness_dissect_Register_response(tvbuff_t *tvb _U_, int offset _U_, packet_info
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_witness_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1212,7 +1213,7 @@ witness_dissect_UnRegister_response(tvbuff_t *tvb _U_, int offset _U_, packet_in
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_witness_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1275,7 +1276,7 @@ witness_dissect_AsyncNotify_response(tvbuff_t *tvb _U_, int offset _U_, packet_i
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_witness_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1428,7 +1429,7 @@ witness_dissect_RegisterEx_response(tvbuff_t *tvb _U_, int offset _U_, packet_in
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_witness_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1493,13 +1494,13 @@ void proto_register_dcerpc_witness(void)
 	{ &hf_witness_witness_IPaddrInfo_flags,
 	  { "Flags", "witness.witness_IPaddrInfo.flags", FT_UINT32, BASE_HEX, NULL, 0, NULL, HFILL }},
 	{ &hf_witness_witness_IPaddrInfo_flags_WITNESS_IPADDR_OFFLINE,
-	  { "WITNESS IPADDR OFFLINE", "witness.witness_IPaddrInfo_flags.WITNESS_IPADDR_OFFLINE", FT_BOOLEAN, 32, TFS(&witness_IPaddrInfo_flags_WITNESS_IPADDR_OFFLINE_tfs), ( 0x10 ), NULL, HFILL }},
+	  { "WITNESS IPADDR OFFLINE", "witness.witness_IPaddrInfo_flags.WITNESS_IPADDR_OFFLINE", FT_BOOLEAN, 32, TFS(&witness_IPaddrInfo_flags_WITNESS_IPADDR_OFFLINE_tfs), ( 0x00000010 ), NULL, HFILL }},
 	{ &hf_witness_witness_IPaddrInfo_flags_WITNESS_IPADDR_ONLINE,
-	  { "WITNESS IPADDR ONLINE", "witness.witness_IPaddrInfo_flags.WITNESS_IPADDR_ONLINE", FT_BOOLEAN, 32, TFS(&witness_IPaddrInfo_flags_WITNESS_IPADDR_ONLINE_tfs), ( 0x08 ), NULL, HFILL }},
+	  { "WITNESS IPADDR ONLINE", "witness.witness_IPaddrInfo_flags.WITNESS_IPADDR_ONLINE", FT_BOOLEAN, 32, TFS(&witness_IPaddrInfo_flags_WITNESS_IPADDR_ONLINE_tfs), ( 0x00000008 ), NULL, HFILL }},
 	{ &hf_witness_witness_IPaddrInfo_flags_WITNESS_IPADDR_V4,
-	  { "WITNESS IPADDR V4", "witness.witness_IPaddrInfo_flags.WITNESS_IPADDR_V4", FT_BOOLEAN, 32, TFS(&witness_IPaddrInfo_flags_WITNESS_IPADDR_V4_tfs), ( 0x01 ), NULL, HFILL }},
+	  { "WITNESS IPADDR V4", "witness.witness_IPaddrInfo_flags.WITNESS_IPADDR_V4", FT_BOOLEAN, 32, TFS(&witness_IPaddrInfo_flags_WITNESS_IPADDR_V4_tfs), ( 0x00000001 ), NULL, HFILL }},
 	{ &hf_witness_witness_IPaddrInfo_flags_WITNESS_IPADDR_V6,
-	  { "WITNESS IPADDR V6", "witness.witness_IPaddrInfo_flags.WITNESS_IPADDR_V6", FT_BOOLEAN, 32, TFS(&witness_IPaddrInfo_flags_WITNESS_IPADDR_V6_tfs), ( 0x02 ), NULL, HFILL }},
+	  { "WITNESS IPADDR V6", "witness.witness_IPaddrInfo_flags.WITNESS_IPADDR_V6", FT_BOOLEAN, 32, TFS(&witness_IPaddrInfo_flags_WITNESS_IPADDR_V6_tfs), ( 0x00000002 ), NULL, HFILL }},
 	{ &hf_witness_witness_IPaddrInfo_ipv4,
 	  { "Ipv4", "witness.witness_IPaddrInfo.ipv4", FT_IPv4, BASE_NONE, NULL, 0, NULL, HFILL }},
 	{ &hf_witness_witness_IPaddrInfo_ipv6,
@@ -1511,7 +1512,7 @@ void proto_register_dcerpc_witness(void)
 	{ &hf_witness_witness_RegisterEx_flags,
 	  { "Flags", "witness.witness_RegisterEx.flags", FT_UINT32, BASE_HEX, NULL, 0, NULL, HFILL }},
 	{ &hf_witness_witness_RegisterEx_flags_WITNESS_REGISTER_IP_NOTIFICATION,
-	  { "WITNESS REGISTER IP NOTIFICATION", "witness.witness_RegisterEx_flags.WITNESS_REGISTER_IP_NOTIFICATION", FT_BOOLEAN, 32, TFS(&witness_RegisterEx_flags_WITNESS_REGISTER_IP_NOTIFICATION_tfs), ( 0x01 ), NULL, HFILL }},
+	  { "WITNESS REGISTER IP NOTIFICATION", "witness.witness_RegisterEx_flags.WITNESS_REGISTER_IP_NOTIFICATION", FT_BOOLEAN, 32, TFS(&witness_RegisterEx_flags_WITNESS_REGISTER_IP_NOTIFICATION_tfs), ( 0x00000001 ), NULL, HFILL }},
 	{ &hf_witness_witness_RegisterEx_ip_address,
 	  { "Ip Address", "witness.witness_RegisterEx.ip_address", FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL }},
 	{ &hf_witness_witness_RegisterEx_net_name,
@@ -1543,11 +1544,11 @@ void proto_register_dcerpc_witness(void)
 	{ &hf_witness_witness_interfaceInfo_flags,
 	  { "Flags", "witness.witness_interfaceInfo.flags", FT_UINT32, BASE_HEX, NULL, 0, NULL, HFILL }},
 	{ &hf_witness_witness_interfaceInfo_flags_WITNESS_INFO_IPv4_VALID,
-	  { "WITNESS INFO IPv4 VALID", "witness.witness_interfaceInfo_flags.WITNESS_INFO_IPv4_VALID", FT_BOOLEAN, 32, TFS(&witness_interfaceInfo_flags_WITNESS_INFO_IPv4_VALID_tfs), ( 0x01 ), NULL, HFILL }},
+	  { "WITNESS INFO IPv4 VALID", "witness.witness_interfaceInfo_flags.WITNESS_INFO_IPv4_VALID", FT_BOOLEAN, 32, TFS(&witness_interfaceInfo_flags_WITNESS_INFO_IPv4_VALID_tfs), ( 0x00000001 ), NULL, HFILL }},
 	{ &hf_witness_witness_interfaceInfo_flags_WITNESS_INFO_IPv6_VALID,
-	  { "WITNESS INFO IPv6 VALID", "witness.witness_interfaceInfo_flags.WITNESS_INFO_IPv6_VALID", FT_BOOLEAN, 32, TFS(&witness_interfaceInfo_flags_WITNESS_INFO_IPv6_VALID_tfs), ( 0x02 ), NULL, HFILL }},
+	  { "WITNESS INFO IPv6 VALID", "witness.witness_interfaceInfo_flags.WITNESS_INFO_IPv6_VALID", FT_BOOLEAN, 32, TFS(&witness_interfaceInfo_flags_WITNESS_INFO_IPv6_VALID_tfs), ( 0x00000002 ), NULL, HFILL }},
 	{ &hf_witness_witness_interfaceInfo_flags_WITNESS_INFO_WITNESS_IF,
-	  { "WITNESS INFO WITNESS IF", "witness.witness_interfaceInfo_flags.WITNESS_INFO_WITNESS_IF", FT_BOOLEAN, 32, TFS(&witness_interfaceInfo_flags_WITNESS_INFO_WITNESS_IF_tfs), ( 0x04 ), NULL, HFILL }},
+	  { "WITNESS INFO WITNESS IF", "witness.witness_interfaceInfo_flags.WITNESS_INFO_WITNESS_IF", FT_BOOLEAN, 32, TFS(&witness_interfaceInfo_flags_WITNESS_INFO_WITNESS_IF_tfs), ( 0x00000004 ), NULL, HFILL }},
 	{ &hf_witness_witness_interfaceInfo_group_name,
 	  { "Group Name", "witness.witness_interfaceInfo.group_name", FT_STRING, BASE_NONE, NULL, 0, NULL, HFILL }},
 	{ &hf_witness_witness_interfaceInfo_ipv4,

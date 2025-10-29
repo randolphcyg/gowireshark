@@ -14,6 +14,8 @@
 #include <epan/etypes.h>
 #include <epan/ipproto.h>
 #include <epan/strutil.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-netlink.h"
 
 void proto_register_netlink_sock_diag(void);
@@ -328,13 +330,13 @@ static const value_string netlink_sock_diag_shutdown_flags_vals[] = {
 };
 
 static void
-sock_diag_proto_tree_add_shutdown(proto_tree *tree, tvbuff_t *tvb, int offset)
+sock_diag_proto_tree_add_shutdown(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, int offset)
 {
-	uint8_t how = tvb_get_uint8(tvb, offset);
+	uint32_t how;
 
-	proto_tree_add_item(tree, hf_netlink_sock_diag_shutdown, tvb, offset, 1, ENC_NA);
+	proto_tree_add_item_ret_uint(tree, hf_netlink_sock_diag_shutdown, tvb, offset, 1, ENC_NA, &how);
 
-	proto_item_append_text(tree, ": %s", val_to_str(how, netlink_sock_diag_shutdown_flags_vals, "Invalid how value (%x)"));
+	proto_item_append_text(tree, ": %s", val_to_str(pinfo->pool, how, netlink_sock_diag_shutdown_flags_vals, "Invalid how value (%x)"));
 }
 
 /* AF_UNIX attributes */
@@ -363,12 +365,12 @@ dissect_netlink_unix_sock_diag_reply_attrs(tvbuff_t *tvb, void *data, struct pac
 
 			/* XXX make it nicer */
 			if (len > 0 && tvb_get_uint8(tvb, offset) == '\0') {
-				name = wmem_strconcat(wmem_packet_scope(),
+				name = wmem_strconcat(info->pinfo->pool,
 					"@",
-					tvb_get_string_enc(wmem_packet_scope(), tvb, offset+1, len-1, ENC_ASCII | ENC_NA),
+					tvb_get_string_enc(info->pinfo->pool, tvb, offset+1, len-1, ENC_ASCII | ENC_NA),
 					NULL);
 			} else
-				name = tvb_get_string_enc(wmem_packet_scope(), tvb, offset, len, ENC_ASCII | ENC_NA);
+				name = tvb_get_string_enc(info->pinfo->pool, tvb, offset, len, ENC_ASCII | ENC_NA);
 
 			proto_item_append_text(tree, ": %s", name);
 			proto_tree_add_string(tree, hf_netlink_sock_diag_unix_name, tvb, offset, len, name);
@@ -398,7 +400,7 @@ dissect_netlink_unix_sock_diag_reply_attrs(tvbuff_t *tvb, void *data, struct pac
 
 		case WS_UNIX_DIAG_SHUTDOWN:
 			if (len == 1)
-				sock_diag_proto_tree_add_shutdown(tree, tvb, offset);
+				sock_diag_proto_tree_add_shutdown(tree, info->pinfo, tvb, offset);
 			return 0;
 
 		case WS_UNIX_DIAG_VFS:
@@ -544,7 +546,7 @@ dissect_sock_diag_inet_attributes(tvbuff_t *tvb, void *data, struct packet_netli
 
 		case WS_INET_DIAG_SHUTDOWN:
 			if (len == 1)
-				sock_diag_proto_tree_add_shutdown(tree, tvb, offset);
+				sock_diag_proto_tree_add_shutdown(tree, info->pinfo, tvb, offset);
 			return 0;
 
 		case WS_INET_DIAG_INFO:
@@ -675,7 +677,7 @@ dissect_sock_diag_inet_request(tvbuff_t *tvb, netlink_sock_diag_info_t *info, st
 	offset += 1;
 
 	/* XXX states (bit of sk_state) */
-	proto_tree_add_item(tree, hf_netlink_sock_diag_inet_states, tvb, offset, 4, ENC_NA);
+	proto_tree_add_item(tree, hf_netlink_sock_diag_inet_states, tvb, offset, 4, ENC_BIG_ENDIAN);
 	offset += 4;
 
 	offset = dissect_sock_diag_inet_sockid(tvb, info, nl_data, tree, offset, af_family);
@@ -889,7 +891,7 @@ dissect_sock_diag_packet_request(tvbuff_t *tvb, netlink_sock_diag_info_t *info, 
 	proto_tree_add_item(tree, hf_netlink_sock_diag_family, tvb, offset, 1, ENC_NA);
 	offset += 1;
 
-	proto_tree_add_item(tree, hf_netlink_sock_diag_packet_proto, tvb, offset, 1, ENC_NA);
+	proto_tree_add_item(tree, hf_netlink_sock_diag_packet_proto, tvb, offset, 1, ENC_BIG_ENDIAN);
 	offset += 1;
 
 	_dissect_padding(tree, tvb, offset, 2);
@@ -972,7 +974,7 @@ dissect_netlink_sock_diag(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
 	nlmsg_tree = proto_item_add_subtree(pi, ett_netlink_sock_diag);
 
 	/* Netlink message header (nlmsghdr) */
-	offset = dissect_netlink_header(tvb, nlmsg_tree, offset, nl_data->encoding, hf_netlink_sock_diag_nltype, NULL);
+	offset = dissect_netlink_header(tvb, pinfo, nlmsg_tree, offset, nl_data->encoding, hf_netlink_sock_diag_nltype, NULL);
 
 	info.pinfo = pinfo;
 

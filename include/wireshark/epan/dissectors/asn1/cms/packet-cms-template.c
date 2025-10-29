@@ -141,6 +141,13 @@ cms_verify_msg_digest(proto_item *pi, tvbuff_t *content, const char *alg, tvbuff
 
 }
 
+static int
+cms_dissect_by_last_oid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
+  struct cms_private_data *cms_data = cms_get_private_data(pinfo);
+
+  return call_ber_oid_callback(cms_data->object_identifier_id, tvb, 0, pinfo, tree, data);
+}
+
 #include "packet-cms-fn.c"
 
 /*--- proto_register_cms ----------------------------------------------*/
@@ -209,4 +216,6 @@ void proto_reg_handoff_cms(void) {
   dissector_add_string("media_type", "application/vnd.de-dke-k461-ic1+xml; encap=cms-tr03109", content_info_handle);
   dissector_add_string("media_type", "application/vnd.de-dke-k461-ic1+xml; encap=cms-tr03109-zlib", content_info_handle);
   dissector_add_string("media_type", "application/hgp;encap=cms", content_info_handle);
+
+  dissector_add_string("rfc7468.preeb_label", "CMS", content_info_handle);
 }

@@ -9,7 +9,8 @@
 #ifndef __W_PCAPNG_H__
 #define __W_PCAPNG_H__
 
-#include <glib.h>
+#include <stdint.h>
+
 #include "wtap.h"
 #include "ws_symbol_export.h"
 
@@ -65,12 +66,6 @@ struct pcapng_option_header {
     uint16_t type;
     uint16_t value_length;
 };
-
-/*
- * Minimum IDB size = minimum block size + size of fixed length portion of IDB.
- */
-#define MIN_IDB_SIZE    ((uint32_t)(MIN_BLOCK_SIZE + sizeof(pcapng_interface_description_block_t)))
-#define MIN_DSB_SIZE    ((uint32_t)(MIN_BLOCK_SIZE + sizeof(pcapng_decryption_secrets_block_t)))
 
 wtap_open_return_val pcapng_open(wtap *wth, int *err, char **err_info);
 

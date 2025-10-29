@@ -12,7 +12,8 @@
 #include "config.h"
 
 #include <epan/packet.h>
-
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-ipmi.h"
 
 void proto_register_ipmi_se(void);
@@ -1110,6 +1111,7 @@ static const value_string ssi_0f_2_progress_vals[] = {
 	{ 0x12, "Calling operating system wake-up vector" },
 	{ 0x13, "Starting operating system boot process" },
 	{ 0x14, "Baseboard or motherboard initialization" },
+	{ 0x15, "Reserved" },
 	{ 0x16, "Floppy initialization" },
 	{ 0x17, "Keyboard test" },
 	{ 0x18, "Pointing device test" },
@@ -2186,23 +2188,23 @@ rs10(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
 /* Arm PEF Postpone Timer.
  */
 static void
-rq11(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
+rq11(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
 	uint8_t val;
 
 	val = tvb_get_uint8(tvb, 0);
 	proto_tree_add_uint_format(tree, hf_ipmi_se_11_rq_timeout, tvb, 0, 1,
-			val, "%s", val_to_str(val, vals_11_pef_timer, "Arm Timer for: %d sec"));
+			val, "%s", val_to_str(pinfo->pool, val, vals_11_pef_timer, "Arm Timer for: %d sec"));
 }
 
 static void
-rs11(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
+rs11(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 {
 	uint8_t val;
 
 	val = tvb_get_uint8(tvb, 0);
 	proto_tree_add_uint_format(tree, hf_ipmi_se_11_rs_timeout, tvb, 0, 1,
-			val, "%s", val_to_str(val, vals_11_pef_timer, "Present Timer Countdown value: %d sec"));
+			val, "%s", val_to_str(pinfo->pool, val, vals_11_pef_timer, "Present Timer Countdown value: %d sec"));
 }
 
 /* Set PEF Configuration Parameters.

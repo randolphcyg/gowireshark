@@ -844,11 +844,11 @@ dissect_btrfcomm(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
             p_add_proto_data(pinfo->pool, pinfo, proto_bluetooth, PROTO_DATA_BLUETOOTH_SERVICE_UUID, value_data);
         }
 
-        if (!dissector_try_uint_new(rfcomm_dlci_dissector_table, (uint32_t) dlci,
+        if (!dissector_try_uint_with_data(rfcomm_dlci_dissector_table, (uint32_t) dlci,
                 next_tvb, pinfo, tree, true, rfcomm_data)) {
             if (service_info && (service_info->uuid.size == 0 ||
-                !dissector_try_string(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &service_info->uuid),
-                    next_tvb, pinfo, tree, rfcomm_data))) {
+                !dissector_try_string_with_data(bluetooth_uuid_table, print_numeric_bluetooth_uuid(pinfo->pool, &service_info->uuid),
+                    next_tvb, pinfo, tree, true, rfcomm_data))) {
                 decode_by_dissector = find_proto_by_channel(dlci >> 1);
                 if (rfcomm_channels_enabled && decode_by_dissector) {
                     call_dissector_with_data(decode_by_dissector, next_tvb, pinfo, tree, rfcomm_data);
@@ -1210,7 +1210,7 @@ dissect_btdun(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
                      (pinfo->p2p_dir == P2P_DIR_SENT) ? "Sent" : "Rcvd",
                      tvb_format_text(pinfo->pool, tvb, 0, length));
 
-           proto_tree_add_item(st, hf_dun_at_cmd, tvb, 0, tvb_reported_length(tvb), ENC_ASCII|ENC_NA);
+           proto_tree_add_item(st, hf_dun_at_cmd, tvb, 0, tvb_reported_length(tvb), ENC_ASCII);
     }
     else {
         /* ... or raw PPP */
@@ -1346,7 +1346,7 @@ dissect_btgnss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
             tvb_format_text(pinfo->pool, tvb, 0, tvb_captured_length(tvb)));
 
     /* GNSS using NMEA-0183 protocol, but it is not available */
-    proto_tree_add_item(main_tree, hf_gnss_data, tvb, 0, tvb_reported_length(tvb), ENC_NA | ENC_ASCII);
+    proto_tree_add_item(main_tree, hf_gnss_data, tvb, 0, tvb_reported_length(tvb), ENC_ASCII);
 
     return tvb_reported_length(tvb);
 }

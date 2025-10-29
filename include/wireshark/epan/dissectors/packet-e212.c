@@ -17,6 +17,7 @@
 #include <epan/packet.h>
 
 #include <wsutil/strtoi.h>
+#include <wsutil/array.h>
 
 #include "packet-e212.h"
 #include "expert.h"
@@ -45,7 +46,7 @@ void proto_register_e212(void);
  * [2] https://htmlweb.ru/geo/oper.php?country=KZ
  */
 static const value_string E212_codes[] = {
-    /* 001 is used by some telecoms for internal TEST networks. */
+    {  1,   "Test network" }, /* 001 */
     {  202, "Greece" },
     {  203, "Unassigned" },
     {  204, "Netherlands" },
@@ -860,6 +861,7 @@ static const value_string E212_codes[] = {
 value_string_ext E212_codes_ext = VALUE_STRING_EXT_INIT(E212_codes);
 
 static const value_string mcc_mnc_2digits_codes[] = {
+    { 101,   "Test network" }, /* 00101 */
     { 20201, "Cosmote AE" },
     { 20202, "Cosmote AE" },
     { 20203, "OTE AE" },
@@ -1090,6 +1092,7 @@ static const value_string mcc_mnc_2digits_codes[] = {
     { 22869, "MTEL Schweiz GmbH" },
     { 22870, "Tismi BV" },
     { 22871, "Spusu AG" },
+    { 22873, "iWay AG" },
     { 23001, "T-Mobile Czech Republic a.s." },
     { 23002, "O2 Czech Republic a.s." },
     { 23003, "Vodafone Czech Republic a.s." },
@@ -2528,6 +2531,10 @@ static const value_string mcc_mnc_2digits_codes[] = {
     { 90104, "BBIX Singapore Pte. Ltd." },
     { 90105, "Thuraya RMSS Network" },
     { 90106, "Thuraya Satellite Telecommunications Company" },
+    { 90107, "NTT Ltd." },
+    { 90108, "SpaceX" },
+    { 90109, "China Telecommunications Corporation" },
+    { 90110, "Omnispace LLC" },
     { 90111, "Inmarsat Ltd." },
     { 90112, "Maritime Communications Partner AS (MCP network)" },
     { 90113, "BebbiCell AG (Formerly Global Networks Switzerland AG)" },
@@ -2540,14 +2547,17 @@ static const value_string mcc_mnc_2digits_codes[] = {
     { 90120, "Intermatica" },
     { 90121, "Wins Limited (Formerly Seanet Maritime Communications AB)" },
     { 90122, "MediaLincc Ltd" },
+    { 90123, "Bloxtel Inc." },
     { 90124, "Voxbone SA" },
+    { 90125, "Datora Mobile Telecomunicações SA" },
     { 90126, "Telecom Italia" },
     { 90127, "Monaco Telecom" },
     { 90128, "Vodafone Group" },
     { 90129, "Telenor Connexion AB" },
+    { 90130, "OQ Technology" },
     { 90131, "Orange" },
     { 90132, "MegaFon" },
-    { 90133, "Smart Communications , Inc" },
+    { 90133, "Smart Communications, Inc" },
     { 90134, "Tyntec Limited" },
     { 90135, "Globecomm Network Services" },
     { 90136, "Azerfon LLC" },
@@ -2623,6 +2633,7 @@ static const value_string mcc_mnc_2digits_codes[] = {
 value_string_ext mcc_mnc_2digits_codes_ext = VALUE_STRING_EXT_INIT(mcc_mnc_2digits_codes);
 
 static const value_string mcc_mnc_3digits_codes[] = {
+    {  1001,   "Test network" }, /* 001001 */
     {  208500, "EDF" },
     {  208700, "Weaccess group" },
     {  208701, "GIP Vendée numérique" },
@@ -3340,6 +3351,7 @@ static int hf_E212_mcc_nrcgi;
 static int hf_E212_mcc_5gstai;
 static int hf_E212_mcc_gummei;
 static int hf_E212_mcc_guami;
+static int hf_E212_mcc_serv_net;
 static int hf_E212_mnc;
 static int hf_E212_mnc_lai;
 static int hf_E212_mnc_sai;
@@ -3351,6 +3363,7 @@ static int hf_E212_mnc_nrcgi;
 static int hf_E212_mnc_5gstai;
 static int hf_E212_mnc_gummei;
 static int hf_E212_mnc_guami;
+static int hf_E212_mnc_serv_net;
 
 static int ett_e212_imsi;
 
@@ -3468,6 +3481,10 @@ dissect_e212_mcc_mnc_wmem_packet_str(tvbuff_t *tvb, packet_info *pinfo, proto_tr
         hf_E212_mcc_id = hf_E212_mcc_guami;
         hf_E212_mnc_id = hf_E212_mnc_guami;
         break;
+    case E212_SERV_NET:
+        hf_E212_mcc_id = hf_E212_mcc_serv_net;
+        hf_E212_mnc_id = hf_E212_mnc_serv_net;
+        break;
     default:
         hf_E212_mcc_id = hf_E212_mcc;
         hf_E212_mnc_id = hf_E212_mnc;
@@ -3508,7 +3525,7 @@ dissect_e212_mcc_mnc_wmem_packet_str(tvbuff_t *tvb, packet_info *pinfo, proto_tr
 
     if (long_mnc) {
         mnc_str = wmem_strdup_printf(pinfo->pool, "%03u", mnc);
-        item = proto_tree_add_string_format_value(tree, hf_E212_mnc_id , tvb, start_offset + 1, 2, mnc_str,
+        item = proto_tree_add_string_format_value(tree, hf_E212_mnc_id, tvb, start_offset + 1, 2, mnc_str,
                    "%s (%s)",
                    val_to_str_ext_const(mcc * 1000 + mnc, &mcc_mnc_3digits_codes_ext, "Unknown"),
                    mnc_str);
@@ -3522,7 +3539,7 @@ dissect_e212_mcc_mnc_wmem_packet_str(tvbuff_t *tvb, packet_info *pinfo, proto_tr
             val_to_str_ext_const(mcc * 1000 + mnc, &mcc_mnc_3digits_codes_ext, ""));
     } else {
         mnc_str = wmem_strdup_printf(pinfo->pool, "%02u", mnc);
-        item = proto_tree_add_string_format_value(tree, hf_E212_mnc_id , tvb, start_offset + 1, 2, mnc_str,
+        item = proto_tree_add_string_format_value(tree, hf_E212_mnc_id, tvb, start_offset + 1, 2, mnc_str,
                    "%s (%s)",
                    val_to_str_ext_const(mcc * 100 + mnc, &mcc_mnc_2digits_codes_ext, "Unknown"),
                    mnc_str);
@@ -3638,13 +3655,13 @@ dissect_e212_mcc_mnc_in_address(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 
     if (long_mnc){
         mnc_str = wmem_strdup_printf(pinfo->pool, "%03u", mnc);
-        item = proto_tree_add_string_format_value(tree, hf_E212_mnc , tvb, start_offset + 1, 2, mnc_str,
+        item = proto_tree_add_string_format_value(tree, hf_E212_mnc, tvb, start_offset + 1, 2, mnc_str,
                    "%s (%s)",
                    val_to_str_ext_const(mcc * 1000 + mnc, &mcc_mnc_3digits_codes_ext, "Unknown"),
                    mnc_str);
     }else{
         mnc_str = wmem_strdup_printf(pinfo->pool, "%02u", mnc);
-        item = proto_tree_add_string_format_value(tree, hf_E212_mnc , tvb, start_offset + 1, 2, mnc_str,
+        item = proto_tree_add_string_format_value(tree, hf_E212_mnc, tvb, start_offset + 1, 2, mnc_str,
                    "%s (%s)",
                    val_to_str_ext_const(mcc * 100 + mnc, &mcc_mnc_2digits_codes_ext, "Unknown"),
                    mnc_str);
@@ -3736,13 +3753,13 @@ dissect_e212_mcc_mnc_high_nibble(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
 
     if (long_mnc){
         mnc_str = wmem_strdup_printf(pinfo->pool, "%03u", mnc);
-        proto_tree_add_string_format_value(tree, hf_E212_mnc , tvb, start_offset + 2, 2, mnc_str,
+        proto_tree_add_string_format_value(tree, hf_E212_mnc, tvb, start_offset + 2, 2, mnc_str,
                    "%s (%s)",
                    val_to_str_ext_const(mcc * 1000 + mnc, &mcc_mnc_3digits_codes_ext, "Unknown"),
                    mnc_str);
     }else{
         mnc_str = wmem_strdup_printf(pinfo->pool, "%02u", mnc);
-        proto_tree_add_string_format_value(tree, hf_E212_mnc , tvb, start_offset + 2, 1, mnc_str,
+        proto_tree_add_string_format_value(tree, hf_E212_mnc, tvb, start_offset + 2, 1, mnc_str,
                    "%s (%s)",
                    val_to_str_ext_const(mcc * 100 + mnc, &mcc_mnc_2digits_codes_ext, "Unknown"),
                    mnc_str);
@@ -3821,19 +3838,41 @@ is_imsi_string_valid(const char *imsi_str)
     return true;
 }
 
+void
+add_assoc_imsi_item(tvbuff_t *tvb _U_, proto_tree *tree, const char* imsi_str) {
+    proto_item *item;
+    item = proto_tree_add_string(tree, hf_e212_assoc_imsi, tvb, 0, 0, imsi_str);
+    proto_item_set_generated(item);
+}
+
+
 const char *
 dissect_e212_imsi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, int length, bool skip_first)
 {
     proto_item *item;
     proto_tree *subtree;
     const uint8_t *imsi_str;
+    uint8_t   oct;
 
     /* Fetch the BCD encoded digits from tvb indicated half byte, formating the digits according to
      * a default digit set of 0-9 returning "?" for overdecadic digits a pointer to the wmem
      * allocated string will be returned.
      */
     if (skip_first) {
-        item = proto_tree_add_item_ret_string(tree, hf_E212_imsi, tvb, offset, length, ENC_BCD_DIGITS_0_9 | ENC_LITTLE_ENDIAN | ENC_BCD_SKIP_FIRST, pinfo->pool, &imsi_str);
+        oct = tvb_get_uint8(tvb, offset);
+
+        /* Check whether IMSI has even or odd number of digits.
+         * The format is specified in Figure 10.5.4/3GPP TS 24.008 Mobile Identity information element
+         */
+        if (oct & 0x08) {
+            item = proto_tree_add_item_ret_string(tree, hf_E212_imsi, tvb, offset, length, ENC_BCD_DIGITS_0_9 | ENC_LITTLE_ENDIAN | ENC_BCD_SKIP_FIRST, pinfo->pool, &imsi_str);
+        } else {
+            /* See tvb_get_bcd_string(...) documentation.
+             *     Note that if both skip_first and odd are true, then both the first and last semi-octet are skipped,
+             *     i.e. an even number of nibbles are considered.
+             */
+            item = proto_tree_add_item_ret_string(tree, hf_E212_imsi, tvb, offset, length, ENC_BCD_DIGITS_0_9 | ENC_LITTLE_ENDIAN | ENC_BCD_SKIP_FIRST | ENC_BCD_ODD_NUM_DIG, pinfo->pool, &imsi_str);
+        }
     } else {
         item = proto_tree_add_item_ret_string(tree, hf_E212_imsi, tvb, offset, length, ENC_BCD_DIGITS_0_9 | ENC_LITTLE_ENDIAN, pinfo->pool, &imsi_str);
     }
@@ -3956,6 +3995,11 @@ proto_register_e212(void)
         FT_STRING, BASE_NONE, NULL, 0x0,
         "Mobile Country Code MCC", HFILL }
     },
+    { &hf_E212_mcc_serv_net,
+        { "Mobile Country Code (MCC)","e212.serv_net.mcc",
+        FT_STRING, BASE_NONE, NULL, 0x0,
+        "Mobile Country Code MCC", HFILL }
+    },
     { &hf_E212_mnc,
         { "Mobile Network Code (MNC)","e212.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
@@ -4008,6 +4052,11 @@ proto_register_e212(void)
     },
     { &hf_E212_mnc_guami,
         { "Mobile Network Code (MNC)","e212.guami.mnc",
+        FT_STRING, BASE_NONE, NULL, 0x0,
+        NULL, HFILL }
+    },
+    { &hf_E212_mnc_serv_net,
+        { "Mobile Network Code (MNC)","e212.serv_net.mnc",
         FT_STRING, BASE_NONE, NULL, 0x0,
         NULL, HFILL }
     },

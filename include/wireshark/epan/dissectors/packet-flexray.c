@@ -39,6 +39,7 @@ static int proto_flexray;
 static int hf_flexray_measurement_header_field;
 static int hf_flexray_error_flags_field;
 static int hf_flexray_frame_header;
+static int hf_flexray_frame_trailer;
 
 static int hf_flexray_ti;
 static int hf_flexray_ch;
@@ -58,11 +59,13 @@ static int hf_flexray_hcrc;
 static int hf_flexray_cc;
 static int hf_flexray_sl;
 static int hf_flexray_flexray_id;
+static int hf_flexray_crc;
 
 static int ett_flexray;
 static int ett_flexray_measurement_header;
 static int ett_flexray_error_flags;
 static int ett_flexray_frame;
+static int ett_flexray_frame_trailer;
 
 static int * const error_fields[] = {
     &hf_flexray_fcrc_err,
@@ -77,11 +80,6 @@ static expert_field ei_flexray_frame_payload_truncated;
 static expert_field ei_flexray_symbol_frame;
 static expert_field ei_flexray_error_flag;
 static expert_field ei_flexray_stfi_flag;
-
-#define FLEXRAY_FRAME 0x01
-#define FLEXRAY_SYMBOL 0x02
-
-#define FLEXRAY_HEADER_LENGTH 5
 
 static const value_string flexray_type_names[] = {
     { FLEXRAY_FRAME, "FRAME" },
@@ -180,10 +178,10 @@ sender_receiver_key(uint16_t bus_id, uint8_t channel, uint8_t cycle, uint16_t fr
 
 static sender_receiver_config_t *
 ht_lookup_sender_receiver_config(flexray_info_t *flexray_info) {
-    sender_receiver_config_t *tmp = NULL;
-    uint64_t                  key = 0;
+    sender_receiver_config_t *tmp;
+    uint64_t                  key;
 
-    if (sender_receiver_configs == NULL) {
+    if (sender_receiver_configs == NULL || data_sender_receiver == NULL) {
         return NULL;
     }
 
@@ -199,33 +197,29 @@ ht_lookup_sender_receiver_config(flexray_info_t *flexray_info) {
 }
 
 static void
-sender_receiver_free_key(void *key) {
-    wmem_free(wmem_epan_scope(), key);
-}
-
-static void
 post_update_sender_receiver_cb(void) {
-    unsigned i;
-    uint64_t *key_id = NULL;
-
     /* destroy old hash table, if it exist */
     if (data_sender_receiver) {
         g_hash_table_destroy(data_sender_receiver);
-        data_sender_receiver = NULL;
     }
 
     /* create new hash table */
-    data_sender_receiver = g_hash_table_new_full(g_int64_hash, g_int64_equal, &sender_receiver_free_key, NULL);
+    data_sender_receiver = g_hash_table_new_full(g_int64_hash, g_int64_equal, g_free, NULL);
 
-    if (data_sender_receiver == NULL || sender_receiver_configs == NULL || sender_receiver_config_num == 0) {
-        return;
+    for (unsigned i = 0; i < sender_receiver_config_num; i++) {
+        uint64_t *key = g_new(uint64_t, 1);
+        *key = sender_receiver_key(sender_receiver_configs[i].bus_id, sender_receiver_configs[i].channel,
+                                   sender_receiver_configs[i].cycle, sender_receiver_configs[i].frame_id);
+        g_hash_table_insert(data_sender_receiver, key, &sender_receiver_configs[i]);
     }
+}
 
-    for (i = 0; i < sender_receiver_config_num; i++) {
-        key_id = wmem_new(wmem_epan_scope(), uint64_t);
-        *key_id = sender_receiver_key(sender_receiver_configs[i].bus_id, sender_receiver_configs[i].channel,
-                                      sender_receiver_configs[i].cycle, sender_receiver_configs[i].frame_id);
-        g_hash_table_insert(data_sender_receiver, key_id, &sender_receiver_configs[i]);
+static void
+reset_sender_receiver_cb(void) {
+    /* destroy hash table, if it exists */
+    if (data_sender_receiver) {
+        g_hash_table_destroy(data_sender_receiver);
+        data_sender_receiver = NULL;
     }
 }
 
@@ -269,34 +263,34 @@ flexray_call_subdissectors(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
     uint32_t flexray_id = flexray_flexrayinfo_to_flexrayid(flexray_info);
 
     /* lets try an exact match first */
-    if (dissector_try_uint_new(flexrayid_subdissector_table, flexray_id, tvb, pinfo, tree, true, flexray_info)) {
+    if (dissector_try_uint_with_data(flexrayid_subdissector_table, flexray_id, tvb, pinfo, tree, true, flexray_info)) {
         return true;
     }
 
     /* lets try with BUS-ID = 0 (any) */
-    if (dissector_try_uint_new(flexrayid_subdissector_table, flexray_id & ~FLEXRAY_ID_BUS_ID_MASK, tvb, pinfo, tree, true, flexray_info)) {
+    if (dissector_try_uint_with_data(flexrayid_subdissector_table, flexray_id & ~FLEXRAY_ID_BUS_ID_MASK, tvb, pinfo, tree, true, flexray_info)) {
         return true;
     }
 
     /* lets try with cycle = 0xff (any) */
-    if (dissector_try_uint_new(flexrayid_subdissector_table, flexray_id | FLEXRAY_ID_CYCLE_MASK, tvb, pinfo, tree, true, flexray_info)) {
+    if (dissector_try_uint_with_data(flexrayid_subdissector_table, flexray_id | FLEXRAY_ID_CYCLE_MASK, tvb, pinfo, tree, true, flexray_info)) {
         return true;
     }
 
     /* lets try with BUS-ID = 0 (any) and cycle = 0xff (any) */
-    if (dissector_try_uint_new(flexrayid_subdissector_table, (flexray_id & ~FLEXRAY_ID_BUS_ID_MASK) | FLEXRAY_ID_CYCLE_MASK, tvb, pinfo, tree, true, flexray_info)) {
+    if (dissector_try_uint_with_data(flexrayid_subdissector_table, (flexray_id & ~FLEXRAY_ID_BUS_ID_MASK) | FLEXRAY_ID_CYCLE_MASK, tvb, pinfo, tree, true, flexray_info)) {
         return true;
     }
 
     if (!use_heuristics_first) {
-        if (!dissector_try_payload_new(subdissector_table, tvb, pinfo, tree, false, flexray_info)) {
+        if (!dissector_try_payload_with_data(subdissector_table, tvb, pinfo, tree, false, flexray_info)) {
             if (!dissector_try_heuristic(heur_subdissector_list, tvb, pinfo, tree, &heur_dtbl_entry, flexray_info)) {
                 return false;
             }
         }
     } else {
         if (!dissector_try_heuristic(heur_subdissector_list, tvb, pinfo, tree, &heur_dtbl_entry, flexray_info)) {
-            if (!dissector_try_payload_new(subdissector_table, tvb, pinfo, tree, false, flexray_info)) {
+            if (!dissector_try_payload_with_data(subdissector_table, tvb, pinfo, tree, false, flexray_info)) {
                 return false;
             }
         }
@@ -325,11 +319,12 @@ dissect_flexray(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
 
     uint32_t frame_type;
     proto_tree_add_item_ret_uint(measurement_tree, hf_flexray_ti, tvb, 0, 1, ENC_BIG_ENDIAN, &frame_type);
-    col_add_fstr(pinfo->cinfo, COL_INFO, "%s:", val_to_str(frame_type, flexray_type_names, "Unknown (0x%02x)"));
+    col_add_fstr(pinfo->cinfo, COL_INFO, "%s:", val_to_str(pinfo->pool, frame_type, flexray_type_names, "Unknown (0x%02x)"));
 
     if (frame_type == FLEXRAY_FRAME) {
         proto_tree *error_flags_tree, *flexray_frame_tree;
         bool call_subdissector = true;
+        bool payload_truncated = false;
 
         /* Error Flags [1 Byte] */
         ti = proto_tree_add_bitmask(flexray_tree, tvb, 1, hf_flexray_error_flags_field, ett_flexray_error_flags, error_fields, ENC_BIG_ENDIAN);
@@ -369,12 +364,11 @@ dissect_flexray(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
 
         uint32_t flexray_pl;
         proto_tree_add_item_ret_uint(flexray_frame_tree, hf_flexray_pl, tvb, 4, 1, ENC_BIG_ENDIAN, &flexray_pl);
-        int flexray_reported_payload_length = 2 * flexray_pl;
+        int flexray_real_payload_length = 2 * flexray_pl;
         int flexray_current_payload_length = flexray_frame_length - FLEXRAY_HEADER_LENGTH;
-        bool payload_truncated = flexray_reported_payload_length > flexray_current_payload_length;
-
-        if (flexray_reported_payload_length < flexray_current_payload_length) {
-            flexray_current_payload_length = MAX(0, flexray_reported_payload_length);
+        if (flexray_real_payload_length > flexray_current_payload_length) {
+            payload_truncated = true;
+            flexray_real_payload_length = MAX(0, flexray_current_payload_length);
         }
 
         proto_tree_add_item(flexray_frame_tree, hf_flexray_hcrc, tvb, 4, 3, ENC_BIG_ENDIAN);
@@ -389,8 +383,8 @@ dissect_flexray(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                 call_subdissector = false;
             }
 
-            if (tvb != NULL && flexray_current_payload_length > 0) {
-                col_append_fstr(pinfo->cinfo, COL_INFO, "   %s", tvb_bytes_to_str_punct(pinfo->pool, tvb, 7, flexray_current_payload_length, ' '));
+            if (tvb != NULL && flexray_real_payload_length > 0) {
+                col_append_fstr(pinfo->cinfo, COL_INFO, "   %s", tvb_bytes_to_str_punct(pinfo->pool, tvb, 7, flexray_real_payload_length, ' '));
             }
 
         } else {
@@ -398,12 +392,19 @@ dissect_flexray(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             col_append_str(pinfo->cinfo, COL_INFO, "   NF");
 
             /* Payload is optional on Null Frames */
-            if (payload_truncated && flexray_current_payload_length != 0) {
+            if (payload_truncated && flexray_real_payload_length != 0) {
                 expert_add_info(pinfo, flexray_frame_tree, &ei_flexray_frame_payload_truncated);
             }
         }
 
         proto_item_set_end(ti_header, tvb, 2 + FLEXRAY_HEADER_LENGTH);
+
+        if (flexray_current_payload_length > flexray_real_payload_length) {
+            int trailer_len = flexray_current_payload_length - flexray_real_payload_length;
+            proto_item* ti_trailer = proto_tree_add_item(flexray_tree, hf_flexray_frame_trailer, tvb, 7 + flexray_real_payload_length, trailer_len, ENC_NA);
+            proto_tree* flexray_trailer = proto_item_add_subtree(ti_trailer, ett_flexray_frame_trailer);
+            proto_tree_add_item(flexray_trailer, hf_flexray_crc, tvb, 7 + flexray_real_payload_length, 3, ENC_BIG_ENDIAN);
+        }
 
         /* Only supporting single bus id right now */
         flexray_info_t flexray_info = { .id = (uint16_t)flexray_id,
@@ -415,8 +416,8 @@ dissect_flexray(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
         proto_item_set_hidden(ti);
         flexray_set_source_and_destination_columns(pinfo, &flexray_info);
 
-        if (flexray_current_payload_length > 0) {
-            tvbuff_t *next_tvb = tvb_new_subset_length(tvb, 7, flexray_current_payload_length);
+        if (flexray_real_payload_length > 0) {
+            tvbuff_t *next_tvb = tvb_new_subset_length(tvb, 7, flexray_real_payload_length);
             if (!call_subdissector || !flexray_call_subdissectors(next_tvb, pinfo, tree, &flexray_info, prefvar_try_heuristic_first)) {
                 call_data_dissector(next_tvb, pinfo, tree);
             }
@@ -443,52 +444,57 @@ proto_register_flexray(void) {
         { &hf_flexray_measurement_header_field, {
             "Measurement Header", "flexray.mhf", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL } },
         { &hf_flexray_ti, {
-            "Type Index", "flexray.ti", FT_UINT8, BASE_HEX, VALS(flexray_type_names), 0x7f, NULL, HFILL } },
+            "Type Index", "flexray.ti", FT_UINT8, BASE_HEX, VALS(flexray_type_names), FLEXRAY_TYPE_MASK, NULL, HFILL } },
         { &hf_flexray_ch, {
-            "Channel", "flexray.ch", FT_BOOLEAN, 8, TFS(&flexray_channel_tfs), 0x80, NULL, HFILL } },
+            "Channel", "flexray.ch", FT_BOOLEAN, 8, TFS(&flexray_channel_tfs), FLEXRAY_CHANNEL_MASK, NULL, HFILL } },
         { &hf_flexray_error_flags_field, {
             "Error Flags", "flexray.eff", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL } },
         { &hf_flexray_fcrc_err, {
-            "Frame CRC error", "flexray.fcrc_err", FT_BOOLEAN, 8, NULL, 0x10, NULL, HFILL } },
+            "Frame CRC error", "flexray.fcrc_err", FT_BOOLEAN, 8, NULL, FLEXRAY_FCRC_ERROR, NULL, HFILL } },
         { &hf_flexray_hcrc_err, {
-            "Header CRC error", "flexray.hcrc_err", FT_BOOLEAN, 8, NULL, 0x08, NULL, HFILL } },
+            "Header CRC error", "flexray.hcrc_err", FT_BOOLEAN, 8, NULL, FLEXRAY_HCRC_ERROR, NULL, HFILL } },
         { &hf_flexray_fes_err, {
-            "Frame End Sequence error", "flexray.fes_err", FT_BOOLEAN, 8, NULL, 0x04, NULL, HFILL } },
+            "Frame End Sequence error", "flexray.fes_err", FT_BOOLEAN, 8, NULL, FLEXRAY_FES_ERROR, NULL, HFILL } },
         { &hf_flexray_cod_err, {
-            "Coding error", "flexray.cod_err", FT_BOOLEAN, 8, NULL, 0x02, NULL, HFILL } },
+            "Coding error", "flexray.cod_err", FT_BOOLEAN, 8, NULL, FLEXRAY_COD_ERROR, NULL, HFILL } },
         { &hf_flexray_tss_viol, {
-            "TSS violation", "flexray.tss_viol", FT_BOOLEAN, 8, NULL, 0x01, NULL, HFILL } },
+            "TSS violation", "flexray.tss_viol", FT_BOOLEAN, 8, NULL, FLEXRAY_TSS_ERROR, NULL, HFILL } },
         { &hf_flexray_frame_header, {
             "FlexRay Frame Header", "flexray.frame_header", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL } },
         { &hf_flexray_res, {
-            "Reserved", "flexray.res", FT_BOOLEAN, 8, NULL, 0x80, NULL, HFILL } },
+            "Reserved", "flexray.res", FT_BOOLEAN, 8, NULL, FLEXRAY_RES_MASK, NULL, HFILL } },
         { &hf_flexray_ppi, {
-            "Payload Preamble Indicator", "flexray.ppi", FT_BOOLEAN, 8, NULL, 0x40, NULL, HFILL } },
+            "Payload Preamble Indicator", "flexray.ppi", FT_BOOLEAN, 8, NULL, FLEXRAY_PPI_MASK, NULL, HFILL } },
         { &hf_flexray_nfi, {
-            "Null Frame Indicator", "flexray.nfi", FT_BOOLEAN, 8, TFS(&flexray_nfi_tfs), 0x20, NULL, HFILL } },
+            "Null Frame Indicator", "flexray.nfi", FT_BOOLEAN, 8, TFS(&flexray_nfi_tfs), FLEXRAY_NFI_MASK, NULL, HFILL } },
         { &hf_flexray_sfi, {
-            "Sync Frame Indicator", "flexray.sfi", FT_BOOLEAN, 8, NULL, 0x10, NULL, HFILL } },
+            "Sync Frame Indicator", "flexray.sfi", FT_BOOLEAN, 8, NULL, FLEXRAY_SFI_MASK, NULL, HFILL } },
         { &hf_flexray_stfi, {
-            "Startup Frame Indicator", "flexray.stfi", FT_BOOLEAN, 8, NULL, 0x08, NULL, HFILL } },
+            "Startup Frame Indicator", "flexray.stfi", FT_BOOLEAN, 8, NULL, FLEXRAY_STFI_MASK, NULL, HFILL } },
         { &hf_flexray_fid, {
-            "Frame ID", "flexray.fid", FT_UINT16, BASE_DEC, NULL, 0x07ff, NULL, HFILL } },
+            "Frame ID", "flexray.fid", FT_UINT16, BASE_DEC, NULL, FLEXRAY_ID_MASK, NULL, HFILL } },
         { &hf_flexray_pl, {
-            "Payload length", "flexray.pl", FT_UINT8, BASE_DEC, NULL, 0xfe, NULL, HFILL } },
+            "Payload length", "flexray.pl", FT_UINT8, BASE_DEC, NULL, FLEXRAY_LENGTH_MASK, NULL, HFILL } },
         { &hf_flexray_hcrc, {
-            "Header CRC", "flexray.hcrc", FT_UINT24, BASE_DEC, NULL, 0x01ffc0, NULL, HFILL } },
+            "Header CRC", "flexray.hcrc", FT_UINT24, BASE_HEX, NULL, FLEXRAY_HEADER_CRC_MASK, NULL, HFILL } },
         { &hf_flexray_cc, {
-            "Cycle Counter", "flexray.cc", FT_UINT8, BASE_DEC, NULL, 0x3f, NULL, HFILL } },
+            "Cycle Counter", "flexray.cc", FT_UINT8, BASE_DEC, NULL, FLEXRAY_CC_MASK, NULL, HFILL } },
         { &hf_flexray_sl, {
             "Symbol length", "flexray.sl", FT_UINT8, BASE_DEC, NULL, 0x7f, NULL, HFILL } },
         { &hf_flexray_flexray_id, {
             "FlexRay ID (combined)", "flexray.combined_id", FT_UINT32, BASE_HEX, NULL, 0, NULL, HFILL } },
+        { &hf_flexray_frame_trailer, {
+            "FlexRay Frame Trailer", "flexray.frame_trailer", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL } },
+        { &hf_flexray_crc, {
+            "CRC", "flexray.crc", FT_UINT24, BASE_HEX, NULL, 0, NULL, HFILL } },
     };
 
     static int *ett[] = {
         &ett_flexray,
         &ett_flexray_measurement_header,
         &ett_flexray_error_flags,
-        &ett_flexray_frame
+        &ett_flexray_frame,
+        &ett_flexray_frame_trailer
     };
 
     static ei_register_info ei[] = {
@@ -541,7 +547,7 @@ proto_register_flexray(void) {
         update_sender_receiver_config,      /* update callback       */
         free_sender_receiver_config_cb,     /* free callback         */
         post_update_sender_receiver_cb,     /* post update callback  */
-        NULL,                               /* reset callback        */
+        reset_sender_receiver_cb,           /* reset callback        */
         sender_receiver_mapping_uat_fields  /* UAT field definitions */
     );
 

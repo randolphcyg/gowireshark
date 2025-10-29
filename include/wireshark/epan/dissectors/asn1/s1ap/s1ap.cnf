@@ -112,6 +112,12 @@ ProtocolExtensionField/id ext_id
 #PrivateIE-Field/value private_value
 ProtocolIE-Field/value ie_field_value
 
+Global-GNB-ID/gNB-ID gnb-id-choice
+EUTRANResponse/cell-ID cell-ID_oct_str
+CellsToActivateList-Item/cell-ID cell-ID_oct_str
+ActivatedCellsList-Item/cell-ID cell-ID_oct_str
+NotificationCellList-Item/cell-ID cell-ID_oct_str
+
 #.FIELD_ATTR
 UE-associatedLogicalS1-ConnectionItem/eNB-UE-S1AP-ID ABBREV=ENB_UE_S1AP_ID
 UE-associatedLogicalS1-ConnectionItem/mME-UE-S1AP-ID ABBREV=MME_UE_S1AP_ID
@@ -126,7 +132,7 @@ UE-S1AP-IDs/mME-UE-S1AP-ID ABBREV=MME_UE_S1AP_ID
 #.FN_FTR ProtocolIE-ID
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str_ext(s1ap_data->protocol_ie_id, &s1ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
+                           val_to_str_ext(actx->pinfo->pool, s1ap_data->protocol_ie_id, &s1ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
 #.END
 
@@ -1288,7 +1294,7 @@ ExpectedIdlePeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_FTR E-RABUsageReportItem/startTimestamp
   if (timestamp_tvb) {
-    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
+    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(actx->pinfo->pool, timestamp_tvb, 0));
   }
 
 #.FN_BODY E-RABUsageReportItem/endTimestamp VAL_PTR = &timestamp_tvb
@@ -1297,7 +1303,7 @@ ExpectedIdlePeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_FTR E-RABUsageReportItem/endTimestamp
   if (timestamp_tvb) {
-    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
+    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(actx->pinfo->pool, timestamp_tvb, 0));
   }
 
 #.TYPE_ATTR
@@ -1571,6 +1577,15 @@ HandoverWindowStart DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds
 
 #.TYPE_ATTR
 HandoverWindowDuration DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(s1ap_handover_window_duration_fmt)
+
+#.FN_BODY CoarseUELocation VAL_PTR = &parameter_tvb
+  tvbuff_t *parameter_tvb = NULL;
+  proto_tree *subtree;
+%(DEFAULT_BODY)s
+  if (parameter_tvb) {
+    subtree = proto_item_add_subtree(actx->created_item, ett_s1ap_CoarseUELocation);
+    dissect_lpp_Ellipsoid_Point_PDU(parameter_tvb, actx->pinfo, subtree, NULL);
+  }
 
 #.ASSIGN_VALUE_TO_TYPE  # S1AP does not have constants assigned to types, they are pure INTEGER
 # ProcedureCode
@@ -1974,6 +1989,8 @@ id-M7ReportAmount                                   ProtocolIE-ID
 id-TimeBasedHandoverInformation                     ProtocolIE-ID
 id-Bearers-SubjectToDLDiscarding-Item               ProtocolIE-ID
 id-Bearers-SubjectToDLDiscardingList                ProtocolIE-ID
+id-CoarseUELocationRequested                        ProtocolIE-ID
+id-CoarseUELocation                                 ProtocolIE-ID
 
 #.END
 
@@ -2229,6 +2246,8 @@ LTE-NTN-TAI-Information                         N s1ap.ies id-LTE-NTN-TAI-Inform
 E-RABToBeUpdatedList                            N s1ap.ies id-E-RABToBeUpdatedList
 E-RABToBeUpdatedItem                            N s1ap.ies id-E-RABToBeUpdatedItem
 Bearers-SubjectToDLDiscarding-Item              N s1ap.ies id-Bearers-SubjectToDLDiscarding-Item
+CoarseUELocationRequested                       N s1ap.ies id-CoarseUELocationRequested
+CoarseUELocation                                N s1ap.ies id-CoarseUELocation
 
 #S1AP-PROTOCOL-IES-PAIR
 #RAB-SetupOrModifyItemFirst             N s1ap.ies.pair.first id-RAB-SetupOrModifyItem

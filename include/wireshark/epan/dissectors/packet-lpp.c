@@ -13,7 +13,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * Ref 3GPP TS 37.355 version 18.2.0 Release 18
+ * Ref 3GPP TS 37.355 version 18.4.0 Release 18
  * http://www.3gpp.org
  */
 
@@ -30,6 +30,7 @@
 
 #include "packet-per.h"
 #include "packet-lpp.h"
+#include "packet-media-type.h"
 
 #define PNAME  "LTE Positioning Protocol (LPP)"
 #define PSNAME "LPP"
@@ -369,12 +370,12 @@ static int hf_lpp_minPeriodicReportingIntervalMs100_Supported_r18;  /* Positioni
 static int hf_lpp_Polygon_item;                   /* PolygonPoints */
 static int hf_lpp_latitudeSign_06;                /* T_latitudeSign_06 */
 static int hf_lpp_posModes;                       /* T_posModes */
-static int hf_lpp_utcTime_r17;                    /* T_utcTime_r17 */
+static int hf_lpp_utcTime_r17_enum;               /* T_utcTime_r17_enum */
 static int hf_lpp_gnssTime_r17;                   /* GNSS_ID_Bitmap */
 static int hf_lpp_e_utraTime_r17;                 /* T_e_utraTime_r17 */
 static int hf_lpp_nrTime_r17;                     /* T_nrTime_r17 */
 static int hf_lpp_relativeTime_r17;               /* T_relativeTime_r17 */
-static int hf_lpp_utcTime_r17_01;                 /* PositioningModes */
+static int hf_lpp_utcTime_r17_PositioningModes;   /* PositioningModes */
 static int hf_lpp_gnssTime_r17_01;                /* T_gnssTime_r17 */
 static int hf_lpp_posModes_r17;                   /* PositioningModes */
 static int hf_lpp_gnss_TimeIDs_r17;               /* GNSS_ID_Bitmap */
@@ -389,7 +390,7 @@ static int hf_lpp_lpp_message_segmentation_req_r14;  /* T_lpp_message_segmentati
 static int hf_lpp_remoteUE_IndicationReq_r18;     /* T_remoteUE_IndicationReq_r18 */
 static int hf_lpp_segmentationInfo_r14;           /* SegmentationInfo_r14 */
 static int hf_lpp_lpp_message_segmentation_r14;   /* T_lpp_message_segmentation_r14 */
-static int hf_lpp_remoteUE_Indication_r18;        /* BOOLEAN */
+static int hf_lpp_remoteUE_Indication_r18_bool;   /* BOOLEAN */
 static int hf_lpp_locationEstimateAndMeasurementReporting_r18;  /* T_locationEstimateAndMeasurementReporting_r18 */
 static int hf_lpp_primaryCellID;                  /* ECGI */
 static int hf_lpp_periodicAssistanceDataReq_r15;  /* PeriodicAssistanceDataControlParameters_r15 */
@@ -430,7 +431,7 @@ static int hf_lpp_timeNB_r14;                     /* INTEGER_1_512 */
 static int hf_lpp_responseTimeEarlyFixNB_r14;     /* INTEGER_1_512 */
 static int hf_lpp_unitNB_r15;                     /* T_unitNB_r15 */
 static int hf_lpp_measurementLimit_r14;           /* INTEGER_1_512 */
-static int hf_lpp_utcTime_r17_02;                 /* UTCTime */
+static int hf_lpp_utcTime_r17;                    /* UTCTime */
 static int hf_lpp_gnssTime_r17_02;                /* T_gnssTime_r17_01 */
 static int hf_lpp_gnss_TOD_msec_r17;              /* INTEGER_0_3599999 */
 static int hf_lpp_gnss_TimeID_r17;                /* GNSS_ID */
@@ -788,8 +789,8 @@ static int hf_lpp_maximumFH_Hops_r18;             /* T_maximumFH_Hops_r18 */
 static int hf_lpp_processingDuration_r18;         /* T_processingDuration_r18 */
 static int hf_lpp_processingPRS_SymbolsDurationN3_r18;  /* T_processingPRS_SymbolsDurationN3_r18 */
 static int hf_lpp_processingDurationT3_r18;       /* T_processingDurationT3_r18 */
-static int hf_lpp_rf_RxRetunTimeFR1_r18;          /* T_rf_RxRetunTimeFR1_r18 */
-static int hf_lpp_rf_RxRetunTimeFR2_r18;          /* T_rf_RxRetunTimeFR2_r18 */
+static int hf_lpp_rf_RxRetuneTimeFR1_r18;         /* T_rf_RxRetuneTimeFR1_r18 */
+static int hf_lpp_rf_RxRetuneTimeFR2_r18;         /* T_rf_RxRetuneTimeFR2_r18 */
 static int hf_lpp_numOfOverlappingPRB_r18;        /* T_numOfOverlappingPRB_r18 */
 static int hf_lpp_dl_PRS_QCL_ProcessingCapabilityBandList_r16;  /* SEQUENCE_SIZE_1_nrMaxBands_r16_OF_DL_PRS_QCL_ProcessingCapabilityPerBand_r16 */
 static int hf_lpp_dl_PRS_QCL_ProcessingCapabilityBandList_r16_item;  /* DL_PRS_QCL_ProcessingCapabilityPerBand_r16 */
@@ -1090,8 +1091,8 @@ static int hf_lpp_maxNumOfSemiPersistentSRSposResourcesPerSlot_r17_01;  /* T_max
 static int hf_lpp_maximumSRS_BandwidthAcrossAllHopsFR1_r18;  /* T_maximumSRS_BandwidthAcrossAllHopsFR1_r18 */
 static int hf_lpp_maximumSRS_BandwidthAcrossAllHopsFR2_r18;  /* T_maximumSRS_BandwidthAcrossAllHopsFR2_r18 */
 static int hf_lpp_maximumTxFH_Hops_r18;           /* T_maximumTxFH_Hops_r18 */
-static int hf_lpp_rf_TxRetunTimeFR1_r18;          /* T_rf_TxRetunTimeFR1_r18 */
-static int hf_lpp_rf_TxRetunTimeFR2_r18;          /* T_rf_TxRetunTimeFR2_r18 */
+static int hf_lpp_rf_TxRetuneTimeFR1_r18;         /* T_rf_TxRetuneTimeFR1_r18 */
+static int hf_lpp_rf_TxRetuneTimeFR2_r18;         /* T_rf_TxRetuneTimeFR2_r18 */
 static int hf_lpp_switchTimeBetweenActiveBWP_FrequencyHop_r18;  /* T_switchTimeBetweenActiveBWP_FrequencyHop_r18 */
 static int hf_lpp_numOfOverlappingPRB_r18_01;     /* T_numOfOverlappingPRB_r18_01 */
 static int hf_lpp_maximumSRS_ResourcePeriodic_r18;  /* T_maximumSRS_ResourcePeriodic_r18 */
@@ -1100,8 +1101,8 @@ static int hf_lpp_maximumSRS_ResourceSemipersistent_r18;  /* T_maximumSRS_Resour
 static int hf_lpp_maximumSRS_BandwidthAcrossAllHopsFR1_r18_01;  /* T_maximumSRS_BandwidthAcrossAllHopsFR1_r18_01 */
 static int hf_lpp_maximumSRS_BandwidthAcrossAllHopsFR2_r18_01;  /* T_maximumSRS_BandwidthAcrossAllHopsFR2_r18_01 */
 static int hf_lpp_maximumTxFH_Hops_r18_01;        /* T_maximumTxFH_Hops_r18_01 */
-static int hf_lpp_rf_TxRetunTimeFR1_r18_01;       /* T_rf_TxRetunTimeFR1_r18_01 */
-static int hf_lpp_rf_TxRetunTimeFR2_r18_01;       /* T_rf_TxRetunTimeFR2_r18_01 */
+static int hf_lpp_rf_TxRetuneTimeFR1_r18_01;      /* T_rf_TxRetuneTimeFR1_r18_01 */
+static int hf_lpp_rf_TxRetuneTimeFR2_r18_01;      /* T_rf_TxRetuneTimeFR2_r18_01 */
 static int hf_lpp_switchTimeBetweenActiveBWP_FrequencyHop_r18_01;  /* T_switchTimeBetweenActiveBWP_FrequencyHop_r18_01 */
 static int hf_lpp_numOfOverlappingPRB_r18_02;     /* T_numOfOverlappingPRB_r18_02 */
 static int hf_lpp_maximumSRS_ResourcePeriodic_r18_01;  /* T_maximumSRS_ResourcePeriodic_r18_01 */
@@ -1958,6 +1959,7 @@ static int hf_lpp_navic_AlmOmega_r16;             /* INTEGER_M8388608_8388607 */
 static int hf_lpp_navic_AlmMo_r16;                /* INTEGER_M8388608_8388607 */
 static int hf_lpp_navic_Almaf0_r16;               /* INTEGER_M1024_1023 */
 static int hf_lpp_navic_Almaf1_r16;               /* INTEGER_M1024_1023 */
+static int hf_lpp_navicL5_i0_r16;                 /* INTEGER_M8388608_8388607 */
 static int hf_lpp_utcModel1;                      /* UTC_ModelSet1 */
 static int hf_lpp_utcModel2;                      /* UTC_ModelSet2 */
 static int hf_lpp_utcModel3;                      /* UTC_ModelSet3 */
@@ -2533,7 +2535,7 @@ static int hf_lpp_cause_03;                       /* T_cause_03 */
 static int hf_lpp_fineTimeAssistanceMeasurementsNotPossible;  /* NULL */
 static int hf_lpp_adrMeasurementsNotPossible;     /* NULL */
 static int hf_lpp_multiFrequencyMeasurementsNotPossible;  /* NULL */
-static int hf_lpp_remoteUE_Indication_r18_01;     /* T_remoteUE_Indication_r18 */
+static int hf_lpp_remoteUE_Indication_r18;        /* T_remoteUE_Indication_r18 */
 static int hf_lpp_gnss_FrequencyID_r15;           /* INTEGER_0_7 */
 static int hf_lpp_gnss_id;                        /* T_gnss_id */
 static int hf_lpp_gnss_ids;                       /* T_gnss_ids */
@@ -2867,7 +2869,7 @@ static int hf_lpp_ss_RSRPMeasurementNotPossible_r16;  /* NULL */
 static int hf_lpp_ss_RSRQMeasurementNotPossible_r16;  /* NULL */
 static int hf_lpp_csi_RSRPMeasurementNotPossible_r16;  /* NULL */
 static int hf_lpp_csi_RSRQMeasurementNotPossible_r16;  /* NULL */
-static int hf_lpp_remoteUE_Indication_r18_02;     /* T_remoteUE_Indication_r18_01 */
+static int hf_lpp_remoteUE_Indication_r18_01;     /* T_remoteUE_Indication_r18_01 */
 static int hf_lpp_nr_DL_PRS_AssistanceData_r16;   /* NR_DL_PRS_AssistanceData_r16 */
 static int hf_lpp_nr_SelectedDL_PRS_IndexList_r16;  /* NR_SelectedDL_PRS_IndexList_r16 */
 static int hf_lpp_nr_PositionCalculationAssistance_r16;  /* NR_PositionCalculationAssistance_r16 */
@@ -3015,7 +3017,7 @@ static int hf_lpp_dl_PRS_MeasRRC_Inactive_r17;    /* T_dl_PRS_MeasRRC_Inactive_r
 static int hf_lpp_supportOfDL_PRS_BWA_RRC_Connected_r18;  /* T_supportOfDL_PRS_BWA_RRC_Connected_r18 */
 static int hf_lpp_supportOfDL_PRS_BWA_RRC_Inactive_r18;  /* T_supportOfDL_PRS_BWA_RRC_Inactive_r18 */
 static int hf_lpp_supportOfDL_PRS_BWA_RRC_Idle_r18;  /* T_supportOfDL_PRS_BWA_RRC_Idle_r18 */
-static int hf_lpp_nr_DL_PRS_RSCPD_ReportingRRC_Connected_r18;  /* T_nr_DL_PRS_RSCPD_ReportingRRC_Connected_r18 */
+static int hf_lpp_nr_DL_PRS_RSCPD_RRC_Connected_r18;  /* T_nr_DL_PRS_RSCPD_RRC_Connected_r18 */
 static int hf_lpp_assocSingleRSTD_WithUpToNsampleRSCPD_r18;  /* T_assocSingleRSTD_WithUpToNsampleRSCPD_r18 */
 static int hf_lpp_nr_DL_PRS_RSCPD_MeasurementRRC_Idle_r18;  /* T_nr_DL_PRS_RSCPD_MeasurementRRC_Idle_r18 */
 static int hf_lpp_supportOfUE_basedCarrierPhasePositioning_r18;  /* T_supportOfUE_basedCarrierPhasePositioning_r18 */
@@ -3023,11 +3025,12 @@ static int hf_lpp_supportOfSymbolTimeStampForRSCPD_r18;  /* T_supportOfSymbolTim
 static int hf_lpp_supportOfFinerTimingReportGranularityForPRS_Meas_r18;  /* T_supportOfFinerTimingReportGranularityForPRS_Meas_r18 */
 static int hf_lpp_supportOfMeasurementsInTimeWindow_r18;  /* T_supportOfMeasurementsInTimeWindow_r18 */
 static int hf_lpp_supportOfPRS_MeasurementRRC_Idle_r18;  /* T_supportOfPRS_MeasurementRRC_Idle_r18 */
+static int hf_lpp_nr_DL_PRS_RSCPD_RRC_Inactive_r18;  /* T_nr_DL_PRS_RSCPD_RRC_Inactive_r18 */
 static int hf_lpp_locationServerErrorCauses_r16_01;  /* NR_DL_TDOA_LocationServerErrorCauses_r16 */
 static int hf_lpp_targetDeviceErrorCauses_r16_01;  /* NR_DL_TDOA_TargetDeviceErrorCauses_r16 */
 static int hf_lpp_cause_r16_02;                   /* T_cause_r16_02 */
 static int hf_lpp_cause_r16_03;                   /* T_cause_r16_03 */
-static int hf_lpp_remoteUE_Indication_r18_03;     /* T_remoteUE_Indication_r18_02 */
+static int hf_lpp_remoteUE_Indication_r18_02;     /* T_remoteUE_Indication_r18_02 */
 static int hf_lpp_nr_DL_AoD_Error_r16;            /* NR_DL_AoD_Error_r16 */
 static int hf_lpp_nr_DL_PRS_BeamInfo_r17;         /* NR_DL_PRS_BeamInfo_r16 */
 static int hf_lpp_nr_AdType_r16_01;               /* T_nr_AdType_r16_01 */
@@ -3103,7 +3106,7 @@ static int hf_lpp_locationServerErrorCauses_r16_02;  /* NR_DL_AoD_LocationServer
 static int hf_lpp_targetDeviceErrorCauses_r16_02;  /* NR_DL_AoD_TargetDeviceErrorCauses_r16 */
 static int hf_lpp_cause_r16_04;                   /* T_cause_r16_04 */
 static int hf_lpp_cause_r16_05;                   /* T_cause_r16_05 */
-static int hf_lpp_remoteUE_Indication_r18_04;     /* T_remoteUE_Indication_r18_03 */
+static int hf_lpp_remoteUE_Indication_r18_03;     /* T_remoteUE_Indication_r18_03 */
 static int hf_lpp_nr_Multi_RTT_Error_r16;         /* NR_Multi_RTT_Error_r16 */
 static int hf_lpp_nr_AdType_r16_02;               /* T_nr_AdType_r16_02 */
 static int hf_lpp_nr_DL_PRS_ExpectedAoD_or_AoA_Request_r17_02;  /* T_nr_DL_PRS_ExpectedAoD_or_AoA_Request_r17_02 */
@@ -3167,6 +3170,7 @@ static int hf_lpp_fr1_04;                         /* T_fr1_04 */
 static int hf_lpp_fr2_04;                         /* T_fr2_04 */
 static int hf_lpp_nr_DL_PRS_JointMeasurementRequest_r18_01;  /* T_nr_DL_PRS_JointMeasurementRequest_r18_01 */
 static int hf_lpp_nr_DL_PRS_JointMeasurementRequestedPFL_List_r18_01;  /* T_nr_DL_PRS_JointMeasurementRequestedPFL_List_r18_01 */
+static int hf_lpp_nr_NTN_UE_RxTxMeasurementsRequest_r18;  /* T_nr_NTN_UE_RxTxMeasurementsRequest_r18 */
 static int hf_lpp_maxDL_PRS_RxTxTimeDiffMeasPerTRP_r16;  /* INTEGER_1_4 */
 static int hf_lpp_nr_Multi_RTT_PRS_Capability_r16;  /* NR_DL_PRS_ResourcesCapability_r16 */
 static int hf_lpp_nr_Multi_RTT_MeasurementCapability_r16;  /* NR_Multi_RTT_MeasurementCapability_r16 */
@@ -3196,8 +3200,8 @@ static int hf_lpp_dl_PRS_MeasRRC_Inactive_r17_02;  /* T_dl_PRS_MeasRRC_Inactive_
 static int hf_lpp_supportOfDL_PRS_BWA_RRC_Connected_r18_01;  /* T_supportOfDL_PRS_BWA_RRC_Connected_r18_01 */
 static int hf_lpp_supportOfDL_PRS_BWA_RRC_Inactive_r18_01;  /* T_supportOfDL_PRS_BWA_RRC_Inactive_r18_01 */
 static int hf_lpp_nr_NTN_MeasAndReport_r18;       /* T_nr_NTN_MeasAndReport_r18 */
-static int hf_lpp_nr_DL_PRS_RSCP_ReportingRRC_Connected_r18;  /* T_nr_DL_PRS_RSCP_ReportingRRC_Connected_r18 */
-static int hf_lpp_nr_DL_PRS_RSCP_ReportingRRC_Inactive_r18;  /* T_nr_DL_PRS_RSCP_ReportingRRC_Inactive_r18 */
+static int hf_lpp_nr_DL_PRS_RSCP_RRC_Connected_r18;  /* T_nr_DL_PRS_RSCP_RRC_Connected_r18 */
+static int hf_lpp_nr_DL_PRS_RSCP_RRC_Inactive_r18;  /* T_nr_DL_PRS_RSCP_RRC_Inactive_r18 */
 static int hf_lpp_assocSingleRx_Tx_WithUpToNsampleRSCP_r18;  /* T_assocSingleRx_Tx_WithUpToNsampleRSCP_r18 */
 static int hf_lpp_supportOfSymbolTimeStampForRSCP_r18;  /* T_supportOfSymbolTimeStampForRSCP_r18 */
 static int hf_lpp_supportOfFinerTimingReportGranularityForPRS_Meas_r18_01;  /* T_supportOfFinerTimingReportGranularityForPRS_Meas_r18_01 */
@@ -3206,7 +3210,7 @@ static int hf_lpp_locationServerErrorCauses_r16_03;  /* NR_Multi_RTT_LocationSer
 static int hf_lpp_targetDeviceErrorCauses_r16_03;  /* NR_Multi_RTT_TargetDeviceErrorCauses_r16 */
 static int hf_lpp_cause_r16_06;                   /* T_cause_r16_06 */
 static int hf_lpp_cause_r16_07;                   /* T_cause_r16_07 */
-static int hf_lpp_remoteUE_Indication_r18_05;     /* T_remoteUE_Indication_r18_04 */
+static int hf_lpp_remoteUE_Indication_r18_04;     /* T_remoteUE_Indication_r18_04 */
 static int hf_lpp_valueTag_r15;                   /* INTEGER_0_63 */
 static int hf_lpp_expirationTime_r15;             /* UTCTime */
 static int hf_lpp_cipheringKeyData_r15;           /* CipheringKeyData_r15 */
@@ -3286,6 +3290,7 @@ static int hf_lpp_T_almanacModel_model_4;
 static int hf_lpp_T_almanacModel_model_5;
 static int hf_lpp_T_almanacModel_model_6;
 static int hf_lpp_T_almanacModel_model_7;
+static int hf_lpp_T_almanacModel_model_8_v16e0;
 static int hf_lpp_T_utc_Model_model_1;
 static int hf_lpp_T_utc_Model_model_2;
 static int hf_lpp_T_utc_Model_model_3;
@@ -6580,8 +6585,6 @@ lpp_mbs_beaconMeasElt_codePhase_fmt(char *s, uint32_t v)
   snprintf(s, ITEM_LABEL_LENGTH, "%gms (%u)", codePhase, v);
 }
 
-static const unit_name_string units_pa = { "Pa", NULL };
-
 
 static const value_string lpp_Initiator_vals[] = {
   {   0, "locationServer" },
@@ -7178,7 +7181,7 @@ dissect_lpp_T_locationEstimateAndMeasurementReporting_r18(tvbuff_t *tvb _U_, int
 
 
 static const per_sequence_t CommonIEsProvideCapabilities_eag_2_sequence[] = {
-  { &hf_lpp_remoteUE_Indication_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_BOOLEAN },
+  { &hf_lpp_remoteUE_Indication_r18_bool, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_BOOLEAN },
   { &hf_lpp_locationEstimateAndMeasurementReporting_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_locationEstimateAndMeasurementReporting_r18 },
   { NULL, 0, 0, NULL }
 };
@@ -7921,13 +7924,14 @@ static int * const T_almanacModel_bits[] = {
   &hf_lpp_T_almanacModel_model_5,
   &hf_lpp_T_almanacModel_model_6,
   &hf_lpp_T_almanacModel_model_7,
+  &hf_lpp_T_almanacModel_model_8_v16e0,
   NULL
 };
 
 static int
 dissect_lpp_T_almanacModel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_bit_string(tvb, offset, actx, tree, hf_index,
-                                     1, 8, false, T_almanacModel_bits, 7, NULL, NULL);
+                                     1, 8, false, T_almanacModel_bits, 8, NULL, NULL);
 
   return offset;
 }
@@ -8808,7 +8812,7 @@ dissect_lpp_T_gnssTime_r17(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 
 
 static const per_sequence_t ScheduledLocationTimeSupportPerMode_r17_sequence[] = {
-  { &hf_lpp_utcTime_r17_01  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_PositioningModes },
+  { &hf_lpp_utcTime_r17_PositioningModes, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_PositioningModes },
   { &hf_lpp_gnssTime_r17_01 , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_gnssTime_r17 },
   { &hf_lpp_e_utraTime_r17_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_PositioningModes },
   { &hf_lpp_nrTime_r17_01   , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_PositioningModes },
@@ -9256,14 +9260,14 @@ dissect_lpp_T_interRAT_RSTDmeasurement_r15(tvbuff_t *tvb _U_, int offset _U_, as
 }
 
 
-static const value_string lpp_T_utcTime_r17_vals[] = {
+static const value_string lpp_T_utcTime_r17_enum_vals[] = {
   {   0, "supported" },
   { 0, NULL }
 };
 
 
 static int
-dissect_lpp_T_utcTime_r17(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_lpp_T_utcTime_r17_enum(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      1, NULL, false, 0, NULL);
 
@@ -9317,7 +9321,7 @@ dissect_lpp_T_relativeTime_r17(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *ac
 
 
 static const per_sequence_t ScheduledLocationTimeSupport_r17_sequence[] = {
-  { &hf_lpp_utcTime_r17     , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_utcTime_r17 },
+  { &hf_lpp_utcTime_r17_enum, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_utcTime_r17_enum },
   { &hf_lpp_gnssTime_r17    , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_GNSS_ID_Bitmap },
   { &hf_lpp_e_utraTime_r17  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_e_utraTime_r17 },
   { &hf_lpp_nrTime_r17      , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_nrTime_r17 },
@@ -10849,14 +10853,14 @@ dissect_lpp_T_nr_NTN_MeasAndReport_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_c
 }
 
 
-static const value_string lpp_T_nr_DL_PRS_RSCP_ReportingRRC_Connected_r18_vals[] = {
+static const value_string lpp_T_nr_DL_PRS_RSCP_RRC_Connected_r18_vals[] = {
   {   0, "supported" },
   { 0, NULL }
 };
 
 
 static int
-dissect_lpp_T_nr_DL_PRS_RSCP_ReportingRRC_Connected_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_lpp_T_nr_DL_PRS_RSCP_RRC_Connected_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      1, NULL, false, 0, NULL);
 
@@ -10864,14 +10868,14 @@ dissect_lpp_T_nr_DL_PRS_RSCP_ReportingRRC_Connected_r18(tvbuff_t *tvb _U_, int o
 }
 
 
-static const value_string lpp_T_nr_DL_PRS_RSCP_ReportingRRC_Inactive_r18_vals[] = {
+static const value_string lpp_T_nr_DL_PRS_RSCP_RRC_Inactive_r18_vals[] = {
   {   0, "supported" },
   { 0, NULL }
 };
 
 
 static int
-dissect_lpp_T_nr_DL_PRS_RSCP_ReportingRRC_Inactive_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_lpp_T_nr_DL_PRS_RSCP_RRC_Inactive_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      1, NULL, false, 0, NULL);
 
@@ -10950,8 +10954,8 @@ static const per_sequence_t Multi_RTT_MeasCapabilityPerBand_r17_eag_1_sequence[]
   { &hf_lpp_supportOfDL_PRS_BWA_RRC_Connected_r18_01, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_supportOfDL_PRS_BWA_RRC_Connected_r18_01 },
   { &hf_lpp_supportOfDL_PRS_BWA_RRC_Inactive_r18_01, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_supportOfDL_PRS_BWA_RRC_Inactive_r18_01 },
   { &hf_lpp_nr_NTN_MeasAndReport_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_nr_NTN_MeasAndReport_r18 },
-  { &hf_lpp_nr_DL_PRS_RSCP_ReportingRRC_Connected_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_nr_DL_PRS_RSCP_ReportingRRC_Connected_r18 },
-  { &hf_lpp_nr_DL_PRS_RSCP_ReportingRRC_Inactive_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_nr_DL_PRS_RSCP_ReportingRRC_Inactive_r18 },
+  { &hf_lpp_nr_DL_PRS_RSCP_RRC_Connected_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_nr_DL_PRS_RSCP_RRC_Connected_r18 },
+  { &hf_lpp_nr_DL_PRS_RSCP_RRC_Inactive_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_nr_DL_PRS_RSCP_RRC_Inactive_r18 },
   { &hf_lpp_assocSingleRx_Tx_WithUpToNsampleRSCP_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_assocSingleRx_Tx_WithUpToNsampleRSCP_r18 },
   { &hf_lpp_supportOfSymbolTimeStampForRSCP_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_supportOfSymbolTimeStampForRSCP_r18 },
   { &hf_lpp_supportOfFinerTimingReportGranularityForPRS_Meas_r18_01, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_supportOfFinerTimingReportGranularityForPRS_Meas_r18_01 },
@@ -13479,7 +13483,7 @@ dissect_lpp_T_processingDuration_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 }
 
 
-static const value_string lpp_T_rf_RxRetunTimeFR1_r18_vals[] = {
+static const value_string lpp_T_rf_RxRetuneTimeFR1_r18_vals[] = {
   {   0, "n70" },
   {   1, "n140" },
   {   2, "n210" },
@@ -13488,7 +13492,7 @@ static const value_string lpp_T_rf_RxRetunTimeFR1_r18_vals[] = {
 
 
 static int
-dissect_lpp_T_rf_RxRetunTimeFR1_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_lpp_T_rf_RxRetuneTimeFR1_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      3, NULL, false, 0, NULL);
 
@@ -13496,7 +13500,7 @@ dissect_lpp_T_rf_RxRetunTimeFR1_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 }
 
 
-static const value_string lpp_T_rf_RxRetunTimeFR2_r18_vals[] = {
+static const value_string lpp_T_rf_RxRetuneTimeFR2_r18_vals[] = {
   {   0, "n35" },
   {   1, "n70" },
   {   2, "n140" },
@@ -13505,7 +13509,7 @@ static const value_string lpp_T_rf_RxRetunTimeFR2_r18_vals[] = {
 
 
 static int
-dissect_lpp_T_rf_RxRetunTimeFR2_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_lpp_T_rf_RxRetuneTimeFR2_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      3, NULL, false, 0, NULL);
 
@@ -13536,8 +13540,8 @@ static const per_sequence_t DL_PRS_MeasurementWithRxFH_RRC_Connected_r18_sequenc
   { &hf_lpp_maximumPRS_BandwidthAcrossAllHopsFR2_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_maximumPRS_BandwidthAcrossAllHopsFR2_r18 },
   { &hf_lpp_maximumFH_Hops_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_maximumFH_Hops_r18 },
   { &hf_lpp_processingDuration_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_processingDuration_r18 },
-  { &hf_lpp_rf_RxRetunTimeFR1_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_RxRetunTimeFR1_r18 },
-  { &hf_lpp_rf_RxRetunTimeFR2_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_RxRetunTimeFR2_r18 },
+  { &hf_lpp_rf_RxRetuneTimeFR1_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_RxRetuneTimeFR1_r18 },
+  { &hf_lpp_rf_RxRetuneTimeFR2_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_RxRetuneTimeFR2_r18 },
   { &hf_lpp_numOfOverlappingPRB_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_numOfOverlappingPRB_r18 },
   { NULL, 0, 0, NULL }
 };
@@ -14534,7 +14538,7 @@ dissect_lpp_T_maximumTxFH_Hops_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
 }
 
 
-static const value_string lpp_T_rf_TxRetunTimeFR1_r18_vals[] = {
+static const value_string lpp_T_rf_TxRetuneTimeFR1_r18_vals[] = {
   {   0, "n70" },
   {   1, "n140" },
   {   2, "n210" },
@@ -14543,7 +14547,7 @@ static const value_string lpp_T_rf_TxRetunTimeFR1_r18_vals[] = {
 
 
 static int
-dissect_lpp_T_rf_TxRetunTimeFR1_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_lpp_T_rf_TxRetuneTimeFR1_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      3, NULL, false, 0, NULL);
 
@@ -14551,7 +14555,7 @@ dissect_lpp_T_rf_TxRetunTimeFR1_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 }
 
 
-static const value_string lpp_T_rf_TxRetunTimeFR2_r18_vals[] = {
+static const value_string lpp_T_rf_TxRetuneTimeFR2_r18_vals[] = {
   {   0, "n35" },
   {   1, "n70" },
   {   2, "n140" },
@@ -14560,7 +14564,7 @@ static const value_string lpp_T_rf_TxRetunTimeFR2_r18_vals[] = {
 
 
 static int
-dissect_lpp_T_rf_TxRetunTimeFR2_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_lpp_T_rf_TxRetuneTimeFR2_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      3, NULL, false, 0, NULL);
 
@@ -14674,8 +14678,8 @@ static const per_sequence_t PosSRS_TxFrequencyHoppingRRC_Connected_r18_sequence[
   { &hf_lpp_maximumSRS_BandwidthAcrossAllHopsFR1_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_maximumSRS_BandwidthAcrossAllHopsFR1_r18 },
   { &hf_lpp_maximumSRS_BandwidthAcrossAllHopsFR2_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_maximumSRS_BandwidthAcrossAllHopsFR2_r18 },
   { &hf_lpp_maximumTxFH_Hops_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_maximumTxFH_Hops_r18 },
-  { &hf_lpp_rf_TxRetunTimeFR1_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_TxRetunTimeFR1_r18 },
-  { &hf_lpp_rf_TxRetunTimeFR2_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_TxRetunTimeFR2_r18 },
+  { &hf_lpp_rf_TxRetuneTimeFR1_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_TxRetuneTimeFR1_r18 },
+  { &hf_lpp_rf_TxRetuneTimeFR2_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_TxRetuneTimeFR2_r18 },
   { &hf_lpp_switchTimeBetweenActiveBWP_FrequencyHop_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_switchTimeBetweenActiveBWP_FrequencyHop_r18 },
   { &hf_lpp_numOfOverlappingPRB_r18_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_numOfOverlappingPRB_r18_01 },
   { &hf_lpp_maximumSRS_ResourcePeriodic_r18, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_maximumSRS_ResourcePeriodic_r18 },
@@ -14747,7 +14751,7 @@ dissect_lpp_T_maximumTxFH_Hops_r18_01(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 }
 
 
-static const value_string lpp_T_rf_TxRetunTimeFR1_r18_01_vals[] = {
+static const value_string lpp_T_rf_TxRetuneTimeFR1_r18_01_vals[] = {
   {   0, "n70" },
   {   1, "n140" },
   {   2, "n210" },
@@ -14756,7 +14760,7 @@ static const value_string lpp_T_rf_TxRetunTimeFR1_r18_01_vals[] = {
 
 
 static int
-dissect_lpp_T_rf_TxRetunTimeFR1_r18_01(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_lpp_T_rf_TxRetuneTimeFR1_r18_01(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      3, NULL, false, 0, NULL);
 
@@ -14764,7 +14768,7 @@ dissect_lpp_T_rf_TxRetunTimeFR1_r18_01(tvbuff_t *tvb _U_, int offset _U_, asn1_c
 }
 
 
-static const value_string lpp_T_rf_TxRetunTimeFR2_r18_01_vals[] = {
+static const value_string lpp_T_rf_TxRetuneTimeFR2_r18_01_vals[] = {
   {   0, "n35" },
   {   1, "n70" },
   {   2, "n140" },
@@ -14773,7 +14777,7 @@ static const value_string lpp_T_rf_TxRetunTimeFR2_r18_01_vals[] = {
 
 
 static int
-dissect_lpp_T_rf_TxRetunTimeFR2_r18_01(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_lpp_T_rf_TxRetuneTimeFR2_r18_01(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      3, NULL, false, 0, NULL);
 
@@ -14865,8 +14869,8 @@ static const per_sequence_t PosSRS_TxFrequencyHoppingRRC_Inactive_r18_sequence[]
   { &hf_lpp_maximumSRS_BandwidthAcrossAllHopsFR1_r18_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_maximumSRS_BandwidthAcrossAllHopsFR1_r18_01 },
   { &hf_lpp_maximumSRS_BandwidthAcrossAllHopsFR2_r18_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_maximumSRS_BandwidthAcrossAllHopsFR2_r18_01 },
   { &hf_lpp_maximumTxFH_Hops_r18_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_maximumTxFH_Hops_r18_01 },
-  { &hf_lpp_rf_TxRetunTimeFR1_r18_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_TxRetunTimeFR1_r18_01 },
-  { &hf_lpp_rf_TxRetunTimeFR2_r18_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_TxRetunTimeFR2_r18_01 },
+  { &hf_lpp_rf_TxRetuneTimeFR1_r18_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_TxRetuneTimeFR1_r18_01 },
+  { &hf_lpp_rf_TxRetuneTimeFR2_r18_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_rf_TxRetuneTimeFR2_r18_01 },
   { &hf_lpp_switchTimeBetweenActiveBWP_FrequencyHop_r18_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_switchTimeBetweenActiveBWP_FrequencyHop_r18_01 },
   { &hf_lpp_numOfOverlappingPRB_r18_02, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_numOfOverlappingPRB_r18_02 },
   { &hf_lpp_maximumSRS_ResourcePeriodic_r18_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_maximumSRS_ResourcePeriodic_r18_01 },
@@ -17030,14 +17034,14 @@ dissect_lpp_T_supportOfDL_PRS_BWA_RRC_Idle_r18(tvbuff_t *tvb _U_, int offset _U_
 }
 
 
-static const value_string lpp_T_nr_DL_PRS_RSCPD_ReportingRRC_Connected_r18_vals[] = {
+static const value_string lpp_T_nr_DL_PRS_RSCPD_RRC_Connected_r18_vals[] = {
   {   0, "supported" },
   { 0, NULL }
 };
 
 
 static int
-dissect_lpp_T_nr_DL_PRS_RSCPD_ReportingRRC_Connected_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_lpp_T_nr_DL_PRS_RSCPD_RRC_Connected_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
                                      1, NULL, false, 0, NULL);
 
@@ -17161,7 +17165,7 @@ static const per_sequence_t DL_TDOA_MeasCapabilityPerBand_r17_eag_1_sequence[] =
   { &hf_lpp_supportOfDL_PRS_BWA_RRC_Connected_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_supportOfDL_PRS_BWA_RRC_Connected_r18 },
   { &hf_lpp_supportOfDL_PRS_BWA_RRC_Inactive_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_supportOfDL_PRS_BWA_RRC_Inactive_r18 },
   { &hf_lpp_supportOfDL_PRS_BWA_RRC_Idle_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_supportOfDL_PRS_BWA_RRC_Idle_r18 },
-  { &hf_lpp_nr_DL_PRS_RSCPD_ReportingRRC_Connected_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_nr_DL_PRS_RSCPD_ReportingRRC_Connected_r18 },
+  { &hf_lpp_nr_DL_PRS_RSCPD_RRC_Connected_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_nr_DL_PRS_RSCPD_RRC_Connected_r18 },
   { &hf_lpp_assocSingleRSTD_WithUpToNsampleRSCPD_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_assocSingleRSTD_WithUpToNsampleRSCPD_r18 },
   { &hf_lpp_nr_DL_PRS_RSCPD_MeasurementRRC_Idle_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_nr_DL_PRS_RSCPD_MeasurementRRC_Idle_r18 },
   { &hf_lpp_supportOfUE_basedCarrierPhasePositioning_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_supportOfUE_basedCarrierPhasePositioning_r18 },
@@ -17180,11 +17184,40 @@ dissect_lpp_DL_TDOA_MeasCapabilityPerBand_r17_eag_1(tvbuff_t *tvb _U_, int offse
 }
 
 
+static const value_string lpp_T_nr_DL_PRS_RSCPD_RRC_Inactive_r18_vals[] = {
+  {   0, "supported" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_lpp_T_nr_DL_PRS_RSCPD_RRC_Inactive_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     1, NULL, false, 0, NULL);
+
+  return offset;
+}
+
+
+static const per_sequence_t DL_TDOA_MeasCapabilityPerBand_r17_eag_2_sequence[] = {
+  { &hf_lpp_nr_DL_PRS_RSCPD_RRC_Inactive_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_nr_DL_PRS_RSCPD_RRC_Inactive_r18 },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_lpp_DL_TDOA_MeasCapabilityPerBand_r17_eag_2(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence_eag(tvb, offset, actx, tree, DL_TDOA_MeasCapabilityPerBand_r17_eag_2_sequence);
+
+  return offset;
+}
+
+
 static const per_sequence_t DL_TDOA_MeasCapabilityPerBand_r17_sequence[] = {
   { &hf_lpp_freqBandIndicatorNR_r17, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_lpp_FreqBandIndicatorNR_r16 },
   { &hf_lpp_supportOfDL_PRS_FirstPathRSRP_r17, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_supportOfDL_PRS_FirstPathRSRP_r17 },
   { &hf_lpp_dl_PRS_MeasRRC_Inactive_r17, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_dl_PRS_MeasRRC_Inactive_r17 },
   { &dummy_hf_lpp_eag_field , ASN1_NOT_EXTENSION_ROOT, ASN1_NOT_OPTIONAL, dissect_lpp_DL_TDOA_MeasCapabilityPerBand_r17_eag_1 },
+  { &dummy_hf_lpp_eag_field , ASN1_NOT_EXTENSION_ROOT, ASN1_NOT_OPTIONAL, dissect_lpp_DL_TDOA_MeasCapabilityPerBand_r17_eag_2 },
   { NULL, 0, 0, NULL }
 };
 
@@ -24348,6 +24381,19 @@ dissect_lpp_AlmanacBDS_AlmanacSet_r12(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 }
 
 
+static const per_sequence_t AlmanacNavIC_AlmanacSet_r16_eag_1_sequence[] = {
+  { &hf_lpp_navicL5_i0_r16  , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_INTEGER_M8388608_8388607 },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_lpp_AlmanacNavIC_AlmanacSet_r16_eag_1(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence_eag(tvb, offset, actx, tree, AlmanacNavIC_AlmanacSet_r16_eag_1_sequence);
+
+  return offset;
+}
+
+
 static const per_sequence_t AlmanacNavIC_AlmanacSet_r16_sequence[] = {
   { &hf_lpp_svID_r16        , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_lpp_SV_ID },
   { &hf_lpp_navic_AlmToa_r16, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_INTEGER_0_65535 },
@@ -24359,6 +24405,7 @@ static const per_sequence_t AlmanacNavIC_AlmanacSet_r16_sequence[] = {
   { &hf_lpp_navic_AlmMo_r16 , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_lpp_INTEGER_M8388608_8388607 },
   { &hf_lpp_navic_Almaf0_r16, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_lpp_INTEGER_M1024_1023 },
   { &hf_lpp_navic_Almaf1_r16, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_lpp_INTEGER_M1024_1023 },
+  { &dummy_hf_lpp_eag_field , ASN1_NOT_EXTENSION_ROOT, ASN1_NOT_OPTIONAL, dissect_lpp_AlmanacNavIC_AlmanacSet_r16_eag_1 },
   { NULL, 0, 0, NULL }
 };
 
@@ -26743,7 +26790,7 @@ dissect_lpp_T_remoteUE_Indication_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ct
 
 
 static const per_sequence_t GNSS_TargetDeviceErrorCauses_eag_1_sequence[] = {
-  { &hf_lpp_remoteUE_Indication_r18_01, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_remoteUE_Indication_r18 },
+  { &hf_lpp_remoteUE_Indication_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_remoteUE_Indication_r18 },
   { NULL, 0, 0, NULL }
 };
 
@@ -30531,7 +30578,7 @@ dissect_lpp_T_remoteUE_Indication_r18_04(tvbuff_t *tvb _U_, int offset _U_, asn1
 
 
 static const per_sequence_t NR_Multi_RTT_TargetDeviceErrorCauses_r16_eag_1_sequence[] = {
-  { &hf_lpp_remoteUE_Indication_r18_05, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_remoteUE_Indication_r18_04 },
+  { &hf_lpp_remoteUE_Indication_r18_04, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_remoteUE_Indication_r18_04 },
   { NULL, 0, 0, NULL }
 };
 
@@ -34049,7 +34096,7 @@ dissect_lpp_T_remoteUE_Indication_r18_03(tvbuff_t *tvb _U_, int offset _U_, asn1
 
 
 static const per_sequence_t NR_DL_AoD_TargetDeviceErrorCauses_r16_eag_1_sequence[] = {
-  { &hf_lpp_remoteUE_Indication_r18_04, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_remoteUE_Indication_r18_03 },
+  { &hf_lpp_remoteUE_Indication_r18_03, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_remoteUE_Indication_r18_03 },
   { NULL, 0, 0, NULL }
 };
 
@@ -34202,7 +34249,7 @@ dissect_lpp_T_remoteUE_Indication_r18_02(tvbuff_t *tvb _U_, int offset _U_, asn1
 
 
 static const per_sequence_t NR_DL_TDOA_TargetDeviceErrorCauses_r16_eag_1_sequence[] = {
-  { &hf_lpp_remoteUE_Indication_r18_03, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_remoteUE_Indication_r18_02 },
+  { &hf_lpp_remoteUE_Indication_r18_02, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_remoteUE_Indication_r18_02 },
   { NULL, 0, 0, NULL }
 };
 
@@ -35457,7 +35504,7 @@ dissect_lpp_T_networkTime_r17(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *act
 
 
 static const per_sequence_t ScheduledLocationTime_r17_sequence[] = {
-  { &hf_lpp_utcTime_r17_02  , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_UTCTime },
+  { &hf_lpp_utcTime_r17     , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_UTCTime },
   { &hf_lpp_gnssTime_r17_02 , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_gnssTime_r17_01 },
   { &hf_lpp_networkTime_r17 , ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_networkTime_r17 },
   { &hf_lpp_relativeTime_r17_02, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_INTEGER_1_1024 },
@@ -36636,6 +36683,34 @@ dissect_lpp_NR_Multi_RTT_RequestLocationInformation_r16_eag_2(tvbuff_t *tvb _U_,
 }
 
 
+static const value_string lpp_T_nr_NTN_UE_RxTxMeasurementsRequest_r18_vals[] = {
+  {   0, "requested" },
+  { 0, NULL }
+};
+
+
+static int
+dissect_lpp_T_nr_NTN_UE_RxTxMeasurementsRequest_r18(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
+                                     1, NULL, false, 0, NULL);
+
+  return offset;
+}
+
+
+static const per_sequence_t NR_Multi_RTT_RequestLocationInformation_r16_eag_3_sequence[] = {
+  { &hf_lpp_nr_NTN_UE_RxTxMeasurementsRequest_r18, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_nr_NTN_UE_RxTxMeasurementsRequest_r18 },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_lpp_NR_Multi_RTT_RequestLocationInformation_r16_eag_3(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence_eag(tvb, offset, actx, tree, NR_Multi_RTT_RequestLocationInformation_r16_eag_3_sequence);
+
+  return offset;
+}
+
+
 static const per_sequence_t NR_Multi_RTT_RequestLocationInformation_r16_sequence[] = {
   { &hf_lpp_nr_UE_RxTxTimeDiffMeasurementInfoRequest_r16, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_nr_UE_RxTxTimeDiffMeasurementInfoRequest_r16 },
   { &hf_lpp_nr_RequestedMeasurements_r16_01, ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_lpp_T_nr_RequestedMeasurements_r16_01 },
@@ -36644,6 +36719,7 @@ static const per_sequence_t NR_Multi_RTT_RequestLocationInformation_r16_sequence
   { &hf_lpp_additionalPaths_r16_01, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_lpp_T_additionalPaths_r16_01 },
   { &dummy_hf_lpp_eag_field , ASN1_NOT_EXTENSION_ROOT, ASN1_NOT_OPTIONAL, dissect_lpp_NR_Multi_RTT_RequestLocationInformation_r16_eag_1 },
   { &dummy_hf_lpp_eag_field , ASN1_NOT_EXTENSION_ROOT, ASN1_NOT_OPTIONAL, dissect_lpp_NR_Multi_RTT_RequestLocationInformation_r16_eag_2 },
+  { &dummy_hf_lpp_eag_field , ASN1_NOT_EXTENSION_ROOT, ASN1_NOT_OPTIONAL, dissect_lpp_NR_Multi_RTT_RequestLocationInformation_r16_eag_3 },
   { NULL, 0, 0, NULL }
 };
 
@@ -39737,7 +39813,7 @@ dissect_lpp_T_remoteUE_Indication_r18_01(tvbuff_t *tvb _U_, int offset _U_, asn1
 
 
 static const per_sequence_t NR_ECID_TargetDeviceErrorCauses_r16_eag_1_sequence[] = {
-  { &hf_lpp_remoteUE_Indication_r18_02, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_remoteUE_Indication_r18_01 },
+  { &hf_lpp_remoteUE_Indication_r18_01, ASN1_NO_EXTENSIONS     , ASN1_OPTIONAL    , dissect_lpp_T_remoteUE_Indication_r18_01 },
   { NULL, 0, 0, NULL }
 };
 
@@ -43414,10 +43490,10 @@ void proto_register_lpp(void) {
       { "posModes", "lpp.posModes",
         FT_BYTES, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-    { &hf_lpp_utcTime_r17,
-      { "utcTime-r17", "lpp.utcTime_r17",
-        FT_UINT32, BASE_DEC, VALS(lpp_T_utcTime_r17_vals), 0,
-        NULL, HFILL }},
+    { &hf_lpp_utcTime_r17_enum,
+      { "utcTime-r17", "lpp.utcTime_r17_enum",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_utcTime_r17_enum_vals), 0,
+        "T_utcTime_r17_enum", HFILL }},
     { &hf_lpp_gnssTime_r17,
       { "gnssTime-r17", "lpp.gnssTime_r17_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -43434,8 +43510,8 @@ void proto_register_lpp(void) {
       { "relativeTime-r17", "lpp.relativeTime_r17",
         FT_UINT32, BASE_DEC, VALS(lpp_T_relativeTime_r17_vals), 0,
         NULL, HFILL }},
-    { &hf_lpp_utcTime_r17_01,
-      { "utcTime-r17", "lpp.utcTime_r17_element",
+    { &hf_lpp_utcTime_r17_PositioningModes,
+      { "utcTime-r17", "lpp.utcTime_r17_PositioningModes_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "PositioningModes", HFILL }},
     { &hf_lpp_gnssTime_r17_01,
@@ -43494,8 +43570,8 @@ void proto_register_lpp(void) {
       { "lpp-message-segmentation-r14", "lpp.lpp_message_segmentation_r14",
         FT_BYTES, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-    { &hf_lpp_remoteUE_Indication_r18,
-      { "remoteUE-Indication-r18", "lpp.remoteUE_Indication_r18",
+    { &hf_lpp_remoteUE_Indication_r18_bool,
+      { "remoteUE-Indication-r18-bool", "lpp.remoteUE_Indication_r18_bool",
         FT_BOOLEAN, BASE_NONE, NULL, 0,
         "BOOLEAN", HFILL }},
     { &hf_lpp_locationEstimateAndMeasurementReporting_r18,
@@ -43658,7 +43734,7 @@ void proto_register_lpp(void) {
       { "measurementLimit-r14", "lpp.measurementLimit_r14",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(lpp_measurementLimit_fmt), 0,
         "INTEGER_1_512", HFILL }},
-    { &hf_lpp_utcTime_r17_02,
+    { &hf_lpp_utcTime_r17,
       { "utcTime-r17", "lpp.utcTime_r17",
         FT_STRING, BASE_NONE, NULL, 0,
         "UTCTime", HFILL }},
@@ -45090,13 +45166,13 @@ void proto_register_lpp(void) {
       { "processingDurationT3-r18", "lpp.processingDurationT3_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_processingDurationT3_r18_vals), 0,
         NULL, HFILL }},
-    { &hf_lpp_rf_RxRetunTimeFR1_r18,
-      { "rf-RxRetunTimeFR1-r18", "lpp.rf_RxRetunTimeFR1_r18",
-        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_RxRetunTimeFR1_r18_vals), 0,
+    { &hf_lpp_rf_RxRetuneTimeFR1_r18,
+      { "rf-RxRetuneTimeFR1-r18", "lpp.rf_RxRetuneTimeFR1_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_RxRetuneTimeFR1_r18_vals), 0,
         NULL, HFILL }},
-    { &hf_lpp_rf_RxRetunTimeFR2_r18,
-      { "rf-RxRetunTimeFR2-r18", "lpp.rf_RxRetunTimeFR2_r18",
-        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_RxRetunTimeFR2_r18_vals), 0,
+    { &hf_lpp_rf_RxRetuneTimeFR2_r18,
+      { "rf-RxRetuneTimeFR2-r18", "lpp.rf_RxRetuneTimeFR2_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_RxRetuneTimeFR2_r18_vals), 0,
         NULL, HFILL }},
     { &hf_lpp_numOfOverlappingPRB_r18,
       { "numOfOverlappingPRB-r18", "lpp.numOfOverlappingPRB_r18",
@@ -46298,13 +46374,13 @@ void proto_register_lpp(void) {
       { "maximumTxFH-Hops-r18", "lpp.maximumTxFH_Hops_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_maximumTxFH_Hops_r18_vals), 0,
         NULL, HFILL }},
-    { &hf_lpp_rf_TxRetunTimeFR1_r18,
-      { "rf-TxRetunTimeFR1-r18", "lpp.rf_TxRetunTimeFR1_r18",
-        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_TxRetunTimeFR1_r18_vals), 0,
+    { &hf_lpp_rf_TxRetuneTimeFR1_r18,
+      { "rf-TxRetuneTimeFR1-r18", "lpp.rf_TxRetuneTimeFR1_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_TxRetuneTimeFR1_r18_vals), 0,
         NULL, HFILL }},
-    { &hf_lpp_rf_TxRetunTimeFR2_r18,
-      { "rf-TxRetunTimeFR2-r18", "lpp.rf_TxRetunTimeFR2_r18",
-        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_TxRetunTimeFR2_r18_vals), 0,
+    { &hf_lpp_rf_TxRetuneTimeFR2_r18,
+      { "rf-TxRetuneTimeFR2-r18", "lpp.rf_TxRetuneTimeFR2_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_TxRetuneTimeFR2_r18_vals), 0,
         NULL, HFILL }},
     { &hf_lpp_switchTimeBetweenActiveBWP_FrequencyHop_r18,
       { "switchTimeBetweenActiveBWP-FrequencyHop-r18", "lpp.switchTimeBetweenActiveBWP_FrequencyHop_r18",
@@ -46338,14 +46414,14 @@ void proto_register_lpp(void) {
       { "maximumTxFH-Hops-r18", "lpp.maximumTxFH_Hops_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_maximumTxFH_Hops_r18_01_vals), 0,
         "T_maximumTxFH_Hops_r18_01", HFILL }},
-    { &hf_lpp_rf_TxRetunTimeFR1_r18_01,
-      { "rf-TxRetunTimeFR1-r18", "lpp.rf_TxRetunTimeFR1_r18",
-        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_TxRetunTimeFR1_r18_01_vals), 0,
-        "T_rf_TxRetunTimeFR1_r18_01", HFILL }},
-    { &hf_lpp_rf_TxRetunTimeFR2_r18_01,
-      { "rf-TxRetunTimeFR2-r18", "lpp.rf_TxRetunTimeFR2_r18",
-        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_TxRetunTimeFR2_r18_01_vals), 0,
-        "T_rf_TxRetunTimeFR2_r18_01", HFILL }},
+    { &hf_lpp_rf_TxRetuneTimeFR1_r18_01,
+      { "rf-TxRetuneTimeFR1-r18", "lpp.rf_TxRetuneTimeFR1_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_TxRetuneTimeFR1_r18_01_vals), 0,
+        "T_rf_TxRetuneTimeFR1_r18_01", HFILL }},
+    { &hf_lpp_rf_TxRetuneTimeFR2_r18_01,
+      { "rf-TxRetuneTimeFR2-r18", "lpp.rf_TxRetuneTimeFR2_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_rf_TxRetuneTimeFR2_r18_01_vals), 0,
+        "T_rf_TxRetuneTimeFR2_r18_01", HFILL }},
     { &hf_lpp_switchTimeBetweenActiveBWP_FrequencyHop_r18_01,
       { "switchTimeBetweenActiveBWP-FrequencyHop-r18", "lpp.switchTimeBetweenActiveBWP_FrequencyHop_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_switchTimeBetweenActiveBWP_FrequencyHop_r18_01_vals), 0,
@@ -49770,6 +49846,10 @@ void proto_register_lpp(void) {
       { "navic-Almaf1-r16", "lpp.navic_Almaf1_r16",
         FT_INT32, BASE_DEC, NULL, 0,
         "INTEGER_M1024_1023", HFILL }},
+    { &hf_lpp_navicL5_i0_r16,
+      { "navicL5-i0-r16", "lpp.navicL5_i0_r16",
+        FT_INT32, BASE_DEC, NULL, 0,
+        "INTEGER_M8388608_8388607", HFILL }},
     { &hf_lpp_utcModel1,
       { "utcModel1", "lpp.utcModel1_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -52070,7 +52150,7 @@ void proto_register_lpp(void) {
       { "multiFrequencyMeasurementsNotPossible", "lpp.multiFrequencyMeasurementsNotPossible_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-    { &hf_lpp_remoteUE_Indication_r18_01,
+    { &hf_lpp_remoteUE_Indication_r18,
       { "remoteUE-Indication-r18", "lpp.remoteUE_Indication_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_remoteUE_Indication_r18_vals), 0,
         NULL, HFILL }},
@@ -52436,7 +52516,7 @@ void proto_register_lpp(void) {
         NULL, HFILL }},
     { &hf_lpp_uncompensatedBarometricPressure_r13,
       { "uncompensatedBarometricPressure-r13", "lpp.uncompensatedBarometricPressure_r13",
-        FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_pa), 0,
+        FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_pascal), 0,
         "INTEGER_30000_115000", HFILL }},
     { &hf_lpp_uncertainty_r14,
       { "uncertainty-r14", "lpp.uncertainty_r14_element",
@@ -52444,7 +52524,7 @@ void proto_register_lpp(void) {
         NULL, HFILL }},
     { &hf_lpp_range_r14,
       { "range-r14", "lpp.range_r14",
-        FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_pa), 0,
+        FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_pascal), 0,
         "INTEGER_0_1000", HFILL }},
     { &hf_lpp_confidence_r14,
       { "confidence-r14", "lpp.confidence_r14",
@@ -53406,7 +53486,7 @@ void proto_register_lpp(void) {
       { "csi-RSRQMeasurementNotPossible-r16", "lpp.csi_RSRQMeasurementNotPossible_r16_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-    { &hf_lpp_remoteUE_Indication_r18_02,
+    { &hf_lpp_remoteUE_Indication_r18_01,
       { "remoteUE-Indication-r18", "lpp.remoteUE_Indication_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_remoteUE_Indication_r18_01_vals), 0,
         "T_remoteUE_Indication_r18_01", HFILL }},
@@ -53998,9 +54078,9 @@ void proto_register_lpp(void) {
       { "supportOfDL-PRS-BWA-RRC-Idle-r18", "lpp.supportOfDL_PRS_BWA_RRC_Idle_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_supportOfDL_PRS_BWA_RRC_Idle_r18_vals), 0,
         NULL, HFILL }},
-    { &hf_lpp_nr_DL_PRS_RSCPD_ReportingRRC_Connected_r18,
-      { "nr-DL-PRS-RSCPD-ReportingRRC-Connected-r18", "lpp.nr_DL_PRS_RSCPD_ReportingRRC_Connected_r18",
-        FT_UINT32, BASE_DEC, VALS(lpp_T_nr_DL_PRS_RSCPD_ReportingRRC_Connected_r18_vals), 0,
+    { &hf_lpp_nr_DL_PRS_RSCPD_RRC_Connected_r18,
+      { "nr-DL-PRS-RSCPD-RRC-Connected-r18", "lpp.nr_DL_PRS_RSCPD_RRC_Connected_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_nr_DL_PRS_RSCPD_RRC_Connected_r18_vals), 0,
         NULL, HFILL }},
     { &hf_lpp_assocSingleRSTD_WithUpToNsampleRSCPD_r18,
       { "assocSingleRSTD-WithUpToNsampleRSCPD-r18", "lpp.assocSingleRSTD_WithUpToNsampleRSCPD_r18",
@@ -54030,6 +54110,10 @@ void proto_register_lpp(void) {
       { "supportOfPRS-MeasurementRRC-Idle-r18", "lpp.supportOfPRS_MeasurementRRC_Idle_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_supportOfPRS_MeasurementRRC_Idle_r18_vals), 0,
         NULL, HFILL }},
+    { &hf_lpp_nr_DL_PRS_RSCPD_RRC_Inactive_r18,
+      { "nr-DL-PRS-RSCPD-RRC-Inactive-r18", "lpp.nr_DL_PRS_RSCPD_RRC_Inactive_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_nr_DL_PRS_RSCPD_RRC_Inactive_r18_vals), 0,
+        NULL, HFILL }},
     { &hf_lpp_locationServerErrorCauses_r16_01,
       { "locationServerErrorCauses-r16", "lpp.locationServerErrorCauses_r16_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -54046,7 +54130,7 @@ void proto_register_lpp(void) {
       { "cause-r16", "lpp.cause_r16",
         FT_UINT32, BASE_DEC, VALS(lpp_T_cause_r16_03_vals), 0,
         "T_cause_r16_03", HFILL }},
-    { &hf_lpp_remoteUE_Indication_r18_03,
+    { &hf_lpp_remoteUE_Indication_r18_02,
       { "remoteUE-Indication-r18", "lpp.remoteUE_Indication_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_remoteUE_Indication_r18_02_vals), 0,
         "T_remoteUE_Indication_r18_02", HFILL }},
@@ -54350,7 +54434,7 @@ void proto_register_lpp(void) {
       { "cause-r16", "lpp.cause_r16",
         FT_UINT32, BASE_DEC, VALS(lpp_T_cause_r16_05_vals), 0,
         "T_cause_r16_05", HFILL }},
-    { &hf_lpp_remoteUE_Indication_r18_04,
+    { &hf_lpp_remoteUE_Indication_r18_03,
       { "remoteUE-Indication-r18", "lpp.remoteUE_Indication_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_remoteUE_Indication_r18_03_vals), 0,
         "T_remoteUE_Indication_r18_03", HFILL }},
@@ -54606,6 +54690,10 @@ void proto_register_lpp(void) {
       { "nr-DL-PRS-JointMeasurementRequestedPFL-List-r18", "lpp.nr_DL_PRS_JointMeasurementRequestedPFL_List_r18",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_nr_DL_PRS_JointMeasurementRequestedPFL_List_r18_01", HFILL }},
+    { &hf_lpp_nr_NTN_UE_RxTxMeasurementsRequest_r18,
+      { "nr-NTN-UE-RxTxMeasurementsRequest-r18", "lpp.nr_NTN_UE_RxTxMeasurementsRequest_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_nr_NTN_UE_RxTxMeasurementsRequest_r18_vals), 0,
+        "T_nr_NTN_UE_RxTxMeasurementsRequest_r18", HFILL }},
     { &hf_lpp_maxDL_PRS_RxTxTimeDiffMeasPerTRP_r16,
       { "maxDL-PRS-RxTxTimeDiffMeasPerTRP-r16", "lpp.maxDL_PRS_RxTxTimeDiffMeasPerTRP_r16",
         FT_UINT32, BASE_DEC, NULL, 0,
@@ -54722,13 +54810,13 @@ void proto_register_lpp(void) {
       { "nr-NTN-MeasAndReport-r18", "lpp.nr_NTN_MeasAndReport_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_nr_NTN_MeasAndReport_r18_vals), 0,
         "T_nr_NTN_MeasAndReport_r18", HFILL }},
-    { &hf_lpp_nr_DL_PRS_RSCP_ReportingRRC_Connected_r18,
-      { "nr-DL-PRS-RSCP-ReportingRRC-Connected-r18", "lpp.nr_DL_PRS_RSCP_ReportingRRC_Connected_r18",
-        FT_UINT32, BASE_DEC, VALS(lpp_T_nr_DL_PRS_RSCP_ReportingRRC_Connected_r18_vals), 0,
+    { &hf_lpp_nr_DL_PRS_RSCP_RRC_Connected_r18,
+      { "nr-DL-PRS-RSCP-RRC-Connected-r18", "lpp.nr_DL_PRS_RSCP_RRC_Connected_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_nr_DL_PRS_RSCP_RRC_Connected_r18_vals), 0,
         NULL, HFILL }},
-    { &hf_lpp_nr_DL_PRS_RSCP_ReportingRRC_Inactive_r18,
-      { "nr-DL-PRS-RSCP-ReportingRRC-Inactive-r18", "lpp.nr_DL_PRS_RSCP_ReportingRRC_Inactive_r18",
-        FT_UINT32, BASE_DEC, VALS(lpp_T_nr_DL_PRS_RSCP_ReportingRRC_Inactive_r18_vals), 0,
+    { &hf_lpp_nr_DL_PRS_RSCP_RRC_Inactive_r18,
+      { "nr-DL-PRS-RSCP-RRC-Inactive-r18", "lpp.nr_DL_PRS_RSCP_RRC_Inactive_r18",
+        FT_UINT32, BASE_DEC, VALS(lpp_T_nr_DL_PRS_RSCP_RRC_Inactive_r18_vals), 0,
         NULL, HFILL }},
     { &hf_lpp_assocSingleRx_Tx_WithUpToNsampleRSCP_r18,
       { "assocSingleRx-Tx-WithUpToNsampleRSCP-r18", "lpp.assocSingleRx_Tx_WithUpToNsampleRSCP_r18",
@@ -54762,7 +54850,7 @@ void proto_register_lpp(void) {
       { "cause-r16", "lpp.cause_r16",
         FT_UINT32, BASE_DEC, VALS(lpp_T_cause_r16_07_vals), 0,
         "T_cause_r16_07", HFILL }},
-    { &hf_lpp_remoteUE_Indication_r18_05,
+    { &hf_lpp_remoteUE_Indication_r18_04,
       { "remoteUE-Indication-r18", "lpp.remoteUE_Indication_r18",
         FT_UINT32, BASE_DEC, VALS(lpp_T_remoteUE_Indication_r18_04_vals), 0,
         "T_remoteUE_Indication_r18_04", HFILL }},
@@ -55077,6 +55165,10 @@ void proto_register_lpp(void) {
     { &hf_lpp_T_almanacModel_model_7,
       { "model-7", "lpp.T.almanacModel.model.7",
         FT_BOOLEAN, 8, NULL, 0x02,
+        NULL, HFILL }},
+    { &hf_lpp_T_almanacModel_model_8_v16e0,
+      { "model-8-v16e0", "lpp.T.almanacModel.model.8.v16e0",
+        FT_BOOLEAN, 8, NULL, 0x01,
         NULL, HFILL }},
     { &hf_lpp_T_utc_Model_model_1,
       { "model-1", "lpp.T.utc.Model.model.1",
@@ -56810,6 +56902,8 @@ void
 proto_reg_handoff_lpp(void)
 {
   lppe_handle = find_dissector_add_dependency("lppe", proto_lpp);
+
+  dissector_add_string("media_type", "application/vnd.3gpp.lpp", create_dissector_handle(dissect_lpp, proto_lpp));
 }
 
 

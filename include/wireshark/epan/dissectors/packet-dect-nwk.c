@@ -19,7 +19,6 @@
 #include <epan/proto.h>
 #include <epan/tfs.h>
 #include <epan/tvbuff.h>
-#include <epan/value_string.h>
 #include <epan/wmem_scopes.h>
 #include <ftypes/ftypes.h>
 
@@ -1837,7 +1836,7 @@ static proto_item* add_dect_nwk_dect_charset_tree_item(proto_tree *tree, packet_
 	for (int current_char_position = 0; current_char_position < length; current_char_position++ ) {
 		current_char = g_utf8_get_char(current_char_ptr);
 		if ( current_char < 0x20 ) {
-			wmem_strbuf_append_printf(keypad_information, "<<%s>>", val_to_str(current_char, dect_charset_control_codes_val, "0x%02x"));
+			wmem_strbuf_append_printf(keypad_information, "<<%s>>", val_to_str(pinfo->pool, current_char, dect_charset_control_codes_val, "0x%02x"));
 		} else {
 			wmem_strbuf_append_unichar(keypad_information, current_char);
 		}
@@ -1871,7 +1870,7 @@ static int dissect_dect_nwk_s_ie_auth_type(tvbuff_t *tvb, unsigned offset, proto
 	def = ( tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_AUTH_TYPE_DEF_MASK ) >> DECT_NWK_S_IE_AUTH_TYPE_DEF_SHIFT;
 	offset++;
 	if( def ) {
-		proto_tree_add_item(tree, hf_dect_nwk_s_ie_auth_type_default_cipher_key_index, tvb, offset, 2, ENC_NA);
+		proto_tree_add_item(tree, hf_dect_nwk_s_ie_auth_type_default_cipher_key_index, tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset += 2;
 		proto_tree_add_item(tree, hf_dect_nwk_s_ie_auth_type_default_cipher_key_algorithm, tvb, offset, 1, ENC_NA);
 		offset++;
@@ -1948,7 +1947,7 @@ static int dissect_dect_nwk_s_ie_fixed_identity(tvbuff_t *tvb, unsigned offset, 
 	proto_tree_add_item(tree, hf_dect_nwk_s_ie_fixed_identity_arc, tvb, offset, 1, ENC_NA);
 	bit_offset = ( offset * 8 ) + 4;
 	no_of_bits = value_length - 4;
-	proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_fixed_identity_ard, tvb, bit_offset, no_of_bits, ENC_NA);
+	proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_fixed_identity_ard, tvb, bit_offset, no_of_bits, ENC_BIG_ENDIAN);
 	bit_offset += no_of_bits;
 	offset += value_length / 8;
 	if (value_length % 8) {
@@ -1977,7 +1976,7 @@ static int dissect_dect_nwk_s_ie_iwu_to_iwu(tvbuff_t *tvb, unsigned offset, uint
 
 		proto_tree_add_item(tree, hf_dect_nwk_s_ie_iwu_to_iwu_user_specific_contents, tvb, offset, remaining_length, ENC_NA);
 		if ( discriminator_type == DECT_NWK_S_IE_IWU_TO_IWU_DISCRIMINATOR_TYPE_EMC ) {
-			proto_tree_add_item(tree, hf_dect_nwk_s_ie_iwu_to_iwu_emc_discriminator, tvb, offset, 2, ENC_NA);
+			proto_tree_add_item(tree, hf_dect_nwk_s_ie_iwu_to_iwu_emc_discriminator, tvb, offset, 2, ENC_BIG_ENDIAN);
 			offset += 2;
 			remaining_length -= 2;
 			proto_tree_add_item(tree, hf_dect_nwk_s_ie_iwu_to_iwu_proprietary_contents, tvb, offset, remaining_length, ENC_NA);
@@ -2081,10 +2080,10 @@ static int dissect_dect_nwk_s_ie_portable_identity(tvbuff_t *tvb, unsigned offse
 			no_of_bits = value_length - 4;
 			switch(ipui_type) {
 				case DECT_NWK_IPUI_TYPE_N:
-					proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_ipei, tvb, bit_offset, no_of_bits, ENC_NA);
+					proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_ipei, tvb, bit_offset, no_of_bits, ENC_BIG_ENDIAN);
 					break;
 				case DECT_NWK_IPUI_TYPE_O:
-					proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_ipui_o_number, tvb, bit_offset, no_of_bits, ENC_NA);
+					proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_ipui_o_number, tvb, bit_offset, no_of_bits, ENC_BIG_ENDIAN);
 					break;
 				case DECT_NWK_IPUI_TYPE_P:
 					proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_ipui_p_poc, tvb, bit_offset, 16, ENC_BIG_ENDIAN);
@@ -2123,13 +2122,13 @@ static int dissect_dect_nwk_s_ie_portable_identity(tvbuff_t *tvb, unsigned offse
 			break;
 		case DECT_NWK_S_IE_PORTABLE_IDENTITY_IPEI:
 			no_of_bits = value_length - 4;
-			proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_ipei, tvb, bit_offset, no_of_bits, ENC_NA);
+			proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_ipei, tvb, bit_offset, no_of_bits, ENC_BIG_ENDIAN);
 			offset += 5;
 			break;
 		case DECT_NWK_S_IE_PORTABLE_IDENTITY_TPUI:
 			no_of_bits = value_length;
 			proto_tree_add_item(tree, hf_dect_nwk_s_ie_portable_identity_tpui_assignment_type, tvb, offset, 1, ENC_NA);
-			proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_tpui_value, tvb, bit_offset, no_of_bits, ENC_NA);
+			proto_tree_add_bits_item(tree, hf_dect_nwk_s_ie_portable_identity_tpui_value, tvb, bit_offset, no_of_bits, ENC_BIG_ENDIAN);
 			offset += 3;
 			break;
 	}
@@ -2423,7 +2422,7 @@ static int dissect_dect_nwk_s_ie_escape_to_proprietary(tvbuff_t *tvb, unsigned o
 	discriminator_type = tvb_get_uint8(tvb, offset) & DECT_NWK_S_IE_ESCAPE_TO_PROPRIETARY_DISCRIMINATOR_TYPE_MASK;
 	offset++;
 	if (discriminator_type == DECT_NWK_S_IE_ESCAPE_TO_PROPRIETARY_DISCRIMINATOR_TYPE_EMC) {
-		proto_tree_add_item(tree, hf_dect_nwk_s_ie_escape_to_proprietary_discriminator, tvb, offset, 2, ENC_NA);
+		proto_tree_add_item(tree, hf_dect_nwk_s_ie_escape_to_proprietary_discriminator, tvb, offset, 2, ENC_BIG_ENDIAN);
 		offset+=2;
 	}
 	/* FIXME: Content Handling */
@@ -2489,7 +2488,7 @@ static int dissect_dect_nwk_s_ie(tvbuff_t *tvb, unsigned offset, packet_info *pi
 		if ( fl_ie_type == DECT_NWK_S_IE_FL_DOUBLE_OCTET_ELEMENT ) {
 			element_length = 2;
 			field_tree = proto_tree_add_subtree(tree, tvb, offset, element_length, ett_dect_nwk_s_ie_element, &field_tree_item, "Fixed length Element: ");
-			proto_item_append_text(field_tree_item, "%s", val_to_str(fl_ie_double_octet_type, dect_nwk_s_ie_fl_double_octet_type_val, "Unknown: 0x%0x"));
+			proto_item_append_text(field_tree_item, "%s", val_to_str(pinfo->pool, fl_ie_double_octet_type, dect_nwk_s_ie_fl_double_octet_type_val, "Unknown: 0x%0x"));
 			proto_tree_add_item(field_tree, hf_dect_nwk_s_ie_fl, tvb, offset, 1, ENC_NA);
 			proto_tree_add_item(field_tree, hf_dect_nwk_s_ie_fl_type, tvb, offset, 1, ENC_NA);
 			proto_tree_add_item(field_tree, hf_dect_nwk_s_ie_fl_double_octet_type, tvb, offset, 1, ENC_NA);
@@ -2525,9 +2524,9 @@ static int dissect_dect_nwk_s_ie(tvbuff_t *tvb, unsigned offset, packet_info *pi
 			proto_tree_add_item(field_tree, hf_dect_nwk_s_ie_type, tvb, offset, 1, ENC_NA);
 			if ( fl_ie_type == DECT_NWK_S_IE_FL_CONTROL ) {
 				proto_tree_add_item(field_tree, hf_dect_nwk_s_ie_fl_control_type, tvb, offset, 1, ENC_NA);
-				proto_item_append_text(field_tree_item, "%s", val_to_str(fl_ie_double_octet_type, dect_nwk_s_ie_fl_control_type_val, "Unknown: 0x%0x"));
+				proto_item_append_text(field_tree_item, "%s", val_to_str(pinfo->pool, fl_ie_double_octet_type, dect_nwk_s_ie_fl_control_type_val, "Unknown: 0x%0x"));
 			} else {
-				proto_item_append_text(field_tree_item, "%s", val_to_str(fl_ie_type, dect_nwk_s_ie_fl_type_val, "Unknown: 0x%0x"));
+				proto_item_append_text(field_tree_item, "%s", val_to_str(pinfo->pool, fl_ie_type, dect_nwk_s_ie_fl_type_val, "Unknown: 0x%0x"));
 				switch (fl_ie_type) {
 					case DECT_NWK_S_IE_FL_SHIFT:
 						proto_tree_add_item(field_tree, hf_dect_nwk_s_ie_fl_shift_locking, tvb, offset, 1, ENC_NA);
@@ -2544,7 +2543,7 @@ static int dissect_dect_nwk_s_ie(tvbuff_t *tvb, unsigned offset, packet_info *pi
 		element_type = ( tvb_get_uint8(tvb, offset) & 0x7F);
 		element_length = tvb_get_uint8(tvb, offset + 1);
 		field_tree = proto_tree_add_subtree(tree, tvb, offset, element_length + 2, ett_dect_nwk_s_ie_element, &field_tree_item, "Element: ");
-		proto_item_append_text(field_tree_item, "%s", val_to_str(element_type, dect_nwk_s_ie_type_val, "Unknown: 0x%0x"));
+		proto_item_append_text(field_tree_item, "%s", val_to_str(pinfo->pool, element_type, dect_nwk_s_ie_type_val, "Unknown: 0x%0x"));
 		proto_tree_add_item(field_tree, hf_dect_nwk_s_ie_fl, tvb, offset, 1, ENC_NA);
 		proto_tree_add_item(field_tree, hf_dect_nwk_s_ie_type, tvb, offset, 1, ENC_NA);
 		offset++;
@@ -2623,7 +2622,7 @@ static int dissect_dect_nwk_lce(tvbuff_t *tvb, uint8_t msg_type, unsigned offset
 
 	proto_tree_add_item(tree, hf_nwk_msg_type_lce, tvb, offset, 1, ENC_NA);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-			val_to_str(msg_type, nwk_lce_msgt_vals, "Unknown 0x%02x"));
+			val_to_str(pinfo->pool, msg_type, nwk_lce_msgt_vals, "Unknown 0x%02x"));
 	offset++;
 
 	while(tvb_reported_length_remaining(tvb, offset)) {
@@ -2647,11 +2646,11 @@ static int dissect_dect_nwk_cc(tvbuff_t *tvb, uint8_t msg_type, unsigned offset,
 			msg_type == DECT_NWK_SS_CISS_FACILITY ) {
 		proto_tree_add_item(tree, hf_dect_nwk_message_type_crss, tvb, offset, 1, ENC_NA);
 		col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-				val_to_str(msg_type, dect_nwk_crss_message_type_vals, "Unknown 0x%02x"));
+				val_to_str(pinfo->pool, msg_type, dect_nwk_crss_message_type_vals, "Unknown 0x%02x"));
 	} else {
 		proto_tree_add_item(tree, hf_nwk_msg_type_cc, tvb, offset, 1, ENC_NA);
 		col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-				val_to_str(msg_type, nwk_cc_msgt_vals, "Unknown 0x%02x"));
+				val_to_str(pinfo->pool, msg_type, nwk_cc_msgt_vals, "Unknown 0x%02x"));
 	}
 	offset++;
 
@@ -2666,7 +2665,7 @@ static int dissect_dect_nwk_ciss(tvbuff_t *tvb, uint8_t msg_type, unsigned offse
 {
 	proto_tree_add_item(tree, hf_dect_nwk_message_type_ciss, tvb, offset, 1, ENC_NA);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-			val_to_str(msg_type, dect_nwk_ciss_message_type_vals, "Unknown 0x%02x"));
+			val_to_str(pinfo->pool, msg_type, dect_nwk_ciss_message_type_vals, "Unknown 0x%02x"));
 	offset++;
 
 	while(tvb_reported_length_remaining(tvb, offset)) {
@@ -2680,7 +2679,7 @@ static int dissect_dect_nwk_coms(tvbuff_t *tvb, uint8_t msg_type, unsigned offse
 {
 	proto_tree_add_item(tree, hf_dect_nwk_message_type_coms, tvb, offset, 1, ENC_NA);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-			val_to_str(msg_type, dect_nwk_coms_message_type_vals, "Unknown 0x%02x"));
+			val_to_str(pinfo->pool, msg_type, dect_nwk_coms_message_type_vals, "Unknown 0x%02x"));
 	offset++;
 
 	while(tvb_reported_length_remaining(tvb, offset)) {
@@ -2695,7 +2694,7 @@ static int dissect_dect_nwk_clms(tvbuff_t *tvb, uint8_t msg_type, unsigned offse
 {
 	proto_tree_add_item(tree, hf_dect_nwk_message_type_clms, tvb, offset, 1, ENC_NA);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-			val_to_str(msg_type, dect_nwk_clms_message_type_vals, "Unknown 0x%02x"));
+			val_to_str(pinfo->pool, msg_type, dect_nwk_clms_message_type_vals, "Unknown 0x%02x"));
 	offset++;
 
 	while(tvb_reported_length_remaining(tvb, offset)) {
@@ -2709,7 +2708,7 @@ static int dissect_dect_nwk_mm(tvbuff_t *tvb, uint8_t msg_type, unsigned offset,
 {
 	proto_tree_add_item(tree, hf_nwk_msg_type_mm, tvb, offset, 1, ENC_NA);
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-			val_to_str(msg_type, nwk_mm_msgt_vals, "Unknown 0x%02x"));
+			val_to_str(pinfo->pool, msg_type, nwk_mm_msgt_vals, "Unknown 0x%02x"));
 	offset++;
 
 	while(tvb_reported_length_remaining(tvb, offset)) {
@@ -3190,7 +3189,7 @@ void proto_register_dect_nwk(void)
 				NULL, 0x0, NULL, HFILL
 			}
 		},
-		/* NWK assigend Identity */
+		/* NWK assigned Identity */
 		{ &hf_dect_nwk_s_ie_nwk_assigned_identity_type,
 			{ "Type", "dect_nwk.s.ie.nwk_assigned_identity.type", FT_UINT8, BASE_HEX,
 				VALS(dect_nwk_s_ie_nwk_assigned_identity_type_val), 0x7F, NULL, HFILL

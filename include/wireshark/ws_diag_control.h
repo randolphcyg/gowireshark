@@ -111,6 +111,17 @@ extern "C" {
   #endif
 #endif
 
+/* This applies to both Clang and GCC, and any other compiler that claims
+ * GNU C support. The version is GCC specific, we just assume Clang understands
+ * this warning. */
+#if defined(__clang__) || WS_IS_AT_LEAST_GNUC_VERSION(14,1)
+  #define DIAG_OFF_TYPE_LIMITS() DIAG_OFF(type-limits)
+  #define DIAG_ON_TYPE_LIMITS() DIAG_ON(type-limits)
+#else
+  #define DIAG_OFF_TYPE_LIMITS()
+  #define DIAG_ON_TYPE_LIMITS()
+#endif
+
 #ifndef DIAG_OFF
   /*
    * This is none of the above; we don't have any way to turn diagnostics
@@ -223,18 +234,28 @@ extern "C" {
 
 /* Disable Lemon warnings. */
 #if defined(_MSC_VER)
-  #define DIAG_OFF_LEMON()
-  #define DIAG_ON_LEMON()
-#elif WS_IS_AT_LEAST_GNUC_VERSION(14,1)
+  /*
+   * Suppress:
+   *
+   *   warning C4100: unreferenced formal parameter
+   *
+   * Note https://gitlab.kitware.com/cmake/cmake/-/issues/18736
+   * makes it better to suppress MSVC warnings here than in CMake.
+   */
   #define DIAG_OFF_LEMON() \
-    DIAG_OFF(type-limits)
+    __pragma(warning(push)) \
+    __pragma(warning(disable:4100))
   #define DIAG_ON_LEMON() \
-    DIAG_ON(type-limits)
+    __pragma(warning(pop))
 #else
   #define DIAG_OFF_LEMON() \
-    DIAG_OFF_CLANG(unreachable-code)
+    DIAG_OFF_CLANG(unreachable-code) \
+    DIAG_OFF_TYPE_LIMITS() \
+    DIAG_OFF(unused-parameter)
   #define DIAG_ON_LEMON() \
-    DIAG_ON_CLANG(unreachable-code)
+    DIAG_ON_CLANG(unreachable-code) \
+    DIAG_ON_TYPE_LIMITS() \
+    DIAG_ON(unused-parameter)
 #endif
 
 /*

@@ -565,7 +565,7 @@ dissect_lcsap_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str(ProtocolIE_ID, VALS(lcsap_ProtocolIE_ID_vals), "unknown (%d)"));
+                           val_to_str(actx->pinfo->pool, ProtocolIE_ID, VALS(lcsap_ProtocolIE_ID_vals), "unknown (%d)"));
   }
   return offset;
 }
@@ -3303,7 +3303,7 @@ void proto_register_lcsap(void) {
         FT_UINT32, BASE_DEC, VALS(lcsap_Criticality_vals), 0,
         NULL, HFILL }},
     { &hf_lcsap_ie_field_value,
-      { "value", "lcsap.value_element",
+      { "value", "lcsap.ie_field_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "T_ie_field_value", HFILL }},
     { &hf_lcsap_ProtocolExtensionContainer_item,
@@ -3311,7 +3311,7 @@ void proto_register_lcsap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_lcsap_ext_id,
-      { "id", "lcsap.id",
+      { "id", "lcsap.ext_id",
         FT_UINT8, BASE_DEC, VALS(lcsap_ProtocolIE_ID_vals), 0,
         "ProtocolExtensionID", HFILL }},
     { &hf_lcsap_extensionValue,
@@ -3735,15 +3735,15 @@ void proto_register_lcsap(void) {
         FT_UINT32, BASE_DEC, VALS(lcsap_ProcedureCode_vals), 0,
         NULL, HFILL }},
     { &hf_lcsap_initiatingMessagevalue,
-      { "value", "lcsap.value_element",
+      { "value", "lcsap.initiatingMessagevalue_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InitiatingMessage_value", HFILL }},
     { &hf_lcsap_successfulOutcome_value,
-      { "value", "lcsap.value_element",
+      { "value", "lcsap.successfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SuccessfulOutcome_value", HFILL }},
     { &hf_lcsap_unsuccessfulOutcome_value,
-      { "value", "lcsap.value_element",
+      { "value", "lcsap.unsuccessfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "UnsuccessfulOutcome_value", HFILL }},
   };

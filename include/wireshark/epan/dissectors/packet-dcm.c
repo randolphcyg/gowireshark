@@ -756,25 +756,39 @@ dcm_init(void)
     unsigned   i;
 
     /* Create three hash tables for quick lookups */
+    /* XXX - These are constant hashmaps based on constant structs,
+     * produced by tools/make-packet-dcm.py
+     * The two with integer keys could use binary search (alter the
+     * Python script to sort). If a hash table is desired, GNU gperf
+     * or some perfect hash function generator should be used instead
+     * of inserting these on startup. */
     /* Add UID objects to hash table */
-    dcm_uid_table = wmem_map_new(wmem_file_scope(), wmem_str_hash, g_str_equal);
-    for (i = 0; i < array_length(dcm_uid_data); i++) {
-        wmem_map_insert(dcm_uid_table, (void *) dcm_uid_data[i].value,
-        (void *) &dcm_uid_data[i]);
+    if (dcm_uid_table == NULL) {
+        dcm_uid_table = wmem_map_new(wmem_epan_scope(), wmem_str_hash, g_str_equal);
+        wmem_map_reserve(dcm_uid_table, array_length(dcm_uid_data));
+        for (i = 0; i < array_length(dcm_uid_data); i++) {
+            wmem_map_insert(dcm_uid_table, (void *) dcm_uid_data[i].value,
+            (void *) &dcm_uid_data[i]);
+        }
     }
 
     /* Add Tag objects to hash table */
-    dcm_tag_table = wmem_map_new(wmem_file_scope(), g_direct_hash, g_direct_equal);
-    for (i = 0; i < array_length(dcm_tag_data); i++) {
-        wmem_map_insert(dcm_tag_table, GUINT_TO_POINTER(dcm_tag_data[i].tag),
-        (void *) &dcm_tag_data[i]);
+    if (dcm_tag_table == NULL) {
+        dcm_tag_table = wmem_map_new(wmem_epan_scope(), g_direct_hash, g_direct_equal);
+        wmem_map_reserve(dcm_tag_table, array_length(dcm_tag_data));
+        for (i = 0; i < array_length(dcm_tag_data); i++) {
+            wmem_map_insert(dcm_tag_table, GUINT_TO_POINTER(dcm_tag_data[i].tag),
+            (void *) &dcm_tag_data[i]);
+        }
     }
 
-   /* Add Status Values to hash table */
-    dcm_status_table = wmem_map_new(wmem_file_scope(), g_direct_hash, g_direct_equal);
-    for (i = 0; i < array_length(dcm_status_data); i++) {
-        wmem_map_insert(dcm_status_table, GUINT_TO_POINTER((uint32_t)dcm_status_data[i].value),
-        (void *)&dcm_status_data[i]);
+    /* Add Status Values to hash table */
+    if (dcm_status_table == NULL) {
+        dcm_status_table = wmem_map_new(wmem_epan_scope(), g_direct_hash, g_direct_equal);
+        for (i = 0; i < array_length(dcm_status_data); i++) {
+            wmem_map_insert(dcm_status_table, GUINT_TO_POINTER((uint32_t)dcm_status_data[i].value),
+            (void *)&dcm_status_data[i]);
+        }
     }
 }
 
@@ -4220,7 +4234,7 @@ proto_register_dcm(void)
         { &ei_dcm_assoc_item_len, { "dicom.assoc.item.len.invalid", PI_MALFORMED, PI_ERROR, "Invalid Association Item Length", EXPFILL }},
         { &ei_dcm_pdv_ctx, { "dicom.pdv.ctx.invalid", PI_MALFORMED, PI_ERROR, "Invalid Presentation Context ID", EXPFILL }},
         { &ei_dcm_pdv_flags, { "dicom.pdv.flags.invalid", PI_MALFORMED, PI_ERROR, "Invalid Flags", EXPFILL }},
-        { &ei_dcm_status_msg, { "dicom.status_msg", PI_RESPONSE_CODE, PI_WARN, "%s", EXPFILL }},
+        { &ei_dcm_status_msg, { "dicom.status_msg", PI_RESPONSE_CODE, PI_WARN, "Status Message", EXPFILL }},
         { &ei_dcm_data_tag, { "dicom.data.tag.missing", PI_MALFORMED, PI_ERROR, "Early termination of tag. Data is missing", EXPFILL }},
         { &ei_dcm_pdv_len, { "dicom.pdv.len.invalid", PI_MALFORMED, PI_ERROR, "Invalid PDV length", EXPFILL }},
         { &ei_dcm_invalid_pdu_length, { "dicom.pdu_length.invalid", PI_MALFORMED, PI_ERROR, "Invalid PDU length", EXPFILL }},

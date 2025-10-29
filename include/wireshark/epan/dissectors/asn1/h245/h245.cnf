@@ -660,7 +660,7 @@ Rfc2733Format  FECCapability/rfc2733Format  FECMode/rfc2733Format
   if (gefx) {
     ti = proto_tree_add_string(tree, hf_h245_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
 	proto_item_set_hidden(ti);
-    dissector_try_string(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, %(ACTX)s);
+    dissector_try_string_with_data(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, true, %(ACTX)s);
   }
   actx->private_data = parent_gefx;
 #.END
@@ -684,7 +684,7 @@ Rfc2733Format  FECCapability/rfc2733Format  FECMode/rfc2733Format
   if (gefx) {
     ti = proto_tree_add_string(tree, hf_h245_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
 	proto_item_set_hidden(ti);
-    dissector_try_string(gef_name_dissector_table, gefx->key, tvb_new_subset_length_caplen(tvb, offset>>3, 0, 0), actx->pinfo, tree, actx);
+    dissector_try_string_with_data(gef_name_dissector_table, gefx->key, tvb_new_subset_length_caplen(tvb, offset>>3, 0, 0), actx->pinfo, tree, true, actx);
   }
   actx->private_data = gefx;  /* subdissector could overwrite it */
 #.END
@@ -715,7 +715,7 @@ Rfc2733Format  FECCapability/rfc2733Format  FECMode/rfc2733Format
   if (gefx) {
     ti = proto_tree_add_string(tree, hf_h245_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
 	proto_item_set_hidden(ti);
-    dissector_try_string_new(gef_name_dissector_table, gefx->key, tvb_new_subset_length_caplen(tvb, offset>>3, 0, 0), actx->pinfo, tree, false, actx);
+    dissector_try_string_with_data(gef_name_dissector_table, gefx->key, tvb_new_subset_length_caplen(tvb, offset>>3, 0, 0), actx->pinfo, tree, false, actx);
   }
   actx->private_data = gefx;  /* subdissector could overwrite it */
 #.END
@@ -745,7 +745,7 @@ Rfc2733Format  FECCapability/rfc2733Format  FECMode/rfc2733Format
     ti = proto_tree_add_string(tree, hf_h245_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
 	proto_item_set_hidden(ti);
     add_new_data_source(%(ACTX)s->pinfo, value_tvb, "booleanArray");
-    dissector_try_string_new(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, false, %(ACTX)s);
+    dissector_try_string_with_data(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, false, %(ACTX)s);
   }
 #.END
 #.FN_BODY ParameterValue/unsignedMin  VAL_PTR = &value
@@ -759,12 +759,12 @@ Rfc2733Format  FECCapability/rfc2733Format  FECMode/rfc2733Format
   gefx = gef_ctx_get(actx->private_data);
   if (gefx) {
     buf = (uint8_t *)wmem_new(actx->pinfo->pool, uint16_t);
-    phton16(buf, value);
+    phtonu16(buf, value);
     value_tvb = tvb_new_child_real_data(tvb, buf, sizeof(uint16_t), sizeof(uint16_t));
     ti = proto_tree_add_string(tree, hf_h245_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
 	proto_item_set_hidden(ti);
     add_new_data_source(%(ACTX)s->pinfo, value_tvb, "unsignedMin");
-    dissector_try_string(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, %(ACTX)s);
+    dissector_try_string_with_data(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, true, %(ACTX)s);
   }
 #.END
 #.FN_BODY ParameterValue/unsignedMax  VAL_PTR = &value
@@ -778,12 +778,12 @@ Rfc2733Format  FECCapability/rfc2733Format  FECMode/rfc2733Format
   gefx = gef_ctx_get(actx->private_data);
   if (gefx) {
     buf = (uint8_t *)wmem_new(actx->pinfo->pool, uint16_t);
-    phton16(buf, value);
+    phtonu16(buf, value);
     value_tvb = tvb_new_child_real_data(tvb, buf, sizeof(uint16_t), sizeof(uint16_t));
     ti = proto_tree_add_string(tree, hf_h245_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
 	proto_item_set_hidden(ti);
     add_new_data_source(%(ACTX)s->pinfo, value_tvb, "unsignedMax");
-    dissector_try_string(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, %(ACTX)s);
+    dissector_try_string_with_data(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, true, %(ACTX)s);
   }
 #.END
 #.FN_BODY ParameterValue/unsigned32Min  VAL_PTR = &value
@@ -797,12 +797,12 @@ Rfc2733Format  FECCapability/rfc2733Format  FECMode/rfc2733Format
   gefx = gef_ctx_get(actx->private_data);
   if (gefx) {
     buf = (uint8_t *)wmem_new(actx->pinfo->pool, uint32_t);
-    phton32(buf, value);
+    phtonu32(buf, value);
     value_tvb = tvb_new_child_real_data(tvb, buf, sizeof(uint32_t), sizeof(uint32_t));
     ti = proto_tree_add_string(tree, hf_h245_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
 	proto_item_set_hidden(ti);
     add_new_data_source(%(ACTX)s->pinfo, value_tvb, "unsigned32Min");
-    dissector_try_string(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, %(ACTX)s);
+    dissector_try_string_with_data(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, true, %(ACTX)s);
   }
 #.END
 #.FN_BODY ParameterValue/unsigned32Max  VAL_PTR = &value
@@ -816,12 +816,12 @@ Rfc2733Format  FECCapability/rfc2733Format  FECMode/rfc2733Format
   gefx = gef_ctx_get(actx->private_data);
   if (gefx) {
     buf = (uint8_t *)wmem_new(actx->pinfo->pool, uint32_t);
-    phton32(buf, value);
+    phtonu32(buf, value);
     value_tvb = tvb_new_child_real_data(tvb, buf, sizeof(uint32_t), sizeof(uint32_t));
     ti = proto_tree_add_string(tree, hf_h245_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
 	proto_item_set_hidden(ti);
     add_new_data_source(%(ACTX)s->pinfo, value_tvb, "unsigned32Max");
-    dissector_try_string(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, %(ACTX)s);
+    dissector_try_string_with_data(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, true, %(ACTX)s);
   }
 #.END
 #.FN_BODY ParameterValue/octetString  VAL_PTR = &value_tvb
@@ -834,7 +834,7 @@ Rfc2733Format  FECCapability/rfc2733Format  FECMode/rfc2733Format
   if (gefx) {
     ti = proto_tree_add_string(tree, hf_h245_debug_dissector_try_string, tvb, offset>>3, 0, gefx->key);
 	proto_item_set_hidden(ti);
-    dissector_try_string(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, %(ACTX)s);
+    dissector_try_string_with_data(gef_content_dissector_table, gefx->key, value_tvb, %(ACTX)s->pinfo, %(TREE)s, true, %(ACTX)s);
   }
 #.END
 

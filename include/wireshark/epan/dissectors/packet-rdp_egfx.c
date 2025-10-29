@@ -69,6 +69,16 @@ static int hf_egfx_start_acked_in;
 static int hf_egfx_end_frameid;
 static int hf_egfx_end_acked_in;
 
+static int hf_egfx_surfaceid;
+
+static int hf_egfx_watermark_width;
+static int hf_egfx_watermark_height;
+static int hf_egfx_watermark_pixelformat;
+static int hf_egfx_watermark_opacity;
+static int hf_egfx_watermark_hpadding;
+static int hf_egfx_watermark_vpadding;
+static int hf_egfx_watermark_imgsize;
+static int hf_egfx_unknown_bytes;
 
 static int ett_rdp_egfx;
 static int ett_egfx_caps;
@@ -80,10 +90,23 @@ static int ett_egfx_ackqoe;
 static int ett_egfx_reset;
 static int ett_egfx_monitors;
 static int ett_egfx_monitordef;
-
+static int ett_egfx_watermark;
+static int ett_egfx_createsurface;
+static int ett_egfx_mapsurfacetooutput;
+static int ett_egfx_mapsurfacetowindow;
+static int ett_egfx_mapsurfacetoscaledoutput;
+static int ett_egfx_mapsurfacetoscaledwindow;
+static int ett_egfx_wiretosurface1;
+static int ett_egfx_wiretosurface2;
+static int ett_egfx_protectsurface;
+static int ett_egfx_surfacetosurface;
+static int ett_egfx_surfacetocache;
+static int ett_egfx_deletesurface;
+static int ett_egfx_deleteencodingcontext;
 
 static expert_field ei_egfx_pdulen_invalid;
 static expert_field ei_egfx_invalid_compression;
+static expert_field ei_egfx_invalid_offset;
 
 
 #define PNAME  "RDP Graphic pipeline channel Protocol"
@@ -114,6 +137,8 @@ enum {
 	RDPGFX_CMDID_QOEFRAMEACKNOWLEDGE 	= 0x0016,
 	RDPGFX_CMDID_MAPSURFACETOSCALEDOUTPUT = 0x0017,
 	RDPGFX_CMDID_MAPSURFACETOSCALEDWINDOW = 0x0018,
+	RDPGFX_CMDID_PROTECT_SURFACE = 0x0019,
+	RDPGFX_CMDID_WATERMARK = 0x001A,
 };
 
 enum {
@@ -127,7 +152,12 @@ enum {
 	RDPGFX_CAPVERSION_105 = 0x000A0502,
 	RDPGFX_CAPVERSION_106_ERROR = 0x000A0600,
 	RDPGFX_CAPVERSION_106 = 0x000A0601,
-	RDPGFX_CAPVERSION_107 = 0x000A0701
+	RDPGFX_CAPVERSION_107 = 0x000A0701,
+
+	RDPGFX_CAPVERSION_111 = 0x000b0101,
+	RDPGFX_CAPVERSION_112 = 0x000b0200,
+	RDPGFX_CAPVERSION_113 = 0x000b0300,
+
 };
 
 static const value_string rdp_egfx_cmd_vals[] = {
@@ -154,6 +184,8 @@ static const value_string rdp_egfx_cmd_vals[] = {
 	{ RDPGFX_CMDID_QOEFRAMEACKNOWLEDGE, "Qoe frame acknowledge" },
 	{ RDPGFX_CMDID_MAPSURFACETOSCALEDOUTPUT, "Map surface to scaled output" },
 	{ RDPGFX_CMDID_MAPSURFACETOSCALEDWINDOW, "Map surface to scaled window" },
+	{ RDPGFX_CMDID_PROTECT_SURFACE, "Protect surface" },
+	{ RDPGFX_CMDID_WATERMARK, "Watermark surface" },
 	{ 0x0, NULL },
 };
 
@@ -169,6 +201,10 @@ static const value_string rdp_egfx_caps_version_vals[] = {
 	{ RDPGFX_CAPVERSION_106_ERROR, "10.6 bogus" },
 	{ RDPGFX_CAPVERSION_106, "10.6" },
 	{ RDPGFX_CAPVERSION_107, "10.7" },
+	{ RDPGFX_CAPVERSION_111, "11.1" },
+	{ RDPGFX_CAPVERSION_112, "11.2" },
+	{ RDPGFX_CAPVERSION_113, "11.3" },
+
 	{ 0x0, NULL },
 };
 
@@ -484,22 +520,38 @@ dissect_rdp_egfx_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_t
 
 		case RDPGFX_CMDID_CREATESURFACE:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Create Surface");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_createsurface, NULL, "Create surface");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
 			break;
 
 		case RDPGFX_CMDID_MAPSURFACETOOUTPUT:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Map Surface To Output");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_mapsurfacetooutput, NULL, "Map surface to output");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
+
 			break;
 
 		case RDPGFX_CMDID_WIRETOSURFACE_1:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Wire To Surface 1");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_wiretosurface1, NULL, "Wire to surface 1");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
 			break;
 
 		case RDPGFX_CMDID_WIRETOSURFACE_2:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Wire To Surface 2");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_wiretosurface2, NULL, "Wire to surface 2");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
 			break;
 
 		case RDPGFX_CMDID_DELETEENCODINGCONTEXT:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Delete Encoding Context");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_deleteencodingcontext, NULL, "Delete encoding context");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
 			break;
 
 		case RDPGFX_CMDID_SOLIDFILL:
@@ -508,10 +560,16 @@ dissect_rdp_egfx_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_t
 
 		case RDPGFX_CMDID_SURFACETOSURFACE:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Surface To Surface");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_surfacetosurface, NULL, "Surface to surface");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
 			break;
 
 		case RDPGFX_CMDID_SURFACETOCACHE:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Surface To Cache");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_surfacetocache, NULL, "Surface to cache");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
 			break;
 
 		case RDPGFX_CMDID_CACHETOSURFACE:
@@ -524,6 +582,10 @@ dissect_rdp_egfx_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_t
 
 		case RDPGFX_CMDID_DELETESURFACE:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Delete Surface");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_deletesurface, NULL, "Delete surface");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
+
 			break;
 
 		case RDPGFX_CMDID_CACHEIMPORTOFFER:
@@ -536,21 +598,87 @@ dissect_rdp_egfx_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_t
 
 		case RDPGFX_CMDID_MAPSURFACETOWINDOW:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Map Surface To Window");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_mapsurfacetowindow, NULL, "Map surface to window");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
 			break;
 
 		case RDPGFX_CMDID_MAPSURFACETOSCALEDOUTPUT:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Map Surface To Scaled Output");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_mapsurfacetoscaledoutput, NULL, "Map surface to scaled output");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
 			break;
 
 		case RDPGFX_CMDID_MAPSURFACETOSCALEDWINDOW:
 			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Map Surface To Scaled Window");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_mapsurfacetoscaledwindow, NULL, "Map surface to scaled window");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
 			break;
 
+		case RDPGFX_CMDID_PROTECT_SURFACE: {
+			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Protect surface");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_protectsurface, NULL, "Protect surface");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
+			break;
+		}
+
+		case RDPGFX_CMDID_WATERMARK: {
+			col_append_sep_str(pinfo->cinfo, COL_INFO, ",", "Watermark surface");
+			subtree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_egfx_watermark, NULL, "Watermark");
+			proto_tree_add_item(subtree, hf_egfx_surfaceid, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
+
+			proto_tree_add_item(subtree, hf_egfx_watermark_width, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
+
+			proto_tree_add_item(subtree, hf_egfx_watermark_height, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
+
+			// XXX
+			proto_tree_add_item(subtree, hf_egfx_unknown_bytes, tvb, offset, 6, ENC_NA);
+			offset += 6;
+
+			proto_tree_add_item(subtree, hf_egfx_watermark_pixelformat, tvb, offset, 1, ENC_LITTLE_ENDIAN);
+			offset += 1;
+
+			// XXX
+			proto_tree_add_item(subtree, hf_egfx_unknown_bytes, tvb, offset, 2, ENC_NA);
+			offset += 2;
+
+			proto_tree_add_item(subtree, hf_egfx_watermark_opacity, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
+
+			// XXX
+			proto_tree_add_item(subtree, hf_egfx_unknown_bytes, tvb, offset, 6, ENC_NA);
+			offset += 6;
+
+			proto_tree_add_item(subtree, hf_egfx_watermark_hpadding, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
+			proto_tree_add_item(subtree, hf_egfx_watermark_vpadding, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+			offset += 2;
+
+			// XXX
+			proto_tree_add_item(subtree, hf_egfx_unknown_bytes, tvb, offset, 8, ENC_NA);
+			offset += 8;
+
+			uint32_t sz;
+			proto_tree_add_item_ret_uint(subtree, hf_egfx_watermark_imgsize, tvb, offset, 2, ENC_LITTLE_ENDIAN, &sz);
+			offset += 2;
+			break;
+		}
 		default:
 			break;
 		}
 
-		offset = nextOffset;
+		if (offset < nextOffset)
+		{
+			expert_add_info(pinfo, item, &ei_egfx_invalid_offset);
+			offset = nextOffset;
+		}
+
 	}
 	return offset;
 }
@@ -725,7 +853,7 @@ void proto_register_rdp_egfx(void) {
 		},
 		{ &hf_egfx_reset_monitorDefFlags,
 		  { "Flags", "rdp_egfx.monitor.flags",
-			FT_UINT32, BASE_DEC, VALS(rdp_egfx_monitor_flags_vals), 0x0,
+			FT_UINT32, BASE_HEX, VALS(rdp_egfx_monitor_flags_vals), 0x0,
 			NULL, HFILL }
 		},
 		{ &hf_egfx_start_timestamp,
@@ -743,7 +871,6 @@ void proto_register_rdp_egfx(void) {
 			FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
 			NULL, HFILL }
 		},
-
 		{ &hf_egfx_end_frameid,
 		  { "Frame id", "rdp_egfx.endframe.frameid",
 			FT_UINT32, BASE_HEX, NULL, 0x0,
@@ -754,6 +881,51 @@ void proto_register_rdp_egfx(void) {
 			FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
 			NULL, HFILL }
 		},
+		{ &hf_egfx_surfaceid,
+		  { "Surface id", "rdp_egfx.surfaceid",
+			FT_UINT16, BASE_HEX, NULL, 0x0,
+			NULL, HFILL }
+		},
+		{ &hf_egfx_watermark_width,
+		  { "Width", "rdp_egfx.watermark.width",
+			FT_UINT16, BASE_DEC, NULL, 0x0,
+			NULL, HFILL }
+		},
+		{ &hf_egfx_watermark_height,
+		  { "Height", "rdp_egfx.watermark.height",
+			FT_UINT16, BASE_DEC, NULL, 0x0,
+			NULL, HFILL }
+		},
+		{ &hf_egfx_watermark_pixelformat,
+		  { "Pixel format", "rdp_egfx.watermark.pixelformat",
+			FT_UINT8, BASE_HEX, NULL, 0x0,
+			NULL, HFILL }
+		},
+		{ &hf_egfx_watermark_opacity,
+		  { "Opacity", "rdp_egfx.watermark.opacity",
+			FT_UINT16, BASE_HEX, NULL, 0x0,
+			NULL, HFILL }
+		},
+		{ &hf_egfx_watermark_hpadding,
+		  { "HPadding", "rdp_egfx.watermark.hpadding",
+			FT_UINT16, BASE_DEC, NULL, 0x0,
+			NULL, HFILL }
+		},
+		{ &hf_egfx_watermark_vpadding,
+		  { "VPadding", "rdp_egfx.watermark.vpadding",
+			FT_UINT16, BASE_DEC, NULL, 0x0,
+			NULL, HFILL }
+		},
+		{ &hf_egfx_watermark_imgsize,
+		  { "Image size", "rdp_egfx.watermark.imgsize",
+			FT_UINT16, BASE_DEC, NULL, 0x0,
+			NULL, HFILL }
+		},
+		{ &hf_egfx_unknown_bytes,
+		  { "Unknown bytes", "rdp_egfx.unknown",
+			FT_BYTES, BASE_NONE, NULL, 0x0,
+			NULL, HFILL }
+		}
 	};
 
 	static int *ett[] = {
@@ -767,11 +939,25 @@ void proto_register_rdp_egfx(void) {
 		&ett_egfx_capsconfirm,
 		&ett_egfx_monitors,
 		&ett_egfx_monitordef,
+		&ett_egfx_watermark,
+		&ett_egfx_createsurface,
+		&ett_egfx_mapsurfacetooutput,
+		&ett_egfx_mapsurfacetowindow,
+		&ett_egfx_mapsurfacetoscaledoutput,
+		&ett_egfx_mapsurfacetoscaledwindow,
+		&ett_egfx_wiretosurface1,
+		&ett_egfx_wiretosurface2,
+		&ett_egfx_protectsurface,
+		&ett_egfx_surfacetosurface,
+		&ett_egfx_surfacetocache,
+		&ett_egfx_deletesurface,
+		&ett_egfx_deleteencodingcontext
 	};
 
 	static ei_register_info ei[] = {
 		{ &ei_egfx_pdulen_invalid, { "rdp_egfx.pdulength.invalid", PI_PROTOCOL, PI_ERROR, "Invalid length", EXPFILL }},
 		{ &ei_egfx_invalid_compression, { "rdp_egfx.compression.invalid", PI_PROTOCOL, PI_ERROR, "Invalid compression", EXPFILL }},
+		{ &ei_egfx_invalid_offset, { "rdp_egfx.invalid.offset", PI_PROTOCOL, PI_ERROR, "Invalid Offset", EXPFILL }},
 	};
 	expert_module_t* expert_egfx;
 

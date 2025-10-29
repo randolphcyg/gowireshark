@@ -4,6 +4,7 @@
  * Copyright 2013 Alexander Chemeris <alexander.chemeris@gmail.com>: dissector improvement
  * Copyright 2013 Dario Lombardo (lomato@gmail.com): Official Wireshark port
  * Copyright 2022 Amazon.com, Inc. or its affiliates - Cody Planteen <codplant@amazon.com>: context packet decoding
+ * Copyright 2024 Valley Tech Systems, Inc. - John Moon <john.moon@vts-i.com>: spectral context decoding
  *
  * Original dissector repository: https://github.com/bistromath/vrt-dissector
  *
@@ -116,16 +117,40 @@ static int hf_vrt_cif0_cif4; /* 1-bit CIF4 */
 static int hf_vrt_cif0_cif3; /* 1-bit CIF3 */
 static int hf_vrt_cif0_cif2; /* 1-bit CIF2 */
 static int hf_vrt_cif0_cif1; /* 1-bit CIF1 */
+static int hf_vrt_cif0_cif0; /* Spare */
 /* TODO: complete CIF1 support (have partial CIF1 support) */
 static int hf_vrt_cif1_phase_offset; /* 1-bit phase offset */
 static int hf_vrt_cif1_polarization; /* 1-bit polarization */
+static int hf_vrt_cif1_3d_vec; /* 1-bit 3-D pointing vector */
+static int hf_vrt_cif1_3d_vec_struct; /* 1-bit 3-D pointing vector structure */
+static int hf_vrt_cif1_spatial_scan_type; /* 1-bit spatial scan type */
+static int hf_vrt_cif1_spatial_ref_type; /* 1-bit spatial reference type */
+static int hf_vrt_cif1_beam_width; /* 1-bit beam width */
 static int hf_vrt_cif1_range; /* 1-bit range (distance) */
+static int hf_vrt_cif1_oct_2_b7;
+static int hf_vrt_cif1_oct_2_b6;
+static int hf_vrt_cif1_oct_2_b5;
+static int hf_vrt_cif1_eb_n0_ber; /* 1-bit Eb/N0 BER */
+static int hf_vrt_cif1_threshold; /* 1-bit threshold */
+static int hf_vrt_cif1_compression_pt; /* 1-bit compression point */
+static int hf_vrt_cif1_2nd_3rd_ord_intercept; /* 1-bit 2nd and 3rd order intercept points */
+static int hf_vrt_cif1_snr_noise_figure; /* 1-bit SNR/noise figure */
 static int hf_vrt_cif1_aux_freq; /* 1-bit aux frequency */
+static int hf_vrt_cif1_aux_gain; /* 1-bit aux gain */
 static int hf_vrt_cif1_aux_bandwidth; /* 1-bit aux bandwidth */
+static int hf_vrt_cif1_oct_3_b4;
+static int hf_vrt_cif1_array_cifs; /* 1-bit array of CIFS */
+static int hf_vrt_cif1_spectrum; /* 1-bit spectrum */
+static int hf_vrt_cif1_sector_scan_step; /* 1-bit sector scan/step */
+static int hf_vrt_cif1_oct_2_b0;
+static int hf_vrt_cif1_index_list; /* 1-bit index list */
 static int hf_vrt_cif1_io32; /* 1-bit discrete I/O (32-bit) */
 static int hf_vrt_cif1_io64; /* 1-bit discrete I/O (64-bit) */
+static int hf_vrt_cif1_health_status; /* 1-bit health status */
 static int hf_vrt_cif1_v49_spec; /* 1-bit V49 spec compliance */
 static int hf_vrt_cif1_ver; /* 1-bit version and build code */
+static int hf_vrt_cif1_buffer_size ; /* 1-bit buffer size */
+static int hf_vrt_cif1_oct_4_b0;
 static int hf_vrt_context_ref_pt_id; /* 32-bit reference point identifier */
 static int hf_vrt_context_bandwidth; /* 64-bit bandwidth */
 static int hf_vrt_context_if_freq; /* 64-bit IF reference frequency */
@@ -194,6 +219,17 @@ static int hf_vrt_context_pol_ellipticity; /* 16-bit polarization ellipticity an
 static int hf_vrt_context_range; /* 32-bit range (distance) */
 static int hf_vrt_context_aux_freq; /* 64-bit aux frequency */
 static int hf_vrt_context_aux_bandwidth; /* 64-bit aux bandwidth */
+static int hf_vrt_context_spectrum_spectrum_type; /* 32-bit spectrum type */
+static int hf_vrt_context_spectrum_window_type; /* 32-bit window type */
+static int hf_vrt_context_spectrum_num_transform_points; /* 32-bit number of transform points */
+static int hf_vrt_context_spectrum_num_window_points; /* 32-bit number of window points */
+static int hf_vrt_context_spectrum_resolution; /* 64-bit number of resolution points */
+static int hf_vrt_context_spectrum_span; /* 64-bit number of span (bandwidth) */
+static int hf_vrt_context_spectrum_num_averages; /* 32-bit number of averages */
+static int hf_vrt_context_spectrum_weighting_factor; /* 32-bit weighting factor */
+static int hf_vrt_context_spectrum_spectrum_f1_index; /* 32-bit F1 index */
+static int hf_vrt_context_spectrum_spectrum_f2_index; /* 32-bit F2 index */
+static int hf_vrt_context_spectrum_window_time_delta; /* 32-bit window time-delta */
 static int hf_vrt_context_io32; /* 32-bit discrete I/O */
 static int hf_vrt_context_io64; /* 64-bit discrete I/O */
 static int hf_vrt_context_v49_spec; /* 32-bit V49 spec compliance */
@@ -288,7 +324,8 @@ static const int ETT_IDX_REL_EPHEM = 15;
 static const int ETT_IDX_GPS_ASCII = 16;
 static const int ETT_IDX_ASSOC_LISTS = 17;
 static const int ETT_IDX_POL = 18;
-static const int ETT_IDX_VER = 19;
+static const int ETT_IDX_SPECTRUM = 19;
+static const int ETT_IDX_VER = 20;
 
 static const value_string packet_types[] = {
     {0x00, "IF data packet without stream ID"},
@@ -421,6 +458,7 @@ static int dissect_context_signal_data_format(proto_tree *tree, tvbuff_t *tvb, i
 static int dissect_context_state_event(proto_tree *tree, tvbuff_t *tvb, int offset);
 static int dissect_context_temperature(proto_tree *tree, tvbuff_t *tvb, int offset);
 static int dissect_context_ver(proto_tree *tree, tvbuff_t *tvb, int offset);
+static int dissect_context_spectrum(proto_tree *tree, tvbuff_t *tvb, int offset);
 static const char* get_engr_prefix(double *val);
 
 /* context simple field dissector function pointer array (mutually exclusive with complex below) */
@@ -449,8 +487,8 @@ static complex_dissector_t complex_dissector_cif0[32] = {
 /* partial CIF1 support */
 static complex_dissector_t complex_dissector_cif1[32] = {
     NULL, NULL, dissect_context_ver, NULL, NULL, NULL, NULL, dissect_context_array_of_records,
-    NULL, dissect_context_array_of_records, NULL, dissect_context_array_of_records, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, dissect_context_array_of_records, dissect_context_spectrum, dissect_context_array_of_records,
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     dissect_context_array_of_records, NULL,
     dissect_context_polarization, dissect_context_phase_offset };
 
@@ -469,7 +507,7 @@ static int dissect_vrt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
 
     /* get packet type */
     type = tvb_get_uint8(tvb, offset) >> 4;
-    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(type, packet_types, "Reserved packet type (0x%02x)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, type, packet_types, "Reserved packet type (0x%02x)"));
 
     if (tree) { /* we're being asked for details */
         uint8_t sidflag;
@@ -704,7 +742,7 @@ static int dissect_context_assoc_lists(proto_tree *tree, tvbuff_t *tvb, int offs
     uint32_t vec_size = word2 >> 16;
     bool a_bit = (word2 & 0x8000) != 0;
     uint32_t asy_size = word2 & 0x7FFF;
-    uint32_t num_words = src_size + sys_size + vec_size + asy_size + a_bit*asy_size;
+    uint32_t num_words = src_size + sys_size + vec_size + asy_size + (a_bit ? asy_size : 0);
 
     proto_tree *assoc_tree = proto_tree_add_subtree(tree, tvb, offset, 8 + num_words*4, ETT_IDX_ASSOC_LISTS, NULL,
                                                     "Context association lists");
@@ -745,57 +783,136 @@ static int dissect_context_cif0(proto_tree *tree, tvbuff_t *tvb, int offset) {
     proto_item *cif0_item;
     proto_tree *cif0_tree;
 
+    static int* const oct1_flags[] = {
+        &hf_vrt_cif0_change_flag,
+        &hf_vrt_cif0_ref_pt_id,
+        &hf_vrt_cif0_bandwidth,
+        &hf_vrt_cif0_if_freq,
+        &hf_vrt_cif0_rf_freq,
+        &hf_vrt_cif0_rf_freq_offset,
+        &hf_vrt_cif0_if_band_offset,
+        &hf_vrt_cif0_ref_level,
+        NULL
+    };
+
+    static int* const oct2_flags[] = {
+        &hf_vrt_cif0_gain,
+        & hf_vrt_cif0_over_range_count,
+        & hf_vrt_cif0_sample_rate,
+        & hf_vrt_cif0_timestamp_adjust,
+        & hf_vrt_cif0_timestamp_cal,
+        & hf_vrt_cif0_temperature,
+        & hf_vrt_cif0_device_id,
+        & hf_vrt_cif0_state_event,
+        NULL
+    };
+
+    static int* const oct3_flags[] = {
+        &hf_vrt_cif0_signal_data_format,
+        &hf_vrt_cif0_gps,
+        &hf_vrt_cif0_ins,
+        &hf_vrt_cif0_ecef_ephemeris,
+        &hf_vrt_cif0_rel_ephemeris,
+        &hf_vrt_cif0_ephemeris_ref_id,
+        &hf_vrt_cif0_gps_ascii,
+        & hf_vrt_cif0_context_assoc_lists,
+        NULL
+    };
+
+    static int* const oct4_flags[] = {
+        &hf_vrt_cif0_cif7,
+        &hf_vrt_cif0_cif6,
+        &hf_vrt_cif0_cif5,
+        &hf_vrt_cif0_cif4,
+        &hf_vrt_cif0_cif3,
+        &hf_vrt_cif0_cif2,
+        &hf_vrt_cif0_cif1,
+        &hf_vrt_cif0_cif0,
+        NULL
+    };
+
     cif0_item = proto_tree_add_item(tree, hf_vrt_cif[0], tvb, offset, 4, ENC_BIG_ENDIAN);
     cif0_tree = proto_item_add_subtree(cif0_item, ett_cif0);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_change_flag, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_ref_pt_id, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_bandwidth, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_if_freq, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_rf_freq, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_rf_freq_offset, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_if_band_offset, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_ref_level, tvb, offset, 1, ENC_BIG_ENDIAN);
+
+    proto_tree_add_bitmask_list(cif0_tree, tvb, offset, 1, oct1_flags, ENC_NA);
     offset += 1;
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_gain, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_over_range_count, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_sample_rate, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_timestamp_adjust, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_timestamp_cal, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_temperature, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_device_id, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_state_event, tvb, offset, 1, ENC_BIG_ENDIAN);
+
+    proto_tree_add_bitmask_list(cif0_tree, tvb, offset, 1, oct2_flags, ENC_NA);
     offset += 1;
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_signal_data_format, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_gps, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_ins, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_ecef_ephemeris, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_rel_ephemeris, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_ephemeris_ref_id, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_gps_ascii, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_context_assoc_lists, tvb, offset, 1, ENC_BIG_ENDIAN);
+
+    proto_tree_add_bitmask_list(cif0_tree, tvb, offset, 1, oct3_flags, ENC_NA);
     offset += 1;
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_cif7, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_cif6, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_cif5, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_cif4, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_cif3, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_cif2, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif0_tree, hf_vrt_cif0_cif1, tvb, offset, 1, ENC_BIG_ENDIAN);
+
+    proto_tree_add_bitmask_list(cif0_tree, tvb, offset, 1, oct4_flags, ENC_NA);
+    //offset += 1;
+
+
     return 0;
 }
 
 static int dissect_context_cif1(proto_tree *tree, tvbuff_t *tvb, int offset) {
+
+    static int* const oct1_flags[] = {
+        &hf_vrt_cif1_phase_offset,
+        &hf_vrt_cif1_polarization,
+        &hf_vrt_cif1_3d_vec,
+        &hf_vrt_cif1_3d_vec_struct,
+        &hf_vrt_cif1_spatial_scan_type,
+        &hf_vrt_cif1_spatial_ref_type,
+        &hf_vrt_cif1_beam_width,
+        &hf_vrt_cif1_range,
+        NULL
+    };
+
+    static int* const oct2_flags[] = {
+        &hf_vrt_cif1_oct_2_b7,
+        &hf_vrt_cif1_oct_2_b6,
+        &hf_vrt_cif1_oct_2_b5,
+        &hf_vrt_cif1_eb_n0_ber,
+        &hf_vrt_cif1_threshold,
+        &hf_vrt_cif1_compression_pt,
+        &hf_vrt_cif1_2nd_3rd_ord_intercept,
+        &hf_vrt_cif1_snr_noise_figure,
+        NULL
+    };
+    static int* const oct3_flags[] = {
+        &hf_vrt_cif1_aux_freq,
+        &hf_vrt_cif1_aux_gain,
+        &hf_vrt_cif1_aux_bandwidth,
+        &hf_vrt_cif1_oct_3_b4,
+        &hf_vrt_cif1_array_cifs,
+        &hf_vrt_cif1_spectrum,
+        &hf_vrt_cif1_sector_scan_step,
+        &hf_vrt_cif1_oct_2_b0,
+        NULL
+    };
+
+    static int* const oct4_flags[] = {
+        &hf_vrt_cif1_index_list,
+        &hf_vrt_cif1_io32,
+        &hf_vrt_cif1_io64,
+        &hf_vrt_cif1_health_status,
+        &hf_vrt_cif1_v49_spec,
+        &hf_vrt_cif1_ver,
+        &hf_vrt_cif1_buffer_size,
+        &hf_vrt_cif1_oct_4_b0,
+        NULL
+    };
+
     proto_item *cif1_item = proto_tree_add_item(tree, hf_vrt_cif[1], tvb, offset, 4, ENC_BIG_ENDIAN);
     proto_tree *cif1_tree = proto_item_add_subtree(cif1_item, ett_cif1);
-    proto_tree_add_item(cif1_tree, hf_vrt_cif1_phase_offset, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif1_tree, hf_vrt_cif1_polarization, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif1_tree, hf_vrt_cif1_range, tvb, offset, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif1_tree, hf_vrt_cif1_aux_freq, tvb, offset + 2, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif1_tree, hf_vrt_cif1_aux_bandwidth, tvb, offset + 2, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif1_tree, hf_vrt_cif1_io32, tvb, offset + 3, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif1_tree, hf_vrt_cif1_io64, tvb, offset + 3, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif1_tree, hf_vrt_cif1_v49_spec, tvb, offset + 3, 1, ENC_BIG_ENDIAN);
-    proto_tree_add_item(cif1_tree, hf_vrt_cif1_ver, tvb, offset + 3, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_bitmask_list(cif1_tree, tvb, offset, 1, oct1_flags, ENC_NA);
+    offset += 1;
+
+    proto_tree_add_bitmask_list(cif1_tree, tvb, offset, 1, oct2_flags, ENC_NA);
+    offset += 1;
+
+    proto_tree_add_bitmask_list(cif1_tree, tvb, offset, 1, oct3_flags, ENC_NA);
+    offset += 1;
+
+    proto_tree_add_bitmask_list(cif1_tree, tvb, offset, 1, oct4_flags, ENC_NA);
+    //offset += 1;
+
     return 0;
 }
 
@@ -973,6 +1090,22 @@ static int dissect_context_ver(proto_tree *tree, tvbuff_t *tvb, int offset) {
     proto_tree_add_item(ver_tree, hf_vrt_context_ver_day, tvb, offset, 2, ENC_BIG_ENDIAN);
     proto_tree_add_item(ver_tree, hf_vrt_context_ver_rev, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
     proto_tree_add_item(ver_tree, hf_vrt_context_ver_user, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
+    return 0;
+}
+
+static int dissect_context_spectrum(proto_tree *tree, tvbuff_t *tvb, int offset) {
+    proto_tree *spectrum_tree = proto_tree_add_subtree(tree, tvb, offset, 52, ETT_IDX_SPECTRUM, NULL, "Spectrum");
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_spectrum_type, tvb, offset, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_window_type, tvb, offset + 4, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_num_transform_points, tvb, offset + 8, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_num_window_points, tvb, offset + 12, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_resolution, tvb, offset + 16, 8, ENC_BIG_ENDIAN);
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_span, tvb, offset + 24, 8, ENC_BIG_ENDIAN);
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_num_averages, tvb, offset + 32, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_weighting_factor, tvb, offset + 36, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_spectrum_f1_index, tvb, offset + 40, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_spectrum_f2_index, tvb, offset + 44, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(spectrum_tree, hf_vrt_context_spectrum_window_time_delta, tvb, offset + 48, 4, ENC_BIG_ENDIAN);
     return 0;
 }
 
@@ -1358,6 +1491,12 @@ proto_register_vrt(void)
             NULL, 0x02,
             NULL, HFILL }
         },
+        { &hf_vrt_cif0_cif0,
+            { "CIF0(Spare)", "vrt.cif0.cif0",
+            FT_BOOLEAN, 8,
+            NULL, 0x01,
+            NULL, HFILL }
+        },
         { &hf_vrt_cif1_phase_offset,
             { "Phase offset", "vrt.cif1.phaseoffset",
             FT_BOOLEAN, 8,
@@ -1370,8 +1509,86 @@ proto_register_vrt(void)
             NULL, 0x40,
             NULL, HFILL }
         },
+        { &hf_vrt_cif1_3d_vec,
+            { "3-D pointing vector", "vrt.cif1.3dvec",
+            FT_BOOLEAN, 8,
+            NULL, 0x20,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_3d_vec_struct,
+            { "3-D pointing vector structure", "vrt.cif1.3dvecstruct",
+            FT_BOOLEAN, 8,
+            NULL, 0x10,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_spatial_scan_type,
+            { "Spatial scan type", "vrt.cif1.spatialscantype",
+            FT_BOOLEAN, 8,
+            NULL, 0x08,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_spatial_ref_type,
+            { "Spatial reference type", "vrt.cif1.spatialreftype",
+            FT_BOOLEAN, 8,
+            NULL, 0x04,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_beam_width,
+            { "Beam width", "vrt.cif1.beamwidth",
+            FT_BOOLEAN, 8,
+            NULL, 0x02,
+            NULL, HFILL }
+        },
         { &hf_vrt_cif1_range,
             { "Range (distance)", "vrt.cif1.range",
+            FT_BOOLEAN, 8,
+            NULL, 0x01,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_oct_2_b7,
+            { "Spare", "vrt.cif1.oct3.b7.spare",
+            FT_BOOLEAN, 8,
+            NULL, 0x80,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_oct_2_b6,
+            { "Spare", "vrt.cif1.oct3.b6.spare",
+            FT_BOOLEAN, 8,
+            NULL, 0x40,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_oct_2_b5,
+            { "Spare", "vrt.cif1.oct3.b5.spare",
+            FT_BOOLEAN, 8,
+            NULL, 0x20,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_eb_n0_ber,
+            { "Eb/N0 BER", "vrt.cif1.ebn0ber",
+            FT_BOOLEAN, 8,
+            NULL, 0x10,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_threshold,
+            { "Threshold", "vrt.cif1.threshold",
+            FT_BOOLEAN, 8,
+            NULL, 0x08,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_compression_pt,
+            { "Compression point", "vrt.cif1.compressionpt",
+            FT_BOOLEAN, 8,
+            NULL, 0x04,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_2nd_3rd_ord_intercept,
+            { "2nd and 3rd order intercept points", "vrt.cif1.2nd3rdordintercept",
+            FT_BOOLEAN, 8,
+            NULL, 0x02,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_snr_noise_figure,
+            { "SNR/noise figure", "vrt.cif1.snrnoisefigure",
             FT_BOOLEAN, 8,
             NULL, 0x01,
             NULL, HFILL }
@@ -1382,10 +1599,52 @@ proto_register_vrt(void)
             NULL, 0x80,
             NULL, HFILL }
         },
+        { &hf_vrt_cif1_aux_gain,
+            { "Aux gain", "vrt.cif1.auxgain",
+            FT_BOOLEAN, 8,
+            NULL, 0x40,
+            NULL, HFILL }
+        },
         { &hf_vrt_cif1_aux_bandwidth,
             { "Aux bandwidth", "vrt.cif1.auxbw",
             FT_BOOLEAN, 8,
             NULL, 0x20,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_oct_3_b4,
+            { "Spare", "vrt.cif1.oct3.b4.spare",
+            FT_BOOLEAN, 8,
+            NULL, 0x10,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_array_cifs,
+            { "Array of CIFs", "vrt.cif1.arraycifs",
+            FT_BOOLEAN, 8,
+            NULL, 0x08,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_spectrum,
+            { "Spectrum", "vrt.cif1.spectrum",
+            FT_BOOLEAN, 8,
+            NULL, 0x04,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_sector_scan_step,
+            { "Sector scan/step", "vrt.cif1.sectorscanstep",
+            FT_BOOLEAN, 8,
+            NULL, 0x02,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_oct_2_b0,
+            { "Spare", "vrt.cif1.oct2.b0.spare",
+            FT_BOOLEAN, 8,
+            NULL, 0x01,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_index_list,
+            { "Index list", "vrt.cif1.indexlist",
+            FT_BOOLEAN, 8,
+            NULL, 0x80,
             NULL, HFILL }
         },
         { &hf_vrt_cif1_io32,
@@ -1400,6 +1659,12 @@ proto_register_vrt(void)
             NULL, 0x20,
             NULL, HFILL }
         },
+        { &hf_vrt_cif1_health_status,
+            { "Health status", "vrt.cif1.healthstatus",
+            FT_BOOLEAN, 8,
+            NULL, 0x10,
+            NULL, HFILL }
+        },
         { &hf_vrt_cif1_v49_spec,
             { "V49 spec compliance", "vrt.cif1.v49spec",
             FT_BOOLEAN, 8,
@@ -1410,6 +1675,18 @@ proto_register_vrt(void)
             { "Version and build code", "vrt.cif1.ver",
             FT_BOOLEAN, 8,
             NULL, 0x04,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_buffer_size,
+            { "Buffer size", "vrt.cif1.buffersize",
+            FT_BOOLEAN, 8,
+            NULL, 0x02,
+            NULL, HFILL }
+        },
+        { &hf_vrt_cif1_oct_4_b0,
+            { "Spare", "vrt.cif1.oct2.b0.spare",
+            FT_BOOLEAN, 8,
+            NULL, 0x01,
             NULL, HFILL }
         },
         { &hf_vrt_cif[1],
@@ -2172,6 +2449,72 @@ proto_register_vrt(void)
             { "Aux bandwidth", "vrt.context.auxbw",
             FT_INT64, BASE_CUSTOM,
             CF_FUNC(format_hertz), 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_spectrum_type,
+            { "Spectrum type", "vrt.context.spectrum.spectrum_type",
+            FT_UINT32, BASE_HEX,
+            NULL, 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_window_type,
+            { "Window type", "vrt.context.spectrum.window_type",
+            FT_UINT32, BASE_HEX,
+            NULL, 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_num_transform_points,
+            { "Num transform points", "vrt.context.spectrum.num_transform_points",
+            FT_UINT32, BASE_DEC,
+            NULL, 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_num_window_points,
+            { "Num window points", "vrt.context.spectrum.num_window_points",
+            FT_UINT32, BASE_DEC,
+            NULL, 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_resolution,
+            { "Resolution", "vrt.context.spectrum.resolution",
+            FT_INT64, BASE_CUSTOM,
+            CF_FUNC(format_hertz), 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_span,
+            { "Span", "vrt.context.spectrum.span",
+            FT_INT64, BASE_CUSTOM,
+            CF_FUNC(format_hertz), 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_num_averages,
+            { "Num averages", "vrt.context.spectrum.num_averages",
+            FT_UINT32, BASE_DEC,
+            NULL, 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_weighting_factor,
+            { "Weighting factor", "vrt.context.spectrum.weighting_factor",
+            FT_UINT32, BASE_DEC,
+            NULL, 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_spectrum_f1_index,
+            { "F1 index", "vrt.context.spectrum.spectrum_f1_index",
+            FT_INT32, BASE_DEC,
+            NULL, 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_spectrum_f2_index,
+            { "F2 index", "vrt.context.spectrum.spectrum_f2_index",
+            FT_INT32, BASE_DEC,
+            NULL, 0x00,
+            NULL, HFILL }
+        },
+        { &hf_vrt_context_spectrum_window_time_delta,
+            { "Window time-delta", "vrt.context.spectrum.window_time_delta",
+            FT_UINT32, BASE_DEC,
+            NULL, 0x00,
             NULL, HFILL }
         },
         { &hf_vrt_context_io32,

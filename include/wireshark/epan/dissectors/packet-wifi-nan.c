@@ -10,6 +10,8 @@
 #include <config.h>
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-ieee80211.h"
 
 #include <wsutil/str_util.h>
@@ -1020,7 +1022,7 @@ dissect_attr_cluster(proto_tree* attr_tree, tvbuff_t* tvb, int offset, uint16_t 
     proto_tree_add_item(anchor_master_tree, hf_nan_attr_cluster_hop_count, tvb,
         offset + 11, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(anchor_master_tree, hf_nan_attr_cluster_beacon_transmission_time, tvb,
-        offset + 12, 4, ENC_BIG_ENDIAN);
+        offset + 12, 4, ENC_LITTLE_ENDIAN);
 }
 
 static void
@@ -1695,7 +1697,7 @@ dissect_attr_availability(proto_tree* attr_tree, tvbuff_t* tvb, int offset, uint
         uint8_t hdr_len = 2;
         uint32_t time_bitmap_len = 0;
         uint64_t avail_entry;
-        const char* entry_type_msg = val_to_str(entry_type, availability_entry_type,
+        const char* entry_type_msg = val_to_str(pinfo->pool, entry_type, availability_entry_type,
             "Unknown type (%u)");
         char* info_msg = wmem_strconcat(pinfo->pool, "Availability Type : ", entry_type_msg, NULL);
         proto_tree* entry_tree = proto_tree_add_subtree(attr_tree, tvb, offset, entry_len + 2,
@@ -1734,7 +1736,7 @@ dissect_attr_availability(proto_tree* attr_tree, tvbuff_t* tvb, int offset, uint
             tvb, offset * 8 + 4, 4, &num_entries, ENC_LITTLE_ENDIAN);
 
         offset += 1;
-        for (uint8_t i = 0; i < num_entries; i++)
+        for (uint64_t i = 0; i < num_entries; i++)
         {
             switch (entries_type) {
             case 0:
@@ -1794,7 +1796,7 @@ dissect_attr_availability(proto_tree* attr_tree, tvbuff_t* tvb, int offset, uint
                 else
                 {
                     /* This is the new and standard rules for mapping channels for 6G channels introduced in NAN R4.
-                     * Some vendors may have already implemetned a different approach to support NAN 6G before
+                     * Some vendors may have already implemented a different approach to support NAN 6G before
                      * the introduction of standard 6G NAN operation. And hence, in this case, the availability
                      * may not be correct. */
                     uint8_t start_ch_number = bitmap & 0xff;
@@ -2212,7 +2214,7 @@ dissect_attr_element_container(proto_tree* attr_tree, tvbuff_t* tvb, int offset,
     {
         unsigned element_id = tvb_get_uint8(tvb, sub_offset);
         unsigned element_len = tvb_get_uint8(tvb, sub_offset + 1);
-        const char* msg = val_to_str(element_id, ie_tag_num_vals, "Unknown element ID (%u)");
+        const char* msg = val_to_str(pinfo->pool, element_id, ie_tag_num_vals, "Unknown element ID (%u)");
 
         sub_tree = proto_tree_add_subtree(attr_tree, tvb, sub_offset, element_len + 2, ett_ie_tree, NULL, msg);
         proto_tree_add_item(sub_tree, hf_nan_attr_container_element_id, tvb, sub_offset, 1, ENC_BIG_ENDIAN);
@@ -2223,7 +2225,7 @@ dissect_attr_element_container(proto_tree* attr_tree, tvbuff_t* tvb, int offset,
         ieee80211_tagged_field_data_t field_data = { 0 };
         tvbuff_t* ie_tvb = tvb_new_subset_length(tvb, sub_offset, element_len);
         field_data.item_tag = sub_tree;
-        dissector_try_uint_new(ie_handle_table, element_id, ie_tvb, pinfo, sub_tree, true, &field_data);
+        dissector_try_uint_with_data(ie_handle_table, element_id, ie_tvb, pinfo, sub_tree, true, &field_data);
         sub_offset += element_len;
         dissected_length += element_len + 2;
     }
@@ -2492,7 +2494,7 @@ dissect_attr_vendor_specific(proto_tree* attr_tree, tvbuff_t* tvb, int offset, u
     tvbuff_t* ie_tvb = tvb_new_subset_length(tvb, sub_offset, -1);
     ieee80211_tagged_field_data_t field_data = { 0 };
     field_data.item_tag = attr_tree;
-    dissector_try_uint_new(ie_handle_table, TAG_VENDOR_SPECIFIC_IE, ie_tvb, pinfo, attr_tree, true, &field_data);
+    dissector_try_uint_with_data(ie_handle_table, TAG_VENDOR_SPECIFIC_IE, ie_tvb, pinfo, attr_tree, true, &field_data);
 }
 
 static void
@@ -2671,7 +2673,7 @@ find_attribute_field(proto_tree* nan_tree, tvbuff_t* tvb, unsigned tvb_len, unsi
     }
 
     proto_tree* attr_tree = proto_tree_add_subtree(nan_tree, tvb, *offset, attr_len + 3,
-        ett_attributes, NULL, val_to_str(attr_id, attribute_types, "Unknown attribute ID (%u)"));
+        ett_attributes, NULL, val_to_str(pinfo->pool, attr_id, attribute_types, "Unknown attribute ID (%u)"));
 
     proto_tree_add_item(attr_tree, hf_nan_attribute_type, tvb, *offset, 1, ENC_NA);
     proto_tree_add_item(attr_tree, hf_nan_attribute_len, tvb, *offset + 1, 2, ENC_LITTLE_ENDIAN);
@@ -2823,23 +2825,17 @@ dissect_nan_beacon(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* da
     // we can just fetch the Info column string and, if it's present, extract
     // that value.
     //
-    // An interval of 100, meaning .1024 seconds, means it's a Discovery
-    // beacon, and an interval of 512, meaning .524288 seconds, means
-    // it's a Sync beacon.
+    // An interval of 512, meaning .524288 seconds, means
+    // it's a Sync beacon. Otherwise, it's a Discovery Beacon.
     //
     const char* info_text = col_get_text(pinfo->cinfo, COL_INFO);
-    if (info_text != NULL && g_str_has_suffix(info_text, "100"))
-    {
-        col_prepend_fstr(pinfo->cinfo, COL_INFO, "Discovery ");
-    }
-    else if (info_text != NULL && g_str_has_suffix(info_text, "512"))
+    if (info_text != NULL && g_str_has_suffix(info_text, "512"))
     {
         col_prepend_fstr(pinfo->cinfo, COL_INFO, "Sync ");
     }
     else
     {
-        expert_add_info(pinfo, tree, &ei_nan_unknown_beacon_type);
-        col_prepend_fstr(pinfo->cinfo, COL_INFO, "[Unknown] ");
+        col_prepend_fstr(pinfo->cinfo, COL_INFO, "Discovery ");
     }
 
     proto_item* ti = proto_tree_add_item(tree, proto_nan, tvb, 0, -1, ENC_NA);
@@ -2865,7 +2861,7 @@ dissect_nan_action(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* da
     proto_tree* nan_tree = proto_item_add_subtree(ti, ett_nan);
 
     uint8_t subtype = tvb_get_uint8(tvb, offset);
-    const char* subtype_text = rval_to_str(subtype, action_frame_type_values, "Unknown type (%u)");
+    const char* subtype_text = rval_to_str_wmem(pinfo->pool, subtype, action_frame_type_values, "Unknown type (%u)");
     proto_item_set_text(ti, "%s", subtype_text);
     proto_tree_add_item(nan_tree, hf_nan_action_subtype, tvb, offset, 1, ENC_BIG_ENDIAN);
 

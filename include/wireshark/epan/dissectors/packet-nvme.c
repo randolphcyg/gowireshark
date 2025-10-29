@@ -599,6 +599,7 @@ static int hf_nvme_get_logpage_sanitize_etond;
 static int hf_nvme_get_logpage_sanitize_etbend;
 static int hf_nvme_get_logpage_sanitize_etcend;
 static int hf_nvme_get_logpage_sanitize_rsvd;
+static int hf_nvme_get_logpage_disc_rcrd_eflags[4];
 
 /* NVMe CQE fields */
 static int hf_nvme_cqe_dword0;
@@ -1370,7 +1371,7 @@ dissect_nvme_rwc_common_word_10_11_12_14_15(tvbuff_t *cmd_tvb, proto_tree *cmd_t
                         50, 2, ENC_LITTLE_ENDIAN);
 
     ti = proto_tree_add_item(cmd_tree, hf_nvme_cmd_prinfo, cmd_tvb, 50,
-                             1, ENC_NA);
+                             2, ENC_LITTLE_ENDIAN);
     prinfo_tree = proto_item_add_subtree(ti, ett_data);
 
     proto_tree_add_item(prinfo_tree, hf_nvme_cmd_prinfo_prchk_lbrtag, cmd_tvb,
@@ -2277,8 +2278,9 @@ static const value_string adrfam_type_tbl[] = {
 
 static const value_string sub_type_tbl[] = {
     { 0, "Reserved" },
-    { 1, "Referreal to another Discovery Service" },
-    { 2, "NVM System with IO controllers" },
+    { 1, "Referral to another Discovery Subsystem" },
+    { 2, "NVM subsystem with IO controllers" },
+    { 3, "Current Discovery Subsystem" },
     { 0, NULL }
 };
 
@@ -2313,10 +2315,13 @@ static void dissect_nvme_get_logpage_ify_rcrd_resp(tvbuff_t *cmd_tvb, proto_tree
     if (roff <= 8 && (10-roff) <= len)
         proto_tree_add_item(grp, hf_nvme_get_logpage_ify_rcrd_asqsz, cmd_tvb, off-roff+8, 2, ENC_LITTLE_ENDIAN);
 
-    if (roff <= 10 && (32-roff) <= len)
-        proto_tree_add_item(grp, hf_nvme_get_logpage_ify_rcrd_rsvd0, cmd_tvb, off-roff+10, 22, ENC_NA);
+    if (roff <= 10 && (12-roff) <= len)
+        add_group_mask_entry(cmd_tvb, grp, off-roff+10, 2, ASPEC(hf_nvme_get_logpage_disc_rcrd_eflags));
 
-    if (roff <= 32 && (62-roff) <= len)
+    if (roff <= 12 && (32-roff) <= len)
+        proto_tree_add_item(grp, hf_nvme_get_logpage_ify_rcrd_rsvd0, cmd_tvb, off-roff+12, 20, ENC_NA);
+
+    if (roff <= 32 && (64-roff) <= len)
         proto_tree_add_item(grp, hf_nvme_get_logpage_ify_rcrd_trsvcid, cmd_tvb, off-roff+32, 32, ENC_ASCII);
 
     if (roff <= 64 && (256-roff) <= len)
@@ -2344,7 +2349,7 @@ static void dissect_nvme_get_logpage_ify_resp(proto_item *ti, tvbuff_t *cmd_tvb,
     unsigned poff;
     unsigned roff;
     unsigned max_bytes;
-    uint64_t rcrd;
+    uint64_t rcrd, rcrd_ctr = 0;
     uint64_t recnum = 0;
 
     grp =  proto_item_add_subtree(ti, ett_data);
@@ -2386,16 +2391,18 @@ static void dissect_nvme_get_logpage_ify_resp(proto_item *ti, tvbuff_t *cmd_tvb,
     poff += max_bytes;
     len -= max_bytes;
     rcrd++;
+    rcrd_ctr++;
 
     if (!recnum)
         recnum = (len  + 1023) / 1024;
 
-    while (len && rcrd < recnum) {
+    while (len && rcrd_ctr <= recnum) {
         max_bytes = (len >= 1024) ? 1024 : len;
         dissect_nvme_get_logpage_ify_rcrd_resp(cmd_tvb, grp, rcrd, 0, poff, len);
         poff += max_bytes;
         len -= max_bytes;
         rcrd++;
+        rcrd_ctr++;
     }
 }
 
@@ -2428,7 +2435,7 @@ static void dissect_nvme_get_logpage_err_inf_resp(proto_item *ti, tvbuff_t *cmd_
     if (off <= 29 && (30-off) <= len)
         proto_tree_add_item(grp, hf_nvme_get_logpage_errinf_trtype, cmd_tvb, 29-off, 1, ENC_LITTLE_ENDIAN);
     if (off <= 30 && (32-off) <= len)
-        proto_tree_add_item(grp, hf_nvme_get_logpage_errinf_rsvd0, cmd_tvb, 30-off, 2, ENC_NA);
+        proto_tree_add_item(grp, hf_nvme_get_logpage_errinf_rsvd0, cmd_tvb, 30-off, 2, ENC_LITTLE_ENDIAN);
     if (off <= 32 && (40-off) <= len)
         proto_tree_add_item(grp, hf_nvme_get_logpage_errinf_csi, cmd_tvb, 32-off, 8, ENC_LITTLE_ENDIAN);
     if (off <= 40 && (42-off) <= len)
@@ -2612,7 +2619,7 @@ static void dissect_nvme_get_logpage_fw_slot_resp(proto_item *ti, tvbuff_t *cmd_
     if (!off && len > 1)
         add_group_mask_entry(cmd_tvb, grp, 0, 1, ASPEC(hf_nvme_get_logpage_fw_slot_afi));
     if (off <= 1 && (8-off) <= len)
-        proto_tree_add_item(grp, hf_nvme_get_logpage_fw_slot_rsvd0,  cmd_tvb, 1-off, 7, ENC_NA);
+        proto_tree_add_item(grp, hf_nvme_get_logpage_fw_slot_rsvd0,  cmd_tvb, 1-off, 7, ENC_LITTLE_ENDIAN);
 
     decode_fw_slot_frs(grp, cmd_tvb, off, len);
 
@@ -4034,12 +4041,12 @@ dissect_nvmeof_fabric_connect_cmd_data(tvbuff_t *data_tvb, proto_tree *data_tree
     if (off <= 256) {
         CHECK_STOP_PARSE(256, 256);
         proto_tree_add_item(data_tree, hf_nvmeof_cmd_connect_data_subnqn, data_tvb,
-                            pkt_off + 256 - off, 256, ENC_ASCII | ENC_NA);
+                            pkt_off + 256 - off, 256, ENC_ASCII);
     }
     if (off <= 512) {
         CHECK_STOP_PARSE(512, 256);
         proto_tree_add_item(data_tree, hf_nvmeof_cmd_connect_data_hostnqn, data_tvb,
-                            pkt_off + 512 - off, 256, ENC_ASCII | ENC_NA);
+                            pkt_off + 512 - off, 256, ENC_ASCII);
     }
     if (off <= 768) {
         CHECK_STOP_PARSE(768, 256);
@@ -5039,7 +5046,7 @@ proto_register_nvme(void)
         { &hf_nvme_cmd_prinfo,
             { "Protection info fields",
               "nvme.cmd.prinfo",
-               FT_UINT16, BASE_HEX, NULL, 0x0400, NULL, HFILL}
+               FT_UINT16, BASE_HEX, NULL, 0x3c00, NULL, HFILL}
         },
         { &hf_nvme_cmd_prinfo_prchk_lbrtag,
             { "check Logical block reference tag",
@@ -7039,6 +7046,23 @@ proto_register_nvme(void)
             { "Admin Max SQ Size (ASQSZ)", "nvme.cmd.get_logpage.identify.rcrd.asqsz",
                FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL}
         },
+        { &hf_nvme_get_logpage_disc_rcrd_eflags[0],
+            { "Entry flags (EFLAGS)", "nvme.cmd.get_logpage.discovery.rcrd.eflags",
+                FT_UINT16, BASE_HEX, NULL, 0x0, NULL, HFILL}
+        },
+        { &hf_nvme_get_logpage_disc_rcrd_eflags[1],
+            { "Duplicate Returned Information (DUPRETINFO)", "nvme.cmd.get_logpage.discovery.rcrd.eflags.dupretinfo",
+                FT_BOOLEAN, 16, NULL, 0x1, NULL, HFILL}
+        },
+        { &hf_nvme_get_logpage_disc_rcrd_eflags[2],
+            { "Explicit Persistent Connection Support for Discovery (EPCSD)",
+                "nvme.cmd.get_logpage.discovery.rcrd.eflags.epcsd",
+                FT_BOOLEAN, 16, NULL, 0x2, NULL, HFILL}
+        },
+        { &hf_nvme_get_logpage_disc_rcrd_eflags[3],
+            { "Reserved", "nvme.cmd.get_logpage.discovery.rcrd.eflags.rsvd0",
+                FT_UINT16, BASE_HEX, NULL, 0xfffc, NULL, HFILL}
+        },
         { &hf_nvme_get_logpage_ify_rcrd_rsvd0,
             { "Reserved", "nvme.cmd.get_logpage.identify.rcrd.rsvd0",
                FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL}
@@ -8471,7 +8495,7 @@ proto_register_nvme(void)
                FT_UINT16, BASE_HEX, NULL, 0x3000, NULL, HFILL}
         },
         { &hf_nvme_cqe_status[5],
-            { "More Infornation in Log Page", "nvme.cqe.status.m",
+            { "More Information in Log Page", "nvme.cqe.status.m",
                FT_BOOLEAN, 16, NULL, 0x4000, NULL, HFILL}
         },
         { &hf_nvme_cqe_status[6],

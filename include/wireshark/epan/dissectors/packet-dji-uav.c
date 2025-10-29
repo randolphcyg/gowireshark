@@ -175,7 +175,7 @@ dissect_djiuav_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *da
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, PROTO_SHORT_NAME);
 	col_add_str(pinfo->cinfo, COL_INFO, is_cmd?"C: ":"R: ");
-	col_append_str(pinfo->cinfo, COL_INFO, val_to_str(packet_type,
+	col_append_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, packet_type,
 			djiuav_pdu_type, "Type 0x%02x"));
 
 	ti = proto_tree_add_item(tree, proto_djiuav, tvb, offset, -1, ENC_NA);
@@ -338,12 +338,12 @@ proto_register_djiuav(void)
 
 	/* Request - Response tracking */
 		{ &hf_djiuav_response_in,
-		{ "Response In", "djiuav.response_in", FT_FRAMENUM, BASE_NONE, NULL,
+		{ "Response In", "djiuav.response_in", FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE),
 			0x0, "Matching response in frame", HFILL }},
 
 		{ &hf_djiuav_response_to,
 		{ "Request In", "djiuav.response_to",
-			FT_FRAMENUM, BASE_NONE, NULL,
+			FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST),
 			0x0, "Matching command in frame", HFILL }},
 
 		{ &hf_djiuav_response_time,

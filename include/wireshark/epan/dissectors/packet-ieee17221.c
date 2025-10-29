@@ -21,6 +21,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <wsutil/array.h>
 
 void proto_register_17221(void);
 void proto_reg_handoff_17221(void);
@@ -34,7 +35,7 @@ static dissector_handle_t avb17221_handle;
 #define ADP_CD_OFFSET                       0
 #define ADP_VERSION_OFFSET                  1
 #define ADP_VALID_TIME_OFFSET               2
-#define ADP_CD_LENGTH_OFFSET                3
+#define ADP_CD_LENGTH_OFFSET                2
 #define ADP_ENTITY_ID_OFFSET                4
 #define ADP_ENTITY_MODEL_ID_OFFSET          P1722_HEADER_OFFSET+0
 #define ADP_ENTITY_CAP_OFFSET               P1722_HEADER_OFFSET+8
@@ -1297,7 +1298,7 @@ static dissector_handle_t avb17221_handle;
 #define AECP_SIGNATURE_ID_MASK                  0x0fff
 #define AECP_SIGNATURE_INFO_MASK                0x00f0
 #define AECP_SIGNATURE_LENGTH_MASK              0x3ff
-#define AECP_UNLOCK_FLAG_MASK                   0x00000001
+#define AECP_UNLOCK_FLAG_MASK                   0x01
 #define AECP_U_FLAG_MASK                        0x80
 #define AECP_MSRP_MAPPINGS_COUNT_MASK           0x00
 #define AECP_AS_CAPABLE_FLAG_MASK               0x01
@@ -1365,14 +1366,14 @@ static dissector_handle_t avb17221_handle;
 #define AECP_COUNTERS_VALID_ENTITY_SPECIFIC_2      0x40000000
 #define AECP_COUNTERS_VALID_ENTITY_SPECIFIC_1      0x80000000
 
-#define AEM_CLOCK_SYNC_SOURCE_FLAG_MASK         0x00000001
-#define AEM_ASYNC_SAMPLE_RATE_CONV_FLAG_MASK    0x00000002
-#define AEM_SYNC_SAMPLE_RATE_CONV_FLAG_MASK     0x00000004
+#define AEM_CLOCK_SYNC_SOURCE_FLAG_MASK         0x0001
+#define AEM_ASYNC_SAMPLE_RATE_CONV_FLAG_MASK    0x0002
+#define AEM_SYNC_SAMPLE_RATE_CONV_FLAG_MASK     0x0004
 
 #define AEM_BASE_FREQUENCY_MASK                 0x1fffffff
-#define AEM_CAPTIVE_FLAG_MASK                   0x00000002
-#define AEM_CLASS_A_FLAG_MASK                   0x00000002
-#define AEM_CLASS_B_FLAG_MASK                   0x00000004
+#define AEM_CAPTIVE_FLAG_MASK                   0x0002
+#define AEM_CLASS_A_FLAG_MASK                   0x0002
+#define AEM_CLASS_B_FLAG_MASK                   0x0004
 
 #define AEM_MASK_B                              0x80
 #define AEM_MASK_BPP                            0x3F
@@ -4554,7 +4555,7 @@ dissect_17221_aecp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *aecp_tree)
       next_tvb = tvb_new_subset_remaining(tvb, AECP_VUC_OFFSET_PROTOCOL_ID);
       vendor_unique_protocol_id = tvb_get_uint48(tvb, AECP_VUC_OFFSET_PROTOCOL_ID, ENC_BIG_ENDIAN);
       vendor_unique_protocol_id_string = wmem_strdup_printf(pinfo->pool, "%012" PRIx64, vendor_unique_protocol_id);
-      dissector_try_string(vendor_unique_protocol_dissector_table, vendor_unique_protocol_id_string, next_tvb, pinfo, aecp_tree, NULL);
+      dissector_try_string_with_data(vendor_unique_protocol_dissector_table, vendor_unique_protocol_id_string, next_tvb, pinfo, aecp_tree, true, NULL);
     }
 }
 
@@ -4574,7 +4575,7 @@ dissect_17221_adp(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *adp_tree)
 
    proto_tree_add_item(adp_tree, hf_adp_message_type, tvb, ADP_VERSION_OFFSET, 1, ENC_BIG_ENDIAN);
    proto_tree_add_item(adp_tree, hf_adp_valid_time, tvb, ADP_VALID_TIME_OFFSET, 1, ENC_BIG_ENDIAN);
-   proto_tree_add_item(adp_tree, hf_adp_cd_length, tvb, ADP_CD_LENGTH_OFFSET, 1, ENC_BIG_ENDIAN);
+   proto_tree_add_item(adp_tree, hf_adp_cd_length, tvb, ADP_CD_LENGTH_OFFSET, 2, ENC_BIG_ENDIAN);
    proto_tree_add_item(adp_tree, hf_adp_entity_id, tvb, ADP_ENTITY_ID_OFFSET, 8, ENC_BIG_ENDIAN);
    proto_tree_add_item(adp_tree, hf_adp_entity_model_id, tvb, ADP_ENTITY_MODEL_ID_OFFSET, 8, ENC_BIG_ENDIAN);
 

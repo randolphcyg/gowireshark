@@ -341,7 +341,7 @@ camelstat_init(struct register_srt* srt _U_, GArray* srt_array)
   camel_srt_table = init_srt_table("CAMEL Commands", NULL, srt_array, NB_CAMELSRT_CATEGORY, NULL, NULL, NULL);
   for (i = 0; i < NB_CAMELSRT_CATEGORY; i++)
   {
-    tmp_str = val_to_str_wmem(NULL,i,camelSRTtype_naming,"Unknown (%d)");
+    tmp_str = val_to_str(NULL,i,camelSRTtype_naming,"Unknown (%d)");
     init_srt_table_row(camel_srt_table, i, tmp_str);
     wmem_free(NULL, tmp_str);
   }
@@ -1075,7 +1075,7 @@ dissect_camel_camelPDU(bool implicit_tag _U_, tvbuff_t *tvb, int offset, asn1_ct
     camel_pdu_size = tvb_get_uint8(tvb, offset+1)+2;
 
     /* Populate the info column with PDU type*/
-    col_add_str(actx->pinfo->cinfo, COL_INFO, val_to_str(camel_pdu_type, camel_Component_vals, "Unknown Camel (%u)"));
+    col_add_str(actx->pinfo->cinfo, COL_INFO, val_to_str(actx->pinfo->pool, camel_pdu_type, camel_Component_vals, "Unknown Camel (%u)"));
     col_append_str(actx->pinfo->cinfo, COL_INFO, " ");
 
     is_ExtensionField =false;
@@ -1397,13 +1397,13 @@ void proto_register_camel(void) {
     { &hf_camelsrt_RequestFrame,
       { "Requested Frame",
         "camel.srt.reqframe",
-        FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+        FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0,
         "SRT Request Frame", HFILL }
     },
     { &hf_camelsrt_ResponseFrame,
       { "Response Frame",
         "camel.srt.rspframe",
-        FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+        FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
         "SRT Response Frame", HFILL }
     },
     //{ &hf_camelsrt_DeltaTime,
@@ -1502,7 +1502,7 @@ void proto_register_camel(void) {
   static ei_register_info ei[] = {
      { &ei_camel_unknown_invokeData, { "camel.unknown.invokeData", PI_MALFORMED, PI_WARN, "Unknown invokeData", EXPFILL }},
      { &ei_camel_unknown_returnResultData, { "camel.unknown.returnResultData", PI_MALFORMED, PI_WARN, "Unknown returnResultData", EXPFILL }},
-     { &ei_camel_unknown_returnErrorData, { "camel.unknown.returnErrorData", PI_MALFORMED, PI_WARN, "Unknown returnResultData", EXPFILL }},
+     { &ei_camel_unknown_returnErrorData, { "camel.unknown.returnErrorData", PI_MALFORMED, PI_WARN, "Unknown returnErrorData", EXPFILL }},
      { &ei_camel_par_wrong_length, { "camel.par_wrong_length", PI_PROTOCOL, PI_ERROR, "Wrong length of parameter", EXPFILL }},
      { &ei_camel_bcd_not_digit, { "camel.bcd_not_digit", PI_MALFORMED, PI_WARN, "BCD number contains a value that is not a digit", EXPFILL }},
   };
@@ -1589,6 +1589,8 @@ void proto_register_camel(void) {
 
   register_srt_table(proto_camel, PSNAME, 1, camelstat_packet, camelstat_init, NULL);
   register_stat_tap_table_ui(&camel_stat_table);
+
+  register_external_value_string("camelSRTtype_naming", camelSRTtype_naming);
 }
 
 /*

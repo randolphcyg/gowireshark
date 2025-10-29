@@ -58,7 +58,6 @@ void clear_outstanding_FuncSavers(void) {
     }
 }
 
-
 WSLUA_CLASS_DEFINE(Proto,FAIL_ON_NULL("Proto"));
 /*
   A new protocol in Wireshark.
@@ -423,7 +422,9 @@ WSLUA_ATTRIBUTE_STRING_GETTER(Proto,name);
 /* WSLUA_ATTRIBUTE Proto_description RO The description given to this dissector. */
 WSLUA_ATTRIBUTE_NAMED_STRING_GETTER(Proto,description,desc);
 
-/* WSLUA_ATTRIBUTE Proto_fields RW The `ProtoField`++'++s Lua table of this dissector. */
+/* WSLUA_ATTRIBUTE Proto_fields RW The Lua table of this dissector's ``ProtoField``s.
+   ``ProtoField``s added to this table are registered to the `Proto` (and any
+   removed are deregistered if previously registered.) */
 static int Proto_get_fields(lua_State* L) {
     Proto proto = checkProto(L,1);
     lua_rawgeti(L, LUA_REGISTRYINDEX, proto->fields);
@@ -1019,7 +1020,7 @@ WSLUA_FUNCTION wslua_dissect_tcp_pdus(lua_State* L) {
        determined from a fixed minimum portion, such as HTTP or Telnet.
      */
 #define WSLUA_ARG_dissect_tcp_pdus_TVB 1 /* The Tvb buffer to dissect PDUs from. */
-#define WSLUA_ARG_dissect_tcp_pdus_TREE 2 /* The Tvb buffer to dissect PDUs from. */
+#define WSLUA_ARG_dissect_tcp_pdus_TREE 2 /* `TreeItem` object passed to the `dissect_func`. */
 #define WSLUA_ARG_dissect_tcp_pdus_MIN_HEADER_SIZE 3 /* The number of bytes
                         in the fixed-length part of the PDU. */
 #define WSLUA_ARG_dissect_tcp_pdus_GET_LEN_FUNC 4 /* A Lua function that will be

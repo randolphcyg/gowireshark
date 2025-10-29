@@ -55,6 +55,7 @@
 #include <epan/oids.h>
 #include <epan/srt_table.h>
 #include <epan/tap.h>
+#include <epan/tfs.h>
 #include <wsutil/array.h>
 #include "packet-ipx.h"
 #include "packet-hpext.h"
@@ -1247,7 +1248,7 @@ already_added:
 
 
 set_label:
-	if (pi_value) proto_item_fill_label(PITEM_FINFO(pi_value), label);
+	if (pi_value) proto_item_fill_label(PITEM_FINFO(pi_value), label, NULL);
 
 	if (oid_info && oid_info->name) {
 		if (oid_left >= 1) {
@@ -3192,16 +3193,17 @@ snmp_find_conversation_and_get_conv_data(packet_info *pinfo) {
 	 * use find_conversation_full and separate the "SNMP conversation"
 	 * from "the transport layer conversation that carries SNMP."
 	 */
-	if (pinfo->destport == UDP_PORT_SNMP) {
-		conversation = find_conversation(pinfo->fd->num, &pinfo->src, &pinfo->dst, conversation_pt_to_conversation_type(pinfo->ptype),
-			pinfo->srcport, 0, NO_PORT_B);
-	} else if (pinfo->srcport == UDP_PORT_SNMP) {
-		conversation = find_conversation(pinfo->fd->num, &pinfo->dst, &pinfo->src, conversation_pt_to_conversation_type(pinfo->ptype),
-			pinfo->destport, 0, NO_PORT_B);
-	}
-	if ((conversation == NULL) || (conversation_get_dissector(conversation, pinfo->num) != snmp_handle)) {
-		conversation = find_or_create_conversation(pinfo);
-	}
+        if (pinfo->destport == UDP_PORT_SNMP) {
+                conversation = find_conversation_strat(pinfo, conversation_pt_to_conversation_type(pinfo->ptype), NO_PORT_B, 0);
+        } else {
+                conversation = find_conversation_strat(pinfo, conversation_pt_to_conversation_type(pinfo->ptype), NO_PORT_B, 1);
+        }
+        if ( (conversation == NULL) || (conversation_get_dissector(conversation, pinfo->num)!=snmp_handle) ) {
+                conversation = conversation_new_strat(pinfo, conversation_pt_to_conversation_type(pinfo->ptype), NO_PORT2);
+                conversation_set_dissector(conversation, snmp_handle);
+
+                conversation = conversation_new_strat(pinfo, CONVERSATION_SNMP, NO_PORT2);
+        }
 
 	snmp_info = (snmp_conv_info_t *)conversation_get_proto_data(conversation, proto_snmp);
 	if (snmp_info == NULL) {
@@ -3458,16 +3460,18 @@ dissect_snmp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 	 * wildcarded, and give it the SNMP dissector as a dissector.
 	 */
 
-	if (pinfo->destport == UDP_PORT_SNMP) {
-		conversation_t *conversation = find_conversation(pinfo->fd->num, &pinfo->src, &pinfo->dst, conversation_pt_to_conversation_type(pinfo->ptype),
-			pinfo->srcport, 0, NO_PORT_B);
+        if (pinfo->destport == UDP_PORT_SNMP) {
+                conversation_t *conversation = find_conversation_strat(pinfo, conversation_pt_to_conversation_type(pinfo->ptype), NO_PORT_B|NO_GREEDY, 0);
 
-		if( (conversation == NULL) || (conversation_get_dissector(conversation, pinfo->num)!=snmp_handle) ) {
-			conversation = conversation_new(pinfo->num, &pinfo->src, &pinfo->dst, conversation_pt_to_conversation_type(pinfo->ptype),
-				pinfo->srcport, 0, NO_PORT2);
-			conversation_set_dissector(conversation, snmp_handle);
-		}
-	}
+                if (conversation == NULL) {
+                        conversation = conversation_new_strat(pinfo, conversation_pt_to_conversation_type(pinfo->ptype), NO_PORT2);
+
+                        conversation_set_dissector(conversation, snmp_handle);
+                }
+                else if (conversation_get_dissector(conversation,pinfo->num)!=snmp_handle) {
+                        conversation_set_dissector(conversation, snmp_handle);
+                }
+        }
 
 	return dissect_snmp_pdu(tvb, 0, pinfo, tree, proto_snmp, ett_snmp, false);
 }
@@ -3613,10 +3617,10 @@ void proto_register_snmp(void) {
 	/* List of fields */
 	static hf_register_info hf[] = {
 		{ &hf_snmp_response_in,
-		{ "Response In", "snmp.response_in", FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+		{ "Response In", "snmp.response_in", FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0,
 			"The response to this SNMP request is in this frame", HFILL }},
 		{ &hf_snmp_response_to,
-		{ "Response To", "snmp.response_to", FT_FRAMENUM, BASE_NONE, NULL, 0x0,
+		{ "Response To", "snmp.response_to", FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0,
 			"This is a response to the SNMP request in this frame", HFILL }},
 		{ &hf_snmp_time,
 		{ "Time", "snmp.time", FT_RELATIVE_TIME, BASE_NONE, NULL, 0x0,
@@ -3763,7 +3767,7 @@ void proto_register_snmp(void) {
         FT_UINT32, BASE_DEC, VALS(snmp_T_datav2u_vals), 0,
         NULL, HFILL }},
     { &hf_snmp_v2u_plaintext,
-      { "plaintext", "snmp.plaintext",
+      { "plaintext", "snmp.v2u_plaintext",
         FT_UINT32, BASE_DEC, VALS(snmp_PDUs_vals), 0,
         "PDUs", HFILL }},
     { &hf_snmp_encrypted,
@@ -3895,7 +3899,7 @@ void proto_register_snmp(void) {
         FT_UINT32, BASE_DEC, NULL, 0,
         "VarBindList", HFILL }},
     { &hf_snmp_bulkPDU_request_id,
-      { "request-id", "snmp.request_id",
+      { "request-id", "snmp.bulkPDU_request_id",
         FT_INT32, BASE_DEC, NULL, 0,
         "Integer32", HFILL }},
     { &hf_snmp_non_repeaters,

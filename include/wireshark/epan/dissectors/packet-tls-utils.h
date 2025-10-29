@@ -20,6 +20,7 @@
 #include <epan/wmem_scopes.h>
 #include <epan/expert.h>
 #include <epan/conversation.h>
+#include <epan/tap.h>
 #include <epan/unit_strings.h>
 #include <wsutil/wsgcrypt.h>
 
@@ -67,7 +68,8 @@ typedef enum {
     SSL_HND_COMPRESSED_CERTIFICATE = 25,
     /* Encrypted Extensions was NextProtocol in draft-agl-tls-nextprotoneg-03
      * and changed in draft 04. Not to be confused with TLS 1.3 EE. */
-    SSL_HND_ENCRYPTED_EXTS         = 67
+    SSL_HND_ENCRYPTED_EXTS         = 67,
+    SSL_HND_MESSAGE_HASH           = 254
 } HandshakeType;
 
 #define SSL2_HND_ERROR                 0x00
@@ -137,7 +139,8 @@ typedef enum {
 #define SSL_HND_HELLO_EXT_GREASE_2A2A                   10794
 #define SSL_HND_HELLO_EXT_NPN                           13172 /* 0x3374 */
 #define SSL_HND_HELLO_EXT_GREASE_3A3A                   14906
-#define SSL_HND_HELLO_EXT_ALPS                          17513 /* draft-vvv-tls-alps-01, temporary value used in BoringSSL implementation */
+#define SSL_HND_HELLO_EXT_ALPS_OLD                      17513 /* draft-vvv-tls-alps-01, previous value used in BoringSSL implementation */
+#define SSL_HND_HELLO_EXT_ALPS                          17613 /* draft-vvv-tls-alps-01, current value used in BoringSSL implementation */
 #define SSL_HND_HELLO_EXT_GREASE_4A4A                   19018
 #define SSL_HND_HELLO_EXT_GREASE_5A5A                   23130
 #define SSL_HND_HELLO_EXT_GREASE_6A6A                   27242
@@ -152,6 +155,7 @@ typedef enum {
 #define SSL_HND_HELLO_EXT_GREASE_DADA                   56026
 #define SSL_HND_HELLO_EXT_GREASE_EAEA                   60138
 #define SSL_HND_HELLO_EXT_GREASE_FAFA                   64250
+#define SSL_HND_HELLO_EXT_ECH_OUTER_EXTENSIONS          64768 /* 0xfd00 draft-ietf-tls-esni-16 */
 #define SSL_HND_HELLO_EXT_ENCRYPTED_CLIENT_HELLO        65037 /* 0xfe0d draft-ietf-tls-esni-16 */
 #define SSL_HND_HELLO_EXT_RENEGOTIATION_INFO            65281 /* 0xFF01 */
 #define SSL_HND_HELLO_EXT_QUIC_TRANSPORT_PARAMETERS     65445 /* 0xffa5 draft-ietf-quic-tls-13 */
@@ -199,6 +203,8 @@ typedef enum {
 #define SSL_HND_QUIC_TP_GOOGLE_CONNECTION_OPTIONS           0x3128
 /* https://github.com/facebookincubator/mvfst/blob/master/quic/QuicConstants.h */
 #define SSL_HND_QUIC_TP_FACEBOOK_PARTIAL_RELIABILITY        0xFF00
+#define SSL_HND_QUIC_TP_VERSION_INFORMATION_DRAFT           0xff73db /* https://datatracker.ietf.org/doc/draft-ietf-quic-version-negotiation/13/ */
+#define SSL_HND_QUIC_TP_ADDRESS_DISCOVERY                   0x9f81a176 /* https://tools.ietf.org/html/draft-ietf-quic-address-discovery-00 */
 #define SSL_HND_QUIC_TP_MIN_ACK_DELAY_DRAFT_V1              0xFF03DE1A /* https://tools.ietf.org/html/draft-ietf-quic-ack-frequency-01 */
 #define SSL_HND_QUIC_TP_MIN_ACK_DELAY_DRAFT05               0xff04de1a /* https://tools.ietf.org/html/draft-ietf-quic-ack-frequency-04 / draft-05 */
 #define SSL_HND_QUIC_TP_MIN_ACK_DELAY                       0xff04de1b /* https://tools.ietf.org/html/draft-ietf-quic-ack-frequency-07 */
@@ -206,7 +212,10 @@ typedef enum {
 #define SSL_HND_QUIC_TP_ENABLE_MULTIPATH_DRAFT05            0x0f739bbc1b666d05 /* https://tools.ietf.org/html/draft-ietf-quic-multipath-05 */
 #define SSL_HND_QUIC_TP_ENABLE_MULTIPATH                    0x0f739bbc1b666d06 /* https://tools.ietf.org/html/draft-ietf-quic-multipath-06 */
 #define SSL_HND_QUIC_TP_INITIAL_MAX_PATHS                   0x0f739bbc1b666d07 /* https://tools.ietf.org/html/draft-ietf-quic-multipath-07 */
-#define SSL_HND_QUIC_TP_INITIAL_MAX_PATH_ID                 0x0f739bbc1b666d09 /* https://tools.ietf.org/html/draft-ietf-quic-multipath-09 */
+#define SSL_HND_QUIC_TP_INITIAL_MAX_PATH_ID_DRAFT09         0x0f739bbc1b666d09 /* https://tools.ietf.org/html/draft-ietf-quic-multipath-09 */
+#define SSL_HND_QUIC_TP_INITIAL_MAX_PATH_ID_DRAFT11         0x0f739bbc1b666d11 /* https://tools.ietf.org/html/draft-ietf-quic-multipath-11 */
+#define SSL_HND_QUIC_TP_INITIAL_MAX_PATH_ID_DRAFT12         0x0f739bbc1b666d0c /* https://tools.ietf.org/html/draft-ietf-quic-multipath-12 */
+#define SSL_HND_QUIC_TP_INITIAL_MAX_PATH_ID                 0x0f739bbc1b666d0d /* https://tools.ietf.org/html/draft-ietf-quic-multipath-13 */
 
 /*
  * Lookup tables
@@ -242,10 +251,12 @@ extern const value_string ssl_curve_types[];
 extern const value_string tls_hello_ext_server_name_type_vs[];
 extern const value_string tls_hello_ext_max_fragment_length[];
 extern const value_string tls_hello_ext_psk_ke_mode[];
+extern const value_string tls_hello_ext_trusted_ca_key_type[];
 extern const value_string tls13_key_update_request[];
 extern const value_string compress_certificate_algorithm_vals[];
 extern const val64_string quic_transport_parameter_id[];
 extern const range_string quic_version_vals[];
+extern const val64_string quic_address_discovery_vals[];
 extern const val64_string quic_enable_time_stamp_v2_vals[];
 extern const val64_string quic_enable_multipath_vals[];
 extern const value_string tls_hello_ext_ech_clienthello_types[];
@@ -431,8 +442,8 @@ typedef struct _SslRecordInfo {
     ContentType type;       /**< Content type of the decrypted record data. */
     SslFlow *flow;          /**< Flow where this record fragment is a part of.
                                  Can be NULL if this record type may not be fragmented. */
+    uint64_t record_seq;    /**< Implicit (TLS) or explicit (DTLS) record sequence number. */
     uint32_t seq;            /**< Data offset within the flow. */
-    uint16_t dtls13_seq_suffix;   /* < decrypted dtlsv1.3 record number suffix */
     struct _SslRecordInfo* next;
 } SslRecordInfo;
 
@@ -464,16 +475,26 @@ typedef struct _SslSession {
     int compression;
     uint16_t version;
     unsigned char tls13_draft_version;
+    unsigned char _client_random[32];
     int8_t client_cert_type;
     int8_t server_cert_type;
     uint32_t client_ccs_frame;
     uint32_t server_ccs_frame;
+    uint32_t first_ch_ech_frame;
+    StringInfo client_random;
+    bool ech;
+    bool hrr_ech_declined;
+    unsigned char ech_confirmation[8];
+    unsigned char hrr_ech_confirmation[8];
+    unsigned char first_ech_auth_tag[16];
 
     /* The address/proto/port of the server as determined from heuristics
      * (e.g. ClientHello) or set externally (via ssl_set_master_secret()). */
     address srv_addr;
     port_type srv_ptype;
     unsigned srv_port;
+
+    uint32_t stream;
 
     /* The Application layer protocol if known (for STARTTLS support) */
     dissector_handle_t   app_handle;
@@ -542,6 +563,7 @@ typedef struct _SslDecryptSession {
     StringInfo app_data_segment;
     SslSession session;
     bool       has_early_data;
+    StringInfo ech_transcript;
 
 } SslDecryptSession;
 
@@ -582,6 +604,8 @@ typedef struct {
     GHashTable *tls13_server_appdata;
     GHashTable *tls13_early_exporter;
     GHashTable *tls13_exporter;
+    GHashTable *ech_secret;
+    GHashTable *ech_config;
 
     /* The hash tables above store the static keylog file contents and secrets
      * from any DSB, not all of which may be used, in addition to any master
@@ -727,6 +751,7 @@ extern void
 ssl_change_cipher(SslDecryptSession *ssl_session, bool server);
 
 /** Try to decrypt an ssl record
+ @param allocator scope allocation of the decrypted data
  @param ssl ssl_session the store all the session data
  @param decoder the stream decoder to be used
  @param ct the content type of this ssl record
@@ -741,7 +766,7 @@ ssl_change_cipher(SslDecryptSession *ssl_session, bool server);
  @param outl the decrypted data len
  @return 0 on success */
 extern int
-ssl_decrypt_record(SslDecryptSession *ssl, SslDecoder *decoder, uint8_t ct, uint16_t record_version,
+ssl_decrypt_record(wmem_allocator_t* allocator, SslDecryptSession *ssl, SslDecoder *decoder, uint8_t ct, uint16_t record_version,
         bool ignore_mac_failed,
         const unsigned char *in, uint16_t inl, const unsigned char *cid, uint8_t cidl,
         StringInfo *comp_str, StringInfo *out_str, unsigned *outl);
@@ -765,7 +790,7 @@ tls_add_packet_info(int proto, packet_info *pinfo, uint8_t curr_layer_num_ssl);
 
 /* add to packet data a copy of the specified real data */
 extern void
-ssl_add_record_info(int proto, packet_info *pinfo, const unsigned char *data, int data_len, int record_id, SslFlow *flow, ContentType type, uint8_t curr_layer_num_ssl);
+ssl_add_record_info(int proto, packet_info *pinfo, const unsigned char *data, int data_len, int record_id, SslFlow *flow, ContentType type, uint8_t curr_layer_num_ssl, uint64_t record_seq);
 
 /* search in packet data for the specified id; return a newly created tvb for the associated data */
 extern tvbuff_t*
@@ -879,6 +904,10 @@ typedef struct ssl_common_dissect {
         int hs_ext_supported_group;
         int hs_ext_supported_groups;
         int hs_ext_supported_groups_len;
+        int hs_ext_ech_outer_ext;
+        int hs_ext_ech_outer_ext_len;
+        int hs_ech_confirm;
+        int hs_ech_confirm_compute;
         int hs_ext_heartbeat_mode;
         int hs_ext_len;
         int hs_ext_npn_str;
@@ -896,6 +925,9 @@ typedef struct ssl_common_dissect {
         int hs_ext_psk_identity_obfuscated_ticket_age;
         int hs_ext_psk_binders_length;
         int hs_ext_psk_binders;
+        int hs_ext_psk_binder;
+        int hs_ext_psk_binder_binder_length;
+        int hs_ext_psk_binder_binder;
         int hs_ext_psk_identity_selected;
         int hs_ext_session_ticket;
         int hs_ext_supported_versions_len;
@@ -912,6 +944,13 @@ typedef struct ssl_common_dissect {
         int hs_ext_type;
         int hs_ext_connection_id_length;
         int hs_ext_connection_id;
+        int hs_ext_trusted_ca_keys_len;
+        int hs_ext_trusted_ca_keys_list;
+        int hs_ext_trusted_ca_key;
+        int hs_ext_trusted_ca_key_type;
+        int hs_ext_trusted_ca_key_hash;
+        int hs_ext_trusted_ca_key_dname_len;
+        int hs_ext_trusted_ca_key_dname;
         int hs_sig_hash_alg;
         int hs_sig_hash_alg_len;
         int hs_sig_hash_algs;
@@ -1071,6 +1110,7 @@ typedef struct ssl_common_dissect {
         int hs_ext_quictp_parameter_cibir_encoding_length;
         int hs_ext_quictp_parameter_cibir_encoding_offset;
         int hs_ext_quictp_parameter_loss_bits;
+        int hs_ext_quictp_parameter_address_discovery;
         int hs_ext_quictp_parameter_enable_time_stamp_v2;
         int hs_ext_quictp_parameter_min_ack_delay;
         int hs_ext_quictp_parameter_google_user_agent_id;
@@ -1126,6 +1166,7 @@ typedef struct ssl_common_dissect {
         int ech_payload;
         int ech_confirmation;
         int ech_retry_configs;
+        int ech_padding_data;
 
         int hs_ext_alps_len;
         int hs_ext_alps_alpn_list;
@@ -1147,9 +1188,13 @@ typedef struct ssl_common_dissect {
         int hs_ext_key_share_ks;
         int hs_ext_pre_shared_key;
         int hs_ext_psk_identity;
+        int hs_ext_psk_binders;
+        int hs_ext_psk_binder;
         int hs_ext_server_name;
         int hs_ext_oid_filter;
         int hs_ext_quictp_parameter;
+        int hs_ext_trusted_ca_keys;
+        int hs_ext_trusted_ca_key;
         int hs_sig_hash_alg;
         int hs_sig_hash_algs;
         int urlhash;
@@ -1172,6 +1217,7 @@ typedef struct ssl_common_dissect {
         int ech_hpke_keyconfig;
         int ech_hpke_cipher_suites;
         int ech_hpke_cipher_suite;
+        int ech_decrypt;
         int hs_ext_token_binding_key_parameters;
 
         /* do not forget to update SSL_COMMON_ETT_LIST! */
@@ -1193,6 +1239,8 @@ typedef struct ssl_common_dissect {
         expert_field decompression_error;
 
         expert_field ech_echconfig_invalid_version;
+        expert_field ech_accepted;
+        expert_field ech_rejected;
 
         /* do not forget to update SSL_COMMON_EI_LIST! */
     } ei;
@@ -1274,12 +1322,12 @@ ssl_dissect_change_cipher_spec(ssl_common_dissect_t *hf, tvbuff_t *tvb,
                                bool is_from_server,
                                const SslDecryptSession *ssl);
 
-extern void
+extern int
 ssl_dissect_hnd_cli_hello(ssl_common_dissect_t *hf, tvbuff_t *tvb,
                           packet_info *pinfo, proto_tree *tree, uint32_t offset,
                           uint32_t offset_end, SslSession *session,
                           SslDecryptSession *ssl,
-                          dtls_hfs_t *dtls_hfs);
+                          dtls_hfs_t *dtls_hfs, ssl_master_key_map_t *mk_map);
 
 extern void
 ssl_dissect_hnd_srv_hello(ssl_common_dissect_t *hf, tvbuff_t *tvb, packet_info* pinfo,
@@ -1366,9 +1414,13 @@ ssl_dissect_hnd_compress_certificate(ssl_common_dissect_t *hf, tvbuff_t *tvb, pr
                                      uint32_t offset, uint32_t offset_end, packet_info *pinfo,
                                      SslSession *session _U_, SslDecryptSession *ssl _U_,
                                      bool is_from_server _U_, bool is_dtls _U_);
+
+extern tap_packet_status
+ssl_follow_tap_listener(void *tapdata, packet_info *pinfo, epan_dissect_t *edt _U_, const void *ssl, tap_flags_t flags _U_);
+
 /* {{{ */
 #define SSL_COMMON_LIST_T(name) \
-ssl_common_dissect_t name;
+ssl_common_dissect_t name
 /* }}} */
 
 /* {{{ */
@@ -1402,6 +1454,26 @@ ssl_common_dissect_t name;
       { "Data", prefix ".handshake.extension.data",                     \
         FT_BYTES, BASE_NONE, NULL, 0x0,                                 \
         "Hello Extension data", HFILL }                                 \
+    },                                                                  \
+    { & name .hf.hs_ext_ech_outer_ext_len,                              \
+      { "Outer Extensions List Length", prefix ".handshake.extensions_ech_outer_extensions_length", \
+        FT_UINT8, BASE_DEC, NULL, 0x0,                                  \
+        NULL, HFILL }                                                   \
+    },                                                                  \
+    { & name .hf.hs_ext_ech_outer_ext,                                  \
+      { "Outer Extensions List", prefix ".handshake.extensions_ech_outer_extensions", \
+        FT_NONE, BASE_NONE, NULL, 0x0,                                  \
+        "List of extensions derived from Outer Client Hello", HFILL }   \
+    },                                                                  \
+    { & name .hf.hs_ech_confirm,                                        \
+      { "ECH Confirmation Bytes", prefix ".handshake.ech_confirm",      \
+        FT_BYTES, BASE_NONE, NULL, 0x0,                                  \
+        NULL, HFILL }                                                   \
+    },                                                                  \
+    { & name .hf.hs_ech_confirm_compute,                                \
+      { "Computed ECH Confirmation Bytes", prefix ".handshake.ech_confirm_compute", \
+        FT_BYTES, BASE_NONE, NULL, 0x0,                                \
+        NULL, HFILL }                                                   \
     },                                                                  \
     { & name .hf.hs_ext_supported_groups_len,                           \
       { "Supported Groups List Length", prefix ".handshake.extensions_supported_groups_length", \
@@ -1536,6 +1608,21 @@ ssl_common_dissect_t name;
     { & name .hf.hs_ext_psk_binders,                                    \
       { "PSK Binders", prefix ".handshake.extensions.psk.binders",      \
         FT_NONE, BASE_NONE, NULL, 0x0,                                  \
+        NULL, HFILL }                                                   \
+    },                                                                  \
+    { & name .hf.hs_ext_psk_binder,                                     \
+      { "PSK Binder", prefix ".handshake.extensions.psk.binder",        \
+        FT_NONE, BASE_NONE, NULL, 0x0,                                  \
+        NULL, HFILL }                                                   \
+    },                                                                  \
+    { & name .hf.hs_ext_psk_binder_binder_length,                       \
+      { "Binder Length", prefix ".handshake.extensions.psk.binder.binder_length", \
+        FT_UINT8, BASE_DEC, NULL, 0x0,                                  \
+        NULL, HFILL }                                                   \
+    },                                                                  \
+    { & name .hf.hs_ext_psk_binder_binder,                              \
+      { "Binder", prefix ".handshake.extensions.psk.binder.binder",     \
+        FT_BYTES, BASE_NONE, NULL, 0x0,                                 \
         NULL, HFILL }                                                   \
     },                                                                  \
     { & name .hf.hs_ext_psk_identity_selected,                          \
@@ -2062,7 +2149,7 @@ ssl_common_dissect_t name;
     },                                                                  \
     { & name .hf.hs_finished,                                           \
       { "Verify Data", prefix ".handshake.verify_data",                 \
-        FT_NONE, BASE_NONE, NULL, 0x0,                                  \
+        FT_BYTES, BASE_NONE, NULL, 0x0,                                 \
         "Opaque verification data", HFILL }                             \
     },                                                                  \
     { & name .hf.hs_client_cert_vrfy_sig_len,                           \
@@ -2440,6 +2527,11 @@ ssl_common_dissect_t name;
         FT_UINT64, BASE_DEC, NULL, 0x00,                                \
         NULL, HFILL }                                                   \
     },                                                                  \
+    { & name .hf.hs_ext_quictp_parameter_address_discovery,             \
+      { "address_discovery", prefix ".quic.parameter.address_discovery",  \
+        FT_UINT64, BASE_DEC|BASE_VAL64_STRING, VALS64(quic_address_discovery_vals), 0x00,  \
+        NULL, HFILL }                                                   \
+    },                                                                  \
     { & name .hf.hs_ext_quictp_parameter_enable_time_stamp_v2,          \
       { "Enable TimestampV2", prefix ".quic.parameter.enable_time_stamp_v2", \
         FT_UINT64, BASE_DEC|BASE_VAL64_STRING, VALS64(quic_enable_time_stamp_v2_vals), 0x00,                                \
@@ -2539,6 +2631,41 @@ ssl_common_dissect_t name;
       { "Connection ID", prefix ".connection_id",                       \
         FT_BYTES, BASE_NONE, NULL, 0x00,                                \
         NULL, HFILL }                                                   \
+    },                                                                  \
+    { & name .hf.hs_ext_trusted_ca_keys_len,                            \
+      { "Trusted CA keys length", prefix ".handshake.trusted_ca.keys_length", \
+        FT_UINT16, BASE_DEC, NULL, 0x00,                                \
+        "Length of Trusted CA keys extension", HFILL }                  \
+    },                                                                  \
+    { & name .hf.hs_ext_trusted_ca_keys_list,                           \
+      { "Trusted CA keys", prefix ".handshake.trusted_ca.keys",         \
+        FT_NONE, BASE_NONE, NULL, 0x00,                                 \
+        "List of Trusted CA keys", HFILL }                              \
+    },                                                                  \
+    { & name .hf.hs_ext_trusted_ca_key,                                 \
+      { "Trusted CA key", prefix ".handshake.trusted_ca.key",           \
+        FT_NONE, BASE_NONE, NULL, 0x0,                                  \
+        NULL, HFILL }                                                   \
+    },                                                                  \
+    { & name .hf.hs_ext_trusted_ca_key_type,                            \
+      { "Trusted CA key type", prefix ".handshake.trusted_ca.key_type", \
+        FT_UINT8, BASE_DEC, VALS(tls_hello_ext_trusted_ca_key_type), 0x00, \
+        "Type of Trusted CA key", HFILL }                               \
+    },                                                                  \
+    { & name .hf.hs_ext_trusted_ca_key_hash,                            \
+      { "Trusted CA key hash", prefix ".handshake.trusted_ca.key_hash", \
+        FT_BYTES, BASE_NONE, NULL, 0x00,                                \
+        NULL, HFILL }                                                   \
+    },                                                                  \
+    { & name .hf.hs_ext_trusted_ca_key_dname_len,                       \
+      { "Distinguished Name Length", prefix ".handshake.trusted_ca.key_dname_len", \
+        FT_UINT16, BASE_DEC, NULL, 0x0,                                 \
+        "Length of distinguished name", HFILL }                         \
+    },                                                                  \
+    { & name .hf.hs_ext_trusted_ca_key_dname,                           \
+      { "Distinguished Name", prefix ".handshake.trusted_ca.key_dname", \
+        FT_NONE, BASE_NONE, NULL, 0x0,                                  \
+        "Distinguished name of a CA that the client trusts", HFILL }    \
     },                                                                  \
     { & name .hf.esni_suite,                                            \
       { "Cipher Suite", prefix ".esni.suite",                           \
@@ -2715,6 +2842,11 @@ ssl_common_dissect_t name;
         FT_NONE, BASE_NONE, NULL, 0x0,                                  \
         "ECHConfig structures for one-time use by the client in a retry connection", HFILL } \
     },                                                                  \
+    { & name .hf.ech_padding_data,                                      \
+      { "ECH Encrypted Padding", prefix ".ech.encrypted_padding",       \
+        FT_BYTES, BASE_NONE, NULL, 0x0,                                 \
+        "Must be zero", HFILL }                                         \
+    },                                                                  \
     { & name .hf.hs_ext_alps_len,                                       \
       { "ALPS Extension Length", prefix ".handshake.extensions_alps_len", \
         FT_UINT16, BASE_DEC, NULL, 0x0,                                 \
@@ -2755,9 +2887,13 @@ ssl_common_dissect_t name;
         & name .ett.hs_ext_key_share_ks,            \
         & name .ett.hs_ext_pre_shared_key,          \
         & name .ett.hs_ext_psk_identity,            \
+        & name .ett.hs_ext_psk_binders,             \
+        & name .ett.hs_ext_psk_binder,              \
         & name .ett.hs_ext_server_name,             \
         & name .ett.hs_ext_oid_filter,              \
         & name .ett.hs_ext_quictp_parameter,        \
+        & name .ett.hs_ext_trusted_ca_keys,         \
+        & name .ett.hs_ext_trusted_ca_key,          \
         & name .ett.hs_sig_hash_alg,                \
         & name .ett.hs_sig_hash_algs,               \
         & name .ett.urlhash,                        \
@@ -2780,6 +2916,7 @@ ssl_common_dissect_t name;
         & name .ett.ech_hpke_keyconfig,             \
         & name .ett.ech_hpke_cipher_suites,         \
         & name .ett.ech_hpke_cipher_suite,          \
+        & name .ett.ech_decrypt,                    \
         & name .ett.hs_ext_token_binding_key_parameters, \
 
 /* }}} */
@@ -2837,6 +2974,14 @@ ssl_common_dissect_t name;
     { & name .ei.ech_echconfig_invalid_version, \
         { prefix ".ech_echconfig_invalid_version", PI_PROTOCOL, PI_ERROR, \
         "Invalid/unknown ECHConfig version", EXPFILL } \
+    }, \
+    { & name .ei.ech_accepted, \
+        { prefix ".ech_accepted", PI_PROTOCOL, PI_NOTE, \
+        "Calculated ECH Confirmation matches Server Random bytes, ECH was accepted", EXPFILL } \
+    }, \
+    { & name .ei.ech_rejected, \
+        { prefix ".ech_rejected", PI_PROTOCOL, PI_WARN, \
+        "Calculated ECH Confirmation does not match Server Random bytes, ECH was rejected", EXPFILL } \
     }
 /* }}} */
 

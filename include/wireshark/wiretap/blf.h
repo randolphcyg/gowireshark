@@ -3,7 +3,7 @@
  * Binary Log File (BLF) file format from Vector Informatik decoder
  * for the Wiretap library.
  *
- * Copyright (c) 2021-2024 by Dr. Lars Voelker <lars.voelker@technica-engineering.de>
+ * Copyright (c) 2021-2025 by Dr. Lars Völker <lars.voelker@technica-engineering.de>
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -79,19 +79,23 @@ typedef struct blf_fileheader {
     uint8_t magic[4];               /* magic number - "LOGG" */
     uint32_t header_length;         /* length of the file header */
 
-    uint8_t applications[4];
-    uint8_t api[4];
+    uint32_t api_version;           /* decimal encoded */
+
+    uint8_t application;
+    uint8_t compression_level;
+    uint8_t application_major;
+    uint8_t application_minor;
 
     uint64_t len_compressed;        /* size of the file before uncompressing */
     uint64_t len_uncompressed;
 
     uint32_t obj_count;             /* number of objects in the file */
-    uint32_t obj_read;
+    uint32_t application_build;
 
     blf_date_t start_date;
     blf_date_t end_date;
 
-    uint32_t length3;
+    uint32_t restore_point_offset;
 } blf_fileheader_t;
 
 /* BLF Block Header */
@@ -258,7 +262,7 @@ typedef struct blf_canfdmessage {
 #define BLF_CANFDMESSAGE64_FLAG_EDL                 0x001000
 #define BLF_CANFDMESSAGE64_FLAG_BRS                 0x002000
 #define BLF_CANFDMESSAGE64_FLAG_ESI                 0x004000
-#define BLF_CANFDMESSAGE64_FLAG_BURST               0x200000
+#define BLF_CANFDMESSAGE64_FLAG_BURST               0x020000
 
 typedef struct blf_canfdmessage64 {
     uint8_t  channel;
@@ -680,6 +684,15 @@ typedef struct blf_apptext {
 #define BLF_APPTEXT_XML_CHANNELS    0x02
 #define BLF_APPTEXT_XML_IDENTITY    0x03
 
+#define BLF_APPTEXT_TAG_DISS_ETHSTATUS      "blf-ethernetstatus-obj"
+#define BLF_APPTEXT_TAG_DISS_ETHPHYSTATUS   "blf-ethernetphystate-obj"
+#define BLF_APPTEXT_TAG_DISS_DEFAULT        "data-text-lines"
+#define BLF_APPTEXT_COL_PROT_TEXT           "BLF App text"
+#define BLF_APPTEXT_COL_INFO_TEXT           "Metadata"
+#define BLF_APPTEXT_COL_INFO_TEXT_GENERAL   "Metadata: General"
+#define BLF_APPTEXT_COL_INFO_TEXT_CHANNELS  "Metadata: Channels"
+#define BLF_APPTEXT_COL_INFO_TEXT_IDENTITY  "Metadata: Identity"
+
 #define BLF_BUSTYPE_CAN 1
 #define BLF_BUSTYPE_LIN 5
 #define BLF_BUSTYPE_MOST 6
@@ -760,6 +773,7 @@ typedef struct blf_ethernet_phystate {
 #define BLF_OBJTYPE_MOST_CTRL                    23
 #define BLF_OBJTYPE_MOST_LIGHTLOCK               24
 #define BLF_OBJTYPE_MOST_STATISTIC               25
+
 #define BLF_OBJTYPE_FLEXRAY_DATA                 29
 #define BLF_OBJTYPE_FLEXRAY_SYNC                 30
 #define BLF_OBJTYPE_CAN_DRIVER_ERROR             31
@@ -783,6 +797,7 @@ typedef struct blf_ethernet_phystate {
 #define BLF_OBJTYPE_FLEXRAY_STARTCYCLE           49
 #define BLF_OBJTYPE_FLEXRAY_RCVMESSAGE           50
 #define BLF_OBJTYPE_REALTIMECLOCK                51
+
 #define BLF_OBJTYPE_LIN_STATISTIC                54
 #define BLF_OBJTYPE_J1708_MESSAGE                55
 #define BLF_OBJTYPE_J1708_VIRTUAL_MSG            56
@@ -834,8 +849,10 @@ typedef struct blf_ethernet_phystate {
 #define BLF_OBJTYPE_ETHERNET_RX_ERROR           102
 #define BLF_OBJTYPE_ETHERNET_STATUS             103
 #define BLF_OBJTYPE_CAN_FD_ERROR_64             104
+
 #define BLF_OBJTYPE_AFDX_STATUS                 106
 #define BLF_OBJTYPE_AFDX_BUS_STATISTIC          107
+
 #define BLF_OBJTYPE_AFDX_ERROR_EVENT            109
 #define BLF_OBJTYPE_A429_ERROR                  110
 #define BLF_OBJTYPE_A429_STATUS                 111
@@ -861,6 +878,14 @@ typedef struct blf_ethernet_phystate {
 #define BLF_OBJTYPE_ATTRIBUTE_EVENT             131
 #define BLF_OBJTYPE_DISTRIBUTED_OBJECT_CHANGE   132
 #define BLF_OBJTYPE_ETHERNET_PHY_STATE          133
+#define BLF_OBJTYPE_MACSEC_STATUS               134
+
+#define BLF_OBJTYPE_10BASET1S_STATUS            136
+#define BLF_OBJTYPE_10BASET1S_STATISTIC         137
+#define BLF_OBJTYPE_TUNNEL_PROTO_DECODER_EVENT  138
+#define BLF_OBJTYPE_CAN_XL_CHANNEL_FRAME        139
+#define BLF_OBJTYPE_CAN_XL_CHANNEL_ERRORFRAME   140
+
 
 #endif
 

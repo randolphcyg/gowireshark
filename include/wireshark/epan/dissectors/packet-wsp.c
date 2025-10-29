@@ -1254,7 +1254,7 @@ static heur_dissector_list_t heur_subdissector_list;
 
 static void add_uri (proto_tree *, packet_info *, tvbuff_t *, unsigned, unsigned, proto_item *);
 
-static void add_post_variable (proto_tree *, tvbuff_t *, unsigned, unsigned, unsigned, unsigned);
+static void add_post_variable (proto_tree *, packet_info*, tvbuff_t *, unsigned, unsigned, unsigned, unsigned);
 static void add_multipart_data (proto_tree *, tvbuff_t *, packet_info *pinfo);
 
 static void add_capabilities (proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, uint8_t pdu_type);
@@ -1317,7 +1317,7 @@ static void add_headers (proto_tree *tree, tvbuff_t *tvb, int hf, packet_info *p
  * get_text_string() macro now returns wmem_alloc'd memory. */
 #define get_text_string(str,tvb,start,len,ok) \
     if (is_text_string(tvb_get_uint8(tvb,start))) { \
-        str = (char *)tvb_get_stringz_enc(wmem_packet_scope(), tvb,start,(int *)&len,ENC_ASCII); \
+        str = (char *)tvb_get_stringz_enc(pinfo->pool, tvb,start,(int *)&len,ENC_ASCII); \
         ok = true; \
     } else { len = 0; str = NULL; ok = false; }
 #define get_token_text(str,tvb,start,len,ok) \
@@ -1337,7 +1337,7 @@ static void add_headers (proto_tree *tree, tvbuff_t *tvb, int hf, packet_info *p
     if (val & 0x80) { /* High nibble "." Low nibble */ \
         len = 1; \
         val &= 0x7F; \
-        str = wmem_strdup_printf(wmem_packet_scope(), "%u.%u", val >> 4, val & 0x0F); \
+        str = wmem_strdup_printf(pinfo->pool, "%u.%u", val >> 4, val & 0x0F); \
     } else { get_text_string(str,tvb,start,len,ok); }
 
 /* Parameter parser */
@@ -1411,7 +1411,7 @@ parameter_value_q (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_
 #define wkh_2_TextualValue                  /* Parse Textual Value */ \
         /* END */ \
     } else if ((val_id == 0) || (val_id >= 0x20)) { /* Textual value */ \
-        val_str = (char *)tvb_get_stringz_enc(wmem_packet_scope(), tvb, val_start, (int *)&val_len, ENC_ASCII); \
+        val_str = (char *)tvb_get_stringz_enc(pinfo->pool, tvb, val_start, (int *)&val_len, ENC_ASCII); \
         offset = val_start + val_len; \
         /* Textual value processing starts HERE \
          * \
@@ -1420,7 +1420,7 @@ parameter_value_q (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_
 #define wkh_2_TextualValueInv                   /* Parse Textual Value */ \
         /* END */ \
     } else if ((val_id == 0) || (val_id >= 0x20)) { /* Textual value */ \
-        /*val_str = (char *)*/tvb_get_stringz_enc(wmem_packet_scope(), tvb, val_start, (int *)&val_len, ENC_ASCII); \
+        /*val_str = (char *)*/tvb_get_stringz_enc(pinfo->pool, tvb, val_start, (int *)&val_len, ENC_ASCII); \
         offset = val_start + val_len; \
         /* Textual value processing starts HERE \
          * \
@@ -1461,7 +1461,7 @@ parameter_value_q (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_
  */
 static uint32_t
 wkh_default(proto_tree *tree, tvbuff_t *tvb,
-        uint32_t hdr_start, packet_info *pinfo _U_)
+        uint32_t hdr_start, packet_info *pinfo)
 {
     wkh_0_Declarations;
     uint8_t hdr_id = tvb_get_uint8 (tvb, hdr_start) & 0x7F;
@@ -1471,17 +1471,17 @@ wkh_default(proto_tree *tree, tvbuff_t *tvb,
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_default, "default");
         proto_tree_add_uint_format(tree, hf_wsp_default_int, tvb, hdr_start, offset - hdr_start,
                 val_id & 0x7F, "%s: (Undecoded well-known value 0x%02x)",
-                val_to_str_ext (hdr_id, &vals_field_names_ext,
+                val_to_str_ext(pinfo->pool, hdr_id, &vals_field_names_ext,
                     "<Unknown WSP header field 0x%02X>"), val_id & 0x7F);
     wkh_2_TextualValue;
         proto_tree_add_string_format(tree, hf_wsp_default_string, tvb, hdr_start, offset - hdr_start,
                 "%s: %s",
-                val_to_str_ext (hdr_id, &vals_field_names_ext,
+                val_to_str_ext(pinfo->pool, hdr_id, &vals_field_names_ext,
                     "<Unknown WSP header field 0x%02X>"), val_str);
     wkh_3_ValueWithLength;
         proto_tree_add_uint_format(tree, hf_wsp_default_val_len, tvb, hdr_start, offset - hdr_start,
                 val_len, "%s: (Undecoded value in general form with length indicator)",
-                val_to_str_ext (hdr_id, &vals_field_names_ext,
+                val_to_str_ext(pinfo->pool, hdr_id, &vals_field_names_ext,
                     "<Unknown WSP header field 0x%02X>"));
 
     wkh_4_End(); /* The default parser has no associated hf_index;
@@ -1498,11 +1498,11 @@ wkh_content_type_header(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, pac
     uint8_t peek;
     proto_item *ti = NULL;
     proto_tree *parameter_tree = NULL;
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Content type: %s", name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Content type: %s", name);
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_content_type_header, header_name);
         proto_tree_add_string(header_tree, hf, tvb, val_start, 1,
-                val_to_str_ext(val_id & 0x7F, &vals_content_types_ext,
+                val_to_str_ext(pinfo->pool, val_id & 0x7F, &vals_content_types_ext,
                     "(Unknown content type identifier 0x%X)"));
         proto_item_set_len(header_item, 2);
         ok = true;
@@ -1522,7 +1522,7 @@ wkh_content_type_header(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, pac
         off = val_start + val_len_len;
         peek = tvb_get_uint8(tvb, off);
         if (is_text_string(peek)) {
-            val_str = (char *)tvb_get_stringz_enc(wmem_packet_scope(), tvb, off, (int*)&len, ENC_ASCII);
+            val_str = (char *)tvb_get_stringz_enc(pinfo->pool, tvb, off, (int*)&len, ENC_ASCII);
             off += len; /* off now points to 1st byte after string */
             ti = proto_tree_add_string (header_tree, hf, tvb, hdr_start, offset - hdr_start, val_str);
         } else if (is_integer_value(peek)) {
@@ -1530,7 +1530,7 @@ wkh_content_type_header(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, pac
             if (ok) {
                 ti = proto_tree_add_string(header_tree, hf,
                         tvb, hdr_start, offset - hdr_start,
-                        val_to_str_ext(val, &vals_content_types_ext,
+                        val_to_str_ext(pinfo->pool, val, &vals_content_types_ext,
                             "(Unknown content type identifier 0x%X)"));
             }
             off += len;
@@ -1613,7 +1613,7 @@ add_content_type(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, uint32_t v
     *well_known_content = 0;
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_add_content_type, "Content-Type");
-        *textual_content = val_to_str_ext(val_id & 0x7F, &vals_content_types_ext,
+        *textual_content = val_to_str_ext(pinfo->pool, val_id & 0x7F, &vals_content_types_ext,
                 "<Unknown media type identifier 0x%X>");
         proto_tree_add_string(tree, hf_hdr_content_type,
                 tvb, hdr_start, offset - hdr_start,
@@ -1653,7 +1653,7 @@ add_content_type(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, uint32_t v
         } else if (is_integer_value(peek)) {
             get_integer_value(val, tvb, off, len, ok);
             if (ok) {
-                *textual_content = val_to_str_ext(val, &vals_content_types_ext,
+                *textual_content = val_to_str_ext(pinfo->pool, val, &vals_content_types_ext,
                         "<Unknown media type identifier 0x%X>");
                 ti = proto_tree_add_string(tree, hf_hdr_content_type,
                         tvb, hdr_start, offset - hdr_start,
@@ -1700,12 +1700,12 @@ wkh_accept_x_q_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, 
     uint8_t peek;
     proto_item *ti = NULL;
     proto_tree *parameter_tree = NULL;
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Accept X: %s", name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Accept X: %s", name);
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_accept_x_q_header, header_name);
         proto_tree_add_string(tree, hf,
                 tvb, hdr_start, offset - hdr_start,
-                val_to_str_ext(val_id & 0x7F, valueStringExtAddr, value_format));
+                val_to_str_ext(pinfo->pool, val_id & 0x7F, valueStringExtAddr, value_format));
         ok = true;
     wkh_2_TextualValue;
         proto_tree_add_string(tree, hf,
@@ -1726,7 +1726,7 @@ wkh_accept_x_q_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, 
             if (ok) {
                 ti = proto_tree_add_string(tree, hf,
                         tvb, hdr_start, offset - hdr_start,
-                        val_to_str_ext(val, valueStringExtAddr, value_format));
+                        val_to_str_ext(pinfo->pool, val, valueStringExtAddr, value_format));
             }
             off += len;
         } /* else ok = false */
@@ -1761,12 +1761,12 @@ wkh_accept_x_q_header(accept_language, "Accept-Language",
  * Push-flag-value = Short-integer
  */
 static uint32_t
-wkh_push_flag(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo _U_)
+wkh_push_flag(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo)
 {
     wkh_0a_Declarations;
     proto_item *ti = NULL;
     proto_tree *subtree = NULL;
-    wmem_strbuf_t *push_flag_str = wmem_strbuf_new(wmem_packet_scope(), "");
+    wmem_strbuf_t *push_flag_str = wmem_strbuf_new(pinfo->pool, "");
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_push_flag, "Push Flag");
     if (val_id & 0x01)
@@ -1841,7 +1841,7 @@ wkh_allow(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinf
         if (val_id >= 0x40) { /* Valid WSP method */
             proto_tree_add_string(tree, hf_hdr_allow,
                     tvb, hdr_start, offset - hdr_start,
-                    val_to_str_ext(val_id & 0x7F, &wsp_vals_pdu_type_ext,
+                    val_to_str_ext(pinfo->pool, val_id & 0x7F, &wsp_vals_pdu_type_ext,
                         "<Unknown WSP method 0x%02X>"));
             ok = true;
         }
@@ -1867,7 +1867,7 @@ wkh_public(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pin
         if (val_id >= 0x40) { /* Valid WSP method */
             proto_tree_add_string(tree, hf_hdr_public,
                     tvb, hdr_start, offset - hdr_start,
-                    val_to_str_ext(val_id & 0x7F, &wsp_vals_pdu_type_ext,
+                    val_to_str_ext(pinfo->pool, val_id & 0x7F, &wsp_vals_pdu_type_ext,
                         "<Unknown WSP method 0x%02X>"));
             ok = true;
         }
@@ -1893,7 +1893,7 @@ wkh_vary(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_vary, "Vary");
         proto_tree_add_string(tree, hf_hdr_vary,
                 tvb, hdr_start, offset - hdr_start,
-                val_to_str_ext(val_id & 0x7F, &vals_field_names_ext,
+                val_to_str_ext(pinfo->pool, val_id & 0x7F, &vals_field_names_ext,
                     "<Unknown WSP header field 0x%02X>"));
         ok = true;
     wkh_2_TextualValue;
@@ -2212,7 +2212,7 @@ static uint32_t
 wkh_text_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo, int hf, const char* name)
 {
     wkh_0_Declarations;
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Header: %s", name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Header: %s", name);
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_text_header, header_name);
         /* Invalid */
@@ -2263,7 +2263,7 @@ wkh_content_id(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info 
                     tvb, hdr_start, offset - hdr_start, val_str);
                 expert_add_info(pinfo, ti, &ei_wsp_trailing_quote);
             } else { /* OK (no trailing quote) */
-                str = wmem_strdup_printf(wmem_packet_scope(), "%s\"", val_str);
+                str = wmem_strdup_printf(pinfo->pool, "%s\"", val_str);
                 proto_tree_add_string(tree, hf_hdr_content_id,
                     tvb, hdr_start, offset - hdr_start, str);
             }
@@ -2296,7 +2296,7 @@ wkh_text_or_date_value_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr
     wkh_0_Declarations;
     uint32_t val = 0, off = val_start, len;
     char *str; /* may not be freed! */
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Text or Date: %s", name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Text or Date: %s", name);
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_text_or_date_value, header_name);
         /* Invalid */
@@ -2308,7 +2308,7 @@ wkh_text_or_date_value_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr
         if (val_id <= 4) { /* Length field already parsed by macro! */
             get_date_value(val, tvb, off, len, ok);
             if (ok) {
-                str = abs_time_secs_to_str(wmem_packet_scope(), val, ABSOLUTE_TIME_LOCAL, true);
+                str = abs_time_secs_to_str(pinfo->pool, val, ABSOLUTE_TIME_LOCAL, true);
                 proto_tree_add_string(tree, hf,
                         tvb, hdr_start, offset - hdr_start, str);
             }
@@ -2337,7 +2337,7 @@ wkh_date_value_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, 
     wkh_0a_Declarations;
     uint32_t val = 0, off = val_start, len;
     char *str; /* may not be freed! */
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Date: %s", name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Date: %s", name);
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_date_value, header_name);
         /* Invalid */
@@ -2347,11 +2347,9 @@ wkh_date_value_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, 
         if (val_id <= 4) { /* Length field already parsed by macro! */
             get_date_value(val, tvb, off, len, ok);
             if (ok) {
-                str = abs_time_secs_to_str(wmem_packet_scope(), val, ABSOLUTE_TIME_LOCAL, true);
+                str = abs_time_secs_to_str(pinfo->pool, val, ABSOLUTE_TIME_LOCAL, true);
                 proto_tree_add_string(tree, hf,
                         tvb, hdr_start, offset - hdr_start, str);
-                /* BEHOLD: do NOT try to free str, as
-                 * abs_time_secs_to_str(wmem_packet_scope(), ) returns wmem_allocated data */
             }
         }
     wkh_4_End();
@@ -2379,7 +2377,7 @@ wkh_tod_value_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, p
     wkh_0a_Declarations;
     uint32_t val = 0, off = val_start, len;
     proto_item *ti = NULL;
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Time of Day: %s", name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Time of Day: %s", name);
     nstime_t t;
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_tod_value, header_name);
@@ -2424,14 +2422,14 @@ wkh_tod_value_header(x_wap_tod, "X-Wap-Tod")
  * Age-value: Delta-seconds-value
  */
 static uint32_t
-wkh_age(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo _U_)
+wkh_age(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo)
 {
     wkh_0_Declarations;
     uint32_t val = 0, off = val_start, len;
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_age, "Age");
         val = val_id & 0x7F;
-        val_str = wmem_strdup_printf(wmem_packet_scope(), "%u second%s", val, plurality(val, "", "s"));
+        val_str = wmem_strdup_printf(pinfo->pool, "%u second%s", val, plurality(val, "", "s"));
         proto_tree_add_string(tree, hf_hdr_age,
                 tvb, hdr_start, offset - hdr_start, val_str);
         ok = true;
@@ -2441,7 +2439,7 @@ wkh_age(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo 
         if (val_id <= 4) { /* Length field already parsed by macro! */
             get_long_integer(val, tvb, off, len, ok);
             if (ok) {
-                val_str = wmem_strdup_printf(wmem_packet_scope(), "%u second%s", val, plurality(val, "", "s"));
+                val_str = wmem_strdup_printf(pinfo->pool, "%u second%s", val, plurality(val, "", "s"));
                 proto_tree_add_string(tree, hf_hdr_age,
                         tvb, hdr_start, offset - hdr_start, val_str);
             }
@@ -2473,12 +2471,12 @@ wkh_integer_lookup_or_text_value_func(proto_tree *tree, tvbuff_t *tvb, uint32_t 
 {
     wkh_0_Declarations;
     uint32_t off = val_start, len;
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Integer lookup: %s", name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Integer lookup: %s", name);
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_integer_lookup, header_name);
         proto_tree_add_string(tree, hf,
                 tvb, hdr_start, offset - hdr_start,
-                val_to_str_ext(val_id & 0x7F, valueStringExtAddr, value_format));
+                val_to_str_ext(pinfo->pool, val_id & 0x7F, valueStringExtAddr, value_format));
         ok = true;
     wkh_2_TextualValue;
         proto_tree_add_string(tree, hf,
@@ -2491,7 +2489,7 @@ wkh_integer_lookup_or_text_value_func(proto_tree *tree, tvbuff_t *tvb, uint32_t 
             if (ok) {
                 proto_tree_add_string(tree, hf,
                         tvb, hdr_start, offset - hdr_start,
-                        val_to_str_ext(val_id & 0x7F, valueStringExtAddr, value_format));
+                        val_to_str_ext(pinfo->pool, val_id & 0x7F, valueStringExtAddr, value_format));
             }
         }
     wkh_4_End();
@@ -2539,7 +2537,7 @@ wkh_challenge_value_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_st
     proto_tree *subtree;
     char *str;
     proto_item *ti = NULL;
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Challenge: %s", name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Challenge: %s", name);
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_challenge, header_name);
         /* Invalid */
@@ -2623,7 +2621,7 @@ wkh_credentials_value_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_
     proto_tree *subtree;
     char *str;
     proto_item *ti = NULL;
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Credentials: %s", name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Credentials: %s", name);
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_credentials_value, header_name);
         /* Invalid */
@@ -2751,10 +2749,10 @@ wkh_integer_value_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_star
     wkh_0a_Declarations;
     uint32_t val = 0, off = val_start, len;
     char *str; /* may not be freed! */
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Integer-value: %s", name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Integer-value: %s", name);
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_integer_value, header_name);
-        str = wmem_strdup_printf(wmem_packet_scope(), "%u", val_id & 0x7F);
+        str = wmem_strdup_printf(pinfo->pool, "%u", val_id & 0x7F);
         proto_tree_add_string(tree, hf,
                 tvb, hdr_start, offset - hdr_start, str);
         ok = true;
@@ -2764,7 +2762,7 @@ wkh_integer_value_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_star
         if (val_id <= 4) { /* Length field already parsed by macro! */
             get_long_integer(val, tvb, off, len, ok);
             if (ok) {
-                str = wmem_strdup_printf(wmem_packet_scope(), "%u", val);
+                str = wmem_strdup_printf(pinfo->pool, "%u", val);
                 proto_tree_add_string(tree, hf,
                         tvb, hdr_start, offset - hdr_start, str);
             }
@@ -2790,8 +2788,8 @@ wkh_integer_lookup_value_header_func(proto_tree *tree, tvbuff_t *tvb, uint32_t h
 {
     wkh_0_Declarations;
     uint32_t off = val_start, len;
-    char* header_name = wmem_strdup_printf(wmem_packet_scope(), "Integer lookup: %s", name);
-    char* value_name_str = wmem_strdup_printf(wmem_packet_scope(), "<Unknown %s>", value_name);
+    char* header_name = wmem_strdup_printf(pinfo->pool, "Integer lookup: %s", name);
+    char* value_name_str = wmem_strdup_printf(pinfo->pool, "<Unknown %s>", value_name);
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_integer_lookup_value, header_name);
         val_str = try_val_to_str_ext(val_id & 0x7F, valueStringExtAddr);
@@ -2834,7 +2832,7 @@ wkh_integer_lookup_value_header(bearer_indication, "Bearer-Indication",
  * Cache-control-value
  */
 static uint32_t
-wkh_cache_control(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo _U_)
+wkh_cache_control(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo)
 {
     wkh_0_Declarations;
     uint32_t off, len, val = 0;
@@ -2868,7 +2866,7 @@ wkh_cache_control(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_in
             switch (cache_control_directive & 0x7F) {
                 case CACHE_CONTROL_NO_CACHE:
                 case CACHE_CONTROL_PRIVATE:
-                    cache_str = wmem_strbuf_new(wmem_packet_scope(), val_to_str_ext (cache_control_directive & 0x7F, &vals_cache_control_ext,
+                    cache_str = wmem_strbuf_new(pinfo->pool, val_to_str_ext(pinfo->pool, cache_control_directive & 0x7F, &vals_cache_control_ext,
                                 "<Unknown cache control directive 0x%02X>"));
                     /* TODO: split multiple entries */
                     ok = true;
@@ -2876,7 +2874,7 @@ wkh_cache_control(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_in
                         peek = tvb_get_uint8(tvb, off);
                         if (peek & 0x80) { /* Well-known-field-name */
                             wmem_strbuf_append(cache_str,
-                                    val_to_str (peek, vals_field_names,
+                                    val_to_str(pinfo->pool, peek, vals_field_names,
                                         "<Unknown WSP header field 0x%02X>"));
                             off++;
                         } else { /* Token-text */
@@ -2898,7 +2896,7 @@ wkh_cache_control(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_in
                 case CACHE_CONTROL_S_MAXAGE:
                     ti = proto_tree_add_string(tree, hf_hdr_cache_control,
                             tvb, hdr_start, offset - hdr_start,
-                            val_to_str_ext (cache_control_directive & 0x7F, &vals_cache_control_ext,
+                            val_to_str_ext(pinfo->pool, cache_control_directive & 0x7F, &vals_cache_control_ext,
                                 "<Unknown cache control directive 0x%02X>"));
                     get_delta_seconds_value(val, tvb, off, len, ok);
                     if (ok) {
@@ -2946,7 +2944,7 @@ wkh_cache_control(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_in
  *  | ( Value-length Short-integer Text-string Text-string )
  */
 static uint32_t
-wkh_warning(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo _U_)
+wkh_warning(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo)
 {
     wkh_0_Declarations;
     uint32_t    off, len, val;
@@ -2978,7 +2976,7 @@ wkh_warning(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pi
             val = warn_code & 0x7f;
             val_str = try_val_to_str_ext(val, &vals_wsp_warning_code_short_ext);
             if (val_str) { /* OK */
-                str = wmem_strdup_printf(wmem_packet_scope(), "code=%s", val_str);
+                str = wmem_strdup_printf(pinfo->pool, "code=%s", val_str);
                 ti = proto_tree_add_string(tree, hf_hdr_warning,
                         tvb, hdr_start, offset - hdr_start, str);
                 subtree = proto_item_add_subtree(ti, ett_header);
@@ -3012,7 +3010,7 @@ wkh_warning(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pi
  *  | ( Value-length Short-integer Text-string *( Date-value ) )
  */
 static uint32_t
-wkh_profile_warning(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo _U_)
+wkh_profile_warning(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo)
 {
     wkh_0_Declarations;
     uint32_t off, len, val = 0;
@@ -3049,7 +3047,7 @@ wkh_profile_warning(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_
                         get_date_value(val, tvb, off, len, ok);
                         if (ok) { /* Valid warn-text string */
                             off += len;
-                            proto_item_append_text(ti, "; date=%s", abs_time_secs_to_str(wmem_packet_scope(), val, ABSOLUTE_TIME_LOCAL, true));
+                            proto_item_append_text(ti, "; date=%s", abs_time_secs_to_str(pinfo->pool, val, ABSOLUTE_TIME_LOCAL, true));
                         }
                     }
                 }
@@ -3065,7 +3063,7 @@ wkh_profile_warning(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_
  *  | Length Short-integer [ Short-integer | text-string ]
  */
 static uint32_t wkh_encoding_version (proto_tree *tree, tvbuff_t *tvb,
-        uint32_t hdr_start, packet_info *pinfo _U_)
+        uint32_t hdr_start, packet_info *pinfo)
 {
     wkh_0_Declarations;
     proto_item *ti = NULL;
@@ -3073,7 +3071,7 @@ static uint32_t wkh_encoding_version (proto_tree *tree, tvbuff_t *tvb,
 
     wkh_1_WellKnownValue(hf_hdr_name_value, ett_encoding_version, "Encoding-version");
         val = val_id & 0x7F;
-        val_str = wmem_strdup_printf(wmem_packet_scope(), "%u.%u", val >> 4, val & 0x0F);
+        val_str = wmem_strdup_printf(pinfo->pool, "%u.%u", val >> 4, val & 0x0F);
         proto_tree_add_string(tree, hf_hdr_encoding_version,
                 tvb, hdr_start, offset - hdr_start, val_str);
         ok = true;
@@ -3085,7 +3083,7 @@ static uint32_t wkh_encoding_version (proto_tree *tree, tvbuff_t *tvb,
         off = val_start + val_len_len;
         val = tvb_get_uint8(tvb, off);
         if (val & 0x80) { /* Header Code Page */
-            val_str = wmem_strdup_printf(wmem_packet_scope(), "code-page=%u", val & 0x7F);
+            val_str = wmem_strdup_printf(pinfo->pool, "code-page=%u", val & 0x7F);
             ti = proto_tree_add_string(tree, hf_hdr_encoding_version,
                     tvb, hdr_start, offset - hdr_start, val_str);
             off++;
@@ -3106,7 +3104,7 @@ static uint32_t wkh_encoding_version (proto_tree *tree, tvbuff_t *tvb,
  *    Length Uintvar-integer ( 0x80 | Uintvar-integer )
  */
 static uint32_t
-wkh_content_range(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo _U_)
+wkh_content_range(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_info *pinfo)
 {
     wkh_0_Declarations;
     uint32_t    off, val, len;
@@ -3121,7 +3119,7 @@ wkh_content_range(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet_in
         off = val_start + val_len_len;
         get_uintvar_integer (val, tvb, off, len, ok); /* Uintvar start */
         if (ok) {
-            val_str = wmem_strdup_printf(wmem_packet_scope(), "first-byte-pos=%u", val);
+            val_str = wmem_strdup_printf(pinfo->pool, "first-byte-pos=%u", val);
             ti = proto_tree_add_string(tree, hf_hdr_content_range,
                     tvb, hdr_start, offset - hdr_start, val_str);
             subtree = proto_item_add_subtree(ti, ett_header);
@@ -3267,17 +3265,17 @@ wkh_openwave_default(proto_tree *tree, tvbuff_t *tvb, uint32_t hdr_start, packet
     wkh_1_WellKnownValue(hf_hdr_openwave_name_value, ett_openwave_default, "Default");
         proto_tree_add_uint_format(tree, hf_hdr_openwave_default_int, tvb, hdr_start, offset - hdr_start,
                 val_id & 0x7F, "%s: (Undecoded well-known value 0x%02x)",
-                val_to_str_ext (hdr_id, &vals_openwave_field_names_ext,
+                val_to_str_ext(pinfo->pool, hdr_id, &vals_openwave_field_names_ext,
                     "<Unknown WSP header field 0x%02X>"), val_id & 0x7F);
     wkh_2_TextualValue;
         proto_tree_add_string_format(tree, hf_hdr_openwave_default_string, tvb, hdr_start, offset - hdr_start,
                 "%s: %s",
-                val_to_str_ext (hdr_id, &vals_openwave_field_names_ext,
+                val_to_str_ext(pinfo->pool, hdr_id, &vals_openwave_field_names_ext,
                     "<Unknown WSP header field 0x%02X>"), val_str);
     wkh_3_ValueWithLength;
         proto_tree_add_uint_format(tree, hf_hdr_openwave_default_val_len, tvb, hdr_start, offset - hdr_start,
                 val_len, "%s: (Undecoded value in general form with length indicator)",
-                val_to_str_ext (hdr_id, &vals_openwave_field_names_ext,
+                val_to_str_ext(pinfo->pool, hdr_id, &vals_openwave_field_names_ext,
                     "<Unknown WSP header field 0x%02X>"));
 
     wkh_4_End(); /* See wkh_default for explanation */
@@ -3354,7 +3352,7 @@ wkh_openwave_x_up_proxy_push_accept(proto_tree *tree, tvbuff_t *tvb, uint32_t hd
 }
 
 
-static bool parameter_text(proto_tree *tree, tvbuff_t *tvb, int *offset, proto_item *ti, int hf)
+static bool parameter_text(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, int *offset, proto_item *ti, int hf)
 {
     char *val_str;
     bool ok;
@@ -3386,7 +3384,7 @@ static bool parameter_text_value(proto_tree *tree, packet_info *pinfo, tvbuff_t 
                         tvb, *offset, val_len, val_str);
                 expert_add_info(pinfo, ti2, &ei_wsp_trailing_quote);
             } else { /* OK (no trailing quote) */
-                str = wmem_strdup_printf(wmem_packet_scope(), "%s\"", val_str);
+                str = wmem_strdup_printf(pinfo->pool, "%s\"", val_str);
                 proto_tree_add_string(tree, hf,
                         tvb, *offset, val_len, str);
             }
@@ -3527,7 +3525,7 @@ parameter (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_t *tvb, 
         case 0x01:  /* WSP 1.1 encoding - Charset: Well-known-charset */
             get_integer_value(val, tvb, offset, val_len, ok);
             if (ok) {
-                val_str = val_to_str_ext(val, &mibenum_vals_character_sets_ext,
+                val_str = val_to_str_ext(pinfo->pool, val, &mibenum_vals_character_sets_ext,
                         "<Unknown character set Identifier %u>");
                 proto_tree_add_string(tree, hf_parameter_charset,
                         tvb, offset, val_len, val_str);
@@ -3555,7 +3553,7 @@ parameter (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_t *tvb, 
             break;
 
         case 0x05:  /* WSP 1.1 encoding - Name: Text-string */
-            if (!parameter_text(tree, tvb, &offset, ti, hf_wsp_parameter_name))
+            if (!parameter_text(tree, pinfo, tvb, &offset, ti, hf_wsp_parameter_name))
             {
                 proto_tree_add_expert_format(tree, pinfo, &ei_wsp_invalid_parameter_value, tvb, start, len,
                                 "Invalid Name (WSP 1.1 encoding) parameter value: invalid Text-string");
@@ -3572,7 +3570,7 @@ parameter (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_t *tvb, 
             break;
 
         case 0x06:  /* WSP 1.1 encoding - Filename: Text-string */
-            if (!parameter_text(tree, tvb, &offset, ti, hf_wsp_parameter_filename))
+            if (!parameter_text(tree, pinfo, tvb, &offset, ti, hf_wsp_parameter_filename))
             {
                 proto_tree_add_expert_format(tree, pinfo, &ei_wsp_invalid_parameter_value, tvb, start, len,
                                 "Invalid Filename (WSP 1.1 encoding) parameter value: invalid Text-string");
@@ -3604,7 +3602,7 @@ parameter (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_t *tvb, 
                 get_short_integer(val,tvb,offset,val_len,ok);
                 if (ok) {
                     proto_tree_add_string (tree, hf_wsp_parameter_upart_type,
-                            tvb, offset, val_len, val_to_str_ext(val, &vals_content_types_ext,
+                            tvb, offset, val_len, val_to_str_ext(pinfo->pool, val, &vals_content_types_ext,
                             "(Unknown content type identifier 0x%X)"));
                     offset += val_len;
                 } /* Else: invalid parameter value */
@@ -3617,7 +3615,7 @@ parameter (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_t *tvb, 
             break;
 
         case 0x0A:  /* WSP 1.2 encoding - Start: Text-string */
-            if (!parameter_text(tree, tvb, &offset, ti, hf_wsp_parameter_start))
+            if (!parameter_text(tree, pinfo, tvb, &offset, ti, hf_wsp_parameter_start))
             {
                 proto_tree_add_expert_format(tree, pinfo, &ei_wsp_invalid_parameter_value, tvb, start, len,
                                 "Invalid Start (WSP 1.2 encoding) parameter value: invalid Text-string");
@@ -3634,7 +3632,7 @@ parameter (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_t *tvb, 
             break;
 
         case 0x0B:  /* WSP 1.2 encoding - Start-info: Text-string */
-            if (!parameter_text(tree, tvb, &offset, ti, hf_wsp_parameter_start_info))
+            if (!parameter_text(tree, pinfo, tvb, &offset, ti, hf_wsp_parameter_start_info))
             {
                 proto_tree_add_expert_format(tree, pinfo, &ei_wsp_invalid_parameter_value, tvb, start, len,
                                 "Invalid Start-info (WSP 1.2 encoding) parameter value: invalid Text-string");
@@ -3651,7 +3649,7 @@ parameter (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_t *tvb, 
             break;
 
         case 0x0C:  /* WSP 1.3 encoding - Comment: Text-string */
-            if (!parameter_text(tree, tvb, &offset, ti, hf_wsp_parameter_comment))
+            if (!parameter_text(tree, pinfo, tvb, &offset, ti, hf_wsp_parameter_comment))
             {
                 proto_tree_add_expert_format(tree, pinfo, &ei_wsp_invalid_parameter_value, tvb, start, len,
                                 "Invalid Comment (WSP 1.3 encoding) parameter value: invalid Text-string");
@@ -3668,7 +3666,7 @@ parameter (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_t *tvb, 
             break;
 
         case 0x0D:  /* WSP 1.3 encoding - Domain: Text-string */
-            if (!parameter_text(tree, tvb, &offset, ti, hf_wsp_parameter_domain))
+            if (!parameter_text(tree, pinfo, tvb, &offset, ti, hf_wsp_parameter_domain))
             {
                 proto_tree_add_expert_format(tree, pinfo, &ei_wsp_invalid_parameter_value, tvb, start, len,
                                 "Invalid Domain (WSP 1.3 encoding) parameter value: invalid Text-string");
@@ -3685,7 +3683,7 @@ parameter (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_t *tvb, 
             break;
 
         case 0x0F:  /* WSP 1.3 encoding - Path: Text-string */
-            if (!parameter_text(tree, tvb, &offset, ti, hf_wsp_parameter_path))
+            if (!parameter_text(tree, pinfo, tvb, &offset, ti, hf_wsp_parameter_path))
             {
                 proto_tree_add_expert_format(tree, pinfo, &ei_wsp_invalid_parameter_value, tvb, start, len,
                                 "Invalid Path (WSP 1.3 encoding) parameter value: invalid Text-string");
@@ -3829,9 +3827,9 @@ parameter_value_q (proto_tree *tree, packet_info *pinfo, proto_item *ti, tvbuff_
     get_uintvar_integer (val, tvb, offset, val_len, ok);
     if (ok && (val < 1100)) {
         if (val <= 100) { /* Q-value in 0.01 steps */
-            str = wmem_strdup_printf(wmem_packet_scope(), "0.%02u", val - 1);
+            str = wmem_strdup_printf(pinfo->pool, "0.%02u", val - 1);
         } else { /* Q-value in 0.001 steps */
-            str = wmem_strdup_printf(wmem_packet_scope(), "0.%03u", val - 100);
+            str = wmem_strdup_printf(pinfo->pool, "0.%03u", val - 100);
         }
         proto_item_append_text(ti, "; q=%s", str);
         proto_tree_add_string (tree, hf_parameter_q,
@@ -4145,7 +4143,7 @@ add_addresses(proto_tree *tree, tvbuff_t *tvb, int hf)
                 goto unknown_address_type;
             }
             proto_tree_add_item (addr_tree, hf_address_ipv4_addr,
-                    tvb, offset, 4, ENC_NA);
+                    tvb, offset, 4, ENC_BIG_ENDIAN);
             break;
 
         case BT_IPv6:
@@ -4414,12 +4412,12 @@ add_headers (proto_tree *tree, tvbuff_t *tvb, int hf, packet_info *pinfo)
             offset += 2;
         } else if (hdr_id >= 0x20) { /* Textual header */
             /* Header name MUST be NUL-ended string ==> tvb_get_stringz_enc() */
-            hdr_str = (char *)tvb_get_stringz_enc(wmem_packet_scope(), tvb, hdr_start, (int *)&hdr_len, ENC_ASCII);
+            hdr_str = (char *)tvb_get_stringz_enc(pinfo->pool, tvb, hdr_start, (int *)&hdr_len, ENC_ASCII);
             val_start = hdr_start + hdr_len;
             val_id = tvb_get_uint8(tvb, val_start);
             /* Call header value dissector for given header */
             if (val_id >= 0x20 && val_id <=0x7E) { /* OK! */
-                val_str = (char *)tvb_get_stringz_enc(wmem_packet_scope(), tvb, val_start, (int *)&val_len, ENC_ASCII);
+                val_str = (char *)tvb_get_stringz_enc(pinfo->pool, tvb, val_start, (int *)&val_len, ENC_ASCII);
                 offset = val_start + val_len;
                 proto_tree_add_string_format(wsp_headers, hf_wsp_header_text_value, tvb, hdr_start, offset-hdr_start,
                                     val_str, "%s: %s", hdr_str, val_str);
@@ -4634,7 +4632,7 @@ dissect_wsp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     proto_tree *wsp_tree = NULL;
 
     wsp_info_value_t *stat_info;
-    stat_info = wmem_new(wmem_packet_scope(), wsp_info_value_t);
+    stat_info = wmem_new(pinfo->pool, wsp_info_value_t);
     stat_info->status_code = 0;
 
 /* This field shows up as the "Info" column in the display; you should make
@@ -4652,13 +4650,13 @@ dissect_wsp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     /* Develop the string to put in the Info column */
     col_append_fstr(pinfo->cinfo, COL_INFO, "WSP %s (0x%02x)",
-            val_to_str_ext (pdut, &wsp_vals_pdu_type_ext, "Unknown PDU type (0x%02x)"),
+            val_to_str_ext(pinfo->pool, pdut, &wsp_vals_pdu_type_ext, "Unknown PDU type (0x%02x)"),
             pdut);
 
     proto_ti = proto_tree_add_item(tree, proto_wsp, tvb, 0, -1, ENC_NA);
     wsp_tree = proto_item_add_subtree(proto_ti, ett_wsp);
     proto_item_append_text(proto_ti, ", Method: %s (0x%02x)",
-            val_to_str_ext (pdut, &wsp_vals_pdu_type_ext, "Unknown (0x%02x)"),
+            val_to_str_ext(pinfo->pool, pdut, &wsp_vals_pdu_type_ext, "Unknown (0x%02x)"),
             pdut);
 
     /* Add common items: only TID and PDU Type */
@@ -4841,8 +4839,8 @@ dissect_wsp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                     /*
                      * Content type is a string.
                      */
-                    found_match = dissector_try_string(media_type_table,
-                            contentTypeStr, tmp_tvb, pinfo, tree, NULL);
+                    found_match = dissector_try_string_with_data(media_type_table,
+                            contentTypeStr, tmp_tvb, pinfo, tree, true, NULL);
                 }
                 if (! found_match) {
                     if (! dissector_try_heuristic(heur_subdissector_list,
@@ -4927,8 +4925,8 @@ dissect_wsp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                     /*
                      * Content type is a string.
                      */
-                    found_match = dissector_try_string(media_type_table,
-                            contentTypeStr, tmp_tvb, pinfo, tree, NULL);
+                    found_match = dissector_try_string_with_data(media_type_table,
+                            contentTypeStr, tmp_tvb, pinfo, tree, true, NULL);
                 }
                 if (! found_match) {
                     if (! dissector_try_heuristic(heur_subdissector_list,
@@ -5004,8 +5002,8 @@ dissect_wsp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                         dissect_sir(tree, tmp_tvb);
                     } else
                     */
-                    found_match = dissector_try_string(media_type_table,
-                            contentTypeStr, tmp_tvb, pinfo, tree, NULL);
+                    found_match = dissector_try_string_with_data(media_type_table,
+                            contentTypeStr, tmp_tvb, pinfo, tree, true, NULL);
                 }
                 if (! found_match){
                     /*
@@ -5195,7 +5193,7 @@ add_capabilities (proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, uint8_t p
         peek = tvb_get_uint8(tvb, offset);
         if (is_token_text(peek)) { /* Literal capability name */
             /* 1. Get the string from the tvb */
-            capaName = (char *)tvb_get_stringz_enc(wmem_packet_scope(), tvb, capaStart, (int *)&len, ENC_ASCII);
+            capaName = (char *)tvb_get_stringz_enc(pinfo->pool, tvb, capaStart, (int *)&len, ENC_ASCII);
 
             /* 2. Look up the string capability name */
             if (g_ascii_strcasecmp(capaName, "client-sdu-size") == 0) {
@@ -5406,7 +5404,7 @@ add_post_data (proto_tree *tree, tvbuff_t *tvb, unsigned contentType,
             {
                 if (variableEnd > 0)
                 {
-                    add_post_variable (sub_tree, tvb, variableStart, variableEnd, valueStart, offset);
+                    add_post_variable (sub_tree, pinfo, tvb, variableStart, variableEnd, valueStart, offset);
                 }
                 variableStart = offset+1;
                 variableEnd = 0;
@@ -5417,7 +5415,7 @@ add_post_data (proto_tree *tree, tvbuff_t *tvb, unsigned contentType,
         /* See if there's outstanding data */
         if (variableEnd > 0)
         {
-            add_post_variable (sub_tree, tvb, variableStart, variableEnd, valueStart, offset);
+            add_post_variable (sub_tree, pinfo, tvb, variableStart, variableEnd, valueStart, offset);
         }
     }
     else if ((contentType == 0x22) || (contentType == 0x23) || (contentType == 0x24) ||
@@ -5429,25 +5427,25 @@ add_post_data (proto_tree *tree, tvbuff_t *tvb, unsigned contentType,
 }
 
 static void
-add_post_variable (proto_tree *tree, tvbuff_t *tvb, unsigned variableStart, unsigned variableEnd, unsigned valueStart, unsigned valueEnd)
+add_post_variable (proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned variableStart, unsigned variableEnd, unsigned valueStart, unsigned valueEnd)
 {
     int   variableLength = variableEnd-variableStart;
     int   valueLength    = 0;
     char *variableBuffer;
     char *valueBuffer;
 
-    variableBuffer = tvb_get_string_enc(wmem_packet_scope(), tvb, variableStart, variableLength, ENC_ASCII);
+    variableBuffer = tvb_get_string_enc(pinfo->pool, tvb, variableStart, variableLength, ENC_ASCII);
 
     if (valueEnd < valueStart)
     {
-        valueBuffer = (char *)wmem_alloc(wmem_packet_scope(), 1);
+        valueBuffer = (char *)wmem_alloc(pinfo->pool, 1);
         valueBuffer[0] = 0;
         valueEnd = valueStart;
     }
     else
     {
         valueLength = valueEnd-valueStart;
-        valueBuffer = tvb_get_string_enc(wmem_packet_scope(), tvb, valueStart, valueLength, ENC_ASCII);
+        valueBuffer = tvb_get_string_enc(pinfo->pool, tvb, valueStart, valueLength, ENC_ASCII);
     }
 
     /* Check for variables with no value */
@@ -5535,8 +5533,8 @@ add_multipart_data (proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo)
             /*
              * Content type is a string.
              */
-            found_match = dissector_try_string(media_type_table,
-                    contentTypeStr, tmp_tvb, pinfo, mpart_tree, NULL);
+            found_match = dissector_try_string_with_data(media_type_table,
+                    contentTypeStr, tmp_tvb, pinfo, mpart_tree, true, NULL);
         }
         if (! found_match) {
             if (! dissector_try_heuristic(heur_subdissector_list,
@@ -7167,7 +7165,7 @@ proto_register_wsp(void)
       { &ei_wsp_invalid_parameter_value, { "wsp.invalid_parameter_value", PI_PROTOCOL, PI_WARN, "Invalid parameter value", EXPFILL }},
       { &ei_wsp_header_invalid_value, { "wsp.header_invalid_value", PI_PROTOCOL, PI_WARN, "Invalid header value", EXPFILL }},
       { &ei_hdr_x_wap_tod, { "wsp.header.x_wap_tod.not_text", PI_PROTOCOL, PI_WARN, "Should be encoded as a textual value", EXPFILL }},
-      { &ei_wsp_undecoded_parameter, { "wsp.undecoded_parameter", PI_UNDECODED, PI_WARN, "Invalid parameter value", EXPFILL }},
+      { &ei_wsp_undecoded_parameter, { "wsp.undecoded_parameter", PI_UNDECODED, PI_WARN, "Undecoded parameter value", EXPFILL }},
       { &ei_wsp_trailing_quote, { "wsp.trailing_quote", PI_PROTOCOL, PI_WARN, "Quoted-string value has been encoded with a trailing quote", EXPFILL }},
       { &ei_wsp_header_invalid, { "wsp.header_invalid", PI_MALFORMED, PI_ERROR, "Malformed header", EXPFILL }},
       { &ei_wsp_oversized_uintvar, { "wsp.oversized_uintvar", PI_MALFORMED, PI_ERROR, "Uintvar is oversized", EXPFILL }}
@@ -7196,6 +7194,10 @@ proto_register_wsp(void)
 
     wsp_fromudp_handle = register_dissector("wsp.udp", dissect_wsp_fromudp,
                                                  proto_wsp);
+
+    register_external_value_string_ext("wsp_vals_pdu_type_ext", &wsp_vals_pdu_type_ext);
+    register_external_value_string_ext("wsp_vals_status_ext", &wsp_vals_status_ext);
+
 }
 
 void

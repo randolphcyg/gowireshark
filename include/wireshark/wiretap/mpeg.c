@@ -212,7 +212,7 @@ mpeg_read_pes_packet(wtap *wth, FILE_T fh, bool is_random, int *err, char **err_
 }
 
 static bool
-mpeg_read_packet(wtap *wth, FILE_T fh, wtap_rec *rec, Buffer *buf,
+mpeg_read_packet(wtap *wth, FILE_T fh, wtap_rec *rec,
     bool is_random, int *err, char **err_info)
 {
 	mpeg_t *mpeg = (mpeg_t *)wth->priv;
@@ -235,10 +235,10 @@ mpeg_read_packet(wtap *wth, FILE_T fh, wtap_rec *rec, Buffer *buf,
 	if (packet_size == 0)
 		return false;
 
-	if (!wtap_read_packet_bytes(fh, buf, packet_size, err, err_info))
+	if (!wtap_read_bytes_buffer(fh, &rec->data, packet_size, err, err_info))
 		return false;
 
-	rec->rec_type = REC_TYPE_PACKET;
+	wtap_setup_packet_rec(rec, wth->file_encap);
 	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 
 	rec->presence_flags = 0; /* we may or may not have a time stamp */
@@ -254,24 +254,22 @@ mpeg_read_packet(wtap *wth, FILE_T fh, wtap_rec *rec, Buffer *buf,
 }
 
 static bool
-mpeg_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
+mpeg_read(wtap *wth, wtap_rec *rec, int *err,
 		char **err_info, int64_t *data_offset)
 {
 	*data_offset = file_tell(wth->fh);
 
-	return mpeg_read_packet(wth, wth->fh, rec, buf, false, err, err_info);
+	return mpeg_read_packet(wth, wth->fh, rec, false, err, err_info);
 }
 
 static bool
-mpeg_seek_read(wtap *wth, int64_t seek_off,
-		wtap_rec *rec, Buffer *buf,
+mpeg_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
 		int *err, char **err_info)
 {
 	if (file_seek(wth->random_fh, seek_off, SEEK_SET, err) == -1)
 		return false;
 
-	if (!mpeg_read_packet(wth, wth->random_fh, rec, buf, true, err,
-	    err_info)) {
+	if (!mpeg_read_packet(wth, wth->random_fh, rec, true, err, err_info)) {
 		if (*err == 0)
 			*err = WTAP_ERR_SHORT_READ;
 		return false;
@@ -279,7 +277,7 @@ mpeg_seek_read(wtap *wth, int64_t seek_off,
 	return true;
 }
 
-struct _mpeg_magic {
+const struct _mpeg_magic {
 	size_t len;
 	const char* match;
 	bool is_audio;
@@ -336,7 +334,7 @@ wtap_open_return_val
 mpeg_open(wtap *wth, int *err, char **err_info)
 {
 	char magic_buf[16];
-	struct _mpeg_magic* m;
+	const struct _mpeg_magic* m;
 	mpeg_t *mpeg;
 
 	if (!wtap_read_bytes(wth->fh, magic_buf, sizeof magic_buf,

@@ -16,6 +16,8 @@
 #include <epan/etypes.h>
 #include <epan/expert.h>
 #include <epan/reassemble.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 void proto_reg_handoff_opa_mad(void);
 void proto_register_opa_mad(void);
@@ -2520,14 +2522,13 @@ static const fragment_items opa_rmpp_frag_items = {
  *
  * @param[in] tvb pointer to packet buffer
  * @param[in] offset offset into packet buffer where port select mask begins
- * @param[out] port_list optional: pointer to an arrray of ports, allocated by
- *                                 wmem_alloc(wmem_packet_scope(), 256)
+ * @param[out] port_list optional: pointer to an arrray of ports, allocated via allocator
  * @param[out] num_ports optional: pointer to a number of ports in set in port
  *                                 select mask and portlist if provided.
  * @return char* pointer to range string allocated using
- *                wmem_strbuf_new_sized(wmem_packet_scope(),...)
+ *                wmem_strbuf_new_sized(allocator,...)
  */
-static char *opa_format_port_select_mask(tvbuff_t *tvb, int offset, uint8_t **port_list, uint8_t *num_ports)
+static char *opa_format_port_select_mask(wmem_allocator_t* allocator, tvbuff_t *tvb, int offset, uint8_t **port_list, uint8_t *num_ports)
 {
     int i, j, port, last = -1, first = 0, ports = 0;
     uint64_t mask, psm[4];
@@ -2542,11 +2543,11 @@ static char *opa_format_port_select_mask(tvbuff_t *tvb, int offset, uint8_t **po
     psm[2] = tvb_get_ntoh64(tvb, offset + 16);
     psm[3] = tvb_get_ntoh64(tvb, offset + 24);
 
-    buf = wmem_strbuf_create(wmem_packet_scope());
+    buf = wmem_strbuf_create(allocator);
 
     if (port_list) {
         /* Allocate list of ports; max = 256 = 64 * 4 */
-        portlist = (uint8_t *)wmem_alloc(wmem_packet_scope(), 256);
+        portlist = (uint8_t *)wmem_alloc(allocator, 256);
         memset(portlist, 0xFF, 256);
     }
     for (i = 0; i < 4; i++) {
@@ -2926,8 +2927,9 @@ static bool parse_RMPP(proto_tree *parentTree, packet_info *pinfo, tvbuff_t *tvb
         proto_item_set_text(RMPP_header_item, "%s%s", "RMPP (Empty)", " - Reliable Multi-Packet Transaction Protocol");
         proto_item_append_text(RMPP_type_item, " %s", "RMPP (Empty)");
     } else {
-        proto_item_set_text(RMPP_header_item, "%s%s", val_to_str(RMPP->Type, RMPP_Packet_Types, "RMPP (Reserved 0x%02x)"), " - Reliable Multi-Packet Transaction Protocol");
-        proto_item_append_text(RMPP_type_item, " %s", val_to_str(RMPP->Type, RMPP_Packet_Types, "RMPP (Reserved 0x%02x)"));
+        char* str = val_to_str(pinfo->pool, RMPP->Type, RMPP_Packet_Types, "RMPP (Reserved 0x%02x)");
+        proto_item_set_text(RMPP_header_item, "%s%s", str, " - Reliable Multi-Packet Transaction Protocol");
+        proto_item_append_text(RMPP_type_item, " %s", str);
     }
 
     RMPP->PayloadLength = 0;
@@ -2959,9 +2961,9 @@ static bool parse_RMPP(proto_tree *parentTree, packet_info *pinfo, tvbuff_t *tvb
         break;
     case RMPP_STOP:
     case RMPP_ABORT:
-        proto_tree_add_item(RMPP_header_tree, hf_opa_reserved32, tvb, local_offset, 4, ENC_NA);
+        proto_tree_add_item(RMPP_header_tree, hf_opa_reserved32, tvb, local_offset, 4, ENC_BIG_ENDIAN);
         local_offset += 4;
-        proto_tree_add_item(RMPP_header_tree, hf_opa_reserved32, tvb, local_offset, 4, ENC_NA);
+        proto_tree_add_item(RMPP_header_tree, hf_opa_reserved32, tvb, local_offset, 4, ENC_BIG_ENDIAN);
         local_offset += 4;
         break;
     default:
@@ -3111,7 +3113,7 @@ static int parse_NoticeDataDetails(proto_tree *parentTree, tvbuff_t *tvb, int *o
 }
 
 /* Parse NoticesAndTraps Attribute  */
-static int parse_NoticesAndTraps(proto_tree *parentTree, tvbuff_t *tvb, int *offset)
+static int parse_NoticesAndTraps(proto_tree *parentTree, packet_info* pinfo, tvbuff_t *tvb, int *offset)
 {
     int local_offset = *offset;
     proto_item *NoticesAndTraps_header_item;
@@ -3123,7 +3125,7 @@ static int parse_NoticesAndTraps(proto_tree *parentTree, tvbuff_t *tvb, int *off
         return *offset;
 
     NoticesAndTraps_header_item = proto_tree_add_item(parentTree, hf_opa_Notice, tvb, local_offset, 96, ENC_NA);
-    proto_item_set_text(NoticesAndTraps_header_item, "%s", val_to_str(trapNumber, Trap_Description, "Unknown or Vendor Specific Trap Number! (0x%02x)"));
+    proto_item_set_text(NoticesAndTraps_header_item, "%s", val_to_str(pinfo->pool, trapNumber, Trap_Description, "Unknown or Vendor Specific Trap Number! (0x%02x)"));
     NoticesAndTraps_header_tree = proto_item_add_subtree(NoticesAndTraps_header_item, ett_noticestraps);
 
     proto_tree_add_item(NoticesAndTraps_header_tree, hf_opa_Notice_IsGeneric, tvb, local_offset, 1, ENC_BIG_ENDIAN);
@@ -3309,7 +3311,7 @@ static int parse_NodeDescription(proto_tree *parentTree, tvbuff_t *tvb, int *off
     NodeDescription_header_item = proto_tree_add_item(NodeDescription_header_tree, hf_opa_NodeDescription, tvb, local_offset, 64, ENC_NA);
     NodeDescription_header_tree = proto_item_add_subtree(NodeDescription_header_item, ett_nodedescription);
 
-    proto_tree_add_item(NodeDescription_header_tree, hf_opa_NodeDescription_NodeString, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+    proto_tree_add_item(NodeDescription_header_tree, hf_opa_NodeDescription_NodeString, tvb, local_offset, 64, ENC_ASCII);
     local_offset += 64;
     return local_offset;
 }
@@ -4302,7 +4304,7 @@ static int parse_CableInfo(proto_tree *parentTree, tvbuff_t *tvb, int *offset, M
     proto_item_set_text(CableInfo_header_item, "Cable Info on Port %u", Port_num);
     CableInfo_header_tree = proto_item_add_subtree(CableInfo_header_item, ett_cableinfo);
 
-    proto_tree_add_item(CableInfo_header_tree, hf_opa_CableInfo_DataStream, tvb, local_offset, Data_Len, ENC_ASCII | ENC_NA);
+    proto_tree_add_item(CableInfo_header_tree, hf_opa_CableInfo_DataStream, tvb, local_offset, Data_Len, ENC_ASCII);
     for (i = 0; i < Data_Len; i++) {
         tempItemLow = proto_tree_add_item(CableInfo_header_tree, hf_opa_CableInfo_Data, tvb, local_offset, 1, ENC_BIG_ENDIAN);
         proto_item_prepend_text(tempItemLow, "0x%04X: ", i + start_addr);
@@ -4640,7 +4642,7 @@ static int parse_HFICongestionControlTable(proto_tree *parentTree, tvbuff_t *tvb
     return local_offset;
 }
 /* Call appropriate parsing function */
-static bool call_SUBM_Parser(proto_tree *parentTree, tvbuff_t *tvb, int *offset, MAD_t *MAD, uint16_t AttributeID)
+static bool call_SUBM_Parser(proto_tree *parentTree, packet_info* pinfo, tvbuff_t *tvb, int *offset, MAD_t *MAD, uint16_t AttributeID)
 {
     proto_tree *SUBM_Attribute_header_tree = parentTree;
     int local_offset = *offset;
@@ -4653,7 +4655,7 @@ static bool call_SUBM_Parser(proto_tree *parentTree, tvbuff_t *tvb, int *offset,
         local_offset = parse_ClassPortInfo(SUBM_Attribute_header_tree, tvb, offset, MAD);
         break;
     case SM_ATTR_ID_NOTICE:
-        local_offset = parse_NoticesAndTraps(SUBM_Attribute_header_tree, tvb, offset);
+        local_offset = parse_NoticesAndTraps(SUBM_Attribute_header_tree, pinfo, tvb, offset);
         break;
     case SM_ATTR_ID_NODE_DESCRIPTION:
         local_offset = parse_NodeDescription(SUBM_Attribute_header_tree, tvb, offset, MAD);
@@ -4743,7 +4745,7 @@ static bool call_SUBM_Parser(proto_tree *parentTree, tvbuff_t *tvb, int *offset,
 }
 
 /* Parse Aggregate Attribute */
-static int parse_Aggregate(proto_tree *parentTree, tvbuff_t *tvb, int *offset, MAD_t *MAD)
+static int parse_Aggregate(proto_tree *parentTree, packet_info* pinfo, tvbuff_t *tvb, int *offset, MAD_t *MAD)
 {
     int i;
     unsigned requestLength;
@@ -4774,9 +4776,9 @@ static int parse_Aggregate(proto_tree *parentTree, tvbuff_t *tvb, int *offset, M
         proto_tree_add_item(Aggregate_header_tree, hf_opa_Aggregate_AttributeID, tvb, local_offset, 2, ENC_BIG_ENDIAN);
         LocalAttributeID = tvb_get_ntohs(tvb, local_offset);
         local_offset += 2;
-        proto_item_set_text(Aggregate_header_item, "Aggregate %u: %s", i + 1, val_to_str(LocalAttributeID, SUBM_Attributes, "Unknown Attribute Type! (0x%02x)"));
+        proto_item_set_text(Aggregate_header_item, "Aggregate %u: %s", i + 1, val_to_str(pinfo->pool, LocalAttributeID, SUBM_Attributes, "Unknown Attribute Type! (0x%02x)"));
 
-        AggregatError = (bool)tvb_get_bits(tvb, local_offset * 8, 1, ENC_BIG_ENDIAN);
+        AggregatError = (bool)tvb_get_bits8(tvb, local_offset * 8, 1);
         Aggregate_Error_item = proto_tree_add_item(Aggregate_header_tree, hf_opa_Aggregate_Error, tvb, local_offset, 2, ENC_BIG_ENDIAN);
         if (AggregatError)
             expert_add_info(NULL, Aggregate_Error_item, &ei_opa_aggregate_error);
@@ -4792,7 +4794,7 @@ static int parse_Aggregate(proto_tree *parentTree, tvbuff_t *tvb, int *offset, M
             /* Do Nothing */
         } else {
             saved_offset = local_offset;
-            call_SUBM_Parser(Aggregate_header_tree, tvb, &local_offset, MAD, LocalAttributeID);
+            call_SUBM_Parser(Aggregate_header_tree, pinfo, tvb, &local_offset, MAD, LocalAttributeID);
             if (local_offset != (saved_offset + (int)requestLength)) {
                 local_offset = saved_offset + (int)requestLength;
             }
@@ -4801,14 +4803,14 @@ static int parse_Aggregate(proto_tree *parentTree, tvbuff_t *tvb, int *offset, M
     return local_offset;
 }
 /* Parse the attribute from a Subnet Management Packet. */
-static bool parse_SUBM_Attribute(proto_tree *parentTree, tvbuff_t *tvb, int *offset, MAD_t *MAD)
+static bool parse_SUBM_Attribute(proto_tree *parentTree, packet_info* pinfo, tvbuff_t *tvb, int *offset, MAD_t *MAD)
 {
     int local_offset = *offset;
     if (MAD->AttributeID == SM_ATTR_ID_AGGREGATE) {
-        *offset = parse_Aggregate(parentTree, tvb, &local_offset, MAD);
+        *offset = parse_Aggregate(parentTree, pinfo, tvb, &local_offset, MAD);
         return true;
     } else
-        return call_SUBM_Parser(parentTree, tvb, offset, MAD, MAD->AttributeID);
+        return call_SUBM_Parser(parentTree, pinfo, tvb, offset, MAD, MAD->AttributeID);
 }
 /* Parse the Method from the MAD Common Header. */
 static void label_SUBM_Method(proto_item *SubMItem, MAD_t *MAD, packet_info *pinfo)
@@ -4849,7 +4851,7 @@ static void parse_SUBN_LID_ROUTED(proto_tree *parentTree, packet_info *pinfo, tv
     *offset = local_offset;
     if (!pref_parse_on_mad_status_error && MAD.Status) {
         local_offset += tvb_captured_length_remaining(tvb, *offset);
-    } else if (!parse_SUBM_Attribute(SM_LID_header_tree, tvb, &local_offset, &MAD)) {
+    } else if (!parse_SUBM_Attribute(SM_LID_header_tree, pinfo, tvb, &local_offset, &MAD)) {
         expert_add_info_format(pinfo, NULL, &ei_opa_mad_no_attribute_dissector,
             "Attribute Dissector Not Implemented (0x%x)", MAD.AttributeID);
         local_offset += tvb_captured_length_remaining(tvb, *offset);
@@ -4887,12 +4889,12 @@ static void parse_SUBN_DIRECTED_ROUTE(proto_tree *parentTree, packet_info *pinfo
     local_offset += 64;
     proto_tree_add_item(SM_DR_header_tree, hf_opa_sm_dr_return_path, tvb, local_offset, 64, ENC_NA);
     local_offset += 64;
-    proto_tree_add_item(SM_DR_header_tree, hf_opa_sm_dr_reserved64, tvb, local_offset, 8, ENC_NA);
+    proto_tree_add_item(SM_DR_header_tree, hf_opa_sm_dr_reserved64, tvb, local_offset, 8, ENC_BIG_ENDIAN);
     local_offset += 8;
     *offset = local_offset;
     if (!pref_parse_on_mad_status_error && (MAD.Status & 0x7FFF)) {
         local_offset += tvb_captured_length_remaining(tvb, *offset);
-    } else if (!parse_SUBM_Attribute(SM_DR_header_tree, tvb, &local_offset, &MAD)) {
+    } else if (!parse_SUBM_Attribute(SM_DR_header_tree, pinfo, tvb, &local_offset, &MAD)) {
         expert_add_info_format(pinfo, NULL, &ei_opa_mad_no_attribute_dissector,
             "Attribute Dissector Not Implemented (0x%x)", MAD.AttributeID);
         local_offset += tvb_captured_length_remaining(tvb, *offset);
@@ -4915,15 +4917,15 @@ static int parse_PortInfoRecord(proto_tree *parentTree, tvbuff_t *tvb, int *offs
         PortInfoRecord_LinkDownReason_Entry_tree = proto_tree_add_subtree_format(PortInfoRecord_LinkDownReason_tree, tvb, local_offset, 16,
             ett_portinforecord_linkdownreason_entry, NULL, "Link Down Reason Entry %u", i);
 
-        proto_tree_add_item(PortInfoRecord_LinkDownReason_Entry_tree, hf_opa_reserved32, tvb, local_offset, 4, ENC_NA);
+        proto_tree_add_item(PortInfoRecord_LinkDownReason_Entry_tree, hf_opa_reserved32, tvb, local_offset, 4, ENC_BIG_ENDIAN);
         local_offset += 4;
-        proto_tree_add_item(PortInfoRecord_LinkDownReason_Entry_tree, hf_opa_reserved16, tvb, local_offset, 2, ENC_NA);
+        proto_tree_add_item(PortInfoRecord_LinkDownReason_Entry_tree, hf_opa_reserved16, tvb, local_offset, 2, ENC_BIG_ENDIAN);
         local_offset += 2;
         proto_tree_add_item(PortInfoRecord_LinkDownReason_Entry_tree, hf_opa_PortInfoRecord_LinkDownReason_NeighborLinkDownReason, tvb, local_offset, 1, ENC_NA);
         local_offset += 1;
         proto_tree_add_item(PortInfoRecord_LinkDownReason_Entry_tree, hf_opa_PortInfoRecord_LinkDownReason_LinkDownReason, tvb, local_offset, 1, ENC_NA);
         local_offset += 1;
-        proto_tree_add_item(PortInfoRecord_LinkDownReason_Entry_tree, hf_opa_PortInfoRecord_LinkDownReason_Timestamp, tvb, local_offset, 8, ENC_NA);
+        proto_tree_add_item(PortInfoRecord_LinkDownReason_Entry_tree, hf_opa_PortInfoRecord_LinkDownReason_Timestamp, tvb, local_offset, 8, ENC_BIG_ENDIAN);
         local_offset += 8;
 
     }
@@ -4976,7 +4978,7 @@ static int parse_ServiceRecord(proto_tree *parentTree, tvbuff_t *tvb, int *offse
     local_offset += 4;
     proto_tree_add_item(ServiceRecord_header_tree, hf_opa_ServiceRecord_ServiceKey, tvb, local_offset, 16, ENC_NA);
     local_offset += 16;
-    proto_tree_add_item(ServiceRecord_header_tree, hf_opa_ServiceRecord_ServiceName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+    proto_tree_add_item(ServiceRecord_header_tree, hf_opa_ServiceRecord_ServiceName, tvb, local_offset, 64, ENC_ASCII);
     local_offset += 64;
 
     tempData = proto_tree_add_item(ServiceRecord_header_tree, hf_opa_ServiceRecord_ServiceData, tvb, local_offset, 16, ENC_NA);
@@ -5010,7 +5012,7 @@ static int parse_PathRecord(proto_tree *parentTree, tvbuff_t *tvb, int *offset)
     PathRecord_header_item = proto_tree_add_item(parentTree, hf_opa_PathRecord, tvb, local_offset, 64, ENC_NA);
     PathRecord_header_tree = proto_item_add_subtree(PathRecord_header_item, ett_pathrecord);
 
-    proto_tree_add_item(PathRecord_header_tree, hf_opa_reserved64, tvb, local_offset, 8, ENC_NA);
+    proto_tree_add_item(PathRecord_header_tree, hf_opa_reserved64, tvb, local_offset, 8, ENC_BIG_ENDIAN);
     local_offset += 8;
     proto_tree_add_item(PathRecord_header_tree, hf_opa_PathRecord_DGID, tvb, local_offset, 16, ENC_NA);
     local_offset += 16;
@@ -5323,12 +5325,12 @@ static int parse_MultiPathRecord_GUID(proto_tree *parentTree, tvbuff_t *tvb, int
     local_offset += 8;
 
     for (i = 0; i < SGUIDCount; i++) {
-        SDGUID = proto_tree_add_item(MultiPathRecord_header_tree, hf_opa_MultiPathRecord_SGUID, tvb, local_offset, 8, ENC_NA);
+        SDGUID = proto_tree_add_item(MultiPathRecord_header_tree, hf_opa_MultiPathRecord_SGUID, tvb, local_offset, 8, ENC_BIG_ENDIAN);
         local_offset += 8;
         proto_item_prepend_text(SDGUID, "%u: ", i);
     }
     for (i = 0; i < DGUIDCount; i++) {
-        SDGUID = proto_tree_add_item(MultiPathRecord_header_tree, hf_opa_MultiPathRecord_DGUID, tvb, local_offset, 8, ENC_NA);
+        SDGUID = proto_tree_add_item(MultiPathRecord_header_tree, hf_opa_MultiPathRecord_DGUID, tvb, local_offset, 8, ENC_BIG_ENDIAN);
         local_offset += 8;
         proto_item_prepend_text(SDGUID, "%u: ", i);
     }
@@ -5412,12 +5414,12 @@ static int parse_MultiPathRecord_lid(proto_tree *parentTree, tvbuff_t *tvb, int 
     local_offset += 8;
 
     for (i = 0; i < SLIDCount; i++) {
-        SDLID = proto_tree_add_item(MultiPathRecord_header_tree, hf_opa_MultiPathRecord_SLID, tvb, local_offset, 4, ENC_NA);
+        SDLID = proto_tree_add_item(MultiPathRecord_header_tree, hf_opa_MultiPathRecord_SLID, tvb, local_offset, 4, ENC_BIG_ENDIAN);
         local_offset += 4;
         proto_item_prepend_text(SDLID, "%u: ", i);
     }
     for (i = 0; i < DLIDCount; i++) {
-        SDLID = proto_tree_add_item(MultiPathRecord_header_tree, hf_opa_MultiPathRecord_DLID, tvb, local_offset, 4, ENC_NA);
+        SDLID = proto_tree_add_item(MultiPathRecord_header_tree, hf_opa_MultiPathRecord_DLID, tvb, local_offset, 4, ENC_BIG_ENDIAN);
         local_offset += 4;
         proto_item_prepend_text(SDLID, "%u: ", i);
     }
@@ -5437,15 +5439,15 @@ static int parse_CableInfoRecord(proto_tree *parentTree, tvbuff_t *tvb, int *off
     CableInfoRecord_header_item = proto_tree_add_item(parentTree, hf_opa_CableInfoRecord, tvb, local_offset, 72, ENC_NA);
     CableInfoRecord_header_tree = proto_item_add_subtree(CableInfoRecord_header_item, ett_cableinforecord);
 
-    proto_tree_add_item(CableInfoRecord_header_tree, hf_opa_CableInfoRecord_Lid, tvb, local_offset, 4, ENC_NA);
+    proto_tree_add_item(CableInfoRecord_header_tree, hf_opa_CableInfoRecord_Lid, tvb, local_offset, 4, ENC_BIG_ENDIAN);
     local_offset += 4;
     proto_tree_add_item(CableInfoRecord_header_tree, hf_opa_CableInfoRecord_Port, tvb, local_offset, 1, ENC_NA);
     local_offset += 1;
     proto_tree_add_item(CableInfoRecord_header_tree, hf_opa_CableInfoRecord_Length, tvb, local_offset, 1, ENC_NA);
     proto_tree_add_item(CableInfoRecord_header_tree, hf_opa_CableInfoRecord_reserved, tvb, local_offset, 1, ENC_NA);
     local_offset += 1;
-    proto_tree_add_item(CableInfoRecord_header_tree, hf_opa_CableInfoRecord_Address, tvb, local_offset, 2, ENC_NA);
-    proto_tree_add_item(CableInfoRecord_header_tree, hf_opa_CableInfoRecord_PortType, tvb, local_offset, 2, ENC_NA);
+    proto_tree_add_item(CableInfoRecord_header_tree, hf_opa_CableInfoRecord_Address, tvb, local_offset, 2, ENC_BIG_ENDIAN);
+    proto_tree_add_item(CableInfoRecord_header_tree, hf_opa_CableInfoRecord_PortType, tvb, local_offset, 2, ENC_BIG_ENDIAN);
     local_offset += 2;
     proto_tree_add_item(CableInfoRecord_header_tree, hf_opa_CableInfoRecord_Data, tvb, local_offset, 64, ENC_NA);
     local_offset += 64;
@@ -5470,7 +5472,7 @@ static int parse_ServiceAssociationRecord(proto_tree *parentTree, tvbuff_t *tvb,
 
     proto_tree_add_item(ServiceAssociationRecord_header_tree, hf_opa_ServiceAssociationRecord_ServiceKey, tvb, local_offset, 16, ENC_NA);
     local_offset += 16;
-    proto_tree_add_item(ServiceAssociationRecord_header_tree, hf_opa_ServiceAssociationRecord_ServiceName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+    proto_tree_add_item(ServiceAssociationRecord_header_tree, hf_opa_ServiceAssociationRecord_ServiceName, tvb, local_offset, 64, ENC_ASCII);
     local_offset += 64;
 
     return local_offset;
@@ -5494,7 +5496,7 @@ static int parse_VFInfoRecord(proto_tree *parentTree, tvbuff_t *tvb, int *offset
     local_offset += 2;
     proto_tree_add_item(VFInfoRecord_header_tree, hf_opa_reserved32, tvb, local_offset, 4, ENC_BIG_ENDIAN);
     local_offset += 4;
-    proto_tree_add_item(VFInfoRecord_header_tree, hf_opa_VFInfoRecord_vfName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+    proto_tree_add_item(VFInfoRecord_header_tree, hf_opa_VFInfoRecord_vfName, tvb, local_offset, 64, ENC_ASCII);
     local_offset += 64;
     proto_tree_add_item(VFInfoRecord_header_tree, hf_opa_sa_ServiceID, tvb, local_offset, 8, ENC_BIG_ENDIAN);
     local_offset += 8;
@@ -5701,7 +5703,7 @@ static void parse_RID(proto_tree *SA_header_tree, tvbuff_t *tvb, int *offset, MA
         local_offset += 1;
         break;
     case SA_ATTR_ID_INFORM_INFO_RECORD: /* InformInfoRecord */
-        proto_tree_add_item(SA_header_tree, hf_opa_sa_SubscriberLID, tvb, local_offset, 4, ENC_NA);
+        proto_tree_add_item(SA_header_tree, hf_opa_sa_SubscriberLID, tvb, local_offset, 4, ENC_BIG_ENDIAN);
         local_offset += 4;
         proto_tree_add_item(SA_header_tree, hf_opa_sa_Enum, tvb, local_offset, 2, ENC_BIG_ENDIAN);
         local_offset += 2;
@@ -5715,7 +5717,7 @@ static void parse_RID(proto_tree *SA_header_tree, tvbuff_t *tvb, int *offset, MA
     case SA_ATTR_ID_SERVICE_RECORD: /* ServiceRecord */
         proto_tree_add_item(SA_header_tree, hf_opa_sa_ServiceID, tvb, local_offset, 8, ENC_BIG_ENDIAN);
         local_offset += 8;
-        proto_tree_add_item(SA_header_tree, hf_opa_sa_ServiceLID, tvb, local_offset, 4, ENC_NA);
+        proto_tree_add_item(SA_header_tree, hf_opa_sa_ServiceLID, tvb, local_offset, 4, ENC_BIG_ENDIAN);
         local_offset += 4;
         proto_tree_add_item(SA_header_tree, hf_opa_sa_ServiceP_Key, tvb, local_offset, 2, ENC_BIG_ENDIAN);
         local_offset += 2;
@@ -5792,7 +5794,7 @@ static void parse_RID(proto_tree *SA_header_tree, tvbuff_t *tvb, int *offset, MA
     *offset = local_offset;
 }
 /* Parse the attribute from a Subnet Administration Packet. */
-static bool parse_SUBA_Attribute(proto_tree *parentTree, tvbuff_t *tvb, int *offset, MAD_t *MAD, RMPP_t *RMPP, SA_HEADER_t *SA_HEADER)
+static bool parse_SUBA_Attribute(proto_tree *parentTree, packet_info* pinfo, tvbuff_t *tvb, int *offset, MAD_t *MAD, RMPP_t *RMPP, SA_HEADER_t *SA_HEADER)
 {
     proto_tree *SUBA_Attribute_header_tree = parentTree;
     int local_offset = *offset;
@@ -5810,7 +5812,7 @@ static bool parse_SUBA_Attribute(proto_tree *parentTree, tvbuff_t *tvb, int *off
         local_offset = parse_ClassPortInfo(SUBA_Attribute_header_tree, tvb, &local_offset, MAD);
         break;
     case SA_ATTR_ID_NOTICE: /* (Notice) */
-        local_offset = parse_NoticesAndTraps(SUBA_Attribute_header_tree, tvb, &local_offset);
+        local_offset = parse_NoticesAndTraps(SUBA_Attribute_header_tree, pinfo, tvb, &local_offset);
         break;
     case SA_ATTR_ID_INFORM_INFO: /* (InformInfo) */
         local_offset = parse_InformInfo(SUBA_Attribute_header_tree, tvb, &local_offset, MAD);
@@ -6068,7 +6070,7 @@ static void parse_SUBNADMN(proto_tree *parentTree, packet_info *pinfo, tvbuff_t 
         SA_record_tree = proto_tree_add_subtree_format(parentTree, tvb, old_offset,
             (SA_HEADER.AttributeOffset * 8), ett_rmpp_sa_record, NULL, "%s Record %u: ", label, r);
 
-        if (!parse_SUBA_Attribute(SA_record_tree, tvb, offset, &MAD, &RMPP, &SA_HEADER)) {
+        if (!parse_SUBA_Attribute(SA_record_tree, pinfo, tvb, offset, &MAD, &RMPP, &SA_HEADER)) {
             expert_add_info_format(pinfo, NULL, &ei_opa_mad_no_attribute_dissector,
                 "Attribute Dissector Not Implemented (0x%x)", MAD.AttributeID);
             *offset += tvb_captured_length_remaining(tvb, *offset);
@@ -6228,7 +6230,7 @@ static int parse_PortStatus(proto_tree *parentTree, tvbuff_t *tvb, int *offset, 
 }
 
 /* Parse ClearPortStatus MAD from the Performance management class.*/
-static int parse_ClearPortStatus(proto_tree *parentTree, tvbuff_t *tvb, int *offset, MAD_t *MAD)
+static int parse_ClearPortStatus(proto_tree *parentTree, packet_info* pinfo, tvbuff_t *tvb, int *offset, MAD_t *MAD)
 {
     proto_item *ClearPortStatus_header_item;
     proto_tree *ClearPortStatus_header_tree;
@@ -6247,7 +6249,7 @@ static int parse_ClearPortStatus(proto_tree *parentTree, tvbuff_t *tvb, int *off
 
     ClearPortStatus_PortSelectMask_item = proto_tree_add_item(ClearPortStatus_header_tree, hf_opa_ClearPortStatus_PortSelectMask, tvb, local_offset, 32, ENC_NA);
     proto_item_append_text(ClearPortStatus_PortSelectMask_item, ": %s",
-        opa_format_port_select_mask(tvb, local_offset, NULL, NULL));
+        opa_format_port_select_mask(pinfo->pool, tvb, local_offset, NULL, NULL));
     local_offset += 32;
 
     proto_tree_add_bitmask(ClearPortStatus_header_tree, tvb, local_offset,
@@ -6259,7 +6261,7 @@ static int parse_ClearPortStatus(proto_tree *parentTree, tvbuff_t *tvb, int *off
 }
 
 /* Parse DataPortCounters MAD from the Performance management class.*/
-static int parse_DataPortCounters(proto_tree *parentTree, tvbuff_t *tvb, int *offset, MAD_t *MAD)
+static int parse_DataPortCounters(proto_tree *parentTree, packet_info* pinfo, tvbuff_t *tvb, int *offset, MAD_t *MAD)
 {
     proto_item *DataPortCounters_header_item;
     proto_item *DataPortCounters_PortSelectMask_item;
@@ -6291,7 +6293,7 @@ static int parse_DataPortCounters(proto_tree *parentTree, tvbuff_t *tvb, int *of
 
     DataPortCounters_PortSelectMask_item = proto_tree_add_item(DataPortCounters_header_tree, hf_opa_DataPortCounters_PortSelectMask, tvb, local_offset, 32, ENC_NA);
     proto_item_append_text(DataPortCounters_PortSelectMask_item, ": %s",
-        opa_format_port_select_mask(tvb, local_offset, NULL, NULL));
+        opa_format_port_select_mask(pinfo->pool, tvb, local_offset, NULL, NULL));
     local_offset += 32;
 
     proto_tree_add_item(DataPortCounters_header_tree, hf_opa_DataPortCounters_VLSelectMask, tvb, local_offset, 4, ENC_BIG_ENDIAN);
@@ -6393,7 +6395,7 @@ static int parse_DataPortCounters(proto_tree *parentTree, tvbuff_t *tvb, int *of
 }
 
 /* Parse ErrorPortCounters MAD from the Performance management class.*/
-static int parse_ErrorPortCounters(proto_tree *parentTree, tvbuff_t *tvb, int *offset, MAD_t *MAD)
+static int parse_ErrorPortCounters(proto_tree *parentTree, packet_info* pinfo, tvbuff_t *tvb, int *offset, MAD_t *MAD)
 {
     proto_item *ErrorPortCounters_header_item;
     proto_item *ErrorPortCounters_PortSelectMask_item;
@@ -6425,7 +6427,7 @@ static int parse_ErrorPortCounters(proto_tree *parentTree, tvbuff_t *tvb, int *o
 
     ErrorPortCounters_PortSelectMask_item = proto_tree_add_item(ErrorPortCounters_header_tree, hf_opa_ErrorPortCounters_PortSelectMask, tvb, local_offset, 32, ENC_NA);
     proto_item_append_text(ErrorPortCounters_PortSelectMask_item, ": %s",
-        opa_format_port_select_mask(tvb, local_offset, NULL, NULL));
+        opa_format_port_select_mask(pinfo->pool, tvb, local_offset, NULL, NULL));
     local_offset += 32;
 
     proto_tree_add_item(ErrorPortCounters_header_tree, hf_opa_ErrorPortCounters_VLSelectMask, tvb, local_offset, 4, ENC_BIG_ENDIAN);
@@ -6492,7 +6494,7 @@ static int parse_ErrorPortCounters(proto_tree *parentTree, tvbuff_t *tvb, int *o
 }
 
 /* Parse ErrorPortInfo MAD from the Performance management class.*/
-static int parse_ErrorPortInfo(proto_tree *parentTree, tvbuff_t *tvb, int *offset, MAD_t *MAD)
+static int parse_ErrorPortInfo(proto_tree *parentTree, packet_info* pinfo, tvbuff_t *tvb, int *offset, MAD_t *MAD)
 {
     proto_item *ErrorPortInfo_header_item;
     proto_item *ErrorPortInfo_PortSelectMask_item;
@@ -6525,7 +6527,7 @@ static int parse_ErrorPortInfo(proto_tree *parentTree, tvbuff_t *tvb, int *offse
 
     ErrorPortInfo_PortSelectMask_item = proto_tree_add_item(ErrorPortInfo_header_tree, hf_opa_ErrorPortInfo_PortSelectMask, tvb, local_offset, 32, ENC_NA);
     proto_item_append_text(ErrorPortInfo_PortSelectMask_item, ": %s",
-        opa_format_port_select_mask(tvb, local_offset, NULL, NULL));
+        opa_format_port_select_mask(pinfo->pool, tvb, local_offset, NULL, NULL));
     local_offset += 32;
 
     if (MAD->Method == METHOD_GET)
@@ -6717,7 +6719,7 @@ static int parse_ErrorPortInfo(proto_tree *parentTree, tvbuff_t *tvb, int *offse
     }
     return local_offset;
 }
-static bool parse_PM_Attribute(proto_tree *parentTree, tvbuff_t *tvb, int *offset, MAD_t *MAD)
+static bool parse_PM_Attribute(proto_tree *parentTree, packet_info* pinfo, tvbuff_t *tvb, int *offset, MAD_t *MAD)
 {
     int local_offset = *offset;
 
@@ -6730,16 +6732,16 @@ static bool parse_PM_Attribute(proto_tree *parentTree, tvbuff_t *tvb, int *offse
         local_offset = parse_PortStatus(parentTree, tvb, &local_offset, MAD);
         break;
     case PM_ATTR_ID_CLEAR_PORT_STATUS:
-        local_offset = parse_ClearPortStatus(parentTree, tvb, &local_offset, MAD);
+        local_offset = parse_ClearPortStatus(parentTree, pinfo, tvb, &local_offset, MAD);
         break;
     case PM_ATTR_ID_DATA_PORT_COUNTERS:
-        local_offset = parse_DataPortCounters(parentTree, tvb, &local_offset, MAD);
+        local_offset = parse_DataPortCounters(parentTree, pinfo, tvb, &local_offset, MAD);
         break;
     case PM_ATTR_ID_ERROR_PORT_COUNTERS:
-        local_offset = parse_ErrorPortCounters(parentTree, tvb, &local_offset, MAD);
+        local_offset = parse_ErrorPortCounters(parentTree, pinfo, tvb, &local_offset, MAD);
         break;
     case PM_ATTR_ID_ERROR_INFO:
-        local_offset = parse_ErrorPortInfo(parentTree, tvb, &local_offset, MAD);
+        local_offset = parse_ErrorPortInfo(parentTree, pinfo, tvb, &local_offset, MAD);
         break;
     default:
         return false;
@@ -6785,7 +6787,7 @@ static void parse_PERF(proto_tree *parentTree, packet_info *pinfo, tvbuff_t *tvb
         *offset += tvb_captured_length_remaining(tvb, *offset);
         return;
     }
-    if (!parse_PM_Attribute(PM_header_tree, tvb, offset, &MAD)) {
+    if (!parse_PM_Attribute(PM_header_tree, pinfo, tvb, offset, &MAD)) {
         expert_add_info_format(pinfo, NULL, &ei_opa_mad_no_attribute_dissector,
             "Attribute Dissector Not Implemented (0x%x)", MAD.AttributeID);
         *offset += tvb_captured_length_remaining(tvb, *offset);
@@ -6836,7 +6838,7 @@ static int parse_GetGroupList(proto_tree *parentTree, tvbuff_t *tvb, int *offset
     proto_tree_add_none_format(GetGroupList_header_tree, hf_opa_GetGroupList, tvb, local_offset, length, "Number of Groups: %u", records);
 
     for (i = 0; i < records; i++) {
-        GetGroupList_GroupName_item = proto_tree_add_item(GetGroupList_header_tree, hf_opa_GetGroupList_groupName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+        GetGroupList_GroupName_item = proto_tree_add_item(GetGroupList_header_tree, hf_opa_GetGroupList_groupName, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
         proto_item_prepend_text(GetGroupList_GroupName_item, "%3u: ", i + 1);
     }
@@ -6885,7 +6887,7 @@ static int parse_GetGroupInfo(proto_tree *parentTree, tvbuff_t *tvb, int *offset
         GetGroupInfo_header_item = proto_tree_add_item(parentTree, hf_opa_GetGroupInfo, tvb, local_offset, 64 + 16, ENC_NA);
         proto_item_set_text(GetGroupInfo_header_item, "GroupInfo for %s", tvb_get_string_enc(wmem_file_scope(), tvb, local_offset, 64, ENC_ASCII));
         GetGroupInfo_header_tree = proto_item_add_subtree(GetGroupInfo_header_item, ett_getgroupinfo);
-        proto_tree_add_item(GetGroupInfo_header_tree, hf_opa_GetGroupInfo_groupName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(GetGroupInfo_header_tree, hf_opa_GetGroupInfo_groupName, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
         /* ImageID */
         local_offset = parse_Image(GetGroupInfo_header_tree, tvb, &local_offset);
@@ -6896,7 +6898,7 @@ static int parse_GetGroupInfo(proto_tree *parentTree, tvbuff_t *tvb, int *offset
         GetGroupInfo_header_item = proto_tree_add_item(parentTree, hf_opa_GetGroupInfo, tvb, local_offset, 64 + 16, ENC_NA);
         proto_item_set_text(GetGroupInfo_header_item, "GroupInfo for %s", tvb_get_string_enc(wmem_file_scope(), tvb, local_offset, 64, ENC_ASCII));
         GetGroupInfo_header_tree = proto_item_add_subtree(GetGroupInfo_header_item, ett_getgroupinfo);
-        proto_tree_add_item(GetGroupInfo_header_tree, hf_opa_GetGroupInfo_groupName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(GetGroupInfo_header_tree, hf_opa_GetGroupInfo_groupName, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
 
         /* ImageID */
@@ -7153,7 +7155,7 @@ static int parse_GetGroupConfig(proto_tree *parentTree, tvbuff_t *tvb, int *offs
         proto_item_set_text(GetGroupConfig_header_item, "GroupConfig for %s", tvb_get_string_enc(wmem_file_scope(), tvb, local_offset, 64, ENC_ASCII));
         GetGroupConfig_header_tree = proto_item_add_subtree(GetGroupConfig_header_item, ett_getgroupconfig);
 
-        proto_tree_add_item(GetGroupConfig_header_tree, hf_opa_GetGroupConfig_groupName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(GetGroupConfig_header_tree, hf_opa_GetGroupConfig_groupName, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
         local_offset = parse_Image(GetGroupConfig_header_tree, tvb, &local_offset);
     } else if (MAD->Method == METHOD_GET_RESP || MAD->Method == METHOD_GETTABLE_RESP) {
@@ -7165,7 +7167,7 @@ static int parse_GetGroupConfig(proto_tree *parentTree, tvbuff_t *tvb, int *offs
             local_offset = parse_Image(GetGroupConfig_Port_tree, tvb, &local_offset);
             proto_tree_add_item(GetGroupConfig_Port_tree, hf_opa_GetGroupConfig_Port_NodeGUID, tvb, local_offset, 8, ENC_BIG_ENDIAN);
             local_offset += 8;
-            proto_tree_add_item(GetGroupConfig_Port_tree, hf_opa_GetGroupConfig_Port_nodeDesc, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+            proto_tree_add_item(GetGroupConfig_Port_tree, hf_opa_GetGroupConfig_Port_nodeDesc, tvb, local_offset, 64, ENC_ASCII);
             local_offset += 64;
             proto_item_append_text(GetGroupConfig_Port_item, "LID: 0x%04x, Port: %u", tvb_get_ntohl(tvb, local_offset), tvb_get_uint8(tvb, local_offset + 4));
             proto_tree_add_item(GetGroupConfig_Port_tree, hf_opa_GetGroupConfig_Port_NodeLID, tvb, local_offset, 4, ENC_BIG_ENDIAN);
@@ -7485,7 +7487,7 @@ static int parse_GetFocusPorts(proto_tree *parentTree, tvbuff_t *tvb, int *offse
         proto_item_set_text(GetFocusPorts_header_item, "Focus Ports for %s", tvb_get_string_enc(wmem_file_scope(), tvb, local_offset, 64, ENC_ASCII));
         GetFocusPorts_header_tree = proto_item_add_subtree(GetFocusPorts_header_item, ett_getfocusports);
 
-        proto_tree_add_item(GetFocusPorts_header_tree, hf_opa_GetFocusPorts_groupName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(GetFocusPorts_header_tree, hf_opa_GetFocusPorts_groupName, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
         local_offset = parse_Image(GetFocusPorts_header_tree, tvb, &local_offset);
         proto_tree_add_item(GetFocusPorts_header_tree, hf_opa_GetFocusPorts_select, tvb, local_offset, 4, ENC_BIG_ENDIAN);
@@ -7520,7 +7522,7 @@ static int parse_GetFocusPorts(proto_tree *parentTree, tvbuff_t *tvb, int *offse
             local_offset += 8;
             proto_tree_add_item(GetFocusPorts_Port_tree, hf_opa_GetFocusPorts_nodeGUID, tvb, local_offset, 8, ENC_BIG_ENDIAN);
             local_offset += 8;
-            proto_tree_add_item(GetFocusPorts_Port_tree, hf_opa_GetFocusPorts_nodeDesc, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+            proto_tree_add_item(GetFocusPorts_Port_tree, hf_opa_GetFocusPorts_nodeDesc, tvb, local_offset, 64, ENC_ASCII);
             local_offset += 64;
             proto_tree_add_item(GetFocusPorts_Port_tree, hf_opa_GetFocusPorts_neighborLid, tvb, local_offset, 4, ENC_BIG_ENDIAN);
             local_offset += 4;
@@ -7532,7 +7534,7 @@ static int parse_GetFocusPorts(proto_tree *parentTree, tvbuff_t *tvb, int *offse
             local_offset += 8;
             proto_tree_add_item(GetFocusPorts_Port_tree, hf_opa_GetFocusPorts_neighborGuid, tvb, local_offset, 8, ENC_BIG_ENDIAN);
             local_offset += 8;
-            proto_tree_add_item(GetFocusPorts_Port_tree, hf_opa_GetFocusPorts_neighborNodeDesc, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+            proto_tree_add_item(GetFocusPorts_Port_tree, hf_opa_GetFocusPorts_neighborNodeDesc, tvb, local_offset, 64, ENC_ASCII);
             local_offset += 64;
         }
     }
@@ -7602,7 +7604,7 @@ static int parse_GetImageInfo(proto_tree *parentTree, tvbuff_t *tvb, int *offset
     local_offset += 2;
     proto_tree_add_item(GetImageInfo_SM_tree, hf_opa_GetImageInfo_smPortGuid, tvb, local_offset, 8, ENC_BIG_ENDIAN);
     local_offset += 8;
-    proto_tree_add_item(GetImageInfo_SM_tree, hf_opa_GetImageInfo_smNodeDesc, tvb, local_offset, 64, ENC_NA | ENC_ASCII);
+    proto_tree_add_item(GetImageInfo_SM_tree, hf_opa_GetImageInfo_smNodeDesc, tvb, local_offset, 64, ENC_ASCII);
     local_offset += 64;
 
     if (!numSMs || numSMs > 1) {
@@ -7619,7 +7621,7 @@ static int parse_GetImageInfo(proto_tree *parentTree, tvbuff_t *tvb, int *offset
         local_offset += 2;
         proto_tree_add_item(GetImageInfo_SM_tree, hf_opa_GetImageInfo_smPortGuid, tvb, local_offset, 8, ENC_BIG_ENDIAN);
         local_offset += 8;
-        proto_tree_add_item(GetImageInfo_SM_tree, hf_opa_GetImageInfo_smNodeDesc, tvb, local_offset, 64, ENC_NA | ENC_ASCII);
+        proto_tree_add_item(GetImageInfo_SM_tree, hf_opa_GetImageInfo_smNodeDesc, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
     } else {
         proto_tree_add_subtree(GetImageInfo_header_tree, tvb, local_offset, 16 + 64,
@@ -7652,7 +7654,7 @@ static int parse_GetVFList(proto_tree *parentTree, tvbuff_t *tvb, int *offset, M
     proto_tree_add_none_format(GetVFList_header_tree, hf_opa_GetVFList, tvb, local_offset, length, "Number of VFs: %u", records);
 
     for (i = 0; i < records; i++) {
-        GetVFList_GroupName_item = proto_tree_add_item(GetVFList_header_tree, hf_opa_GetVFList_vfName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+        GetVFList_GroupName_item = proto_tree_add_item(GetVFList_header_tree, hf_opa_GetVFList_vfName, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
         proto_item_prepend_text(GetVFList_GroupName_item, "%3u: ", i + 1);
     }
@@ -7703,7 +7705,7 @@ static int parse_GetVFInfo(proto_tree *parentTree, tvbuff_t *tvb, int *offset, M
         GetVFInfo_header_item = proto_tree_add_item(parentTree, hf_opa_GetVFInfo, tvb, local_offset, 64 + 24, ENC_NA);
         proto_item_set_text(GetVFInfo_header_item, "VFInfo for %s", tvb_get_string_enc(wmem_file_scope(), tvb, local_offset, 64, ENC_ASCII));
         GetVFInfo_header_tree = proto_item_add_subtree(GetVFInfo_header_item, ett_getvfinfo);
-        proto_tree_add_item(GetVFInfo_header_tree, hf_opa_GetVFInfo_vfName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(GetVFInfo_header_tree, hf_opa_GetVFInfo_vfName, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
         proto_tree_add_item(GetVFInfo_header_tree, hf_opa_reserved64, tvb, local_offset, 8, ENC_BIG_ENDIAN);
         local_offset += 8;
@@ -7718,7 +7720,7 @@ static int parse_GetVFInfo(proto_tree *parentTree, tvbuff_t *tvb, int *offset, M
         proto_item_set_text(GetVFInfo_header_item, "VFInfo for %s", tvb_get_string_enc(wmem_file_scope(), tvb, local_offset, 64, ENC_ASCII));
         GetVFInfo_header_tree = proto_item_add_subtree(GetVFInfo_header_item, ett_getvfinfo);
 
-        proto_tree_add_item(GetVFInfo_header_tree, hf_opa_GetVFInfo_vfName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(GetVFInfo_header_tree, hf_opa_GetVFInfo_vfName, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
         proto_tree_add_item(GetVFInfo_header_tree, hf_opa_reserved64, tvb, local_offset, 8, ENC_BIG_ENDIAN);
         local_offset += 8;
@@ -7848,7 +7850,7 @@ static int parse_GetVFConfig(proto_tree *parentTree, tvbuff_t *tvb, int *offset,
         GetVFConfig_header_item = proto_tree_add_item(parentTree, hf_opa_GetVFConfig, tvb, local_offset, 64 + 24, ENC_NA);
         proto_item_set_text(GetVFConfig_header_item, "VF Config");
         GetVFConfig_header_tree = proto_item_add_subtree(GetVFConfig_header_item, ett_getvfconfig);
-        proto_tree_add_item(GetVFConfig_header_tree, hf_opa_GetVFConfig_vfName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(GetVFConfig_header_tree, hf_opa_GetVFConfig_vfName, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
         proto_tree_add_item(GetVFConfig_header_tree, hf_opa_reserved64, tvb, local_offset, 8, ENC_BIG_ENDIAN);
         local_offset += 8;
@@ -7863,7 +7865,7 @@ static int parse_GetVFConfig(proto_tree *parentTree, tvbuff_t *tvb, int *offset,
             local_offset = parse_Image(GetVFConfig_Port_tree, tvb, &local_offset);
             proto_tree_add_item(GetVFConfig_Port_tree, hf_opa_GetVFConfig_Port_NodeGUID, tvb, local_offset, 8, ENC_BIG_ENDIAN);
             local_offset += 8;
-            proto_tree_add_item(GetVFConfig_Port_tree, hf_opa_GetVFConfig_Port_nodeDesc, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+            proto_tree_add_item(GetVFConfig_Port_tree, hf_opa_GetVFConfig_Port_nodeDesc, tvb, local_offset, 64, ENC_ASCII);
             local_offset += 64;
             proto_item_append_text(GetVFConfig_Port_item, "LID: 0x%04x, Port: %u", tvb_get_ntohl(tvb, local_offset), tvb_get_uint8(tvb, local_offset + 4));
             proto_tree_add_item(GetVFConfig_Port_tree, hf_opa_GetVFConfig_Port_NodeLID, tvb, local_offset, 4, ENC_BIG_ENDIAN);
@@ -7906,7 +7908,7 @@ static int parse_GetVFPortCounters(proto_tree *parentTree, tvbuff_t *tvb, int *o
     proto_tree_add_item(GetVFPortCounters_header_tree, hf_opa_reserved64, tvb, local_offset, 8, ENC_BIG_ENDIAN);
     local_offset += 8;
 
-    proto_tree_add_item(GetVFPortCounters_header_tree, hf_opa_GetVFPortCounters_vfName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+    proto_tree_add_item(GetVFPortCounters_header_tree, hf_opa_GetVFPortCounters_vfName, tvb, local_offset, 64, ENC_ASCII);
     local_offset += 64;
     proto_tree_add_item(GetVFPortCounters_header_tree, hf_opa_reserved64, tvb, local_offset, 8, ENC_BIG_ENDIAN);
     local_offset += 8;
@@ -7972,7 +7974,7 @@ static int parse_ClearVFPortCounters(proto_tree *parentTree, tvbuff_t *tvb, int 
     proto_tree_add_item(ClearVFPortCounters_header_tree, hf_opa_reserved64, tvb, local_offset, 8, ENC_BIG_ENDIAN);
     local_offset += 8;
 
-    proto_tree_add_item(ClearVFPortCounters_header_tree, hf_opa_ClearVFPortCounters_vfName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+    proto_tree_add_item(ClearVFPortCounters_header_tree, hf_opa_ClearVFPortCounters_vfName, tvb, local_offset, 64, ENC_ASCII);
     local_offset += 64;
     proto_tree_add_item(ClearVFPortCounters_header_tree, hf_opa_reserved64, tvb, local_offset, 8, ENC_BIG_ENDIAN);
     local_offset += 8;
@@ -8006,7 +8008,7 @@ static int parse_GetVFFocusPorts(proto_tree *parentTree, tvbuff_t *tvb, int *off
         GetVFFocusPorts_header_item = proto_tree_add_item(parentTree, hf_opa_GetVFFocusPorts, tvb, local_offset, 130, ENC_NA);
         GetVFFocusPorts_header_tree = proto_item_add_subtree(GetVFFocusPorts_header_item, ett_getvffocusports);
 
-        proto_tree_add_item(GetVFFocusPorts_header_tree, hf_opa_GetVFFocusPorts_vfName, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(GetVFFocusPorts_header_tree, hf_opa_GetVFFocusPorts_vfName, tvb, local_offset, 64, ENC_ASCII);
         local_offset += 64;
         proto_tree_add_item(GetVFFocusPorts_header_tree, hf_opa_reserved64, tvb, local_offset, 8, ENC_BIG_ENDIAN);
         local_offset += 8;
@@ -8040,7 +8042,7 @@ static int parse_GetVFFocusPorts(proto_tree *parentTree, tvbuff_t *tvb, int *off
             local_offset += 8;
             proto_tree_add_item(GetVFFocusPorts_Port_tree, hf_opa_GetVFFocusPorts_nodeGUID, tvb, local_offset, 8, ENC_BIG_ENDIAN);
             local_offset += 8;
-            proto_tree_add_item(GetVFFocusPorts_Port_tree, hf_opa_GetVFFocusPorts_nodeDesc, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+            proto_tree_add_item(GetVFFocusPorts_Port_tree, hf_opa_GetVFFocusPorts_nodeDesc, tvb, local_offset, 64, ENC_ASCII);
             local_offset += 64;
             proto_tree_add_item(GetVFFocusPorts_Port_tree, hf_opa_GetVFFocusPorts_neighborLid, tvb, local_offset, 4, ENC_BIG_ENDIAN);
             local_offset += 4;
@@ -8052,7 +8054,7 @@ static int parse_GetVFFocusPorts(proto_tree *parentTree, tvbuff_t *tvb, int *off
             local_offset += 8;
             proto_tree_add_item(GetVFFocusPorts_Port_tree, hf_opa_GetVFFocusPorts_neighborGuid, tvb, local_offset, 8, ENC_BIG_ENDIAN);
             local_offset += 8;
-            proto_tree_add_item(GetVFFocusPorts_Port_tree, hf_opa_GetVFFocusPorts_neighborNodeDesc, tvb, local_offset, 64, ENC_ASCII | ENC_NA);
+            proto_tree_add_item(GetVFFocusPorts_Port_tree, hf_opa_GetVFFocusPorts_neighborNodeDesc, tvb, local_offset, 64, ENC_ASCII);
             local_offset += 64;
         }
     }

@@ -61,8 +61,8 @@ tap_packet_cb get_hostlist_packet_func(register_ct_t* ct)
 
 static wmem_tree_t *registered_ct_tables;
 
-void
-dissector_conversation_init(const char *opt_arg, void* userdata)
+static bool
+dissector_conversation_init_internal(const char *opt_arg, void* userdata)
 {
     register_ct_t *table = (register_ct_t*)userdata;
     GString *cmd_str = g_string_new("conv,");
@@ -78,10 +78,18 @@ dissector_conversation_init(const char *opt_arg, void* userdata)
 
     if (table->conv_gui_init)
         table->conv_gui_init(table, filter);
+
+    return true;
 }
 
 void
-dissector_endpoint_init(const char *opt_arg, void* userdata)
+dissector_conversation_init(const char* opt_arg, void* userdata)
+{
+    dissector_conversation_init_internal(opt_arg, userdata);
+}
+
+static bool
+dissector_endpoint_init_internal(const char *opt_arg, void* userdata)
 {
     register_ct_t *table = (register_ct_t*)userdata;
     GString *cmd_str = g_string_new("");
@@ -100,6 +108,14 @@ dissector_endpoint_init(const char *opt_arg, void* userdata)
 
     if (table->endpoint_gui_init)
         table->endpoint_gui_init(table, filter);
+
+    return true;
+}
+
+void
+dissector_endpoint_init(const char* opt_arg, void* userdata)
+{
+    dissector_endpoint_init_internal(opt_arg, userdata);
 }
 
 /* For backwards source and binary compatibility */
@@ -153,7 +169,7 @@ set_conv_gui_data(const void *key _U_, void *value, void *userdata)
     ui_info.group = REGISTER_STAT_GROUP_CONVERSATION_LIST;
     ui_info.title = NULL;   /* construct this from the protocol info? */
     ui_info.cli_string = g_string_free(conv_cmd_str, FALSE);
-    ui_info.tap_init_cb = dissector_conversation_init;
+    ui_info.tap_init_cb = dissector_conversation_init_internal;
     ui_info.nparams = 0;
     ui_info.params = NULL;
     register_stat_tap_ui(&ui_info, table);
@@ -177,7 +193,7 @@ set_endpoint_gui_data(const void *key _U_, void *value, void *userdata)
     ui_info.group = REGISTER_STAT_GROUP_ENDPOINT_LIST;
     ui_info.title = NULL;   /* construct this from the protocol info? */
     ui_info.cli_string = ws_strdup_printf("%s,%s", ENDPOINT_TAP_PREFIX, proto_get_protocol_filter_name(table->proto_id));
-    ui_info.tap_init_cb = dissector_endpoint_init;
+    ui_info.tap_init_cb = dissector_endpoint_init_internal;
     ui_info.nparams = 0;
     ui_info.params = NULL;
     register_stat_tap_ui(&ui_info, table);
@@ -881,12 +897,17 @@ add_conversation_table_data_ipv4_subnet(
     /* add data with subnets if we have any, or actual src & dst
      * unset the conv_id when dealing with subnets
      */
-    add_conversation_table_data_with_conv_id(ch,
-        is_src_aggregated?aggsrc:src,
-        is_dst_aggregated?aggdst:dst,
-        src_port, dst_port,
-        (is_src_aggregated||is_dst_aggregated?CONV_ID_UNSET:conv_id),
+    add_conversation_table_data_with_conv_id(ch, src, dst,
+        src_port, dst_port, conv_id,
         num_frames, num_bytes, ts, abs_ts, ct_info, ctype);
+    if(is_src_aggregated || is_dst_aggregated) {
+        add_conversation_table_data_with_conv_id(ch,
+            is_src_aggregated?aggsrc:src,
+            is_dst_aggregated?aggdst:dst,
+            src_port, dst_port,
+            (is_src_aggregated||is_dst_aggregated?CONV_ID_UNSET:conv_id),
+            num_frames, num_bytes, ts, abs_ts, ct_info, ctype);
+    }
 }
 
 /*
@@ -1040,6 +1061,11 @@ add_endpoint_table_data_ipv4_subnet(
      */
     if(is_aggregated) {
         add_endpoint_table_data(ch, aggaddr, port, sender, num_frames, num_bytes, et_info, etype);
+
+        // besides, add the original non-aggregated data when asked to
+        if(ch->flags & TL_IP_AGGREGATION_ORI) {
+            add_endpoint_table_data(ch, addr, port, sender, num_frames, num_bytes, et_info, etype);
+        }
     }
     else {
         add_endpoint_table_data(ch, addr, port, sender, num_frames, num_bytes, et_info, etype);

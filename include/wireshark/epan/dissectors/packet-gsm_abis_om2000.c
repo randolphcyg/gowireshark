@@ -633,7 +633,7 @@ static const value_string om2k_iwd_type_vals[] = {
 };
 
 static int
-dissect_tss_mo_state(tvbuff_t *tvb, int offset, proto_tree *tree)
+dissect_tss_mo_state(tvbuff_t *tvb, packet_info* pinfo, int offset, proto_tree *tree)
 {
 	uint8_t tmp;
 	unsigned  i = 0;
@@ -642,10 +642,10 @@ dissect_tss_mo_state(tvbuff_t *tvb, int offset, proto_tree *tree)
 		tmp = tvb_get_uint8(tvb, offset);
 		proto_tree_add_uint_format(tree, hf_om2k_tsn_state, tvb, offset, 1, tmp & 0xf,
 					   "Timeslot %u MO State: %s", i,
-					   val_to_str(tmp & 0xf, om2k_mo_state_vals, "unknown (%02d)"));
+					   val_to_str(pinfo->pool, tmp & 0xf, om2k_mo_state_vals, "unknown (%02d)"));
 		proto_tree_add_uint_format(tree, hf_om2k_tsn_state, tvb, offset, 1, tmp >> 4,
 					   "Timeslot %u MO State: %s", i+1,
-					   val_to_str(tmp >> 4, om2k_mo_state_vals, "unknown (%02d)"));
+					   val_to_str(pinfo->pool, tmp >> 4, om2k_mo_state_vals, "unknown (%02d)"));
 		offset++;
 	}
 
@@ -683,7 +683,7 @@ dissect_om2k_attr_unkn(tvbuff_t *tvb, packet_info *pinfo, int offset, int len, i
 	proto_tree_add_bytes_format(tree, hf_om2k_unknown_val, tvb,
 				    offset, len, NULL,
 				    "%s: %s",
-				    val_to_str_ext(iei, &om2k_attr_vals_ext, "0x%02x"),
+				    val_to_str_ext(pinfo->pool, iei, &om2k_attr_vals_ext, "0x%02x"),
 				    tvb_bytes_to_str(pinfo->pool, tvb, offset, len));
 	return len;
 }
@@ -1117,7 +1117,7 @@ dissect_om2k_attrs(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_tree *tr
 			offset += dissect_om2k_attr_unkn(tvb, pinfo, offset, 4, iei, tree);
 			break;
 		case 0x9d: /* TSs MO State */
-			offset += dissect_tss_mo_state(tvb, offset, tree);
+			offset += dissect_tss_mo_state(tvb, pinfo, offset, tree);
 			break;
 		case 0x9e: /* Configuration Type */
 			proto_tree_add_item(tree, hf_om2k_config_type, tvb, offset++, 1, ENC_NA);
@@ -1182,7 +1182,7 @@ dissect_om2k_attrs(tvbuff_t *tvb, packet_info *pinfo, int offset, proto_tree *tr
 			tmp = tvb_get_uint8(tvb, offset);
 			proto_tree_add_uint_format(tree, hf_om2k_unknown_tag, tvb,
 					    offset-1, 1, tmp, "Tag %s: 0x%02x",
-					    val_to_str_ext(iei, &om2k_attr_vals_ext, "0x%02x"), tmp);
+					    val_to_str_ext(pinfo->pool, iei, &om2k_attr_vals_ext, "0x%02x"), tmp);
 			offset++;
 			break;
 		}
@@ -1198,7 +1198,7 @@ dissect_om2k_mo(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree)
 	uint8_t     inst  = tvb_get_uint8(tvb, offset+3);
 
 	col_append_fstr(pinfo->cinfo, COL_INFO, ", (%-4s %u)",
-				val_to_str(mo_class, om2k_mo_class_short_vals,
+				val_to_str(pinfo->pool, mo_class, om2k_mo_class_short_vals,
 					   "0x%02x"), inst);
 	if (tree) {
 		proto_item *ti;
@@ -1218,7 +1218,7 @@ dissect_om2k_mo(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree)
 		proto_tree_add_item(mo_tree, hf_om2k_mo_instance, tvb, offset+3,
 				    1, ENC_BIG_ENDIAN);
 		proto_item_append_text(ti, ", Class: %s, Sub: %02x/%02x, Instance: %u",
-				       val_to_str(mo_class, om2k_mo_class_vals, "0x%02x"),
+				       val_to_str(pinfo->pool, mo_class, om2k_mo_class_vals, "0x%02x"),
 				       sub1, sub2, inst);
 	}
 	return 4;
@@ -1252,20 +1252,20 @@ dissect_abis_om2000(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 	offset += dissect_om2k_mo(tvb, offset, pinfo, om2k_tree);  /* appends to COL_INFO */
 
 	col_append_fstr(pinfo->cinfo, COL_INFO, " %s ",
-			val_to_str_ext(msg_code, &om2k_msgcode_vals_ext,
+			val_to_str_ext(pinfo->pool, msg_code, &om2k_msgcode_vals_ext,
 				   "unknown 0x%04x"));
 
 	if (tree == NULL)
 		return tvb_captured_length(tvb);   /* No refs to COL_...  beyond this point */
 
-	msgt_str = val_to_str_ext(msg_code, &om2k_msgcode_vals_ext, "unknown 0x%04x");
+	msgt_str = val_to_str_ext(pinfo->pool, msg_code, &om2k_msgcode_vals_ext, "unknown 0x%04x");
 	proto_item_append_text(ti, " %s ", msgt_str);
 
 	switch (msg_code) {
 	case 0x74: /* Operational Info */
 		tmp = tvb_get_uint8(tvb, offset+1);
 		proto_item_append_text(ti, ": %s",
-				       val_to_str(tmp, om2k_oip_vals,
+				       val_to_str(pinfo->pool, tmp, om2k_oip_vals,
 						  "unknown 0x%02x"));
 		break;
 	case 0x1A: /* CON Configuration Result */
@@ -1278,7 +1278,7 @@ dissect_abis_om2000(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 	case 0xF6: /* DP Configuration Result */
 		tmp = tvb_get_uint8(tvb, offset+1);
 		proto_item_append_text(ti, ": %s",
-				       val_to_str(tmp, om2k_aip_vals,
+				       val_to_str(pinfo->pool, tmp, om2k_aip_vals,
 						  "unknown 0x%02x"));
 		break;
 	default:

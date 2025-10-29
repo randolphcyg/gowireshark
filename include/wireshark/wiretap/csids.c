@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <wsutil/pint.h>
+
 /*
  * This module reads the output from the Cisco Secure Intrusion Detection
  * System iplogging facility. The term iplogging is misleading since this
@@ -30,12 +32,12 @@ typedef struct {
   bool byteswapped;
 } csids_t;
 
-static bool csids_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool csids_read(wtap *wth, wtap_rec *rec,
         int *err, char **err_info, int64_t *data_offset);
 static bool csids_seek_read(wtap *wth, int64_t seek_off,
-        wtap_rec *rec, Buffer *buf, int *err, char **err_info);
-static bool csids_read_packet(FILE_T fh, csids_t *csids,
-        wtap_rec *rec, Buffer *buf, int *err, char **err_info);
+        wtap_rec *rec, int *err, char **err_info);
+static bool csids_read_packet(wtap *wth, FILE_T fh, csids_t *csids,
+        wtap_rec *rec, int *err, char **err_info);
 
 struct csids_header {
   uint32_t seconds; /* seconds since epoch */
@@ -73,8 +75,8 @@ wtap_open_return_val csids_open(wtap *wth, int *err, char **err_info)
   if( hdr.zeropad != 0 || hdr.caplen == 0 ) {
     return WTAP_OPEN_NOT_MINE;
   }
-  hdr.seconds = pntoh32( &hdr.seconds );
-  hdr.caplen = pntoh16( &hdr.caplen );
+  hdr.seconds = pntohu32( &hdr.seconds );
+  hdr.caplen = pntohu16( &hdr.caplen );
   if( !wtap_read_bytes( wth->fh, &tmp, 2, err, err_info ) ) {
     if( *err != WTAP_ERR_SHORT_READ ) {
       return WTAP_OPEN_ERROR;
@@ -87,7 +89,7 @@ wtap_open_return_val csids_open(wtap *wth, int *err, char **err_info)
     }
     return WTAP_OPEN_NOT_MINE;
   }
-  iplen = pntoh16(&iplen);
+  iplen = pntohu16(&iplen);
 
   if ( iplen == 0 )
     return WTAP_OPEN_NOT_MINE;
@@ -135,14 +137,14 @@ wtap_open_return_val csids_open(wtap *wth, int *err, char **err_info)
 }
 
 /* Find the next packet and parse it; called from wtap_read(). */
-static bool csids_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool csids_read(wtap *wth, wtap_rec *rec,
     int *err, char **err_info, int64_t *data_offset)
 {
   csids_t *csids = (csids_t *)wth->priv;
 
   *data_offset = file_tell(wth->fh);
 
-  return csids_read_packet( wth->fh, csids, rec, buf, err, err_info );
+  return csids_read_packet( wth, wth->fh, csids, rec, err, err_info );
 }
 
 /* Used to read packets in random-access fashion */
@@ -150,7 +152,6 @@ static bool
 csids_seek_read(wtap *wth,
                 int64_t seek_off,
                 wtap_rec *rec,
-                Buffer *buf,
                 int *err,
                 char **err_info)
 {
@@ -159,7 +160,7 @@ csids_seek_read(wtap *wth,
   if( file_seek( wth->random_fh, seek_off, SEEK_SET, err ) == -1 )
     return false;
 
-  if( !csids_read_packet( wth->random_fh, csids, rec, buf, err, err_info ) ) {
+  if( !csids_read_packet( wth, wth->random_fh, csids, rec, err, err_info ) ) {
     if( *err == 0 )
       *err = WTAP_ERR_SHORT_READ;
     return false;
@@ -168,23 +169,23 @@ csids_seek_read(wtap *wth,
 }
 
 static bool
-csids_read_packet(FILE_T fh, csids_t *csids, wtap_rec *rec,
-                  Buffer *buf, int *err, char **err_info)
+csids_read_packet(wtap *wth, FILE_T fh, csids_t *csids, wtap_rec *rec,
+                  int *err, char **err_info)
 {
   struct csids_header hdr;
   uint8_t *pd;
 
   if( !wtap_read_bytes_or_eof( fh, &hdr, sizeof( struct csids_header), err, err_info ) )
     return false;
-  hdr.seconds = pntoh32(&hdr.seconds);
-  hdr.caplen = pntoh16(&hdr.caplen);
+  hdr.seconds = pntohu32(&hdr.seconds);
+  hdr.caplen = pntohu16(&hdr.caplen);
   /*
    * The maximum value of hdr.caplen is 65535, which is less than
    * WTAP_MAX_PACKET_SIZE_STANDARD will ever be, so we don't need to check
    * it.
    */
 
-  rec->rec_type = REC_TYPE_PACKET;
+  wtap_setup_packet_rec(rec, wth->file_encap);
   rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
   rec->presence_flags = WTAP_HAS_TS;
   rec->rec_header.packet_header.len = hdr.caplen;
@@ -192,10 +193,10 @@ csids_read_packet(FILE_T fh, csids_t *csids, wtap_rec *rec,
   rec->ts.secs = hdr.seconds;
   rec->ts.nsecs = 0;
 
-  if( !wtap_read_packet_bytes( fh, buf, rec->rec_header.packet_header.caplen, err, err_info ) )
+  if( !wtap_read_bytes_buffer( fh, &rec->data, rec->rec_header.packet_header.caplen, err, err_info ) )
     return false;
 
-  pd = ws_buffer_start_ptr( buf );
+  pd = ws_buffer_start_ptr( &rec->data );
   if( csids->byteswapped ) {
     if( rec->rec_header.packet_header.caplen >= 2 ) {
       PBSWAP16(pd);   /* the ip len */

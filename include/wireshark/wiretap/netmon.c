@@ -12,10 +12,20 @@
 #include <errno.h>
 #include <string.h>
 #include <wsutil/unicode-utils.h>
+#include <wsutil/pint.h>
 #include "wtap-int.h"
 #include "file_wrappers.h"
 #include "atm.h"
 #include "pcap-encap.h"
+
+
+/*
+ * Microsoft's Network Monitor file format is supported, at least for
+ * Ethernet, Token Ring, FDDI, and ATM captures. If any Network Monitor
+ * capture files cannot be read by Wireshark, please submit an issue
+ * on the Wireshark issues list at
+ * https://gitlab.com/wireshark/wireshark/-/issues/
+ */
 
 /* The file at
  *
@@ -216,15 +226,15 @@ static const int netmon_encap[] = {
 #define NETMON_NET_DNS_CACHE		0xFFFE
 #define NETMON_NET_NETMON_FILTER	0xFFFF
 
-static bool netmon_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool netmon_read(wtap *wth, wtap_rec *rec,
     int *err, char **err_info, int64_t *data_offset);
 static bool netmon_seek_read(wtap *wth, int64_t seek_off,
-    wtap_rec *rec, Buffer *buf, int *err, char **err_info);
+    wtap_rec *rec, int *err, char **err_info);
 static bool netmon_read_atm_pseudoheader(FILE_T fh,
     union wtap_pseudo_header *pseudo_header, int *err, char **err_info);
 static void netmon_close(wtap *wth);
 static bool netmon_dump(wtap_dumper *wdh, const wtap_rec *rec,
-    const uint8_t *pd, int *err, char **err_info);
+    int *err, char **err_info);
 static bool netmon_dump_finish(wtap_dumper *wdh, int *err,
     char **err_info);
 
@@ -252,7 +262,7 @@ utf_16_to_utf_8(const uint8_t *in, uint32_t length)
 	 * the input string in the process.
 	 */
 	n_bytes = 0;
-	for (i = 0; i + 1 < length && (uchar2 = pletoh16(in + i)) != '\0';
+	for (i = 0; i + 1 < length && (uchar2 = pletohu16(in + i)) != '\0';
 	    i += 2) {
 		if (IS_LEAD_SURROGATE(uchar2)) {
 			/*
@@ -272,7 +282,7 @@ utf_16_to_utf_8(const uint8_t *in, uint32_t length)
 				break;
 			}
 			lead_surrogate = uchar2;
-			uchar2 = pletoh16(in + i);
+			uchar2 = pletohu16(in + i);
 			if (uchar2 == '\0') {
 				/*
 				 * Oops, string ends with a lead surrogate.
@@ -320,7 +330,7 @@ utf_16_to_utf_8(const uint8_t *in, uint32_t length)
 	result = (uint8_t *)g_malloc(n_bytes + 1);
 
 	out = result;
-	for (i = 0; i + 1 < length && (uchar2 = pletoh16(in + i)) != '\0';
+	for (i = 0; i + 1 < length && (uchar2 = pletohu16(in + i)) != '\0';
 	    i += 2) {
 		if (IS_LEAD_SURROGATE(uchar2)) {
 			/*
@@ -340,7 +350,7 @@ utf_16_to_utf_8(const uint8_t *in, uint32_t length)
 				break;
 			}
 			lead_surrogate = uchar2;
-			uchar2 = pletoh16(in + i);
+			uchar2 = pletohu16(in + i);
 			if (uchar2 == '\0') {
 				/*
 				 * Oops, string ends with a lead surrogate.
@@ -459,7 +469,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 		return WTAP_OPEN_ERROR;
 	}
 
-	hdr.network = pletoh16(&hdr.network);
+	hdr.network = pletohu16(&hdr.network);
 	if (hdr.network >= NUM_NETMON_ENCAPS
 	    || netmon_encap[hdr.network] == WTAP_ENCAP_UNKNOWN) {
 		*err = WTAP_ERR_UNSUPPORTED;
@@ -488,12 +498,12 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 	 * Convert the time stamp to a "time_t" and a number of
 	 * milliseconds.
 	 */
-	tm.tm_year = pletoh16(&hdr.ts_year) - 1900;
-	tm.tm_mon = pletoh16(&hdr.ts_month) - 1;
-	tm.tm_mday = pletoh16(&hdr.ts_day);
-	tm.tm_hour = pletoh16(&hdr.ts_hour);
-	tm.tm_min = pletoh16(&hdr.ts_min);
-	tm.tm_sec = pletoh16(&hdr.ts_sec);
+	tm.tm_year = pletohu16(&hdr.ts_year) - 1900;
+	tm.tm_mon = pletohu16(&hdr.ts_month) - 1;
+	tm.tm_mday = pletohu16(&hdr.ts_day);
+	tm.tm_hour = pletohu16(&hdr.ts_hour);
+	tm.tm_min = pletohu16(&hdr.ts_min);
+	tm.tm_sec = pletohu16(&hdr.ts_sec);
 	tm.tm_isdst = -1;
 	netmon->start_secs = mktime(&tm);
 	/*
@@ -513,7 +523,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 	 * Eventually they went with per-packet FILETIMEs in a later
 	 * version.
 	 */
-	netmon->start_nsecs = pletoh16(&hdr.ts_msec)*1000000;
+	netmon->start_nsecs = pletohu16(&hdr.ts_msec)*1000000;
 
 	netmon->version_major = hdr.ver_major;
 	netmon->version_minor = hdr.ver_minor;
@@ -521,7 +531,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 	/*
 	 * Get the offset of the frame index table.
 	 */
-	frame_table_offset = pletoh32(&hdr.frametableoffset);
+	frame_table_offset = pletohu32(&hdr.frametableoffset);
 
 	/*
 	 * For NetMon 2.2 format and later, get the offset and length of
@@ -532,10 +542,10 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 	 */
 	if ((netmon->version_major == 2 && netmon->version_minor >= 2) ||
 	    netmon->version_major > 2) {
-		comment_table_offset = pletoh32(&hdr.commentdataoffset);
-		comment_table_size = pletoh32(&hdr.commentdatalength);
-		process_info_table_offset = pletoh32(&hdr.processinfooffset);
-		process_info_table_count = pletoh32(&hdr.processinfocount);
+		comment_table_offset = pletohu32(&hdr.commentdataoffset);
+		comment_table_size = pletohu32(&hdr.commentdatalength);
+		process_info_table_offset = pletohu32(&hdr.processinfooffset);
+		process_info_table_count = pletohu32(&hdr.processinfocount);
 	} else {
 		comment_table_offset = 0;
 		comment_table_size = 0;
@@ -554,7 +564,13 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 	 * Therefore, we must read the frame table, and use the offsets
 	 * in it as the offsets of the frames.
 	 */
-	frame_table_length = pletoh32(&hdr.frametablelength);
+	frame_table_length = pletohu32(&hdr.frametablelength);
+	if (frame_table_length > file_size || frame_table_offset > file_size - frame_table_length) {
+		*err = WTAP_ERR_BAD_FILE;
+		*err_info = ws_strdup_printf("netmon: frame table is %u bytes at offset %u, which does not fit into a file of size %" PRIu64,
+		    frame_table_length, frame_table_offset, file_size);
+		return WTAP_OPEN_ERROR;
+	}
 	frame_table_size = frame_table_length / (uint32_t)sizeof (uint32_t);
 	if ((frame_table_size * sizeof (uint32_t)) != frame_table_length) {
 		*err = WTAP_ERR_BAD_FILE;
@@ -585,9 +601,6 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 		*err = WTAP_ERR_BAD_FILE;
 		*err_info = ws_strdup_printf("netmon: frame table length is %u, which is larger than we support",
 		    frame_table_length);
-		return WTAP_OPEN_ERROR;
-	}
-	if (file_seek(wth->fh, frame_table_offset, SEEK_SET, err) == -1) {
 		return WTAP_OPEN_ERROR;
 	}
 
@@ -648,17 +661,9 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 		}
 	}
 
-	/*
-	 * Return back to the frame table offset
-	 */
 	if (file_seek(wth->fh, frame_table_offset, SEEK_SET, err) == -1) {
 		return WTAP_OPEN_ERROR;
 	}
-
-	/*
-	 * Sanity check the process info table information before we bother to allocate
-	 * large chunks of memory for the frame table
-	 */
 
 	frame_table = (uint32_t *)g_try_malloc(frame_table_length);
 	if (frame_table_length != 0 && frame_table == NULL) {
@@ -706,7 +711,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 			comment_table_size -= 12;
 
 			/* Make sure comment size is sane */
-			title_length = pletoh32(&comment_header.titleLength);
+			title_length = pletohu32(&comment_header.titleLength);
 			if (title_length == 0) {
 				*err = WTAP_ERR_BAD_FILE;
 				*err_info = g_strdup("netmon: comment title size can't be 0");
@@ -722,8 +727,8 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 			}
 
 			comment_rec = g_new0(struct netmonrec_comment, 1);
-			comment_rec->numFramePerComment = pletoh32(&comment_header.numFramePerComment);
-			comment_rec->frameOffset = pletoh32(&comment_header.frameOffset);
+			comment_rec->numFramePerComment = pletohu32(&comment_header.numFramePerComment);
+			comment_rec->frameOffset = pletohu32(&comment_header.frameOffset);
 
 			g_hash_table_insert(comment_table, GUINT_TO_POINTER(comment_rec->frameOffset), comment_rec);
 
@@ -762,7 +767,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 			}
 			comment_table_size -= 4;
 
-			comment_rec->descLength = pletoh32(&desc_length);
+			comment_rec->descLength = pletohu32(&desc_length);
 			if (comment_rec->descLength > 0) {
 				/* Make sure comment size is sane */
 				if (comment_rec->descLength > comment_table_size) {
@@ -824,7 +829,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 				return WTAP_OPEN_ERROR;
 			}
 
-			path_size = pletoh32(&tmp32);
+			path_size = pletohu32(&tmp32);
 			if (path_size > MATH_PROCINFO_PATH_SIZE) {
 				*err = WTAP_ERR_BAD_FILE;
 				*err_info = ws_strdup_printf("netmon: Path size for process info record is %u, which is larger than allowed max value (%u)",
@@ -863,7 +868,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 				return WTAP_OPEN_ERROR;
 			}
 
-			process_info->iconSize = pletoh32(&tmp32);
+			process_info->iconSize = pletohu32(&tmp32);
 
 			/* XXX - skip the icon for now */
 			if (file_seek(wth->fh, process_info->iconSize, SEEK_CUR, err) == -1) {
@@ -878,7 +883,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 				g_hash_table_destroy(process_info_table);
 				return WTAP_OPEN_ERROR;
 			}
-			process_info->pid = pletoh32(&tmp32);
+			process_info->pid = pletohu32(&tmp32);
 
 			/* XXX - Currently index process information by PID */
 			g_hash_table_insert(process_info_table, GUINT_TO_POINTER(process_info->pid), process_info);
@@ -888,7 +893,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 				g_hash_table_destroy(process_info_table);
 				return WTAP_OPEN_ERROR;
 			}
-			process_info->localPort = pletoh16(&tmp16);
+			process_info->localPort = pletohu16(&tmp16);
 
 			/* Skip padding */
 			if (!wtap_read_bytes(wth->fh, &tmp16, 2, err, err_info)) {
@@ -901,7 +906,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 				g_hash_table_destroy(process_info_table);
 				return WTAP_OPEN_ERROR;
 			}
-			process_info->remotePort = pletoh16(&tmp16);
+			process_info->remotePort = pletohu16(&tmp16);
 
 			/* Skip padding */
 			if (!wtap_read_bytes(wth->fh, &tmp16, 2, err, err_info)) {
@@ -914,7 +919,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 				g_hash_table_destroy(process_info_table);
 				return WTAP_OPEN_ERROR;
 			}
-			process_info->isIPv6 = ((pletoh32(&tmp32) == 0) ? false : true);
+			process_info->isIPv6 = ((pletohu32(&tmp32) == 0) ? false : true);
 
 			if (process_info->isIPv6) {
 				if (!wtap_read_bytes(wth->fh, &process_info->localAddr.ipv6, 16, err, err_info)) {
@@ -931,13 +936,13 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 					g_hash_table_destroy(process_info_table);
 					return WTAP_OPEN_ERROR;
 				}
-				process_info->localAddr.ipv4 = pletoh32(ipbuffer);
+				process_info->localAddr.ipv4 = pletohu32(ipbuffer);
 
 				if (!wtap_read_bytes(wth->fh, ipbuffer, 16, err, err_info)) {
 					g_hash_table_destroy(process_info_table);
 					return WTAP_OPEN_ERROR;
 				}
-				process_info->remoteAddr.ipv4 = pletoh32(ipbuffer);
+				process_info->remoteAddr.ipv4 = pletohu32(ipbuffer);
 			}
 
 			process_info_table_count--;
@@ -951,7 +956,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 	 * OK, now byte-swap the frame table.
 	 */
 	for (i = 0; i < frame_table_size; i++)
-		frame_table[i] = pletoh32(&frame_table[i]);
+		frame_table[i] = pletohu32(&frame_table[i]);
 #endif
 
 	/* Set up to start reading at the first frame. */
@@ -982,7 +987,7 @@ wtap_open_return_val netmon_open(wtap *wth, int *err, char **err_info)
 }
 
 static void
-netmon_set_pseudo_header_info(wtap_rec *rec, Buffer *buf)
+netmon_set_pseudo_header_info(wtap_rec *rec)
 {
 	switch (rec->rec_header.packet_header.pkt_encap) {
 
@@ -991,7 +996,7 @@ netmon_set_pseudo_header_info(wtap_rec *rec, Buffer *buf)
 		 * Attempt to guess from the packet data, the VPI, and
 		 * the VCI information about the type of traffic.
 		 */
-		atm_guess_traffic_type(rec, ws_buffer_start_ptr(buf));
+		atm_guess_traffic_type(rec);
 		break;
 
 	case WTAP_ENCAP_ETHERNET:
@@ -1021,7 +1026,7 @@ typedef enum {
 
 static process_record_retval
 netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
-    Buffer *buf, int *err, char **err_info)
+    int *err, char **err_info)
 {
 	netmon_t *netmon = (netmon_t *)wth->priv;
 	int	 hdr_size = 0;
@@ -1062,13 +1067,13 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 	switch (netmon->version_major) {
 
 	case 1:
-		orig_size = pletoh16(&hdr.hdr_1_x.orig_len);
-		packet_size = pletoh16(&hdr.hdr_1_x.incl_len);
+		orig_size = pletohu16(&hdr.hdr_1_x.orig_len);
+		packet_size = pletohu16(&hdr.hdr_1_x.incl_len);
 		break;
 
 	case 2:
-		orig_size = pletoh32(&hdr.hdr_2_x.orig_len);
-		packet_size = pletoh32(&hdr.hdr_2_x.incl_len);
+		orig_size = pletohu32(&hdr.hdr_2_x.orig_len);
+		packet_size = pletohu32(&hdr.hdr_2_x.incl_len);
 		break;
 	}
 	if (packet_size > WTAP_MAX_PACKET_SIZE_STANDARD) {
@@ -1082,7 +1087,7 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 		return FAILURE;
 	}
 
-	rec->rec_type = REC_TYPE_PACKET;
+	wtap_setup_packet_rec(rec, wth->file_encap);
 	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 
 	/*
@@ -1129,11 +1134,11 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 		 * a int64_t such as delta, even after multiplying
 		 * it by 1000000.
 		 *
-		 * pletoh32() returns a uint32_t; we cast it to int64_t
+		 * pletohu32() returns a uint32_t; we cast it to int64_t
 		 * before multiplying, so that the product doesn't
 		 * overflow a uint32_t.
 		 */
-		delta = ((int64_t)pletoh32(&hdr.hdr_1_x.ts_delta))*1000000;
+		delta = ((int64_t)pletohu32(&hdr.hdr_1_x.ts_delta))*1000000;
 		break;
 
 	case 2:
@@ -1150,7 +1155,7 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 		 * positive number-of-microseconds into a small
 		 * negative number-of-100-nanosecond-increments.
 		 */
-		delta = pletoh64(&hdr.hdr_2_x.ts_delta)*10;
+		delta = pletohu64(&hdr.hdr_2_x.ts_delta)*10;
 
 		/*
 		 * OK, it's now a signed value in 100-nanosecond
@@ -1196,7 +1201,7 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 	/*
 	 * Read the packet data.
 	 */
-	if (!wtap_read_packet_bytes(fh, buf, rec->rec_header.packet_header.caplen, err, err_info))
+	if (!wtap_read_bytes_buffer(fh, &rec->data, rec->rec_header.packet_header.caplen, err, err_info))
 		return FAILURE;
 
 	/*
@@ -1222,7 +1227,7 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 		if (!wtap_read_bytes(fh, &trlr, trlr_size, err, err_info))
 			return FAILURE;
 
-		network = pletoh16(trlr.trlr_2_1.network);
+		network = pletohu16(trlr.trlr_2_1.network);
 		if ((network >= 0xE080) && (network <= 0xE08A)) {
 			/* These values "violate" the LINKTYPE_ media type values
 			 * in Microsoft Analyzer and are considered a MAExportedMediaType,
@@ -1356,7 +1361,7 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 			 */
 			uint64_t d;
 
-			d = pletoh64(trlr.trlr_2_3.utc_timestamp);
+			d = pletohu64(trlr.trlr_2_3.utc_timestamp);
 
 			/*
 			 * Get the time as seconds and nanoseconds.
@@ -1371,7 +1376,7 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 		}
 	}
 
-	netmon_set_pseudo_header_info(rec, buf);
+	netmon_set_pseudo_header_info(rec);
 
 	/* If any header specific information is present, set it as pseudo header data
 	 * and set the encapsulation type, so it can be handled to the netmon_header
@@ -1431,7 +1436,7 @@ netmon_process_record(wtap *wth, FILE_T fh, wtap_rec *rec,
 }
 
 /* Read the next packet */
-static bool netmon_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool netmon_read(wtap *wth, wtap_rec *rec,
     int *err, char **err_info, int64_t *data_offset)
 {
 	netmon_t *netmon = (netmon_t *)wth->priv;
@@ -1463,8 +1468,7 @@ static bool netmon_read(wtap *wth, wtap_rec *rec, Buffer *buf,
 
 		*data_offset = file_tell(wth->fh);
 
-		switch (netmon_process_record(wth, wth->fh, rec, buf, err,
-		    err_info)) {
+		switch (netmon_process_record(wth, wth->fh, rec, err, err_info)) {
 
 		case RETRY:
 			continue;
@@ -1479,14 +1483,13 @@ static bool netmon_read(wtap *wth, wtap_rec *rec, Buffer *buf,
 }
 
 static bool
-netmon_seek_read(wtap *wth, int64_t seek_off,
-    wtap_rec *rec, Buffer *buf, int *err, char **err_info)
+netmon_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
+    int *err, char **err_info)
 {
 	if (file_seek(wth->random_fh, seek_off, SEEK_SET, err) == -1)
 		return false;
 
-	switch (netmon_process_record(wth, wth->random_fh, rec, buf, err,
-	    err_info)) {
+	switch (netmon_process_record(wth, wth->random_fh, rec, err, err_info)) {
 
 	default:
 		/*
@@ -1656,7 +1659,7 @@ static bool netmon_dump_open_2_x(wtap_dumper *wdh, int *err, char **err_info _U_
 /* Write a record for a packet to a dump file.
    Returns true on success, false on failure. */
 static bool netmon_dump(wtap_dumper *wdh, const wtap_rec *rec,
-    const uint8_t *pd, int *err, char **err_info _U_)
+    int *err, char **err_info _U_)
 {
 	const union wtap_pseudo_header *pseudo_header = &rec->rec_header.packet_header.pseudo_header;
 	netmon_dump_t *netmon = (netmon_dump_t *)wdh->priv;
@@ -1674,6 +1677,7 @@ static bool netmon_dump(wtap_dumper *wdh, const wtap_rec *rec,
 	/* We can only write packet records. */
 	if (rec->rec_type != REC_TYPE_PACKET) {
 		*err = WTAP_ERR_UNWRITABLE_REC_TYPE;
+		*err_info = wtap_unwritable_rec_type_err_string(rec);
 		return false;
 	}
 
@@ -1720,7 +1724,7 @@ static bool netmon_dump(wtap_dumper *wdh, const wtap_rec *rec,
 		/*
 		 * Fill in the trailer with the network type.
 		 */
-		phtoles(rec_2_x_trlr.network, wtap_encap[rec->rec_header.packet_header.pkt_encap]);
+		phtoleu16(rec_2_x_trlr.network, wtap_encap[rec->rec_header.packet_header.pkt_encap]);
 	}
 
 	/*
@@ -1821,7 +1825,8 @@ static bool netmon_dump(wtap_dumper *wdh, const wtap_rec *rec,
 		rec_size += sizeof atm_hdr;
 	}
 
-	if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
+	if (!wtap_dump_file_write(wdh, ws_buffer_start_ptr(&rec->data),
+	    rec->rec_header.packet_header.caplen, err))
 		return false;
 	rec_size += rec->rec_header.packet_header.caplen;
 

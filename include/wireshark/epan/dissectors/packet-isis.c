@@ -111,7 +111,7 @@ dissect_isis(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 
     isis_type = tvb_get_uint8(tvb, offset) & ISIS_TYPE_MASK;
     col_add_str(pinfo->cinfo, COL_INFO,
-                val_to_str ( isis_type, isis_vals, "Unknown (0x%x)" ) );
+                val_to_str(pinfo->pool, isis_type, isis_vals, "Unknown (0x%x)" ) );
     proto_tree_add_item(isis_tree, hf_isis_type, tvb, offset, 1, ENC_BIG_ENDIAN );
     offset += 1;
 
@@ -148,7 +148,7 @@ dissect_isis(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
      * dissectors are for ISIS PDU types that might contain a
      * checksum TLV, and that checksum is over the entire PDU.
      */
-    if (!dissector_try_uint_new(isis_dissector_table, isis_type, tvb,
+    if (!dissector_try_uint_with_data(isis_dissector_table, isis_type, tvb,
                                 pinfo, tree, true, &subdissector_data))
     {
         proto_tree_add_expert(tree, pinfo, &ei_isis_type, tvb, offset, -1);

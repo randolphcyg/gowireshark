@@ -1974,15 +1974,15 @@ dissect_fcels (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 
     if (isreq == FC_ELS_REQ) {
         col_add_str (pinfo->cinfo, COL_INFO,
-                        val_to_str_ext (opcode, &fc_els_proto_val_ext, "0x%x"));
+                        val_to_str_ext(pinfo->pool, opcode, &fc_els_proto_val_ext, "0x%x"));
     }
     else if (opcode == FC_ELS_LSRJT) {
         col_add_fstr (pinfo->cinfo, COL_INFO, "LS_RJT (%s)",
-                        val_to_str_ext (failed_opcode, &fc_els_proto_val_ext, "0x%x"));
+                        val_to_str_ext(pinfo->pool, failed_opcode, &fc_els_proto_val_ext, "0x%x"));
     }
     else {
         col_add_fstr (pinfo->cinfo, COL_INFO, "ACC (%s)",
-                        val_to_str_ext (opcode, &fc_els_proto_val_ext, "0x%x"));
+                        val_to_str_ext(pinfo->pool, opcode, &fc_els_proto_val_ext, "0x%x"));
     }
 
     switch (opcode) {
@@ -2298,7 +2298,7 @@ proto_register_fcels (void)
           {"IP Version", "fcels.rnid.ipvers", FT_UINT8, BASE_HEX,
            VALS (fc_els_rnid_ipvers_val), 0x0, NULL, HFILL}},
         { &hf_fcels_tcpport,
-          {"TCP/UDP Port Number", "fcels.rnid.tcpport", FT_UINT16, BASE_DEC,
+          {"TCP/UDP Port Number", "fcels.rnid.tcpport", FT_UINT16, BASE_PT_TCP,
            NULL, 0x0, NULL, HFILL}},
         { &hf_fcels_ip,
           {"IP Address", "fcels.rnid.ip", FT_IPv6, BASE_NONE, NULL, 0x0, NULL,

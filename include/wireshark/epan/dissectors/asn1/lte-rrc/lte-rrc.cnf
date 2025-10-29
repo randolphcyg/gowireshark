@@ -1,6 +1,6 @@
 # lte-rrc.cnf
 # lte-rrc conformation file
-# Copyright 2008 Vincent Helfre, 2009-2024 Pascal Quantin
+# Copyright 2008 Vincent Helfre, 2009-2025 Pascal Quantin
 
 #.OPT
 PER
@@ -268,6 +268,10 @@ RLF-TimersAndConstants-NB-r13/setup                                             
 SR-WithoutHARQ-ACK-Config-NB-r15/setup                                                         sR-WithoutHARQ-ACK-Config-NB-r15_setup
 SR-SPS-BSR-Config-NB-r15/setup                                                                 sR-SPS-BSR-Config-NB-r15_setup
 RSRQ-RangeConfig-r12/setup                                                                     rSRQ-RangeConfig-r12_setup
+PDSCH-ConfigDedicated-v1800/downlinkHARQ-FeedbackDisabledBitmap-r18/setup setup-DownlinkHARQ-FeedbackDisabledBitmap-r18
+PUSCH-ConfigDedicated-v1800/uplinkHARQ-Mode-r18/setup setup-UplinkHARQ-Mode-r18
+NPDSCH-ConfigDedicated-NB-v1800/downlinkHARQ-FeedbackDisabledBitmap-NB-r18/setup setup-DownlinkHARQ-FeedbackDisabledBitmap-NB-r18
+NPUSCH-ConfigDedicated-NB-v1800/uplinkHARQ-Mode-r18/setup setup-UplinkHARQ-Mode-NB-r18
 
 CSI-Process-r11/eag_1/csi-IM-ConfigIdList-r12/setup/_item                                      csi-IM-ConfigIdList-r12_setup_item
 CSI-RS-ConfigZP-ApList-r14/setup/_item                                                         cSI-RS-ConfigZP-ApList-r14_setup_item
@@ -312,6 +316,9 @@ UL-CCCH-Message-NB/message                                                      
 SC-MCCH-Message-NB/message                                                                     sC-MCCH-Message-NB_message
 UL-DCCH-Message-NB/message                                                                     uL-DCCH-Message-NB_message
 DRX-Config/release                                                                             dRX-Config_release
+
+ServingSatelliteInfo-v1820/referenceLocation-r18 referenceLocation-r18-choice
+OtherConfig-r9/eag_6/measUncomBarPre-r17 measUncomBarPre-r17-bool
 
 #.FIELD_ATTR
 UERadioAccessCapabilityInformation-r8-IEs/ue-RadioAccessCapabilityInfo  ABBREV=uERadioAccessCapabilityInformation_r8_IEs.ue_RadioAccessCapabilityInfo
@@ -3047,7 +3054,7 @@ PUCCH-ConfigDedicated-r13/pucch-Format-r13/channelSelection-r13/n1PUCCH-AN-CS-r1
 #.FN_BODY RACH-ConfigCommon/preambleInfo/preamblesGroupAConfig/sizeOfRA-PreamblesGroupA VAL_PTR=&value
   unsigned ra_value, value;
 %(DEFAULT_BODY)s
-  /* Retrived stored value for RA (both Group A & Group B) */
+  /* Retrieve stored value for RA (both Group A & Group B) */
   ra_value = private_data_get_ra_preambles(actx);
   if (value > ra_value) {
     /* Something is wrong if A has more RAPIDs than A & B combined! */
@@ -3265,7 +3272,7 @@ DRX-Config/setup/shortDRX/drxShortCycleTimer DISPLAY=BASE_DEC|BASE_UNIT_STRING S
     set_mac_lte_drx_config_release(p_mac_lte_info->ueid, actx->pinfo);
     /* Also tell MAC to release extended BSR sizes configuration */
     set_mac_lte_extended_bsr_sizes(p_mac_lte_info->ueid, false, actx->pinfo);
-    /* Also tell MAC to release simutaneous PUCCH/PUSCH configuration */
+    /* Also tell MAC to release simultaneous PUCCH/PUSCH configuration */
     set_mac_lte_simult_pucch_pusch(p_mac_lte_info->ueid, SIMULT_PUCCH_PUSCH_PCELL, false, actx->pinfo);
     set_mac_lte_simult_pucch_pusch(p_mac_lte_info->ueid, SIMULT_PUCCH_PUSCH_PSCELL, false, actx->pinfo);
     /* TODO: also release PDCP security config here */
@@ -4263,6 +4270,101 @@ SR-NPRACH-Resource-NB-r15/p0-SR-r15 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UN
     mapping->ul_priority = value;
     mapping->ul_priority_present = true;
   }
+
+#.FN_BODY MCC-MNC-Digit VAL_PTR=&value
+  uint32_t value;
+%(DEFAULT_BODY)s
+  if (actx->value_ptr && value <= 9) {
+    wmem_strbuf_t *plmn_str = (wmem_strbuf_t *)actx->value_ptr;
+    wmem_strbuf_append_c(plmn_str, '0' + value);
+  }
+
+#.FN_BODY PLMN-Identity
+  tvbuff_t *mcc_mnc_tvb;
+  wmem_strbuf_t *plmn_strbuf = wmem_strbuf_new(actx->pinfo->pool, "");
+  wmem_strbuf_t *mcc_strbuf;
+  char *plmn_str;
+  unsigned plmn_len;
+
+  actx->value_ptr = plmn_strbuf;
+%(DEFAULT_BODY)s
+  actx->value_ptr = NULL;
+
+  plmn_len = (unsigned)wmem_strbuf_get_len(plmn_strbuf);
+  plmn_str = wmem_strbuf_finalize(plmn_strbuf);
+  if (plmn_len > 3) {
+    /* 4+ digits were found, so this should be 3 MCC digits plus MNC.
+     * 3GPP TS 36.311 notes that if the MCC is absent in a PLMN-Identity,
+     * it takes the same value as the MCC of the immediately preceding
+     * IE PLMN-Identity (in the PLMN-IdentityList).
+     * So save this for the next PLMN-Identity.
+     */
+    mcc_strbuf = wmem_strbuf_new_sized(actx->pinfo->pool, 3);
+    wmem_strbuf_append_len(mcc_strbuf, plmn_str, 3);
+    private_data_set_last_mcc_strbuf(actx, mcc_strbuf);
+  } else {
+    /* 3 or fewer digits, so probably MNC only. Add the MCC of
+     * the immediately preceding IE PLMN-Identity if we have it. */
+    mcc_strbuf = private_data_get_last_mcc_strbuf(actx);
+    if (mcc_strbuf) {
+      plmn_strbuf = wmem_strbuf_new_sized(actx->pinfo->pool, 6);
+      wmem_strbuf_append(plmn_strbuf, wmem_strbuf_get_str(mcc_strbuf));
+      wmem_strbuf_append(plmn_strbuf, plmn_str);
+      plmn_len = (unsigned)wmem_strbuf_get_len(plmn_strbuf);
+      plmn_str = wmem_strbuf_finalize(plmn_strbuf);
+    }
+  }
+  if (plmn_len > 0) {
+    proto_item_append_text(actx->created_item, ": %%s", plmn_str);
+    if (plmn_len >= 5) {
+      /* Create TVB to pass to E.212 dissector */
+      mcc_mnc_tvb = tvb_new_child_real_data(tvb, (uint8_t*)plmn_str, plmn_len, plmn_len);
+      add_new_data_source(actx->pinfo, mcc_mnc_tvb, "MCC-MNC");
+
+      dissect_e212_mcc_mnc_in_utf8_address(mcc_mnc_tvb, actx->pinfo, proto_item_get_subtree(actx->created_item), 0);
+    }
+  }
+
+#.FN_BODY IMSI-Digit VAL_PTR=&value
+  uint32_t value;
+%(DEFAULT_BODY)s
+  if(private_data_get_digits_strbuf_parsing_failed_flag(actx)) {
+    return offset;
+  }
+  if(value > 9) {
+    private_data_set_digits_strbuf_parsing_failed_flag(actx, true);
+    return offset;
+  }
+  if (actx->value_ptr) {
+    wmem_strbuf_t *imsi_str = (wmem_strbuf_t *)actx->value_ptr;
+    wmem_strbuf_append_c(imsi_str, '0' + value);
+  }
+
+#.FN_BODY IMSI
+  wmem_strbuf_t *imsi_strbuf = wmem_strbuf_new_sized(actx->pinfo->pool, 16);
+  unsigned imsi_len;
+  char* imsi_str;
+  tvbuff_t* imsi_tvb;
+
+  actx->value_ptr = imsi_strbuf;
+  private_data_set_digits_strbuf_parsing_failed_flag(actx, false);
+%(DEFAULT_BODY)s
+  actx->value_ptr = NULL;
+  if(private_data_get_digits_strbuf_parsing_failed_flag(actx)) {
+    return offset;
+  }
+
+  imsi_len = (unsigned)wmem_strbuf_get_len(imsi_strbuf);
+  imsi_str = wmem_strbuf_finalize(imsi_strbuf);
+  /* Note - actx->created_item is not the lte-rrc.imsi item, but the
+   * last digit, because dissect_per_sequence_of doesn't set it to
+   * the sequence item, unlike dissect_per_sequence (XXX - Should it?)
+   * so we can't append the string to it, unlike the PLMN-Identity.
+   */
+  imsi_tvb = tvb_new_child_real_data(tvb, (uint8_t*)imsi_str, imsi_len, imsi_len);
+  add_new_data_source(actx->pinfo, imsi_tvb, "IMSI");
+
+  dissect_e212_utf8_imsi(imsi_tvb, actx->pinfo, tree, 0, imsi_len);
 
 #.TYPE_ATTR
 UplinkPowerControlCommon-NB-r13/p0-NominalNPUSCH-r13 DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_dbm)

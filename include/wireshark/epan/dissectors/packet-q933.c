@@ -1349,7 +1349,7 @@ dissect_q933_ns_facilities_ie(tvbuff_t *tvb, int offset, int len,
 		if (netid_len > len)
 			netid_len = len;
 		if (netid_len != 0) {
-			proto_tree_add_item(tree, hf_q933_network_identification, tvb, offset, netid_len, ENC_NA|ENC_ASCII);
+			proto_tree_add_item(tree, hf_q933_network_identification, tvb, offset, netid_len, ENC_ASCII);
 			offset += netid_len;
 			len -= netid_len;
 		}
@@ -1748,7 +1748,7 @@ dissect_q933_user_user_ie(tvbuff_t *tvb, int offset, int len,
 	switch (octet) {
 
 	case Q933_PROTOCOL_DISCRIMINATOR_IA5:
-		proto_tree_add_item(tree, hf_q933_user_information_str, tvb, offset, len, ENC_NA|ENC_ASCII);
+		proto_tree_add_item(tree, hf_q933_user_information_str, tvb, offset, len, ENC_ASCII);
 		break;
 
 	default:
@@ -1817,7 +1817,7 @@ dissect_q933(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	}
 	message_type = tvb_get_uint8(tvb, offset);
 	col_add_str(pinfo->cinfo, COL_INFO,
-		    val_to_str(message_type, q933_message_type_vals,
+		    val_to_str(pinfo->pool, message_type, q933_message_type_vals,
 		      "Unknown message type (0x%02X)"));
 
 	proto_tree_add_uint(q933_tree, hf_q933_message_type, tvb, offset, 1, message_type);
@@ -1869,10 +1869,10 @@ dissect_q933(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 		if (q933_tree != NULL) {
 			ie_tree = proto_tree_add_subtree(q933_tree, tvb, offset,
 			    1+1+info_element_len, ett_q933_ie, NULL,
-			    val_to_str(info_element, q933_info_element_vals[codeset],
+			    val_to_str(pinfo->pool, info_element, q933_info_element_vals[codeset],
 			      "Unknown information element (0x%02X)"));
 			proto_tree_add_uint_format_value(ie_tree, hf_q933_information_element, tvb, offset, 1, info_element,
-								"%s", val_to_str(info_element, q933_info_element_vals[codeset], "Unknown (0x%02X)"));
+								"%s", val_to_str(pinfo->pool, info_element, q933_info_element_vals[codeset], "Unknown (0x%02X)"));
 			proto_tree_add_item(ie_tree, hf_q933_length, tvb, offset + 1, 1, ENC_BIG_ENDIAN);
 
 			switch ((codeset << 8) | info_element) {

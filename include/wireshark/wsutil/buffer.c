@@ -66,7 +66,6 @@ ws_buffer_assure_space(Buffer* buffer, size_t space)
 {
 	ws_assert(buffer);
 	size_t available_at_end = buffer->allocated - buffer->first_free;
-	size_t space_used;
 	bool space_at_beginning;
 
 	/* If we've got the space already, good! */
@@ -84,7 +83,7 @@ ws_buffer_assure_space(Buffer* buffer, size_t space)
 
 	space_at_beginning = buffer->start >= space;
 	if (space_at_beginning || buffer->start > 0) {
-		space_used = buffer->first_free - buffer->start;
+		size_t space_used = buffer->first_free - buffer->start;
 		/* this memory copy better be safe for overlapping memory regions! */
 		memmove(buffer->data, buffer->data + buffer->start, space_used);
 		buffer->start = 0;
@@ -101,7 +100,7 @@ ws_buffer_assure_space(Buffer* buffer, size_t space)
 }
 
 void
-ws_buffer_append(Buffer* buffer, uint8_t *from, size_t bytes)
+ws_buffer_append(Buffer* buffer, const uint8_t *from, size_t bytes)
 {
 	ws_assert(buffer);
 	ws_buffer_assure_space(buffer, bytes);
@@ -121,61 +120,54 @@ ws_buffer_remove_start(Buffer* buffer, size_t bytes)
 	}
 	buffer->start += bytes;
 
-	if (buffer->start == buffer->first_free) {
-		buffer->start = 0;
-		buffer->first_free = 0;
-	}
+	/*
+	 * If we've removed everything in the buffer, just reset
+	 * the buffer.
+	 */
+	if (buffer->start == buffer->first_free)
+		ws_buffer_clean(buffer);
 }
 
 
-#ifndef SOME_FUNCTIONS_ARE_DEFINES
+#ifndef SOME_FUNCTIONS_ARE_INLINE
 void
 ws_buffer_clean(Buffer* buffer)
 {
 	ws_assert(buffer);
-	ws_buffer_remove_start(buffer, ws_buffer_length(buffer));
+	buffer->start = 0;
+	buffer->first_free = 0;
 }
-#endif
 
-#ifndef SOME_FUNCTIONS_ARE_DEFINES
 void
 ws_buffer_increase_length(Buffer* buffer, size_t bytes)
 {
 	ws_assert(buffer);
 	buffer->first_free += bytes;
 }
-#endif
 
-#ifndef SOME_FUNCTIONS_ARE_DEFINES
 size_t
-ws_buffer_length(Buffer* buffer)
+ws_buffer_length(const Buffer* buffer)
 {
 	ws_assert(buffer);
 	return buffer->first_free - buffer->start;
 }
-#endif
 
-#ifndef SOME_FUNCTIONS_ARE_DEFINES
 uint8_t *
-ws_buffer_start_ptr(Buffer* buffer)
+ws_buffer_start_ptr(const Buffer* buffer)
 {
 	ws_assert(buffer);
 	return buffer->data + buffer->start;
 }
-#endif
 
-#ifndef SOME_FUNCTIONS_ARE_DEFINES
 uint8_t *
-ws_buffer_end_ptr(Buffer* buffer)
+ws_buffer_end_ptr(const Buffer* buffer)
 {
 	ws_assert(buffer);
 	return buffer->data + buffer->first_free;
 }
-#endif
 
-#ifndef SOME_FUNCTIONS_ARE_DEFINES
 void
-ws_buffer_append_buffer(Buffer* buffer, Buffer* src_buffer)
+ws_buffer_append_buffer(Buffer* buffer, const Buffer* src_buffer)
 {
 	ws_assert(buffer);
 	ws_buffer_append(buffer, ws_buffer_start_ptr(src_buffer), ws_buffer_length(src_buffer));

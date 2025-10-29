@@ -25,7 +25,7 @@
 #ifndef __PROTOBUF_HELPER_H__
 #define __PROTOBUF_HELPER_H__
 
-#include <epan/value_string.h>
+#include <wsutil/value_string.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -159,7 +159,7 @@ pbw_FieldDescriptor_is_packed(const PbwFieldDescriptor* field);
 
 /* like FieldDescriptor::typeName() */
 const char*
-pbw_FieldDescriptor_typeName(int field_type);
+pbw_FieldDescriptor_typeName(wmem_allocator_t* scope, int field_type);
 
 /* like FieldDescriptor::message_type() */
 const PbwDescriptor*

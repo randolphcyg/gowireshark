@@ -411,11 +411,7 @@ format_tif(
 
 
 static int
-dissect_ouch(
-    tvbuff_t *tvb,
-    packet_info *pinfo,
-    proto_tree *tree,
-    void *data _U_)
+dissect_ouch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     proto_item *ti;
     proto_tree *ouch_tree = NULL;
@@ -447,7 +443,7 @@ dissect_ouch(
     }
 
     /* Since we use the packet name a few times, get and save that value */
-    pkt_name = val_to_str(pkt_type, pkt_type_val, "Unknown (%u)");
+    pkt_name = val_to_str(pinfo->pool, pkt_type, pkt_type_val, "Unknown (%u)");
 
     /* Set the protocol name in the summary display */
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "OUCH");
@@ -468,7 +464,7 @@ dissect_ouch(
 
         /* Packet type (using the cooked value). */
         proto_tree_add_item(ouch_tree, hf_ouch_packet_type,
-                                  tvb, offset, 1, ENC_ASCII|ENC_NA);
+                                  tvb, offset, 1, ENC_ASCII);
         offset += 1;
 
         switch (pkt_type) {
@@ -482,7 +478,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_buy_sell_indicator,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -518,19 +514,19 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_display,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_capacity,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_iso_eligible,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -542,14 +538,14 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_cross_type,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             if (reported_len >= 49) { /* Added in 4.1 */
                 proto_tree_add_item(ouch_tree,
                                     hf_ouch_customer_type,
                                     tvb, offset, 1,
-                                    ENC_ASCII|ENC_NA);
+                                    ENC_ASCII);
                 offset += 1;
             }
             break;
@@ -569,7 +565,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_buy_sell_indicator,
                                 tvb, offset, 1,
-                                ENC_BIG_ENDIAN);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -605,7 +601,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_display,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -617,13 +613,13 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_capacity,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_iso_eligible,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -635,20 +631,20 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_cross_type,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_order_state,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             if (reported_len >= 66) { /* Added in 4.2 */
                 proto_tree_add_item(ouch_tree,
                                     hf_ouch_bbo_weight_indicator,
                                     tvb, offset, 1,
-                                    ENC_ASCII|ENC_NA);
+                                    ENC_ASCII);
                 offset += 1;
             }
             break;
@@ -687,13 +683,13 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_display,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_iso_eligible,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -727,7 +723,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_buy_sell_indicator,
                                 tvb, offset, 1,
-                                ENC_BIG_ENDIAN);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -746,7 +742,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_event_code,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
             break;
 
@@ -765,7 +761,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_buy_sell_indicator,
                                 tvb, offset, 1,
-                                ENC_BIG_ENDIAN);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -801,7 +797,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_display,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -813,13 +809,13 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_capacity,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_iso_eligible,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -831,13 +827,13 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_cross_type,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_order_state,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -850,7 +846,7 @@ dissect_ouch(
                 proto_tree_add_item(ouch_tree,
                                     hf_ouch_bbo_weight_indicator,
                                     tvb, offset, 1,
-                                    ENC_BIG_ENDIAN);
+                                    ENC_ASCII);
                 offset += 1;
             }
             break;
@@ -876,7 +872,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_cancel_reason,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
             break;
 
@@ -901,7 +897,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_cancel_reason,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -919,7 +915,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_liquidity_flag,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
             break;
 
@@ -950,7 +946,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_liquidity_flag,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -981,7 +977,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_broken_trade_reason,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
             break;
 
@@ -1012,7 +1008,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_liquidity_flag,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -1024,7 +1020,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_trade_correction_reason,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
             break;
 
@@ -1055,7 +1051,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_liquidity_flag,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -1104,7 +1100,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_price_correction_reason,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
             break;
 
@@ -1123,7 +1119,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_reject_reason,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
             break;
 
@@ -1174,7 +1170,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_display,
                                 tvb, offset, 1,
-                                ENC_ASCII|ENC_NA);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,
@@ -1199,7 +1195,7 @@ dissect_ouch(
             proto_tree_add_item(ouch_tree,
                                 hf_ouch_buy_sell_indicator,
                                 tvb, offset, 1,
-                                ENC_BIG_ENDIAN);
+                                ENC_ASCII);
             offset += 1;
 
             proto_tree_add_item(ouch_tree,

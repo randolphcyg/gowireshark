@@ -10,7 +10,7 @@
  *
  * Based on the RANAP dissector
  *
- * References: 3GPP TS 36.413 V18.2.0 (2024-06)
+ * References: 3GPP TS 36.413 V18.3.0 (2024-12)
  */
 
 #include "config.h"
@@ -41,6 +41,7 @@
 #include "packet-gsm_a_common.h"
 #include "packet-ntp.h"
 #include "packet-ngap.h"
+#include "packet-lpp.h"
 
 #define PNAME  "S1 Application Protocol"
 #define PSNAME "S1AP"
@@ -171,6 +172,7 @@ static int ett_s1ap_NB_IoT_RLF_Report_Container;
 static int ett_s1ap_MDT_ConfigurationNR;
 static int ett_s1ap_IntersystemSONConfigurationTransfer;
 static int ett_s1ap_rAT_RestrictionInformation;
+static int ett_s1ap_CoarseUELocation;
 #include "packet-s1ap-ett.c"
 
 static expert_field ei_s1ap_number_pages_le15;
@@ -417,7 +419,7 @@ static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto
   s1ap_ctx.ProtocolIE_ID       = s1ap_data->protocol_ie_id;
   s1ap_ctx.ProtocolExtensionID = s1ap_data->protocol_extension_id;
 
-  return (dissector_try_uint_new(s1ap_ies_dissector_table, s1ap_data->protocol_ie_id, tvb, pinfo, tree, false, &s1ap_ctx)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(s1ap_ies_dissector_table, s1ap_data->protocol_ie_id, tvb, pinfo, tree, false, &s1ap_ctx)) ? tvb_captured_length(tvb) : 0;
 }
 /* Currently not used
 static int dissect_ProtocolIEFieldPairFirstValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
@@ -445,28 +447,28 @@ static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_in
   s1ap_ctx.ProtocolIE_ID       = s1ap_data->protocol_ie_id;
   s1ap_ctx.ProtocolExtensionID = s1ap_data->protocol_extension_id;
 
-  return (dissector_try_uint_new(s1ap_extension_dissector_table, s1ap_data->protocol_extension_id, tvb, pinfo, tree, false, &s1ap_ctx)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(s1ap_extension_dissector_table, s1ap_data->protocol_extension_id, tvb, pinfo, tree, false, &s1ap_ctx)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(s1ap_proc_imsg_dissector_table, s1ap_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(s1ap_proc_imsg_dissector_table, s1ap_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(s1ap_proc_sout_dissector_table, s1ap_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(s1ap_proc_sout_dissector_table, s1ap_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct s1ap_private_data *s1ap_data = s1ap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(s1ap_proc_uout_dissector_table, s1ap_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(s1ap_proc_uout_dissector_table, s1ap_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 
@@ -801,6 +803,7 @@ void proto_register_s1ap(void) {
     &ett_s1ap_MDT_ConfigurationNR,
     &ett_s1ap_IntersystemSONConfigurationTransfer,
     &ett_s1ap_rAT_RestrictionInformation,
+    &ett_s1ap_CoarseUELocation,
 #include "packet-s1ap-ettarr.c"
   };
 

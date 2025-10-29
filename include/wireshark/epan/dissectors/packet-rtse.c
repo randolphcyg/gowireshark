@@ -169,7 +169,7 @@ call_rtse_oid_callback(const char *oid, tvbuff_t *tvb, int offset, packet_info *
 
     next_tvb = tvb_new_subset_remaining(tvb, offset);
 
-    if ((len = dissector_try_string(rtse_oid_dissector_table, oid, next_tvb, pinfo, tree, data)) == 0) {
+    if ((len = dissector_try_string_with_data(rtse_oid_dissector_table, oid, next_tvb, pinfo, tree, true, data)) == 0) {
         proto_item *item;
         proto_tree *next_tree;
 
@@ -476,7 +476,7 @@ dissect_rtse_RefuseReason(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
 
 
   if(reason != -1)
-   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (%s)", val_to_str(reason, rtse_RefuseReason_vals, "reason(%d)"));
+   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (%s)", val_to_str(actx->pinfo->pool, reason, rtse_RefuseReason_vals, "reason(%d)"));
 
 
   return offset;
@@ -602,7 +602,7 @@ dissect_rtse_AbortReason(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U
 
 
   if(reason != -1)
-   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (%s)", val_to_str(reason, rtse_AbortReason_vals, "reason(%d)"));
+   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (%s)", val_to_str(actx->pinfo->pool, reason, rtse_AbortReason_vals, "reason(%d)"));
 
 
   return offset;

@@ -109,17 +109,15 @@ typedef struct iso15765_seq_key {
 } iso15765_seq_key_t;
 
 static unsigned
-iso15765_seq_hash_func(const void *v)
-{
-    const iso15765_seq_key_t* key = (const iso15765_seq_key_t*)v;
+iso15765_seq_hash_func(const void *v) {
+    const iso15765_seq_key_t *key = (const iso15765_seq_key_t *)v;
     return (key->frame_id ^ key->bus_type);
 }
 
 static int
-iso15765_seq_equal_func(const void *v1, const void *v2)
-{
-    const iso15765_seq_key_t* key1 = (const iso15765_seq_key_t*)v1;
-    const iso15765_seq_key_t* key2 = (const iso15765_seq_key_t*)v2;
+iso15765_seq_equal_func(const void *v1, const void *v2) {
+    const iso15765_seq_key_t *key1 = (const iso15765_seq_key_t *)v1;
+    const iso15765_seq_key_t *key2 = (const iso15765_seq_key_t *)v2;
 
     return (key1->bus_type == key2->bus_type &&
         key1->frame_id == key2->frame_id &&
@@ -171,15 +169,15 @@ static const enum_val_t enum_addressing[] = {
 
 /* Encoding */
 static const enum_val_t enum_flexray_addressing[] = {
-    {"1 Byte", "1 byte addressing", ONE_BYTE_ADDRESSING},
-    {"2 Byte", "2 byte addressing", TWO_BYTE_ADDRESSING},
+    {"1", "1 byte addressing", ONE_BYTE_ADDRESSING},
+    {"2", "2 byte addressing", TWO_BYTE_ADDRESSING},
     {NULL, NULL, 0}
 };
 
 static const enum_val_t enum_ipdum_addressing[] = {
-    {"0 Byte", "0 byte addressing", ZERO_BYTE_ADDRESSING},
-    {"1 Byte", "1 byte addressing", ONE_BYTE_ADDRESSING},
-    {"2 Byte", "2 byte addressing", TWO_BYTE_ADDRESSING},
+    {"0", "0 byte addressing", ZERO_BYTE_ADDRESSING},
+    {"1", "1 byte addressing", ONE_BYTE_ADDRESSING},
+    {"2", "2 byte addressing", TWO_BYTE_ADDRESSING},
     {NULL, NULL, 0}
 };
 
@@ -672,7 +670,7 @@ dissect_iso15765(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t b
     offset = pci_offset;
     pci = tvb_get_uint8(tvb, offset);
     message_type_item = proto_tree_add_item_ret_uint(iso15765_tree, hf_iso15765_message_type, tvb, offset, 1, ENC_NA, &message_type);
-    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(message_type, iso15765_message_types, "Unknown (0x%02x)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, message_type, iso15765_message_types, "Unknown (0x%02x)"));
 
     switch(message_type) {
         case ISO15765_MESSAGE_TYPES_SINGLE_FRAME: {
@@ -982,7 +980,7 @@ dissect_iso15765(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t b
     if (next_tvb) {
         iso15765data.len = frame_length;
 
-        if (!complete || !dissector_try_payload_new(subdissector_table, next_tvb, pinfo, tree, true, &iso15765data)) {
+        if (!complete || !dissector_try_payload_with_data(subdissector_table, next_tvb, pinfo, tree, true, &iso15765data)) {
             call_data_dissector(next_tvb, pinfo, tree);
         }
     }

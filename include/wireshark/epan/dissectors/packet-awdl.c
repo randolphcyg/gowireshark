@@ -888,7 +888,7 @@ awdl_tag_election_params(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
 
   proto_tree_add_item(tree, hf_awdl_electionparams_flags, tvb, offset, 1, ENC_NA);
   offset += 1;
-  proto_tree_add_item(tree, hf_awdl_electionparams_id, tvb, offset, 2, ENC_NA);
+  proto_tree_add_item(tree, hf_awdl_electionparams_id, tvb, offset, 2, ENC_LITTLE_ENDIAN);
   offset += 2;
   proto_tree_add_item(tree, hf_awdl_electionparams_distance, tvb, offset, 1, ENC_NA);
   offset += 1;
@@ -1085,7 +1085,7 @@ awdl_tag_ieee80211_container(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 }
 
 static int
-awdl_tag_ht_capabilities(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void* data _U_) {
+awdl_tag_ht_capabilities(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
   proto_item *ti, *cap_item;
   proto_tree *mcs_tree, *bit_tree, *cap_tree;
   uint8_t streams; /* 0-4 for HT and 0-8 for VHT*/
@@ -1151,7 +1151,7 @@ awdl_tag_ht_capabilities(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
     offset += 1;
   }
 
-  proto_item_append_text(ti, ": %s", val_to_str(streams - 1, mcsset_tx_max_spatial_streams_flags, "Reserved: %d" ) );
+  proto_item_append_text(ti, ": %s", val_to_str(pinfo->pool, streams - 1, mcsset_tx_max_spatial_streams_flags, "Reserved: %d" ) );
 
   // Some padding at the end
   proto_tree_add_item(tree, hf_awdl_ht_unknown, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -1333,7 +1333,7 @@ awdl_add_tagged_field(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int o
 
   if (tree) {
     ti = proto_tree_add_item(orig_tree, hf_awdl_tag, tvb, offset, tag_len + hdr_len, ENC_NA);
-    proto_item_append_text(ti, ": %s", val_to_str_ext(tag_no, &tag_num_vals_ext, "Unknown (%d)"));
+    proto_item_append_text(ti, ": %s", val_to_str_ext(pinfo->pool, tag_no, &tag_num_vals_ext, "Unknown (%d)"));
     tree = proto_item_add_subtree(ti, ett_awdl_tag);
   }
 
@@ -1348,12 +1348,12 @@ awdl_add_tagged_field(packet_info *pinfo, proto_tree *tree, tvbuff_t *tvb, int o
   tag_tvb = tvb_new_subset_length(tvb, offset, tag_len);
   field_data.item_tag = ti;
   field_data.item_tag_length = ti_len;
-  if (!(parsed = dissector_try_uint_new(tagged_field_table, tag_no, tag_tvb, pinfo, tree, false, &field_data)))
+  if (!(parsed = dissector_try_uint_with_data(tagged_field_table, tag_no, tag_tvb, pinfo, tree, false, &field_data)))
   {
     proto_tree_add_item(tree, hf_awdl_tag_data, tag_tvb, 0, tag_len, ENC_NA);
     expert_add_info_format(pinfo, ti_tag, &ei_awdl_tag_data,
                            "Dissector for AWDL tag (%s) code not implemented",
-                           val_to_str_ext(tag_no, &tag_num_vals_ext, "(%d)"));
+                           val_to_str_ext(pinfo->pool, tag_no, &tag_num_vals_ext, "(%d)"));
     proto_item_append_text(ti, ": Undecoded");
   }
   else if (parsed > 0 && (unsigned int) parsed < tag_len)
@@ -1951,7 +1951,7 @@ void proto_register_awdl(void)
       }
     },
 
-    /* Synchronization Paramters */
+    /* Synchronization Parameters */
     { &hf_awdl_syncparams_awcounter,
       { "AW Sequence Number", "awdl.syncparams.awseqcounter",
         FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL

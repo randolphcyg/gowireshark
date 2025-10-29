@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-pkinit.c                                                            */
-/* asn2wrs.py -b -q -L -p pkinit -c ./pkinit.cnf -s ./packet-pkinit-template -D . -O ../.. PKINIT.asn */
+/* asn2wrs.py -b -q -L -p pkinit -c ./pkinit.cnf -s ./packet-pkinit-template -D . -O ../.. PKINIT_RFC_4556.asn */
 
 /* packet-pkinit.c
  * Routines for PKINIT packet dissection
@@ -17,6 +17,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/oids.h>
 #include <epan/asn1.h>
 #include <epan/proto_data.h>
 #include <wsutil/array.h>
@@ -40,27 +41,42 @@ static int hf_pkinit_AuthPack_PDU;                /* AuthPack */
 static int hf_pkinit_KRB5PrincipalName_PDU;       /* KRB5PrincipalName */
 static int hf_pkinit_KDCDHKeyInfo_PDU;            /* KDCDHKeyInfo */
 static int hf_pkinit_signedAuthPack;              /* ContentInfo */
-static int hf_pkinit_trustedCertifiers;           /* SEQUENCE_OF_TrustedCA */
-static int hf_pkinit_trustedCertifiers_item;      /* TrustedCA */
-static int hf_pkinit_kdcCert;                     /* IssuerAndSerialNumber */
-static int hf_pkinit_caName;                      /* Name */
-static int hf_pkinit_issuerAndSerial;             /* IssuerAndSerialNumber */
+static int hf_pkinit_trustedCertifiers;           /* SEQUENCE_OF_ExternalPrincipalIdentifier */
+static int hf_pkinit_trustedCertifiers_item;      /* ExternalPrincipalIdentifier */
+static int hf_pkinit_kdcPkId;                     /* OCTET_STRING */
+static int hf_pkinit_kdf_id;                      /* OBJECT_IDENTIFIER */
+static int hf_pkinit_subjectName;                 /* Name */
+static int hf_pkinit_issuerAndSerialNumber;       /* IssuerAndSerialNumber */
+static int hf_pkinit_subjectKeyIdentifier;        /* OCTET_STRING */
 static int hf_pkinit_pkAuthenticator;             /* PKAuthenticator */
 static int hf_pkinit_clientPublicValue;           /* SubjectPublicKeyInfo */
 static int hf_pkinit_supportedCMSTypes;           /* SEQUENCE_OF_AlgorithmIdentifier */
 static int hf_pkinit_supportedCMSTypes_item;      /* AlgorithmIdentifier */
 static int hf_pkinit_clientDHNonce;               /* DHNonce */
-static int hf_pkinit_cusec;                       /* INTEGER */
+static int hf_pkinit_supportedKDFs;               /* SEQUENCE_OF_KDFAlgorithmId */
+static int hf_pkinit_supportedKDFs_item;          /* KDFAlgorithmId */
+static int hf_pkinit_checksum;                    /* OCTET_STRING */
+static int hf_pkinit_algorithmIdentifier;         /* AlgorithmIdentifier */
+static int hf_pkinit_cusec;                       /* INTEGER_0_999999 */
 static int hf_pkinit_ctime;                       /* KerberosTime */
 static int hf_pkinit_paNonce;                     /* INTEGER_0_4294967295 */
 static int hf_pkinit_paChecksum;                  /* OCTET_STRING */
+static int hf_pkinit_freshnessToken;              /* OCTET_STRING */
+static int hf_pkinit_paChecksum2;                 /* PAChecksum2 */
+static int hf_pkinit_TD_TRUSTED_CERTIFIERS_item;  /* ExternalPrincipalIdentifier */
+static int hf_pkinit_TD_INVALID_CERTIFICATES_item;  /* ExternalPrincipalIdentifier */
 static int hf_pkinit_realm;                       /* Realm */
 static int hf_pkinit_principalName;               /* PrincipalName */
-static int hf_pkinit_dhSignedData;                /* ContentInfo */
+static int hf_pkinit_AD_INITIAL_VERIFIED_CAS_item;  /* ExternalPrincipalIdentifier */
+static int hf_pkinit_dhInfo;                      /* DHRepInfo */
 static int hf_pkinit_encKeyPack;                  /* ContentInfo */
+static int hf_pkinit_dhSignedData;                /* ContentInfo */
+static int hf_pkinit_serverDHNonce;               /* DHNonce */
+static int hf_pkinit_kdf;                         /* KDFAlgorithmId */
 static int hf_pkinit_subjectPublicKey;            /* BIT_STRING */
-static int hf_pkinit_dhNonce;                     /* INTEGER */
+static int hf_pkinit_dhNonce;                     /* INTEGER_0_4294967295 */
 static int hf_pkinit_dhKeyExpiration;             /* KerberosTime */
+static int hf_pkinit_TD_DH_PARAMETERS_item;       /* AlgorithmIdentifier */
 static int hf_pkinit_kdcName;                     /* PrincipalName */
 static int hf_pkinit_kdcRealm;                    /* Realm */
 static int hf_pkinit_cusecWin2k;                  /* INTEGER_0_4294967295 */
@@ -70,19 +86,31 @@ static int hf_pkinit_trusted_certifiers;          /* SEQUENCE_OF_TrustedCA */
 static int hf_pkinit_trusted_certifiers_item;     /* TrustedCA */
 static int hf_pkinit_kdc_cert;                    /* OCTET_STRING */
 static int hf_pkinit_encryption_cert;             /* OCTET_STRING */
+static int hf_pkinit_caName;                      /* Name */
+static int hf_pkinit_issuerAndSerial;             /* IssuerAndSerialNumber */
 
 /* Initialize the subtree pointers */
-static int ett_pkinit_PaPkAsReq;
-static int ett_pkinit_SEQUENCE_OF_TrustedCA;
-static int ett_pkinit_TrustedCA;
+static int ett_pkinit_PA_PK_AS_REQ;
+static int ett_pkinit_SEQUENCE_OF_ExternalPrincipalIdentifier;
+static int ett_pkinit_KDFAlgorithmId;
+static int ett_pkinit_ExternalPrincipalIdentifier;
 static int ett_pkinit_AuthPack;
 static int ett_pkinit_SEQUENCE_OF_AlgorithmIdentifier;
+static int ett_pkinit_SEQUENCE_OF_KDFAlgorithmId;
+static int ett_pkinit_PAChecksum2;
 static int ett_pkinit_PKAuthenticator;
+static int ett_pkinit_TD_TRUSTED_CERTIFIERS;
+static int ett_pkinit_TD_INVALID_CERTIFICATES;
 static int ett_pkinit_KRB5PrincipalName;
-static int ett_pkinit_PaPkAsRep;
+static int ett_pkinit_AD_INITIAL_VERIFIED_CAS;
+static int ett_pkinit_PA_PK_AS_REP;
+static int ett_pkinit_DHRepInfo;
 static int ett_pkinit_KDCDHKeyInfo;
+static int ett_pkinit_TD_DH_PARAMETERS;
 static int ett_pkinit_PKAuthenticator_Win2k;
 static int ett_pkinit_PA_PK_AS_REQ_Win2k;
+static int ett_pkinit_SEQUENCE_OF_TrustedCA;
+static int ett_pkinit_TrustedCA;
 
 static int dissect_KerberosV5Spec2_KerberosTime(bool implicit_tag _U_, tvbuff_t *tvb, int offset,  asn1_ctx_t *actx, proto_tree *tree, int hf_index _U_);
 static int dissect_KerberosV5Spec2_Realm(bool implicit_tag _U_, tvbuff_t *tvb, int offset,  asn1_ctx_t *actx, proto_tree *tree, int hf_index _U_);
@@ -90,52 +118,56 @@ static int dissect_KerberosV5Spec2_PrincipalName(bool implicit_tag _U_, tvbuff_t
 static int dissect_pkinit_PKAuthenticator_Win2k(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
 
 
-static const value_string pkinit_TrustedCA_vals[] = {
-  {   0, "caName" },
-  {   2, "issuerAndSerial" },
-  { 0, NULL }
-};
-
-static const ber_choice_t TrustedCA_choice[] = {
-  {   0, &hf_pkinit_caName       , BER_CLASS_CON, 0, 0, dissect_pkix1explicit_Name },
-  {   2, &hf_pkinit_issuerAndSerial, BER_CLASS_CON, 2, 0, dissect_cms_IssuerAndSerialNumber },
-  { 0, NULL, 0, 0, 0, NULL }
-};
 
 static int
-dissect_pkinit_TrustedCA(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_ber_choice(actx, tree, tvb, offset,
-                                 TrustedCA_choice, hf_index, ett_pkinit_TrustedCA,
-                                 NULL);
+dissect_pkinit_OCTET_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
+                                       NULL);
 
   return offset;
 }
 
 
-static const ber_sequence_t SEQUENCE_OF_TrustedCA_sequence_of[1] = {
-  { &hf_pkinit_trustedCertifiers_item, BER_CLASS_ANY/*choice*/, -1/*choice*/, BER_FLAGS_NOOWNTAG|BER_FLAGS_NOTCHKTAG, dissect_pkinit_TrustedCA },
+static const ber_sequence_t ExternalPrincipalIdentifier_sequence[] = {
+  { &hf_pkinit_subjectName  , BER_CLASS_CON, 0, 0, dissect_pkix1explicit_Name },
+  { &hf_pkinit_issuerAndSerialNumber, BER_CLASS_CON, 1, 0, dissect_cms_IssuerAndSerialNumber },
+  { &hf_pkinit_subjectKeyIdentifier, BER_CLASS_CON, 2, BER_FLAGS_OPTIONAL|BER_FLAGS_IMPLTAG, dissect_pkinit_OCTET_STRING },
+  { NULL, 0, 0, 0, NULL }
 };
 
 static int
-dissect_pkinit_SEQUENCE_OF_TrustedCA(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkinit_ExternalPrincipalIdentifier(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
+                                   ExternalPrincipalIdentifier_sequence, hf_index, ett_pkinit_ExternalPrincipalIdentifier);
+
+  return offset;
+}
+
+
+static const ber_sequence_t SEQUENCE_OF_ExternalPrincipalIdentifier_sequence_of[1] = {
+  { &hf_pkinit_trustedCertifiers_item, BER_CLASS_UNI, BER_UNI_TAG_SEQUENCE, BER_FLAGS_NOOWNTAG, dissect_pkinit_ExternalPrincipalIdentifier },
+};
+
+static int
+dissect_pkinit_SEQUENCE_OF_ExternalPrincipalIdentifier(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
-                                      SEQUENCE_OF_TrustedCA_sequence_of, hf_index, ett_pkinit_SEQUENCE_OF_TrustedCA);
+                                      SEQUENCE_OF_ExternalPrincipalIdentifier_sequence_of, hf_index, ett_pkinit_SEQUENCE_OF_ExternalPrincipalIdentifier);
 
   return offset;
 }
 
 
-static const ber_sequence_t PaPkAsReq_sequence[] = {
+static const ber_sequence_t PA_PK_AS_REQ_sequence[] = {
   { &hf_pkinit_signedAuthPack, BER_CLASS_CON, 0, 0, dissect_cms_ContentInfo },
-  { &hf_pkinit_trustedCertifiers, BER_CLASS_CON, 1, BER_FLAGS_OPTIONAL, dissect_pkinit_SEQUENCE_OF_TrustedCA },
-  { &hf_pkinit_kdcCert      , BER_CLASS_CON, 2, BER_FLAGS_OPTIONAL, dissect_cms_IssuerAndSerialNumber },
+  { &hf_pkinit_trustedCertifiers, BER_CLASS_CON, 1, BER_FLAGS_OPTIONAL, dissect_pkinit_SEQUENCE_OF_ExternalPrincipalIdentifier },
+  { &hf_pkinit_kdcPkId      , BER_CLASS_CON, 2, BER_FLAGS_OPTIONAL|BER_FLAGS_IMPLTAG, dissect_pkinit_OCTET_STRING },
   { NULL, 0, 0, 0, NULL }
 };
 
 int
-dissect_pkinit_PaPkAsReq(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkinit_PA_PK_AS_REQ(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
-                                   PaPkAsReq_sequence, hf_index, ett_pkinit_PaPkAsReq);
+                                   PA_PK_AS_REQ_sequence, hf_index, ett_pkinit_PA_PK_AS_REQ);
 
   return offset;
 }
@@ -153,7 +185,30 @@ dissect_pkinit_DHNonce(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_,
 
 
 static int
-dissect_pkinit_INTEGER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkinit_OBJECT_IDENTIFIER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_object_identifier(implicit_tag, actx, tree, tvb, offset, hf_index, NULL);
+
+  return offset;
+}
+
+
+static const ber_sequence_t KDFAlgorithmId_sequence[] = {
+  { &hf_pkinit_kdf_id       , BER_CLASS_CON, 0, 0, dissect_pkinit_OBJECT_IDENTIFIER },
+  { NULL, 0, 0, 0, NULL }
+};
+
+static int
+dissect_pkinit_KDFAlgorithmId(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
+                                   KDFAlgorithmId_sequence, hf_index, ett_pkinit_KDFAlgorithmId);
+
+  return offset;
+}
+
+
+
+static int
+dissect_pkinit_INTEGER_0_999999(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_integer(implicit_tag, actx, tree, tvb, offset, hf_index,
                                                 NULL);
 
@@ -171,21 +226,28 @@ dissect_pkinit_INTEGER_0_4294967295(bool implicit_tag _U_, tvbuff_t *tvb _U_, in
 }
 
 
+static const ber_sequence_t PAChecksum2_sequence[] = {
+  { &hf_pkinit_checksum     , BER_CLASS_CON, 0, 0, dissect_pkinit_OCTET_STRING },
+  { &hf_pkinit_algorithmIdentifier, BER_CLASS_CON, 1, 0, dissect_pkix1explicit_AlgorithmIdentifier },
+  { NULL, 0, 0, 0, NULL }
+};
 
 static int
-dissect_pkinit_OCTET_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_ber_octet_string(implicit_tag, actx, tree, tvb, offset, hf_index,
-                                       NULL);
+dissect_pkinit_PAChecksum2(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
+                                   PAChecksum2_sequence, hf_index, ett_pkinit_PAChecksum2);
 
   return offset;
 }
 
 
 static const ber_sequence_t PKAuthenticator_sequence[] = {
-  { &hf_pkinit_cusec        , BER_CLASS_CON, 0, 0, dissect_pkinit_INTEGER },
+  { &hf_pkinit_cusec        , BER_CLASS_CON, 0, 0, dissect_pkinit_INTEGER_0_999999 },
   { &hf_pkinit_ctime        , BER_CLASS_CON, 1, 0, dissect_KerberosV5Spec2_KerberosTime },
   { &hf_pkinit_paNonce      , BER_CLASS_CON, 2, 0, dissect_pkinit_INTEGER_0_4294967295 },
   { &hf_pkinit_paChecksum   , BER_CLASS_CON, 3, BER_FLAGS_OPTIONAL, dissect_pkinit_OCTET_STRING },
+  { &hf_pkinit_freshnessToken, BER_CLASS_CON, 4, BER_FLAGS_OPTIONAL, dissect_pkinit_OCTET_STRING },
+  { &hf_pkinit_paChecksum2  , BER_CLASS_CON, 5, BER_FLAGS_OPTIONAL, dissect_pkinit_PAChecksum2 },
   { NULL, 0, 0, 0, NULL }
 };
 
@@ -217,11 +279,25 @@ dissect_pkinit_SEQUENCE_OF_AlgorithmIdentifier(bool implicit_tag _U_, tvbuff_t *
 }
 
 
+static const ber_sequence_t SEQUENCE_OF_KDFAlgorithmId_sequence_of[1] = {
+  { &hf_pkinit_supportedKDFs_item, BER_CLASS_UNI, BER_UNI_TAG_SEQUENCE, BER_FLAGS_NOOWNTAG, dissect_pkinit_KDFAlgorithmId },
+};
+
+static int
+dissect_pkinit_SEQUENCE_OF_KDFAlgorithmId(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
+                                      SEQUENCE_OF_KDFAlgorithmId_sequence_of, hf_index, ett_pkinit_SEQUENCE_OF_KDFAlgorithmId);
+
+  return offset;
+}
+
+
 static const ber_sequence_t AuthPack_sequence[] = {
   { &hf_pkinit_pkAuthenticator, BER_CLASS_CON, 0, 0, dissect_pkinit_PKAuthenticator },
   { &hf_pkinit_clientPublicValue, BER_CLASS_CON, 1, BER_FLAGS_OPTIONAL, dissect_pkix1explicit_SubjectPublicKeyInfo },
   { &hf_pkinit_supportedCMSTypes, BER_CLASS_CON, 2, BER_FLAGS_OPTIONAL, dissect_pkinit_SEQUENCE_OF_AlgorithmIdentifier },
   { &hf_pkinit_clientDHNonce, BER_CLASS_CON, 3, BER_FLAGS_OPTIONAL, dissect_pkinit_DHNonce },
+  { &hf_pkinit_supportedKDFs, BER_CLASS_CON, 4, BER_FLAGS_OPTIONAL, dissect_pkinit_SEQUENCE_OF_KDFAlgorithmId },
   { NULL, 0, 0, 0, NULL }
 };
 
@@ -232,6 +308,8 @@ dissect_pkinit_AuthPack(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_
 
   return offset;
 }
+
+
 
 
 static const ber_sequence_t KRB5PrincipalName_sequence[] = {
@@ -249,22 +327,39 @@ dissect_pkinit_KRB5PrincipalName(bool implicit_tag _U_, tvbuff_t *tvb _U_, int o
 }
 
 
-const value_string pkinit_PaPkAsRep_vals[] = {
-  {   0, "dhSignedData" },
+
+static const ber_sequence_t DHRepInfo_sequence[] = {
+  { &hf_pkinit_dhSignedData , BER_CLASS_CON, 0, 0, dissect_cms_ContentInfo },
+  { &hf_pkinit_serverDHNonce, BER_CLASS_CON, 1, BER_FLAGS_OPTIONAL, dissect_pkinit_DHNonce },
+  { &hf_pkinit_kdf          , BER_CLASS_CON, 2, BER_FLAGS_OPTIONAL, dissect_pkinit_KDFAlgorithmId },
+  { NULL, 0, 0, 0, NULL }
+};
+
+static int
+dissect_pkinit_DHRepInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
+                                   DHRepInfo_sequence, hf_index, ett_pkinit_DHRepInfo);
+
+  return offset;
+}
+
+
+const value_string pkinit_PA_PK_AS_REP_vals[] = {
+  {   0, "dhInfo" },
   {   1, "encKeyPack" },
   { 0, NULL }
 };
 
-static const ber_choice_t PaPkAsRep_choice[] = {
-  {   0, &hf_pkinit_dhSignedData , BER_CLASS_CON, 0, 0, dissect_cms_ContentInfo },
+static const ber_choice_t PA_PK_AS_REP_choice[] = {
+  {   0, &hf_pkinit_dhInfo       , BER_CLASS_CON, 0, 0, dissect_pkinit_DHRepInfo },
   {   1, &hf_pkinit_encKeyPack   , BER_CLASS_CON, 1, 0, dissect_cms_ContentInfo },
   { 0, NULL, 0, 0, 0, NULL }
 };
 
 int
-dissect_pkinit_PaPkAsRep(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+dissect_pkinit_PA_PK_AS_REP(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_choice(actx, tree, tvb, offset,
-                                 PaPkAsRep_choice, hf_index, ett_pkinit_PaPkAsRep,
+                                 PA_PK_AS_REP_choice, hf_index, ett_pkinit_PA_PK_AS_REP,
                                  NULL);
 
   return offset;
@@ -284,7 +379,7 @@ dissect_pkinit_BIT_STRING(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
 
 static const ber_sequence_t KDCDHKeyInfo_sequence[] = {
   { &hf_pkinit_subjectPublicKey, BER_CLASS_CON, 0, 0, dissect_pkinit_BIT_STRING },
-  { &hf_pkinit_dhNonce      , BER_CLASS_CON, 1, 0, dissect_pkinit_INTEGER },
+  { &hf_pkinit_dhNonce      , BER_CLASS_CON, 1, 0, dissect_pkinit_INTEGER_0_4294967295 },
   { &hf_pkinit_dhKeyExpiration, BER_CLASS_CON, 2, BER_FLAGS_OPTIONAL, dissect_KerberosV5Spec2_KerberosTime },
   { NULL, 0, 0, 0, NULL }
 };
@@ -296,6 +391,7 @@ dissect_pkinit_KDCDHKeyInfo(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset
 
   return offset;
 }
+
 
 
 
@@ -321,6 +417,41 @@ static int
 dissect_pkinit_PKAuthenticator_Win2k(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    PKAuthenticator_Win2k_sequence, hf_index, ett_pkinit_PKAuthenticator_Win2k);
+
+  return offset;
+}
+
+
+static const value_string pkinit_TrustedCA_vals[] = {
+  {   0, "caName" },
+  {   2, "issuerAndSerial" },
+  { 0, NULL }
+};
+
+static const ber_choice_t TrustedCA_choice[] = {
+  {   0, &hf_pkinit_caName       , BER_CLASS_CON, 0, 0, dissect_pkix1explicit_Name },
+  {   2, &hf_pkinit_issuerAndSerial, BER_CLASS_CON, 2, 0, dissect_cms_IssuerAndSerialNumber },
+  { 0, NULL, 0, 0, 0, NULL }
+};
+
+static int
+dissect_pkinit_TrustedCA(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_choice(actx, tree, tvb, offset,
+                                 TrustedCA_choice, hf_index, ett_pkinit_TrustedCA,
+                                 NULL);
+
+  return offset;
+}
+
+
+static const ber_sequence_t SEQUENCE_OF_TrustedCA_sequence_of[1] = {
+  { &hf_pkinit_trusted_certifiers_item, BER_CLASS_ANY/*choice*/, -1/*choice*/, BER_FLAGS_NOOWNTAG|BER_FLAGS_NOTCHKTAG, dissect_pkinit_TrustedCA },
+};
+
+static int
+dissect_pkinit_SEQUENCE_OF_TrustedCA(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_sequence_of(implicit_tag, actx, tree, tvb, offset,
+                                      SEQUENCE_OF_TrustedCA_sequence_of, hf_index, ett_pkinit_SEQUENCE_OF_TrustedCA);
 
   return offset;
 }
@@ -356,7 +487,7 @@ dissect_pkinit_PA_PK_AS_REQ_Win2k(bool implicit_tag _U_, tvbuff_t *tvb _U_, int 
 
 int
 dissect_pkinit_PA_PK_AS_REP_Win2k(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_pkinit_PaPkAsRep(implicit_tag, tvb, offset, actx, tree, hf_index);
+  offset = dissect_pkinit_PA_PK_AS_REP(implicit_tag, tvb, offset, actx, tree, hf_index);
 
   return offset;
 }
@@ -385,18 +516,6 @@ static int dissect_KDCDHKeyInfo_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, p
   return offset;
 }
 
-
-int
-dissect_pkinit_PA_PK_AS_REQ(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_ctx_t *actx _U_) {
-  offset = dissect_pkinit_PaPkAsReq(false, tvb, offset, actx, tree, -1);
-  return offset;
-}
-
-int
-dissect_pkinit_PA_PK_AS_REP(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_ctx_t *actx _U_) {
-  offset = dissect_pkinit_PaPkAsRep(false, tvb, offset, actx, tree, -1);
-  return offset;
-}
 
 static int
 dissect_KerberosV5Spec2_KerberosTime(bool implicit_tag _U_, tvbuff_t *tvb, int offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index _U_) {
@@ -441,23 +560,31 @@ void proto_register_pkinit(void) {
     { &hf_pkinit_trustedCertifiers,
       { "trustedCertifiers", "pkinit.trustedCertifiers",
         FT_UINT32, BASE_DEC, NULL, 0,
-        "SEQUENCE_OF_TrustedCA", HFILL }},
+        "SEQUENCE_OF_ExternalPrincipalIdentifier", HFILL }},
     { &hf_pkinit_trustedCertifiers_item,
-      { "TrustedCA", "pkinit.TrustedCA",
-        FT_UINT32, BASE_DEC, VALS(pkinit_TrustedCA_vals), 0,
-        NULL, HFILL }},
-    { &hf_pkinit_kdcCert,
-      { "kdcCert", "pkinit.kdcCert_element",
+      { "ExternalPrincipalIdentifier", "pkinit.ExternalPrincipalIdentifier_element",
         FT_NONE, BASE_NONE, NULL, 0,
-        "IssuerAndSerialNumber", HFILL }},
-    { &hf_pkinit_caName,
-      { "caName", "pkinit.caName",
+        NULL, HFILL }},
+    { &hf_pkinit_kdcPkId,
+      { "kdcPkId", "pkinit.kdcPkId",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "OCTET_STRING", HFILL }},
+    { &hf_pkinit_kdf_id,
+      { "kdf-id", "pkinit.kdf_id",
+        FT_OID, BASE_NONE, NULL, 0,
+        "OBJECT_IDENTIFIER", HFILL }},
+    { &hf_pkinit_subjectName,
+      { "subjectName", "pkinit.subjectName",
         FT_UINT32, BASE_DEC, NULL, 0,
         "Name", HFILL }},
-    { &hf_pkinit_issuerAndSerial,
-      { "issuerAndSerial", "pkinit.issuerAndSerial_element",
+    { &hf_pkinit_issuerAndSerialNumber,
+      { "issuerAndSerialNumber", "pkinit.issuerAndSerialNumber_element",
         FT_NONE, BASE_NONE, NULL, 0,
-        "IssuerAndSerialNumber", HFILL }},
+        NULL, HFILL }},
+    { &hf_pkinit_subjectKeyIdentifier,
+      { "subjectKeyIdentifier", "pkinit.subjectKeyIdentifier",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "OCTET_STRING", HFILL }},
     { &hf_pkinit_pkAuthenticator,
       { "pkAuthenticator", "pkinit.pkAuthenticator_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -478,22 +605,54 @@ void proto_register_pkinit(void) {
       { "clientDHNonce", "pkinit.clientDHNonce",
         FT_BYTES, BASE_NONE, NULL, 0,
         "DHNonce", HFILL }},
+    { &hf_pkinit_supportedKDFs,
+      { "supportedKDFs", "pkinit.supportedKDFs",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "SEQUENCE_OF_KDFAlgorithmId", HFILL }},
+    { &hf_pkinit_supportedKDFs_item,
+      { "KDFAlgorithmId", "pkinit.KDFAlgorithmId_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_pkinit_checksum,
+      { "checksum", "pkinit.checksum",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "OCTET_STRING", HFILL }},
+    { &hf_pkinit_algorithmIdentifier,
+      { "algorithmIdentifier", "pkinit.algorithmIdentifier_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
     { &hf_pkinit_cusec,
       { "cusec", "pkinit.cusec",
-        FT_INT32, BASE_DEC, NULL, 0,
-        "INTEGER", HFILL }},
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "INTEGER_0_999999", HFILL }},
     { &hf_pkinit_ctime,
       { "ctime", "pkinit.ctime_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "KerberosTime", HFILL }},
     { &hf_pkinit_paNonce,
-      { "nonce", "pkinit.nonce",
+      { "nonce", "pkinit.paNonce",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_4294967295", HFILL }},
     { &hf_pkinit_paChecksum,
       { "paChecksum", "pkinit.paChecksum",
         FT_BYTES, BASE_NONE, NULL, 0,
         "OCTET_STRING", HFILL }},
+    { &hf_pkinit_freshnessToken,
+      { "freshnessToken", "pkinit.freshnessToken",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "OCTET_STRING", HFILL }},
+    { &hf_pkinit_paChecksum2,
+      { "paChecksum2", "pkinit.paChecksum2_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_pkinit_TD_TRUSTED_CERTIFIERS_item,
+      { "ExternalPrincipalIdentifier", "pkinit.ExternalPrincipalIdentifier_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
+    { &hf_pkinit_TD_INVALID_CERTIFICATES_item,
+      { "ExternalPrincipalIdentifier", "pkinit.ExternalPrincipalIdentifier_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
     { &hf_pkinit_realm,
       { "realm", "pkinit.realm_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -502,26 +661,46 @@ void proto_register_pkinit(void) {
       { "principalName", "pkinit.principalName_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
-    { &hf_pkinit_dhSignedData,
-      { "dhSignedData", "pkinit.dhSignedData_element",
+    { &hf_pkinit_AD_INITIAL_VERIFIED_CAS_item,
+      { "ExternalPrincipalIdentifier", "pkinit.ExternalPrincipalIdentifier_element",
         FT_NONE, BASE_NONE, NULL, 0,
-        "ContentInfo", HFILL }},
+        NULL, HFILL }},
+    { &hf_pkinit_dhInfo,
+      { "dhInfo", "pkinit.dhInfo_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        "DHRepInfo", HFILL }},
     { &hf_pkinit_encKeyPack,
       { "encKeyPack", "pkinit.encKeyPack_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "ContentInfo", HFILL }},
+    { &hf_pkinit_dhSignedData,
+      { "dhSignedData", "pkinit.dhSignedData_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        "ContentInfo", HFILL }},
+    { &hf_pkinit_serverDHNonce,
+      { "serverDHNonce", "pkinit.serverDHNonce",
+        FT_BYTES, BASE_NONE, NULL, 0,
+        "DHNonce", HFILL }},
+    { &hf_pkinit_kdf,
+      { "kdf", "pkinit.kdf_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        "KDFAlgorithmId", HFILL }},
     { &hf_pkinit_subjectPublicKey,
       { "subjectPublicKey", "pkinit.subjectPublicKey",
         FT_BYTES, BASE_NONE, NULL, 0,
         "BIT_STRING", HFILL }},
     { &hf_pkinit_dhNonce,
-      { "nonce", "pkinit.nonce",
-        FT_INT32, BASE_DEC, NULL, 0,
-        "INTEGER", HFILL }},
+      { "nonce", "pkinit.dhNonce",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "INTEGER_0_4294967295", HFILL }},
     { &hf_pkinit_dhKeyExpiration,
       { "dhKeyExpiration", "pkinit.dhKeyExpiration_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "KerberosTime", HFILL }},
+    { &hf_pkinit_TD_DH_PARAMETERS_item,
+      { "AlgorithmIdentifier", "pkinit.AlgorithmIdentifier_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
     { &hf_pkinit_kdcName,
       { "kdcName", "pkinit.kdcName_element",
         FT_NONE, BASE_NONE, NULL, 0,
@@ -531,11 +710,11 @@ void proto_register_pkinit(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         "Realm", HFILL }},
     { &hf_pkinit_cusecWin2k,
-      { "cusec", "pkinit.cusec",
+      { "cusec", "pkinit.cusecWin2k",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_4294967295", HFILL }},
     { &hf_pkinit_paNonceWin2k,
-      { "nonce", "pkinit.nonce",
+      { "nonce", "pkinit.paNonceWin2k",
         FT_INT32, BASE_DEC, NULL, 0,
         "INTEGER_M2147483648_2147483647", HFILL }},
     { &hf_pkinit_signed_auth_pack,
@@ -558,21 +737,39 @@ void proto_register_pkinit(void) {
       { "encryption-cert", "pkinit.encryption_cert",
         FT_BYTES, BASE_NONE, NULL, 0,
         "OCTET_STRING", HFILL }},
+    { &hf_pkinit_caName,
+      { "caName", "pkinit.caName",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "Name", HFILL }},
+    { &hf_pkinit_issuerAndSerial,
+      { "issuerAndSerial", "pkinit.issuerAndSerial_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        "IssuerAndSerialNumber", HFILL }},
   };
 
   /* List of subtrees */
   static int *ett[] = {
-    &ett_pkinit_PaPkAsReq,
-    &ett_pkinit_SEQUENCE_OF_TrustedCA,
-    &ett_pkinit_TrustedCA,
+    &ett_pkinit_PA_PK_AS_REQ,
+    &ett_pkinit_SEQUENCE_OF_ExternalPrincipalIdentifier,
+    &ett_pkinit_KDFAlgorithmId,
+    &ett_pkinit_ExternalPrincipalIdentifier,
     &ett_pkinit_AuthPack,
     &ett_pkinit_SEQUENCE_OF_AlgorithmIdentifier,
+    &ett_pkinit_SEQUENCE_OF_KDFAlgorithmId,
+    &ett_pkinit_PAChecksum2,
     &ett_pkinit_PKAuthenticator,
+    &ett_pkinit_TD_TRUSTED_CERTIFIERS,
+    &ett_pkinit_TD_INVALID_CERTIFICATES,
     &ett_pkinit_KRB5PrincipalName,
-    &ett_pkinit_PaPkAsRep,
+    &ett_pkinit_AD_INITIAL_VERIFIED_CAS,
+    &ett_pkinit_PA_PK_AS_REP,
+    &ett_pkinit_DHRepInfo,
     &ett_pkinit_KDCDHKeyInfo,
+    &ett_pkinit_TD_DH_PARAMETERS,
     &ett_pkinit_PKAuthenticator_Win2k,
     &ett_pkinit_PA_PK_AS_REQ_Win2k,
+    &ett_pkinit_SEQUENCE_OF_TrustedCA,
+    &ett_pkinit_TrustedCA,
   };
 
   /* Register protocol */
@@ -591,5 +788,16 @@ void proto_reg_handoff_pkinit(void) {
   register_ber_oid_dissector("1.3.6.1.5.2.3.2", dissect_KDCDHKeyInfo_PDU, proto_pkinit, "id-pkdhkeydata");
   register_ber_oid_dissector("1.3.6.1.5.2.2", dissect_KRB5PrincipalName_PDU, proto_pkinit, "id-pkinit-san");
 
-}
 
+    /* It would seem better to get these from REGISTER declarations in
+       pkinit.cnf rather than putting them in the template this way,
+       but I had trouble with that, and other existing examples are
+       done this way. [res Fri Aug 2 23:55:30 2024]
+
+       RFC-8636 "PKINIT Algorithm Agility"
+    */
+    oid_add_from_string("id-pkinit-kdf-ah-sha1"   , "1.3.6.1.5.2.3.6.1");
+    oid_add_from_string("id-pkinit-kdf-ah-sha256" , "1.3.6.1.5.2.3.6.2");
+    oid_add_from_string("id-pkinit-kdf-ah-sha512" , "1.3.6.1.5.2.3.6.3");
+    oid_add_from_string("id-pkinit-kdf-ah-sha384" , "1.3.6.1.5.2.3.6.4");
+}

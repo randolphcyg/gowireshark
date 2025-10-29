@@ -17,6 +17,8 @@
 
 #include <epan/prefs.h>
 #include <epan/to_str.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include <wiretap/wtap.h>
 
 void proto_register_nsip(void);
@@ -294,17 +296,17 @@ check_correct_iei(nsip_ie_t *ie, build_info_t *bi) {
 static void
 decode_iei_cause(nsip_ie_t *ie, build_info_t *bi, int ie_start_offset) {
   uint8_t cause;
+  char* str_cause;
 
   cause = tvb_get_uint8(bi->tvb, bi->offset);
   proto_tree_add_uint(bi->nsip_tree, hf_nsip_cause,
       bi->tvb, ie_start_offset, ie->total_length,
       cause);
+  str_cause = val_to_str(bi->pinfo->pool, cause, tab_nsip_cause_values, "Unknown (0x%02x)");
   col_append_sep_fstr(bi->pinfo->cinfo, COL_INFO, NSIP_SEP,
-      "Cause: %s",
-      val_to_str(cause, tab_nsip_cause_values, "Unknown (0x%02x)"));
+      "Cause: %s", str_cause);
 
-  proto_item_append_text(bi->ti, ", Cause: %s",
-            val_to_str(cause, tab_nsip_cause_values, "Unknown (0x%02x)"));
+  proto_item_append_text(bi->ti, ", Cause: %s", str_cause);
 
   bi->offset += ie->value_length;
 }
@@ -387,7 +389,7 @@ decode_ip_element(nsip_ip_element_info_t *element, build_info_t *bi, proto_tree 
                           bi->tvb, bi->offset, element->address_length,
                           ENC_BIG_ENDIAN);
       proto_item_append_text(tf, ": IP address: %s",
-                             tvb_ip_to_str(wmem_packet_scope(), bi->tvb, bi->offset));
+                             tvb_ip_to_str(bi->pinfo->pool, bi->tvb, bi->offset));
 
       break;
     case NSIP_IP_VERSION_6:
@@ -395,7 +397,7 @@ decode_ip_element(nsip_ip_element_info_t *element, build_info_t *bi, proto_tree 
                           bi->offset, element->address_length,
                           ENC_NA);
       proto_item_append_text(tf, ": IP address: %s",
-                             tvb_ip6_to_str(wmem_packet_scope(), bi->tvb, bi->offset));
+                             tvb_ip6_to_str(bi->pinfo->pool, bi->tvb, bi->offset));
       break;
     default:
       ;
@@ -1090,7 +1092,7 @@ proto_register_nsip(void)
 #endif
     { &hf_nsip_ip_element_udp_port,
       { "UDP Port", "nsip.ip_element.udp_port",
-        FT_UINT16, BASE_DEC, NULL, 0x0,
+        FT_UINT16, BASE_PT_UDP, NULL, 0x0,
         NULL, HFILL }
     },
     { &hf_nsip_ip_element_signalling_weight,

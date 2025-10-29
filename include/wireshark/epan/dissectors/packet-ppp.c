@@ -23,6 +23,7 @@
 #include "packet-ppp.h"
 #include <epan/ppptypes.h>
 #include <epan/etypes.h>
+#include <epan/oui.h>
 #include <epan/expert.h>
 #include "packet-chdlc.h"
 #include "packet-ip.h"
@@ -263,14 +264,11 @@ static int ett_vsncp_ipv6_hsgw_lla_iid_opt;
 static dissector_table_t vsncp_option_table;
 
 /*
-* VSNP (RFC3772) has no defined packet structure.
-* The following organisations have defined their own VSNPs,
-* any VSNCPs containing one of the below OUIs will result in the VSNP being parsed accordingly.
-*/
-#define OUI_BBF 0x00256D    /* Broadband Forum TR 456 */
-#define OUI_3GPP 0xCF0002   /* 3GPP X.S0057-0 */
-
-static uint32_t vsnp_oui = -1;
+ * VSNP (RFC3772) has no defined packet structure.
+ * XXX - Recording the OUI in a global variable is still deeply flawed.
+ *       This is only going to work for a single connection.
+ */
+static uint32_t vsnp_oui;
 static int proto_vsnp;
 
 /* 3GPP Variables */
@@ -1441,7 +1439,7 @@ dissect_lcp_simple_opt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int 
 #define CHAP_ALG_MSV1   128     /* MS-CHAP */
 #define CHAP_ALG_MSV2   129     /* MS-CHAP-2 */
 
-static const range_string chap_alg_rvals[] = {
+const range_string chap_alg_rvals[] = {
     {0,                 4,                 "Reserved"},
     {CHAP_ALG_MD5,      CHAP_ALG_MD5,      "CHAP with MD5"},
     {CHAP_AGL_SHA1,     CHAP_AGL_SHA1,     "CHAP with SHA-1"},
@@ -1848,7 +1846,7 @@ capture_ppp_hdlc(const unsigned char *pd, int offset, int len, capture_packet_in
     if (!BYTES_ARE_IN_FRAME(offset, len, 4))
         return false;
 
-    return try_capture_dissector("ppp_hdlc", pntoh16(&pd[offset + 2]), pd, offset + 4, len, cpinfo, pseudo_header);
+    return try_capture_dissector("ppp_hdlc", pntohu16(&pd[offset + 2]), pd, offset + 4, len, cpinfo, pseudo_header);
 }
 
 static int
@@ -3928,7 +3926,7 @@ dissect_cbcp_callback_opt_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
             expert_add_info(pinfo, ti, &ei_cbcp_address);
             break;
         }
-        proto_tree_add_item(addr_tree, hf_cbcp_address, tvb, offset, addr_len, ENC_NA|ENC_ASCII);
+        proto_tree_add_item(addr_tree, hf_cbcp_address, tvb, offset, addr_len, ENC_ASCII);
         offset += addr_len;
         length -= addr_len;
     }
@@ -4191,7 +4189,7 @@ dissect_bap_phone_delta_opt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             break;
         case BAP_PHONE_DELTA_SUBOPT_SUBSC_NUM:
             if (subopt_len > 2) {
-                proto_tree_add_item(suboption_tree, hf_bap_subscriber_number, tvb, offset + 2, subopt_len - 2, ENC_NA|ENC_ASCII);
+                proto_tree_add_item(suboption_tree, hf_bap_subscriber_number, tvb, offset + 2, subopt_len - 2, ENC_ASCII);
             } else {
                 expert_add_info_format(pinfo, ti, &ei_bap_sub_option_length,
                     "Invalid suboption length: %u (must be > 2)", subopt_len);
@@ -4199,7 +4197,7 @@ dissect_bap_phone_delta_opt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             break;
         case BAP_PHONE_DELTA_SUBOPT_PHONENUM_SUBADDR:
             if (subopt_len > 2) {
-                proto_tree_add_item(suboption_tree, hf_bap_phone_number_sub_address, tvb, offset + 2, subopt_len - 2, ENC_NA|ENC_ASCII);
+                proto_tree_add_item(suboption_tree, hf_bap_phone_number_sub_address, tvb, offset + 2, subopt_len - 2, ENC_ASCII);
             } else {
                 expert_add_info_format(pinfo, ti, &ei_bap_sub_option_length,
                     "Invalid suboption length: %u (must be > 2)", subopt_len);
@@ -4243,7 +4241,7 @@ dissect_bap_reason_opt(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
                                   &field_tree, &tf))
         return tvb_captured_length(tvb);
 
-    proto_tree_add_item(field_tree, hf_bap_reason, tvb, offset+2, length-2, ENC_NA|ENC_ASCII);
+    proto_tree_add_item(field_tree, hf_bap_reason, tvb, offset+2, length-2, ENC_ASCII);
     return tvb_captured_length(tvb);
 }
 
@@ -4865,7 +4863,7 @@ dissect_vsncp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 
     code = tvb_get_uint8(tvb, 0);
     length = tvb_get_ntohs(tvb, 2);
-    vsnp_oui = tvb_get_uint24(tvb, 4, ENC_NA);
+    vsnp_oui = tvb_get_uint24(tvb, 4, ENC_BIG_ENDIAN);
 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "VSNCP");
     col_set_str(pinfo->cinfo, COL_INFO,
@@ -4922,7 +4920,7 @@ dissect_vsnp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
             col_set_str(pinfo->cinfo, COL_INFO, "Broadband Forum Session Data");
             /* TO DO: Add support for Broadband Forum's VSNP */
             break;
-        case OUI_3GPP:
+        case OUI_3GPP2:
             col_set_str(pinfo->cinfo, COL_INFO, "3GPP Session Data");
             tvbuff_t *next_tvb;
 
@@ -5013,7 +5011,7 @@ dissect_bcp_bpdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data
     mac_type = tvb_get_uint8(tvb, offset);
     if (!(flags & BCP_IS_BCONTROL)) {
         col_add_str(pinfo->cinfo, COL_INFO,
-                val_to_str(mac_type, bcp_bpdu_mac_type_vals,
+                val_to_str(pinfo->pool, mac_type, bcp_bpdu_mac_type_vals,
                 "Unknown MAC type %u"));
     }
     proto_tree_add_uint(bcp_bpdu_tree, hf_bcp_bpdu_mac_type, tvb, offset, 1, mac_type);
@@ -6117,7 +6115,7 @@ dissect_ppp_usb( tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
         (tvb_memeql(tvb, 0, &buf2[1], sizeof(buf2) - 1) == 0)) {
         /* It's missing the 0x7e framing character.  What TODO?
          * Should we try faking it by sticking 0x7e in front?  Or try telling
-         * dissect_ppp_raw_hdlc() NOT to look for the 0x7e frame deliminator?
+         * dissect_ppp_raw_hdlc() NOT to look for the 0x7e frame delimiter?
          * Or is this a bug in libpcap (used 1.1.0)?
          * Or a bug in the Linux kernel (tested with 2.6.24.4)  Or a bug in
          * usbmon?  Or is the data we're looking at really just part of the

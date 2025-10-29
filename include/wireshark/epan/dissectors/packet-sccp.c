@@ -1777,12 +1777,12 @@ dissect_sccp_gt_address_information(tvbuff_t *tvb, packet_info *pinfo,
     even_signal = tvb_get_uint8(tvb, offset) & GT_EVEN_SIGNAL_MASK;
     even_signal >>= GT_EVEN_SIGNAL_SHIFT;
 
-    (void) g_strlcat(gt_digits, val_to_str(odd_signal, sccp_address_signal_values,
+    (void) g_strlcat(gt_digits, val_to_str(pinfo->pool, odd_signal, sccp_address_signal_values,
                                     "Unknown: %d"), GT_MAX_SIGNALS+1);
 
     /* If the last signal is NOT filler */
     if (offset != (length - 1) || even_length == true)
-      (void) g_strlcat(gt_digits, val_to_str(even_signal, sccp_address_signal_values,
+      (void) g_strlcat(gt_digits, val_to_str(pinfo->pool, even_signal, sccp_address_signal_values,
                                       "Unknown: %d"), GT_MAX_SIGNALS+1);
 
     offset += GT_SIGNAL_LENGTH;
@@ -1914,7 +1914,7 @@ dissect_sccp_global_title(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, u
   case GT_NP_ISDN:
   case GT_NP_ISDN_MOBILE:
     if (nai == GT_NAI_INTERNATIONAL_NUM) {
-      dissect_e164_cc(signals_tvb, digits_tree, 0, E164_ENC_BCD);
+      dissect_e164_cc(signals_tvb, pinfo, digits_tree, 0, E164_ENC_BCD);
     }
     break;
   case GT_NP_LAND_MOBILE:
@@ -1926,7 +1926,7 @@ dissect_sccp_global_title(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, u
 }
 
 static int
-dissect_sccp_3byte_pc(tvbuff_t *tvb, proto_tree *call_tree, unsigned offset,
+dissect_sccp_3byte_pc(tvbuff_t *tvb, packet_info* pinfo, proto_tree *call_tree, unsigned offset,
                       bool called)
 {
   int hf_pc;
@@ -1945,7 +1945,7 @@ dissect_sccp_3byte_pc(tvbuff_t *tvb, proto_tree *call_tree, unsigned offset,
   }
 
   /* create and fill the PC tree */
-  dissect_mtp3_3byte_pc(tvb, offset, call_tree,
+  dissect_mtp3_3byte_pc(tvb, pinfo, offset, call_tree,
                         called ? ett_sccp_called_pc : ett_sccp_calling_pc,
                         hf_pc,
                         called ? hf_sccp_called_pc_network : hf_sccp_calling_pc_network,
@@ -2073,7 +2073,7 @@ dissect_sccp_called_calling_param(tvbuff_t *tvb, proto_tree *tree, packet_info *
                                             length, offset + ANSI_PC_LENGTH, ANSI_PC_LENGTH);
           return;
         }
-        offset = dissect_sccp_3byte_pc(tvb, call_tree, offset, called);
+        offset = dissect_sccp_3byte_pc(tvb, pinfo, call_tree, offset, called);
 
       }
     }
@@ -2194,7 +2194,7 @@ dissect_sccp_called_calling_param(tvbuff_t *tvb, proto_tree *tree, packet_info *
 
     /* Dissect PC (if present) */
     if (pci) {
-      offset = dissect_sccp_3byte_pc(tvb, call_tree, offset, called);
+      offset = dissect_sccp_3byte_pc(tvb, pinfo, call_tree, offset, called);
     }
 
     /* Dissect GT (if present) */
@@ -2313,12 +2313,12 @@ dissect_sccp_receive_sequence_number_param(tvbuff_t *tvb, packet_info *pinfo, pr
 }
 
 static void
-dissect_sccp_sequencing_segmenting_param(tvbuff_t *tvb, proto_tree *tree, unsigned length)
+dissect_sccp_sequencing_segmenting_param(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, unsigned length)
 {
   proto_tree *param_tree;
 
   param_tree = proto_tree_add_subtree(tree, tvb, 0, length, ett_sccp_sequencing_segmenting, NULL,
-                                   val_to_str(PARAMETER_SEQUENCING_SEGMENTING,
+                                   val_to_str(pinfo->pool, PARAMETER_SEQUENCING_SEGMENTING,
                                               sccp_parameter_values, "Unknown: %d"));
 
   proto_tree_add_item(param_tree, hf_sccp_sequencing_segmenting_ssn, tvb, 0,
@@ -2493,11 +2493,11 @@ dissect_sccp_data_param(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, scc
   /* Save SSN for Decode As */
   p_add_proto_data(pinfo->pool, pinfo, proto_sccp, 0, GUINT_TO_POINTER((unsigned)ssn));
 
-  if ((ssn != INVALID_SSN) && dissector_try_uint_new(sccp_ssn_dissector_table, ssn, tvb, pinfo, tree, true, sccp_info)) {
+  if ((ssn != INVALID_SSN) && dissector_try_uint_with_data(sccp_ssn_dissector_table, ssn, tvb, pinfo, tree, true, sccp_info)) {
     return;
   }
 
-  if ((other_ssn != INVALID_SSN) && dissector_try_uint_new(sccp_ssn_dissector_table, other_ssn, tvb, pinfo, tree, true, sccp_info)) {
+  if ((other_ssn != INVALID_SSN) && dissector_try_uint_with_data(sccp_ssn_dissector_table, other_ssn, tvb, pinfo, tree, true, sccp_info)) {
     return;
   }
 
@@ -2523,7 +2523,7 @@ dissect_sccp_segmentation_param(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
   proto_tree *param_tree;
 
   param_tree = proto_tree_add_subtree(tree, tvb, 0, length, ett_sccp_segmentation, NULL,
-                                   val_to_str(PARAMETER_SEGMENTATION,
+                                   val_to_str(pinfo->pool, PARAMETER_SEGMENTATION,
                                               sccp_parameter_values, "Unknown: %d"));
 
   proto_tree_add_item(param_tree, hf_sccp_segmentation_first, tvb, 0, 1, ENC_NA);
@@ -2677,7 +2677,7 @@ dissect_sccp_parameter(tvbuff_t *tvb, packet_info *pinfo, proto_tree *sccp_tree,
     break;
 
   case PARAMETER_SEQUENCING_SEGMENTING:
-    dissect_sccp_sequencing_segmenting_param(parameter_tvb, sccp_tree,
+    dissect_sccp_sequencing_segmenting_param(parameter_tvb, pinfo, sccp_tree,
                                              parameter_length);
     break;
 
@@ -2781,7 +2781,7 @@ dissect_sccp_variable_parameter(tvbuff_t *tvb, packet_info *pinfo,
 
   pi = proto_tree_add_uint_format(sccp_tree, hf_sccp_param_length, tvb, offset,
                                   length_length, parameter_length, "%s length: %d",
-                                  val_to_str(parameter_type, sccp_parameter_values,
+                                  val_to_str(pinfo->pool, parameter_type, sccp_parameter_values,
                                              "Unknown: %d"),
                                   parameter_length);
   remaining_length = tvb_reported_length_remaining(tvb, offset + length_length);
@@ -2857,7 +2857,7 @@ static void build_assoc_tree(tvbuff_t *tvb, packet_info *pinfo, proto_tree *sccp
         pi = proto_tree_add_uint(pt, hf_sccp_assoc_msg, tvb, 0, 0, m->framenum);
 
         if (sccp_info->assoc->payload != SCCP_PLOAD_NONE)
-          proto_item_append_text(pi," %s", val_to_str(sccp_info->assoc->payload, assoc_protos, "Unknown: %d"));
+          proto_item_append_text(pi," %s", val_to_str(pinfo->pool, sccp_info->assoc->payload, assoc_protos, "Unknown: %d"));
 
         if (m->data.co.label)
           proto_item_append_text(pi," %s", m->data.co.label);
@@ -3011,7 +3011,7 @@ dissect_sccp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *sccp_tree,
    *  put that info there should call col_set_fence() to protect it.
    */
   col_add_fstr(pinfo->cinfo, COL_INFO, "%s ",
-               val_to_str(sccp_info.message_type, sccp_message_type_acro_values, "Unknown: %d"));
+               val_to_str(pinfo->pool, sccp_info.message_type, sccp_message_type_acro_values, "Unknown: %d"));
 
   if (sccp_tree) {
     /* add the message type to the protocol tree */
@@ -4135,7 +4135,7 @@ proto_register_sccp(void)
   static ei_register_info ei[] = {
      { &ei_sccp_wrong_length, { "sccp.wrong_length", PI_MALFORMED, PI_ERROR, "Wrong length indicated.", EXPFILL }},
      { &ei_sccp_international_standard_address, { "sccp.international_standard_address", PI_MALFORMED, PI_WARN,
-            "Address is coded to international standards.  This doesn't normally happen in ANSI networks.", EXPFILL }},
+            "Address is coded to international standards. This doesn't normally happen in ANSI networks.", EXPFILL }},
      { &ei_sccp_no_ssn_present, { "sccp.ssn.not_present", PI_PROTOCOL, PI_WARN, "Message is routed on SSN, but SSN is not present", EXPFILL }},
      { &ei_sccp_ssn_zero, { "sccp.ssn.is_zero", PI_PROTOCOL, PI_WARN, "Message is routed on SSN, but SSN is zero (unspecified)", EXPFILL }},
      { &ei_sccp_class_unexpected, { "sccp.class_unexpected", PI_MALFORMED, PI_ERROR, "Unexpected message class for this message type", EXPFILL }},
@@ -4243,6 +4243,8 @@ proto_register_sccp(void)
   sccp_tap = register_tap("sccp");
 
   register_decode_as(&sccp_da);
+
+  register_external_value_string("sccp_message_type_acro_values", sccp_message_type_acro_values);
 }
 
 void

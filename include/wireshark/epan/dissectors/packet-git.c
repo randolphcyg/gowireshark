@@ -75,22 +75,20 @@ static const value_string sideband_vals[] = {
 /* desegmentation of Git over TCP */
 static bool git_desegment = true;
 
-static bool get_packet_length(tvbuff_t *tvb, int offset,
+static bool get_packet_length(tvbuff_t *tvb, packet_info* pinfo, int offset,
                                   uint16_t *length)
 {
-  uint8_t *lenstr;
-
-  lenstr = tvb_get_string_enc(wmem_packet_scope(), tvb, offset, 4, ENC_ASCII);
+  uint8_t *lenstr = tvb_get_string_enc(pinfo->pool, tvb, offset, 4, ENC_ASCII);
 
   return (sscanf(lenstr, "%hx", length) == 1);
 }
 
 static unsigned
-get_git_pdu_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
+get_git_pdu_len(packet_info *pinfo, tvbuff_t *tvb, int offset, void *data _U_)
 {
   uint16_t plen;
 
-  if (!get_packet_length(tvb, offset, &plen))
+  if (!get_packet_length(tvb, pinfo, offset, &plen))
     return 0; /* No idea what this is */
 
   return plen < 4
@@ -117,7 +115,7 @@ dissect_pkt_line(tvbuff_t *tvb, packet_info *pinfo, proto_tree *git_tree,
   uint16_t plen;
 
   // what type of pkt-line is it?
-  if (!get_packet_length(tvb, *offset, &plen))
+  if (!get_packet_length(tvb, pinfo, *offset, &plen))
     return false;
   if (plen < 4) {   // a special packet (e.g., flush-pkt)
     proto_item *ti =
@@ -345,14 +343,17 @@ proto_reg_handoff_git(void)
   dissector_handle_t git_upload_pack_req_handle;
   dissector_handle_t git_upload_pack_res_handle;
 
-  git_upload_pack_adv_handle = create_dissector_handle(dissect_git_upload_pack_adv,
-                        proto_git);
+  git_upload_pack_adv_handle = create_dissector_handle_with_name_and_description(
+                        dissect_git_upload_pack_adv, proto_git, PFNAME ".http_adv",
+                        PSNAME" Advertisement");
 
-  git_upload_pack_req_handle = create_dissector_handle(dissect_git_upload_pack_req,
-                        proto_git);
+  git_upload_pack_req_handle = create_dissector_handle_with_name_and_description(
+                        dissect_git_upload_pack_req, proto_git, PFNAME ".http_req",
+                        PSNAME" Request");
 
-  git_upload_pack_res_handle = create_dissector_handle(dissect_git_upload_pack_res,
-                        proto_git);
+  git_upload_pack_res_handle = create_dissector_handle_with_name_and_description(
+                        dissect_git_upload_pack_res, proto_git, PFNAME ".http_res",
+                        PSNAME" Result");
 
   dissector_add_string("media_type",
                         "application/x-git-upload-pack-advertisement",

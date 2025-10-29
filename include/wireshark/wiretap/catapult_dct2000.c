@@ -18,6 +18,19 @@
 #include "wtap-int.h"
 #include "file_wrappers.h"
 
+/*
+ * Catapult DCT2000 (.out files)
+ *
+ * DCT2000 test systems produce ascii text-based .out files for ports
+ * that have logging enabled. When being read, the data part of the message is
+ * prefixed with a short header that provides some context (context+port,
+ * direction, original timestamp, etc).
+ *
+ * You can choose to suppress the reading of non-standard protocols
+ * (i.e. messages between layers rather than the well-known link-level protocols
+ * usually found on board ports).
+ */
+
 #define MAX_FIRST_LINE_LENGTH      150
 #define MAX_TIMESTAMP_LINE_LENGTH  50
 #define MAX_LINE_LENGTH            131072
@@ -86,16 +99,15 @@ static const char catapult_dct2000_magic[] = "Session Transcript";
 /************************************************************/
 /* Functions called from wiretap core                       */
 static bool catapult_dct2000_read(wtap *wth, wtap_rec *rec,
-                                      Buffer *buf, int *err, char **err_info,
-                                      int64_t *data_offset);
+                                  int *err, char **err_info,
+                                  int64_t *data_offset);
 static bool catapult_dct2000_seek_read(wtap *wth, int64_t seek_off,
-                                           wtap_rec *rec,
-                                           Buffer *buf, int *err,
-                                           char **err_info);
+                                       wtap_rec *rec,
+                                       int *err, char **err_info);
 static void catapult_dct2000_close(wtap *wth);
 
 static bool catapult_dct2000_dump(wtap_dumper *wdh, const wtap_rec *rec,
-                                      const uint8_t *pd, int *err, char **err_info);
+                                  int *err, char **err_info);
 
 
 /************************************************************/
@@ -117,7 +129,7 @@ static bool parse_line(char *linebuff, int line_length,
 static bool process_parsed_line(wtap *wth,
                                     const dct2000_file_externals_t *file_externals,
                                     wtap_rec *rec,
-                                    Buffer *buf, int64_t file_offset,
+                                    int64_t file_offset,
                                     char *linebuff, long dollar_offset,
                                     int seconds, int useconds,
                                     char *timestamp_string,
@@ -335,7 +347,7 @@ static void write_timestamp_string(char *timestamp_string, int secs, int tenthou
 /* - return true and details if found             */
 /**************************************************/
 static bool
-catapult_dct2000_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+catapult_dct2000_read(wtap *wth, wtap_rec *rec,
                       int *err, char **err_info, int64_t *data_offset)
 {
     long dollar_offset, before_time_offset, after_time_offset;
@@ -392,7 +404,7 @@ catapult_dct2000_read(wtap *wth, wtap_rec *rec, Buffer *buf,
             *data_offset = this_offset;
 
             if (!process_parsed_line(wth, file_externals,
-                                     rec, buf, this_offset,
+                                     rec, this_offset,
                                      linebuff, dollar_offset,
                                      seconds, useconds,
                                      timestamp_string,
@@ -435,8 +447,7 @@ catapult_dct2000_read(wtap *wth, wtap_rec *rec, Buffer *buf,
 /* Read & seek function.                          */
 /**************************************************/
 static bool
-catapult_dct2000_seek_read(wtap *wth, int64_t seek_off,
-                           wtap_rec *rec, Buffer *buf,
+catapult_dct2000_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
                            int *err, char **err_info)
 {
     int length;
@@ -485,7 +496,7 @@ catapult_dct2000_seek_read(wtap *wth, int64_t seek_off,
         write_timestamp_string(timestamp_string, seconds, useconds/100);
 
         if (!process_parsed_line(wth, file_externals,
-                                 rec, buf, seek_off,
+                                 rec, seek_off,
                                  linebuff, dollar_offset,
                                  seconds, useconds,
                                  timestamp_string,
@@ -578,7 +589,7 @@ catapult_dct2000_dump_can_write_encap(int encap)
 
 static bool
 catapult_dct2000_dump(wtap_dumper *wdh, const wtap_rec *rec,
-                      const uint8_t *pd, int *err, char **err_info _U_)
+                      int *err, char **err_info _U_)
 {
     const union wtap_pseudo_header *pseudo_header = &rec->rec_header.packet_header.pseudo_header;
     uint32_t n;
@@ -599,6 +610,7 @@ catapult_dct2000_dump(wtap_dumper *wdh, const wtap_rec *rec,
     /* We can only write packet records. */
     if (rec->rec_type != REC_TYPE_PACKET) {
         *err = WTAP_ERR_UNWRITABLE_REC_TYPE;
+        *err_info = wtap_unwritable_rec_type_err_string(rec);
         return false;
     }
 
@@ -697,6 +709,8 @@ catapult_dct2000_dump(wtap_dumper *wdh, const wtap_rec *rec,
             return false;
         }
     }
+
+    const uint8_t *pd = ws_buffer_start_ptr(&rec->data);
 
     /****************************************************************/
     /* Need to skip stub header at start of pd before we reach data */
@@ -1272,7 +1286,7 @@ parse_line(char *linebuff, int line_length,
 static bool
 process_parsed_line(wtap *wth, const dct2000_file_externals_t *file_externals,
                     wtap_rec *rec,
-                    Buffer *buf, int64_t file_offset,
+                    int64_t file_offset,
                     char *linebuff, long dollar_offset,
                     int seconds, int useconds, char *timestamp_string,
                     packet_direction_t direction, int encap,
@@ -1287,12 +1301,9 @@ process_parsed_line(wtap *wth, const dct2000_file_externals_t *file_externals,
     size_t length;
     uint8_t *frame_buffer;
 
-    rec->rec_type = REC_TYPE_PACKET;
+    wtap_setup_packet_rec(rec, wth->file_encap);
     rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
     rec->presence_flags = WTAP_HAS_TS;
-
-    /* Make sure all packets go to Catapult DCT2000 dissector */
-    rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_CATAPULT_DCT2000;
 
     /* Fill in timestamp (capture base + packet offset) */
     rec->ts.secs = file_externals->start_secs + seconds;
@@ -1330,8 +1341,8 @@ process_parsed_line(wtap *wth, const dct2000_file_externals_t *file_externals,
 
     /*****************************/
     /* Get the data buffer ready */
-    ws_buffer_assure_space(buf, rec->rec_header.packet_header.caplen);
-    frame_buffer = ws_buffer_start_ptr(buf);
+    ws_buffer_assure_space(&rec->data, rec->rec_header.packet_header.caplen);
+    frame_buffer = ws_buffer_start_ptr(&rec->data);
 
     /******************************************/
     /* Write the stub info to the data buffer */

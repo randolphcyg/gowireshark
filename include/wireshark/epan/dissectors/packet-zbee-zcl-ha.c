@@ -16,7 +16,6 @@
 
 #include <epan/packet.h>
 #include <epan/to_str.h>
-#include <wsutil/epochs.h>
 
 #include "packet-zbee.h"
 #include "packet-zbee-aps.h"
@@ -94,9 +93,6 @@
 
 void proto_register_zbee_zcl_appl_idt(void);
 void proto_reg_handoff_zbee_zcl_appl_idt(void);
-
-/* Command Dissector Helpers */
-static void dissect_zcl_appl_idt_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* Private functions prototype */
 
@@ -215,8 +211,8 @@ dissect_zbee_zcl_appl_idt(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree 
  *@param data_type attribute data type
  *@param client_attr ZCL client
 */
-void
-dissect_zcl_appl_idt_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+static void
+dissect_zcl_appl_idt_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     proto_tree  *sub_tree;
     uint64_t    value64;
@@ -267,7 +263,7 @@ dissect_zcl_appl_idt_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset
             break;
 
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 
@@ -342,7 +338,7 @@ proto_reg_handoff_zbee_zcl_appl_idt(void)
                             hf_zbee_zcl_appl_idt_attr_id,
                             hf_zbee_zcl_appl_idt_attr_id,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_appl_idt_attr_data
+                            dissect_zcl_appl_idt_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_appl_idt*/
 
@@ -395,9 +391,6 @@ proto_reg_handoff_zbee_zcl_appl_idt(void)
 
 void proto_register_zbee_zcl_met_idt(void);
 void proto_reg_handoff_zbee_zcl_met_idt(void);
-
-/* Command Dissector Helpers */
-static void dissect_zcl_met_idt_attr_data  (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* Private functions prototype */
 
@@ -480,8 +473,8 @@ dissect_zbee_zcl_met_idt(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *
  *@param data_type attribute data type
  *@param client_attr ZCL client
 */
-void
-dissect_zcl_met_idt_attr_data (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+static void
+dissect_zcl_met_idt_attr_data (proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch ( attr_id ) {
@@ -497,7 +490,7 @@ dissect_zcl_met_idt_attr_data (proto_tree *tree, tvbuff_t *tvb, unsigned *offset
             break;
 
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 
@@ -555,7 +548,7 @@ proto_reg_handoff_zbee_zcl_met_idt(void)
                             hf_zbee_zcl_met_idt_attr_id,
                             hf_zbee_zcl_met_idt_attr_id,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_met_idt_attr_data
+                            dissect_zcl_met_idt_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_met_idt*/
 
@@ -961,9 +954,6 @@ proto_reg_handoff_zbee_zcl_appl_evtalt(void)
 #define ZBEE_ZCL_CMD_ID_APPL_STATS_LOG_QUEUE_RSP                0x02  /* Log Queue Response */
 #define ZBEE_ZCL_CMD_ID_APPL_STATS_STATS_AVAILABLE              0x03  /* Statistics Available */
 
-/* Others */
-#define ZBEE_ZCL_APPL_STATS_INVALID_TIME                        0xffffffff /* Invalid UTC Time */
-
 /*************************/
 /* Function Declarations */
 /*************************/
@@ -975,9 +965,6 @@ void proto_reg_handoff_zbee_zcl_appl_stats(void);
 static void dissect_zcl_appl_stats_log_req              (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 static void dissect_zcl_appl_stats_log_rsp              (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 static void dissect_zcl_appl_stats_log_queue_rsp        (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
-
-/* Private functions prototype */
-static void decode_zcl_appl_stats_utc_time              (char *s, uint32_t value);
 
 /*************************/
 /* Global Variables      */
@@ -1140,7 +1127,7 @@ dissect_zcl_appl_stats_log_rsp(tvbuff_t *tvb, proto_tree *tree, unsigned *offset
     uint32_t log_len;
 
     /* Retrieve 'UTCTime' field */
-    proto_tree_add_item(tree, hf_zbee_zcl_appl_stats_utc_time, tvb, *offset, 4, ENC_LITTLE_ENDIAN);
+    proto_tree_add_item(tree, hf_zbee_zcl_appl_stats_utc_time, tvb, *offset, 4, ENC_TIME_ZBEE_ZCL|ENC_LITTLE_ENDIAN);
     *offset += 4;
 
     /* Retrieve 'Log ID' field */
@@ -1185,26 +1172,6 @@ dissect_zcl_appl_stats_log_queue_rsp(tvbuff_t *tvb, proto_tree *tree, unsigned *
 }/*dissect_zcl_appl_stats_log_queue_rsp*/
 
 /**
- *This function decodes utc time, with peculiarity case for
- *
- *@param s string to display
- *@param value value to decode
-*/
-static void
-decode_zcl_appl_stats_utc_time(char *s, uint32_t value)
-{
-    if (value == ZBEE_ZCL_APPL_STATS_INVALID_TIME)
-        snprintf(s, ITEM_LABEL_LENGTH, "Invalid UTC Time");
-    else {
-        char *utc_time;
-        value += EPOCH_DELTA_2000_01_01_00_00_00_UTC;
-        utc_time = abs_time_secs_to_str (NULL, value, ABSOLUTE_TIME_LOCAL, true);
-        snprintf(s, ITEM_LABEL_LENGTH, "%s", utc_time);
-        wmem_free(NULL, utc_time);
-    }
-} /* decode_zcl_appl_stats_utc_time */
-
-/**
  *This function registers the ZCL Appliance Statistics dissector
  *
 */
@@ -1228,7 +1195,7 @@ proto_register_zbee_zcl_appl_stats(void)
             0x0, NULL, HFILL } },
 
         { &hf_zbee_zcl_appl_stats_utc_time,
-            { "UTC Time", "zbee_zcl_ha.applstats.utc_time", FT_UINT32, BASE_CUSTOM, CF_FUNC(decode_zcl_appl_stats_utc_time),
+            { "UTC Time", "zbee_zcl_ha.applstats.utc_time", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, TIME_VALS(zbee_zcl_utctime_strings),
             0x0, NULL, HFILL }},
 
         { &hf_zbee_zcl_appl_stats_log_length,
@@ -1287,6 +1254,168 @@ proto_reg_handoff_zbee_zcl_appl_stats(void)
                             NULL
                          );
 } /*proto_reg_handoff_zbee_zcl_appl_stats*/
+
+/* ########################################################################## */
+/* #### (0x0B05) DIAGNOSTICS CLUSTER ######################################## */
+/* ########################################################################## */
+
+/*************************/
+/* Defines               */
+/*************************/
+
+/* Attributes */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NUMBER_OF_RESETS                       0x0000  /* Number of Resets */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_PERSISTENT_MEMORY_WRITES               0x0001  /* Persistent Memory Writes */
+
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_RX_BCAST                           0x0100 /* MAC RX Broadcast */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_TX_BCAST                           0x0101 /* MAC TX Broadcast */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_RX_UCAST                           0x0102 /* MAC RX Unicast */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_TX_UCAST                           0x0103 /* MAC TX Unicast */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_TX_UCAST_RETRY                     0x0104 /* MAC TX Unicast Retry */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_TX_UCAST_FAIL                      0x0105 /* MAC TX Unicast Fail */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_RX_BCAST                           0x0106 /* APS RX Broadcast */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_TX_BCAST                           0x0107 /* APS TX Broadcast */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_RX_UCAST                           0x0108 /* APS RX Unicast */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_TX_UCAST_SUCCESS                   0x0109 /* APS TX Unicast Success */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_TX_UCAST_RETRY                     0x010A /* APS TX Unicast Retry */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_TX_UCAST_FAIL                      0x010B /* APS TX Unicast Fail */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_ROUTE_DISC_INITIATED                   0x010C /* Route Disc Initiated */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NEIGHBOR_ADDED                         0x010D /* Neighbor Added */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NEIGHBOR_REMOVED                       0x010E /* Neighbor Removed */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NEIGHBOR_STALE                         0x010F /* Neighbor Stale */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_JOIN_INDICATION                        0x0110 /* Join Indication */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_CHILD_MOVED                            0x0111 /* Child Moved */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NWK_FC_FAILURE                         0x0112 /* NWK FC Failure */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_FC_FAILURE                         0x0113 /* APS FC Failure */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_UNAUTHORIZED_KEY                   0x0114 /* APS Unauthorized Key */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NWK_DECRYPT_FAILURES                   0x0115 /* NWK Decrypt Failures */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_DECRYPT_FAILURES                   0x0116 /* APS Decrypt Failures */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_PACKET_BUFFER_ALLOCATE_FAILURES        0x0117 /* Packet Buffer Allocate Failures */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_RELAYED_UCAST                          0x0118 /* Relayed Unicast */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_PHYTO_MAC_QUEUE_LIMIT_REACHED          0x0119 /* Phyto MAC Queue Limit Reached */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_PACKET_VALIDATE_DROP_COUNT             0x011A /* Packet Validate Drop Count */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_AVERAGE_MACRETRY_PER_APS_MESSAGE_SENT  0x011B /* Average MAC Retry Per APS Message Sent */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_LAST_MESSAGE_LQI                       0x011C /* Last Message LQI */
+#define ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_LAST_MESSAGE_RSSI                      0x011D /* Last Message RSSI */
+
+/*************************/
+/* Function Declarations */
+/*************************/
+
+void proto_register_zbee_zcl_diagnostics(void);
+void proto_reg_handoff_zbee_zcl_diagnostics(void);
+
+/* Initialize the protocol and registered fields */
+static int proto_zbee_zcl_diagnostics;
+
+static int hf_zbee_zcl_diagnostics_attr_id;
+
+/* Initialize the subtree pointers */
+static int ett_zbee_zcl_diagnostics;
+
+/* Attributes */
+static const value_string zbee_zcl_diagnostics_attr_names[] = {
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NUMBER_OF_RESETS,                        "Number of Resets" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_PERSISTENT_MEMORY_WRITES,                "Persistent Memory Writes" },
+
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_RX_BCAST,                            "MAC RX Broadcast" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_TX_BCAST,                            "MAC TX Broadcast" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_RX_UCAST,                            "MAC RX Unicast" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_TX_UCAST,                            "MAC TX Unicast" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_TX_UCAST_RETRY,                      "MAC TX Unicast Retry" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_MAC_TX_UCAST_FAIL,                       "MAC TX Unicast Fail" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_RX_BCAST,                            "APS RX Broadcast" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_TX_BCAST,                            "APS TX Broadcast" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_RX_UCAST,                            "APS RX Unicast" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_TX_UCAST_SUCCESS,                    "APS TX Unicast Success" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_TX_UCAST_RETRY,                      "APS TX Unicast Retry" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_TX_UCAST_FAIL,                       "APS TX Unicast Fail" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_ROUTE_DISC_INITIATED,                    "Route Disc Initiated" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NEIGHBOR_ADDED,                          "Neighbor Added" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NEIGHBOR_REMOVED,                        "Neighbor Removed" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NEIGHBOR_STALE,                          "Neighbor Stale" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_JOIN_INDICATION,                         "Join Indication" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_CHILD_MOVED,                             "Child Moved" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NWK_FC_FAILURE,                          "NWK FC Failure" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_FC_FAILURE,                          "APS FC Failure" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_UNAUTHORIZED_KEY,                    "APS Unauthorized Key" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_NWK_DECRYPT_FAILURES,                    "NWK Decrypt Failures" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_APS_DECRYPT_FAILURES,                    "APS Decrypt Failures" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_PACKET_BUFFER_ALLOCATE_FAILURES,         "Packet Buffer Allocate Failures" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_RELAYED_UCAST,                           "Relayed Unicast" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_PHYTO_MAC_QUEUE_LIMIT_REACHED,           "Phyto MAC Queue Limit Reached" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_PACKET_VALIDATE_DROP_COUNT,              "Packet Validate Drop Count" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_AVERAGE_MACRETRY_PER_APS_MESSAGE_SENT,   "Average MAC Retry Per APS Message Sent" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_LAST_MESSAGE_LQI,                        "Last Message LQI" },
+    { ZBEE_ZCL_ATTR_ID_DIAGNOSTICS_LAST_MESSAGE_RSSI,                       "Last Message RSSI" },
+
+    { 0, NULL }
+};
+
+/*************************/
+/* Function Bodies       */
+/*************************/
+
+/**
+ *ZigBee ZCL Diagnostics cluster dissector for wireshark.
+ *
+ *@param tvb pointer to buffer containing raw packet.
+ *@param pinfo pointer to packet information fields
+ *@param tree pointer to data tree Wireshark uses to display packet.
+*/
+static int
+dissect_zbee_zcl_diagnostics(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, void* data _U_)
+{
+    return tvb_captured_length(tvb);
+} /*dissect_zbee_zcl_diagnostics*/
+
+/**
+ *This function registers the ZCL Diagnostics dissector
+ *
+*/
+void
+proto_register_zbee_zcl_diagnostics(void)
+{
+    static hf_register_info hf[] = {
+
+        { &hf_zbee_zcl_diagnostics_attr_id,
+            { "Attribute", "zbee_zcl_ha.diagnostics.attr_id", FT_UINT16, BASE_HEX, VALS(zbee_zcl_diagnostics_attr_names),
+            0x0, NULL, HFILL } },
+
+    };
+
+    /* ZCL Diagnostics subtrees */
+    int *ett[] = {
+        &ett_zbee_zcl_diagnostics
+    };
+
+    /* Register the ZigBee ZCL Diagnostics cluster protocol name and description */
+    proto_zbee_zcl_diagnostics = proto_register_protocol("ZigBee ZCL Diagnostics", "ZCL Diagnostics", ZBEE_PROTOABBREV_ZCL_DIAGNOSTICS);
+    proto_register_field_array(proto_zbee_zcl_diagnostics, hf, array_length(hf));
+    proto_register_subtree_array(ett, array_length(ett));
+
+    /* Register the ZigBee ZCL Diagnostics dissector. */
+    register_dissector(ZBEE_PROTOABBREV_ZCL_DIAGNOSTICS, dissect_zbee_zcl_diagnostics, proto_zbee_zcl_diagnostics);
+} /* proto_register_zbee_zcl_diagnostics */
+
+/**
+ *Hands off the Zcl Diagnostics cluster dissector.
+ *
+*/
+void
+proto_reg_handoff_zbee_zcl_diagnostics(void)
+{
+    zbee_zcl_init_cluster(  ZBEE_PROTOABBREV_ZCL_DIAGNOSTICS,
+                            proto_zbee_zcl_diagnostics,
+                            ett_zbee_zcl_diagnostics,
+                            ZBEE_ZCL_CID_DIAGNOSTICS,
+                            ZBEE_MFG_CODE_NONE,
+                            hf_zbee_zcl_diagnostics_attr_id,
+                            hf_zbee_zcl_diagnostics_attr_id,
+                            -1, -1,
+                            NULL
+                         );
+} /*proto_reg_handoff_zbee_zcl_diagnostics*/
 
 /*
  * Editor modelines  -  https://www.wireshark.org/tools/modelines.html

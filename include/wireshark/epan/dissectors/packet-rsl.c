@@ -1656,7 +1656,7 @@ dissect_rsl_phy_ctx_ab_rx_lvl_err_bits(tvbuff_t *tvb, packet_info *pinfo _U_, pr
     /* AB Rx Level */
     proto_tree_add_item(ab_tree, hf_rsl_phy_ctx_ab_rx_lvl, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
-    /* Traning Err Bits */
+    /* Training Err Bits */
     proto_tree_add_item(ab_tree, hf_rsl_phy_ctx_ab_err_bits, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
     return offset;
@@ -2038,7 +2038,7 @@ dissect_rsl_ie_rlm_cause(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree
      */
         /* XXX: Code doesn't reflect the comment above ?? */
     /* octet = tvb_get_uint8(tvb, offset); */
-    proto_tree_add_item(tree, hf_rsl_extension_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
+    proto_tree_add_item(ie_tree, hf_rsl_extension_bit, tvb, offset, 1, ENC_BIG_ENDIAN);
     proto_tree_add_item(ie_tree, hf_rsl_cause, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset++;
 
@@ -4720,7 +4720,7 @@ dissect_rsl(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
     msg_type = tvb_get_uint8(tvb, offset+1) & 0x7f;
 
-    col_append_fstr(pinfo->cinfo, COL_INFO, "%s ", val_to_str_ext(msg_type, &rsl_msg_type_vals_ext, "unknown %u"));
+    col_append_fstr(pinfo->cinfo, COL_INFO, "%s ", val_to_str_ext(pinfo->pool, msg_type, &rsl_msg_type_vals_ext, "unknown %u"));
 
     top_tree = tree;
     ti = proto_tree_add_item(tree, proto_rsl, tvb, 0, -1, ENC_NA);

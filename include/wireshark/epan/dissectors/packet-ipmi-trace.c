@@ -191,7 +191,7 @@ static int * const bits_chn_state_info[] = {
 };
 
 /* HPM.2 Trace Collection tree indices. */
-static int * const ipmi_trace_ett[] = {
+static int * ipmi_trace_ett[] = {
 	&ett_ipmi_trace,
 	&ett_trace_block_type,
 	&ett_trace_timestamp,
@@ -291,7 +291,7 @@ dissect_ipmi_trace(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 
 	col_add_fstr(pinfo->cinfo, COL_DEF_SRC, "Channel %d", chn_num);
 	col_add_str(pinfo->cinfo, COL_PROTOCOL,
-			val_to_str(data_type, str_protocol_types,
+			val_to_str(pinfo->pool, data_type, str_protocol_types,
 					"Reserved (0x%02x)"));
 
 	col_clear(pinfo->cinfo, COL_INFO);
@@ -396,7 +396,7 @@ dissect_ipmi_trace(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 		arg.channel = chn_num;
 		arg.flags	= tvb_get_uint8(tvb, 8);
 
-		if (!dissector_try_uint_new(proto_dissector_table,
+		if (!dissector_try_uint_with_data(proto_dissector_table,
 				data_type, next_tvb, pinfo, tree, true, &arg)) {
 			call_data_dissector(next_tvb, pinfo, tree);
 		}

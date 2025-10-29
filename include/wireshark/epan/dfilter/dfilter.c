@@ -277,6 +277,10 @@ dfwork_free(dfwork_t *dfw)
 		g_hash_table_destroy(dfw->loaded_raw_fields);
 	}
 
+	if (dfw->loaded_vs_fields) {
+		g_hash_table_destroy(dfw->loaded_vs_fields);
+	}
+
 	if (dfw->interesting_fields) {
 		g_hash_table_destroy(dfw->interesting_fields);
 	}
@@ -501,6 +505,7 @@ dfwork_build(dfwork_t *dfw)
 	dfw->raw_references = NULL;
 	dfilter->warnings = dfw->warnings;
 	dfw->warnings = NULL;
+	dfilter->ret_type = dfw->ret_type;
 
 	if (dfw->flags & DF_SAVE_TREE) {
 		ws_assert(tree_str);
@@ -712,6 +717,14 @@ dfilter_prime_proto_tree(const dfilter_t *df, proto_tree *tree)
 	}
 }
 
+void
+dfilter_prime_proto_tree_print(const dfilter_t *df, proto_tree *tree)
+{
+	for (int i = 0; i < df->num_interesting_fields; i++) {
+		proto_tree_prime_with_hfid_print(tree, df->interesting_fields[i]);
+	}
+}
+
 bool
 dfilter_has_interesting_fields(const dfilter_t *df)
 {
@@ -802,6 +815,12 @@ const char *
 dfilter_syntax_tree(dfilter_t *df)
 {
 	return df->syntax_tree_str;
+}
+
+ftenum_t
+dfilter_get_return_type(dfilter_t *df)
+{
+	return df->ret_type;
 }
 
 void

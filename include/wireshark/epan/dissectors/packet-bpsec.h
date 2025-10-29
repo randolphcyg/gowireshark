@@ -1,4 +1,4 @@
-/* packet-bpv7.h
+/* packet-bpsec.h
  * Definitions for Bundle Protocol Version 7 Security (BPSec) dissection
  * References:
  *     RFC 9172: https://www.rfc-editor.org/rfc/rfc9172.html
@@ -16,12 +16,17 @@
 
 #include <ws_symbol_export.h>
 #include <epan/tvbuff.h>
+#include "packet-bpv7.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /*
+ * A human-friendly name for a security context ID can be registered with
+ * the dissector table "bpsec.ctx". This dissector is used only for its
+ * description and not to actually dissect anything.
+ *
  * BPSec per-context parameter types and result types are registered with the
  * dissector table "bpsec.param" and "bpsec.result" respectively.
  * Both use bpsec_id_t* table keys, to identify both the context and the type
@@ -43,6 +48,13 @@ typedef struct {
     /// Parameter/Result ID
     int64_t type_id;
 } bpsec_id_t;
+
+typedef struct {
+    /// Specific type being dissected
+    bpsec_id_t id;
+    /// Pointer to containing block/bundle context
+    const bp_dissector_data_t *bp;
+} bpsec_dissector_data_t;
 
 /** Construct a new ID.
  */

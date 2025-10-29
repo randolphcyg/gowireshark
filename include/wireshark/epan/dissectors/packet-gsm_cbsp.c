@@ -21,6 +21,9 @@
 #include "packet-e212.h"
 #include "packet-gsm_map.h"
 #include "packet-cell_broadcast.h"
+#include "packet-tcp.h"    // tcp_dissect_pdus()
+
+#define FRAME_HEADER_LEN 4
 
 /***********************************************************************
  * TLV related definitions
@@ -430,33 +433,33 @@ dissect_cell_id_elem(uint8_t discr, tvbuff_t *tvb, packet_info *pinfo, unsigned 
 	case CBSP_CIDD_WHOLE_CGI:
 		mcc_mnc = dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, E212_NONE, true);
 		offset += 3;
-		proto_tree_add_item_ret_uint(tree, hf_cbsp_lac, tvb, offset, 2, ENC_NA, &lac);
+		proto_tree_add_item_ret_uint(tree, hf_cbsp_lac, tvb, offset, 2, ENC_BIG_ENDIAN, &lac);
 		offset += 2;
-		proto_tree_add_item_ret_uint(tree, hf_cbsp_ci, tvb, offset, 2, ENC_NA, &ci);
+		proto_tree_add_item_ret_uint(tree, hf_cbsp_ci, tvb, offset, 2, ENC_BIG_ENDIAN, &ci);
 		offset += 2;
 		proto_item_append_text(ti, ": %s, LAC 0x%04x, CI 0x%04x", mcc_mnc, lac, ci);
 		break;
 	case CBSP_CIDD_LAC_CI:
-		proto_tree_add_item_ret_uint(tree, hf_cbsp_lac, tvb, offset, 2, ENC_NA, &lac);
+		proto_tree_add_item_ret_uint(tree, hf_cbsp_lac, tvb, offset, 2, ENC_BIG_ENDIAN, &lac);
 		offset += 2;
-		proto_tree_add_item_ret_uint(tree, hf_cbsp_ci, tvb, offset, 2, ENC_NA, &ci);
+		proto_tree_add_item_ret_uint(tree, hf_cbsp_ci, tvb, offset, 2, ENC_BIG_ENDIAN, &ci);
 		offset += 2;
 		proto_item_append_text(ti, ": LAC 0%04x, CI 0x%04x", lac, ci);
 		break;
 	case CBSP_CIDD_CI:
-		proto_tree_add_item_ret_uint(tree, hf_cbsp_ci, tvb, offset, 2, ENC_NA, &ci);
+		proto_tree_add_item_ret_uint(tree, hf_cbsp_ci, tvb, offset, 2, ENC_BIG_ENDIAN, &ci);
 		offset += 2;
 		proto_item_append_text(ti, ": CI 0x%04x", ci);
 		break;
 	case CBSP_CIDD_LAI:
 		mcc_mnc = dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, E212_NONE, true);
 		offset += 3;
-		proto_tree_add_item_ret_uint(tree, hf_cbsp_lac, tvb, offset, 2, ENC_NA, &lac);
+		proto_tree_add_item_ret_uint(tree, hf_cbsp_lac, tvb, offset, 2, ENC_BIG_ENDIAN, &lac);
 		offset += 2;
 		proto_item_append_text(ti, ": %s, LAC 0x%04x", mcc_mnc, lac);
 		break;
 	case CBSP_CIDD_LAC:
-		proto_tree_add_item_ret_uint(tree, hf_cbsp_lac, tvb, offset, 2, ENC_NA, &lac);
+		proto_tree_add_item_ret_uint(tree, hf_cbsp_lac, tvb, offset, 2, ENC_BIG_ENDIAN, &lac);
 		offset += 2;
 		proto_item_append_text(ti, ": LAC 0x%04x", lac);
 		break;
@@ -626,7 +629,7 @@ dissect_bc_compl_list_ie(tvbuff_t *tvb, packet_info *pinfo, unsigned offset, uns
 			break;
 		offset += rc;
 
-		proto_tree_add_item_ret_uint(elem_tree, hf_cbsp_num_bcast_compl, tvb, offset, 2, ENC_NA,
+		proto_tree_add_item_ret_uint(elem_tree, hf_cbsp_num_bcast_compl, tvb, offset, 2, ENC_BIG_ENDIAN,
 					     &num_bc);
 		offset += 2;
 		proto_tree_add_item_ret_uint(elem_tree, hf_cbsp_num_bcast_info, tvb, offset++, 1, ENC_NA,
@@ -679,7 +682,7 @@ dissect_cbsp_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 
 		att_tree = proto_tree_add_subtree_format(tree, tvb, offset-1, 1+len_len+len,
 						ett_cbsp_ie, &ti, "IE: %s",
-						val_to_str(tag, cbsp_iei_names, "Unknown 0x%02x"));
+						val_to_str(pinfo->pool, tag, cbsp_iei_names, "Unknown 0x%02x"));
 		proto_tree_add_item(att_tree, hf_cbsp_iei, tvb, offset-1, 1, ENC_NA);
 		if (len_len)
 			proto_tree_add_uint(att_tree, hf_cbsp_ie_len, tvb, offset, len_len, len);
@@ -797,8 +800,9 @@ dissect_cbsp_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 	return offset;
 }
 
+/* This method dissects fully reassembled CBSP messages */
 static int
-dissect_cbsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+dissect_cbsp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	int len_ind, offset = 0;
 	proto_item *ti;
@@ -814,11 +818,12 @@ dissect_cbsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "CBSP");
 
 	col_clear(pinfo->cinfo, COL_INFO);
-	str = val_to_str(msg_type, cbsp_msg_type_names, "Unknown CBSP Message Type 0x%02x");
+	str = val_to_str(pinfo->pool, msg_type, cbsp_msg_type_names, "Unknown CBSP Message Type 0x%02x");
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ", str);
 
 	if (tree) {
-		ti = proto_tree_add_protocol_format(tree, proto_cbsp, tvb, 0, len_ind+4, "CBSP %s", str);
+		ti = proto_tree_add_protocol_format(tree, proto_cbsp, tvb, 0,
+						    len_ind + FRAME_HEADER_LEN, "CBSP %s", str);
 		cbsp_tree = proto_item_add_subtree(ti, ett_cbsp);
 
 		proto_tree_add_item(cbsp_tree, hf_cbsp_msg_type,
@@ -832,6 +837,24 @@ dissect_cbsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 				  cbsp_tree);
 	}
 
+	return tvb_captured_length(tvb);
+}
+
+/* determine PDU length of protocol cbsp */
+static unsigned
+get_cbsp_message_len(packet_info *pinfo _U_, tvbuff_t *tvb, int offset, void *data _U_)
+{
+	uint32_t len_ind =  tvb_get_uint24(tvb, offset + 1, ENC_BIG_ENDIAN);
+
+	return len_ind + FRAME_HEADER_LEN;
+}
+
+/* The main dissecting routine */
+static int
+dissect_cbsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+	tcp_dissect_pdus(tvb, pinfo, tree, true, FRAME_HEADER_LEN,
+			 get_cbsp_message_len, dissect_cbsp_message, data);
 	return tvb_captured_length(tvb);
 }
 

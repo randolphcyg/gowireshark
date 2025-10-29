@@ -85,7 +85,7 @@ WSLUA_FUNCTION wslua_register_menu(lua_State* L) { /*  Register a menu item in o
     * MENU_TELEPHONY_SCTP: menu:Telephony[SCTP]
     * MENU_TOOLS_UNSORTED: menu:Tools[]
 
-    Valid log (Logray) items are:
+    Valid log (Stratoshark) items are:
     * MENU_LOG_ANALYZE_UNSORTED: menu:Analyze[]
     * MENU_LOG_STAT_UNSORTED: menu:Statistics[]
 
@@ -626,6 +626,8 @@ static int ProgDlg__gc(lua_State* L) {
             ops->destroy_progress_window(pd->pw);
         }
 
+        g_free(pd->task);
+        g_free(pd->title);
         g_free(pd);
     } else {
         luaL_error(L, "ProgDlg__gc has being passed something else!");

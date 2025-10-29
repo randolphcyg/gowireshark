@@ -311,7 +311,7 @@ dissect_uasp_iu(tvbuff_t *tvb, packet_info *pinfo,
     tag = tvb_get_ntohs(tvb, 2);
 
     col_add_str(pinfo->cinfo, COL_INFO,
-                val_to_str(iu_id, uasp_iu_id_vals, "Unknown IU [0x%02x]"));
+                val_to_str(pinfo->pool, iu_id, uasp_iu_id_vals, "Unknown IU [0x%02x]"));
 
     proto_tree_add_item(uasp_tree, hf_uas_iu_id, tvb, 0, 1, ENC_NA);
     proto_tree_add_item(uasp_tree, hf_uas_tag, tvb, 2, 2, ENC_BIG_ENDIAN);
@@ -611,14 +611,14 @@ proto_register_uasp(void)
             "The request data for the tag was transmitted in this frame", HFILL } },
     };
 
-    static int *uasp_subtrees[] = {
+    static int *uasp_ett[] = {
         &ett_uasp,
         &ett_uasp_desc,
     };
 
     proto_uasp = proto_register_protocol("USB Attached SCSI", "UASP", "uasp");
     proto_register_field_array(proto_uasp, hf, array_length(hf));
-    proto_register_subtree_array(uasp_subtrees, array_length(uasp_subtrees));
+    proto_register_subtree_array(uasp_ett, array_length(uasp_ett));
 
     uasp_descriptor_handle = register_dissector("uasp", dissect_uasp_descriptor, proto_uasp);
     uasp_bulk_handle = register_dissector("uasp.bulk", dissect_uasp_bulk, proto_uasp);

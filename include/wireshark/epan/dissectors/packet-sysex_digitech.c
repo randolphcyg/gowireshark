@@ -11,6 +11,10 @@
 #include <epan/packet.h>
 #include <epan/conversation.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
+
+#define SYSEX_MANUFACTURER_DOD 0x000010
 
 void proto_register_sysex_digitech(void);
 
@@ -81,6 +85,8 @@ static expert_field ei_digitech_undecoded;
 typedef struct _digitech_conv_data_t {
     int protocol_version;
 } digitech_conv_data_t;
+
+static dissector_handle_t sysex_digitech_handle;
 
 #define DIGITECH_FAMILY_X_FLOOR  0x5C
 #define DIGITECH_FAMILY_JAMMAN   0x5D
@@ -1292,7 +1298,7 @@ proto_register_sysex_digitech(void)
               VALS(proto_checksum_vals), 0, NULL, HFILL }},
     };
 
-    static int *sysex_digitech_subtrees[] = {
+    static int *ett[] = {
         &ett_sysex_digitech
     };
 
@@ -1305,11 +1311,17 @@ proto_register_sysex_digitech(void)
 
     proto_sysex_digitech = proto_register_protocol("MIDI System Exclusive DigiTech", "SYSEX DigiTech", "sysex_digitech");
     proto_register_field_array(proto_sysex_digitech, hf, array_length(hf));
-    proto_register_subtree_array(sysex_digitech_subtrees, array_length(sysex_digitech_subtrees));
+    proto_register_subtree_array(ett, array_length(ett));
     expert_sysex_digitech = expert_register_protocol(proto_sysex_digitech);
     expert_register_field_array(expert_sysex_digitech, ei, array_length(ei));
 
-    register_dissector("sysex_digitech", dissect_sysex_digitech_command, proto_sysex_digitech);
+    sysex_digitech_handle = register_dissector("sysex_digitech", dissect_sysex_digitech_command, proto_sysex_digitech);
+}
+
+void
+proto_reg_handoff_sysex_digitech(void)
+{
+    dissector_add_uint("sysex.manufacturer", SYSEX_MANUFACTURER_DOD, sysex_digitech_handle);
 }
 
 /*

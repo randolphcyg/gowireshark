@@ -68,9 +68,6 @@
 void proto_register_zbee_zcl_illum_meas(void);
 void proto_reg_handoff_zbee_zcl_illum_meas(void);
 
-/* Command Dissector Helpers */
-static void dissect_zcl_illum_meas_attr_data     (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
-
 /* Private functions prototype */
 static void decode_illum_meas_value              (char *s, uint16_t value);
 static void decode_illum_meas_min_value          (char *s, uint16_t value);
@@ -138,7 +135,7 @@ dissect_zbee_zcl_illum_meas(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tre
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_illum_meas_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_illum_meas_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch ( attr_id ) {
@@ -169,7 +166,7 @@ dissect_zcl_illum_meas_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offs
             break;
 
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_illum_meas_attr_data*/
@@ -312,7 +309,7 @@ proto_reg_handoff_zbee_zcl_illum_meas(void)
                             hf_zbee_zcl_illum_meas_attr_id,
                             hf_zbee_zcl_illum_meas_attr_id,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_illum_meas_attr_data
+                            dissect_zcl_illum_meas_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_illum_meas*/
 
@@ -353,9 +350,6 @@ proto_reg_handoff_zbee_zcl_illum_meas(void)
 
 void proto_register_zbee_zcl_illum_level_sen(void);
 void proto_reg_handoff_zbee_zcl_illum_level_sen(void);
-
-/* Command Dissector Helpers */
-static void dissect_zcl_illum_level_sen_attr_data               (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* Private functions prototype */
 static void decode_illum_level_sen_target_level                 (char *s, uint16_t value);
@@ -424,7 +418,7 @@ dissect_zbee_zcl_illum_level_sen(tvbuff_t *tvb _U_, packet_info *pinfo _U_, prot
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_illum_level_sen_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_illum_level_sen_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch ( attr_id ) {
@@ -445,7 +439,7 @@ dissect_zcl_illum_level_sen_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned 
             break;
 
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_illum_level_sen_attr_data*/
@@ -527,7 +521,7 @@ proto_reg_handoff_zbee_zcl_illum_level_sen(void)
                             hf_zbee_zcl_illum_level_sen_attr_id,
                             hf_zbee_zcl_illum_level_sen_attr_id,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_illum_level_sen_attr_data
+                            dissect_zcl_illum_level_sen_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_illum_level_sen*/
 
@@ -571,9 +565,6 @@ proto_reg_handoff_zbee_zcl_illum_level_sen(void)
 
 void proto_register_zbee_zcl_temp_meas(void);
 void proto_reg_handoff_zbee_zcl_temp_meas(void);
-
-/* Command Dissector Helpers */
-static void dissect_zcl_temp_meas_attr_data     (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* Private functions prototype */
 static void decode_temp_meas_value              (char *s, int16_t value);
@@ -634,7 +625,7 @@ dissect_zbee_zcl_temp_meas(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_temp_meas_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_temp_meas_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch ( attr_id ) {
@@ -660,7 +651,7 @@ dissect_zcl_temp_meas_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offse
             break;
 
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 
@@ -795,7 +786,7 @@ proto_reg_handoff_zbee_zcl_temp_meas(void)
                             hf_zbee_zcl_temp_meas_attr_id,
                             hf_zbee_zcl_temp_meas_attr_id,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_temp_meas_attr_data
+                            dissect_zcl_temp_meas_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_temp_meas*/
 
@@ -846,9 +837,6 @@ proto_reg_handoff_zbee_zcl_temp_meas(void)
 
 void proto_register_zbee_zcl_press_meas(void);
 void proto_reg_handoff_zbee_zcl_press_meas(void);
-
-/* Command Dissector Helpers */
-static void dissect_zcl_press_meas_attr_data     (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* Private functions prototype */
 static void decode_press_meas_value              (char *s, int16_t value);
@@ -919,7 +907,7 @@ dissect_zbee_zcl_press_meas(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tre
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_press_meas_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_press_meas_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch ( attr_id ) {
@@ -970,7 +958,7 @@ dissect_zcl_press_meas_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offs
             break;
 
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_press_meas_attr_data*/
@@ -1125,7 +1113,7 @@ proto_reg_handoff_zbee_zcl_press_meas(void)
                             hf_zbee_zcl_press_meas_attr_id,
                             hf_zbee_zcl_press_meas_attr_id,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_press_meas_attr_data
+                            dissect_zcl_press_meas_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_press_meas*/
 
@@ -1168,9 +1156,6 @@ proto_reg_handoff_zbee_zcl_press_meas(void)
 
 void proto_register_zbee_zcl_flow_meas(void);
 void proto_reg_handoff_zbee_zcl_flow_meas(void);
-
-/* Command Dissector Helpers */
-static void dissect_zcl_flow_meas_attr_data     (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* Private functions prototype */
 static void decode_flow_meas_value              (char *s, uint16_t value);
@@ -1231,7 +1216,7 @@ dissect_zbee_zcl_flow_meas(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_flow_meas_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_flow_meas_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch ( attr_id ) {
@@ -1257,7 +1242,7 @@ dissect_zcl_flow_meas_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offse
             break;
 
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_flow_meas_attr_data*/
@@ -1396,7 +1381,7 @@ proto_reg_handoff_zbee_zcl_flow_meas(void)
                             hf_zbee_zcl_flow_meas_attr_id,
                             hf_zbee_zcl_flow_meas_attr_id,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_flow_meas_attr_data
+                            dissect_zcl_flow_meas_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_flow_meas*/
 
@@ -1439,9 +1424,6 @@ proto_reg_handoff_zbee_zcl_flow_meas(void)
 
 void proto_register_zbee_zcl_relhum_meas(void);
 void proto_reg_handoff_zbee_zcl_relhum_meas(void);
-
-/* Command Dissector Helpers */
-static void dissect_zcl_relhum_meas_attr_data     (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /* Private functions prototype */
 static void decode_relhum_meas_value              (char *s, uint16_t value);
@@ -1502,7 +1484,7 @@ dissect_zbee_zcl_relhum_meas(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tr
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_relhum_meas_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_relhum_meas_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch ( attr_id ) {
@@ -1528,7 +1510,7 @@ dissect_zcl_relhum_meas_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *off
             break;
 
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_relhum_meas_attr_data*/
@@ -1662,7 +1644,7 @@ proto_reg_handoff_zbee_zcl_relhum_meas(void)
                             hf_zbee_zcl_relhum_meas_attr_id,
                             hf_zbee_zcl_relhum_meas_attr_id,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_relhum_meas_attr_data
+                            dissect_zcl_relhum_meas_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_relhum_meas*/
 
@@ -1680,12 +1662,16 @@ proto_reg_handoff_zbee_zcl_relhum_meas(void)
 /* Attributes */
 #define ZBEE_ZCL_ATTR_ID_OCC_SEN_OCCUPANCY                      0x0000  /* Occupancy */
 #define ZBEE_ZCL_ATTR_ID_OCC_SEN_OCC_SENSOR_TYPE                0x0001  /* Occupancy Sensor Type */
+#define ZBEE_ZCL_ATTR_ID_OCC_SEN_OCC_SENSOR_TYPE_BITMAP         0x0002  /* Occupancy Sensor Type Bitmap */
 #define ZBEE_ZCL_ATTR_ID_OCC_SEN_PIR_OCC_TO_UNOCC_DELAY         0x0010  /* PIR Occupied to Unoccupied Delay */
 #define ZBEE_ZCL_ATTR_ID_OCC_SEN_PIR_UNOCC_TO_OCC_DELAY         0x0011  /* PIR Unoccupied to Occupied Delay */
 #define ZBEE_ZCL_ATTR_ID_OCC_SEN_PIR_UNOCC_TO_OCC_THOLD         0x0012  /* PIR Unoccupied to Occupied Threshold */
 #define ZBEE_ZCL_ATTR_ID_OCC_SEN_USONIC_OCC_TO_UNOCC_DELAY      0x0020  /* Ultrasonic Occupied to Unoccupied Threshold */
 #define ZBEE_ZCL_ATTR_ID_OCC_SEN_USONIC_UNOCC_TO_OCC_DELAY      0x0021  /* Ultrasonic Unoccupied to Occupied Delay */
 #define ZBEE_ZCL_ATTR_ID_OCC_SEN_USONIC_UNOCC_TO_OCC_THOLD      0x0022  /* Ultrasonic Unoccupied to Occupied Threshold */
+#define ZBEE_ZCL_ATTR_ID_OCC_SEN_PHYSICAL_CONTACT_OCC_TO_UNOCC_DELAY    0x0030    /*  Physical Contact Occupied to Unoccupied Delay */
+#define ZBEE_ZCL_ATTR_ID_OCC_SEN_PHYSICAL_CONTACT_UNOCC_TO_OCC_DELAY    0x0031    /*  Physical Contact Unoccupied to Occupied Delay */
+#define ZBEE_ZCL_ATTR_ID_OCC_SEN_PHYSICAL_CONTACT_UNOCC_TO_OCC_THOLD    0x0032    /*  Physical Contact Unoccupied to Occupied Threshold */
 
 /* Server Commands Received - None */
 
@@ -1698,6 +1684,12 @@ proto_reg_handoff_zbee_zcl_relhum_meas(void)
 #define ZBEE_ZCL_OCC_SENSOR_TYPE_PIR                            0x00  /* PIR */
 #define ZBEE_ZCL_OCC_SENSOR_TYPE_USONIC                         0x01  /* Ultrasonic */
 #define ZBEE_ZCL_OCC_SENSOR_TYPE_PIR_AND_USONIC                 0x02  /* PIR and Ultrasonic */
+#define ZBEE_ZCL_OCC_SENSOR_TYPE_PHYSICAL_CONTACT               0x03  /* Physical Contact */
+
+/* Occupancy Sensor Type Bitmap Mask fields */
+#define ZBEE_ZCL_OCC_SENSOR_TYPE_BITMAP_PIR                     0x01  /* PIR */
+#define ZBEE_ZCL_OCC_SENSOR_TYPE_BITMAP_ULTRASONIC              0x02  /* Ultrasonic */
+#define ZBEE_ZCL_OCC_SENSOR_TYPE_BITMAP_PHYSICAL_CONTACT        0x04  /* Physical Contact */
 
 /*************************/
 /* Function Declarations */
@@ -1705,9 +1697,6 @@ proto_reg_handoff_zbee_zcl_relhum_meas(void)
 
 void proto_register_zbee_zcl_occ_sen(void);
 void proto_reg_handoff_zbee_zcl_occ_sen(void);
-
-/* Command Dissector Helpers */
-static void dissect_zcl_occ_sen_attr_data               (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 
 /*************************/
 /* Global Variables      */
@@ -1720,21 +1709,30 @@ static int hf_zbee_zcl_occ_sen_attr_id;
 static int hf_zbee_zcl_occ_sen_occupancy;
 static int hf_zbee_zcl_occ_sen_occupancy_occupied;
 static int hf_zbee_zcl_occ_sen_occ_sensor_type;
+static int hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap;
+static int hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap_pir;
+static int hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap_ultrasonic;
+static int hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap_physical_contact;
 
 /* Initialize the subtree pointers */
 static int ett_zbee_zcl_occ_sen;
 static int ett_zbee_zcl_occ_sen_occupancy;
+static int ett_zbee_zcl_occ_sen_sensor_type_bitmap;
 
 /* Attributes */
 static const value_string zbee_zcl_occ_sen_attr_names[] = {
     { ZBEE_ZCL_ATTR_ID_OCC_SEN_OCCUPANCY,                   "Occupancy" },
     { ZBEE_ZCL_ATTR_ID_OCC_SEN_OCC_SENSOR_TYPE,             "Occupancy Sensor Type" },
+    { ZBEE_ZCL_ATTR_ID_OCC_SEN_OCC_SENSOR_TYPE_BITMAP,      "Occupancy Sensor Type Bitmap" },
     { ZBEE_ZCL_ATTR_ID_OCC_SEN_PIR_OCC_TO_UNOCC_DELAY,      "PIR Occupied to Unoccupied Delay" },
     { ZBEE_ZCL_ATTR_ID_OCC_SEN_PIR_UNOCC_TO_OCC_DELAY,      "PIR Unoccupied to Occupied Delay" },
     { ZBEE_ZCL_ATTR_ID_OCC_SEN_PIR_UNOCC_TO_OCC_THOLD,      "PIR Unoccupied to Occupied Threshold" },
     { ZBEE_ZCL_ATTR_ID_OCC_SEN_USONIC_OCC_TO_UNOCC_DELAY,   "Ultrasonic Occupied to Unoccupied Threshold" },
     { ZBEE_ZCL_ATTR_ID_OCC_SEN_USONIC_UNOCC_TO_OCC_DELAY,   "Ultrasonic Unoccupied to Occupied Delay" },
     { ZBEE_ZCL_ATTR_ID_OCC_SEN_USONIC_UNOCC_TO_OCC_THOLD,   "Ultrasonic Unoccupied to Occupied Threshold" },
+    { ZBEE_ZCL_ATTR_ID_OCC_SEN_PHYSICAL_CONTACT_OCC_TO_UNOCC_DELAY,     "Physical Contact Occupied to Unoccupied Delay" },
+    { ZBEE_ZCL_ATTR_ID_OCC_SEN_PHYSICAL_CONTACT_UNOCC_TO_OCC_DELAY,     "Physical Contact Unoccupied to Occupied Delay" },
+    { ZBEE_ZCL_ATTR_ID_OCC_SEN_PHYSICAL_CONTACT_UNOCC_TO_OCC_THOLD,     "Physical Contact Unoccupied to Occupied Threshold" },
     { 0, NULL }
 };
 
@@ -1774,10 +1772,17 @@ dissect_zbee_zcl_occ_sen(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_occ_sen_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_occ_sen_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     static int * const occupancy[] = {
         &hf_zbee_zcl_occ_sen_occupancy_occupied,
+        NULL
+    };
+
+    static int * const sensor_type_bitmap[] = {
+        &hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap_pir,
+        &hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap_ultrasonic,
+        &hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap_physical_contact,
         NULL
     };
 
@@ -1794,14 +1799,22 @@ dissect_zcl_occ_sen_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset,
             *offset += 1;
             break;
 
+        case ZBEE_ZCL_ATTR_ID_OCC_SEN_OCC_SENSOR_TYPE_BITMAP:
+            proto_tree_add_bitmask(tree, tvb, *offset, hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap, ett_zbee_zcl_occ_sen_sensor_type_bitmap, sensor_type_bitmap, ENC_LITTLE_ENDIAN);
+            *offset += 1;
+            break;
+
         case ZBEE_ZCL_ATTR_ID_OCC_SEN_PIR_OCC_TO_UNOCC_DELAY:
         case ZBEE_ZCL_ATTR_ID_OCC_SEN_PIR_UNOCC_TO_OCC_DELAY:
         case ZBEE_ZCL_ATTR_ID_OCC_SEN_PIR_UNOCC_TO_OCC_THOLD:
         case ZBEE_ZCL_ATTR_ID_OCC_SEN_USONIC_OCC_TO_UNOCC_DELAY:
         case ZBEE_ZCL_ATTR_ID_OCC_SEN_USONIC_UNOCC_TO_OCC_DELAY:
         case ZBEE_ZCL_ATTR_ID_OCC_SEN_USONIC_UNOCC_TO_OCC_THOLD:
+        case ZBEE_ZCL_ATTR_ID_OCC_SEN_PHYSICAL_CONTACT_OCC_TO_UNOCC_DELAY:
+        case ZBEE_ZCL_ATTR_ID_OCC_SEN_PHYSICAL_CONTACT_UNOCC_TO_OCC_DELAY:
+        case ZBEE_ZCL_ATTR_ID_OCC_SEN_PHYSICAL_CONTACT_UNOCC_TO_OCC_THOLD:
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_occ_sen_attr_data*/
@@ -1829,7 +1842,23 @@ proto_register_zbee_zcl_occ_sen(void)
 
         { &hf_zbee_zcl_occ_sen_occ_sensor_type,
             { "Occupancy Sensor Type", "zbee_zcl_meas_sensing.occsen.attr.occ_sensor_type", FT_UINT8, BASE_HEX, VALS(zbee_zcl_occ_sen_sensor_type_names),
-            0x0, NULL, HFILL } }
+            0x0, NULL, HFILL } },
+
+        { &hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap,
+            { "Occupancy Sensor Type Bitmap", "zbee_zcl_meas_sensing.occsen.sensor_type_bitmap", FT_UINT8, BASE_HEX, NULL,
+            0x0, NULL, HFILL } },
+
+        { &hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap_pir,
+            { "PIR", "zbee_zcl_meas_sensing.occsen.sensor_type_bitmap_pir", FT_BOOLEAN, 8, NULL,
+            ZBEE_ZCL_OCC_SENSOR_TYPE_BITMAP_PIR, NULL, HFILL } },
+
+        { &hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap_ultrasonic,
+            { "Ultrasonic", "zbee_zcl_meas_sensing.occsen.sensor_type_bitmap_ultrasonic", FT_BOOLEAN, 8, NULL,
+            ZBEE_ZCL_OCC_SENSOR_TYPE_BITMAP_ULTRASONIC, NULL, HFILL } },
+
+        { &hf_zbee_zcl_occ_sen_occ_sensor_type_bitmap_physical_contact,
+            { "Physical Contact", "zbee_zcl_meas_sensing.occsen.sensor_type_bitmap_physical_contact", FT_BOOLEAN, 8, NULL,
+            ZBEE_ZCL_OCC_SENSOR_TYPE_BITMAP_PHYSICAL_CONTACT, NULL, HFILL } },
     };
 
 
@@ -1864,7 +1893,7 @@ proto_reg_handoff_zbee_zcl_occ_sen(void)
                             hf_zbee_zcl_occ_sen_attr_id,
                             hf_zbee_zcl_occ_sen_attr_id,
                             -1, -1,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_occ_sen_attr_data
+                            dissect_zcl_occ_sen_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_occ_sen*/
 
@@ -2039,7 +2068,6 @@ void proto_register_zbee_zcl_elec_mes(void);
 void proto_reg_handoff_zbee_zcl_elec_mes(void);
 
 /* Command Dissector Helpers */
-static void dissect_zcl_elec_mes_attr_data                              (proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr);
 static void dissect_zcl_elec_mes_get_measurement_profile_info           (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 static void dissect_zcl_elec_mes_get_profile_info_response              (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
 static void dissect_zcl_elec_mes_get_measurement_profile_info_response  (tvbuff_t *tvb, proto_tree *tree, unsigned *offset);
@@ -2337,12 +2365,12 @@ dissect_zbee_zcl_elec_mes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
  *@param client_attr ZCL client
 */
 static void
-dissect_zcl_elec_mes_attr_data(proto_tree *tree, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
+dissect_zcl_elec_mes_attr_data(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, unsigned *offset, uint16_t attr_id, unsigned data_type, bool client_attr)
 {
     /* Dissect attribute data type and data */
     switch ( attr_id ) {
         default:
-            dissect_zcl_attr_data(tvb, tree, offset, data_type, client_attr);
+            dissect_zcl_attr_data(tvb, pinfo, tree, offset, data_type, client_attr);
             break;
     }
 } /*dissect_zcl_elec_mes_attr_data*/
@@ -2506,7 +2534,7 @@ proto_reg_handoff_zbee_zcl_elec_mes(void)
                             -1,
                             hf_zbee_zcl_elec_mes_srv_rx_cmd_id,
                             hf_zbee_zcl_elec_mes_srv_tx_cmd_id,
-                            (zbee_zcl_fn_attr_data)dissect_zcl_elec_mes_attr_data
+                            dissect_zcl_elec_mes_attr_data
                          );
 } /*proto_reg_handoff_zbee_zcl_elec_mes*/
 

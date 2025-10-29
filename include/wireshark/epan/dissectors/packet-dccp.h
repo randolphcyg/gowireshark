@@ -67,10 +67,10 @@ struct dccp_analysis {
 	 * the source and destination ports.
 	 *
 	 * If the source is greater than the destination, then stuff
-	 * sent from src is in ual1.
+	 * sent from src is in flow1.
 	 *
 	 * If the source is less than the destination, then stuff
-	 * sent from src is in ual2.
+	 * sent from src is in flow2.
 	 *
 	 * XXX - if the addresses and ports are equal, we don't guarantee
 	 * the behavior.
@@ -103,12 +103,6 @@ struct dccp_analysis {
 	 */
 	nstime_t	ts_prev;
 };
-
-/** Get the current number of DCCP streams
- *
- * @return The number of DCCP streams
- */
-WS_DLL_PUBLIC uint32_t get_dccp_stream_count(void);
 
 #ifdef __cplusplus
 }

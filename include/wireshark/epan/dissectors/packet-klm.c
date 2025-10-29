@@ -10,6 +10,8 @@
 
 #include "config.h"
 
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-nfs.h"
 
 void proto_register_klm(void);
@@ -88,7 +90,7 @@ dissect_lock(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, int offset, rp
 
 	lock_tree = proto_item_add_subtree(lock_item, ett_klm_lock);
 
-	offset = dissect_rpc_string(tvb, lock_tree,
+	offset = dissect_rpc_string(tvb, pinfo, lock_tree,
 			hf_klm_servername, offset, NULL);
 
 	offset = dissect_nfs3_fh(tvb, offset, pinfo, lock_tree,"fh", NULL, civ);

@@ -11,15 +11,15 @@
 #define VERSION_EXTRA ""
 
 /* Version number of Wireshark and associated utilities */
-#define VERSION "4.4.9"
+#define VERSION "4.6.0"
 #define VERSION_MAJOR 4
-#define VERSION_MINOR 4
-#define VERSION_MICRO 9
+#define VERSION_MINOR 6
+#define VERSION_MICRO 0
 
-/* Version number of Logray and associated utilities */
-#define LOG_VERSION "0.9.0"
+/* Version number of Stratoshark and associated utilities */
+#define STRATOSHARK_VERSION "0.9.3rc0-972-gcdfb6721e77c"
 
-#define PLUGIN_PATH_ID "4-4"
+#define PLUGIN_PATH_ID "4-6"
 #define VERSION_FLAVOR ""
 
 /* Build wsutil with SIMD optimization */
@@ -31,14 +31,14 @@
 /*  Define to 1 if we check hf conflict */
 /* #undef ENABLE_CHECK_FILTER */
 
-/* Link Wireshark libraries statically */
-/* #undef ENABLE_STATIC */
-
 /* Enable AddressSanitizer (and LeakSanitizer on clang/gcc) */
 /* #undef ENABLE_ASAN */
 
-/* Enable AirPcap */
-/* #undef HAVE_AIRPCAP */
+/* Enable LeakSanitizer standalone */
+/* #undef ENABLE_LSAN */
+
+/* Adapt build products for fuzzing (e.g. accepting incorrect checksums or prioritizing determinism). */
+/* #undef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION */
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #define HAVE_ARPA_INET_H 1
@@ -63,6 +63,9 @@
 
 /* Define to use the MaxMind DB library */
 #define HAVE_MAXMINDDB 1
+/* MaxmindDB version */
+#define MAXMINDDB_VERSION ""
+
 
 /* Define to 1 if you have the <ifaddrs.h> header file. */
 #define HAVE_IFADDRS_H 1
@@ -77,7 +80,7 @@
 #define HAVE_GETIFADDRS 1
 
 /* Define if LIBSSH support is enabled */
-/* #undef HAVE_LIBSSH */
+#define HAVE_LIBSSH 1
 
 /* Define if you have the 'dlget' function. */
 /* #undef HAVE_DLGET */
@@ -130,12 +133,6 @@
 /* Enable libnl support */
 /* #undef HAVE_LIBNL */
 
-/* libnl version 1 */
-/* #undef HAVE_LIBNL1 */
-
-/* libnl version 2 */
-/* #undef HAVE_LIBNL2 */
-
 /* libnl version 3 */
 /* #undef HAVE_LIBNL3 */
 
@@ -147,6 +144,10 @@
 
 /* Define to 1 if libsmi exports a version string (and that symbol is visible). */
 /* #undef HAVE_SMI_VERSION_STRING */
+
+/* Define to use xxhash library */
+/* #undef HAVE_XXHASH */
+#define XXHASH_VERSION_STRING ""
 
 /* Define to use zlib library */
 #define HAVE_ZLIB 1
@@ -177,6 +178,7 @@
 
 /* Define to use snappy library */
 #define HAVE_SNAPPY 1
+#define SNAPPY_VERSION "1.2.2"
 
 /* Define to use zstd library */
 #define HAVE_ZSTD 1
@@ -217,44 +219,26 @@
 /* VHT_CAPABILITY is supported */
 /* #undef HAVE_NL80211_VHT_CAPABILITY */
 
+/* HE_CAPABILITY is supported */
+/* #undef HAVE_NL80211_HE_CAPABILITY */
+
+/* EHT_CAPABILITY is supported */
+/* #undef HAVE_NL80211_EHT_CAPABILITY */
+
 /* Define to 1 if you have macOS frameworks */
 #define HAVE_MACOS_FRAMEWORKS 1
 
 /* Define to 1 if you have the macOS CFPropertyListCreateWithStream function */
 #define HAVE_CFPROPERTYLISTCREATEWITHSTREAM 1
 
-/* Define to 1 if you have the `pcap_create' function. */
-#define HAVE_PCAP_CREATE 1
-
-/* Define to 1 if the capture buffer size can be set. */
-#define CAN_SET_CAPTURE_BUFFER_SIZE 1
-
-/* Define to 1 if you have the `pcap_freecode' function. */
-#define HAVE_PCAP_FREECODE 1
-
-/* Define to 1 if you have the `pcap_free_datalinks' function. */
-#define HAVE_PCAP_FREE_DATALINKS 1
-
 /* Define to 1 if you have the `pcap_open' function. */
 /* #undef HAVE_PCAP_OPEN */
 
-/* Define to 1 if you have libpcap/WinPcap/Npcap remote capturing support. */
+/* Define to 1 if you have libpcap/Npcap remote capturing support. */
 /* #undef HAVE_PCAP_REMOTE */
 
 /* Define to 1 if you have the `pcap_setsampling' function. */
 /* #undef HAVE_PCAP_SETSAMPLING */
-
-/* Define to 1 if you have the `pcap_set_tstamp_precision' function. */
-#define HAVE_PCAP_SET_TSTAMP_PRECISION 1
-
-/* Define to 1 if you have the `pcap_set_tstamp_type' function. */
-#define HAVE_PCAP_SET_TSTAMP_TYPE 1
-
-/* Define to 1 if you have the `PCAP_ERROR_PROMISC_PERM_DENIED' symbol. */
-#define HAVE_PCAP_ERROR_PROMISC_PERM_DENIED 1
-
-/* Define to 1 if you have the `PCAP_WARNING_TSTAMP_TYPE_NOTSUP' symbol. */
-#define HAVE_PCAP_WARNING_TSTAMP_TYPE_NOTSUP 1
 
 /* Define to 1 if you have the <pwd.h> header file. */
 #define HAVE_PWD_H 1
@@ -276,9 +260,6 @@
 
 /* Define to 1 if you have the opus library. */
 /* #undef HAVE_OPUS */
-
-/* Define to 1 if you have the lixbml2 library. */
-#define HAVE_LIBXML2 1
 
 /* Define to 1 if you have the `setresgid' function. */
 /* #undef HAVE_SETRESGID */
@@ -421,7 +402,7 @@
  * are added if and only if HAVE_REMOTE is defined, and will fill them in,
  * even if they're not there.
  *
- * Yes, this is q WinPcap bug; if your project has a public header file
+ * Yes, this is a WinPcap bug; if your project has a public header file
  * that checks or otherwise uses a #define that's defined by your project's
  * configuration process, and don't ensure that it's always defined
  * appropriately when that header file is included, before its first use,
@@ -445,6 +426,10 @@
  * No version of the WinPcap SDK provided libpcap 1.9.0-or-later headers.
  * The Npcap SDK, as of SDK version 1.04, provides them, so this is
  * only necessary for building with the WinPcap SDK.
+ *
+ * Building against the WinPcap SDK isn't supported anymore, nor is running
+ * with the WinPcap DLL installed, so needing this is very unlikely, though
+ * libpcap 1.9.0 or later is not yet required.
  */
 #ifdef HAVE_PCAP_REMOTE
 #define HAVE_REMOTE

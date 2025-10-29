@@ -153,7 +153,7 @@ dissect_usbms_bot_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_
     tree = proto_item_add_subtree(ti, ett_usbms_bot);
 
     col_add_fstr(pinfo->cinfo, COL_INFO, "%s %s",
-        val_to_str(usb_trans_info->setup.request, setup_request_names_vals, "Unknown type %x"),
+        val_to_str(pinfo->pool, usb_trans_info->setup.request, setup_request_names_vals, "Unknown type %x"),
         is_request?"Request":"Response");
 
     if(is_request){
@@ -503,14 +503,14 @@ proto_register_usbms_bot(void)
 
     };
 
-    static int *usbms_bot_subtrees[] = {
+    static int *usbms_bot_ett[] = {
             &ett_usbms_bot,
     };
 
 
     proto_usbms_bot = proto_register_protocol("USB Mass Storage", "USBMS", "usbms");
     proto_register_field_array(proto_usbms_bot, hf, array_length(hf));
-    proto_register_subtree_array(usbms_bot_subtrees, array_length(usbms_bot_subtrees));
+    proto_register_subtree_array(usbms_bot_ett, array_length(usbms_bot_ett));
 
     usbms_bot_bulk_handle = register_dissector("usbms", dissect_usbms_bot_bulk, proto_usbms_bot);
     usbms_bot_control_handle = register_dissector("usbms.control", dissect_usbms_bot_control, proto_usbms_bot);

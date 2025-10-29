@@ -26,9 +26,10 @@
 #include <epan/asn1.h>
 #include <epan/uat.h>
 #include <epan/to_str.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-x509af.h"
 #include "packet-tls-utils.h"
-#include "packet-reload.h"
 
 void proto_register_reload(void);
 void proto_reg_handoff_reload(void);
@@ -3339,7 +3340,7 @@ static int dissect_probeans(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
   return length;
 }
 
-extern int dissect_reload_messagecontents(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint16_t offset, uint16_t length)
+static int dissect_reload_messagecontents(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint16_t offset, uint16_t length)
 {
   uint32_t    message_body_length;
   uint32_t    extensions_length;
@@ -3372,8 +3373,8 @@ extern int dissect_reload_messagecontents(tvbuff_t *tvb, packet_info *pinfo, pro
       ti_message_code = proto_tree_add_item(message_contents_tree, hf_reload_message_code, tvb,
                                             offset, 2, ENC_BIG_ENDIAN);
       proto_item_append_text(ti_message_code, " (%s_%s)",
-                             val_to_str(MSGCODE_TO_METHOD(message_code), methods_short, "Unknown %d"),
-                             val_to_str(MSGCODE_TO_CLASS(message_code), classes_short, "Unknown %d"));
+                             val_to_str(pinfo->pool, MSGCODE_TO_METHOD(message_code), methods_short, "Unknown %d"),
+                             val_to_str(pinfo->pool, MSGCODE_TO_CLASS(message_code), classes_short, "Unknown %d"));
     }
     offset += 2;
     /* Message body */
@@ -4191,8 +4192,8 @@ dissect_reload_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
     proto_item_append_text(ti, ": %s %s", msg_class_str, val_to_str_const(error_code, errorcodes, "Unknown"));
   }
   else {
-    msg_class_str = val_to_str(MSGCODE_TO_CLASS(message_code), classes, "Unknown %d");
-    msg_method_str = val_to_str(MSGCODE_TO_METHOD(message_code), methods, "Unknown %d");
+    msg_class_str = val_to_str(pinfo->pool, MSGCODE_TO_CLASS(message_code), classes, "Unknown %d");
+    msg_method_str = val_to_str(pinfo->pool, MSGCODE_TO_METHOD(message_code), methods, "Unknown %d");
 
     col_add_fstr(pinfo->cinfo, COL_INFO, "%s %s",
                  msg_method_str, msg_class_str);
@@ -4315,12 +4316,12 @@ proto_register_reload(void)
   static hf_register_info hf[] = {
     { &hf_reload_response_in,
       { "Response in",  "reload.response-in", FT_FRAMENUM,
-        BASE_NONE, NULL, 0x0, "The response to this RELOAD Request is in this frame", HFILL
+        BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0, "The response to this RELOAD Request is in this frame", HFILL
       }
     },
     { &hf_reload_response_to,
       { "Request in", "reload.response-to", FT_FRAMENUM,
-        BASE_NONE, NULL, 0x0, "This is a response to the RELOAD Request in this frame", HFILL
+        BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0, "This is a response to the RELOAD Request in this frame", HFILL
       }
     },
     { &hf_reload_time,

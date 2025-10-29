@@ -233,7 +233,7 @@ static uint8_t sms_encoding;
 static int dissect_invokeData(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_ctx_t *actx);
 static int dissect_returnResultData(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_ctx_t *actx);
 static int dissect_returnErrorData(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_ctx_t *actx);
-const char* gsm_map_opr_code(uint32_t val, proto_item *item);
+static const char* gsm_map_opr_code(uint32_t val, proto_item *item);
 
 typedef struct {
   struct tcap_private_t * tcap_private;
@@ -1023,7 +1023,7 @@ dissect_gsm_map_msisdn(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
       switch(na){
       case 1:
           /* international number */
-          dissect_e164_msisdn(tvb, tree, 1, tvb_reported_length(tvb)-1, E164_ENC_BCD);
+          dissect_e164_msisdn(tvb, pinfo, tree, 1, tvb_reported_length(tvb)-1, E164_ENC_BCD);
       break;
       default:
           proto_tree_add_item(tree, hf_gsm_map_address_digits, tvb, 1, -1, ENC_BCD_DIGITS_0_9|ENC_LITTLE_ENDIAN);
@@ -1312,8 +1312,8 @@ static int dissect_invokeData(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_
     offset=dissect_gsm_map_ms_CancelVcsgLocationArg(false, tvb, offset, actx, tree, -1);
     break;
   case 37: /*reset*/
-      if (application_context_version == 1) {
-          offset = dissect_gsm_old_ResetArgV1(false, tvb, offset, actx, tree, -1);
+      if (application_context_version <= 2) {
+          offset = dissect_gsm_old_ResetArgV2(false, tvb, offset, actx, tree, -1);
       } else {
           offset = dissect_gsm_map_ms_ResetArg(false, tvb, offset, actx, tree, -1);
       }
@@ -1560,7 +1560,7 @@ static int dissect_invokeData(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_
   case 126: /*SS-protocol explicitCT no Argument*/
     break;
   default:
-    if(!dissector_try_uint_new(map_prop_arg_opcode_table, (uint8_t)opcode, tvb, actx->pinfo, tree, true, actx->subtree.top_tree)){
+    if(!dissector_try_uint_with_data(map_prop_arg_opcode_table, (uint8_t)opcode, tvb, actx->pinfo, tree, true, actx->subtree.top_tree)){
         proto_tree_add_expert_format(tree, actx->pinfo, &ei_gsm_map_unknown_invokeData,
                                      tvb, offset, -1, "Unknown invokeData %d", opcode);
     }
@@ -1875,7 +1875,7 @@ static int dissect_returnResultData(proto_tree *tree, tvbuff_t *tvb, int offset,
     break;
 
  default:
-   if(!dissector_try_uint_new(map_prop_res_opcode_table, (uint8_t)opcode, tvb, actx->pinfo, tree, true, actx->subtree.top_tree)){
+   if(!dissector_try_uint_with_data(map_prop_res_opcode_table, (uint8_t)opcode, tvb, actx->pinfo, tree, true, actx->subtree.top_tree)){
         proto_tree_add_expert_format(tree, actx->pinfo, &ei_gsm_map_unknown_invokeData,
                                      tvb, offset, -1, "Unknown returnResultData %d", opcode);
    }
@@ -2042,7 +2042,7 @@ static int dissect_returnErrorData(proto_tree *tree, tvbuff_t *tvb, int offset, 
     offset=dissect_gsm_map_er_InformationNotAvailableParam(false, tvb, offset, actx, tree, -1);
     break;
   default:
-    if(!dissector_try_uint_new(map_prop_err_opcode_table, (uint8_t)opcode, tvb, actx->pinfo, tree, true, actx->subtree.top_tree)){
+    if(!dissector_try_uint_with_data(map_prop_err_opcode_table, (uint8_t)opcode, tvb, actx->pinfo, tree, true, actx->subtree.top_tree)){
         proto_tree_add_expert_format(tree, actx->pinfo, &ei_gsm_map_unknown_invokeData,
                                      tvb, offset, -1, "Unknown returnErrorData %d", opcode);
     }
@@ -2886,6 +2886,7 @@ void proto_reg_handoff_gsm_map(void) {
     register_ber_oid_dissector_handle("0.4.0.0.1.0.7.3", map_handle, proto_gsm_map,"reportingContext-v3" );
     register_ber_oid_dissector_handle("0.4.0.0.1.0.8.3", map_handle, proto_gsm_map,"callCompletionContext-v3" );
     register_ber_oid_dissector_handle("0.4.0.0.1.0.9.3", map_handle, proto_gsm_map,"serviceTerminationContext-v3" );
+    register_ber_oid_dissector_handle("0.4.0.0.1.0.10.3", map_handle, proto_gsm_map,"resetContext-v3" );
     register_ber_oid_dissector_handle("0.4.0.0.1.0.10.2", map_handle, proto_gsm_map,"resetContext-v2" );
     register_ber_oid_dissector_handle("0.4.0.0.1.0.10.1", map_handle, proto_gsm_map,"resetContext-v1" );
     register_ber_oid_dissector_handle("0.4.0.0.1.0.11.3", map_handle, proto_gsm_map,"handoverControlContext-v3" );
@@ -3370,9 +3371,9 @@ void proto_register_gsm_map(void) {
   };
 
   static const enum_val_t application_context_modes[] = {
-    {"Treat as AC 1", "Treat as AC 1", 1},
-    {"Treat as AC 2", "Treat as AC 2", 2},
-    {"Treat as AC 3", "Treat as AC 3", 3},
+    {"1", "Treat as AC 1", 1},
+    {"2", "Treat as AC 2", 2},
+    {"3", "Treat as AC 3", 3},
     {NULL, NULL, -1}
   };
 
@@ -3418,7 +3419,6 @@ void proto_register_gsm_map(void) {
   gsm_map_tap = register_tap("gsm_map");
 
 #include "packet-gsm_map-dis-tab.c"
-  oid_add_from_string("ericsson-gsm-Map-Ext","1.2.826.0.1249.58.1.0" );
   oid_add_from_string("accessTypeNotAllowed-id","1.3.12.2.1107.3.66.1.2");
   /*oid_add_from_string("map-ac networkLocUp(1) version3(3)","0.4.0.0.1.0.1.3" );
    *

@@ -47,6 +47,7 @@ struct epan_dfilter {
 	/* Used to pass arguments to functions. List of Lists (list of registers). */
 	GSList		*function_stack;
 	GSList		*set_stack;
+	ftenum_t	 ret_type;
 };
 
 typedef struct {
@@ -80,6 +81,7 @@ typedef struct {
 	GPtrArray	*insns;
 	GHashTable	*loaded_fields;
 	GHashTable	*loaded_raw_fields;
+	GHashTable	*loaded_vs_fields;
 	GHashTable	*interesting_fields;
 	int		next_insn_id;
 	int		next_register;
@@ -92,6 +94,7 @@ typedef struct {
 					allocated from this pool will be freed when the dfwork_t
 					context is destroyed. */
 	GSList		*warnings;
+	ftenum_t	 ret_type;
 } dfwork_t;
 
 /* Constructor/Destructor prototypes for Lemon Parser */

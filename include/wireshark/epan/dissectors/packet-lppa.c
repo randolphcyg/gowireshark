@@ -638,7 +638,7 @@ dissect_lppa_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str(lppa_data->protocol_ie_id, VALS(lppa_ProtocolIE_ID_vals), "unknown (%d)"));
+                           val_to_str(actx->pinfo->pool, lppa_data->protocol_ie_id, VALS(lppa_ProtocolIE_ID_vals), "unknown (%d)"));
   }
   return offset;
 }
@@ -4314,7 +4314,7 @@ static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto
     lppa_ctx.ProtocolIE_ID = lppa_data->protocol_ie_id;
     lppa_ctx.ProtocolExtensionID = lppa_data->protocol_extension_id;
 
-  return (dissector_try_uint_new(lppa_ies_dissector_table, lppa_ctx.ProtocolIE_ID, tvb, pinfo, tree, false, &lppa_ctx)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(lppa_ies_dissector_table, lppa_ctx.ProtocolIE_ID, tvb, pinfo, tree, false, &lppa_ctx)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
@@ -4327,26 +4327,26 @@ static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_in
     lppa_ctx.ProtocolIE_ID = lppa_data->protocol_ie_id;
     lppa_ctx.ProtocolExtensionID = lppa_data->protocol_extension_id;
 
-  return (dissector_try_uint_new(lppa_extension_dissector_table, lppa_ctx.ProtocolExtensionID, tvb, pinfo, tree, false, &lppa_ctx)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(lppa_extension_dissector_table, lppa_ctx.ProtocolExtensionID, tvb, pinfo, tree, false, &lppa_ctx)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     struct lppa_private_data* lppa_data = lppa_get_private_data(pinfo);
-    return (dissector_try_uint_new(lppa_proc_imsg_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
+    return (dissector_try_uint_with_data(lppa_proc_imsg_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     struct lppa_private_data* lppa_data = lppa_get_private_data(pinfo);
-    return (dissector_try_uint_new(lppa_proc_sout_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
+    return (dissector_try_uint_with_data(lppa_proc_sout_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
     struct lppa_private_data* lppa_data = lppa_get_private_data(pinfo);
 
-    return (dissector_try_uint_new(lppa_proc_uout_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
+    return (dissector_try_uint_with_data(lppa_proc_uout_dissector_table, lppa_data->procedure_code, tvb, pinfo, tree, false, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 /*--- proto_register_lppa -------------------------------------------*/
@@ -4552,7 +4552,7 @@ void proto_register_lppa(void) {
         FT_UINT32, BASE_DEC, VALS(lppa_Criticality_vals), 0,
         NULL, HFILL }},
     { &hf_lppa_ie_field_value,
-      { "value", "lppa.value_element",
+      { "value", "lppa.ie_field_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "T_ie_field_value", HFILL }},
     { &hf_lppa_ProtocolExtensionContainer_item,
@@ -4560,7 +4560,7 @@ void proto_register_lppa(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_lppa_ext_id,
-      { "id", "lppa.id",
+      { "id", "lppa.ext_id",
         FT_UINT32, BASE_DEC, VALS(lppa_ProtocolIE_ID_vals), 0,
         "ProtocolIE_ID", HFILL }},
     { &hf_lppa_extensionValue,
@@ -5348,15 +5348,15 @@ void proto_register_lppa(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_lppa_initiatingMessagevalue,
-      { "value", "lppa.value_element",
+      { "value", "lppa.initiatingMessagevalue_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InitiatingMessage_value", HFILL }},
     { &hf_lppa_successfulOutcome_value,
-      { "value", "lppa.value_element",
+      { "value", "lppa.successfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SuccessfulOutcome_value", HFILL }},
     { &hf_lppa_unsuccessfulOutcome_value,
-      { "value", "lppa.value_element",
+      { "value", "lppa.unsuccessfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "UnsuccessfulOutcome_value", HFILL }},
     };

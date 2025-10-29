@@ -352,7 +352,7 @@ static void *miwi_da_value(packet_info *pinfo _U_)
 }/* miwi_da_value */
 static int miwi_short_address_to_str(const address* addr, char *buf, int buf_len)
 {
-    uint16_t miwi_short_addr = pletoh16(addr->data);
+    uint16_t miwi_short_addr = pletohu16(addr->data);
 
     if (miwi_short_addr == 0xffff)
     {
@@ -860,7 +860,7 @@ miwi_dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_t
     unsigned                offset = 0;
     bool                    dstPanPresent = false;
     bool                    srcPanPresent = false;
-    miwi_packet      *packet = wmem_new0(wmem_packet_scope(), miwi_packet);
+    miwi_packet      *packet = wmem_new0(pinfo->pool, miwi_packet);
     ieee802154_short_addr   addr16;
     ieee802154_hints_t     *ieee_hints;
 
@@ -1169,7 +1169,7 @@ miwi_dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_t
         packet->dst64 = tvb_get_letoh64(tvb, offset);
 
         /* Copy and convert the address to network byte order. */
-        *p_addr = pntoh64(&(packet->dst64));
+        *p_addr = pntohu64(&(packet->dst64));
 
         /* Display the destination address. */
         /* XXX - OUI resolution doesn't happen when displaying resolved
@@ -1180,12 +1180,12 @@ miwi_dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_t
         copy_address_shallow(&pinfo->dst, &pinfo->dl_dst);
         if(tree){
             proto_tree_add_item(miwi_tree, hf_miwi_ext_dst_addr, tvb, offset, 8, ENC_LITTLE_ENDIAN);
-            proto_item_append_text(proto_root, ", Dst: %s", eui64_to_display(wmem_packet_scope(), packet->dst64));
+            proto_item_append_text(proto_root, ", Dst: %s", eui64_to_display(pinfo->pool, packet->dst64));
             ti = proto_tree_add_item(miwi_tree, hf_miwi_addr64, tvb, offset, 8, ENC_LITTLE_ENDIAN);
             proto_item_set_generated(ti);
             proto_item_set_hidden(ti);
         }
-        col_append_fstr(pinfo->cinfo, COL_INFO, ", Dst: %s", eui64_to_display(wmem_packet_scope(), packet->dst64));
+        col_append_fstr(pinfo->cinfo, COL_INFO, ", Dst: %s", eui64_to_display(pinfo->pool, packet->dst64));
         offset += 8;
     }
 
@@ -1274,7 +1274,7 @@ miwi_dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_t
         packet->src64 = tvb_get_letoh64(tvb, offset);
 
         /* Copy and convert the address to network byte order. */
-        *p_addr = pntoh64(&(packet->src64));
+        *p_addr = pntohu64(&(packet->src64));
 
         /* Display the source address. */
         /* XXX - OUI resolution doesn't happen when displaying resolved
@@ -1285,13 +1285,13 @@ miwi_dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, proto_t
         copy_address_shallow(&pinfo->src, &pinfo->dl_src);
         if(tree){
             proto_tree_add_item(miwi_tree, hf_miwi_ext_src_addr, tvb, offset, 8, ENC_LITTLE_ENDIAN);
-            proto_item_append_text(proto_root, ", Src: %s", eui64_to_display(wmem_packet_scope(), packet->src64));
+            proto_item_append_text(proto_root, ", Src: %s", eui64_to_display(pinfo->pool, packet->src64));
             ti = proto_tree_add_item(miwi_tree, hf_miwi_addr64, tvb, offset, 8, ENC_LITTLE_ENDIAN);
             proto_item_set_generated(ti);
             proto_item_set_hidden(ti);
         }
 
-        col_append_fstr(pinfo->cinfo, COL_INFO, ", Src: %s", eui64_to_display(wmem_packet_scope(), packet->src64));
+        col_append_fstr(pinfo->cinfo, COL_INFO, ", Src: %s", eui64_to_display(pinfo->pool, packet->src64));
         offset += 8;
     }
 
@@ -1554,7 +1554,7 @@ dissect_miwi_p2pstar(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
    // unsigned offset = 0;
     proto_tree              *miwi_tree = NULL;
     proto_item              *proto_root = NULL;
-   // miwi_packet      *packet = wmem_new0(wmem_packet_scope(), miwi_packet);
+   // miwi_packet      *packet = wmem_new0(pinfo->pool, miwi_packet);
 
     /* Set the default FCS length based on the FCS type in the configuration */
     fcs_len = miwi_fcs_type_len(miwi_fcs_type);
@@ -1793,8 +1793,8 @@ void proto_register_miwi_p2pstar(void)
     static ei_register_info ei[] = {
         //{ &ei_miwi_empty_payload,     { "miwi_p2pstar.empty_payload",   PI_MALFORMED,      PI_ERROR, "Empty MiWi Payload!", EXPFILL }},
         { &ei_miwi_frame_ver,   { "miwi_p2pstar.frame_version_error", PI_COMMENTS_GROUP, PI_NOTE,  "Source address can not be broadcast address !", EXPFILL }},
-        { &ei_miwi_dst, { "miwi_p2pstar.dst_addr_error",     PI_COMMENTS_GROUP, PI_WARN,  "destination address Error ", EXPFILL }},
-        { &ei_miwi_src, { "miwi_p2pstar.src_addr_error",     PI_COMMENTS_GROUP, PI_WARN,  "Source address Error ", EXPFILL }},
+        { &ei_miwi_dst, { "miwi_p2pstar.dst_addr_error",     PI_COMMENTS_GROUP, PI_WARN,  "destination address Error", EXPFILL }},
+        { &ei_miwi_src, { "miwi_p2pstar.src_addr_error",     PI_COMMENTS_GROUP, PI_WARN,  "Source address Error", EXPFILL }},
         { &ei_miwi_invalid_addressing, { "miwi_p2pstar.invalid_addr_error", PI_PROTOCOL,   PI_NOTE,  "Invalid Address Error", EXPFILL }},
         { &ei_miwi_invalid_panid_compression, { "miwi_p2pstar.invalid_panid_comp_error", PI_PROTOCOL,   PI_WARN,  "Panid compression error", EXPFILL }},
         { &ei_miwi_invalid_panid_compression2, { "miwi_p2pstar.invalid_panid_comp2_error", PI_PROTOCOL,   PI_WARN,  "Panid2 compression error", EXPFILL }},

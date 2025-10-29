@@ -23,6 +23,7 @@
 #include <epan/oids.h>
 #include <epan/asn1.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 #include <wsutil/array.h>
 
 #include "packet-ber.h"
@@ -8110,11 +8111,11 @@ dissect_ain_T_local(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, as
 
     if (ain_opcode_type == AIN_OPCODE_RETURN_ERROR){
       errorCode = opcode;
-      col_append_str(actx->pinfo->cinfo, COL_INFO, val_to_str(errorCode, ain_err_code_string_vals, "Unknown AIN error (%u)"));
+      col_append_str(actx->pinfo->cinfo, COL_INFO, val_to_str(actx->pinfo->pool, errorCode, ain_err_code_string_vals, "Unknown AIN error (%u)"));
       col_append_str(actx->pinfo->cinfo, COL_INFO, " ");
       col_set_fence(actx->pinfo->cinfo, COL_INFO);
     }else{
-      col_append_str(actx->pinfo->cinfo, COL_INFO, val_to_str(opcode, ain_opr_code_strings, "Unknown AIN (%u)"));
+      col_append_str(actx->pinfo->cinfo, COL_INFO, val_to_str(actx->pinfo->pool, opcode, ain_opr_code_strings, "Unknown AIN (%u)"));
       col_append_str(actx->pinfo->cinfo, COL_INFO, " ");
       col_set_fence(actx->pinfo->cinfo, COL_INFO);
     }
@@ -9282,22 +9283,22 @@ dissect_ain(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent_tree, void *da
     case 1:
         opcode = p_private_tcap->d.OperationCode_private;
         /*ansi_map_is_invoke = true;*/
-        col_add_fstr(pinfo->cinfo, COL_INFO, "%s Invoke ", val_to_str(opcode, ain_opr_code_strings, "Unknown AIN PDU (%u)"));
-        proto_item_append_text(p_private_tcap->d.OperationCode_item, " %s", val_to_str(opcode, ain_opr_code_strings, "Unknown AIN PDU (%u)"));
+        col_add_fstr(pinfo->cinfo, COL_INFO, "%s Invoke ", val_to_str(pinfo->pool, opcode, ain_opr_code_strings, "Unknown AIN PDU (%u)"));
+        proto_item_append_text(p_private_tcap->d.OperationCode_item, " %s", val_to_str(pinfo->pool, opcode, ain_opr_code_strings, "Unknown AIN PDU (%u)"));
         dissect_invokeData(ain_tree, tvb, 0, &asn1_ctx);
         /*update_saved_invokedata(pinfo, p_private_tcap);*/
         break;
     //case 2:
     //    opcode = find_saved_invokedata(&asn1_ctx, p_private_tcap);
-    //    col_add_fstr(pinfo->cinfo, COL_INFO, "%s ReturnResult ", val_to_str_ext(opcode, &ansi_map_opr_code_strings_ext, "Unknown ANSI-MAP PDU (%u)"));
-    //    proto_item_append_text(p_private_tcap->d.OperationCode_item, " %s", val_to_str_ext(opcode, &ansi_map_opr_code_strings_ext, "Unknown ANSI-MAP PDU (%u)"));
+    //    col_add_fstr(pinfo->cinfo, COL_INFO, "%s ReturnResult ", val_to_str_ext(pinfo->pool, opcode, &ansi_map_opr_code_strings_ext, "Unknown ANSI-MAP PDU (%u)"));
+    //    proto_item_append_text(p_private_tcap->d.OperationCode_item, " %s", val_to_str_ext(pinfo->pool, opcode, &ansi_map_opr_code_strings_ext, "Unknown ANSI-MAP PDU (%u)"));
     //    dissect_returnData(ain_tree, tvb, 0, &asn1_ctx);
     //    break;
     case 3:
-        col_add_fstr(pinfo->cinfo, COL_INFO, "%s ReturnError ", val_to_str(opcode, ain_opr_code_strings, "Unknown AIN PDU (%u)"));
+        col_add_fstr(pinfo->cinfo, COL_INFO, "%s ReturnError ", val_to_str(pinfo->pool, opcode, ain_opr_code_strings, "Unknown AIN PDU (%u)"));
         break;
     case 4:
-        col_add_fstr(pinfo->cinfo, COL_INFO, "%s Reject ", val_to_str(opcode, ain_opr_code_strings, "Unknown AIN PDU (%u)"));
+        col_add_fstr(pinfo->cinfo, COL_INFO, "%s Reject ", val_to_str(pinfo->pool, opcode, ain_opr_code_strings, "Unknown AIN PDU (%u)"));
         break;
     default:
         /* Must be Invoke ReturnResult ReturnError or Reject */
@@ -11482,7 +11483,7 @@ void proto_register_ain(void) {
     static ei_register_info ei[] = {
         { &ei_ain_unknown_invokeData,{ "ain.unknown.invokeData", PI_MALFORMED, PI_WARN, "Unknown invokeData", EXPFILL } },
         { &ei_ain_unknown_returnResultData,{ "ain.unknown.returnResultData", PI_MALFORMED, PI_WARN, "Unknown returnResultData", EXPFILL } },
-        { &ei_ain_unknown_returnErrorData,{ "ain.unknown.returnErrorData", PI_MALFORMED, PI_WARN, "Unknown returnResultData", EXPFILL } },
+        { &ei_ain_unknown_returnErrorData,{ "ain.unknown.returnErrorData", PI_MALFORMED, PI_WARN, "Unknown returnErrorData", EXPFILL } },
     };
 
     expert_module_t* expert_ain;

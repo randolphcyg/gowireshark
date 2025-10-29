@@ -18,7 +18,6 @@
 #include <epan/epan.h>
 #include <epan/epan_dissect.h>
 #include <epan/to_str.h>
-#include <epan/to_str.h>
 #include <epan/expert.h>
 #include <epan/column.h>
 #include <epan/column-info.h>
@@ -26,13 +25,13 @@
 #include <epan/dfilter/dfilter.h>
 #include <epan/prefs.h>
 #include <epan/print.h>
-#include <epan/charsets.h>
 #include <wsutil/array.h>
 #include <wsutil/json_dumper.h>
 #include <wsutil/filesystem.h>
 #include <wsutil/utf8_entities.h>
 #include <wsutil/str_util.h>
 #include <wsutil/ws_assert.h>
+#include <epan/strutil.h>
 #include <ftypes/ftypes.h>
 
 #define PDML_VERSION "0"
@@ -90,6 +89,7 @@ static char *get_field_hex_value(GSList *src_list, field_info *fi);
 static void proto_tree_print_node(proto_node *node, void *data);
 static void proto_tree_write_node_pdml(proto_node *node, void *data);
 static void proto_tree_write_node_ek(proto_node *node, write_json_data *data);
+static struct data_source* get_field_data_source(GSList *src_list, field_info *fi, uint32_t *idx);
 static const uint8_t *get_field_data(GSList *src_list, field_info *fi);
 static void pdml_write_field_hex_value(write_pdml_data *pdata, field_info *fi);
 static void json_write_field_hex_value(write_json_data *pdata, field_info *fi);
@@ -188,7 +188,7 @@ proto_tree_print_node(proto_node *node, void *data)
     }
     else { /* no, make a generic label */
         label_ptr = label_str;
-        proto_item_fill_label(fi, label_str);
+        proto_item_fill_label(fi, label_str, NULL);
     }
 
     if (proto_item_is_generated(node))
@@ -378,8 +378,6 @@ write_ek_proto_tree(output_fields_t* fields,
     json_dumper_set_member_name(&dumper, "index");
     json_dumper_begin_object(&dumper);
     write_json_index(&dumper, edt);
-    json_dumper_set_member_name(&dumper, "_type");
-    json_dumper_value_string(&dumper, "doc");
     json_dumper_end_object(&dumper);
     json_dumper_end_object(&dumper);
     json_dumper_finish(&dumper);
@@ -550,7 +548,7 @@ proto_tree_write_node_pdml(proto_node *node, void *data)
             print_escaped_xml(pdata->fh, fi->rep->representation);
         } else {
             label_ptr = label_str;
-            proto_item_fill_label(fi, label_str);
+            proto_item_fill_label(fi, label_str, NULL);
             fputs("\" showname=\"", pdata->fh);
             print_escaped_xml(pdata->fh, label_ptr);
         }
@@ -576,6 +574,16 @@ proto_tree_write_node_pdml(proto_node *node, void *data)
             break;
         default:
             dfilter_string = fvalue_to_string_repr(NULL, fi->value, FTREPR_DISPLAY, fi->hfinfo->display);
+            /* XXX - doc/README.xml-output describes the show attribute as:
+             * show - the representation of the packet data ('value') as it
+             *        would appear in a display filter.
+             *
+             * which (along with the name of the variable) would argue for using
+             * FTREPR_DFILTER. However, FTREPR_DFILTER adds quotes to some but
+             * not all field types, so it could not be used. The treatment of
+             * FT_ABSOLUTE_VALUE is particularly different between DISPLAY and
+             * DFILTER, though.
+             */
             if (dfilter_string != NULL) {
 
                 fputs("\" show=\"", pdata->fh);
@@ -750,8 +758,6 @@ write_json_proto_tree(output_fields_t* fields,
 
     json_dumper_begin_object(dumper);
     write_json_index(dumper, edt);
-    json_dumper_set_member_name(dumper, "_type");
-    json_dumper_value_string(dumper, "doc");
     json_dumper_set_member_name(dumper, "_score");
     json_dumper_value_string(dumper, NULL);
     json_dumper_set_member_name(dumper, "_source");
@@ -953,49 +959,25 @@ static void
 write_json_proto_node_hex_dump(proto_node *node, write_json_data *pdata)
 {
     field_info *fi = node->finfo;
+    uint32_t src_idx;
 
     json_dumper_begin_array(pdata->dumper);
 
-    if (fi->hfinfo->bitmask!=0) {
-        switch (fvalue_type_ftenum(fi->value)) {
-            case FT_INT8:
-            case FT_INT16:
-            case FT_INT24:
-            case FT_INT32:
-                json_dumper_value_anyf(pdata->dumper, "\"%X\"", (unsigned) fvalue_get_sinteger(fi->value));
-                break;
-            case FT_CHAR:
-            case FT_UINT8:
-            case FT_UINT16:
-            case FT_UINT24:
-            case FT_UINT32:
-                json_dumper_value_anyf(pdata->dumper, "\"%X\"", fvalue_get_uinteger(fi->value));
-                break;
-            case FT_INT40:
-            case FT_INT48:
-            case FT_INT56:
-            case FT_INT64:
-                json_dumper_value_anyf(pdata->dumper, "\"%" PRIX64 "\"", fvalue_get_sinteger64(fi->value));
-                break;
-            case FT_UINT40:
-            case FT_UINT48:
-            case FT_UINT56:
-            case FT_UINT64:
-            case FT_BOOLEAN:
-                json_dumper_value_anyf(pdata->dumper, "\"%" PRIX64 "\"", fvalue_get_uinteger64(fi->value));
-                break;
-            default:
-                ws_assert_not_reached();
-        }
-    } else {
-        json_write_field_hex_value(pdata, fi);
-    }
+    json_write_field_hex_value(pdata, fi);
 
-    /* Dump raw hex-encoded dissected information including position, length, bitmask, type */
+    /* Dump raw hex-encoded dissected information including position, length,
+     * bitmask, type, and data source index. */
+    /* These were added for use by json2pcap, but might be useful for others. */
     json_dumper_value_anyf(pdata->dumper, "%" PRId32, fi->start);
     json_dumper_value_anyf(pdata->dumper, "%" PRId32, fi->length);
     json_dumper_value_anyf(pdata->dumper, "%" PRIu64, fi->hfinfo->bitmask);
     json_dumper_value_anyf(pdata->dumper, "%" PRId32, (int32_t)fvalue_type_ftenum(fi->value));
+
+    if (get_field_data_source(pdata->src_list, fi, &src_idx)) {
+        json_dumper_value_anyf(pdata->dumper, "%" PRIu32, src_idx);
+    } else {
+        json_dumper_value_anyf(pdata->dumper, "null");
+    }
 
     json_dumper_end_array(pdata->dumper);
 }
@@ -1057,7 +1039,7 @@ write_json_proto_node_no_value(proto_node *node, write_json_data *pdata)
             json_dumper_value_string(pdata->dumper, fi->rep->representation);
         } else {
             char label_str[ITEM_LABEL_LENGTH];
-            proto_item_fill_label(fi, label_str);
+            proto_item_fill_label(fi, label_str, NULL);
             json_dumper_value_string(pdata->dumper, label_str);
         }
     } else {
@@ -1273,49 +1255,13 @@ ek_write_name(proto_node *pnode, char* suffix, write_json_data* pdata)
 static void
 ek_write_hex(field_info *fi, write_json_data *pdata)
 {
-    if (fi->hfinfo->bitmask != 0) {
-        switch (fvalue_type_ftenum(fi->value)) {
-            case FT_INT8:
-            case FT_INT16:
-            case FT_INT24:
-            case FT_INT32:
-                json_dumper_value_anyf(pdata->dumper, "\"%X\"", (unsigned) fvalue_get_sinteger(fi->value));
-                break;
-            case FT_CHAR:
-            case FT_UINT8:
-            case FT_UINT16:
-            case FT_UINT24:
-            case FT_UINT32:
-                json_dumper_value_anyf(pdata->dumper, "\"%X\"", fvalue_get_uinteger(fi->value));
-                break;
-            case FT_INT40:
-            case FT_INT48:
-            case FT_INT56:
-            case FT_INT64:
-                json_dumper_value_anyf(pdata->dumper, "\"%" PRIX64 "\"", fvalue_get_sinteger64(fi->value));
-                break;
-            case FT_UINT40:
-            case FT_UINT48:
-            case FT_UINT56:
-            case FT_UINT64:
-            case FT_BOOLEAN:
-                json_dumper_value_anyf(pdata->dumper, "\"%" PRIX64 "\"", fvalue_get_uinteger64(fi->value));
-                break;
-            default:
-                ws_assert_not_reached();
-        }
-    } else {
-        json_write_field_hex_value(pdata, fi);
-    }
+    json_write_field_hex_value(pdata, fi);
 }
 
 static void
 ek_write_field_value(field_info *fi, write_json_data* pdata)
 {
-    char label_str[ITEM_LABEL_LENGTH];
     char *dfilter_string;
-    char time_buf[NSTIME_ISO8601_BUFSIZE];
-    size_t time_len;
 
     /* Text label */
     if (fi->hfinfo->id == hf_text_only && fi->rep) {
@@ -1328,32 +1274,28 @@ ek_write_field_value(field_info *fi, write_json_data* pdata)
                 json_dumper_value_string(pdata->dumper, fi->rep->representation);
             }
             else {
-                proto_item_fill_label(fi, label_str);
-                json_dumper_value_string(pdata->dumper, label_str);
+                json_dumper_value_string(pdata->dumper, fi->hfinfo->name);
             }
             break;
-        case FT_NONE:
-            json_dumper_value_string(pdata->dumper, NULL);
-            break;
         case FT_BOOLEAN:
+            /* XXX - This is to use a JSON boolean literal, though ElasticSearch
+             * supports automatic conversion from "true" and "false" for boolean
+             * types*, so this could be handled, albeit less efficiently due to
+             * the string allocation, by the general case. (*But not from other
+             * truthy or falsy strings like "1" and "0" since 6.0. Compare:
+             * https://www.elastic.co/guide/en/elasticsearch/reference/5.0/boolean.html
+             * https://www.elastic.co/guide/en/elasticsearch/reference/6.0/boolean.html
+             * https://www.elastic.co/docs/reference/elasticsearch/mapping-reference/boolean
+             * )
+             */
             if (fvalue_get_uinteger64(fi->value))
                 json_dumper_value_anyf(pdata->dumper, "true");
             else
                 json_dumper_value_anyf(pdata->dumper, "false");
             break;
-        case FT_ABSOLUTE_TIME:
-            time_len = nstime_to_iso8601(time_buf, sizeof(time_buf), fvalue_get_time(fi->value));
-            if (time_len != 0) {
-                json_dumper_value_anyf(pdata->dumper, "\"%s\"", time_buf);
-            } else {
-                json_dumper_value_anyf(pdata->dumper, "\"Not representable\"");
-            }
-            break;
         default:
-            dfilter_string = fvalue_to_string_repr(NULL, fi->value, FTREPR_DISPLAY, fi->hfinfo->display);
-            if (dfilter_string != NULL) {
-                json_dumper_value_string(pdata->dumper, dfilter_string);
-            }
+            dfilter_string = fvalue_to_string_repr(NULL, fi->value, FTREPR_EK, fi->hfinfo->display);
+            json_dumper_value_string(pdata->dumper, dfilter_string);
             wmem_free(NULL, dfilter_string);
             break;
         }
@@ -1699,7 +1641,7 @@ write_carrays_hex_data(uint32_t num, FILE *fh, epan_dissect_t *edt)
     uint32_t      i = 0, src_num = 0;
     GSList       *src_le;
     tvbuff_t     *tvb;
-    char         *name;
+    char         *description;
     const unsigned char *cp;
     unsigned      length;
     char          ascii[9];
@@ -1715,10 +1657,10 @@ write_carrays_hex_data(uint32_t num, FILE *fh, epan_dissect_t *edt)
 
         cp = tvb_get_ptr(tvb, 0, length);
 
-        name = get_data_source_name(src);
-        if (name) {
-            fprintf(fh, "// %s\n", name);
-            wmem_free(NULL, name);
+        description = get_data_source_description(src);
+        if (description) {
+            fprintf(fh, "// %s\n", description);
+            wmem_free(NULL, description);
         }
         if (src_num) {
             fprintf(fh, "static const unsigned char pkt%u_%u[%u] = {\n",
@@ -1756,6 +1698,35 @@ write_carrays_hex_data(uint32_t num, FILE *fh, epan_dissect_t *edt)
 }
 
 /*
+ * Find the data source for a specified field, and return a pointer to it.
+ * Also returns the index of the data source in the list of data sources
+ * Returns NULL if the field's data source is not in the list of data sources,
+ * in which case idx is not valid.
+ */
+static struct data_source*
+get_field_data_source(GSList *src_list, field_info *fi, uint32_t *idx)
+{
+    GSList   *src_le;
+    struct data_source *src;
+    uint32_t  src_idx = 0;
+
+    for (src_le = src_list; src_le != NULL; src_le = src_le->next) {
+        src = (struct data_source *)src_le->data;
+        if (fi->ds_tvb == get_data_source_tvb(src)) {
+            /*
+             * Found it.
+             */
+            if (idx) {
+                *idx = src_idx;
+            }
+            return src;
+        }
+        src_idx++;
+    }
+    return NULL;  /* not found */
+}
+
+/*
  * Find the data source for a specified field, and return a pointer
  * to the data in it. Returns NULL if the data is out of bounds.
  */
@@ -1763,40 +1734,40 @@ write_carrays_hex_data(uint32_t num, FILE *fh, epan_dissect_t *edt)
  *      Why bother searching for fi->ds_tvb for the matching tvb
  *       in the data_source list ?
  *      IOW: Why not just use fi->ds_tvb for the arg to tvb_get_ptr() ?
+ *
+ *      The effect is that if the field was added to the tree with a
+ *      a tvb whose data source tvb was *not* added to pinfo with
+ *      add_new_data_source, then it won't get printed. But why?
  */
-
 static const uint8_t *
 get_field_data(GSList *src_list, field_info *fi)
 {
-    GSList   *src_le;
     tvbuff_t *src_tvb;
     int       length, tvbuff_length;
     struct data_source *src;
 
-    for (src_le = src_list; src_le != NULL; src_le = src_le->next) {
-        src = (struct data_source *)src_le->data;
+    src = get_field_data_source(src_list, fi, NULL);
+    if (src) {
         src_tvb = get_data_source_tvb(src);
-        if (fi->ds_tvb == src_tvb) {
-            /*
-             * Found it.
-             *
-             * XXX - a field can have a length that runs past
-             * the end of the tvbuff.  Ideally, that should
-             * be fixed when adding an item to the protocol
-             * tree, but checking the length when doing
-             * that could be expensive.  Until we fix that,
-             * we'll do the check here.
-             */
-            tvbuff_length = tvb_captured_length_remaining(src_tvb,
-                                                 fi->start);
-            if (tvbuff_length < 0) {
-                return NULL;
-            }
-            length = fi->length;
-            if (length > tvbuff_length)
-                length = tvbuff_length;
-            return tvb_get_ptr(src_tvb, fi->start, length);
+        /*
+         * Found it.
+         *
+         * XXX - a field can have a length that runs past
+         * the end of the tvbuff.  Ideally, that should
+         * be fixed when adding an item to the protocol
+         * tree, but checking the length when doing
+         * that could be expensive.  Until we fix that,
+         * we'll do the check here.
+         */
+        tvbuff_length = tvb_captured_length_remaining(src_tvb,
+                                             fi->start);
+        if (tvbuff_length < 0) {
+            return NULL;
         }
+        length = fi->length;
+        if (length > tvbuff_length)
+            length = tvbuff_length;
+        return tvb_get_ptr(src_tvb, fi->start, length);
     }
     return NULL;  /* not found */
 }
@@ -1806,70 +1777,16 @@ get_field_data(GSList *src_list, field_info *fi)
 static void
 print_escaped_xml(FILE *fh, const char *unescaped_string)
 {
-    const char *p;
-
-#define ESCAPED_BUFFER_SIZE 256
-#define ESCAPED_BUFFER_LIMIT (ESCAPED_BUFFER_SIZE - (int)sizeof("&quot;"))
-    static char temp_buffer[ESCAPED_BUFFER_SIZE];
-    int         offset = 0;
+    char* buff;
 
     if (fh == NULL || unescaped_string == NULL) {
         return;
     }
 
-    /* XXX: Why not use xml_escape() from epan/strutil.h ? */
-    for (p = unescaped_string; *p != '\0' && (offset <= ESCAPED_BUFFER_LIMIT); p++) {
-        switch (*p) {
-        case '&':
-            (void) g_strlcpy(&temp_buffer[offset], "&amp;", ESCAPED_BUFFER_SIZE-offset);
-            offset += 5;
-            break;
-        case '<':
-            (void) g_strlcpy(&temp_buffer[offset], "&lt;", ESCAPED_BUFFER_SIZE-offset);
-            offset += 4;
-            break;
-        case '>':
-            (void) g_strlcpy(&temp_buffer[offset], "&gt;", ESCAPED_BUFFER_SIZE-offset);
-            offset += 4;
-            break;
-        case '"':
-            (void) g_strlcpy(&temp_buffer[offset], "&quot;", ESCAPED_BUFFER_SIZE-offset);
-            offset += 6;
-            break;
-        case '\'':
-            (void) g_strlcpy(&temp_buffer[offset], "&#x27;", ESCAPED_BUFFER_SIZE-offset);
-            offset += 6;
-            break;
-        case '\t':
-        case '\n':
-        case '\r':
-            temp_buffer[offset++] = *p;
-            break;
-        default:
-            /* XML 1.0 doesn't allow ASCII control characters, except
-             * for the three whitespace ones above (which do *not*
-             * include '\v' and '\f', so not the same group as isspace),
-             * even as character references.
-             * There's no official way to escape them, so we'll do this. */
-            if (g_ascii_iscntrl(*p)) {
-                offset += snprintf(&temp_buffer[offset], ESCAPED_BUFFER_SIZE-offset, "\\x%x", (uint8_t)*p);
-            } else {
-                /* Just copy character */
-                temp_buffer[offset++] = *p;
-            }
-        }
-        if (offset > ESCAPED_BUFFER_LIMIT) {
-            /* Getting close to end of buffer so flush to fh */
-            temp_buffer[offset] = '\0';
-            fputs(temp_buffer, fh);
-            offset = 0;
-        }
-    }
-    if (offset) {
-        /* Flush any outstanding data */
-        temp_buffer[offset] = '\0';
-        fputs(temp_buffer, fh);
-    }
+    buff = xml_escape(unescaped_string);
+
+    fputs(buff, fh);
+    g_free(buff);
 }
 
 static void
@@ -1941,8 +1858,46 @@ json_write_field_hex_value(write_json_data *pdata, field_info *fi)
 {
     const uint8_t *pd;
 
-    if (!fi->ds_tvb)
+    // XXX - Why are uppercase hex digits used if the bitmask is non zero,
+    // and lowercase otherwise? To give a hint that there was a bitmask?
+    if (fi->hfinfo->bitmask!=0) {
+        switch (fvalue_type_ftenum(fi->value)) {
+            case FT_INT8:
+            case FT_INT16:
+            case FT_INT24:
+            case FT_INT32:
+                json_dumper_value_anyf(pdata->dumper, "\"%X\"", (unsigned) fvalue_get_sinteger(fi->value));
+                return;
+            case FT_CHAR:
+            case FT_UINT8:
+            case FT_UINT16:
+            case FT_UINT24:
+            case FT_UINT32:
+                json_dumper_value_anyf(pdata->dumper, "\"%X\"", fvalue_get_uinteger(fi->value));
+                return;
+            case FT_INT40:
+            case FT_INT48:
+            case FT_INT56:
+            case FT_INT64:
+                json_dumper_value_anyf(pdata->dumper, "\"%" PRIX64 "\"", fvalue_get_sinteger64(fi->value));
+                return;
+            case FT_UINT40:
+            case FT_UINT48:
+            case FT_UINT56:
+            case FT_UINT64:
+            case FT_BOOLEAN:
+                json_dumper_value_anyf(pdata->dumper, "\"%" PRIX64 "\"", fvalue_get_uinteger64(fi->value));
+                return;
+            default:
+                ws_assert_not_reached();
+        }
+    }
+
+    if (!fi->ds_tvb) {
+        // Should this be null instead of the empty string?
+        json_dumper_value_string(pdata->dumper, "");
         return;
+    }
 
     if (fi->length > tvb_captured_length_remaining(fi->ds_tvb, fi->start)) {
         json_dumper_value_string(pdata->dumper, "field length invalid!");
@@ -1966,6 +1921,7 @@ json_write_field_hex_value(write_json_data *pdata, field_info *fi)
         json_dumper_value_string(pdata->dumper, str);
         g_free(str);
     } else {
+        // Should this be null instead of the empty string?
         json_dumper_value_string(pdata->dumper, "");
     }
 }
@@ -1976,11 +1932,16 @@ print_hex_data(print_stream_t *stream, epan_dissect_t *edt, unsigned hexdump_opt
     bool          multiple_sources;
     GSList       *src_le;
     tvbuff_t     *tvb;
-    char         *line, *name;
+    char         *line, *description;
     const unsigned char *cp;
     unsigned      length;
     struct data_source *src;
+    char          timebuf[NSTIME_ISO8601_BUFSIZE];
 
+    if ((HEXDUMP_TIMESTAMP_OPTION(hexdump_options) == HEXDUMP_TIMESTAMP)) {
+        set_fd_time(edt->session, edt->pi.fd, timebuf);
+        print_line(stream, 0, timebuf);
+    }
     /*
      * Set "multiple_sources" iff this frame has more than one
      * data source; if it does, we need to print the name of
@@ -1994,9 +1955,9 @@ print_hex_data(print_stream_t *stream, epan_dissect_t *edt, unsigned hexdump_opt
         src = (struct data_source *)src_le->data;
         tvb = get_data_source_tvb(src);
         if (multiple_sources && (HEXDUMP_SOURCE_OPTION(hexdump_options) == HEXDUMP_SOURCE_MULTI)) {
-            name = get_data_source_name(src);
-            line = ws_strdup_printf("%s:", name);
-            wmem_free(NULL, name);
+            description = get_data_source_description(src);
+            line = ws_strdup_printf("%s:", description);
+            wmem_free(NULL, description);
             print_line(stream, 0, line);
             g_free(line);
         }
@@ -2464,14 +2425,14 @@ static void proto_tree_get_node_field_values(proto_node *node, void *data)
     call_data = (write_field_data_t *)data;
     fi = PNODE_FINFO(node);
 
-    /* dissection with an invisible proto tree? */
-    ws_assert(fi);
-
-    field_index = g_hash_table_lookup(call_data->fields->field_indicies, fi->hfinfo->abbrev);
-    if (NULL != field_index) {
-        format_field_values(call_data->fields, field_index,
-                            get_node_field_value(fi, call_data->edt) /* g_ alloc'd string */
-            );
+    /* check for a faked item with an invisible tree */
+    if (fi) {
+        field_index = g_hash_table_lookup(call_data->fields->field_indicies, fi->hfinfo->abbrev);
+        if (NULL != field_index) {
+            format_field_values(call_data->fields, field_index,
+                                get_node_field_value(fi, call_data->edt) /* g_ alloc'd string */
+                );
+        }
     }
 
     /* Recurse here. */
@@ -2483,7 +2444,7 @@ static void proto_tree_get_node_field_values(proto_node *node, void *data)
 
 static void write_specified_fields(fields_format format, output_fields_t *fields, epan_dissect_t *edt, column_info *cinfo _U_, FILE *fh, json_dumper *dumper)
 {
-    size_t    i;
+    unsigned    i;
 
     write_field_data_t data;
 

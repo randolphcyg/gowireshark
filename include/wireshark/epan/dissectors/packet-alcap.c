@@ -445,7 +445,7 @@ static const char* dissect_fields_cau(packet_info* pinfo, tvbuff_t *tvb, proto_t
         if ( msg_info->release_cause && msg_info->release_cause != 31 )
             expert_add_info(pinfo, pi, &ei_alcap_abnormal_release);
 
-        ret_str = val_to_str(msg_info->release_cause, cause_values_itu, "Unknown(%u)");
+        ret_str = val_to_str(pinfo->pool, msg_info->release_cause, cause_values_itu, "Unknown(%u)");
     } else {
         proto_tree_add_item(tree, hf_alcap_cau_value_non_itu, tvb, offset+1 , 1, ENC_BIG_ENDIAN);
         ret_str = wmem_strdup_printf(pinfo->pool, "%u", msg_info->release_cause);
@@ -590,7 +590,7 @@ static const char* dissect_fields_dnsea(packet_info* pinfo, tvbuff_t *tvb, proto
     msg_info->dest_nsap = tvb_bytes_to_str(pinfo->pool, tvb,offset,20);
 
     proto_tree_add_item(tree, hf_alcap_dnsea, tvb, offset, 20, ENC_NA);
-    dissect_nsap(tvb, offset,20, tree);
+    dissect_nsap(tvb, pinfo, offset,20, tree);
 
     return NULL;
 }
@@ -610,7 +610,7 @@ static const char* dissect_fields_onsea(packet_info* pinfo, tvbuff_t *tvb, proto
     msg_info->orig_nsap = tvb_bytes_to_str(pinfo->pool, tvb,offset,20);
 
     proto_tree_add_item(tree, hf_alcap_onsea, tvb, offset, 20, ENC_NA);
-    dissect_nsap(tvb, offset,20, tree);
+    dissect_nsap(tvb, pinfo, offset,20, tree);
 
     return NULL;
 }
@@ -2381,7 +2381,7 @@ proto_register_alcap(void)
         { &ei_alcap_undecoded, { "alcap.undecoded", PI_UNDECODED, PI_WARN, "Undecoded", EXPFILL }},
         { &ei_alcap_release_cause_not31, { "alcap.leg.cause.not31", PI_RESPONSE_CODE, PI_WARN, "Leg Release cause != 31", EXPFILL }},
         { &ei_alcap_abnormal_release, { "alcap.abnormal_release", PI_RESPONSE_CODE, PI_WARN, "Abnormal Release", EXPFILL }},
-        { &ei_alcap_response, { "alcap.response", PI_RESPONSE_CODE, PI_NOTE, " ", EXPFILL }},
+        { &ei_alcap_response, { "alcap.response", PI_RESPONSE_CODE, PI_NOTE, "Response", EXPFILL }},
     };
 
     proto_alcap = proto_register_protocol(alcap_proto_name, alcap_proto_name_short, "alcap");

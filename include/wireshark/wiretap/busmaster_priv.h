@@ -16,9 +16,6 @@
 #include <wiretap/wtap.h>
 #include <wiretap/socketcan.h>
 
-//#define BUSMASTER_DEBUG
-//#define BUSMASTER_PARSER_TRACE
-
 typedef enum {
     LOG_ENTRY_ERROR = -1,
     LOG_ENTRY_NONE = 0,
@@ -50,16 +47,6 @@ typedef enum {
     TIME_MODE_RELATIVE,
 } time_mode_t;
 
-typedef enum {
-    MSG_TYPE_STD,
-    MSG_TYPE_EXT,
-    MSG_TYPE_STD_RTR,
-    MSG_TYPE_EXT_RTR,
-    MSG_TYPE_STD_FD,
-    MSG_TYPE_EXT_FD,
-    MSG_TYPE_ERR,
-} msg_type_t;
-
 typedef struct {
     unsigned year;
     unsigned month;
@@ -74,20 +61,15 @@ typedef struct {
 } msg_time_t;
 
 typedef struct {
-    msg_date_t date;
-    msg_time_t time;
+    msg_date_t d;
+    msg_time_t t;
 } msg_date_time_t;
 
 typedef struct {
-    unsigned   length;
-    uint8_t    data[CANFD_MAX_DLEN];
-} msg_data_t;
-
-typedef struct {
     msg_time_t timestamp;
-    msg_type_t type;
+    wtap_can_msg_type_t type;
     uint32_t   id;
-    msg_data_t data;
+    wtap_can_msg_data_t data;
 } msg_t;
 
 typedef struct {
@@ -103,8 +85,7 @@ typedef struct {
     protocol_type_t  protocol;
     data_mode_t data_mode;
     time_mode_t time_mode;
-    msg_date_t  start_date;
-    msg_time_t  start_time;
+    msg_date_time_t  start;
 } busmaster_priv_t;
 
 typedef struct {
@@ -125,12 +106,5 @@ typedef struct {
 bool
 run_busmaster_parser(busmaster_state_t *state,
                      int               *err, char **err_info);
-
-#ifdef BUSMASTER_DEBUG
-#include <stdio.h>
-#define busmaster_debug_printf(...) printf(__VA_ARGS__)
-#else
-#define busmaster_debug_printf(...) (void)0
-#endif
 
 #endif  /* BUSMASTER_PRIV_H__ */

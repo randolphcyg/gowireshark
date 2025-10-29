@@ -666,7 +666,7 @@ dissect_obdii_mode_01(tvbuff_t *tvb, struct obdii_packet_info *oinfo, proto_tree
 	int value_offset;
 	bool handled = false;
 
-	col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, "- %s", val_to_str_ext(pid, &obdii_mode01_pid_vals_ext, "Unknown (%.2x)"));
+	col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, "- %s", val_to_str_ext(oinfo->pinfo->pool, pid, &obdii_mode01_pid_vals_ext, "Unknown (%.2x)"));
 	proto_tree_add_uint(tree, hf_obdii_mode01_pid, tvb, OBDII_PID_POS, 1, pid);
 
 	proto_tree_add_item(tree, hf_obdii_raw_value, tvb, OBDII_VAL_OFF, MIN(oinfo->value_bytes, 4), ENC_NA);
@@ -724,8 +724,8 @@ dissect_obdii_mode_01(tvbuff_t *tvb, struct obdii_packet_info *oinfo, proto_tree
 			uint8_t fuel_system1_val = oinfo->valueA;
 			uint8_t fuel_system2_val = oinfo->valueB;
 
-			col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, ": System 1: %s", val_to_str(fuel_system1_val, obdii_fuel_system_status_vals, "Unknown (%.2X)"));
-			col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, ", System 2: %s", val_to_str(fuel_system2_val, obdii_fuel_system_status_vals, "Unknown (%.2X)"));
+			col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, ": System 1: %s", val_to_str(oinfo->pinfo->pool, fuel_system1_val, obdii_fuel_system_status_vals, "Unknown (%.2X)"));
+			col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, ", System 2: %s", val_to_str(oinfo->pinfo->pool, fuel_system2_val, obdii_fuel_system_status_vals, "Unknown (%.2X)"));
 
 			proto_tree_add_uint(tree, hf_obdii_mode01_fuel_system1_status, tvb, value_offset + 0, 1, fuel_system1_val);
 			proto_tree_add_uint(tree, hf_obdii_mode01_fuel_system2_status, tvb, value_offset + 1, 1, fuel_system2_val);
@@ -819,7 +819,7 @@ dissect_obdii_mode_01(tvbuff_t *tvb, struct obdii_packet_info *oinfo, proto_tree
 		{
 			uint8_t air_status = oinfo->valueA;
 
-			col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, ": %s", val_to_str(air_status, obdii_secondary_air_status_vals, "Unknown (%.2X)"));
+			col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, ": %s", val_to_str(oinfo->pinfo->pool, air_status, obdii_secondary_air_status_vals, "Unknown (%.2X)"));
 			proto_tree_add_uint(tree, hf_obdii_mode01_secondary_air_status, tvb, value_offset, oinfo->value_bytes, air_status);
 		}
 		break;
@@ -908,7 +908,7 @@ dissect_obdii_mode_01(tvbuff_t *tvb, struct obdii_packet_info *oinfo, proto_tree
 		{
 			uint8_t val = oinfo->valueA;
 
-			col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, ": %s", val_to_str(val, obdii_standards_vals, "Unknown (%u)"));
+			col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, ": %s", val_to_str(oinfo->pinfo->pool, val, obdii_standards_vals, "Unknown (%u)"));
 			proto_tree_add_uint(tree, hf_obdii_mode01_obd_standards, tvb, value_offset, oinfo->value_bytes, val);
 		}
 		break;
@@ -1132,7 +1132,7 @@ dissect_obdii_mode_01(tvbuff_t *tvb, struct obdii_packet_info *oinfo, proto_tree
 		{
 			uint8_t val = oinfo->valueA;
 
-			col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, ": %s", val_to_str(val, obdii_fuel_type_coding_vals, "Unknown (%u)"));
+			col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, ": %s", val_to_str(oinfo->pinfo->pool, val, obdii_fuel_type_coding_vals, "Unknown (%u)"));
 			proto_tree_add_uint(tree, hf_obdii_mode01_fuel_type, tvb, value_offset, oinfo->value_bytes, val);
 		}
 		break;
@@ -1250,7 +1250,7 @@ dissect_obdii_mode_09(tvbuff_t *tvb, struct obdii_packet_info *oinfo, proto_tree
 	uint8_t pid = tvb_get_uint8(tvb, OBDII_PID_POS);
 	int value_offset;
 
-	col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, "- %s", val_to_str_ext(pid, &obdii_mode09_pid_vals_ext, "Unknown (%.2x)"));
+	col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, "- %s", val_to_str_ext(oinfo->pinfo->pool, pid, &obdii_mode09_pid_vals_ext, "Unknown (%.2x)"));
 	proto_tree_add_uint(tree, hf_obdii_mode09_pid, tvb, OBDII_PID_POS, 1, pid);
 
 	value_offset = OBDII_VAL_OFF;
@@ -1302,12 +1302,12 @@ dissect_obdii_query(tvbuff_t *tvb, struct obdii_packet_info *oinfo, proto_tree *
 	else
 		return 0;
 
-	mode_str = val_to_str(oinfo->mode, obdii_mode_vals, "Unknown (%.2x)");
+	mode_str = val_to_str(oinfo->pinfo->pool, oinfo->mode, obdii_mode_vals, "Unknown (%.2x)");
 
 	switch (oinfo->mode)
 	{
 	case 0x01:
-		pid_str = val_to_str_ext(pid, &obdii_mode01_pid_vals_ext, "Unknown (%.2x)");
+		pid_str = val_to_str_ext(oinfo->pinfo->pool, pid, &obdii_mode01_pid_vals_ext, "Unknown (%.2x)");
 		proto_tree_add_uint(tree, hf_obdii_mode01_pid, tvb, OBDII_PID_POS, pid_len, pid);
 		col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, " Request[%.3x] %s - %s", oinfo->can_id, mode_str, pid_str);
 		break;
@@ -1318,13 +1318,13 @@ dissect_obdii_query(tvbuff_t *tvb, struct obdii_packet_info *oinfo, proto_tree *
 		break;
 
 	case 0x09:
-		pid_str = val_to_str_ext(pid, &obdii_mode09_pid_vals_ext, "Unknown (%.2x)");
+		pid_str = val_to_str_ext(oinfo->pinfo->pool, pid, &obdii_mode09_pid_vals_ext, "Unknown (%.2x)");
 		proto_tree_add_uint(tree, hf_obdii_mode09_pid, tvb, OBDII_PID_POS, pid_len, pid);
 		col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, " Request[%.3x] %s - %s", oinfo->can_id, mode_str, pid_str);
 		break;
 
 	default:
-		pid_str = wmem_strdup_printf(wmem_packet_scope(), "Unknown (%.2x)", pid);
+		pid_str = wmem_strdup_printf(oinfo->pinfo->pool, "Unknown (%.2x)", pid);
 		col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, " Request[%.3x] %s - %s", oinfo->can_id, mode_str, pid_str);
 		break;
 	}
@@ -1335,7 +1335,7 @@ dissect_obdii_query(tvbuff_t *tvb, struct obdii_packet_info *oinfo, proto_tree *
 static int
 dissect_obdii_response(tvbuff_t *tvb, struct obdii_packet_info *oinfo, proto_tree *tree)
 {
-	col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, "Response[%.3x] %s ", oinfo->can_id, val_to_str(oinfo->mode, obdii_mode_vals, "Unknown (%.2x)"));
+	col_append_fstr(oinfo->pinfo->cinfo, COL_INFO, "Response[%.3x] %s ", oinfo->can_id, val_to_str(oinfo->pinfo->pool, oinfo->mode, obdii_mode_vals, "Unknown (%.2x)"));
 
 	if (oinfo->mode == 0x04 && oinfo->data_bytes == 0x01) {
 		return tvb_captured_length(tvb);

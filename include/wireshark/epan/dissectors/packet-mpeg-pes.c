@@ -19,12 +19,17 @@
 #include <epan/packet.h>
 #include <epan/asn1.h>
 #include <epan/expert.h>
+#include <epan/tap.h>
+#include <epan/addr_resolv.h>
+#include <epan/follow.h>
 
 #include <wsutil/array.h>
 
 #include <wiretap/wtap.h>
 
 #include "packet-per.h"
+#include "packet-mp2t.h"
+#include "packet-udp.h"
 
 static int hf_mpeg_pes_prefix;                    /* OCTET_STRING_SIZE_3 */
 static int hf_mpeg_pes_stream;                    /* T_stream */
@@ -106,7 +111,53 @@ static const value_string mpeg_pes_T_stream_vals[] = {
   { 190, "padding-stream" },
   { 191, "private-stream-2" },
   { 192, "audio-stream" },
+  { 193, "audio-stream-1" },
+  { 194, "audio-stream-2" },
+  { 195, "audio-stream-3" },
+  { 196, "audio-stream-4" },
+  { 197, "audio-stream-5" },
+  { 198, "audio-stream-6" },
+  { 199, "audio-stream-7" },
+  { 200, "audio-stream-8" },
+  { 201, "audio-stream-9" },
+  { 202, "audio-stream-10" },
+  { 203, "audio-stream-11" },
+  { 204, "audio-stream-12" },
+  { 205, "audio-stream-13" },
+  { 206, "audio-stream-14" },
+  { 207, "audio-stream-15" },
+  { 208, "audio-stream-16" },
+  { 209, "audio-stream-17" },
+  { 210, "audio-stream-18" },
+  { 211, "audio-stream-19" },
+  { 212, "audio-stream-20" },
+  { 213, "audio-stream-21" },
+  { 214, "audio-stream-22" },
+  { 215, "audio-stream-23" },
+  { 216, "audio-stream-24" },
+  { 217, "audio-stream-25" },
+  { 218, "audio-stream-26" },
+  { 219, "audio-stream-27" },
+  { 220, "audio-stream-28" },
+  { 221, "audio-stream-29" },
+  { 222, "audio-stream-30" },
+  { 223, "audio-stream-31" },
   { 224, "video-stream" },
+  { 225, "video-stream-1" },
+  { 226, "video-stream-2" },
+  { 227, "video-stream-3" },
+  { 228, "video-stream-4" },
+  { 229, "video-stream-5" },
+  { 230, "video-stream-6" },
+  { 231, "video-stream-7" },
+  { 232, "video-stream-8" },
+  { 233, "video-stream-9" },
+  { 234, "video-stream-10" },
+  { 235, "video-stream-11" },
+  { 236, "video-stream-12" },
+  { 237, "video-stream-13" },
+  { 238, "video-stream-14" },
+  { 239, "video-stream-15" },
   { 0, NULL }
 };
 
@@ -496,6 +547,8 @@ static dissector_handle_t mpeg_handle;
 
 static dissector_table_t stream_type_table;
 
+static int mpeg_pes_follow_tap;
+
 enum { PES_PREFIX = 1 };
 
 /*
@@ -549,7 +602,9 @@ enum {
 	STREAM_PADDING = 0xbe,
 	STREAM_PRIVATE2 = 0xbf,
 	STREAM_AUDIO = 0xc0,
-	STREAM_VIDEO = 0xe0
+	STREAM_AUDIO_MAX = 0xdf,
+	STREAM_VIDEO = 0xe0,
+	STREAM_VIDEO_MAX = 0xef
 };
 
 enum {
@@ -843,7 +898,7 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 	col_clear(pinfo->cinfo, COL_INFO);
 
 	stream = tvb_get_uint8(tvb, 3);
-	col_add_fstr(pinfo->cinfo, COL_INFO, "%s ", val_to_str(stream, mpeg_pes_T_stream_vals, "Unknown stream: %d"));
+	col_add_fstr(pinfo->cinfo, COL_INFO, "%s ", val_to_str(pinfo->pool, stream, mpeg_pes_T_stream_vals, "Unknown stream: %d"));
 
 	/* Were we called from MP2T providing a stream type from a PMT? */
 	stream_type = GPOINTER_TO_UINT(data);
@@ -861,7 +916,7 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 		int frame_type;
 
 		frame_type = tvb_get_uint8(tvb, 5) >> 3 & 0x07;
-		col_add_fstr(pinfo->cinfo, COL_INFO, "%s ", val_to_str(frame_type, mpeg_pes_T_frame_type_vals, "Unknown frame type: %d"));
+		col_add_fstr(pinfo->cinfo, COL_INFO, "%s ", val_to_str(pinfo->pool, frame_type, mpeg_pes_T_frame_type_vals, "Unknown frame type: %d"));
 
 		offset = dissect_mpeg_pes_Picture(tvb, offset, &asn1_ctx,
 				tree, hf_mpeg_video_picture);
@@ -975,7 +1030,9 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 				 * the formats of those payloads specified?)
 				 */
 				length -= ((offset - save_offset) / 8) - 2;
-			} else if (stream != STREAM_VIDEO) {
+			} else if (!(stream == STREAM_PRIVATE1 && (stream_type == 0x21 || stream_type == 0x32))
+				&& (stream < STREAM_VIDEO || stream > STREAM_VIDEO_MAX)) {
+				/* Video with PES length == 0 can also be stream_private_1 with stream_type 0x21 (JPEG 2000) or 0x32 (JPEG XS). */
 				proto_tree_add_expert(tree, pinfo, &ei_mpeg_pes_length_zero, tvb, save_offset / 8, 2);
 			}
 
@@ -998,7 +1055,21 @@ dissect_mpeg_pes(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 			} else {
 				es = tvb_new_subset_length(tvb, offset / 8, length);
 			}
-			if (!dissector_try_uint_new(stream_type_table, stream_type, es, pinfo, tree, true, NULL)) {
+			if (have_tap_listener(mpeg_pes_follow_tap)) {
+				tap_queue_packet(mpeg_pes_follow_tap, pinfo, es);
+			}
+                        /* Try to dissect according to the stream type, if
+                         * we have it. For video in DVB an access unit starts
+                         * immediately after the PES header, access units are
+                         * contained within one PES packet and multiple access
+                         * units shall not be sent per PES packet unless they
+                         * fit in the same transport packet (ETSI TS 101 154).
+                         * This is not guaranteed for audio frames, so proper
+                         * dissction there should involve looking for frame
+                         * sync and reassembling across PES packet boundaries
+                         * if necessary.
+                         */
+			if (!dissector_try_uint_with_data(stream_type_table, stream_type, es, pinfo, tree, true, NULL)) {
 				/* If we didn't get a stream type, then assume
 				 * MPEG-1/2 Audio or Video.
 				 */
@@ -1386,6 +1457,12 @@ proto_register_mpeg_pes(void)
 	expert_register_field_array(expert_mpeg_pes, ei_pes, array_length(ei_pes));
 
 	stream_type_table = register_dissector_table("mpeg-pes.stream", "MPEG PES stream type", proto_mpeg_pes, FT_UINT8, BASE_HEX);
+
+	mpeg_pes_follow_tap = register_tap("mpeg-pes_follow");
+
+        /* MPEG2 TS is sometimes carried on UDP or RTP on UDP, so using the UDP
+         * address filter is better than nothing for tshark. */
+	register_follow_stream(proto_mpeg_pes, "mpeg-pes_follow", mp2t_follow_conv_filter, mp2t_follow_index_filter, udp_follow_address_filter, udp_port_to_display, follow_tvb_tap_listener, mp2t_get_stream_count, mp2t_get_sub_stream_id);
 }
 
 void

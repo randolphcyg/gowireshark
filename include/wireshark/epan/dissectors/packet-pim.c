@@ -18,6 +18,8 @@
 #include <epan/expert.h>
 #include <epan/in_cksum.h>
 #include <epan/to_str.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-igmp.h"
 
 void proto_register_pim(void);
@@ -69,7 +71,7 @@ void proto_reg_handoff_pim(void);
 #define PIM_HELLO_VAR_POP_COUNT 29  /* variable Pop-Count [RFC6807] */
 #define PIM_HELLO_MT_ID 30          /* PIM MT-ID [RFC6420] */
 #define PIM_HELLO_INT_ID 31         /* Interface ID [RFC6395] */
-#define PIM_HELLO_ECMP_REDIR  32    /* PIM ECMP Redirect Hello Option [RFC6754] */
+#define PIM_HELLO_ECMP_REDIR 32     /* PIM ECMP Redirect Hello Option [RFC6754] */
 #define PIM_HELLO_VPC_PEER_ID 33    /* 2 vPC Peer ID */
 #define PIM_HELLO_DR_LB_CAPA 34     /* variable DR Load Balancing Capability [RFC8775] */
 #define PIM_HELLO_DR_LB_LIST 35     /* variable DR Load Balancing List [RFC8775] */
@@ -340,6 +342,7 @@ static int ett_pim_opt;
 static int ett_pim_addr_flags;
 
 static expert_field ei_pim_cksum;
+static expert_field ei_pim_unknown_src_type;
 
 static dissector_handle_t pim_handle;
 static dissector_handle_t pimv1_handle;
@@ -485,7 +488,7 @@ static const value_string unique_infinity_t[] = {
 /* This function is only called from the IGMP dissector */
 static int
 dissect_pimv1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_) {
-    uint8_t pim_type;
+    uint32_t pim_type;
     uint8_t pim_ver;
     unsigned length, pim_length;
     vec_t cksum_vec[1];
@@ -505,11 +508,8 @@ dissect_pimv1(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 
     offset += 1;
 
-    pim_type = tvb_get_uint8(tvb, offset);
-    col_add_str(pinfo->cinfo, COL_INFO,
-                    val_to_str(pim_type, pim_type1_vals, "Unknown (%u)"));
-
-    proto_tree_add_uint(pim_tree, hf_pim_code, tvb, offset, 1, pim_type);
+    proto_tree_add_item_ret_uint(pim_tree, hf_pim_code, tvb, offset, 1, ENC_NA, &pim_type);
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, pim_type, pim_type1_vals, "Unknown (%u)"));
     offset += 1;
 
     pim_ver = PIM_VER(tvb_get_uint8(tvb, offset + 2));
@@ -1108,12 +1108,12 @@ dissect_pim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
     switch (PIM_VER(pim_typever)) {
     case 2:
         if (PIM_TYPE(pim_typever) < 12) {
-            typestr = val_to_str(PIM_TYPE(pim_typever), pimtypevals, "Unknown (%u)");
+            typestr = val_to_str(pinfo->pool, PIM_TYPE(pim_typever), pimtypevals, "Unknown (%u)");
         } else if ((PIM_TYPE(pim_typever) == PIM_TYPE_PACKED_REGISTER)) {
             /*
              * Need only the first 4 bits for subtype as per the new PIM Common header.
              */
-            typestr = val_to_str(pim_subtype, pimtype13subtypevals, "Unknown (%u)");
+            typestr = val_to_str(pinfo->pool, pim_subtype, pimtype13subtypevals, "Unknown (%u)");
         } else {
             typestr = "Unknown";
         }
@@ -1216,7 +1216,9 @@ dissect_pim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
             break;
         default:
             /* PIM is available for IPv4 and IPv6 right now */
-            DISSECTOR_ASSERT_NOT_REACHED();
+            expert_add_info_format(pinfo, ti, &ei_pim_unknown_src_type,
+                                   "Unknown/unsupported source type (%u)",
+                                   pinfo->src.type);
             break;
         }
     } else {
@@ -1249,7 +1251,7 @@ dissect_pim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
             opt_len = tvb_get_ntohs(tvb, offset + 2);
             opt_tree = proto_tree_add_subtree_format(pimopt_tree, tvb, offset, 4 + opt_len,
                                            ett_pim_opt, &opt_item, "Option %u: %s", hello_opt,
-                                           val_to_str(hello_opt, pim_opt_vals, "Unknown: %u"));
+                                           val_to_str(pinfo->pool, hello_opt, pim_opt_vals, "Unknown: %u"));
             proto_tree_add_item(opt_tree, hf_pim_optiontype, tvb, offset, 2, ENC_BIG_ENDIAN);
             proto_tree_add_item(opt_tree, hf_pim_optionlength, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
 
@@ -1698,7 +1700,7 @@ dissect_pim(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
             pfm_opt = pfm & 0x7FFF;
             opt_tree = proto_tree_add_subtree_format(pimopt_tree, tvb, offset, 4 + opt_len,
                                            ett_pim_opt, &opt_item, "Option %u: %s", pfm_opt,
-                                           val_to_str(pfm_opt, pim_opt_vals1, "Unknown: %u"));
+                                           val_to_str(pinfo->pool, pfm_opt, pim_opt_vals1, "Unknown: %u"));
             proto_tree_add_item(opt_tree, hf_pim_transitivetype, tvb, offset, 1, ENC_BIG_ENDIAN);
             proto_tree_add_item(opt_tree, hf_pim_optiontype1, tvb, offset, 2, ENC_BIG_ENDIAN);
             proto_tree_add_item(opt_tree, hf_pim_optionlength, tvb, offset + 2, 2, ENC_BIG_ENDIAN);
@@ -2385,7 +2387,8 @@ proto_register_pim(void)
     };
 
     static ei_register_info ei[] = {
-        { &ei_pim_cksum, { "pim.bad_checksum", PI_CHECKSUM, PI_ERROR, "Bad checksum", EXPFILL }},
+        { &ei_pim_cksum,            { "pim.bad_checksum", PI_CHECKSUM, PI_ERROR, "Bad checksum", EXPFILL }},
+        { &ei_pim_unknown_src_type, { "pim.unsupported_address_family", PI_UNDECODED, PI_ERROR, "Unsupported address family type", EXPFILL }}
     };
 
     expert_module_t* expert_pim;

@@ -15,6 +15,8 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/nlpid.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-osi.h"
 #include "packet-isis.h"
 #include "packet-isis-clv.h"
@@ -388,10 +390,10 @@ dissect_hello_mt_port_cap_port_trill_ver_clv(tvbuff_t *tvb, packet_info* pinfo _
 
     offset++;
 
-    proto_tree_add_item(subtree, hf_isis_hello_trill_hello_reduction, tvb, offset, 4, ENC_NA);
-    proto_tree_add_item(subtree, hf_isis_hello_trill_unassigned_1, tvb, offset, 4, ENC_NA);
-    proto_tree_add_item(subtree, hf_isis_hello_trill_hop_by_hop_flags, tvb, offset, 4, ENC_NA);
-    proto_tree_add_item(subtree, hf_isis_hello_trill_unassigned_2, tvb, offset, 4, ENC_NA);
+    proto_tree_add_item(subtree, hf_isis_hello_trill_hello_reduction, tvb, offset, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(subtree, hf_isis_hello_trill_unassigned_1, tvb, offset, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(subtree, hf_isis_hello_trill_hop_by_hop_flags, tvb, offset, 4, ENC_BIG_ENDIAN);
+    proto_tree_add_item(subtree, hf_isis_hello_trill_unassigned_2, tvb, offset, 4, ENC_BIG_ENDIAN);
 }
 
 static void
@@ -1670,8 +1672,8 @@ proto_register_isis_hello(void)
     };
 
     static ei_register_info ei[] = {
-        { &ei_isis_hello_short_pdu, { "isis.lsp.hello_pdu", PI_MALFORMED, PI_ERROR, "PDU length less than header length", EXPFILL }},
-        { &ei_isis_hello_long_pdu, { "isis.lsp.hello_pdu", PI_MALFORMED, PI_ERROR, "PDU length greater than packet length", EXPFILL }},
+        { &ei_isis_hello_short_pdu, { "isis.lsp.hello_pdu.bad_length", PI_MALFORMED, PI_ERROR, "PDU length less than header length", EXPFILL }},
+        { &ei_isis_hello_long_pdu, { "isis.lsp.hello_pdu.bad_length", PI_MALFORMED, PI_ERROR, "PDU length greater than packet length", EXPFILL }},
         { &ei_isis_hello_bad_checksum, { "isis.hello.bad_checksum", PI_CHECKSUM, PI_ERROR, "Bad checksum", EXPFILL }},
         { &ei_isis_hello_subtlv, { "isis.hello.subtlv.unknown", PI_PROTOCOL, PI_WARN, "Unknown Sub-TLV", EXPFILL }},
         { &ei_isis_hello_authentication, { "isis.hello.authentication.unknown", PI_PROTOCOL, PI_WARN, "Unknown authentication type", EXPFILL }},

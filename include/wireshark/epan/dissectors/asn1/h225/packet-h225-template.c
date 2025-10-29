@@ -236,6 +236,24 @@ h225rassrt_packet(void *phs, packet_info *pinfo _U_, epan_dissect_t *edt _U_, co
   return TAP_PACKET_REDRAW;
 }
 
+static void h225_set_cs_type(packet_info *pinfo, h225_packet_info* h225_pi, h225_cs_type cs_type, bool faststart)
+{
+  if (h225_pi == NULL)
+    return;
+
+  h225_pi->cs_type = cs_type;
+  /* XXX - Why not always use contains_faststart or h225_pi->is_faststart
+   * There are some UUIEs (e.g., Facility-UUIE) where a fastStart can be
+   * included but the path adding extra to the label has never been used.
+   * Is that an oversight or intentional?
+   */
+  if (faststart) {
+    h225_pi->frame_label = wmem_strdup_printf(pinfo->pool, "%s OLC (%s)", val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"), h225_pi->frame_label);
+  } else {
+    h225_pi->frame_label = wmem_strdup(pinfo->pool, val_to_str_const(h225_pi->cs_type, T_h323_message_body_vals, "<unknown>"));
+  }
+}
+
 #include "packet-h225-fn.c"
 
 /* Forward declaration we need below */
@@ -809,11 +827,11 @@ void proto_register_h225(void) {
 
   { &hf_h225_ras_req_frame,
     { "RAS Request Frame", "h225.ras.reqframe", FT_FRAMENUM, BASE_NONE,
-    NULL, 0, NULL, HFILL }},
+    FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0, NULL, HFILL }},
 
   { &hf_h225_ras_rsp_frame,
     { "RAS Response Frame", "h225.ras.rspframe", FT_FRAMENUM, BASE_NONE,
-    NULL, 0, NULL, HFILL }},
+    FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0, NULL, HFILL }},
 
   { &hf_h225_ras_dup,
     { "Duplicate RAS Message", "h225.ras.dup", FT_UINT32, BASE_DEC,
@@ -914,6 +932,8 @@ void proto_register_h225(void) {
   oid_add_from_string("Version 4","0.0.8.2250.0.4");
   oid_add_from_string("Version 5","0.0.8.2250.0.5");
   oid_add_from_string("Version 6","0.0.8.2250.0.6");
+
+#include "packet-h225-reg_vs.c"
 }
 
 
@@ -950,6 +970,7 @@ static h225_packet_info* create_h225_packet_info(packet_info *pinfo)
   pi->cs_type = H225_OTHER;
   pi->msg_tag = -1;
   pi->reason = -1;
+  pi->frame_label = wmem_strdup(pinfo->pool, "");
 
   return pi;
 }

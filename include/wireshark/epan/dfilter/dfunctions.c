@@ -165,6 +165,68 @@ df_func_string(GSList *stack, uint32_t arg_count _U_, df_cell_t *retval)
     return true;
 }
 
+/* dfilter function: double() */
+static bool
+df_func_double(GSList *stack, uint32_t arg_count _U_, df_cell_t *retval)
+{
+    GPtrArray *arg1;
+    fvalue_t *arg_fvalue;
+    fvalue_t *new_ft_double;
+    double    res;
+
+    ws_assert(arg_count == 1);
+    arg1 = stack->data;
+    if (arg1 == NULL)
+        return false;
+
+    for (unsigned i = 0; i < arg1->len; i++) {
+        arg_fvalue = arg1->pdata[i];
+
+        if (fvalue_to_double(arg_fvalue, &res) == FT_OK) {
+            new_ft_double = fvalue_new(FT_DOUBLE);
+            fvalue_set_floating(new_ft_double, res);
+            df_cell_append(retval, new_ft_double);
+        }
+    }
+
+    if (df_cell_size(retval) == 0) {
+        return false;
+    }
+
+    return true;
+}
+
+/* dfilter function: float() */
+static bool
+df_func_float(GSList *stack, uint32_t arg_count _U_, df_cell_t *retval)
+{
+    GPtrArray *arg1;
+    fvalue_t *arg_fvalue;
+    fvalue_t *new_ft_double;
+    double    res;
+
+    ws_assert(arg_count == 1);
+    arg1 = stack->data;
+    if (arg1 == NULL)
+        return false;
+
+    for (unsigned i = 0; i < arg1->len; i++) {
+        arg_fvalue = arg1->pdata[i];
+
+        if (fvalue_to_double(arg_fvalue, &res) == FT_OK) {
+            new_ft_double = fvalue_new(FT_FLOAT);
+            fvalue_set_floating(new_ft_double, (float)res);
+            df_cell_append(retval, new_ft_double);
+        }
+    }
+
+    if (df_cell_size(retval) == 0) {
+        return false;
+    }
+
+    return true;
+}
+
 /* dfilter functions: dec(), hex(), */
 static bool
 df_func_base(GSList *stack, uint32_t arg_count _U_, df_cell_t *retval, int base)
@@ -471,6 +533,21 @@ ul_semcheck_string(dfwork_t *dfw, const char *func_name, ftenum_t logical_ftype 
 }
 
 static ftenum_t
+ul_semcheck_double(dfwork_t *dfw, const char *func_name, ftenum_t logical_ftype,
+                            GSList *param_list, df_loc_t func_loc)
+{
+    ws_assert(g_slist_length(param_list) == 1);
+    stnode_t *param = param_list->data;
+    ftenum_t ftype;
+
+    ftype = df_semcheck_param(dfw, func_name, logical_ftype, param, func_loc);
+    if (!ftype_can_val_to_double(ftype)) {
+        dfunc_fail(dfw, param, "Argument does not support the %s() function", func_name);
+    }
+    return FT_DOUBLE;
+}
+
+static ftenum_t
 ul_semcheck_base(dfwork_t *dfw, const char *func_name, ftenum_t logical_ftype _U_,
                             GSList *param_list, df_loc_t func_loc _U_)
 {
@@ -503,6 +580,7 @@ ul_semcheck_value_string(dfwork_t *dfw, const char *func_name, ftenum_t logical_
                             GSList *param_list, df_loc_t func_loc _U_)
 {
     header_field_info *hfinfo;
+    const char *abbrev;
 
     ws_assert(g_slist_length(param_list) == 1);
     stnode_t *param = param_list->data;
@@ -510,15 +588,39 @@ ul_semcheck_value_string(dfwork_t *dfw, const char *func_name, ftenum_t logical_
     resolve_unparsed(dfw, param, true);
 
     if (stnode_type_id(param) == STTYPE_FIELD) {
+        if (sttype_field_raw(param)) {
+            /* Value string operates on the original value, not the raw bytes.
+             * We could ignore the raw operator and just use the value string,
+             * warn, or fail. We choose to fail. (Checking sttype_field_ftenum()
+             * instead of hfinfo->type below would also fail, but an explicit
+             * check for raw gives a more useful error message.
+             */
+            dfunc_fail(dfw, param, "The raw operator (\"@\") cannot be used with %s()",
+                                    func_name);
+        }
+
         dfw->field_count++;
         hfinfo = sttype_field_hfinfo(param);
-        /* XXX - We should check all fields with the same abbreviation. */
-        if (hfinfo->strings != NULL && hfinfo->type != FT_FRAMENUM && hfinfo->type != FT_PROTOCOL) {
-            sttype_field_set_value_string(param, true);
-            return FT_STRING;
+        abbrev = hfinfo->abbrev;
+
+        while (hfinfo->same_name_prev_id != -1) {
+            /* Rewind (shouldn't be necessary.) */
+            hfinfo = proto_registrar_get_nth(hfinfo->same_name_prev_id);
+        }
+
+        for (; hfinfo; hfinfo = hfinfo->same_name_next) {
+            if (hfinfo->strings != NULL && ((FT_IS_INTEGER(hfinfo->type) && hfinfo->type != FT_FRAMENUM) || hfinfo->type == FT_BOOLEAN)) {
+                /* XXX - Allow the types that mk_fvalue_from_hfinfo in semcheck allows.
+                 * Should we just allow the same types as display_column_strings
+                 * in ui/packet_list_utils.c ? dfvm now does exactly the same thing
+                 * as what proto_custom_set does when displaying a column "as strings".
+                 */
+                sttype_field_set_value_string(param, true);
+                return FT_STRING;
+            }
         }
         dfunc_fail(dfw, param, "Field \"%s\" does not have a value string.",
-				hfinfo->abbrev);
+				abbrev);
     }
     dfunc_fail(dfw, param, "Only fields can be used as parameter for %s()", func_name);
 }
@@ -573,6 +675,8 @@ df_functions[] = {
     { "len",    NULL,           1, 1, FT_UINT32, ul_semcheck_can_length },
     { "count",  df_func_count,  1, 1, FT_UINT32, ul_semcheck_is_field },
     { "string", df_func_string, 1, 1, FT_STRING, ul_semcheck_string },
+    { "float",  df_func_float,  1, 1, FT_FLOAT,  ul_semcheck_double },
+    { "double", df_func_double, 1, 1, FT_DOUBLE, ul_semcheck_double },
     { "dec",    df_func_dec,    1, 1, FT_STRING, ul_semcheck_base },
     { "hex",    df_func_hex,    1, 1, FT_STRING, ul_semcheck_base },
     //{ "oct",    df_func_oct,    1, 1, FT_STRING, ul_semcheck_base },

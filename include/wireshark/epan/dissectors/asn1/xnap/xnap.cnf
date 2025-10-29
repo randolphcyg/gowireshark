@@ -1,6 +1,6 @@
 # xnap.cnf
 # xnap conformation file
-# Copyright 2018-2024 Pascal Quantin
+# Copyright 2018-2025 Pascal Quantin
 
 #.OPT
 PER
@@ -40,6 +40,7 @@ InitiatingMessage/value initiatingMessage_value
 ProtocolIE-Field/value protocolIE_Field_value
 SuccessfulOutcome/value successfulOutcome_value
 PrivateIE-Field/value privateIE_Field_value
+ExtTLA-Item/gTPTransportLayerAddresses gtptlas
 
 #.OMIT_ASSIGNMENT
 Presence
@@ -54,7 +55,7 @@ ProtocolIE-ContainerPairList
 %(DEFAULT_BODY)s
 #.FN_FTR ProtocolIE-ID
   if (tree) {
-    proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s", val_to_str_ext(xnap_data->protocol_ie_id, &xnap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
+    proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s", val_to_str_ext(actx->pinfo->pool, xnap_data->protocol_ie_id, &xnap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
 #.END
 
@@ -486,7 +487,7 @@ ExpectedIdlePeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_FTR VolumeTimedReport-Item/startTimeStamp
   if (timestamp_tvb) {
-    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
+    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(actx->pinfo->pool, timestamp_tvb, 0));
   }
 
 #.FN_BODY VolumeTimedReport-Item/endTimeStamp VAL_PTR = &timestamp_tvb
@@ -495,7 +496,7 @@ ExpectedIdlePeriod DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_seconds)
 
 #.FN_FTR VolumeTimedReport-Item/endTimeStamp
   if (timestamp_tvb) {
-    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
+    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(actx->pinfo->pool, timestamp_tvb, 0));
   }
 
 #.TYPE_ATTR
@@ -1737,7 +1738,7 @@ id-MIAB-MT-BAP-Address                                              ProtocolIE-I
 id-MobileIABCell                                                    ProtocolIE-ID
 id-sk-Counter                                                       ProtocolIE-ID
 id-Source-M-NG-RANnodeID                                            ProtocolIE-ID
-id-S-CPAC-CompleteConfig-Indicator                                  ProtocolIE-ID
+id-ProtocolIE-ID458-NotToBeUsed                                     ProtocolIE-ID
 id-SourceSN-to-TargetSN-QMCInfo                                     ProtocolIE-ID
 id-RegistrationRequestForDataCollection                             ProtocolIE-ID
 id-ReportCharacteristicsForDataCollection                           ProtocolIE-ID
@@ -1750,6 +1751,10 @@ id-MaximumDataBurstVolume                                           ProtocolIE-I
 id-CPAC-Preparation-Type                                            ProtocolIE-ID
 id-UserPlaneFailureIndication                                       ProtocolIE-ID
 id-MN-only-MDT-collection                                           ProtocolIE-ID
+id-BarringExemptionforEmerCallInfo                                  ProtocolIE-ID
+id-Transmission-Bandwidth-asymmetric                                ProtocolIE-ID
+id-SRSPositioningConfigOrActivationRequest                          ProtocolIE-ID
+id-NRPPaPositioningInformation                                      ProtocolIE-ID
 
 
 #.REGISTER
@@ -2068,6 +2073,7 @@ ReportCharacteristicsForDataCollection            N xnap.ies id-ReportCharacteri
 ReportingPeriodicityForDataCollection             N xnap.ies id-ReportingPeriodicityForDataCollection
 NodeAssociatedInfoResult                          N xnap.ies id-NodeAssociatedInfoResult
 SLPositioning-Ranging-Services-Info               N xnap.ies id-SLPositioning-Ranging-Services-Info
+SRSPositioningConfigOrActivationRequest           N xnap.ies id-SRSPositioningConfigOrActivationRequest
 
 #XNAP-PROTOCOL-EXTENSION
 Additional-UL-NG-U-TNLatUPF-List                                 N xnap.extension id-Additional-UL-NG-U-TNLatUPF-List
@@ -2221,13 +2227,15 @@ ECNMarkingorCongestionInformationReportingRequest                N xnap.extensio
 TAISliceUnavailableCellList                                      N xnap.extension id-TAISliceUnavailableCellList
 MobileIABCell                                                    N xnap.extension id-MobileIABCell
 SK-COUNTER                                                       N xnap.extension id-sk-Counter
-CompleteConfig-Indicator                                         N xnap.extension id-S-CPAC-CompleteConfig-Indicator
 XR-Bcast-Information                                             N xnap.extension id-XR-Bcast-Information
 PDUSessionsListToBeReleased-UPError                              N xnap.extension id-PDUSessionsListToBeReleased-UPError
 MaximumDataBurstVolume                                           N xnap.extension id-MaximumDataBurstVolume
 CPAC-Preparation-Type                                            N xnap.extension id-CPAC-Preparation-Type
 UserPlaneFailureIndication                                       N xnap.extension id-UserPlaneFailureIndication
 MN-only-MDT-collection                                           N xnap.extension id-MN-only-MDT-collection
+BarringExemptionforEmerCallInfo                                  N xnap.extension id-BarringExemptionforEmerCallInfo
+Transmission-Bandwidth-asymmetric                                N xnap.extension id-Transmission-Bandwidth-asymmetric
+NRPPaPositioningInformation                                      N xnap.extension id-NRPPaPositioningInformation
 
 #XNAP-ELEMENTARY-PROCEDURE
 HandoverRequest                            N xnap.proc.imsg id-handoverPreparation

@@ -32,12 +32,14 @@
 #include <epan/prefs.h>
 #include <epan/expert.h>
 #include <epan/tfs.h>
+#include <wsutil/array.h>
 
 #include "packet-tcp.h"
 
 #define BITCOIN_MAIN_MAGIC_NUMBER       0xD9B4BEF9
 #define BITCOIN_TESTNET_MAGIC_NUMBER    0xDAB5BFFA
 #define BITCOIN_TESTNET3_MAGIC_NUMBER   0x0709110B
+#define BITCOIN_TESTNET4_MAGIC_NUMBER   0x283F161C
 
 static const value_string inv_types[] =
 {
@@ -616,7 +618,7 @@ dissect_bitcoin_msg_addrv2(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
   proto_item *ti;
   int         length;
   uint64_t    count;
-  uint32_t    offset = 0;
+  int         offset = 0;
 
   ti   = proto_tree_add_item(tree, hf_bitcoin_msg_addrv2, tvb, offset, -1, ENC_NA);
   tree = proto_item_add_subtree(ti, ett_bitcoin_msg);
@@ -657,7 +659,7 @@ dissect_bitcoin_msg_addrv2(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
     switch (network)
     {
       case 1:
-        proto_tree_add_item(subtree, hf_msg_addrv2_address_ipv4, tvb, offset, (unsigned) address_length, ENC_NA);
+        proto_tree_add_item(subtree, hf_msg_addrv2_address_ipv4, tvb, offset, (unsigned) address_length, ENC_BIG_ENDIAN);
         if (address_length != 4) {
           proto_tree_add_expert(subtree, pinfo, &ei_bitcoin_address_length,
                                 tvb, offset, (unsigned) address_length);
@@ -676,7 +678,13 @@ dissect_bitcoin_msg_addrv2(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
         proto_tree_add_item(subtree, hf_msg_addrv2_address_other, tvb, offset, (unsigned) address_length, ENC_NA);
         break;
     }
-    offset += address_length;
+
+    /*
+     * The above should make sure that the addition won't overflow.
+     * XXX - but what if address length fits in an unsigned int but
+     * not a signed int?
+     */
+    offset += (int)address_length;
 
     proto_tree_add_item(subtree, hf_msg_addrv2_port, tvb, offset, 2, ENC_BIG_ENDIAN);
     offset += 2;
@@ -1046,7 +1054,7 @@ dissect_bitcoin_msg_tx_common(tvbuff_t *tvb, uint32_t offset, packet_info *pinfo
         offset += component_size_length;
 
         proto_tree_add_item(subsubtree, hf_msg_tx_witness_component_data, tvb, offset, (int) component_size, ENC_NA);
-        offset += component_size;
+        offset += (uint32_t)component_size;
       }
 
       proto_item_set_end(ti, tvb, offset);
@@ -1474,7 +1482,8 @@ dissect_bitcoin_heur(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
   magic_number = tvb_get_letohl(tvb, 0);
   if ((magic_number != BITCOIN_MAIN_MAGIC_NUMBER) &&
       (magic_number != BITCOIN_TESTNET_MAGIC_NUMBER) &&
-      (magic_number != BITCOIN_TESTNET3_MAGIC_NUMBER))
+      (magic_number != BITCOIN_TESTNET3_MAGIC_NUMBER) &&
+      (magic_number != BITCOIN_TESTNET4_MAGIC_NUMBER))
      return false;
 
   /* Ok: This connection should always use the bitcoin dissector */
@@ -1651,7 +1660,7 @@ proto_register_bitcoin(void)
     },
     { &hf_msg_addrv2_port,
       { "Node port", "bitcoin.addrv2.port",
-        FT_UINT16, BASE_DEC, NULL, 0x0,
+        FT_UINT16, BASE_PT_TCP, NULL, 0x0,
         NULL, HFILL }
     },
     { &hf_bitcoin_msg_addrv2,
@@ -2396,7 +2405,7 @@ proto_register_bitcoin(void)
     },
     { &hf_address_port,
       { "Node port", "bitcoin.address.port",
-        FT_UINT16, BASE_DEC, NULL, 0x0,
+        FT_UINT16, BASE_PT_TCP, NULL, 0x0,
         NULL, HFILL }
     },
     { &hf_string_value,

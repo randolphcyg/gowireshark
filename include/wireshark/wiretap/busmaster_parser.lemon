@@ -11,10 +11,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#define WS_LOG_DOMAIN "busmaster"
 #include "config.h"
+#include <wireshark.h>
 #include <assert.h>
 #include <string.h>
-#include <wireshark.h>
 #include <wiretap/file_wrappers.h>
 #include <wsutil/array.h>
 #include "busmaster_priv.h"
@@ -28,7 +29,7 @@ extern void BusmasterParserTrace(FILE *TraceFILE, char *zTracePrompt);
 #undef NDEBUG
 #endif
 
-static void merge_msg_data(msg_data_t *dst, const msg_data_t *a, const msg_data_t *b)
+static void merge_msg_data(wtap_can_msg_data_t *dst, const wtap_can_msg_data_t *a, const wtap_can_msg_data_t *b)
 {
     dst->length = a->length + b->length;
     memcpy(&dst->data[0], &a->data[0], a->length);
@@ -64,11 +65,11 @@ DIAG_ON_LEMON()
 
 #ifdef BUSMASTER_DEBUG
     const int n = array_length(yyTokenName);
-    busmaster_debug_printf("%s: got token: %s\n", G_STRFUNC, yyTokenName[yymajor]);
+    ws_debug("%s: got token: %s\n", G_STRFUNC, yyTokenName[yymajor]);
     for (int i = 0; i < n; ++i) {
         int a = yy_find_shift_action((YYCODETYPE)i, yypParser->yytos->stateno);
         if (a < YYNSTATE + YYNRULE) {
-            busmaster_debug_printf("%s: possible token: %s\n", G_STRFUNC, yyTokenName[i]);
+            ws_debug("%s: possible token: %s\n", G_STRFUNC, yyTokenName[i]);
         }
     }
 #endif
@@ -76,7 +77,7 @@ DIAG_ON_LEMON()
     g_free(state->parse_error);
     state->entry_type  = LOG_ENTRY_ERROR;
     state->parse_error = ws_strdup_printf("Syntax Error");
-    busmaster_debug_printf("%s: Syntax Error\n", G_STRFUNC);
+    ws_debug("%s: Syntax Error\n", G_STRFUNC);
 }
 
 %parse_failure
@@ -84,7 +85,7 @@ DIAG_ON_LEMON()
     g_free(state->parse_error);
     state->entry_type  = LOG_ENTRY_ERROR;
     state->parse_error = g_strdup("Parse Error");
-    busmaster_debug_printf("%s: Parse Error\n", G_STRFUNC);
+    ws_debug("%s: Parse Error\n", G_STRFUNC);
 }
 
 %stack_overflow
@@ -92,12 +93,12 @@ DIAG_ON_LEMON()
     g_free(state->parse_error);
     state->entry_type  = LOG_ENTRY_ERROR;
     state->parse_error = g_strdup("Parser stack overflow");
-    busmaster_debug_printf("%s: Parser stack overflow\n", G_STRFUNC);
+    ws_debug("%s: Parser stack overflow\n", G_STRFUNC);
 }
 
 %type msg_time { msg_time_t }
-%type msg_type { msg_type_t }
-%type err_msg_type { msg_type_t }
+%type msg_type { wtap_can_msg_type_t }
+%type err_msg_type { wtap_can_msg_type_t }
 %type msg_length { unsigned }
 %type msg_id { uint32_t }
 
@@ -107,23 +108,23 @@ DIAG_ON_LEMON()
 %type start_time { msg_date_time_t }
 
 %type byte { uint8_t }
-%type data { msg_data_t }
-%type data0 { msg_data_t }
-%type data1 { msg_data_t }
-%type data2 { msg_data_t }
-%type data3 { msg_data_t }
-%type data4 { msg_data_t }
-%type data5 { msg_data_t }
-%type data6 { msg_data_t }
-%type data7 { msg_data_t }
-%type data8 { msg_data_t }
-%type data12 { msg_data_t }
-%type data16 { msg_data_t }
-%type data20 { msg_data_t }
-%type data24 { msg_data_t }
-%type data32 { msg_data_t }
-%type data48 { msg_data_t }
-%type data64 { msg_data_t }
+%type data { wtap_can_msg_data_t }
+%type data0 { wtap_can_msg_data_t }
+%type data1 { wtap_can_msg_data_t }
+%type data2 { wtap_can_msg_data_t }
+%type data3 { wtap_can_msg_data_t }
+%type data4 { wtap_can_msg_data_t }
+%type data5 { wtap_can_msg_data_t }
+%type data6 { wtap_can_msg_data_t }
+%type data7 { wtap_can_msg_data_t }
+%type data8 { wtap_can_msg_data_t }
+%type data12 { wtap_can_msg_data_t }
+%type data16 { wtap_can_msg_data_t }
+%type data20 { wtap_can_msg_data_t }
+%type data24 { wtap_can_msg_data_t }
+%type data32 { wtap_can_msg_data_t }
+%type data48 { wtap_can_msg_data_t }
+%type data64 { wtap_can_msg_data_t }
 
 %nonassoc INVALID_CHAR .
 %nonassoc INVALID_NUMBER .
@@ -140,13 +141,13 @@ entry ::= j1939_msg .
 
 empty_line ::= .
 {
-    busmaster_debug_printf("%s: EMPTY\n", G_STRFUNC);
+    ws_debug("%s: EMPTY\n", G_STRFUNC);
     state->entry_type = LOG_ENTRY_EMPTY;
 }
 
 footer_and_header ::= footer ENDL header .
 {
-    busmaster_debug_printf("%s: FOOTER AND HEADER\n", G_STRFUNC);
+    ws_debug("%s: FOOTER AND HEADER\n", G_STRFUNC);
     state->entry_type = LOG_ENTRY_FOOTER_AND_HEADER;
 }
 
@@ -157,11 +158,10 @@ header ::= version ENDL maybe_lines
            DATA_MODE(D) ENDL maybe_lines
            TIME_MODE(T) ENDL anything .
 {
-    busmaster_debug_printf("%s: HEADER\n", G_STRFUNC);
+    ws_debug("%s: HEADER\n", G_STRFUNC);
 
     state->entry_type        = LOG_ENTRY_HEADER;
-    state->header.start_date = S.date;
-    state->header.start_time = S.time;
+    state->header.start      = S;
     state->header.protocol   = (protocol_type_t)P.v0;
     state->header.data_mode  = (data_mode_t)D.v0;
     state->header.time_mode  = (time_mode_t)T.v0;
@@ -181,13 +181,13 @@ anything ::= anything ENDL .
 
 start_time(R) ::= START_TIME ref_date(D) ref_time(T) .
 {
-    R.date = D;
-    R.time = T;
+    R.d = D;
+    R.t = T;
 }
 
 footer ::= end_time ENDL STOP_SESSION .
 {
-    busmaster_debug_printf("%s: FOOTER\n", G_STRFUNC);
+    ws_debug("%s: FOOTER\n", G_STRFUNC);
     state->entry_type = LOG_ENTRY_FOOTER;
 }
 
@@ -219,7 +219,7 @@ msg ::= msg_time(msg_time) MSG_DIR INT msg_id(msg_id) msg_type(msg_type) msg_len
     msg.type      = msg_type;
     msg.data      = msg_data;
 
-    busmaster_debug_printf("%s: MSG\n", G_STRFUNC);
+    ws_debug("%s: MSG\n", G_STRFUNC);
 
     state->msg = msg;
     state->entry_type = LOG_ENTRY_MSG;
@@ -237,7 +237,7 @@ err_msg ::= msg_time(msg_time) MSG_DIR INT INT err_msg_type(msg_type) .
 
     memset(msg.data.data, 0, sizeof(msg.data.data));
 
-    busmaster_debug_printf("%s: ERR MSG\n", G_STRFUNC);
+    ws_debug("%s: ERR MSG\n", G_STRFUNC);
 
     state->msg = msg;
     state->entry_type = LOG_ENTRY_MSG;
@@ -253,7 +253,7 @@ j1939_msg ::= msg_time(msg_time) INT msg_id(msg_id) INT J1939_MSG_TYPE INT INT I
     msg.type      = MSG_TYPE_EXT;
     msg.data      = msg_data;
 
-    busmaster_debug_printf("%s: J1939 MSG\n", G_STRFUNC);
+    ws_debug("%s: J1939 MSG\n", G_STRFUNC);
 
     state->msg = msg;
     state->entry_type = LOG_ENTRY_MSG;
@@ -294,12 +294,12 @@ msg_length(R) ::= INT(V) .
 
 msg_type(R) ::= MSG_TYPE(V) .
 {
-    R = (msg_type_t)V.v0;
+    R = (wtap_can_msg_type_t)V.v0;
 }
 
 err_msg_type(R) ::= ERR_MSG_TYPE(V) .
 {
-    R = (msg_type_t)V.v0;
+    R = (wtap_can_msg_type_t)V.v0;
 }
 
 data(R) ::= data0(A) .  { R = A; }
@@ -396,13 +396,13 @@ run_busmaster_parser(busmaster_state_t *state,
         return false;
     }
 
-    parser = BusmasterParserAlloc(g_malloc);
+    parser = BusmasterParserAlloc(g_malloc0);
 
 #ifdef BUSMASTER_PARSER_TRACE
     BusmasterParserTrace(stdout, "BusmasterParser >> ");
 #endif
 
-    busmaster_debug_printf("%s: Starting parsing of the line\n", G_STRFUNC);
+    ws_debug("%s: Starting parsing of the line\n", G_STRFUNC);
 
     do
     {
@@ -410,11 +410,11 @@ run_busmaster_parser(busmaster_state_t *state,
 
 #ifdef BUSMASTER_DEBUG
         if (lex_code)
-            busmaster_debug_printf("%s: Feeding %s '%s'\n",
+            ws_debug("%s: Feeding %s '%s'\n",
                                    G_STRFUNC, yyTokenName[lex_code],
                                    busmaster_get_text(scanner));
         else
-            busmaster_debug_printf("%s: Feeding %s\n",
+            ws_debug("%s: Feeding %s\n",
                                    G_STRFUNC, yyTokenName[lex_code]);
 #endif
 
@@ -425,7 +425,7 @@ run_busmaster_parser(busmaster_state_t *state,
     }
     while (lex_code);
 
-    busmaster_debug_printf("%s: Done (%d)\n", G_STRFUNC, lex_code);
+    ws_debug("%s: Done (%d)\n", G_STRFUNC, lex_code);
 
     BusmasterParserFree(parser, g_free);
     busmaster_lex_destroy(scanner);

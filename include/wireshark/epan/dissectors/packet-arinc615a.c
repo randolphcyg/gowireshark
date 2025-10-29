@@ -135,11 +135,11 @@ static void dissect_a615a_LUS(ptvcursor_t *ptvc, packet_info *pinfo)
     const uint8_t *protocol_version = NULL;
     proto_item *pi;
 
-    ptvcursor_add_ret_string(ptvc, hf_a615a_protocol_version, 2, ENC_ASCII | ENC_NA,
+    ptvcursor_add_ret_string(ptvc, hf_a615a_protocol_version, 2, ENC_ASCII,
                             pinfo->pool, &protocol_version);
     ptvcursor_add_ret_uint(ptvc, hf_a615a_operation_status, 2, ENC_BIG_ENDIAN, &status);
     col_append_fstr(pinfo->cinfo, COL_INFO, ", Status: %s",
-                    val_to_str(status, a615a_operation_status_codes, "Unknown (0x%04x)"));
+                    val_to_str(pinfo->pool, status, a615a_operation_status_codes, "Unknown (0x%04x)"));
     ptvcursor_add(ptvc, hf_a615a_status_description, 1, ENC_ASCII | ENC_BIG_ENDIAN);
     ptvcursor_add(ptvc, hf_a615a_counter, 2, ENC_BIG_ENDIAN);
 
@@ -149,7 +149,7 @@ static void dissect_a615a_LUS(ptvcursor_t *ptvc, packet_info *pinfo)
     }
 
     ptvcursor_add(ptvc, hf_a615a_estimated_time, 2, ENC_BIG_ENDIAN);
-    ptvcursor_add_ret_string(ptvc, hf_a615a_load_ratio, 3, ENC_ASCII | ENC_NA, pinfo->pool,
+    ptvcursor_add_ret_string(ptvc, hf_a615a_load_ratio, 3, ENC_ASCII, pinfo->pool,
                              &ratio);
     col_append_fstr(pinfo->cinfo, COL_INFO, ", Load Ratio: %s %%", ratio);
     pi = ptvcursor_add_ret_uint(ptvc, hf_a615a_file_count, 2, ENC_BIG_ENDIAN, &file_count);
@@ -175,7 +175,7 @@ static void dissect_a615a_LCS(ptvcursor_t *ptvc, packet_info *pinfo)
     ptvcursor_add(ptvc, hf_a615a_counter, 2, ENC_BIG_ENDIAN);
     ptvcursor_add_ret_uint(ptvc, hf_a615a_operation_status, 2, ENC_BIG_ENDIAN, &status);
     col_append_fstr(pinfo->cinfo, COL_INFO, ", Status: %s",
-                    val_to_str(status, a615a_operation_status_codes, "Unknown (0x%04x)"));
+                    val_to_str(pinfo->pool, status, a615a_operation_status_codes, "Unknown (0x%04x)"));
     ptvcursor_add(ptvc, hf_a615a_exception_timer, 2, ENC_BIG_ENDIAN);
     ptvcursor_add(ptvc, hf_a615a_estimated_time, 2, ENC_BIG_ENDIAN);
     ptvcursor_add(ptvc, hf_a615a_status_description, 1, ENC_ASCII | ENC_BIG_ENDIAN);
@@ -188,7 +188,7 @@ static void dissect_a615a_LUI_LCI_LND_LNO(ptvcursor_t *ptvc, packet_info *pinfo)
     ptvcursor_add(ptvc, hf_a615a_protocol_version, 2, ENC_ASCII | ENC_NA);
     ptvcursor_add_ret_uint(ptvc, hf_a615a_operation_status, 2, ENC_BIG_ENDIAN, &status);
     col_append_fstr(pinfo->cinfo, COL_INFO, ", Status: %s",
-                    val_to_str(status, a615a_operation_status_codes, "Unknown (0x%04x)"));
+                    val_to_str(pinfo->pool, status, a615a_operation_status_codes, "Unknown (0x%04x)"));
     ptvcursor_add(ptvc, hf_a615a_status_description, 1, ENC_ASCII | ENC_BIG_ENDIAN);
 }
 
@@ -240,11 +240,11 @@ static void dissect_a615a_LNS(ptvcursor_t *ptvc, packet_info *pinfo)
     proto_item *pi;
     const uint8_t *protocol_version = NULL;
 
-    ptvcursor_add_ret_string(ptvc, hf_a615a_protocol_version, 2, ENC_ASCII | ENC_NA,
+    ptvcursor_add_ret_string(ptvc, hf_a615a_protocol_version, 2, ENC_ASCII,
                             pinfo->pool, &protocol_version);
     ptvcursor_add_ret_uint(ptvc, hf_a615a_operation_status, 2, ENC_BIG_ENDIAN, &status);
     col_append_fstr(pinfo->cinfo, COL_INFO, ", Status: %s",
-                    val_to_str(status, a615a_operation_status_codes, "Unknown (0x%04x)"));
+                    val_to_str(pinfo->pool, status, a615a_operation_status_codes, "Unknown (0x%04x)"));
     ptvcursor_add(ptvc, hf_a615a_status_description, 1, ENC_ASCII | ENC_BIG_ENDIAN);
     ptvcursor_add(ptvc, hf_a615a_counter, 2, ENC_BIG_ENDIAN);
 
@@ -369,7 +369,7 @@ static int dissect_find(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 
     uint32_t opcode;
     ptvcursor_add_ret_uint(ptvc, hf_find_opcode, 2, ENC_BIG_ENDIAN, &opcode);
-    col_append_fstr(pinfo->cinfo, COL_INFO, ", %s", val_to_str(opcode, find_opcode_vals, "Unknown (0x%04x)"));
+    col_append_fstr(pinfo->cinfo, COL_INFO, ", %s", val_to_str(pinfo->pool, opcode, find_opcode_vals, "Unknown (0x%04x)"));
 
     if (opcode == FIND_IAN) {
         ptvcursor_add(ptvc, hf_find_target_hardware_identifier, -1, ENC_ASCII | ENC_NA);

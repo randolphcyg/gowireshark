@@ -734,7 +734,7 @@ decode_identifier_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, in
     len += 4;
 
     proto_tree_add_item(do_irp_record_tree, hf_do_irp_identrecord_ts, tvb, offset + len, 4, ENC_BIG_ENDIAN);
-    proto_item *ts = proto_tree_add_item(do_irp_record_tree, hf_do_irp_identrecord_ts_utc, tvb, offset + len, 4, ENC_TIME_SECS);
+    proto_item *ts = proto_tree_add_item(do_irp_record_tree, hf_do_irp_identrecord_ts_utc, tvb, offset + len, 4, ENC_TIME_SECS|ENC_BIG_ENDIAN);
     proto_item_set_generated(ts);
     len += 4;
 
@@ -744,7 +744,7 @@ decode_identifier_record(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, in
 
     proto_tree_add_item(do_irp_record_tree, hf_do_irp_identrecord_ttl, tvb, offset + len, 4, ENC_BIG_ENDIAN);
     if(ttl_type == DO_IRP_TTL_ABSOLUTE) {
-        proto_item *ttl = proto_tree_add_item(do_irp_record_tree, hf_do_irp_identrecord_ttl_absolute, tvb, offset + len, 4, ENC_TIME_SECS);
+        proto_item *ttl = proto_tree_add_item(do_irp_record_tree, hf_do_irp_identrecord_ttl_absolute, tvb, offset + len, 4, ENC_TIME_SECS|ENC_BIG_ENDIAN);
         proto_item_set_generated(ttl);
     }
     len += 4;
@@ -936,7 +936,7 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
     proto_tree_add_item(do_irp_header_tree, hf_do_irp_rcount, tvb, offset, 1, ENC_BIG_ENDIAN);
     offset += 2; /* One byte empty */
 
-    proto_tree_add_item(do_irp_header_tree, hf_do_irp_expiration, tvb, offset, 4, ENC_TIME_SECS);
+    proto_tree_add_item(do_irp_header_tree, hf_do_irp_expiration, tvb, offset, 4, ENC_TIME_SECS|ENC_BIG_ENDIAN);
     offset += 4;
 
     proto_tree_add_item(do_irp_header_tree, hf_do_irp_bodylen, tvb, offset, 4, ENC_BIG_ENDIAN);
@@ -1171,7 +1171,7 @@ decode_header_body_credential(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
             offset += decode_pk_data(tvb, pinfo, do_irp_body_tree, offset);
 
         }
-        /* All error resposes */
+        /* All error responses */
         else if(
             (respcode >= DO_IRP_RC_ERROR && respcode <= DO_IRP_RC_SERVER_NOT_RESP) ||
             (respcode >= DO_IRP_RC_INVALID_ADMIN && respcode <= DO_IRP_RC_ACCESS_DENIED) ||
@@ -2088,11 +2088,11 @@ proto_register_do_irp(void)
         /* Conversation */
         { &hf_do_irp_response_in,
             { "Response in", "do-irp.response_in",
-            FT_FRAMENUM, BASE_NONE, NULL, 0x0, NULL, HFILL }
+            FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0, NULL, HFILL }
         },
         { &hf_do_irp_response_to,
             { "Request in", "do-irp.response_to",
-            FT_FRAMENUM, BASE_NONE, NULL, 0x0, NULL, HFILL }
+            FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0, NULL, HFILL }
         }
     };
 

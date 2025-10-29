@@ -1770,7 +1770,7 @@ dvbci_init(void)
    return the number of bytes dissected */
 static int
 dissect_desc_loop(int len_hf,
-        tvbuff_t *tvb, int offset, packet_info *pinfo _U_, proto_tree *tree)
+        tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree)
 {
     int offset_start;
     uint16_t desc_loop_len;
@@ -1782,7 +1782,7 @@ dissect_desc_loop(int len_hf,
     proto_tree_add_item(tree, len_hf, tvb, offset, 2, ENC_BIG_ENDIAN);
     offset += 2;
     while (offset-offset_start < 2+desc_loop_len) {
-        desc_len = proto_mpeg_descriptor_dissect(tvb, offset, tree);
+        desc_len = proto_mpeg_descriptor_dissect(tvb, pinfo, offset, tree);
         if (desc_len==0)
             break;
         offset += desc_len;
@@ -2725,7 +2725,7 @@ dissect_dvbci_payload_rm(uint32_t tag, int len_field,
 
     if (tag==T_PROFILE) {
         if (len_field % RES_ID_LEN) {
-            tag_str = val_to_str(tag, dvbci_apdu_tag, "Unknown: %d");
+            tag_str = val_to_str(pinfo->pool, tag, dvbci_apdu_tag, "Unknown: %d");
             proto_tree_add_expert_format(tree, pinfo, &ei_dvbci_bad_length, tvb, 0, APDU_TAG_SIZE,
                    "Invalid APDU length field, %s must be a multiple of 4 bytes",
                    tag_str);
@@ -2780,7 +2780,7 @@ dissect_dvbci_payload_ap(uint32_t tag, int len_field _U_,
     else if (tag== T_DATARATE_INFO) {
         data_rate = tvb_get_uint8(tvb, offset);
         col_append_sep_str(pinfo->cinfo, COL_INFO, ": ",
-                    val_to_str(data_rate, dvbci_data_rate, "unknown (0x%x)"));
+                    val_to_str(pinfo->pool, data_rate, dvbci_data_rate, "unknown (0x%x)"));
         proto_tree_add_item(tree, hf_dvbci_data_rate, tvb, offset, 1, ENC_BIG_ENDIAN);
     }
 }
@@ -2803,7 +2803,7 @@ dissect_dvbci_payload_ca(uint32_t tag, int len_field,
 
     if (tag==T_CA_INFO) {
         if (len_field % 2) {
-            tag_str = val_to_str(tag, dvbci_apdu_tag, "Unknown: %d");
+            tag_str = val_to_str(pinfo->pool, tag, dvbci_apdu_tag, "Unknown: %d");
             proto_tree_add_expert_format(tree, pinfo, &ei_dvbci_bad_length, tvb, 0, APDU_TAG_SIZE,
                     "Invalid APDU length field, %s must be a multiple of 2 bytes",
                     tag_str);
@@ -3277,12 +3277,12 @@ dissect_dvbci_payload_hlc(uint32_t tag, int len_field _U_,
   if (tag==T_HOST_COUNTRY) {
       proto_tree_add_item(tree, hf_dvbci_host_country,
               tvb, offset, tvb_reported_length_remaining(tvb, offset),
-              ENC_ISO_8859_1|ENC_NA);
+              ENC_ISO_8859_1);
   }
   else if (tag==T_HOST_LANGUAGE) {
       proto_tree_add_item(tree, hf_dvbci_host_language,
               tvb, offset, tvb_reported_length_remaining(tvb, offset),
-              ENC_ISO_8859_1|ENC_NA);
+              ENC_ISO_8859_1);
   }
 
   /* both apdus' body is only a country code, this can be shared */
@@ -3356,8 +3356,8 @@ static int exp_pdu_data_dvbci_size(packet_info *pinfo _U_, void* data _U_)
 
 static int exp_pdu_data_dvbci_populate_data(packet_info *pinfo, void* data, uint8_t *tlv_buffer, uint32_t buffer_size _U_)
 {
-  phton16(&tlv_buffer[0], EXP_PDU_TAG_DVBCI_EVT);
-  phton16(&tlv_buffer[2], EXP_PDU_TAG_DVBCI_EVT_LEN);
+  phtonu16(&tlv_buffer[0], EXP_PDU_TAG_DVBCI_EVT);
+  phtonu16(&tlv_buffer[2], EXP_PDU_TAG_DVBCI_EVT_LEN);
   tlv_buffer[4] = dvbci_get_evt_from_addrs(pinfo);
 
   return exp_pdu_data_dvbci_size(pinfo, data);
@@ -3820,7 +3820,7 @@ dissect_dvbci_payload_lsc(uint32_t tag, int len_field,
                     tvb, offset, 1, ENC_BIG_ENDIAN);
             id = tvb_get_uint8(tvb, offset);
             col_append_sep_str(pinfo->cinfo, COL_INFO, ": ",
-                    val_to_str(id, dvbci_comms_cmd_id, "Unknown: %d"));
+                    val_to_str(pinfo->pool, id, dvbci_comms_cmd_id, "Unknown: %d"));
             offset++;
             switch(id) {
                 case COMMS_CMD_ID_CONNECT_ON_CHANNEL:
@@ -3889,7 +3889,7 @@ dissect_dvbci_payload_lsc(uint32_t tag, int len_field,
                     tvb, offset, 1, ENC_BIG_ENDIAN);
             id = tvb_get_uint8(tvb,offset);
             col_append_sep_str(pinfo->cinfo, COL_INFO, NULL,
-                    val_to_str(id, dvbci_comms_rep_id, "Unknown: %d"));
+                    val_to_str(pinfo->pool, id, dvbci_comms_rep_id, "Unknown: %d"));
             offset++;
             ret_val = tvb_get_uint8(tvb,offset);
             pi = proto_tree_add_item(tree, hf_dvbci_lsc_ret_val,
@@ -6325,7 +6325,7 @@ proto_register_dvbci(void)
                 "Invalid SB_value, must be 0x00 or 0x80", EXPFILL }},
         { &ei_dvbci_t_c_id,
             { "dvb-ci.t_c_id.invalid", PI_PROTOCOL, PI_WARN,
-                "Transport Connection ID mismatch, tcid is %d in the transport layer and %d in the link layer", EXPFILL }},
+                "Transport Connection ID mismatch the transport layer link layer", EXPFILL }},
         { &ei_dvbci_tpdu_status_tag,
             { "dvb-ci.tpdu.status_tag.invalid", PI_MALFORMED, PI_ERROR,
                 "Invalid status tag, this must always be T_SB (0x80)", EXPFILL }},
@@ -6363,7 +6363,7 @@ proto_register_dvbci(void)
                 "Invalid resource class for this apdu", EXPFILL }},
         { &ei_dvbci_bad_length,
             { "dvb-ci.apdu.bad_length", PI_MALFORMED, PI_ERROR,
-                "Invalid APDU length field, %s must be a multiple of 4 bytes",
+                "Invalid length field",
                 EXPFILL }},
         /* this is used for both MMI and operator profile */
         { &ei_dvbci_invalid_char_tbl,

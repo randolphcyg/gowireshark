@@ -35,6 +35,8 @@
 #include <epan/to_str.h>
 #include <epan/capture_dissectors.h>
 #include <epan/ax25_pids.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 void proto_register_netrom(void);
 void proto_reg_handoff_netrom(void);
@@ -452,7 +454,7 @@ dissect_netrom_routing(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 		ti = proto_tree_add_item( tree, proto_netrom, tvb, 0, -1, ENC_NA);
 		netrom_tree = proto_item_add_subtree( ti, ett_netrom );
 
-		proto_tree_add_item_ret_string_and_length(netrom_tree, hf_netrom_mnemonic, tvb, 1, 6, ENC_ASCII|ENC_NA,
+		proto_tree_add_item_ret_string_and_length(netrom_tree, hf_netrom_mnemonic, tvb, 1, 6, ENC_ASCII,
 													pinfo->pool, &mnemonic, &mnemonic_len);
 		proto_item_append_text(ti, ", routing table frame, Node: %s", mnemonic);
 	}

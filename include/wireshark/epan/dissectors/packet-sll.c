@@ -94,6 +94,7 @@ static int hf_sll_hatype;
 static int hf_sll_ifindex;
 static int hf_sll_ltype;
 static int hf_sll_pkttype;
+static int hf_sll_reserved;
 static int hf_sll_src_eth;
 static int hf_sll_src_ipv4;
 static int hf_sll_src_other;
@@ -191,13 +192,13 @@ capture_sll(const unsigned char *pd, int offset _U_, int len, capture_packet_inf
 	if (!BYTES_ARE_IN_FRAME(0, len, SLL_HEADER_SIZE))
 		return false;
 
-	protocol = pntoh16(&pd[14]);
+	protocol = pntohu16(&pd[14]);
 	if (protocol <= 1536) {	/* yes, 1536 - that's how Linux does it */
 		/*
 		 * "proto" is *not* a length field, it's a Linux internal
 		 * protocol type.
 		 */
-		hatype = pntoh16(&pd[2]);
+		hatype = pntohu16(&pd[2]);
 		if (try_capture_dissector("sll.hatype", hatype, pd,
 		    SLL_HEADER_SIZE, len, cpinfo, pseudo_header))
 			return true;
@@ -217,13 +218,13 @@ capture_sll2(const unsigned char *pd, int offset _U_, int len, capture_packet_in
 	if (!BYTES_ARE_IN_FRAME(0, len, SLL2_HEADER_SIZE))
 		return false;
 
-	protocol = pntoh16(&pd[0]);
+	protocol = pntohu16(&pd[0]);
 	if (protocol <= 1536) {	/* yes, 1536 - that's how Linux does it */
 		/*
 		 * "proto" is *not* a length field, it's a Linux internal
 		 * protocol type.
 		 */
-		hatype = pntoh16(&pd[8]);
+		hatype = pntohu16(&pd[8]);
 		if (try_capture_dissector("sll.hatype", hatype, pd,
 		    SLL2_HEADER_SIZE, len, cpinfo, pseudo_header))
 			return true;
@@ -452,7 +453,7 @@ dissect_sll_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int enca
 	col_clear(pinfo->cinfo, COL_INFO);
 
 	col_add_str(pinfo->cinfo, COL_INFO,
-		    val_to_str(pkttype, packet_type_vals, "Unknown (%u)"));
+		    val_to_str(pinfo->pool, pkttype, packet_type_vals, "Unknown (%u)"));
 
 	ti = proto_tree_add_protocol_format(tree, proto_sll, tvb, 0,
 			header_size, "Linux cooked capture v%d", version);
@@ -475,6 +476,8 @@ dissect_sll_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int enca
 
 	case WTAP_ENCAP_SLL2:
 		protocol = add_protocol_type(fh_tree, tvb, 0, hatype);
+
+		proto_tree_add_item(fh_tree, hf_sll_reserved, tvb, 2, 2, ENC_NA);
 
 		proto_tree_add_item(fh_tree, hf_sll_ifindex, tvb, 4, 4, ENC_BIG_ENDIAN);
 
@@ -571,6 +574,11 @@ proto_register_sll(void)
 			{ "Interface index", "sll.ifindex",
 			  FT_UINT32, BASE_DEC, NULL, 0x0,
 			  NULL, HFILL }
+		},
+		{ &hf_sll_reserved,
+			{ "Reserved", "sll.reserved",
+			  FT_BYTES, BASE_NONE, NULL, 0x0,
+			  "Reserved bytes", HFILL }
 		},
 	};
 

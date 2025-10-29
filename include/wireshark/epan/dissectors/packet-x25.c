@@ -20,7 +20,6 @@
 #include <epan/prefs.h>
 #include <epan/expert.h>
 #include <epan/nlpid.h>
-#include <epan/x264_prt_id.h>
 #include <epan/lapd_sapi.h>
 #include <epan/tfs.h>
 #include <wiretap/wtap.h>
@@ -676,7 +675,7 @@ dump_facilities(proto_tree *tree, int *offset, tvbuff_t *tvb, packet_info *pinfo
         case X25_FAC_CLASS_A:
             proto_item_set_len(ti, 2);
             proto_item_append_text(ti, ": %s",
-                                   val_to_str(fac, x25_facilities_classA_vals, "Unknown (0x%02X)"));
+                                   val_to_str(pinfo->pool, fac, x25_facilities_classA_vals, "Unknown (0x%02X)"));
             facility_tree = proto_item_add_subtree(ti, ett_x25_facility);
             proto_tree_add_item(facility_tree, hf_x25_facility_class, tvb, *offset, 1, ENC_BIG_ENDIAN);
             proto_tree_add_item(facility_tree, hf_x25_facility_classA, tvb, *offset, 1, ENC_BIG_ENDIAN);
@@ -725,7 +724,7 @@ dump_facilities(proto_tree *tree, int *offset, tvbuff_t *tvb, packet_info *pinfo
         case X25_FAC_CLASS_B:
             proto_item_set_len(ti, 3);
             proto_item_append_text(ti, ": %s",
-                                   val_to_str(fac, x25_facilities_classB_vals, "Unknown (0x%02X)"));
+                                   val_to_str(pinfo->pool, fac, x25_facilities_classB_vals, "Unknown (0x%02X)"));
             facility_tree = proto_item_add_subtree(ti, ett_x25_facility);
             proto_tree_add_item(facility_tree, hf_x25_facility_class, tvb, *offset, 1, ENC_BIG_ENDIAN);
             proto_tree_add_item(facility_tree, hf_x25_facility_classB, tvb, *offset, 1, ENC_BIG_ENDIAN);
@@ -765,7 +764,7 @@ dump_facilities(proto_tree *tree, int *offset, tvbuff_t *tvb, packet_info *pinfo
         case X25_FAC_CLASS_C:
             proto_item_set_len(ti, 4);
             proto_item_append_text(ti, ": %s",
-                                   val_to_str(fac, x25_facilities_classC_vals, "Unknown (0x%02X)"));
+                                   val_to_str(pinfo->pool, fac, x25_facilities_classC_vals, "Unknown (0x%02X)"));
             facility_tree = proto_item_add_subtree(ti, ett_x25_facility);
             proto_tree_add_item(facility_tree, hf_x25_facility_class, tvb, *offset, 1, ENC_BIG_ENDIAN);
             proto_tree_add_item(facility_tree, hf_x25_facility_classC, tvb, *offset, 1, ENC_BIG_ENDIAN);
@@ -777,7 +776,7 @@ dump_facilities(proto_tree *tree, int *offset, tvbuff_t *tvb, packet_info *pinfo
             break;
         case X25_FAC_CLASS_D:
             proto_item_append_text(ti, ": %s",
-                                   val_to_str(fac, x25_facilities_classD_vals, "Unknown (0x%02X)"));
+                                   val_to_str(pinfo->pool, fac, x25_facilities_classD_vals, "Unknown (0x%02X)"));
             facility_tree = proto_item_add_subtree(ti, ett_x25_facility);
             proto_tree_add_item(facility_tree, hf_x25_facility_class, tvb, *offset, 1, ENC_BIG_ENDIAN);
             byte1 = tvb_get_uint8(tvb, *offset+1);
@@ -1181,6 +1180,13 @@ get_x25_pkt_len(tvbuff_t *tvb)
 
     return 0;
 }
+
+/* X.264 / ISO 11570 transport protocol ID values. */
+
+#define	PRT_ID_ISO_8073			0x01	/* X.224/ISO 8073 COTP */
+#define PRT_ID_ISO_8602			0x02	/* X.234/ISO 8602 CLTP */
+#define PRT_ID_ISO_10736_ISO_8073	0x03	/* X.274/ISO 10736 + X.224/ISO 8073 */
+#define PRT_ID_ISO_10736_ISO_8602	0x04	/* X.274/ISO 10736 + X.234/ISO 8602 */
 
 static const value_string prt_id_vals[] = {
     {PRT_ID_ISO_8073,           "ISO 8073 COTP"},
@@ -1610,8 +1616,8 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             break;
         }
         col_add_fstr(pinfo->cinfo, COL_INFO, "%s VC:%d %s - %s", short_name,
-                    vc, rval_to_str(tvb_get_uint8(tvb, 3), clear_code_rvals, "Unknown (0x%02x)"),
-                    val_to_str_ext(tvb_get_uint8(tvb, 4), &x25_clear_diag_vals_ext, "Unknown (0x%02x)"));
+                    vc, rval_to_str_wmem(pinfo->pool, tvb_get_uint8(tvb, 3), clear_code_rvals, "Unknown (0x%02x)"),
+                    val_to_str_ext(pinfo->pool, tvb_get_uint8(tvb, 4), &x25_clear_diag_vals_ext, "Unknown (0x%02x)"));
         x25_hash_add_proto_end(vc, pinfo->num);
         if (x25_tree) {
             proto_tree_add_uint(x25_tree, hf_x25_lcn, tvb, 0, 2, bytes0_1);
@@ -1689,7 +1695,7 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             break;
         }
         col_add_fstr(pinfo->cinfo, COL_INFO, "%s VC:%d %s - Diag.:%d",
-                    short_name, vc, rval_to_str(tvb_get_uint8(tvb, 3), reset_code_rvals, "Unknown (0x%02x)"),
+                    short_name, vc, rval_to_str_wmem(pinfo->pool, tvb_get_uint8(tvb, 3), reset_code_rvals, "Unknown (0x%02x)"),
                     (int)tvb_get_uint8(tvb, 4));
         x25_hash_add_proto_end(vc, pinfo->num);
         if (x25_tree) {
@@ -1730,7 +1736,7 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         }
         col_add_fstr(pinfo->cinfo, COL_INFO, "%s %s - Diag.:%d",
                     short_name,
-                    rval_to_str(tvb_get_uint8(tvb, 3), restart_code_rvals, "Unknown (0x%02x)"),
+                    rval_to_str_wmem(pinfo->pool, tvb_get_uint8(tvb, 3), restart_code_rvals, "Unknown (0x%02x)"),
                     (int)tvb_get_uint8(tvb, 4));
         if (x25_tree) {
             proto_tree_add_uint_format_value(x25_tree, hf_x25_type, tvb, 2, 1,
@@ -1799,7 +1805,7 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                             (pkt_type & X25_MBIT_MOD8) ? " M" : "");
             else
                 col_add_fstr(pinfo->cinfo, COL_INFO,
-                            "Data VC:%d P(S):%d P(R):%d %s", vc,
+                            "Data VC:%d P(R):%d P(S):%d %s", vc,
                             tvb_get_uint8(tvb, localoffset+1) >> 1,
                             pkt_type >> 1,
                             (tvb_get_uint8(tvb, localoffset+1) & X25_MBIT_MOD128) ? " M" : "");
@@ -1815,11 +1821,11 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                             localoffset, 1, pkt_type);
                 }
                 else {
-                    proto_tree_add_uint(x25_tree, hf_x25_p_r_mod128, tvb,
+                    proto_tree_add_uint(x25_tree, hf_x25_p_s_mod128, tvb,
                             localoffset, 1, pkt_type);
                     proto_tree_add_uint(x25_tree, hf_x25_type_data, tvb,
                             localoffset, 1, pkt_type);
-                    proto_tree_add_item(x25_tree, hf_x25_p_s_mod128, tvb,
+                    proto_tree_add_item(x25_tree, hf_x25_p_r_mod128, tvb,
                             localoffset+1, 1, ENC_NA);
                     proto_tree_add_item(x25_tree, hf_x25_mbit_mod128, tvb,
                             localoffset+1, 1, ENC_NA);
@@ -1896,7 +1902,7 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                                         localoffset, 1, ENC_BIG_ENDIAN);
                 }
                 col_add_fstr(pinfo->cinfo, COL_INFO, "%s VC:%d P(R):%d",
-                             val_to_str(PACKET_TYPE_FC(pkt_type), vals_x25_type, "Unknown (0x%02X)"),
+                             val_to_str(pinfo->pool, PACKET_TYPE_FC(pkt_type), vals_x25_type, "Unknown (0x%02X)"),
                              vc, (pkt_type >> 5) & 0x07);
                 localoffset += 1;
             } else {
@@ -1907,7 +1913,7 @@ dissect_x25_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
                                         localoffset+1, 1, ENC_BIG_ENDIAN);
                 }
                 col_add_fstr(pinfo->cinfo, COL_INFO, "%s VC:%d P(R):%d",
-                             val_to_str(PACKET_TYPE_FC(pkt_type), vals_x25_type, "Unknown (0x%02X)"),
+                             val_to_str(pinfo->pool, PACKET_TYPE_FC(pkt_type), vals_x25_type, "Unknown (0x%02X)"),
                              vc, tvb_get_uint8(tvb, localoffset+1) >> 1);
                 localoffset += 2;
             }

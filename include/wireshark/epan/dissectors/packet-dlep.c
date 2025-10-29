@@ -29,6 +29,7 @@
 #include <epan/tvbuff.h>
 #include <epan/to_str.h>
 #include <epan/tfs.h>
+#include <wsutil/array.h>
 
 #include "packet-tcp.h"
 
@@ -872,7 +873,9 @@ decode_dataitem_li(tvbuff_t *tvb, packet_info *pinfo, proto_tree *pt, void *data
   int offset = 0;
 
   proto_tree_add_item(pt, hf_dlep_dataitem_li, tvb, offset, len, ENC_NA);
-  proto_item_append_text(pi, ": %s", tvb_bytes_to_str(pinfo->pool, tvb, offset, len));
+  if (len > 0) {
+    proto_item_append_text(pi, ": %s", tvb_bytes_to_str(pinfo->pool, tvb, offset, len));
+  }
   offset+=len;
 
   return offset;
@@ -1317,7 +1320,7 @@ proto_register_dlep(void)
   dlep_sig_handle = register_dissector ("dlep.udp", dissect_dlep_sig, proto_dlep);
 
   dlep_dataitem_table = register_dissector_table("dlep.dataitem", "DLEP Data Item Type", proto_dlep, FT_UINT16, BASE_DEC);
-  proto_dataitem = proto_register_protocol_in_name_only("DLEP Data Item Dissector", "DLEP Data Item", "dlep.dataitem", proto_dlep, FT_BYTES);
+  proto_dataitem = proto_register_protocol_in_name_only("DLEP Data Item Dissector", "DLEP Data Item", "dlep.data_item", proto_dlep, FT_BYTES);
   dissector_add_uint("dlep.dataitem", DLEP_DIT_STATUS, create_dissector_handle(decode_dataitem_status, proto_dataitem));
   dissector_add_uint("dlep.dataitem", DLEP_DIT_V4CONN, create_dissector_handle(decode_dataitem_v4conn, proto_dataitem));
   dissector_add_uint("dlep.dataitem", DLEP_DIT_V6CONN, create_dissector_handle(decode_dataitem_v6conn, proto_dataitem));

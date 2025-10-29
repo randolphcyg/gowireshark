@@ -555,7 +555,7 @@ dissect_lsp_mgt_info_clv(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, in
 			    "Short management info entry");
 			return;
 		}
-		proto_tree_add_item(tree, hf_nlsp_mgt_info_name, tvb, offset, name_length, ENC_NA|ENC_ASCII);
+		proto_tree_add_item(tree, hf_nlsp_mgt_info_name, tvb, offset, name_length, ENC_ASCII);
 	}
 }
 
@@ -762,7 +762,7 @@ dissect_lsp_svcs_info_clv(tvbuff_t *tvb, packet_info* pinfo, proto_tree *tree, i
 	length -= 2;
 
 	if (length > 0) {
-		proto_tree_add_item(tree, hf_nlsp_svcs_info_service_name, tvb, offset, length, ENC_NA|ENC_ASCII);
+		proto_tree_add_item(tree, hf_nlsp_svcs_info_service_name, tvb, offset, length, ENC_ASCII);
 	}
 }
 
@@ -1238,7 +1238,7 @@ dissect_nlsp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	packet_type_flags = tvb_get_uint8(tvb, offset);
 	packet_type = packet_type_flags & PACKET_TYPE_MASK;
 	col_add_str(pinfo->cinfo, COL_INFO,
-		    val_to_str(packet_type, nlsp_packet_type_vals, "Unknown (%u)"));
+		    val_to_str(pinfo->pool, packet_type, nlsp_packet_type_vals, "Unknown (%u)"));
 	if (packet_type == NLSP_TYPE_L1_LSP) {
 		proto_tree_add_boolean(nlsp_tree, hf_nlsp_nr, tvb, offset, 1, packet_type_flags );
 	}

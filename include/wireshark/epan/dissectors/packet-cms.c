@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-cms.c                                                               */
-/* asn2wrs.py -b -C -q -L -p cms -c ./cms.cnf -s ./packet-cms-template -D . -O ../.. CryptographicMessageSyntax.asn AttributeCertificateVersion1.asn CMSFirmwareWrapper.asn */
+/* asn2wrs.py -b -C -q -L -p cms -c ./cms.cnf -s ./packet-cms-template -D . -O ../.. CryptographicMessageSyntax.asn AttributeCertificateVersion1.asn CMSFirmwareWrapper.asn CMSAlgorithmProtectionAttribute.asn */
 
 /* packet-cms.c
  * Routines for RFC5652 Cryptographic Message Syntax packet dissection
@@ -78,6 +78,7 @@ static int hf_cms_FirmwarePackageLoadReceipt_PDU;  /* FirmwarePackageLoadReceipt
 static int hf_cms_FirmwarePackageLoadError_PDU;   /* FirmwarePackageLoadError */
 static int hf_cms_HardwareModuleName_PDU;         /* HardwareModuleName */
 static int hf_cms_FirmwarePackageMessageDigest_PDU;  /* FirmwarePackageMessageDigest */
+static int hf_cms_CMSAlgorithmProtection_PDU;     /* CMSAlgorithmProtection */
 static int hf_cms_contentType;                    /* ContentType */
 static int hf_cms_content;                        /* T_content */
 static int hf_cms_version;                        /* CMSVersion */
@@ -309,6 +310,7 @@ static int ett_cms_SEQUENCE_OF_CurrentFWConfig;
 static int ett_cms_CurrentFWConfig;
 static int ett_cms_HardwareModuleName;
 static int ett_cms_FirmwarePackageMessageDigest;
+static int ett_cms_CMSAlgorithmProtection;
 
 static dissector_handle_t cms_handle;
 
@@ -405,6 +407,13 @@ cms_verify_msg_digest(proto_item *pi, tvbuff_t *content, const char *alg, tvbuff
     proto_item_append_text(pi, " [unable to verify]");
   }
 
+}
+
+static int
+cms_dissect_by_last_oid(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data) {
+  struct cms_private_data *cms_data = cms_get_private_data(pinfo);
+
+  return call_ber_oid_callback(cms_data->object_identifier_id, tvb, 0, pinfo, tree, data);
 }
 
 
@@ -585,7 +594,7 @@ static const ber_sequence_t Attribute_sequence[] = {
   { NULL, 0, 0, 0, NULL }
 };
 
-static int
+int
 dissect_cms_Attribute(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    Attribute_sequence, hf_index, ett_cms_Attribute);
@@ -1433,10 +1442,15 @@ dissect_cms_EncryptedContent(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offse
                                        &encrypted_tvb);
 
   struct cms_private_data *cms_data = cms_get_private_data(actx->pinfo);
+  const char *oid_name = oid_resolved_from_string(
+    actx->pinfo->pool, cms_data->object_identifier_id);
 
   item = actx->created_item;
 
-  PBE_decrypt_data(cms_data->object_identifier_id, encrypted_tvb, actx->pinfo, actx, item);
+  PBE_decrypt_data(
+    cms_dissect_by_last_oid,
+    oid_name ? oid_name : cms_data->object_identifier_id,
+    encrypted_tvb, actx->pinfo, actx, item);
 
   return offset;
 }
@@ -2419,6 +2433,22 @@ dissect_cms_FirmwarePackageMessageDigest(bool implicit_tag _U_, tvbuff_t *tvb _U
   return offset;
 }
 
+
+static const ber_sequence_t CMSAlgorithmProtection_sequence[] = {
+  { &hf_cms_digestAlgorithm , BER_CLASS_UNI, BER_UNI_TAG_SEQUENCE, BER_FLAGS_NOOWNTAG, dissect_cms_DigestAlgorithmIdentifier },
+  { &hf_cms_signatureAlgorithm, BER_CLASS_CON, 1, BER_FLAGS_OPTIONAL|BER_FLAGS_IMPLTAG, dissect_cms_SignatureAlgorithmIdentifier },
+  { &hf_cms_macAlgorithm    , BER_CLASS_CON, 2, BER_FLAGS_OPTIONAL|BER_FLAGS_IMPLTAG, dissect_cms_MessageAuthenticationCodeAlgorithm },
+  { NULL, 0, 0, 0, NULL }
+};
+
+static int
+dissect_cms_CMSAlgorithmProtection(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
+                                   CMSAlgorithmProtection_sequence, hf_index, ett_cms_CMSAlgorithmProtection);
+
+  return offset;
+}
+
 /*--- PDUs ---*/
 
 static int dissect_ContentInfo_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
@@ -2666,6 +2696,13 @@ static int dissect_FirmwarePackageMessageDigest_PDU(tvbuff_t *tvb _U_, packet_in
   offset = dissect_cms_FirmwarePackageMessageDigest(false, tvb, offset, &asn1_ctx, tree, hf_cms_FirmwarePackageMessageDigest_PDU);
   return offset;
 }
+static int dissect_CMSAlgorithmProtection_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
+  int offset = 0;
+  asn1_ctx_t asn1_ctx;
+  asn1_ctx_init(&asn1_ctx, ASN1_ENC_BER, true, pinfo);
+  offset = dissect_cms_CMSAlgorithmProtection(false, tvb, offset, &asn1_ctx, tree, hf_cms_CMSAlgorithmProtection_PDU);
+  return offset;
+}
 
 
 /*--- proto_register_cms ----------------------------------------------*/
@@ -2817,6 +2854,10 @@ void proto_register_cms(void) {
       { "FirmwarePackageMessageDigest", "cms.FirmwarePackageMessageDigest_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
+    { &hf_cms_CMSAlgorithmProtection_PDU,
+      { "CMSAlgorithmProtection", "cms.CMSAlgorithmProtection_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        NULL, HFILL }},
     { &hf_cms_contentType,
       { "contentType", "cms.contentType",
         FT_OID, BASE_NONE, NULL, 0,
@@ -2882,7 +2923,7 @@ void proto_register_cms(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         "SignatureAlgorithmIdentifier", HFILL }},
     { &hf_cms_signatureValue,
-      { "signature", "cms.signature",
+      { "signature", "cms.signatureValue",
         FT_BYTES, BASE_NONE, NULL, 0,
         "SignatureValue", HFILL }},
     { &hf_cms_unsignedAttrs,
@@ -2942,7 +2983,7 @@ void proto_register_cms(void) {
         FT_UINT32, BASE_DEC, VALS(cms_RecipientInfo_vals), 0,
         NULL, HFILL }},
     { &hf_cms_encryptedContentType,
-      { "contentType", "cms.contentType",
+      { "contentType", "cms.encryptedContentType",
         FT_OID, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_cms_contentEncryptionAlgorithm,
@@ -3018,7 +3059,7 @@ void proto_register_cms(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_cms_rekRid,
-      { "rid", "cms.rid",
+      { "rid", "cms.rekRid",
         FT_UINT32, BASE_DEC, VALS(cms_KeyAgreeRecipientIdentifier_vals), 0,
         "KeyAgreeRecipientIdentifier", HFILL }},
     { &hf_cms_rKeyId,
@@ -3090,7 +3131,7 @@ void proto_register_cms(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         "CertificateList", HFILL }},
     { &hf_cms_otherRIC,
-      { "other", "cms.other_element",
+      { "other", "cms.otherRIC_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "OtherRevocationInfoFormat", HFILL }},
     { &hf_cms_otherRevInfoFormat,
@@ -3218,15 +3259,15 @@ void proto_register_cms(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         "AttributeCertificateInfoV1", HFILL }},
     { &hf_cms_signatureAlgorithm_v1,
-      { "signatureAlgorithm", "cms.signatureAlgorithm_element",
+      { "signatureAlgorithm", "cms.signatureAlgorithm_v1_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "AlgorithmIdentifier", HFILL }},
     { &hf_cms_signatureValue_v1,
-      { "signature", "cms.signature",
+      { "signature", "cms.signatureValue_v1",
         FT_BYTES, BASE_NONE, NULL, 0,
         "BIT_STRING", HFILL }},
     { &hf_cms_version_v1,
-      { "version", "cms.version",
+      { "version", "cms.version_v1",
         FT_INT32, BASE_DEC, VALS(cms_AttCertVersionV1_vals), 0,
         "AttCertVersionV1", HFILL }},
     { &hf_cms_subject,
@@ -3242,11 +3283,11 @@ void proto_register_cms(void) {
         FT_UINT32, BASE_DEC, NULL, 0,
         "GeneralNames", HFILL }},
     { &hf_cms_issuer_v1,
-      { "issuer", "cms.issuer",
+      { "issuer", "cms.issuer_v1",
         FT_UINT32, BASE_DEC, NULL, 0,
         "GeneralNames", HFILL }},
     { &hf_cms_signature_v1,
-      { "signature", "cms.signature_element",
+      { "signature", "cms.signature_v1_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "AlgorithmIdentifier", HFILL }},
     { &hf_cms_attCertValidityPeriod,
@@ -3254,7 +3295,7 @@ void proto_register_cms(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_cms_attributes_v1,
-      { "attributes", "cms.attributes",
+      { "attributes", "cms.attributes_v1",
         FT_UINT32, BASE_DEC, NULL, 0,
         "SEQUENCE_OF_Attribute", HFILL }},
     { &hf_cms_attributes_v1_item,
@@ -3370,7 +3411,7 @@ void proto_register_cms(void) {
         FT_UINT32, BASE_DEC, VALS(cms_PreferredOrLegacyPackageIdentifier_vals), 0,
         NULL, HFILL }},
     { &hf_cms_fwReceiptVersion,
-      { "version", "cms.version",
+      { "version", "cms.fwReceiptVersion",
         FT_INT32, BASE_DEC, VALS(cms_FWReceiptVersion_vals), 0,
         "FWReceiptVersion", HFILL }},
     { &hf_cms_hwSerialNum,
@@ -3390,7 +3431,7 @@ void proto_register_cms(void) {
         FT_BYTES, BASE_NONE, NULL, 0,
         "OCTET_STRING", HFILL }},
     { &hf_cms_fwErrorVersion,
-      { "version", "cms.version",
+      { "version", "cms.fwErrorVersion",
         FT_INT32, BASE_DEC, VALS(cms_FWErrorVersion_vals), 0,
         "FWErrorVersion", HFILL }},
     { &hf_cms_errorCode,
@@ -3497,6 +3538,7 @@ void proto_register_cms(void) {
     &ett_cms_CurrentFWConfig,
     &ett_cms_HardwareModuleName,
     &ett_cms_FirmwarePackageMessageDigest,
+    &ett_cms_CMSAlgorithmProtection,
   };
 
   /* Register protocol */
@@ -3582,6 +3624,7 @@ void proto_reg_handoff_cms(void) {
   register_ber_oid_dissector("1.2.840.113549.1.9.16.1.18", dissect_FirmwarePackageLoadError_PDU, proto_cms, "id-ct-firmwareLoadError");
   register_ber_oid_dissector("1.3.6.1.5.5.7.8.4", dissect_HardwareModuleName_PDU, proto_cms, "id-on-hardwareModuleName");
   register_ber_oid_dissector("1.2.840.113549.1.9.16.2.41", dissect_FirmwarePackageMessageDigest_PDU, proto_cms, "id-aa-fwPkgMessageDigest");
+  register_ber_oid_dissector("1.2.840.113549.1.9.52", dissect_CMSAlgorithmProtection_PDU, proto_cms, "id-aa-cmsAlgorithmProtect");
 
 
   /* RFC 3370 [CMS-ASN} section 4.3.1 */
@@ -3608,4 +3651,6 @@ void proto_reg_handoff_cms(void) {
   dissector_add_string("media_type", "application/vnd.de-dke-k461-ic1+xml; encap=cms-tr03109", content_info_handle);
   dissector_add_string("media_type", "application/vnd.de-dke-k461-ic1+xml; encap=cms-tr03109-zlib", content_info_handle);
   dissector_add_string("media_type", "application/hgp;encap=cms", content_info_handle);
+
+  dissector_add_string("rfc7468.preeb_label", "CMS", content_info_handle);
 }

@@ -3655,7 +3655,7 @@ cigi3_add_tree(tvbuff_t *tvb, packet_info *pinfo, proto_tree *cigi_tree)
         offset++;
         next_tvb = tvb_new_subset_length(tvb, offset, packet_length - 2);
 
-        int dissected = dissector_try_uint_new(cigi3_packet_id_table, packet_id,
+        int dissected = dissector_try_uint_with_data(cigi3_packet_id_table, packet_id,
             next_tvb, pinfo, cigi_packet_tree, false, NULL);
 
         if (dissected == 0) {
@@ -7056,7 +7056,7 @@ cigi3_3_add_short_symbol_control(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
     offset++;
 
     if (select1 == 9) {
-        if (cigi_byte_order == ENC_BIG_ENDIAN) {
+        if (!(cigi_byte_order & ENC_LITTLE_ENDIAN)) {
             proto_tree_add_item(tree, hf_cigi3_3_short_symbol_control_red1, tvb, offset, 1, cigi_byte_order);
             offset++;
 
@@ -7091,7 +7091,7 @@ cigi3_3_add_short_symbol_control(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
     }
 
     if (select2 == 9) {
-        if (cigi_byte_order == ENC_BIG_ENDIAN) {
+        if (!(cigi_byte_order & ENC_LITTLE_ENDIAN)) {
             proto_tree_add_item(tree, hf_cigi3_3_short_symbol_control_red2, tvb, offset, 1, cigi_byte_order);
             offset++;
 
@@ -8495,7 +8495,7 @@ cigi4_add_tree(tvbuff_t *tvb, packet_info *pinfo, proto_tree *cigi_tree)
          * to dissect normally then add an expert info and abort afterwards below. */
         next_tvb = tvb_new_subset_length(tvb, offset, packet_length - 4);
 
-        int dissected = dissector_try_uint_new(cigi4_packet_id_table, packet_id,
+        int dissected = dissector_try_uint_with_data(cigi4_packet_id_table, packet_id,
             next_tvb, pinfo, cigi_packet_tree, false, NULL);
 
         if (dissected == 0) {

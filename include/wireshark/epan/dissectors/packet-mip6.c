@@ -1197,7 +1197,7 @@ static int hf_mip6_opt_load_inf_used_capacity;
 static int hf_mip6_opt_load_inf_maximum_capacity;
 static int hf_mip6_opt_alt_ip4;
 
-/* Mobile Node Group Identifier Optionm */
+/* Mobile Node Group Identifier Options */
 static int hf_mip6_opt_mng_sub_type;
 static int hf_mip6_opt_mng_reserved;
 static int hf_mip6_opt_mng_mng_id;
@@ -2004,13 +2004,13 @@ dissect_mip6_opt_vsm_3gpp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
         break;
     /* 12, MSISDN */
     case 12:
-        dissect_e164_cc(tvb, tree, offset, E164_ENC_BCD);
+        dissect_e164_cc(tvb, pinfo, tree, offset, E164_ENC_BCD);
         proto_tree_add_item_ret_display_string(tree, hf_mip6_opt_3gpp_msisdn, tvb, offset, len, ENC_BCD_DIGITS_0_9|ENC_LITTLE_ENDIAN, pinfo->pool, &digit_str);
         proto_item_append_text(hdr_item, " %s", digit_str);
         break;
     /* 13, Serving Network */
     case 13:
-        mcc_mnc_str = dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, E212_NONE, true);
+        mcc_mnc_str = dissect_e212_mcc_mnc_wmem_packet_str(tvb, pinfo, tree, offset, E212_SERV_NET, true);
         proto_item_append_text(hdr_item," %s", mcc_mnc_str);
         break;
     /* 14, APN Restriction */
@@ -3540,7 +3540,7 @@ dissect_pmip6_opt_acc_net_id(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
         sub_opt_len = tvb_get_uint8(tvb,offset);
         offset++;
 
-        proto_item_append_text(ti, ": %s (t=%d,l=%d)", val_to_str(sub_opt, mmip6_opt_acc_net_id_sub_opt_vals, "Unknown ANI Type (%02d)"), sub_opt, sub_opt_len);
+        proto_item_append_text(ti, ": %s (t=%d,l=%d)", val_to_str(pinfo->pool, sub_opt, mmip6_opt_acc_net_id_sub_opt_vals, "Unknown ANI Type (%02d)"), sub_opt, sub_opt_len);
         proto_item_set_len(ti, sub_opt_len+2);
 
         switch(sub_opt){
@@ -3569,7 +3569,7 @@ dissect_pmip6_opt_acc_net_id(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
                 proto_tree_add_item_ret_string(subopt_tree, hf_mip6_opt_acc_net_id_sub_opt_net_name, tvb, offset, net_name_len, ENC_BIG_ENDIAN|ENC_UTF_8, pinfo->pool, &name);
                 proto_item_append_text(ti, " Network Name: %s", name);
             }else{
-                proto_tree_add_item(subopt_tree, hf_mip6_opt_acc_net_id_sub_opt_net_name_data, tvb, offset, net_name_len, ENC_BIG_ENDIAN|ENC_UTF_8);
+                proto_tree_add_item(subopt_tree, hf_mip6_opt_acc_net_id_sub_opt_net_name_data, tvb, offset, net_name_len, ENC_NA);
             };
             offset = offset+net_name_len;
 
@@ -3829,7 +3829,7 @@ dissect_mip6(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 
     /* Process mobility header */
     type = tvb_get_uint8(tvb, MIP6_TYPE_OFF);
-    col_add_str(pinfo->cinfo, COL_INFO, val_to_str_ext(type, &mip6_mh_types_ext, "Unknown Mobility Header (%u)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str_ext(pinfo->pool, type, &mip6_mh_types_ext, "Unknown Mobility Header (%u)"));
     switch (type) {
     case MIP6_BRR:
         /* 0 Binding Refresh Request */

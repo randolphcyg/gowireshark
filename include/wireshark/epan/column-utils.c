@@ -24,7 +24,6 @@
 #include "addr_resolv.h"
 #include "address_types.h"
 #include "osi-utils.h"
-#include "value_string.h"
 #include "column-info.h"
 #include "column.h"
 #include "proto.h"
@@ -33,6 +32,7 @@
 #include <epan/epan.h>
 #include <epan/dfilter/dfilter.h>
 
+#include <wsutil/value_string.h>
 #include <wsutil/inet_cidr.h>
 #include <wsutil/utf8_entities.h>
 #include <wsutil/ws_assert.h>
@@ -371,6 +371,7 @@ void col_custom_set_edt(epan_dissect_t *edt, column_info *cinfo)
         col_item->col_data = col_item->col_buf;
         cinfo->col_expr.col_expr[i] = epan_custom_set(edt, col_item->col_custom_fields_ids,
                                      col_item->col_custom_occurrence,
+                                     get_column_display_format(i) == COLUMN_DISPLAY_DETAILS,
                                      col_item->col_buf,
                                      cinfo->col_expr.col_expr_val[i],
                                      COL_MAX_LEN);
@@ -398,6 +399,7 @@ col_custom_set(proto_tree *tree, column_info *cinfo)
         col_item->col_data = col_item->col_buf;
         cinfo->col_expr.col_expr[i] = proto_custom_set(tree, col_item->col_custom_fields_ids,
                                      col_item->col_custom_occurrence,
+                                     get_column_display_format(i) == COLUMN_DISPLAY_DETAILS,
                                      col_item->col_buf,
                                      cinfo->col_expr.col_expr_val[i],
                                      COL_MAX_LEN);
@@ -421,7 +423,11 @@ col_custom_prime_edt(epan_dissect_t *edt, column_info *cinfo)
 
     if (col_item->fmt_matx[COL_CUSTOM] &&
         col_item->col_custom_dfilter) {
-      epan_dissect_prime_with_dfilter(edt, col_item->col_custom_dfilter);
+      if (get_column_display_format(i) == COLUMN_DISPLAY_DETAILS) {
+        epan_dissect_prime_with_dfilter_print(edt, col_item->col_custom_dfilter);
+      } else {
+        epan_dissect_prime_with_dfilter(edt, col_item->col_custom_dfilter);
+      }
     }
   }
 }
@@ -1112,7 +1118,29 @@ set_abs_ydoy_time(const frame_data *fd, char *buf, char *decimal_point, bool loc
      * Get the nsecs as a 32-bit unsigned value, as it should never
      * be negative, so we treat it as unsigned.
      */
-    format_fractional_part_nsecs(ptr, remaining, (uint32_t)fd->abs_ts.nsecs, decimal_point, tsprecision);
+    num_bytes = format_fractional_part_nsecs(ptr, remaining, (uint32_t)fd->abs_ts.nsecs, decimal_point, tsprecision);
+  }
+
+  if (!local) {
+    /*
+     * format_fractional_part_nsecs, unlike snprintf, returns the
+     * number of bytes copied (not "would have copied"), so we
+     * don't check for overflow here.
+     */
+    ptr += num_bytes;
+    remaining -= num_bytes;
+
+    if (remaining == 1 && num_bytes > 0) {
+      /*
+       * If we copied a fractional part but there's only room
+       * for the terminating '\0', replace the last digit of
+       * the fractional part with the "Z". (Remaining is at
+       * least 1, otherwise we would have returned above.)
+       */
+      ptr--;
+      remaining++;
+    }
+    (void)g_strlcpy(ptr, "Z", remaining);
   }
 }
 
@@ -1250,12 +1278,13 @@ col_set_rel_time(const frame_data *fd, column_info *cinfo, const int col)
 {
   nstime_t del_rel_ts;
 
-  if (!fd->has_ts) {
+  /*
+   * If there's no relative time for this frame, leave the column blank.
+   */
+  if (!frame_rel_time(cinfo->epan, fd, &del_rel_ts)) {
     cinfo->columns[col].col_buf[0] = '\0';
     return;
   }
-
-  frame_delta_abs_time(cinfo->epan, fd, fd->frame_ref_num, &del_rel_ts);
 
   switch (timestamp_get_seconds_type()) {
   case TS_SECONDS_DEFAULT:
@@ -1279,12 +1308,14 @@ col_set_delta_time(const frame_data *fd, column_info *cinfo, const int col)
 {
   nstime_t del_cap_ts;
 
-  if (!fd->has_ts) {
+  /*
+   * If there's no time since the last captured frame, leave the
+   * column blank.
+   */
+  if (!frame_delta_time_prev_captured(cinfo->epan, fd, &del_cap_ts)) {
     cinfo->columns[col].col_buf[0] = '\0';
     return;
   }
-
-  frame_delta_abs_time(cinfo->epan, fd, fd->num - 1, &del_cap_ts);
 
   switch (timestamp_get_seconds_type()) {
   case TS_SECONDS_DEFAULT:
@@ -1309,12 +1340,14 @@ col_set_delta_time_dis(const frame_data *fd, column_info *cinfo, const int col)
 {
   nstime_t del_dis_ts;
 
-  if (!fd->has_ts) {
+  /*
+   * If there's no time since the previous displayed frame, leave the
+   * column blank.
+   */
+  if (!frame_delta_time_prev_displayed(cinfo->epan, fd, &del_dis_ts)) {
     cinfo->columns[col].col_buf[0] = '\0';
     return;
   }
-
-  frame_delta_abs_time(cinfo->epan, fd, fd->prev_dis_num, &del_dis_ts);
 
   switch (timestamp_get_seconds_type()) {
   case TS_SECONDS_DEFAULT:
@@ -1395,6 +1428,28 @@ set_abs_time(const frame_data *fd, char *buf, char *decimal_point, bool local)
      */
     format_fractional_part_nsecs(ptr, remaining, (uint32_t)fd->abs_ts.nsecs, decimal_point, tsprecision);
   }
+
+  if (!local) {
+    /*
+     * format_fractional_part_nsecs, unlike snprintf, returns the
+     * number of bytes copied (not "would have copied"), so we
+     * don't check for overflow here.
+     */
+    ptr += num_bytes;
+    remaining -= num_bytes;
+
+    if (remaining == 1 && num_bytes > 0) {
+      /*
+       * If we copied a fractional part but there's only room
+       * for the terminating '\0', replace the last digit of
+       * the fractional part with the "Z". (Remaining is at
+       * least 1, otherwise we would have returned above.)
+       */
+      ptr--;
+      remaining++;
+    }
+    (void)g_strlcpy(ptr, "Z", remaining);
+  }
 }
 
 static void
@@ -1441,6 +1496,7 @@ col_set_epoch_time(const frame_data *fd, column_info *cinfo, const int col)
 void
 set_fd_time(const epan_t *epan, frame_data *fd, char *buf)
 {
+  nstime_t del_ts;
 
   switch (timestamp_get_type()) {
   case TS_ABSOLUTE:
@@ -1456,17 +1512,17 @@ set_fd_time(const epan_t *epan, frame_data *fd, char *buf)
     break;
 
   case TS_RELATIVE:
-    if (fd->has_ts) {
-      nstime_t del_rel_ts;
-
-      frame_delta_abs_time(epan, fd, fd->frame_ref_num, &del_rel_ts);
-
+    /*
+     * If there's no relative time for this frame, leave the
+     * column blank.
+     */
+    if (frame_rel_time(epan, fd, &del_ts)) {
       switch (timestamp_get_seconds_type()) {
       case TS_SECONDS_DEFAULT:
-        set_time_seconds(fd, &del_rel_ts, buf);
+        set_time_seconds(fd, &del_ts, buf);
         break;
       case TS_SECONDS_HOUR_MIN_SEC:
-        set_time_seconds(fd, &del_rel_ts, buf);
+        set_time_seconds(fd, &del_ts, buf);
         break;
       default:
         ws_assert_not_reached();
@@ -1477,17 +1533,17 @@ set_fd_time(const epan_t *epan, frame_data *fd, char *buf)
     break;
 
   case TS_DELTA:
-    if (fd->has_ts) {
-      nstime_t del_cap_ts;
-
-      frame_delta_abs_time(epan, fd, fd->num - 1, &del_cap_ts);
-
+    /*
+     * If there's no time since the previous captured frame, leave the
+     * column blank.
+     */
+    if (frame_delta_time_prev_captured(epan, fd, &del_ts)) {
       switch (timestamp_get_seconds_type()) {
       case TS_SECONDS_DEFAULT:
-        set_time_seconds(fd, &del_cap_ts, buf);
+        set_time_seconds(fd, &del_ts, buf);
         break;
       case TS_SECONDS_HOUR_MIN_SEC:
-        set_time_hour_min_sec(fd, &del_cap_ts, buf, col_decimal_point);
+        set_time_hour_min_sec(fd, &del_ts, buf, col_decimal_point);
         break;
       default:
         ws_assert_not_reached();
@@ -1498,17 +1554,17 @@ set_fd_time(const epan_t *epan, frame_data *fd, char *buf)
     break;
 
   case TS_DELTA_DIS:
-    if (fd->has_ts) {
-      nstime_t del_dis_ts;
-
-      frame_delta_abs_time(epan, fd, fd->prev_dis_num, &del_dis_ts);
-
+    /*
+     * If there is no time since the previous displayed frame, leave the
+     * column blank.
+     */
+    if (frame_delta_time_prev_displayed(epan, fd, &del_ts)) {
       switch (timestamp_get_seconds_type()) {
       case TS_SECONDS_DEFAULT:
-        set_time_seconds(fd, &del_dis_ts, buf);
+        set_time_seconds(fd, &del_ts, buf);
         break;
       case TS_SECONDS_HOUR_MIN_SEC:
-        set_time_hour_min_sec(fd, &del_dis_ts, buf, col_decimal_point);
+        set_time_hour_min_sec(fd, &del_ts, buf, col_decimal_point);
         break;
       default:
         ws_assert_not_reached();
@@ -1812,6 +1868,7 @@ col_based_on_frame_data(column_info *cinfo, const int col)
 
   switch (cinfo->columns[col].col_fmt) {
   case COL_NUMBER:
+  case COL_NUMBER_DIS:
   case COL_CLS_TIME:
   case COL_ABS_TIME:
   case COL_ABS_YMD_TIME:
@@ -1839,6 +1896,11 @@ col_fill_in_frame_data(const frame_data *fd, column_info *cinfo, const int col, 
   switch (col_item->col_fmt) {
   case COL_NUMBER:
     uint32_to_str_buf(fd->num, col_item->col_buf, COL_MAX_LEN);
+    col_item->col_data = col_item->col_buf;
+    break;
+
+  case COL_NUMBER_DIS:
+    uint32_to_str_buf(fd->dis_num, col_item->col_buf, COL_MAX_LEN);
     col_item->col_data = col_item->col_buf;
     break;
 
@@ -1898,6 +1960,7 @@ col_fill_in_frame_data(const frame_data *fd, column_info *cinfo, const int col, 
     break;
 
   case COL_CUMULATIVE_BYTES:
+  case COL_NUMBER_DIS:
     break;
 
   default:
@@ -2098,7 +2161,7 @@ col_dissect(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
     proto_item_set_hidden(ti);
     col_tree = proto_item_add_subtree(ti, ett_cols);
     for (int i = 0; i < cinfo->num_cols; ++i) {
-      if (cinfo->columns[i].hf_id != -1) {
+      if (cinfo->columns[i].hf_id > 0) {
         if (cinfo->columns[i].col_fmt == COL_CUSTOM) {
           ti = proto_tree_add_string_format(col_tree, cinfo->columns[i].hf_id, tvb, 0, 0, get_column_text(cinfo, i), "%s: %s", get_column_title(i), get_column_text(cinfo, i));
         } else {

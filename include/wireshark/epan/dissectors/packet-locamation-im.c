@@ -28,7 +28,8 @@
 /* clang-format on */
 
 #include <epan/expert.h>
-#include <string.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 #include "packet-llc.h"
 
@@ -507,7 +508,7 @@ static void add_timestamp_sample(tvbuff_t *tvb, packet_info *pinfo, int *tvb_off
 	struct tm *sample_time_split = gmtime(&sample_time);
 
 	/* Construct the readable sync status */
-	const char *sync_status_buf = val_to_str(sync_status, samples_timestamps_sample_sync_status, "Unknown (%u)");
+	const char *sync_status_buf = val_to_str(pinfo->pool, sync_status, samples_timestamps_sample_sync_status, "Unknown (%u)");
 
 	/* Construct the readable timestamp */
 	char timestamp_buf[ITEM_LABEL_LENGTH];
@@ -1197,7 +1198,7 @@ static hf_register_info llc_registration[] = {
  * ########################################################################
  */
 
-static int *protocol_subtree[] = {
+static int *ett[] = {
     &ett_protocol_calibration,
     &ett_calibration_lines,
 
@@ -1215,7 +1216,8 @@ static int *protocol_subtree[] = {
     &ett_samples_timestamps_set,
     &ett_samples_timestamps_sample,
     &ett_samples_timestamps_sample_timestamp,
-    &ett_samples_timestamps_sample_reserved};
+    &ett_samples_timestamps_sample_reserved
+};
 
 static dissector_handle_t h_calibration;
 static dissector_handle_t h_ident;
@@ -1224,7 +1226,7 @@ static dissector_handle_t h_samples_im2r0;
 
 void proto_register_locamation_im(void) {
 	/* Setup subtrees */
-	proto_register_subtree_array(protocol_subtree, array_length(protocol_subtree));
+	proto_register_subtree_array(ett, array_length(ett));
 
 	/* Register Protocols */
 

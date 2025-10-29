@@ -1517,7 +1517,7 @@ static int dissect_cmp_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *pa
 		proto_tree_add_item(tcptrans_tree, hf_cmp_tcptrans_type, tvb, offset++, 1, ENC_BIG_ENDIAN);
 	}
 
-	col_add_str (pinfo->cinfo, COL_INFO, val_to_str (pdu_type, cmp_pdu_types, "0x%x"));
+	col_add_str (pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, pdu_type, cmp_pdu_types, "0x%x"));
 
 	switch(pdu_type){
 		case CMP_TYPE_PKIMSG:
@@ -2022,7 +2022,7 @@ void proto_register_cmp(void) {
         FT_INT32, BASE_DEC, NULL, 0,
         "INTEGER", HFILL }},
     { &hf_cmp_pkistatusinf,
-      { "status", "cmp.status_element",
+      { "status", "cmp.pkistatusinf_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "PKIStatusInfo", HFILL }},
     { &hf_cmp_certifiedKeyPair,
@@ -2122,7 +2122,7 @@ void proto_register_cmp(void) {
         FT_UINT32, BASE_DEC, VALS(cmp_CMPCertificate_vals), 0,
         "CMPCertificate", HFILL }},
     { &hf_cmp_pkistatus_01,
-      { "status", "cmp.status",
+      { "status", "cmp.pkistatus",
         FT_INT32, BASE_DEC, VALS(cmp_PKIStatus_vals), 0,
         "PKIStatus", HFILL }},
     { &hf_cmp_willBeRevokedAt,
@@ -2406,9 +2406,14 @@ void proto_register_cmp(void) {
 			&cmp_alternate_tcp_style_http_port);
 
 	/* Register dissectors */
-	cmp_http_handle = register_dissector("cmp.http", dissect_cmp_http, proto_cmp);
-	cmp_tcp_style_http_handle = register_dissector("cmp.tcp_pdu", dissect_cmp_tcp_pdu, proto_cmp);
-	cmp_tcp_handle = register_dissector("cmp", dissect_cmp_tcp, proto_cmp);
+        /* XXX - Since RFC 6712 the plain HTTP transfer method is exclusively
+         * preferred now, so possibly it should have the plain "cmp" short
+         * name, but leave it.
+         * https://datatracker.ietf.org/doc/html/rfc6712#section-1
+         */
+	cmp_http_handle = register_dissector_with_description("cmp.http", PSNAME, dissect_cmp_http, proto_cmp);
+	cmp_tcp_style_http_handle = register_dissector_with_description("cmp.tcp_pdu", PSNAME " TCP-Messaging PDU", dissect_cmp_tcp_pdu, proto_cmp);
+	cmp_tcp_handle = register_dissector_with_description("cmp", PSNAME " TCP-Messaging", dissect_cmp_tcp, proto_cmp);
 	register_ber_syntax_dissector("PKIMessage", proto_cmp, dissect_cmp_pdu);
 }
 

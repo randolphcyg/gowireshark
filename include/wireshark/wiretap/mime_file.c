@@ -63,6 +63,7 @@ static const uint8_t gif89a_magic[] = { 'G', 'I', 'F', '8', '9', 'a'};
 static const uint8_t elf_magic[]    = { 0x7F, 'E', 'L', 'F'};
 static const uint8_t tiff_le_magic[]    = { 'I', 'I', 42, 0 };
 static const uint8_t tiff_be_magic[]    = { 'M', 'M', 0, 42 };
+static const uint8_t riff_magic[]    = { 'R', 'I', 'F', 'F' };
 static const uint8_t btsnoop_magic[]    = { 'b', 't', 's', 'n', 'o', 'o', 'p', 0};
 static const uint8_t pcap_magic[]           = { 0xA1, 0xB2, 0xC3, 0xD4 };
 static const uint8_t pcap_swapped_magic[]   = { 0xD4, 0xC3, 0xB2, 0xA1 };
@@ -71,6 +72,7 @@ static const uint8_t pcap_nsec_swapped_magic[]   = { 0x4D, 0x3C, 0xB2, 0xA1 };
 static const uint8_t pcapng_premagic[]      = { 0x0A, 0x0D, 0x0D, 0x0A };
 static const uint8_t blf_magic[]                 = { 'L', 'O', 'G', 'G' };
 static const uint8_t autosar_dlt_magic[]         = { 'D', 'L', 'T', 0x01 };
+static const uint8_t ttl_magic[]		 = { 'T', 'T', 'L', ' ' };
 static const uint8_t rtpdump_magic[]         = { '#', '!', 'r', 't', 'p', 'p', 'l', 'a', 'y', '1', '.', '0', ' ' };
 
 /* File does not start with it */
@@ -86,6 +88,7 @@ static const mime_files_t magic_files[] = {
 	{ elf_magic, sizeof(elf_magic) },
 	{ tiff_le_magic, sizeof(tiff_le_magic) },
 	{ tiff_be_magic, sizeof(tiff_be_magic) },
+	{ riff_magic, sizeof(riff_magic) },
 	{ btsnoop_magic, sizeof(btsnoop_magic) },
 	{ pcap_magic, sizeof(pcap_magic) },
 	{ pcap_swapped_magic, sizeof(pcap_swapped_magic) },
@@ -94,6 +97,7 @@ static const mime_files_t magic_files[] = {
 	{ pcapng_premagic, sizeof(pcapng_premagic) },
 	{ blf_magic, sizeof(blf_magic) },
 	{ autosar_dlt_magic, sizeof(autosar_dlt_magic) },
+	{ ttl_magic, sizeof(ttl_magic) },
 	{ rtpdump_magic, sizeof(rtpdump_magic) },
 };
 

@@ -368,10 +368,10 @@ dissect_btpa(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
         high_port = dst_port;
     }
 
-    if (dissector_try_uint_new(btpa_subdissector_table, low_port, next_tvb, pinfo, tree, true, NULL))
+    if (dissector_try_uint_with_data(btpa_subdissector_table, low_port, next_tvb, pinfo, tree, true, NULL))
         return tvb_captured_length(tvb);
 
-    if (dissector_try_uint_new(btpa_subdissector_table, high_port, next_tvb, pinfo, tree, true, NULL))
+    if (dissector_try_uint_with_data(btpa_subdissector_table, high_port, next_tvb, pinfo, tree, true, NULL))
         return tvb_captured_length(tvb);
 
     if (dissector_try_heuristic(btpa_heur_subdissector_list, next_tvb, pinfo, tree, &hdtbl_entry, NULL))
@@ -419,7 +419,7 @@ dissect_btpb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
     if (have_tap_listener(btpb_follow_tap))
         tap_queue_packet(btpb_follow_tap, pinfo, next_tvb);
 
-    if (dissector_try_uint_new(btpb_subdissector_table, dst_port, next_tvb, pinfo, tree, true, NULL)) {
+    if (dissector_try_uint_with_data(btpb_subdissector_table, dst_port, next_tvb, pinfo, tree, true, NULL)) {
         return tvb_captured_length(tvb);
     }
     if (dissector_try_heuristic(btpb_heur_subdissector_list, next_tvb, pinfo, tree, &hdtbl_entry, NULL)) {
@@ -2300,7 +2300,7 @@ dissect_geonw_internal(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void
         // HT
         proto_tree_add_item_ret_uint(geonw_ch_tree, hf_geonw_ch_header_type, tvb, offset, 1, ENC_BIG_ENDIAN, &header_type);
         geonwh->gnw_htype = header_type;
-        col_add_str(pinfo->cinfo, COL_INFO, val_to_str(header_type, ch_header_type_names, "Unknown (%u)"));
+        col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, header_type, ch_header_type_names, "Unknown (%u)"));
         offset += 1;
 
         if (!skip_bh) {
@@ -3592,7 +3592,7 @@ proto_register_geonw(void)
         { &ei_geonw_nz_reserved, { "geonw.reserved_not_zero", PI_PROTOCOL, PI_WARN, "Incorrect, should be 0", EXPFILL }},
         { &ei_geonw_version_err, { "geonw.bogus_version", PI_MALFORMED, PI_ERROR, "Bogus GeoNetworking Version", EXPFILL }},
         { &ei_geonw_rhl_lncb,    { "geonw.rhl.lncb", PI_SEQUENCE, PI_NOTE, "Remaining Hop Limit", EXPFILL }},
-        { &ei_geonw_rhl_too_low, { "geonw.rhl.too_small", PI_SEQUENCE, PI_NOTE, "Remaining Hop Limit", EXPFILL }},
+        { &ei_geonw_rhl_too_low, { "geonw.rhl.too_small", PI_SEQUENCE, PI_NOTE, "Remaining Hop Limit Too Low", EXPFILL }},
         { &ei_geonw_mhl_lt_rhl,  { "geonw.rhl.ht_mhl", PI_SEQUENCE, PI_WARN, "Remaining Hop Limit To Live", EXPFILL }},
         { &ei_geonw_scc_too_big, { "geonw.scc_too_big", PI_MALFORMED, PI_ERROR, "Country code should be less than 1000", EXPFILL }},
         { &ei_geonw_analysis_duplicate, { "geonw.analysis_duplicate", PI_SEQUENCE, PI_NOTE, "Duplicate packet", EXPFILL }},

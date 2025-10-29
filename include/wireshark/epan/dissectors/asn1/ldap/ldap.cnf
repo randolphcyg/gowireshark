@@ -318,7 +318,7 @@ ldap_conv_info_t *ldap_info;
     if(!ldapstring || !*ldapstring)
       ldapstring = "<ROOT>";
 
-    col_append_fstr(actx->pinfo->cinfo, COL_INFO, "\"%%s\" ", format_text(actx->pinfo->pool, ldapstring, strlen(ldapstring)));
+    col_append_fstr(actx->pinfo->cinfo, COL_INFO, "\"%%s\" ", ldapstring);
 
     if(ldm_tree)
       proto_item_append_text(ldm_tree, " \"%%s\"", ldapstring);
@@ -330,7 +330,7 @@ ldap_conv_info_t *ldap_info;
     }
 
   } else if ((hf_index == hf_ldap_errorMessage) && ldapstring && *ldapstring) { /* only show message if not success */
-    col_append_fstr(actx->pinfo->cinfo, COL_INFO, "(%%s) ", format_text(actx->pinfo->pool, ldapstring, strlen(ldapstring)));
+    col_append_fstr(actx->pinfo->cinfo, COL_INFO, "(%%s) ", ldapstring);
 
     if(ldm_tree)
       proto_item_append_text(ldm_tree, " (%%s)", ldapstring);
@@ -344,7 +344,7 @@ ldap_conv_info_t *ldap_info;
       if(!ldapstring || !*ldapstring)
         ldapstring = "<ROOT>";
 
-      col_append_fstr(actx->pinfo->cinfo, COL_INFO, "\"%%s\" ", format_text(actx->pinfo->pool, ldapstring, strlen(ldapstring)));
+      col_append_fstr(actx->pinfo->cinfo, COL_INFO, "\"%%s\" ", ldapstring);
 
       if(ldm_tree)
         proto_item_append_text(ldm_tree, " \"%%s\"", ldapstring);
@@ -395,7 +395,7 @@ ldap_conv_info_t *ldap_info;
 
   ldap_do_protocolop(actx->pinfo);
 
-  valstr = val_to_str(scope, ldap_T_scope_vals, "Unknown scope(%%u)");
+  valstr = val_to_str(actx->pinfo->pool, scope, ldap_T_scope_vals, "Unknown scope(%%u)");
 
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, "%%s ", valstr);
 
@@ -410,7 +410,7 @@ ldap_conv_info_t *ldap_info;
 
   ldap_do_protocolop(actx->pinfo);
 
-  valstr = val_to_str(result, ldap_T_resultCode_vals, "Unknown result(%%u)");
+  valstr = val_to_str(actx->pinfo->pool, result, ldap_T_resultCode_vals, "Unknown result(%%u)");
 
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, "%%s ", valstr);
 
@@ -426,7 +426,7 @@ ldap_conv_info_t *ldap_info;
 
   ldap_do_protocolop(actx->pinfo);
 
-  valstr = val_to_str(result, ldap_BindResponse_resultCode_vals, "Unknown result(%%u)");
+  valstr = val_to_str(actx->pinfo->pool, result, ldap_BindResponse_resultCode_vals, "Unknown result(%%u)");
 
   col_append_fstr(actx->pinfo->cinfo, COL_INFO, "%%s ", valstr);
 
@@ -465,7 +465,7 @@ ldap_conv_info_t *ldap_info;
     proto_tree_add_item (tree, *hf_id, next_tvb, 0, tvb_reported_length_remaining(next_tvb, 0), ENC_UTF_8|ENC_NA);
 
   /* if we have an attribute type that isn't binary see if there is a better dissector */
-  else if(!attr_type || !next_tvb || !dissector_try_string_new(ldap_name_dissector_table, attr_type, next_tvb, actx->pinfo, tree, false, NULL)) {
+  else if(!attr_type || !next_tvb || !dissector_try_string_with_data(ldap_name_dissector_table, attr_type, next_tvb, actx->pinfo, tree, false, NULL)) {
     offset = old_offset;
 
     /* do the default thing */
@@ -489,7 +489,7 @@ ldap_conv_info_t *ldap_info;
   if((branch > -1) && (branch < (int)array_length(AuthenticationChoice_choice)))
     auth = AuthenticationChoice_choice[branch].value;
 
-  valstr = val_to_str(auth, ldap_AuthenticationChoice_vals, "Unknown auth(%%u)");
+  valstr = val_to_str(actx->pinfo->pool, auth, ldap_AuthenticationChoice_vals, "Unknown auth(%%u)");
 
   /* If auth is NTLM (10 or 11) don't add to column as the NTLM dissection will do this */
   if ((auth !=  10) && (auth != 11))

@@ -809,7 +809,7 @@ dissect_q932_ie(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data 
   ie_len = tvb_get_uint8(tvb, offset + 1);
 
   ie_tree = proto_tree_add_subtree(tree, tvb, offset, -1, ett_q932_ie, NULL,
-            val_to_str(ie_type, VALS(q932_str_ie_type), "unknown (0x%02X)"));
+            val_to_str(pinfo->pool, ie_type, VALS(q932_str_ie_type), "unknown (0x%02X)"));
 
   proto_tree_add_item(ie_tree, hf_q932_ie_type, tvb, offset, 1, ENC_BIG_ENDIAN);
   proto_tree_add_item(ie_tree, hf_q932_ie_len, tvb, offset + 1, 1, ENC_BIG_ENDIAN);
@@ -882,7 +882,7 @@ void proto_register_q932(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_q932_presentationRestrictedAddressScreened,
-      { "presentationRestrictedAddress", "q932.presentationRestrictedAddress_element",
+      { "presentationRestrictedAddress", "q932.presentationRestrictedAddressScreened_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "AddressScreened", HFILL }},
     { &hf_q932_presentationAllowedAddress,
@@ -894,7 +894,7 @@ void proto_register_q932(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         "Address", HFILL }},
     { &hf_q932_presentationAllowedNumberScreened,
-      { "presentationAllowedNumber", "q932.presentationAllowedNumber_element",
+      { "presentationAllowedNumber", "q932.presentationAllowedNumberScreened_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "NumberScreened", HFILL }},
     { &hf_q932_numberNotAvailableDueToInterworking,
@@ -902,7 +902,7 @@ void proto_register_q932(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_q932_presentationRestrictedNumberScreened,
-      { "presentationRestrictedNumber", "q932.presentationRestrictedNumber_element",
+      { "presentationRestrictedNumber", "q932.presentationRestrictedNumberScreened_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "NumberScreened", HFILL }},
     { &hf_q932_presentationAllowedNumber,
@@ -1037,8 +1037,8 @@ void proto_register_q932(void) {
   expert_module_t* expert_q932;
 
   static const enum_val_t facility_encoding[] = {
-    {"Facility as QSIG", "Dissect facility as QSIG", FACILITY_QSIG},
-    {"Facility as ETSI", "Dissect facility as ETSI", FACILITY_ETSI},
+    {"QSIG", "Dissect facility as QSIG", FACILITY_QSIG},
+    {"ETSI", "Dissect facility as ETSI", FACILITY_ETSI},
     {NULL, NULL, -1}
   };
 

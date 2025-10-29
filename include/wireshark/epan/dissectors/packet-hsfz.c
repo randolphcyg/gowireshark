@@ -1,8 +1,8 @@
 /* packet-hsfz.c
  * HSFZ Dissector
  * By Dr. Lars Voelker <lars.voelker@technica-engineering.de>
- * Copyright 2013-2019 BMW Group, Dr. Lars Voelker
- * Copyright 2020-2023 Technica Engineering, Dr. Lars Voelker
+ * Copyright 2013-2019 BMW Group, Dr. Lars Völker
+ * Copyright 2020-2025 Technica Engineering, Dr. Lars Völker
  * Copyright 2023-2023 BMW Group, Hermann Leinsle
  *
  * Wireshark - Network traffic analyzer
@@ -42,6 +42,8 @@ static int hf_hsfz_length;
 static int hf_hsfz_ctrlword;
 static int hf_hsfz_source_address;
 static int hf_hsfz_target_address;
+static int hf_hsfz_tester_address_expected;
+static int hf_hsfz_tester_address_received;
 static int hf_hsfz_address;
 static int hf_hsfz_ident_string;
 static int hf_hsfz_data;
@@ -120,11 +122,6 @@ udf_free_one_id_string_cb(void *r)   {
     if (rec->name) g_free(rec->name);
 }
 
-static void
-udf_free_one_id_string_data(void *data _U_)  {
-    /* nothing to free here since we did not malloc data in udf_post_update_one_id_string_template_cb */
-}
-
 static bool
 udf_update_diag_addr_cb(void *r, char **err) {
     udf_one_id_string_t *rec = (udf_one_id_string_t *)r;
@@ -135,7 +132,7 @@ udf_update_diag_addr_cb(void *r, char **err) {
     }
 
     if (rec->name == NULL || rec->name[0] == 0) {
-        *err = g_strdup_printf("ECU Name cannot be empty");
+        *err = g_strdup("ECU Name cannot be empty");
         return (*err == NULL);
     }
 
@@ -147,49 +144,35 @@ UAT_HEX_CB_DEF(udf_diag_addr, id, udf_one_id_string_t)
 UAT_CSTRING_CB_DEF(udf_diag_addr, name, udf_one_id_string_t)
 
 static void
-udf_free_key(void *key) {
-    wmem_free(wmem_epan_scope(), key);
-}
+udf_post_update_diag_addr_cb(void) {
+    if (ht_diag_addr) {
+        g_hash_table_destroy(ht_diag_addr);
+    }
 
-static void
-udf_post_update_one_id_string_template_cb(udf_one_id_string_t *udf_data, unsigned udf_data_num, GHashTable *ht) {
-    unsigned i;
-    int *key = NULL;
-    int tmp;
+    ht_diag_addr = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
 
-    if (udf_data_num>0) {
-        for (i = 0; i < udf_data_num; i++) {
-            key = wmem_new(wmem_epan_scope(), int);
-            tmp = udf_data[i].id;
-            *key = tmp;
-
-            g_hash_table_insert(ht, key, udf_data[i].name);
-        }
+    for (unsigned i = 0; i < udf_diag_addr_num; i++) {
+        g_hash_table_insert(ht_diag_addr, GUINT_TO_POINTER(udf_diag_addr[i].id), udf_diag_addr[i].name);
     }
 }
 
 static void
-udf_post_update_diag_addr_cb(void) {
+reset_diag_addr_cb(void) {
+    /* destroy hash table, if it exists */
     if (ht_diag_addr) {
         g_hash_table_destroy(ht_diag_addr);
         ht_diag_addr = NULL;
     }
-
-    ht_diag_addr = g_hash_table_new_full(g_int_hash, g_int_equal, &udf_free_key, &udf_free_one_id_string_data);
-    udf_post_update_one_id_string_template_cb(udf_diag_addr, udf_diag_addr_num, ht_diag_addr);
 }
 
-static char*
+static char *
 get_name_from_ht_diag_addr(unsigned identifier) {
-    unsigned key = identifier;
-
     if (ht_diag_addr == NULL) {
         return NULL;
     }
 
-    return (char *)g_hash_table_lookup(ht_diag_addr, &key);
+    return (char *)g_hash_table_lookup(ht_diag_addr, GUINT_TO_POINTER(identifier));
 }
-
 
 /**********************************
  ****** The dissector itself ******
@@ -197,12 +180,10 @@ get_name_from_ht_diag_addr(unsigned identifier) {
 
 static uint8_t
 dissect_hsfz_address(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int offset, int hf_specific_address) {
-    proto_item *ti;
     uint32_t tmp;
-    char *name;
+    proto_item *ti = proto_tree_add_item_ret_uint(tree, hf_specific_address, tvb, offset, 1, ENC_NA, &tmp);
 
-    ti = proto_tree_add_item_ret_uint(tree, hf_specific_address, tvb, offset, 1, ENC_NA, &tmp);
-    name = get_name_from_ht_diag_addr((unsigned)tmp);
+    char *name = get_name_from_ht_diag_addr(tmp);
     if (name != NULL) {
         proto_item_append_text(ti, " (%s)", name);
     }
@@ -230,7 +211,7 @@ dissect_hsfz_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 
     uint32_t hsfz_length = tvb_get_ntohl(tvb, 0);
     uint16_t hsfz_ctrlword = tvb_get_ntohs(tvb, 4);
-    const char *ctrlword_description = val_to_str(hsfz_ctrlword, hsfz_ctrlwords, "Unknown 0x%04x");
+    const char *ctrlword_description = val_to_str(pinfo->pool, hsfz_ctrlword, hsfz_ctrlwords, "Unknown 0x%04x");
 
     const char *col_string = col_get_text(pinfo->cinfo, COL_INFO);
     if (col_string!=NULL && g_str_has_prefix(col_string, (char *)&"HSFZ\0")) {
@@ -282,6 +263,25 @@ dissect_hsfz_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
             proto_tree_add_item_ret_string(hsfz_tree, hf_hsfz_ident_string, tvb, offset, hsfz_length, ENC_ASCII, pinfo->pool, &ident_data);
             col_append_fstr(pinfo->cinfo, COL_INFO, " (%s)", ident_data);
         }
+        break;
+
+    case HSFZ_CTRLWORD_ALIVE_CHECK:
+        if (hsfz_length == 2) {
+            dissect_hsfz_address(tvb, pinfo, hsfz_tree, offset, hf_hsfz_source_address);
+            offset += 1;
+            dissect_hsfz_address(tvb, pinfo, hsfz_tree, offset, hf_hsfz_target_address);
+        } else if (hsfz_length > 2) {
+            const uint8_t *ident_data;
+            proto_tree_add_item_ret_string(hsfz_tree, hf_hsfz_ident_string, tvb, offset, hsfz_length, ENC_ASCII, pinfo->pool, &ident_data);
+            col_append_fstr(pinfo->cinfo, COL_INFO, " (%s)", ident_data);
+        }
+        break;
+
+    case HSFZ_CTRLWORD_INCORRECT_TESTER_ADDRESS:
+        dissect_hsfz_address(tvb, pinfo, hsfz_tree, offset, hf_hsfz_tester_address_expected);
+        offset += 1;
+
+        dissect_hsfz_address(tvb, pinfo, hsfz_tree, offset, hf_hsfz_tester_address_received);
         break;
 
     case HSFZ_CTRLWORD_INCORRECT_DEST_ADDRESS:
@@ -343,6 +343,10 @@ void proto_register_hsfz(void) {
         { "Source Address", "hsfz.sourceaddr", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }},
     { &hf_hsfz_target_address,
         { "Target Address", "hsfz.targetaddr", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+    { &hf_hsfz_tester_address_expected,
+        { "Tester Address Expected", "hsfz.tester_address_expected", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL } },
+    { &hf_hsfz_tester_address_received,
+        { "Tester Address Received", "hsfz.tester_address_received", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL } },
     { &hf_hsfz_address,
         { "Address", "hsfz.address", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL } },
     { &hf_hsfz_ident_string,
@@ -388,7 +392,7 @@ void proto_register_hsfz(void) {
         udf_update_diag_addr_cb,                /* update callback       */
         udf_free_one_id_string_cb,              /* free callback         */
         udf_post_update_diag_addr_cb,           /* post update callback  */
-        NULL,                                   /* reset callback        */
+        reset_diag_addr_cb,                     /* reset callback        */
         diag_addr_uat_fields                    /* UAT field definitions */
     );
 
@@ -396,12 +400,72 @@ void proto_register_hsfz(void) {
         "A table to define names for diagnostic addresses", udf_diag_addr_uat);
 }
 
+
+/**********************************
+ *********** Heuristics ***********
+ **********************************/
+
+static bool
+test_hsfz(packet_info *pinfo, tvbuff_t *tvb, int offset, void *data)
+{
+    // Check minimum length...
+    if (tvb_captured_length_remaining(tvb, offset) < HSFZ_HDR_LEN)
+        return false;
+
+    // Check packet length
+    unsigned msg_len = get_hsfz_message_len(pinfo, tvb, offset, data);
+    if (msg_len != (unsigned)tvb_reported_length_remaining(tvb, offset) || msg_len > 0x000fffff)
+        return false;
+
+    // Check the control word
+    uint16_t hsfz_ctrlword = tvb_get_ntohs(tvb, offset + 4);
+    if (try_val_to_str(hsfz_ctrlword, hsfz_ctrlwords) == NULL)
+        return false;
+
+    // Nothing against the packet. Assume it's ours...
+    return true;
+}
+
+static bool
+dissect_hsfz_heur_tcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+    // Test if packet matches protocol...
+    if (!test_hsfz(pinfo, tvb, 0, data))
+        return false;
+
+    // Given that the packet matches, specify that dissect_hsfz_tcp will be called
+    // from now on for this "connection"...
+    conversation_t* conversation = find_or_create_conversation(pinfo);
+    conversation_set_dissector(conversation, hsfz_handle_tcp);
+
+    // Do the dissection...
+    dissect_hsfz_tcp(tvb, pinfo, tree, data);
+
+    return true;
+}
+
+static bool
+dissect_hsfz_heur_udp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
+{
+    // Test if packet matches protocol...
+    if (!test_hsfz(pinfo, tvb, 0, data))
+        return false;
+
+    // Do the dissection...
+    return (dissect_hsfz_udp(tvb, pinfo, tree, data) != 0);
+}
+
 void proto_reg_handoff_hsfz(void) {
     hsfz_handle_tcp = register_dissector("hsfz_over_tcp", dissect_hsfz_tcp, proto_hsfz);
     hsfz_handle_udp = register_dissector("hsfz_over_udp", dissect_hsfz_udp, proto_hsfz);
 
+    // Register as classic dissector. Allows user to manually set a port to dissect.
     dissector_add_uint_range_with_preference("tcp.port", "", hsfz_handle_tcp);
     dissector_add_uint_range_with_preference("udp.port", "", hsfz_handle_udp);
+
+    // Register as heuristic dissector for both TCP and UDP
+    heur_dissector_add("tcp", dissect_hsfz_heur_tcp, "HSFZ over TCP", "hsfz_over_tcp", proto_hsfz, HEURISTIC_DISABLE);
+    heur_dissector_add("udp", dissect_hsfz_heur_udp, "HSFZ over UDP", "hsfz_over_udp", proto_hsfz, HEURISTIC_DISABLE);
 
     uds_handle = find_dissector("uds_over_hsfz");
 }

@@ -12,6 +12,8 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 void proto_register_ns_ha(void);
 void proto_reg_handoff_ns_ha(void);
@@ -188,8 +190,8 @@ dissect_ns_ha(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 	}
 
 	col_add_fstr(pinfo->cinfo, COL_INFO, "Node state: %s Master State: %s",
-		val_to_str(state, ns_ha_state_vals, "Unknown (%u)"),
-		val_to_str(master_state, ns_ha_masterstate_vals, "Unknown(%u)"));
+		val_to_str(pinfo->pool, state, ns_ha_state_vals, "Unknown (%u)"),
+		val_to_str(pinfo->pool, master_state, ns_ha_masterstate_vals, "Unknown(%u)"));
 
 	return tvb_captured_length(tvb);
 }

@@ -71,7 +71,7 @@ dissect_peap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
   }
 
   if (!(   len >= 5
-        && tvb_get_bits(tvb, offset, 16, ENC_BIG_ENDIAN) == tvb_get_bits(eap_tvb, 0, 16, ENC_BIG_ENDIAN)
+        && tvb_get_bits16(tvb, offset, 16, ENC_BIG_ENDIAN) == tvb_get_bits16(eap_tvb, 0, 16, ENC_BIG_ENDIAN)
         && tvb_get_uint16(tvb, offset + 2, ENC_BIG_ENDIAN) <= tvb_get_uint16(eap_tvb, 2, ENC_BIG_ENDIAN)
         && (
                 (tvb_get_uint8(eap_tvb, 0) == EAP_REQUEST && tvb_get_uint8(tvb, offset + 4) == EAP_TYPE_ID)
@@ -79,7 +79,7 @@ dissect_peap(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
            ))) {
     eap_len_buf = (unsigned char *)wmem_alloc(pinfo->pool, 2);
     eap_len_tvb = tvb_new_child_real_data(tvb, eap_len_buf, 2, 2);
-    phton16(eap_len_buf, 4 + len);
+    phtonu16(eap_len_buf, 4 + len);
 
     next_tvb = tvb_new_composite();
     tvb_composite_append(next_tvb, tvb_new_subset_length(eap_tvb, 0, 2));

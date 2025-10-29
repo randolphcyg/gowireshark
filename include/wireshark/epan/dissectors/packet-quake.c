@@ -17,6 +17,8 @@
 
 #include <epan/packet.h>
 #include <epan/conversation.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 void proto_register_quake(void);
 
@@ -317,13 +319,13 @@ dissect_quake_control(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
 	direction = (command & 0x80) ? CCREP : CCREQ;
 
 	col_add_fstr(pinfo->cinfo, COL_INFO, "%s %s",
-			val_to_str(command,names_control_command, "%u"),
-			val_to_str(direction,names_control_direction,"%u"));
+			val_to_str(pinfo->pool, command,names_control_command, "%u"),
+			val_to_str(pinfo->pool, direction,names_control_direction,"%u"));
 
 	control_tree = proto_tree_add_subtree_format(tree, tvb,
 			0, -1, ett_quake_control, NULL, "Control %s: %s",
-			val_to_str(direction, names_control_direction, "%u"),
-			val_to_str(command, names_control_command, "%u"));
+			val_to_str(pinfo->pool, direction, names_control_direction, "%u"),
+			val_to_str(pinfo->pool, command, names_control_command, "%u"));
 	proto_tree_add_uint(control_tree, hf_quake_control_command,
 			tvb, 0, 1, command);
 

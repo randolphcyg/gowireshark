@@ -10,7 +10,9 @@
 
 #include <ftypes-int.h>
 #include <float.h>
+#include <math.h>
 #include <wsutil/array.h>
+#include <wsutil/dtoa.h>
 
 static void
 double_fvalue_new(fvalue_t *fv)
@@ -56,24 +58,30 @@ float_val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype, i
 {
 	char *buf = wmem_alloc(scope, G_ASCII_DTOSTR_BUF_SIZE);
 	if (rtype == FTREPR_DFILTER)
-		g_ascii_dtostr(buf, G_ASCII_DTOSTR_BUF_SIZE, fv->value.floating);
+		dtoa_g_fmt(buf, fv->value.floating);
 	else
-		g_ascii_formatd(buf, G_ASCII_DTOSTR_BUF_SIZE, "%." G_STRINGIFY(FLT_DIG) "g", fv->value.floating);
+		g_ascii_formatd(buf, G_ASCII_DTOSTR_BUF_SIZE, "%." G_STRINGIFY(FLT_DECIMAL_DIG) "g", fv->value.floating);
 	return buf;
 }
 
 static char *
-double_val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype, int field_display _U_)
+double_val_to_repr(wmem_allocator_t *scope, const fvalue_t *fv, ftrepr_t rtype _U_, int field_display _U_)
 {
+	/* XXX - We prefer the g fmt here because it's always exact enough for
+	 * serialization and equality testing. We could also use dtoa to write
+	 * an acceptable for serialization and testing BASE_EXP format. We
+	 * could output in hex floating point if field_display is BASE_HEX as
+	 * it's always exact too, but less widely supported (JSON, XML, others
+	 * don't handle it.) BASE_DEC is just always a bad idea for equality
+	 * testing and serialization, unless you want to allow for strings up
+	 * to 308 characters.
+	 */
 	char *buf = wmem_alloc(scope, G_ASCII_DTOSTR_BUF_SIZE);
-	if (rtype == FTREPR_DFILTER)
-		g_ascii_dtostr(buf, G_ASCII_DTOSTR_BUF_SIZE, fv->value.floating);
-	else
-		g_ascii_formatd(buf, G_ASCII_DTOSTR_BUF_SIZE, "%." G_STRINGIFY(DBL_DIG) "g", fv->value.floating);
+	dtoa_g_fmt(buf, fv->value.floating);
 	return buf;
 }
 
-enum ft_result
+static enum ft_result
 double_val_to_double(const fvalue_t *fv, double *repr)
 {
 	*repr = fv->value.floating;
@@ -116,8 +124,31 @@ val_divide(fvalue_t * dst, const fvalue_t *a, const fvalue_t *b, char **err_ptr 
 }
 
 static enum ft_result
+cmp_unordered(double a, double b, int *cmp)
+{
+	/* In C, NaNs compare unequal with everything, including the same NaN.
+	 * We consider NaNs a single equivalence class and allow equality comparisons. */
+	if (isnan(a) && isnan(b)) {
+		*cmp = 0;
+		return FT_OK;
+	}
+
+	/* NaNs are not orderable so throw an error. This makes NaN compare false with everything
+	 * because the runtime silently ignores errors and instead treats them like a false condition.
+	 * We could instead give NaN a total order by having negative NaNs below -inf and positive NaNs above
+	 * inf. C23 adds the totalorder function (which distinguishes NaNs from
+	 * each other by payload and also distinguishes -0 from 0.)
+	 */
+	return FT_BADARG;
+}
+
+static enum ft_result
 cmp_order(const fvalue_t *a, const fvalue_t *b, int *cmp)
 {
+	if (G_UNLIKELY(isunordered(a->value.floating, b->value.floating))) {
+		return cmp_unordered(a->value.floating, b->value.floating, cmp);
+	}
+
 	if (a->value.floating < b->value.floating)
 		*cmp = -1;
 	else if (a->value.floating > b->value.floating)
@@ -137,6 +168,12 @@ static bool
 val_is_negative(const fvalue_t *fv_a)
 {
 	return fv_a->value.floating < 0;
+}
+
+static bool
+val_is_nan(const fvalue_t *fv_a)
+{
+	return isnan(fv_a->value.floating);
 }
 
 static unsigned
@@ -177,6 +214,7 @@ ftype_register_double(void)
 		val_hash,			/* hash */
 		val_is_zero,			/* is_zero */
 		val_is_negative,		/* is_negative */
+		val_is_nan,			/* is_nan */
 		NULL,				/* len */
 		NULL,				/* slice */
 		NULL,				/* bitwise_and */
@@ -216,6 +254,7 @@ ftype_register_double(void)
 		val_hash,			/* hash */
 		val_is_zero,			/* is_zero */
 		val_is_negative,		/* is_negative */
+		val_is_nan,			/* is_nan */
 		NULL,				/* len */
 		NULL,				/* slice */
 		NULL,				/* bitwise_and */

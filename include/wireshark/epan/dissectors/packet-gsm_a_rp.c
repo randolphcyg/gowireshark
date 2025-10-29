@@ -123,7 +123,7 @@ de_rp_message_ref(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint3
 static uint16_t
 de_rp_orig_addr(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, char *add_string, int string_len)
 {
-	return de_cld_party_bcd_num(tvb, tree, pinfo, offset, len, add_string, string_len);
+	return de_clg_party_bcd_num(tvb, tree, pinfo, offset, len, add_string, string_len);
 }
 
 /*
@@ -564,7 +564,7 @@ proto_register_gsm_a_rp(void)
 	};
 
 	static ei_register_info ei[] = {
-		{ &ei_gsm_a_rp_extraneous_data, { "gsm_a.rp.extraneous_data", PI_PROTOCOL, PI_NOTE, "Extraneous Data, dissector bug or later version spec(report to wireshark.org)", EXPFILL }},
+		{ &ei_gsm_a_rp_extraneous_data, { "gsm_a.rp.extraneous_data", PI_PROTOCOL, PI_NOTE, "Extraneous Data, dissector bug or later version spec (report to wireshark.org)", EXPFILL }},
 		{ &ei_gsm_a_rp_missing_mandatory_element, { "gsm_a.rp.missing_mandatory_element", PI_PROTOCOL, PI_ERROR, "Missing Mandatory element, rest of dissection is suspect", EXPFILL }},
 	};
 

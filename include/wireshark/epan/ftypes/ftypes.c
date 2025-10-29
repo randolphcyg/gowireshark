@@ -13,7 +13,7 @@
 #include <wsutil/ws_assert.h>
 
 /* Keep track of ftype_t's via their ftenum number */
-const ftype_t* type_list[FT_NUM_TYPES];
+const ftype_t* type_list[FT_ENUM_SIZE + 1];
 
 /* Initialize the ftype module. */
 void
@@ -74,13 +74,24 @@ ftype_register(enum ftenum ftype, const ftype_t *ft)
 
 /* from README.dissector:
 	Note that the formats used must all belong to the same list as defined below:
-	- FT_INT8, FT_INT16, FT_INT24 and FT_INT32
-	- FT_UINT8, FT_UINT16, FT_UINT24, FT_UINT32, FT_IPXNET and FT_FRAMENUM
-	- FT_UINT64 and FT_EUI64
-	- FT_STRING, FT_STRINGZ and FT_UINT_STRING
-	- FT_FLOAT and FT_DOUBLE
-	- FT_BYTES, FT_UINT_BYTES, FT_AX25, FT_ETHER, FT_VINES, FT_OID and FT_REL_OID
+	- FT_INT8, FT_INT16, FT_INT24 and FT_INT32, FT_CHAR, FT_UINT8, FT_UINT16,
+	  FT_UINT24, FT_UINT32, FT_IPXNET, FT_FRAMENUM, FT_INT40, FT_INT48, FT_INT56
+	  FT_INT64, FT_UINT40, FT_UINT48, FT_UINT56 and FT_UINT64
 	- FT_ABSOLUTE_TIME and FT_RELATIVE_TIME
+	- FT_STRING, FT_STRINGZ, FT_UINT_STRING, FT_STRINGZPAD, FT_STRINGZTRUNC and FT_AX25
+	- FT_FLOAT, FT_DOUBLE, FT_IEEE_11073_SFLOAT and FT_IEEE_11073_FLOAT
+	- FT_BYTES, FT_UINT_BYTES, FT_ETHER, FT_VINES, FT_FCWWN and FT_EUI64
+	- FT_OID, FT_REL_OID and FT_SYSTEM_ID
+
+   We thus divide the types into equivalence classes of compatible types.
+   The same field abbreviation can be used by more than one field, even of
+   different types, so long as the types are compatible.
+
+   This function returns the canonical representative of a type. It can
+   be used to check if two fields are compatible.
+
+   XXX - Currently epan/dfilter/semcheck.c has its own implementation of
+   compatible types.
 */
 static enum ftenum
 same_ftype(const enum ftenum ftype)
@@ -90,20 +101,17 @@ same_ftype(const enum ftenum ftype)
 		case FT_INT16:
 		case FT_INT24:
 		case FT_INT32:
-			return FT_INT32;
-
+		case FT_CHAR:
 		case FT_UINT8:
 		case FT_UINT16:
 		case FT_UINT24:
 		case FT_UINT32:
-			return FT_UINT32;
-
+		case FT_IPXNET:
+		case FT_FRAMENUM:
 		case FT_INT40:
 		case FT_INT48:
 		case FT_INT56:
 		case FT_INT64:
-			return FT_INT64;
-
 		case FT_UINT40:
 		case FT_UINT48:
 		case FT_UINT56:
@@ -113,6 +121,9 @@ same_ftype(const enum ftenum ftype)
 		case FT_STRING:
 		case FT_STRINGZ:
 		case FT_UINT_STRING:
+		case FT_STRINGZPAD:
+		case FT_STRINGZTRUNC:
+		case FT_AX25:
 			return FT_STRING;
 
 		case FT_FLOAT:
@@ -121,17 +132,26 @@ same_ftype(const enum ftenum ftype)
 
 		case FT_BYTES:
 		case FT_UINT_BYTES:
+		case FT_ETHER:
+		case FT_VINES:
+		case FT_FCWWN:
+		case FT_EUI64:
 			return FT_BYTES;
 
 		case FT_OID:
 		case FT_REL_OID:
+		case FT_SYSTEM_ID:
+			/* XXX - dfilter/semcheck.c treats this group as compatible with BYTES */
 			return FT_OID;
 
 		/* XXX: the following are unique for now */
 		case FT_IPv4:
 		case FT_IPv6:
+		case FT_IEEE_11073_SFLOAT: /* XXX - should be able to compare with DOUBLE (#19011) */
+		case FT_IEEE_11073_FLOAT:  /* XXX - should be able to compare with DOUBLE */
 
 		/* everything else is unique */
+		/* XXX - README.dissector claims the time types are compatible. */
 		default:
 			return ftype;
 	}
@@ -412,6 +432,15 @@ ftype_can_is_negative(enum ftenum ftype)
 }
 
 bool
+ftype_can_is_nan(enum ftenum ftype)
+{
+	const ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	return ft->is_nan ? true : false;
+}
+
+bool
 ftype_can_val_to_sinteger(enum ftenum ftype)
 {
 	const ftype_t	*ft;
@@ -447,6 +476,16 @@ ftype_can_val_to_uinteger64(enum ftenum ftype)
 
 	FTYPE_LOOKUP(ftype, ft);
 	return ft->val_to_uinteger64 ? true : false;
+}
+
+bool
+ftype_can_val_to_double(enum ftenum ftype)
+{
+	const ftype_t	*ft;
+
+	FTYPE_LOOKUP(ftype, ft);
+	/* We first convert to 64 bit and then check for overflow. */
+	return ft->val_to_double ? true : false;
 }
 
 /* ---------------------------------------------------------- */
@@ -635,7 +674,7 @@ fvalue_from_uinteger64(ftenum_t ftype, const char *s, uint64_t num, char **err_m
 	}
 	else {
 		if (err_msg != NULL && *err_msg == NULL) {
-			*err_msg = ws_strdup_printf("Unsigned integer 0x%"PRIu64" cannot be converted to %s.",
+			*err_msg = ws_strdup_printf("Unsigned integer %"PRIu64" cannot be converted to %s.",
 						num, ftype_pretty_name(ftype));
 		}
 	}
@@ -722,6 +761,8 @@ fvalue_to_sinteger(const fvalue_t *fv, int32_t *repr)
 		return res;
 	if (val > INT32_MAX)
 		return FT_OVERFLOW;
+	if (val < INT32_MIN)
+		return FT_UNDERFLOW;
 
 	*repr = (int32_t)val;
 	return FT_OK;
@@ -730,21 +771,31 @@ fvalue_to_sinteger(const fvalue_t *fv, int32_t *repr)
 enum ft_result
 fvalue_to_uinteger64(const fvalue_t *fv, uint64_t *repr)
 {
-	ws_assert(fv->ftype->val_to_uinteger64);
+	if (!fv->ftype->val_to_uinteger64) {
+		return FT_BADARG;
+	}
 	return fv->ftype->val_to_uinteger64(fv, repr);
 }
 
 enum ft_result
 fvalue_to_sinteger64(const fvalue_t *fv, int64_t *repr)
 {
-	ws_assert(fv->ftype->val_to_sinteger64);
+	if (!fv->ftype->val_to_sinteger64) {
+		return FT_BADARG;
+	}
 	return fv->ftype->val_to_sinteger64(fv, repr);
 }
 
 enum ft_result
 fvalue_to_double(const fvalue_t *fv, double *repr)
 {
-	ws_assert(fv->ftype->val_to_double);
+	/* We should be able to test this earlier (e.g., in semantic check)
+	 * but there are non-compatible fields that share the same abbrev
+	 * so we have to check it on each fvalue.
+	 */
+	if (!fv->ftype->val_to_double) {
+		return FT_BADARG;
+	}
 	return fv->ftype->val_to_double(fv, repr);
 }
 
@@ -895,6 +946,7 @@ fvalue_set_bytes(fvalue_t *fv, GBytes *value)
 			fv->ftype->ftype == FT_SYSTEM_ID ||
 			fv->ftype->ftype == FT_VINES ||
 			fv->ftype->ftype == FT_ETHER ||
+			fv->ftype->ftype == FT_EUI64 ||
 			fv->ftype->ftype == FT_FCWWN);
 	ws_assert(fv->ftype->set_value.set_value_bytes);
 	fv->ftype->set_value.set_value_bytes(fv, value);
@@ -1043,8 +1095,7 @@ fvalue_set_uinteger64(fvalue_t *fv, uint64_t value)
 			fv->ftype->ftype == FT_UINT48 ||
 			fv->ftype->ftype == FT_UINT56 ||
 			fv->ftype->ftype == FT_UINT64 ||
-			fv->ftype->ftype == FT_BOOLEAN ||
-			fv->ftype->ftype == FT_EUI64);
+			fv->ftype->ftype == FT_BOOLEAN);
 	ws_assert(fv->ftype->set_value.set_value_uinteger64);
 	fv->ftype->set_value.set_value_uinteger64(fv, value);
 }
@@ -1096,6 +1147,7 @@ fvalue_get_bytes(fvalue_t *fv)
 			fv->ftype->ftype == FT_REL_OID ||
 			fv->ftype->ftype == FT_SYSTEM_ID ||
 			fv->ftype->ftype == FT_FCWWN ||
+			fv->ftype->ftype == FT_EUI64 ||
 			fv->ftype->ftype == FT_IPv6);
 	ws_assert(fv->ftype->get_value.get_value_bytes);
 	return fv->ftype->get_value.get_value_bytes(fv);
@@ -1191,8 +1243,7 @@ fvalue_get_uinteger64(fvalue_t *fv)
 			fv->ftype->ftype == FT_UINT48 ||
 			fv->ftype->ftype == FT_UINT56 ||
 			fv->ftype->ftype == FT_UINT64 ||
-			fv->ftype->ftype == FT_BOOLEAN ||
-			fv->ftype->ftype == FT_EUI64);
+			fv->ftype->ftype == FT_BOOLEAN);
 	ws_assert(fv->ftype->get_value.get_value_uinteger64);
 	return fv->ftype->get_value.get_value_uinteger64(fv);
 }
@@ -1337,16 +1388,22 @@ fvalue_matches(const fvalue_t *a, const ws_regex_t *re)
 	return yes ? FT_TRUE : FT_FALSE;
 }
 
-ft_bool_t
+bool
 fvalue_is_zero(const fvalue_t *a)
 {
-	return a->ftype->is_zero(a) ? FT_TRUE : FT_FALSE;
+	return a->ftype->is_zero(a);
 }
 
-ft_bool_t
+bool
 fvalue_is_negative(const fvalue_t *a)
 {
-	return a->ftype->is_negative(a) ? FT_TRUE : FT_FALSE;
+	return a->ftype->is_negative(a);
+}
+
+bool
+fvalue_is_nan(const fvalue_t *a)
+{
+	return a->ftype->is_nan(a);
 }
 
 static fvalue_t *

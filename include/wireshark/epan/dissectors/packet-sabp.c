@@ -333,7 +333,7 @@ dissect_sabp_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
 
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str_ext(ProtocolIE_ID, &sabp_ProtocolIE_ID_vals_ext, "unknown (%d)"));
+                           val_to_str_ext(actx->pinfo->pool, ProtocolIE_ID, &sabp_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
   return offset;
 }
@@ -2009,7 +2009,7 @@ void proto_register_sabp(void) {
         FT_UINT32, BASE_DEC, VALS(sabp_Criticality_vals), 0,
         NULL, HFILL }},
     { &hf_sabp_protocolIE_Field_value,
-      { "value", "sabp.value_element",
+      { "value", "sabp.protocolIE_Field_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "ProtocolIE_Field_value", HFILL }},
     { &hf_sabp_ProtocolExtensionContainer_item,
@@ -2017,7 +2017,7 @@ void proto_register_sabp(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_sabp_ext_id,
-      { "id", "sabp.id",
+      { "id", "sabp.ext_id",
         FT_UINT32, BASE_DEC, NULL, 0,
         "ProtocolExtensionID", HFILL }},
     { &hf_sabp_extensionValue,
@@ -2065,7 +2065,7 @@ void proto_register_sabp(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_sabp_repetitionNumber1,
-      { "repetitionNumber", "sabp.repetitionNumber",
+      { "repetitionNumber", "sabp.repetitionNumber1",
         FT_UINT32, BASE_DEC, NULL, 0,
         "RepetitionNumber1", HFILL }},
     { &hf_sabp_Failure_List_item,
@@ -2137,15 +2137,15 @@ void proto_register_sabp(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_sabp_initiatingMessage_value,
-      { "value", "sabp.value_element",
+      { "value", "sabp.initiatingMessage_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InitiatingMessage_value", HFILL }},
     { &hf_sabp_successfulOutcome_value,
-      { "value", "sabp.value_element",
+      { "value", "sabp.successfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SuccessfulOutcome_value", HFILL }},
     { &hf_sabp_unsuccessfulOutcome_value,
-      { "value", "sabp.value_element",
+      { "value", "sabp.unsuccessfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "UnsuccessfulOutcome_value", HFILL }},
   };

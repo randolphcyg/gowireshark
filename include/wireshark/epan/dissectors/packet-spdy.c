@@ -26,22 +26,12 @@
 #include <epan/prefs.h>
 #include <epan/expert.h>
 #include <epan/tap.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
+#include <wsutil/zlib_compat.h>
 #include "packet-tcp.h"
 #include "packet-tls.h"
 #include "packet-media-type.h"
-
-#if defined(HAVE_ZLIB) && !defined(HAVE_ZLIBNG)
-#define ZLIB_CONST
-#define ZLIB_PREFIX(x) x
-#include <zlib.h>
-typedef z_stream zlib_stream;
-#endif /* HAVE_ZLIB */
-
-#ifdef HAVE_ZLIBNG
-#define ZLIB_PREFIX(x) zng_ ## x
-#include <zlib-ng.h>
-typedef zng_stream zlib_stream;
-#endif /* HAVE_ZLIBNG */
 
 void proto_register_spdy(void);
 void proto_reg_handoff_spdy(void);
@@ -55,17 +45,15 @@ void proto_reg_handoff_spdy(void);
  * entities and for decompressing request & reply header blocks.
  */
 typedef struct _spdy_conv_t {
-#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+#ifdef USE_ZLIB_OR_ZLIBNG
+  zlib_streamp rqst_decompressor;
+  zlib_streamp rply_decompressor;
 #ifdef HAVE_ZLIBNG
-  zng_streamp rqst_decompressor;
-  zng_streamp rply_decompressor;
   uint32_t     dictionary_id;
 #else
-  z_streamp rqst_decompressor;
-  z_streamp rply_decompressor;
   uLong     dictionary_id;
 #endif
-#endif
+#endif /* USE_ZLIB_OR_ZLIBNG */
   wmem_tree_t  *streams;
 } spdy_conv_t;
 
@@ -252,15 +240,15 @@ static bool spdy_assemble_entity_bodies = true;
 /*
  * Decompression of zlib encoded entities.
  */
-#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+#ifdef USE_ZLIB_OR_ZLIBNG
 static bool spdy_decompress_body = true;
 static bool spdy_decompress_headers = true;
 #else
 static bool spdy_decompress_body;
 static bool spdy_decompress_headers;
-#endif
+#endif /* USE_ZLIB_OR_ZLIBNG */
 
-#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+#ifdef USE_ZLIB_OR_ZLIBNG
 static const char spdy_dictionary[] = {
   0x00, 0x00, 0x00, 0x07, 0x6f, 0x70, 0x74, 0x69,  /* - - - - o p t i */
   0x6f, 0x6e, 0x73, 0x00, 0x00, 0x00, 0x04, 0x68,  /* o n s - - - - h */
@@ -448,14 +436,10 @@ static const char spdy_dictionary[] = {
  */
 static bool inflate_end_cb (wmem_allocator_t *allocator _U_,
     wmem_cb_event_t event _U_, void *user_data) {
-#ifdef HAVE_ZLIBNG
-  ZLIB_PREFIX(inflateEnd)((zng_streamp)user_data);
-#else
-  ZLIB_PREFIX(inflateEnd)((z_streamp)user_data);
-#endif
+  ZLIB_PREFIX(inflateEnd)((zlib_streamp)user_data);
   return false;
 }
-#endif
+#endif /* USE_ZLIB_OR_ZLIBNG */
 
 /*
  * Protocol initialization
@@ -473,7 +457,7 @@ spdy_init_protocol(void)
 static spdy_conv_t * get_or_create_spdy_conversation_data(packet_info *pinfo) {
   conversation_t  *conversation;
   spdy_conv_t *conv_data;
-#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+#ifdef USE_ZLIB_OR_ZLIBNG
   int retcode;
 #endif
 
@@ -487,7 +471,7 @@ static spdy_conv_t * get_or_create_spdy_conversation_data(packet_info *pinfo) {
 
     conv_data->streams = NULL;
     if (spdy_decompress_headers) {
-#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+#ifdef USE_ZLIB_OR_ZLIBNG
       conv_data->rqst_decompressor = wmem_new0(wmem_file_scope(), zlib_stream);
       conv_data->rply_decompressor = wmem_new0(wmem_file_scope(), zlib_stream);
       retcode = ZLIB_PREFIX(inflateInit)(conv_data->rqst_decompressor);
@@ -506,7 +490,7 @@ static spdy_conv_t * get_or_create_spdy_conversation_data(packet_info *pinfo) {
       conv_data->dictionary_id = ZLIB_PREFIX(adler32)(conv_data->dictionary_id,
                                          spdy_dictionary,
                                          (uInt)sizeof(spdy_dictionary));
-#endif
+#endif /* USE_ZLIB_OR_ZLIBNG */
     }
 
     conversation_add_proto_data(conversation, proto_spdy, conv_data);
@@ -954,7 +938,7 @@ body_dissected:
   return frame->length;
 }
 
-#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
+#ifdef USE_ZLIB_OR_ZLIBNG
 /*
  * Performs header decompression.
  *
@@ -965,11 +949,7 @@ body_dissected:
 
 static uint8_t* spdy_decompress_header_block(tvbuff_t *tvb,
                                             packet_info *pinfo,
-#ifdef HAVE_ZLIBNG
-                                            zng_streamp decomp,
-#else
-                                            z_streamp decomp,
-#endif
+                                            zlib_streamp decomp,
                                             uLong dictionary_id,
                                             int offset,
                                             uint32_t length,
@@ -1010,7 +990,7 @@ DIAG_ON(cast-qual)
 
   return (uint8_t *)wmem_memdup(wmem_file_scope(), uncomp_block, *uncomp_length);
 }
-#endif
+#endif /* USE_ZLIB_OR_ZLIBNG */
 
 
 /*
@@ -1170,12 +1150,8 @@ static int dissect_spdy_header_payload(
     if (header_info == NULL) {
       uint8_t *uncomp_ptr = NULL;
       unsigned uncomp_length = 0;
-#if defined (HAVE_ZLIB) || defined (HAVE_ZLIBNG)
-#ifdef HAVE_ZLIBNG
-      zng_streamp decomp;
-#else
-      z_streamp decomp;
-#endif
+#ifdef USE_ZLIB_OR_ZLIBNG
+      zlib_streamp decomp;
 
       /* Get our decompressor. */
       if (stream_id % 2 == 0) {
@@ -1212,7 +1188,7 @@ static int dissect_spdy_header_payload(
         proto_item_append_text(frame_tree, " [Error: Header decompression failed]");
         return -1;
       }
-#endif
+#endif /* USE_ZLIB_OR_ZLIBNG */
 
       /* Store decompressed data. */
       header_info = spdy_save_header_block(pinfo, stream_id, frame->type, uncomp_ptr, uncomp_length);
@@ -1382,7 +1358,7 @@ static int dissect_spdy_rst_stream_payload(
                            "Invalid status code for RST_STREAM: %u", rst_status);
   }
 
-  str = val_to_str(rst_status, rst_stream_status_names, "Unknown (%d)");
+  str = val_to_str(pinfo->pool, rst_status, rst_stream_status_names, "Unknown (%d)");
 
   proto_item_append_text(frame_tree, ", Status: %s", str);
 
@@ -1438,7 +1414,7 @@ static int dissect_spdy_settings_payload(
     offset += 1;
 
     /* Set ID. */
-    setting_id_str = val_to_str(tvb_get_ntoh24(tvb, offset), setting_id_names, "Unknown(%d)");
+    setting_id_str = val_to_str(pinfo->pool, tvb_get_ntoh24(tvb, offset), setting_id_names, "Unknown(%d)");
 
     proto_tree_add_item(setting_tree, hf_spdy_setting_id, tvb, offset, 3, ENC_BIG_ENDIAN);
     offset += 3;
@@ -1495,7 +1471,7 @@ static int dissect_spdy_goaway_payload(tvbuff_t *tvb,
 
   /* Add status to info column. */
   proto_item_append_text(frame_tree, " Status=%s)",
-                  val_to_str(goaway_status, rst_stream_status_names, "Unknown (%d)"));
+                  val_to_str(pinfo->pool, goaway_status, rst_stream_status_names, "Unknown (%d)"));
 
   return frame->length;
 }
@@ -1547,7 +1523,7 @@ static int dissect_spdy_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
 
   /* Add control bit. */
   control_bit = tvb_get_uint8(tvb, offset) & 0x80;
-  proto_tree_add_item(spdy_tree, hf_spdy_control_bit, tvb, offset, 2, ENC_NA);
+  proto_tree_add_item(spdy_tree, hf_spdy_control_bit, tvb, offset, 2, ENC_BIG_ENDIAN);
 
   /* Process first four bytes of frame, formatted depending on control bit. */
   if (control_bit) {
@@ -1577,7 +1553,7 @@ static int dissect_spdy_frame(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tre
   }
 
   /* Add frame info. */
-  frame_type_name = val_to_str(frame.type, frame_type_names, "Unknown(%d)");
+  frame_type_name = val_to_str(pinfo->pool, frame.type, frame_type_names, "Unknown(%d)");
   col_append_sep_str(pinfo->cinfo, COL_INFO, ", ", frame_type_name);
 
   proto_item_append_text(spdy_tree, ": %s", frame_type_name);

@@ -17,6 +17,8 @@
 #include <epan/expert.h>
 #include <epan/uat.h>
 #include <epan/proto_data.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 #include <wsutil/wsgcrypt.h>
 #include <wsutil/report_message.h>
@@ -35,7 +37,7 @@ void proto_register_pdcp_nr(void);
 void proto_reg_handoff_pdcp_nr(void);
 
 /* Described in:
- * 3GPP TS 38.323 Technical Specification Group Radio Access Netowrk; NR;
+ * 3GPP TS 38.323 Technical Specification Group Radio Access Network; NR;
  *                Packet Data Convergence Protocol (PDCP) specification (Release 15.1.0)
  * 3GPP TS 37.324 Technical Specification Group Radio Access Network; E-UTRA and NR;
  *                Service Data Adaptation Protocol (SDAP) specification (Release 15)

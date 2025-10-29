@@ -1,4 +1,4 @@
--- 3GPP TS 38.413 V18.2.0 (2024-06)
+-- 3GPP TS 38.413 V18.6.0 (2025-06)
 -- 9.4.4	PDU Definitions
 -- **************************************************************
 --
@@ -34,6 +34,7 @@ IMPORTS
 	AMF-UE-NGAP-ID,
 	AssistanceDataForPaging,
 	AssociatedSessionID,
+	AUN3DeviceAccessInfo,
 	AuthenticatedIndication,
 	BroadcastCancelledAreaList,
 	BroadcastCompletedAreaList,
@@ -290,6 +291,7 @@ FROM NGAP-Containers
 	id-AMF-UE-NGAP-ID,
 	id-AssistanceDataForPaging,
 	id-AssociatedSessionID,
+	id-AUN3DeviceAccessInfo,
 	id-AuthenticatedIndication,
 	id-BroadcastCancelledAreaList,
 	id-BroadcastCompletedAreaList,
@@ -528,7 +530,8 @@ FROM NGAP-Containers
 	id-WarningType,
 	id-WUS-Assistance-Information,
 	id-XrDeviceWith2Rx,
-	id-SLPositioningRangingServiceInfo
+	id-SLPositioningRangingServiceInfo,
+	id-ExtendedOldAMF
 
 
 FROM NGAP-Constants;
@@ -832,7 +835,8 @@ InitialContextSetupRequestIEs NGAP-PROTOCOL-IES ::= {
 	{ ID id-A2X-PC5-QoS-Parameters					CRITICALITY ignore	TYPE A2X-PC5-QoS-Parameters							PRESENCE optional		}|
 	{ ID id-MobileIAB-Authorized					CRITICALITY ignore	TYPE MobileIAB-Authorized								PRESENCE optional		}|
 	{ ID id-Partially-Allowed-NSSAI					CRITICALITY ignore	TYPE Partially-Allowed-NSSAI							PRESENCE optional		}|
-	{ ID id-SLPositioningRangingServiceInfo			CRITICALITY ignore	TYPE SLPositioningRangingServiceInfo				PRESENCE optional		},
+	{ ID id-SLPositioningRangingServiceInfo			CRITICALITY ignore	TYPE SLPositioningRangingServiceInfo				PRESENCE optional		}|
+	{ ID id-ExtendedOldAMF							CRITICALITY ignore	TYPE Extended-AMFName									PRESENCE optional		},
 	...
 }
 
@@ -972,7 +976,8 @@ UEContextResumeRequestIEs NGAP-PROTOCOL-IES ::= {
 	{ ID id-PDUSessionResourceFailedToResumeListRESReq		CRITICALITY reject	TYPE PDUSessionResourceFailedToResumeListRESReq			PRESENCE optional		}|
 	{ ID id-Suspend-Request-Indication				CRITICALITY ignore	TYPE Suspend-Request-Indication						PRESENCE optional		}|
 	{ ID id-InfoOnRecommendedCellsAndRANNodesForPaging	CRITICALITY ignore	TYPE InfoOnRecommendedCellsAndRANNodesForPaging		PRESENCE optional		}|
-	{ ID id-PagingAssisDataforCEcapabUE					CRITICALITY ignore	TYPE PagingAssisDataforCEcapabUE				PRESENCE optional		},
+	{ ID id-PagingAssisDataforCEcapabUE					CRITICALITY ignore	TYPE PagingAssisDataforCEcapabUE				PRESENCE optional		}|
+	{ ID id-UserLocationInformation						CRITICALITY ignore	TYPE UserLocationInformation					PRESENCE optional		},
 	...
 }
 
@@ -1041,7 +1046,9 @@ UEContextSuspendRequestIEs NGAP-PROTOCOL-IES ::= {
 	{ ID id-RAN-UE-NGAP-ID								CRITICALITY reject	TYPE RAN-UE-NGAP-ID												PRESENCE mandatory	}|
 	{ ID id-InfoOnRecommendedCellsAndRANNodesForPaging	CRITICALITY ignore	TYPE InfoOnRecommendedCellsAndRANNodesForPaging		PRESENCE optional		}|
 	{ ID id-PagingAssisDataforCEcapabUE					CRITICALITY ignore	TYPE PagingAssisDataforCEcapabUE							PRESENCE optional		}|
-	{ ID id-PDUSessionResourceSuspendListSUSReq			CRITICALITY reject	TYPE PDUSessionResourceSuspendListSUSReq				PRESENCE optional		},	...
+	{ ID id-PDUSessionResourceSuspendListSUSReq			CRITICALITY reject	TYPE PDUSessionResourceSuspendListSUSReq				PRESENCE optional		}|
+	{ ID id-UserLocationInformation						CRITICALITY ignore	TYPE UserLocationInformation								PRESENCE optional		},
+	...
 }
 
 -- **************************************************************
@@ -1823,7 +1830,8 @@ InitialUEMessage-IEs NGAP-PROTOCOL-IES ::= {
 	{ ID id-SelectedNID								CRITICALITY ignore	TYPE NID											PRESENCE optional		}|
 	{ ID id-MobileIABNodeIndication					CRITICALITY reject	TYPE MobileIABNodeIndication						PRESENCE optional		}|
 	{ ID id-Partially-Allowed-NSSAI					CRITICALITY ignore	TYPE Partially-Allowed-NSSAI	   				PRESENCE optional		}|
-	{ ID id-ERedCapIndication						CRITICALITY ignore	TYPE ERedCapIndication								PRESENCE optional		},
+	{ ID id-ERedCapIndication						CRITICALITY ignore	TYPE ERedCapIndication								PRESENCE optional		}|
+	{ ID id-AUN3DeviceAccessInfo					CRITICALITY ignore	TYPE AUN3DeviceAccessInfo							PRESENCE optional		},
 	...
 }
 
@@ -1860,7 +1868,8 @@ DownlinkNASTransport-IEs NGAP-PROTOCOL-IES ::= {
 	{ ID id-TargetNSSAIInformation			CRITICALITY ignore	TYPE TargetNSSAIInformation			PRESENCE optional		}|
 	{ ID id-MaskedIMEISV					CRITICALITY ignore	TYPE MaskedIMEISV					PRESENCE optional		}|
 	{ ID id-Partially-Allowed-NSSAI			CRITICALITY ignore	TYPE Partially-Allowed-NSSAI		PRESENCE optional		}|
-	{ ID id-MobileIAB-Authorized			CRITICALITY ignore	TYPE MobileIAB-Authorized			PRESENCE optional		},
+	{ ID id-MobileIAB-Authorized			CRITICALITY ignore	TYPE MobileIAB-Authorized			PRESENCE optional		}|
+	{ ID id-ExtendedOldAMF					CRITICALITY ignore	TYPE Extended-AMFName				PRESENCE optional		},
 	...
 }
 
@@ -2885,7 +2894,8 @@ ConnectionEstablishmentIndicationIEs NGAP-PROTOCOL-IES ::= {
 	{ ID id-UERadioCapabilityID				CRITICALITY reject	TYPE UERadioCapabilityID			PRESENCE optional		}|
 	{ ID id-MaskedIMEISV					CRITICALITY ignore	TYPE MaskedIMEISV					PRESENCE optional		}|
 	{ ID id-OldAMF							CRITICALITY reject	TYPE AMFName						PRESENCE optional		}|
-	{ ID id-Partially-Allowed-NSSAI			CRITICALITY ignore	TYPE Partially-Allowed-NSSAI		PRESENCE optional		},
+	{ ID id-Partially-Allowed-NSSAI			CRITICALITY ignore	TYPE Partially-Allowed-NSSAI		PRESENCE optional		}|
+	{ ID id-ExtendedOldAMF					CRITICALITY ignore	TYPE Extended-AMFName				PRESENCE optional		},
 	...
 }
 
@@ -2944,9 +2954,9 @@ AMFCPRelocationIndication ::= SEQUENCE {
 AMFCPRelocationIndicationIEs NGAP-PROTOCOL-IES ::= {
 	{ ID id-AMF-UE-NGAP-ID				CRITICALITY reject	TYPE AMF-UE-NGAP-ID				PRESENCE mandatory	}|
 	{ ID id-RAN-UE-NGAP-ID				CRITICALITY reject	TYPE RAN-UE-NGAP-ID				PRESENCE mandatory	}|
-	{ ID id-S-NSSAI						CRITICALITY ignore	TYPE S-NSSAI					PRESENCE optional		}|
-	{ ID id-AllowedNSSAI				CRITICALITY ignore	TYPE AllowedNSSAI				PRESENCE optional		}|
-	{ ID id-Partially-Allowed-NSSAI		CRITICALITY ignore	TYPE Partially-Allowed-NSSAI	PRESENCE optional		},
+	{ ID id-S-NSSAI						CRITICALITY ignore	TYPE S-NSSAI					PRESENCE optional		}| --this IE is not used and ignored
+	{ ID id-AllowedNSSAI				CRITICALITY ignore	TYPE AllowedNSSAI				PRESENCE optional		}| --this IE is not used and ignored
+	{ ID id-Partially-Allowed-NSSAI		CRITICALITY ignore	TYPE Partially-Allowed-NSSAI	PRESENCE optional		}, --this IE is not used and ignored
 	...
 }
 

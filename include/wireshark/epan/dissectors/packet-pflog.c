@@ -396,8 +396,8 @@ dissect_pflog(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
   }
 
   proto_item_set_text(ti, "PF Log %s %s on %s by rule %d",
-    val_to_str(af, pflog_af_vals, "unknown (%u)"),
-    val_to_str(action, pflog_action_vals, "unknown (%u)"),
+    val_to_str(pinfo->pool, af, pflog_af_vals, "unknown (%u)"),
+    val_to_str(pinfo->pool, action, pflog_action_vals, "unknown (%u)"),
     ifname,
     rulenr);
   proto_item_set_len(ti, offset);
@@ -423,7 +423,7 @@ dissect_pflog(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
   }
 
   col_prepend_fstr(pinfo->cinfo, COL_INFO, "[%s %s/%d] ",
-        val_to_str(action, pflog_action_vals, "unknown (%u)"),
+        val_to_str(pinfo->pool, action, pflog_action_vals, "unknown (%u)"),
         ifname,
         rulenr);
   return tvb_captured_length(tvb);
@@ -517,7 +517,7 @@ proto_register_pflog(void)
   static int *ett[] = { &ett_pflog };
 
   static ei_register_info ei[] = {
-     { &ei_pflog_invalid_header_length, { "pflog.invalid_header_length", PI_MALFORMED, PI_ERROR, "Invalid header length ", EXPFILL }},
+     { &ei_pflog_invalid_header_length, { "pflog.invalid_header_length", PI_MALFORMED, PI_ERROR, "Invalid header length", EXPFILL }},
   };
 
   expert_module_t* expert_pflog;
@@ -588,8 +588,8 @@ dissect_old_pflog(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
   offset +=2;
 
   proto_item_set_text(ti, "PF Log (pre 3.4) %s %s on %s by rule %d",
-      val_to_str(af, pflog_af_vals, "unknown (%u)"),
-      val_to_str(action, pflog_action_vals, "unknown (%u)"),
+      val_to_str(pinfo->pool, af, pflog_af_vals, "unknown (%u)"),
+      val_to_str(pinfo->pool, action, pflog_action_vals, "unknown (%u)"),
       ifname,
       rnr);
   proto_item_set_len(ti, offset);
@@ -613,7 +613,7 @@ dissect_old_pflog(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
   }
 
   col_prepend_fstr(pinfo->cinfo, COL_INFO, "[%s %s/#%d] ",
-        val_to_str(action, pflog_action_vals, "unknown (%u)"),
+        val_to_str(pinfo->pool, action, pflog_action_vals, "unknown (%u)"),
         ifname,
         rnr);
 

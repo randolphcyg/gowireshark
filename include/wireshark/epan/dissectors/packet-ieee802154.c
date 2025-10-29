@@ -108,6 +108,8 @@
 /* Use libgcrypt for cipher libraries. */
 #include <wsutil/wsgcrypt.h>
 
+#include <wsutil/ws_padding_to.h>
+
 #include "packet-ieee802154.h"
 #include "packet-sll.h"
 #include "packet-zbee-tlv.h"
@@ -202,10 +204,6 @@ static uint64_t ieee802154_tsch_asn;
 static const char  *ieee802154_user    = "User";
 
 static wmem_tree_t* mac_key_hash_handlers;
-
-#ifndef ROUND_UP
-#define ROUND_UP(_offset_, _align_) (((_offset_) + (_align_) - 1) / (_align_) * (_align_))
-#endif
 
 /*
  * Address Hash Tables
@@ -1473,7 +1471,7 @@ static bool ieee802154_extend_auth = true;
 
 static int ieee802_15_4_short_address_to_str(const address* addr, char *buf, int buf_len)
 {
-    uint16_t ieee_802_15_4_short_addr = pletoh16(addr->data);
+    uint16_t ieee_802_15_4_short_addr = pletohu16(addr->data);
 
     if (ieee_802_15_4_short_addr == 0xffff)
     {
@@ -2838,7 +2836,7 @@ ieee802154_dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, u
         packet->dst64 = tvb_get_letoh64(tvb, offset);
 
         /* Copy and convert the address to network byte order. */
-        *p_addr = pntoh64(&(packet->dst64));
+        *p_addr = pntohu64(&(packet->dst64));
 
         /* Display the destination address. */
         /* XXX - OUI resolution doesn't happen when displaying resolved
@@ -2933,7 +2931,7 @@ ieee802154_dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, u
         packet->src64 = tvb_get_letoh64(tvb, offset);
 
         /* Copy and convert the address to network byte order. */
-        *p_addr = pntoh64(&(packet->src64));
+        *p_addr = pntohu64(&(packet->src64));
 
         /* Display the source address. */
         /* XXX - OUI resolution doesn't happen when displaying resolved
@@ -2972,7 +2970,10 @@ ieee802154_dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, u
     }
 
     /* Existence of the Auxiliary Security Header is controlled by the Security Enabled Field */
-    if ((packet->security_enable) && (packet->version != IEEE802154_VERSION_2003) && !(options & IEEE802154_DISSECT_HEADER_OPTION_NO_AUX_SEC_HDR)) {
+    if (packet->security_enable &&
+        ((packet->frame_type == IEEE802154_FCF_MULTIPURPOSE) || (packet->version != IEEE802154_VERSION_2003)) &&
+        !(options & IEEE802154_DISSECT_HEADER_OPTION_NO_AUX_SEC_HDR))
+    {
         dissect_ieee802154_aux_sec_header_and_key(tvb, pinfo, ieee802154_tree, packet, &offset);
     }
 
@@ -2981,11 +2982,13 @@ ieee802154_dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, u
      *
      */
     /* All of the beacon fields, except the beacon payload are considered nonpayload. */
-    if (((packet->version == IEEE802154_VERSION_2003) || (packet->version == IEEE802154_VERSION_2006)) && (packet->frame_type != IEEE802154_FCF_MULTIPURPOSE)) {
-        if (packet->frame_type == IEEE802154_FCF_BEACON) { /* Regular Beacon. Some are not present in frame version (Enhanced) Beacons */
-            dissect_ieee802154_superframe(tvb, pinfo, ieee802154_tree, &offset); /* superframe spec */
-            dissect_ieee802154_gtsinfo(tvb, pinfo, ieee802154_tree, &offset);    /* GTS information fields */
-            dissect_ieee802154_pendaddr(tvb, pinfo, ieee802154_tree, &offset);   /* Pending address list */
+    if ((packet->frame_type != IEEE802154_FCF_MULTIPURPOSE) && ((packet->version == IEEE802154_VERSION_2003) || (packet->version == IEEE802154_VERSION_2006))) {
+        if (tvb_reported_length(tvb) > offset) {
+            if (packet->frame_type == IEEE802154_FCF_BEACON) { /* Regular Beacon. Some are not present in frame version (Enhanced) Beacons */
+                dissect_ieee802154_superframe(tvb, pinfo, ieee802154_tree, &offset); /* superframe spec */
+                dissect_ieee802154_gtsinfo(tvb, pinfo, ieee802154_tree, &offset);    /* GTS information fields */
+                dissect_ieee802154_pendaddr(tvb, pinfo, ieee802154_tree, &offset);   /* Pending address list */
+            }
         }
 
         if (packet->frame_type == IEEE802154_FCF_CMD) {
@@ -3011,7 +3014,8 @@ ieee802154_dissect_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, u
     }
 
     /* IEEE 802.15.4-2003 may have security information pre-pended to payload */
-    if (packet->security_enable && (packet->version == IEEE802154_VERSION_2003)) {
+    if (packet->security_enable && (packet->frame_type != IEEE802154_FCF_MULTIPURPOSE) && (packet->version == IEEE802154_VERSION_2003))
+    {
         /* Store security suite preference in the 2006 security level identifier to simplify 2003 integration! */
         packet->security_level = (ieee802154_security_level)ieee802154_sec_suite;
 
@@ -3193,14 +3197,14 @@ unsigned ieee802154_dissect_frame_payload(tvbuff_t *tvb, packet_info *pinfo, pro
                     break;
                 }
                 /* Try the PANID dissector table for stateful dissection. */
-                if (dissector_try_uint_new(panid_dissector_table, packet->src_pan, payload_tvb, pinfo, tree, true, packet)) {
+                if (dissector_try_uint_with_data(panid_dissector_table, packet->src_pan, payload_tvb, pinfo, tree, true, packet)) {
                     break;
                 }
                 /* Try again with the destination PANID (if different) */
                 if (((packet->dst_addr_mode == IEEE802154_FCF_ADDR_SHORT) ||
                      (packet->dst_addr_mode == IEEE802154_FCF_ADDR_EXT)) &&
                         (packet->dst_pan != packet->src_pan) &&
-                        dissector_try_uint_new(panid_dissector_table, packet->src_pan, payload_tvb, pinfo, tree, true, packet)) {
+                        dissector_try_uint_with_data(panid_dissector_table, packet->src_pan, payload_tvb, pinfo, tree, true, packet)) {
                     break;
                 }
                 /* Try heuristic dissection. */
@@ -3507,9 +3511,7 @@ ieee802154_create_tap_tlv_tree(proto_tree *tree, tvbuff_t *tvb, int offset, uint
     *length = tvb_get_letohs(tvb, offset+2);
 
     subtree_length = 4 + *length;
-    if (*length % 4) {
-        subtree_length += (4 - *length % 4);
-    }
+    subtree_length += WS_PADDING_TO_4(*length);
 
     subtree = proto_tree_add_subtree(tree, tvb, offset, subtree_length, ett_ieee802154_tap_tlv, &ti, "");
 
@@ -3653,17 +3655,19 @@ dissect_ieee802154_tap_tlvs(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
                 proto_item_append_text(proto_tree_get_parent(tlvtree), "Unknown TLV");
                 break;
         } /* switch (tlv_type) */
+        offset += length;
 
-        if (length%4) {
+        unsigned padding_len = WS_PADDING_TO_4(length);
+        if (padding_len != 0) {
             uint32_t zero = 0;
             GByteArray *padding = g_byte_array_sized_new(4);
-            ti = proto_tree_add_bytes_item(tlvtree, hf_ieee802154_tap_tlv_padding, tvb, offset+length, 4-length%4, ENC_NA, padding, NULL, NULL);
-            if (memcmp(&zero, padding->data, 4-length%4)) {
+            ti = proto_tree_add_bytes_item(tlvtree, hf_ieee802154_tap_tlv_padding, tvb, offset, padding_len, ENC_NA, padding, NULL, NULL);
+            if (memcmp(&zero, padding->data, padding_len)) {
                 expert_add_info(NULL, ti, &ei_ieee802154_tap_tlv_padding_not_zeros);
             }
             g_byte_array_free(padding, true);
+            offset += padding_len;
         }
-        offset += ROUND_UP(length, 4);
     } /* while */
 
     /* if we have both slot start and frame start timestamp, show frame start offset */
@@ -4498,7 +4502,7 @@ dissect_ieee802154_header_ie(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
             consumed = 2 + length;
         } else {
             TRY {
-                consumed = dissector_try_uint_new(header_ie_dissector_table, id, ie_tvb, pinfo, ies_tree, false, packet);
+                consumed = dissector_try_uint_with_data(header_ie_dissector_table, id, ie_tvb, pinfo, ies_tree, false, packet);
                 if (consumed == 0) {
                     proto_tree *subtree = ieee802154_create_hie_tree(ie_tvb, ies_tree, hf_ieee802154_hie_unsupported,
                                                                 ett_ieee802154_hie_unsupported);
@@ -4609,7 +4613,7 @@ dissect_pie_mlme(tvbuff_t *tvb, packet_info *pinfo, proto_tree *ies_tree, void *
 
         /* Pass the tvb off to a subdissector. */
         TRY {
-            unsigned consumed = dissector_try_uint_new(mlme_ie_dissector_table, psie_id, psie_tvb, pinfo, tree, false, data);
+            unsigned consumed = dissector_try_uint_with_data(mlme_ie_dissector_table, psie_id, psie_tvb, pinfo, tree, false, data);
             if (consumed == 0) {
                 proto_tree *subtree = ieee802154_create_psie_tree(psie_tvb, tree, hf_ieee802154_mlme_ie_unsupported, ett_ieee802154_mlme_unsupported);
                 if (tvb_reported_length(psie_tvb) > 2) {
@@ -4833,7 +4837,7 @@ dissect_ieee802154_payload_ie(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree 
             consumed = 2;
         } else {
             TRY {
-                consumed = dissector_try_uint_new(payload_ie_dissector_table, id, ie_tvb, pinfo, ies_tree, false, packet);
+                consumed = dissector_try_uint_with_data(payload_ie_dissector_table, id, ie_tvb, pinfo, ies_tree, false, packet);
                 if (consumed == 0) {
                     proto_tree *subtree = ieee802154_create_pie_tree(ie_tvb, ies_tree, hf_ieee802154_pie_unsupported, ett_ieee802154_pie_unsupported);
                     proto_tree_add_item(subtree, hf_ieee802154_ie_unknown_content_payload, ie_tvb, 2, length, ENC_NA);
@@ -5244,7 +5248,7 @@ dissect_ieee802154_command(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
     {
         uint32_t oui = tvb_get_letoh24(tvb, 0);
         proto_tree_add_item(tree, hf_ieee802154_cmd_vendor_oui, tvb, 0, 3, ENC_LITTLE_ENDIAN);
-        if (!dissector_try_uint_new(cmd_vendor_dissector_table, oui, tvb_new_subset_remaining(tvb, 3), pinfo, tree, false, packet)) {
+        if (!dissector_try_uint_with_data(cmd_vendor_dissector_table, oui, tvb_new_subset_remaining(tvb, 3), pinfo, tree, false, packet)) {
             call_data_dissector(tvb_new_subset_remaining(tvb, 3), pinfo, tree);
         }
         break;
@@ -5382,7 +5386,7 @@ dissect_ieee802154_decrypt(tvbuff_t *tvb,
     }
 
     /* Create the CCM* initial block for decryption (Adata=0, M=0, counter=0). */
-    if (packet->version == IEEE802154_VERSION_2003)
+    if ((packet->frame_type != IEEE802154_FCF_MULTIPURPOSE) && (packet->version == IEEE802154_VERSION_2003))
         ccm_init_block(tmp, false, 0, srcAddr, packet->frame_counter, packet->key_sequence_counter, 0, NULL);
     else
         ccm_init_block(tmp, false, 0, srcAddr, packet->frame_counter, packet->security_level, 0, generic_nonce_ptr);
@@ -5445,12 +5449,12 @@ dissect_ieee802154_decrypt(tvbuff_t *tvb,
             l_a += l_m;
             l_m = 0;
         }
-        else if ((packet->version == IEEE802154_VERSION_2003) && !ieee802154_extend_auth)
+        else if ((packet->frame_type != IEEE802154_FCF_MULTIPURPOSE) && (packet->version == IEEE802154_VERSION_2003) && !ieee802154_extend_auth)
             l_a -= 5;   /* Exclude Frame Counter (4 bytes) and Key Sequence Counter (1 byte) from authentication data */
 
 
         /* Create the CCM* initial block for authentication (Adata!=0, M!=0, counter=l(m)). */
-        if (packet->version == IEEE802154_VERSION_2003)
+        if ((packet->frame_type != IEEE802154_FCF_MULTIPURPOSE) && (packet->version == IEEE802154_VERSION_2003))
             ccm_init_block(tmp, true, M, srcAddr, packet->frame_counter, packet->key_sequence_counter, l_m, NULL);
         else
             ccm_init_block(tmp, true, M, srcAddr, packet->frame_counter, packet->security_level, l_m, generic_nonce_ptr);
@@ -5937,7 +5941,7 @@ proto_init_ieee802154(void)
     /* Reload the hash table from the static address UAT. */
     for (i=0; (i<num_static_addrs) && (static_addrs); i++) {
         ieee802154_addr_update(&ieee802154_map,(uint16_t)static_addrs[i].addr16, (uint16_t)static_addrs[i].pan,
-               pntoh64(static_addrs[i].eui64), ieee802154_user, IEEE802154_USER_MAPPING);
+               pntohu64(static_addrs[i].eui64), ieee802154_user, IEEE802154_USER_MAPPING);
     } /* for */
 } /* proto_init_ieee802154 */
 

@@ -955,7 +955,7 @@ dissect_dhcpfo_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 
 			proto_tree_add_item(option_tree,
 			    hf_dhcpfo_message_digest, tvb, offset+1,
-			    option_length-1, ENC_ASCII);
+			    option_length-1, ENC_NA);
 			break;
 
 		case DHCP_FO_PD_PROTOCOL_VERSION:
@@ -973,7 +973,7 @@ dissect_dhcpfo_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 				break;
 			}
 			tls_request = tvb_get_uint8(tvb, offset);
-			proto_item_append_text(oi, ", %s", val_to_str(tls_request, tls_request_vals, "Unknown (%u)"));
+			proto_item_append_text(oi, ", %s", val_to_str(pinfo->pool, tls_request, tls_request_vals, "Unknown (%u)"));
 			proto_tree_add_item(option_tree, hf_dhcpfo_tls_request, tvb, offset, 1, ENC_BIG_ENDIAN);
 			break;
 
@@ -983,7 +983,7 @@ dissect_dhcpfo_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 				break;
 			}
 			tls_reply = tvb_get_uint8(tvb, offset);
-			proto_item_append_text(oi, ", %s", val_to_str(tls_reply, tls_reply_vals, "Unknown (%u)"));
+			proto_item_append_text(oi, ", %s", val_to_str(pinfo->pool, tls_reply, tls_reply_vals, "Unknown (%u)"));
 			proto_tree_add_item(option_tree, hf_dhcpfo_tls_reply, tvb, offset, 1, ENC_BIG_ENDIAN);
 			break;
 
@@ -1150,7 +1150,7 @@ dissect_dhcpfo_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
 		default:
 			proto_tree_add_item(option_tree,
 				hf_dhcpfo_unknown_data, tvb, offset,
-				option_length, ENC_ASCII);
+				option_length, ENC_NA);
 			break;
 		}
 

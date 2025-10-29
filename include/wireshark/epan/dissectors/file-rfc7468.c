@@ -12,6 +12,7 @@
 
 #include <epan/packet.h>
 #include <wiretap/wtap.h>
+#include <wsutil/array.h>
 
 void proto_register_rfc7468(void);
 void proto_reg_handoff_rfc7468(void);
@@ -328,8 +329,8 @@ dissect_rfc7468(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
         /*
          * Try to decode it based on the label.
          */
-        if (dissector_try_string(rfc7468_label_table, label, data_tvb, pinfo,
-                                 tree, NULL) == 0) {
+        if (dissector_try_string_with_data(rfc7468_label_table, label, data_tvb, pinfo,
+                                 tree, true, NULL) == 0) {
             proto_tree *data_tree;
 
             /*
@@ -470,6 +471,7 @@ proto_reg_handoff_rfc7468(void)
 {
     heur_dissector_add("wtap_file", dissect_rfc7468_heur, "RFC 7468 file", "rfc7468_wtap", proto_rfc7468, HEURISTIC_ENABLE);
     dissector_add_uint("wtap_encap", WTAP_ENCAP_RFC7468, rfc7468_handle);
+    dissector_add_string("media_type", "application/pem-certificate-chain", rfc7468_handle);
 
     ber_handle = find_dissector("ber");
 }

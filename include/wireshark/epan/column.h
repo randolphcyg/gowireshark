@@ -21,13 +21,20 @@
 extern "C" {
 #endif /* __cplusplus */
 
+/** Defines used in fmt_data.display.
+ * The values are legacy from U Unresolved and R Resolved stored in the preferences.
+ */
+#define COLUMN_DISPLAY_VALUES  'U'
+#define COLUMN_DISPLAY_STRINGS 'R'
+#define COLUMN_DISPLAY_DETAILS 'D'
+
 typedef struct _fmt_data {
   char *title;            /* title of the column */
   int fmt;                 /* format of column */
   char *custom_fields;    /* fields names for COL_CUSTOM */
   int custom_occurrence;  /* optional ordinal of occurrence of that field */
   bool visible;            /* if false, hide this column */
-  bool resolved;           /* if true, show a more human-readable name */
+  char display;            /* how to display a custom field value */
 } fmt_data;
 
 WS_DLL_PUBLIC
@@ -53,9 +60,9 @@ bool                 get_column_visible(const int);
 WS_DLL_PUBLIC
 void                 set_column_visible(const int, bool);
 WS_DLL_PUBLIC
-bool                 get_column_resolved(const int);
+char                 get_column_display_format(const int);
 WS_DLL_PUBLIC
-void                 set_column_resolved(const int, bool);
+void                 set_column_display_format(const int, char);
 WS_DLL_PUBLIC
 const char          *get_column_custom_fields(const int);
 WS_DLL_PUBLIC
@@ -111,6 +118,19 @@ void                 column_dump_column_formats(void);
  */
 WS_DLL_PUBLIC
 bool parse_column_format(fmt_data *cfmt, const char *fmt);
+
+/** Given a fmt_data struct, returns the column format string that should
+ * be written to the preferences to generate the fmt_data struct.
+ * The inverse of parse_column_format() above.
+ *
+ * @param[in] cfmt The fmt_data struct.
+ *
+ * @return A column format string that corresponds to the fmt_data.
+ * This string is owned by the caller, and must be freed. Returns
+ * NULL if cfmt is NULL.
+ */
+extern
+char * column_fmt_data_to_str(const fmt_data *cfmt);
 
 /** Checks a column format string to see if it is a deprecated column
  * that has been migrated to a custom column, and converts the format

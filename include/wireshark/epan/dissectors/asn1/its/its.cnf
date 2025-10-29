@@ -74,6 +74,7 @@ StandardLength2B
 RoadSectionId
 PathId
 IssuerIdentifier
+$ETSI-ITS-CDD$VehicleHeight
 
 #.NO_EMIT
 Code-Units WITHOUT_VALS
@@ -101,6 +102,8 @@ EfcDsrcApplication					dsrc_app
 IVI							ivi
 GDD							gdd
 DSRC						dsrc
+ETSI-ITS-DSRC						dsrc
+ETSI-ITS-DSRC-AddGrpC               AddGrpC
 RTCMEM-PDU-Descriptions                         rtcmem
 ETSI-ITS-CDDv1                                  itsv1
 ETSI-ITS-CDD                                    its
@@ -982,7 +985,7 @@ CartesianAngleValue
   pta = wmem_new0(actx->pinfo->pool, its_pt_activation_data_t);
   actx->private_data = pta;
 #.FN_FTR
-  dissector_try_uint_new(cam_pt_activation_table, pta->type, pta->data, actx->pinfo, tree, true, NULL);
+  dissector_try_uint_with_data(cam_pt_activation_table, pta->type, pta->data, actx->pinfo, tree, true, NULL);
   actx->private_data = priv_data;
 #.END
 

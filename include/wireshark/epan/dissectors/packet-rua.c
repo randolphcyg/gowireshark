@@ -303,7 +303,7 @@ dissect_rua_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U
 
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str(ProtocolIE_ID, VALS(rua_ProtocolIE_ID_vals), "unknown (%d)"));
+                           val_to_str(actx->pinfo->pool, ProtocolIE_ID, VALS(rua_ProtocolIE_ID_vals), "unknown (%d)"));
   }
   return offset;
 }
@@ -1307,27 +1307,27 @@ static int dissect_RUA_PDU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_
 
 static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(rua_ies_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(rua_ies_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(rua_extension_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(rua_extension_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(rua_proc_imsg_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(rua_proc_imsg_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(rua_proc_sout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(rua_proc_sout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(rua_proc_uout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(rua_proc_uout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
@@ -1426,7 +1426,7 @@ void proto_register_rua(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_rua_protocol_ie_field_id,
-      { "id", "rua.id",
+      { "id", "rua.protocol_ie_field_id",
         FT_UINT32, BASE_DEC, VALS(rua_ProtocolIE_ID_vals), 0,
         "ProtocolIE_ID", HFILL }},
     { &hf_rua_criticality,
@@ -1434,7 +1434,7 @@ void proto_register_rua(void) {
         FT_UINT32, BASE_DEC, VALS(rua_Criticality_vals), 0,
         NULL, HFILL }},
     { &hf_rua_ie_field_value,
-      { "value", "rua.value_element",
+      { "value", "rua.ie_field_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "ProtocolIE_Field_value", HFILL }},
     { &hf_rua_ProtocolExtensionContainer_item,
@@ -1454,11 +1454,11 @@ void proto_register_rua(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_rua_private_ie_field_id,
-      { "id", "rua.id",
+      { "id", "rua.private_ie_field_id",
         FT_UINT32, BASE_DEC, VALS(rua_PrivateIE_ID_vals), 0,
         "PrivateIE_ID", HFILL }},
     { &hf_rua_private_value,
-      { "value", "rua.value_element",
+      { "value", "rua.private_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "PrivateIE_Field_value", HFILL }},
     { &hf_rua_version,
@@ -1610,15 +1610,15 @@ void proto_register_rua(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_rua_initiatingMessagevalue,
-      { "value", "rua.value_element",
+      { "value", "rua.initiatingMessagevalue_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InitiatingMessage_value", HFILL }},
     { &hf_rua_successfulOutcome_value,
-      { "value", "rua.value_element",
+      { "value", "rua.successfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SuccessfulOutcome_value", HFILL }},
     { &hf_rua_unsuccessfulOutcome_value,
-      { "value", "rua.value_element",
+      { "value", "rua.unsuccessfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "UnsuccessfulOutcome_value", HFILL }},
   };

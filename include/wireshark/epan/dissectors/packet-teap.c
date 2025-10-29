@@ -284,17 +284,17 @@ dissect_pac_attr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset
       break;
 
     case PAC_LIFETIME:
-      proto_tree_add_item(tree, hf_pac_attr_pac_lifetime, tvb, offset, 4, ENC_NA);
+      proto_tree_add_item(tree, hf_pac_attr_pac_lifetime, tvb, offset, 4, ENC_BIG_ENDIAN);
       offset += 4;
       break;
 
     case PAC_A_ID:
-      proto_tree_add_item(tree, hf_pac_attr_pac_a_id, tvb, offset, len, ENC_ASCII | ENC_NA);
+      proto_tree_add_item(tree, hf_pac_attr_pac_a_id, tvb, offset, len, ENC_ASCII);
       offset += len;
       break;
 
     case PAC_I_ID:
-      proto_tree_add_item(tree, hf_pac_attr_pac_i_id, tvb, offset, len, ENC_ASCII | ENC_NA);
+      proto_tree_add_item(tree, hf_pac_attr_pac_i_id, tvb, offset, len, ENC_ASCII);
       offset += len;
       break;
 
@@ -304,12 +304,12 @@ dissect_pac_attr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset
       break;
 
     case PAC_A_ID_INFO:
-      proto_tree_add_item(tree, hf_pac_attr_pac_a_id_info, tvb, offset, len, ENC_ASCII | ENC_NA);
+      proto_tree_add_item(tree, hf_pac_attr_pac_a_id_info, tvb, offset, len, ENC_ASCII);
       offset += len;
       break;
 
     case PAC_ACK:
-      proto_tree_add_item(tree, hf_pac_attr_pac_result, tvb, offset, len, ENC_NA);
+      proto_tree_add_item(tree, hf_pac_attr_pac_result, tvb, offset, len, ENC_BIG_ENDIAN);
       offset += len;
       break;
 
@@ -318,7 +318,7 @@ dissect_pac_attr(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset
       break;
 
     case PAC_TYPE:
-      proto_tree_add_item(tree, hf_pac_attr_pac_type, tvb, offset, len, ENC_NA);
+      proto_tree_add_item(tree, hf_pac_attr_pac_type, tvb, offset, len, ENC_BIG_ENDIAN);
       offset += len;
       break;
 
@@ -372,7 +372,7 @@ dissect_teap_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset
 
   if (top) {
     col_add_str(pinfo->cinfo, COL_INFO,
-        val_to_str(type, teap_tlv_type_vals, "Unknown TLV (0x%02X)"));
+        val_to_str(pinfo->pool, type, teap_tlv_type_vals, "Unknown TLV (0x%02X)"));
   }
   switch (type) {
     case TEAP_AUTHORITY_ID:
@@ -486,7 +486,7 @@ dissect_teap_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset
 
     case TEAP_BASIC_PWD_AUTH_REQUEST:
       if (len > 0) {
-        proto_tree_add_item(tlv_tree, hf_teap_prompt, tvb, offset, len, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(tlv_tree, hf_teap_prompt, tvb, offset, len, ENC_ASCII);
         offset += len;
       }
       break;
@@ -497,13 +497,13 @@ dissect_teap_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset
       auth_len = tvb_get_uint8(tvb, offset);
       proto_tree_add_item(tlv_tree, hf_teap_user_len, tvb, offset, 1, ENC_BIG_ENDIAN);
       offset += 1;
-      proto_tree_add_item(tlv_tree, hf_teap_username, tvb, offset, auth_len, ENC_ASCII | ENC_NA);
+      proto_tree_add_item(tlv_tree, hf_teap_username, tvb, offset, auth_len, ENC_ASCII);
       offset += auth_len;
 
       auth_len = tvb_get_uint8(tvb, offset);
       proto_tree_add_item(tlv_tree, hf_teap_pass_len, tvb, offset, 1, ENC_BIG_ENDIAN);
       offset += 1;
-      proto_tree_add_item(tlv_tree, hf_teap_password, tvb, offset, auth_len, ENC_ASCII | ENC_NA);
+      proto_tree_add_item(tlv_tree, hf_teap_password, tvb, offset, auth_len, ENC_ASCII);
       offset += auth_len;
     }
     break;

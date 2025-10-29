@@ -1260,7 +1260,7 @@ dissect_dsmcc_un_download(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, p
     msg_id = tvb_get_ntohs(tvb, offset+2);
 
     sub_tree = proto_tree_add_subtree_format(tree, tvb, 0, -1, ett_dsmcc_payload, NULL,
-            "User Network Message - %s", val_to_str(msg_id, dsmcc_dd_message_id_vals, "%u"));
+            "User Network Message - %s", val_to_str(pinfo->pool, msg_id, dsmcc_dd_message_id_vals, "%u"));
 
     switch (msg_id) {
         case 0x1001:
@@ -1711,9 +1711,9 @@ dissect_dsmcc_un_session(tvbuff_t *tvb, packet_info *pinfo,
 
     sub_tree = proto_tree_add_subtree_format(tree, tvb, offset, -1,
             ett_dsmcc_payload, &pi, "User Network Message (Session) - %s",
-            val_to_str(msg_id, dsmcc_un_sess_message_id_vals, "0x%x"));
+            val_to_str(pinfo->pool, msg_id, dsmcc_un_sess_message_id_vals, "0x%x"));
     col_append_sep_str(pinfo->cinfo, COL_INFO, NULL,
-            val_to_str(msg_id, dsmcc_un_sess_message_id_vals, "0x%x"));
+            val_to_str(pinfo->pool, msg_id, dsmcc_un_sess_message_id_vals, "0x%x"));
 
     offset += dissect_dsmcc_header(tvb, pinfo, sub_tree, offset, false);
 
@@ -1901,7 +1901,7 @@ dissect_dsmcc_un_session(tvbuff_t *tvb, packet_info *pinfo,
             break;
         case DSMCC_UN_SESS_CLN_SESS_TRN_IND:
             offset += dissect_dsmcc_un_session_id(tvb, offset, pinfo, sub_tree);
-            proto_tree_add_item(sub_tree, hf_dsmcc_reserved, tvb, offset, 2, ENC_NA);
+            proto_tree_add_item(sub_tree, hf_dsmcc_reserved, tvb, offset, 2, ENC_BIG_ENDIAN);
             offset += 2;
             /* client */
             sub_sub_tree = proto_tree_add_subtree(sub_tree, tvb, offset, 20, ett_dsmcc_heading, NULL, "Client ID");
@@ -2140,7 +2140,7 @@ dissect_dsmcc_un_session(tvbuff_t *tvb, packet_info *pinfo,
             break;
         case DSMCC_UN_SESS_SRV_SESS_TRN_REQ:
             offset += dissect_dsmcc_un_session_id(tvb, offset, pinfo, sub_tree);
-            proto_tree_add_item(sub_tree, hf_dsmcc_reserved, tvb, offset, 2, ENC_NA);
+            proto_tree_add_item(sub_tree, hf_dsmcc_reserved, tvb, offset, 2, ENC_BIG_ENDIAN);
             offset += 2;
             /* destination server */
             sub_sub_tree = proto_tree_add_subtree(sub_tree, tvb, offset, 20, ett_dsmcc_heading, NULL, "Destination Server ID");
@@ -2160,7 +2160,7 @@ dissect_dsmcc_un_session(tvbuff_t *tvb, packet_info *pinfo,
             break;
         case DSMCC_UN_SESS_SRV_SESS_TRN_IND:
             offset += dissect_dsmcc_un_session_id(tvb, offset, pinfo, sub_tree);
-            proto_tree_add_item(sub_tree, hf_dsmcc_reserved, tvb, offset, 2, ENC_NA);
+            proto_tree_add_item(sub_tree, hf_dsmcc_reserved, tvb, offset, 2, ENC_BIG_ENDIAN);
             offset += 2;
             /* client */
             sub_sub_tree = proto_tree_add_subtree(sub_tree, tvb, offset, 20, ett_dsmcc_heading, NULL, "Client ID");

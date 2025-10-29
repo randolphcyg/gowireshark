@@ -600,7 +600,7 @@ static const value_string usb_hid_generic_desktop_controls_usage_page_vals[] = {
     {0xA6, "Application Debugger Break"},
     {0xA7, "System Speaker Mute"},
     {0xA8, "System Hibernate"},
-    {0xA9, "System Microhpone Mute"},
+    {0xA9, "System Microphone Mute"},
     {0xB0, "System Display Invert"},
     {0xB1, "System Display Internal"},
     {0xB2, "System Display External"},
@@ -3056,7 +3056,7 @@ static const value_string usb_hid_power_device_usage_page_vals[] = {
     {0x73, "CommunicationLost"},
     {0xFD, "iManufacturer"},
     {0xFE, "iProduct"},
-    {0xFF, "iserialNumber"},
+    {0xFF, "iSerialNumber"},
     {0, NULL}
 };
 static const value_string usb_hid_battery_system_usage_page_vals[] = {
@@ -3107,7 +3107,7 @@ static const value_string usb_hid_battery_system_usage_page_vals[] = {
     {0x60, "AtRateTimeToFull"},
     {0x61, "AtRateTimeToEmpty"},
     {0x62, "AverageCurrent"},
-    {0x63, "Maxerror"},
+    {0x63, "MaxError"},
     {0x64, "RelativeStateOfCharge"},
     {0x65, "AbsoluteStateOfCharge"},
     {0x66, "RemainingCapacity"},
@@ -3124,8 +3124,8 @@ static const value_string usb_hid_battery_system_usage_page_vals[] = {
     {0x85, "ManufacturerDate"},
     {0x86, "SerialNumber"},
     {0x87, "iManufacturerName"},
-    {0x88, "iDevicename"},
-    {0x89, "iDeviceChemistery"},
+    {0x88, "iDeviceName"},
+    {0x89, "iDeviceChemistry"},
     {0x8A, "ManufacturerData"},
     {0x8B, "Rechargeable"},
     {0x8C, "WarningCapacityLimit"},
@@ -4429,7 +4429,7 @@ dissect_usb_hid_report_item(packet_info *pinfo _U_, proto_tree *parent_tree, tvb
                 break;
         }
 
-        subtree = proto_tree_add_subtree_format(parent_tree, tvb, offset, bSize + 1, ett_usb_hid_item_header, &subitem, "%s", val_to_str(bTag, usb_hid_cur_bTag_vals, "Unknown/%u tag"));
+        subtree = proto_tree_add_subtree_format(parent_tree, tvb, offset, bSize + 1, ett_usb_hid_item_header, &subitem, "%s", val_to_str(pinfo->pool, bTag, usb_hid_cur_bTag_vals, "Unknown/%u tag"));
 
         tree = proto_tree_add_subtree(subtree, tvb, offset, 1, ett_usb_hid_item_header, NULL, "Header");
         proto_tree_add_item(tree, hf_usb_hid_item_bSize, tvb, offset,   1, ENC_LITTLE_ENDIAN);
@@ -5018,7 +5018,7 @@ dissect_usb_hid_control_std_intf(tvbuff_t *tvb, packet_info *pinfo,
         proto_tree_add_item(tree, hf_usb_hid_bDescriptorType, tvb, offset, 1, ENC_LITTLE_ENDIAN);
         usb_trans_info->u.get_descriptor.type = tvb_get_uint8(tvb, offset);
         col_append_fstr(pinfo->cinfo, COL_INFO, " %s",
-                val_to_str_ext(usb_trans_info->u.get_descriptor.type,
+                val_to_str_ext(pinfo->pool, usb_trans_info->u.get_descriptor.type,
                     &hid_descriptor_type_vals_ext, "Unknown type %u"));
         offset += 1;
 
@@ -5032,7 +5032,7 @@ dissect_usb_hid_control_std_intf(tvbuff_t *tvb, packet_info *pinfo,
         col_clear(pinfo->cinfo, COL_INFO);
         col_append_str(pinfo->cinfo, COL_INFO, "GET DESCRIPTOR Response");
         col_append_fstr(pinfo->cinfo, COL_INFO, " %s",
-                val_to_str_ext(usb_trans_info->u.get_descriptor.type,
+                val_to_str_ext(pinfo->pool, usb_trans_info->u.get_descriptor.type,
                     &hid_descriptor_type_vals_ext, "Unknown type %u"));
         if (usb_trans_info->u.get_descriptor.type == USB_DT_HID_REPORT)
             offset = dissect_usb_hid_get_report_descriptor(pinfo, tree, tvb, offset, urb);
@@ -5072,7 +5072,7 @@ dissect_usb_hid_control_class_intf(tvbuff_t *tvb, packet_info *pinfo,
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "USBHID");
 
     col_add_fstr(pinfo->cinfo, COL_INFO, "%s %s",
-                 val_to_str(usb_trans_info->setup.request, setup_request_names_vals, "Unknown type %x"),
+                 val_to_str(pinfo->pool, usb_trans_info->setup.request, setup_request_names_vals, "Unknown type %x"),
                  is_request ? "Request" : "Response");
 
     if (is_request) {
@@ -5242,7 +5242,7 @@ dissect_hid_variable(tvbuff_t* tvb, packet_info _U_* pinfo, proto_tree* tree, hi
 
     /* vendor data (0xff00 - 0xffff) */
     if ((USAGE_PAGE(usage) & 0xff00) == 0xff00) {
-        proto_tree_add_bits_item(tree, hf_usbhid_vendor_data, tvb, bit_offset, field->report_size, ENC_LITTLE_ENDIAN);
+        proto_tree_add_bits_item(tree, hf_usbhid_vendor_data, tvb, bit_offset, field->report_size, ENC_NA);
         return;
     }
 
@@ -5297,7 +5297,7 @@ dissect_hid_field(tvbuff_t *tvb, packet_info _U_ *pinfo, proto_tree *tree, hid_f
         proto_tree *array_tree;
 
         array_ti = proto_tree_add_bits_item(tree, hf_usbhid_array, tvb, bit_offset,
-            field->report_size * field->report_count, ENC_LITTLE_ENDIAN);
+            field->report_size * field->report_count, ENC_NA);
         array_tree = proto_item_add_subtree(array_ti, ett_usb_hid_array);
 
         for(unsigned int j = 0; j < field->report_count; j++) {
@@ -5331,7 +5331,7 @@ dissect_hid_field(tvbuff_t *tvb, packet_info _U_ *pinfo, proto_tree *tree, hid_f
         }
         if (field->report_count > count) {
             int remaining_bits = (field->report_count - count) * field->report_size;
-            proto_tree_add_bits_item(tree, hf_usbhid_padding, tvb, bit_offset, remaining_bits, ENC_LITTLE_ENDIAN);
+            proto_tree_add_bits_item(tree, hf_usbhid_padding, tvb, bit_offset, remaining_bits, ENC_NA);
             bit_offset += remaining_bits;
         }
     }
@@ -5379,7 +5379,7 @@ dissect_usb_hid_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *
 
                 /* if the item has no usages, it is padding - HID spec 6.2.2.9 */
                 if (wmem_array_get_count(field->usages) == 0) {
-                    proto_tree_add_bits_item(hid_tree, hf_usbhid_padding, tvb, hid_bit_offset, data_size, ENC_LITTLE_ENDIAN);
+                    proto_tree_add_bits_item(hid_tree, hf_usbhid_padding, tvb, hid_bit_offset, data_size, ENC_NA);
                     hid_bit_offset += data_size;
                     continue;
                 }
@@ -5954,7 +5954,7 @@ proto_register_usb_hid(void)
             NULL, 0x00, NULL, HFILL }},
     };
 
-    static int *usb_hid_subtrees[] = {
+    static int *usb_hid_ett[] = {
         &ett_usb_hid_report,
         &ett_usb_hid_item_header,
         &ett_usb_hid_wValue,
@@ -5968,7 +5968,7 @@ proto_register_usb_hid(void)
 
     proto_usb_hid = proto_register_protocol("USB HID", "USBHID", "usbhid");
     proto_register_field_array(proto_usb_hid, hf, array_length(hf));
-    proto_register_subtree_array(usb_hid_subtrees, array_length(usb_hid_subtrees));
+    proto_register_subtree_array(usb_hid_ett, array_length(usb_hid_ett));
 
     /*usb_hid_boot_keyboard_input_report_handle  =*/ register_dissector("usbhid.boot_report.keyboard.input",  dissect_usb_hid_boot_keyboard_input_report,  proto_usb_hid);
     /*usb_hid_boot_keyboard_output_report_handle =*/ register_dissector("usbhid.boot_report.keyboard.output", dissect_usb_hid_boot_keyboard_output_report, proto_usb_hid);

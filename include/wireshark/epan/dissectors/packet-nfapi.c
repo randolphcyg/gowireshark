@@ -1519,15 +1519,13 @@ static void dissect_tlv_list(ptvcursor_t * ptvc, packet_info* pinfo, int len);
 
 static void dissect_array_value(ptvcursor_t * ptvc, packet_info* pinfo, const char* name, uint32_t ett_idx, uint32_t count, tlv_decode decode)
 {
-	uint16_t i;
-
 	if (count > 0)
 	{
 		ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_idx, "%s", name);
 
-		for (i = 0; i < count; ++i)
+		for (unsigned i = 0; i < count; ++i)
 		{
-			ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_idx, "[%d]", i);
+			ptvcursor_add_text_with_subtree(ptvc, SUBTREE_UNDEFINED_LENGTH, ett_idx, "[%u]", i);
 			decode(ptvc, pinfo);
 			ptvcursor_pop_subtree(ptvc);
 		}
@@ -8284,7 +8282,7 @@ static int dissect_nfapi(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, vo
 		col_append_fstr(pinfo->cinfo, COL_INFO, " %s ", message_str);
 	}
 
-	if (!dissector_try_uint_new(message_table, msg_id, tvb, pinfo, nfapi_tree, false, NULL))
+	if (!dissector_try_uint_with_data(message_table, msg_id, tvb, pinfo, nfapi_tree, false, NULL))
 	{
 		call_data_dissector(tvb, pinfo, nfapi_tree);
 	}

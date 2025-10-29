@@ -13,7 +13,7 @@
 #define __IPPROTO_H__
 
 #include "ws_symbol_export.h"
-#include <epan/value_string.h>
+#include <wsutil/value_string.h>
 
 /*
  * IP protocol numbers.
@@ -109,7 +109,7 @@
 #define IP_PROTO_CPHB           73      /* Computer Protocol Heart Beat */
 #define IP_PROTO_WSN            74      /* WANG Span Network */
 #define IP_PROTO_PVP            75      /* Packet Video Protocol */
-#define IP_PROTO_BRSATMON       76      /* Backroon SATNET Monitoring */
+#define IP_PROTO_BRSATMON       76      /* Backroom SATNET Monitoring */
 #define IP_PROTO_SUNND          77      /* SUN ND Protocol - Temporary */
 #define IP_PROTO_WBMON          78      /* Wideband Monitoring */
 #define IP_PROTO_WBEXPAK        79      /* Wideband EXPAK */

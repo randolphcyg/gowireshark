@@ -718,7 +718,7 @@ static char * lbtrm_tag_find(packet_info * pinfo)
         return (NULL);
     }
 
-    dest_addr_h = pntoh32(pinfo->dst.data);
+    dest_addr_h = pntohu32(pinfo->dst.data);
     for (idx = 0; idx < lbtrm_tag_count; ++idx)
     {
         tag = &(lbtrm_tag_entry[idx]);
@@ -890,7 +890,7 @@ static int dissect_lbtrm_ncf_list(tvbuff_t * tvb, int offset, packet_info * pinf
         sep_ncf_item = proto_tree_add_item(ncf_tree, hf_lbtrm_ncf_list_ncf, tvb, offset + len, sizeof(lbm_uint32_t), ENC_BIG_ENDIAN);
         if (lbtrm_expert_separate_ncfs)
         {
-            expert_add_info_format(pinfo, sep_ncf_item, &ei_lbtrm_analysis_ncf_ncf, "NCF 0x%08x %s", ncf, val_to_str(reason, lbtrm_ncf_reason, "Unknown (0x%02x)"));
+            expert_add_info_format(pinfo, sep_ncf_item, &ei_lbtrm_analysis_ncf_ncf, "NCF 0x%08x %s", ncf, val_to_str(pinfo->pool, reason, lbtrm_ncf_reason, "Unknown (0x%02x)"));
         }
         tap_info->sqns[idx] = ncf;
         len += 4;
@@ -919,7 +919,7 @@ static int dissect_lbtrm_ncf(tvbuff_t * tvb, int offset, packet_info * pinfo, pr
     len = L_LBTRM_NCF_HDR_T;
     if (!lbtrm_expert_separate_ncfs)
     {
-        expert_add_info_format(pinfo, reason_item, &ei_lbtrm_analysis_ncf, "NCF %s", val_to_str(LBTRM_NCF_HDR_REASON(reason), lbtrm_ncf_reason, "Unknown (0x%02x)"));
+        expert_add_info_format(pinfo, reason_item, &ei_lbtrm_analysis_ncf, "NCF %s", val_to_str(pinfo->pool, LBTRM_NCF_HDR_REASON(reason), lbtrm_ncf_reason, "Unknown (0x%02x)"));
     }
     tap_info->ncf_reason = LBTRM_NCF_HDR_REASON(reason);
     tap_info->num_sqns = num_ncfs;
@@ -1140,13 +1140,13 @@ static int dissect_lbtrm(tvbuff_t * tvb, packet_info * pinfo, proto_tree * tree,
     if (tag_name != NULL)
     {
         lbtrm_item = proto_tree_add_protocol_format(tree, proto_lbtrm, tvb, offset, -1, "LBT-RM Protocol (Tag: %s): Version %u, Type %s: Source Unicast Port %" PRIu16 ", Session ID 0x%08x",
-            tag_name, LBTRM_HDR_VER(ver_type), val_to_str(packet_type, lbtrm_packet_type, "Unknown (0x%02x)"),
+            tag_name, LBTRM_HDR_VER(ver_type), val_to_str(pinfo->pool, packet_type, lbtrm_packet_type, "Unknown (0x%02x)"),
             src_port, session_id);
     }
     else
     {
         lbtrm_item = proto_tree_add_protocol_format(tree, proto_lbtrm, tvb, offset, -1, "LBT-RM Protocol: Version %u, Type %s: Source Unicast Port %" PRIu16 ", Session ID 0x%08x",
-            LBTRM_HDR_VER(ver_type), val_to_str(packet_type, lbtrm_packet_type, "Unknown (0x%02x)"),
+            LBTRM_HDR_VER(ver_type), val_to_str(pinfo->pool, packet_type, lbtrm_packet_type, "Unknown (0x%02x)"),
             src_port, session_id);
     }
     lbtrm_tree = proto_item_add_subtree(lbtrm_item, ett_lbtrm);
@@ -1510,7 +1510,7 @@ static bool test_lbtrm_packet(tvbuff_t * tvb, packet_info * pinfo, proto_tree * 
     }
     else
     {
-        dest_addr_h = pntoh32(pinfo->dst.data);
+        dest_addr_h = pntohu32(pinfo->dst.data);
 
         /* Is the destination a multicast address? */
         if (IN_MULTICAST(dest_addr_h))

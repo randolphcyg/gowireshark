@@ -80,8 +80,10 @@
 #define CODEC_APT_X_HD        0xFF24
 #define CODEC_LDAC            0xFFAA
 
-#define CODECID_APT_X         0x0001
-#define CODECID_APT_X_HD      0x0024
+#define VENDOR_APT_CODEC_ID_APT_X       0x0001
+#define VENDOR_APT_CODEC_ID_APT_X_HD    0x0024
+#define VENDOR_SONY_CODEC_ID_LDAC       0x00AA
+#define VENDOR_GOOGLE_CODEC_ID_OPUS     0x0001
 
 #define CODEC_H263_BASELINE   0x01
 #define CODEC_MPEG4_VSP       0x02
@@ -264,6 +266,13 @@ static int hf_btavdtp_vendor_specific_ldac_rfa2;
 static int hf_btavdtp_vendor_specific_ldac_channel_mode_mono;
 static int hf_btavdtp_vendor_specific_ldac_channel_mode_dual_channel;
 static int hf_btavdtp_vendor_specific_ldac_channel_mode_stereo;
+static int hf_btavdtp_vendor_specific_opus_sampling_frequency_48000;
+static int hf_btavdtp_vendor_specific_opus_rfa;
+static int hf_btavdtp_vendor_specific_opus_frame_duration_20;
+static int hf_btavdtp_vendor_specific_opus_frame_duration_10;
+static int hf_btavdtp_vendor_specific_opus_channel_mode_dual;
+static int hf_btavdtp_vendor_specific_opus_channel_mode_stereo;
+static int hf_btavdtp_vendor_specific_opus_channel_mode_mono;
 static int hf_btavdtp_h263_level_10;
 static int hf_btavdtp_h263_level_20;
 static int hf_btavdtp_h263_level_30;
@@ -276,8 +285,9 @@ static int hf_btavdtp_mpeg4_level_rfa;
 static int hf_btavdtp_vendor_id;
 static int hf_btavdtp_vendor_specific_codec_id;
 static int hf_btavdtp_vendor_specific_value;
-static int hf_btavdtp_vendor_specific_apt_codec_id;
-static int hf_btavdtp_vendor_specific_ldac_codec_id;
+static int hf_btavdtp_vendor_apt_codec_id;
+static int hf_btavdtp_vendor_sony_codec_id;
+static int hf_btavdtp_vendor_google_codec_id;
 static int hf_btavdtp_capabilities;
 static int hf_btavdtp_service;
 static int hf_btavdtp_service_multiplexing_entry;
@@ -605,13 +615,18 @@ static const value_string content_protection_type_vals[] = {
 };
 
 static const value_string vendor_apt_codec_vals[] = {
-    { CODECID_APT_X,     "aptX" },
-    { CODECID_APT_X_HD,  "aptX HD" },
+    { VENDOR_APT_CODEC_ID_APT_X,     "aptX" },
+    { VENDOR_APT_CODEC_ID_APT_X_HD,  "aptX HD" },
     { 0, NULL }
 };
 
-static const value_string vendor_ldac_codec_vals[] = {
-    { 0x00AA,  "LDAC" },
+static const value_string vendor_sony_codec_vals[] = {
+    { VENDOR_SONY_CODEC_ID_LDAC,  "LDAC" },
+    { 0, NULL }
+};
+
+static const value_string vendor_google_codec_vals[] = {
+    { VENDOR_GOOGLE_CODEC_ID_OPUS,  "Opus" },
     { 0, NULL }
 };
 
@@ -832,6 +847,7 @@ dissect_codec(tvbuff_t *tvb, packet_info *pinfo, proto_item *service_item, proto
         unsigned losc, int media_type, int media_codec_type, uint32_t *vendor_id, uint16_t *vendor_codec)
 {
     proto_item    *pitem;
+    uint32_t       vendor_codec_id;
     uint32_t       value;
     uint8_t       *value8 = (uint8_t *) &value;
 
@@ -1003,12 +1019,13 @@ dissect_codec(tvbuff_t *tvb, packet_info *pinfo, proto_item *service_item, proto
 
                     switch (tvb_get_letohl(tvb, offset)) {
                         case 0x004F: /* APT Licensing Ltd. */
-                        case 0x00D7: /* Qualcomm technologies, Inc. */
-                            proto_tree_add_item(tree, hf_btavdtp_vendor_specific_apt_codec_id, tvb, offset + 4, 2, ENC_LITTLE_ENDIAN);
-                            value = tvb_get_letohs(tvb, offset + 4);
+                        case 0x00D7: /* Qualcomm Technologies, Inc. */
+                            proto_tree_add_item_ret_uint(tree, hf_btavdtp_vendor_apt_codec_id, tvb, offset + 4, 2, ENC_LITTLE_ENDIAN, &vendor_codec_id);
+                            switch (vendor_codec_id) {
+                            case VENDOR_APT_CODEC_ID_APT_X:
+                            case VENDOR_APT_CODEC_ID_APT_X_HD:
 
-                            if (value == CODECID_APT_X || value == CODECID_APT_X_HD) { /* APT-X or APT-X HD Codec */
-                                if (value == CODECID_APT_X) {
+                                if (vendor_codec_id == VENDOR_APT_CODEC_ID_APT_X) {
                                     proto_tree_add_item(tree, hf_btavdtp_vendor_specific_aptx_sampling_frequency_16000, tvb, offset + 6, 1, ENC_NA);
                                     proto_tree_add_item(tree, hf_btavdtp_vendor_specific_aptx_sampling_frequency_32000, tvb, offset + 6, 1, ENC_NA);
                                     proto_tree_add_item(tree, hf_btavdtp_vendor_specific_aptx_sampling_frequency_44100, tvb, offset + 6, 1, ENC_NA);
@@ -1026,13 +1043,13 @@ dissect_codec(tvbuff_t *tvb, packet_info *pinfo, proto_item *service_item, proto
                                     proto_tree_add_item(tree, hf_btavdtp_vendor_specific_aptxhd_channel_mode_dual_channel, tvb, offset + 6, 1, ENC_NA);
                                     proto_tree_add_item(tree, hf_btavdtp_vendor_specific_aptxhd_channel_mode_stereo, tvb, offset + 6, 1, ENC_NA);
                                     proto_tree_add_item(tree, hf_btavdtp_vendor_specific_aptxhd_channel_mode_joint_stereo, tvb, offset + 6, 1, ENC_NA);
-                                    proto_tree_add_item(tree, hf_btavdtp_vendor_specific_aptxhd_rfa, tvb, offset + 7, 4, ENC_NA);
+                                    proto_tree_add_item(tree, hf_btavdtp_vendor_specific_aptxhd_rfa, tvb, offset + 7, 4, ENC_BIG_ENDIAN);
                                 }
 
                                 col_append_fstr(pinfo->cinfo, COL_INFO, " (%s -",
-                                    val_to_str_const(value, vendor_apt_codec_vals, "unknown codec"));
+                                    val_to_str_const(vendor_codec_id, vendor_apt_codec_vals, "unknown codec"));
                                 proto_item_append_text(service_item, " (%s -",
-                                    val_to_str_const(value, vendor_apt_codec_vals, "unknown codec"));
+                                    val_to_str_const(vendor_codec_id, vendor_apt_codec_vals, "unknown codec"));
 
                                 value = tvb_get_uint8(tvb, offset + 6);
                                 if (value) {
@@ -1041,38 +1058,37 @@ dissect_codec(tvbuff_t *tvb, packet_info *pinfo, proto_item *service_item, proto
                                         (value & 0x40) ? " 32000" : "",
                                         (value & 0x20) ? " 44100" : "",
                                         (value & 0x10) ? " 48000" : "",
-                                        (value & 0xF0) ? "" : "not set ",
+                                        (value & 0xF0) ? "" : " not set",
                                         (value & 0x08) ? " Mono" : "",
                                         (value & 0x04) ? " DualChannel" : "",
                                         (value & 0x02) ? " Stereo" : "",
                                         (value & 0x01) ? " JointStereo" : "",
-                                        (value & 0x0F) ? "" : "not set ");
+                                        (value & 0x0F) ? "" : " not set");
 
                                     proto_item_append_text(service_item, "%s%s%s%s%s,%s%s%s%s%s)",
                                         (value & 0x80) ? " 16000" : "",
                                         (value & 0x40) ? " 32000" : "",
                                         (value & 0x20) ? " 44100" : "",
                                         (value & 0x10) ? " 48000" : "",
-                                        (value & 0xF0) ? "" : "not set ",
+                                        (value & 0xF0) ? "" : " not set",
                                         (value & 0x08) ? " Mono" : "",
                                         (value & 0x04) ? " DualChannel" : "",
                                         (value & 0x02) ? " Stereo" : "",
                                         (value & 0x01) ? " JointStereo" : "",
-                                        (value & 0x0F) ? "" : "not set ");
+                                        (value & 0x0F) ? "" : " not set");
                                 } else {
                                     col_append_str(pinfo->cinfo, COL_INFO, " none)");
                                     proto_item_append_text(service_item, " none)");
                                 }
-                            } else {
+                                break;
+                            default:
                                 proto_tree_add_item(tree, hf_btavdtp_vendor_specific_value, tvb, offset + 6, losc - 6, ENC_NA);
                             }
                             break;
-                        case 0x012D: /* Sony Corporation. */
-                            proto_tree_add_item(tree, hf_btavdtp_vendor_specific_ldac_codec_id, tvb, offset + 4, 2, ENC_LITTLE_ENDIAN);
-                            value = tvb_get_letohs(tvb, offset + 4);
-
-                            if (value == 0x00AA) { /* LDAC Codec */
-                                int value2;
+                        case 0x012D: /* Sony Corporation */
+                            proto_tree_add_item_ret_uint(tree, hf_btavdtp_vendor_sony_codec_id, tvb, offset + 4, 2, ENC_LITTLE_ENDIAN, &vendor_codec_id);
+                            switch (vendor_codec_id) {
+                            case VENDOR_SONY_CODEC_ID_LDAC:
                                 proto_tree_add_item(tree, hf_btavdtp_vendor_specific_ldac_rfa1, tvb, offset + 6, 1, ENC_NA);
                                 proto_tree_add_item(tree, hf_btavdtp_vendor_specific_ldac_sampling_frequency_44100, tvb, offset + 6, 1, ENC_NA);
                                 proto_tree_add_item(tree, hf_btavdtp_vendor_specific_ldac_sampling_frequency_48000, tvb, offset + 6, 1, ENC_NA);
@@ -1086,39 +1102,86 @@ dissect_codec(tvbuff_t *tvb, packet_info *pinfo, proto_item *service_item, proto
                                 proto_tree_add_item(tree, hf_btavdtp_vendor_specific_ldac_channel_mode_stereo, tvb, offset + 7, 1, ENC_NA);
 
                                 col_append_fstr(pinfo->cinfo, COL_INFO, " (%s -",
-                                    val_to_str_const(value, vendor_ldac_codec_vals, "unknown codec"));
+                                    val_to_str_const(vendor_codec_id, vendor_sony_codec_vals, "unknown codec"));
                                 proto_item_append_text(service_item, " (%s -",
-                                    val_to_str_const(value, vendor_ldac_codec_vals, "unknown codec"));
+                                    val_to_str_const(vendor_codec_id, vendor_sony_codec_vals, "unknown codec"));
 
-                                value = tvb_get_uint8(tvb, offset + 6);
-                                value2 = tvb_get_uint8(tvb, offset + 7);
-                                if (value != 0 && value2 != 0) {
-                                    col_append_fstr(pinfo->cinfo, COL_INFO, "%s%s%s%s%s%s,%s%s%s)",
-                                        (value & 0x20) ? " 44100" : "",
-                                        (value & 0x10) ? " 48000" : "",
-                                        (value & 0x08) ? " 88200" : "",
-                                        (value & 0x04) ? " 96000" : "",
-                                        (value & 0x02) ? "176400" : "",
-                                        (value & 0x01) ? "192000" : "",
-                                        (value2 & 0x04) ? " Mono" : "",
-                                        (value2 & 0x02) ? " DualChannel" : "",
-                                        (value2 & 0x01) ? " Stereo" : "");
+                                value = tvb_get_h_uint16(tvb, offset + 6);
+                                if (value != 0) {
+                                    col_append_fstr(pinfo->cinfo, COL_INFO, "%s%s%s%s%s%s%s,%s%s%s%s)",
+                                        (value8[0] & 0x20) ? " 44100" : "",
+                                        (value8[0] & 0x10) ? " 48000" : "",
+                                        (value8[0] & 0x08) ? " 88200" : "",
+                                        (value8[0] & 0x04) ? " 96000" : "",
+                                        (value8[0] & 0x02) ? " 176400" : "",
+                                        (value8[0] & 0x01) ? " 192000" : "",
+                                        (value8[0] & 0x3F) ? "" : " not set",
+                                        (value8[1] & 0x04) ? " Mono" : "",
+                                        (value8[1] & 0x02) ? " DualChannel" : "",
+                                        (value8[1] & 0x01) ? " Stereo" : "",
+                                        (value8[1] & 0x07) ? "" : " not set");
 
-                                    proto_item_append_text(service_item, "%s%s%s%s%s%s,%s%s%s)",
-                                        (value & 0x20) ? " 44100" : "",
-                                        (value & 0x10) ? " 48000" : "",
-                                        (value & 0x08) ? " 88200" : "",
-                                        (value & 0x04) ? " 96000" : "",
-                                        (value & 0x02) ? "176400" : "",
-                                        (value & 0x01) ? "192000" : "",
-                                        (value2 & 0x04) ? " Mono" : "",
-                                        (value2 & 0x02) ? " DualChannel" : "",
-                                        (value2 & 0x01) ? " Stereo" : "");
+                                    proto_item_append_text(service_item, "%s%s%s%s%s%s%s,%s%s%s%s)",
+                                        (value8[0] & 0x20) ? " 44100" : "",
+                                        (value8[0] & 0x10) ? " 48000" : "",
+                                        (value8[0] & 0x08) ? " 88200" : "",
+                                        (value8[0] & 0x04) ? " 96000" : "",
+                                        (value8[0] & 0x02) ? " 176400" : "",
+                                        (value8[0] & 0x01) ? " 192000" : "",
+                                        (value8[0] & 0x3F) ? "" : " not set",
+                                        (value8[1] & 0x04) ? " Mono" : "",
+                                        (value8[1] & 0x02) ? " DualChannel" : "",
+                                        (value8[1] & 0x01) ? " Stereo" : "",
+                                        (value8[1] & 0x07) ? "" : " not set");
                                 } else {
                                     col_append_str(pinfo->cinfo, COL_INFO, " none)");
                                     proto_item_append_text(service_item, " none)");
                                 }
-                            } else {
+                                break;
+                            default:
+                                proto_tree_add_item(tree, hf_btavdtp_vendor_specific_value, tvb, offset + 6, losc - 6, ENC_NA);
+                            }
+                            break;
+                        case 0x00E0: /* Google */
+                            proto_tree_add_item_ret_uint(tree, hf_btavdtp_vendor_google_codec_id, tvb, offset + 4, 2, ENC_LITTLE_ENDIAN, &vendor_codec_id);
+                            switch (vendor_codec_id) {
+                            case VENDOR_GOOGLE_CODEC_ID_OPUS:
+                                proto_tree_add_item(tree, hf_btavdtp_vendor_specific_opus_sampling_frequency_48000, tvb, offset + 6, 1, ENC_NA);
+                                proto_tree_add_item(tree, hf_btavdtp_vendor_specific_opus_rfa, tvb, offset + 6, 1, ENC_NA);
+                                proto_tree_add_item(tree, hf_btavdtp_vendor_specific_opus_frame_duration_20, tvb, offset + 6, 1, ENC_NA);
+                                proto_tree_add_item(tree, hf_btavdtp_vendor_specific_opus_frame_duration_10, tvb, offset + 6, 1, ENC_NA);
+                                proto_tree_add_item(tree, hf_btavdtp_vendor_specific_opus_channel_mode_dual, tvb, offset + 6, 1, ENC_NA);
+                                proto_tree_add_item(tree, hf_btavdtp_vendor_specific_opus_channel_mode_stereo, tvb, offset + 6, 1, ENC_NA);
+                                proto_tree_add_item(tree, hf_btavdtp_vendor_specific_opus_channel_mode_mono, tvb, offset + 6, 1, ENC_NA);
+
+                                col_append_fstr(pinfo->cinfo, COL_INFO, " (%s -",
+                                    val_to_str_const(vendor_codec_id, vendor_google_codec_vals, "unknown codec"));
+                                proto_item_append_text(service_item, " (%s -",
+                                    val_to_str_const(vendor_codec_id, vendor_google_codec_vals, "unknown codec"));
+
+                                value = tvb_get_uint8(tvb, offset + 6);
+                                if (value) {
+                                    col_append_fstr(pinfo->cinfo, COL_INFO, "%s%s,%s%s%s%s)",
+                                        (value & 0x80) ? " 48000" : "",
+                                        (value & 0x80) ? "" : " not set",
+                                        (value & 0x04) ? " Dual" : "",
+                                        (value & 0x02) ? " Stereo" : "",
+                                        (value & 0x01) ? " Mono" : "",
+                                        (value & 0x07) ? "" : " not set");
+
+                                    proto_item_append_text(service_item, "%s%s,%s%s%s%s)",
+                                        (value & 0x80) ? " 48000" : "",
+                                        (value & 0x80) ? "" : " not set",
+                                        (value & 0x04) ? " Dual" : "",
+                                        (value & 0x02) ? " Stereo" : "",
+                                        (value & 0x01) ? " Mono" : "",
+                                        (value & 0x07) ? "" : " not set");
+                                } else {
+                                    col_append_str(pinfo->cinfo, COL_INFO, " none)");
+                                    proto_item_append_text(service_item, " none)");
+                                }
+                                break;
+                            default:
                                 proto_tree_add_item(tree, hf_btavdtp_vendor_specific_value, tvb, offset + 6, losc - 6, ENC_NA);
                             }
                             break;
@@ -2784,10 +2847,10 @@ proto_register_btavdtp(void)
         },
         { &hf_btavdtp_vendor_specific_value,
             { "Value",                          "btavdtp.codec.vendor.value",
-            FT_NONE, BASE_NONE, NULL, 0x0,
+            FT_BYTES, BASE_NONE, NULL, 0x0,
             NULL, HFILL }
         },
-        { &hf_btavdtp_vendor_specific_apt_codec_id,
+        { &hf_btavdtp_vendor_apt_codec_id,
             { "Codec",                          "btavdtp.codec.vendor.codec_id",
             FT_UINT16, BASE_HEX, VALS(vendor_apt_codec_vals), 0x0,
             NULL, HFILL }
@@ -2877,14 +2940,14 @@ proto_register_btavdtp(void)
             FT_UINT32, BASE_HEX, NULL, 0x0,
             NULL, HFILL }
         },
+        { &hf_btavdtp_vendor_sony_codec_id,
+            { "Codec",                          "btavdtp.codec.vendor.codec_id",
+            FT_UINT16, BASE_HEX, VALS(vendor_sony_codec_vals), 0x00,
+            NULL, HFILL }
+        },
         { &hf_btavdtp_vendor_specific_ldac_rfa1,
             { "RFA1",                           "btavdtp.codec.ldac.rfa1",
             FT_UINT8, BASE_HEX, NULL, 0xC0,
-            NULL, HFILL }
-        },
-        { &hf_btavdtp_vendor_specific_ldac_codec_id,
-            { "Codec",                          "btavdtp.codec.vendor.codec_id",
-            FT_UINT16, BASE_HEX, VALS(vendor_ldac_codec_vals), 0x00,
             NULL, HFILL }
         },
         { &hf_btavdtp_vendor_specific_ldac_sampling_frequency_44100,
@@ -2934,6 +2997,46 @@ proto_register_btavdtp(void)
         },
         { &hf_btavdtp_vendor_specific_ldac_channel_mode_stereo,
             { "Channel Mode Stereo",            "btavdtp.codec.ldac.channel_mode.stereo",
+            FT_BOOLEAN, 8, NULL, 0x01,
+            NULL, HFILL }
+        },
+        { &hf_btavdtp_vendor_google_codec_id,
+            { "Codec",                          "btavdtp.codec.vendor.codec_id",
+            FT_UINT16, BASE_HEX, VALS(vendor_google_codec_vals), 0x00,
+            NULL, HFILL }
+        },
+        { &hf_btavdtp_vendor_specific_opus_sampling_frequency_48000,
+            { "Sampling Frequency 48000 Hz",    "btavdtp.codec.opus.sampling_frequency.48000",
+            FT_BOOLEAN, 8, NULL, 0x80,
+            NULL, HFILL }
+        },
+        { &hf_btavdtp_vendor_specific_opus_rfa,
+            { "RFA",                            "btavdtp.codec.opus.rfa1",
+            FT_UINT8, BASE_HEX, NULL, 0x60,
+            NULL, HFILL }
+        },
+        { &hf_btavdtp_vendor_specific_opus_frame_duration_20,
+            { "Frame Duration 20 ms",           "btavdtp.codec.opus.frame_duration.20",
+            FT_BOOLEAN, 8, NULL, 0x10,
+            NULL, HFILL }
+        },
+        { &hf_btavdtp_vendor_specific_opus_frame_duration_10,
+            { "Frame Duration 10 ms",           "btavdtp.codec.opus.frame_duration.10",
+            FT_BOOLEAN, 8, NULL, 0x08,
+            NULL, HFILL }
+        },
+        { &hf_btavdtp_vendor_specific_opus_channel_mode_dual,
+            { "Channel Mode Dual",              "btavdtp.codec.opus.channel_mode.dual",
+            FT_BOOLEAN, 8, NULL, 0x04,
+            NULL, HFILL }
+        },
+        { &hf_btavdtp_vendor_specific_opus_channel_mode_stereo,
+            { "Channel Mode Stereo",            "btavdtp.codec.opus.channel_mode.stereo",
+            FT_BOOLEAN, 8, NULL, 0x02,
+            NULL, HFILL }
+        },
+        { &hf_btavdtp_vendor_specific_opus_channel_mode_mono,
+            { "Channel Mode Mono",              "btavdtp.codec.opus.channel_mode.mono",
             FT_BOOLEAN, 8, NULL, 0x01,
             NULL, HFILL }
         },
@@ -3488,11 +3591,11 @@ dissect_bta2dp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
         pitem = proto_tree_add_uint(bta2dp_tree, hf_bta2dp_vendor_codec_id, tvb, 0, 0, sep_data.vendor_codec);
         proto_item_set_generated(pitem);
 
-        if ((sep_data.vendor_id == 0x004F && sep_data.vendor_codec == CODECID_APT_X) ||
-                (sep_data.vendor_id == 0x00D7 && sep_data.vendor_codec == CODECID_APT_X_HD))
+        if ((sep_data.vendor_id == 0x004F && sep_data.vendor_codec == VENDOR_APT_CODEC_ID_APT_X) ||
+                (sep_data.vendor_id == 0x00D7 && sep_data.vendor_codec == VENDOR_APT_CODEC_ID_APT_X_HD))
             codec_dissector = aptx_handle;
 
-        if (sep_data.vendor_id == 0x012D && sep_data.vendor_codec == 0x00AA)
+        if (sep_data.vendor_id == 0x012D && sep_data.vendor_codec == VENDOR_SONY_CODEC_ID_LDAC)
             codec_dissector = ldac_handle;
     }
 

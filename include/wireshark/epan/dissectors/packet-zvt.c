@@ -34,6 +34,7 @@
 #include <wsutil/array.h>
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
 #include "packet-tcp.h"
 
 /* special characters of the serial transport protocol */
@@ -508,7 +509,7 @@ static inline int dissect_zvt_tlv_text_lines(
         packet_info *pinfo _U_, proto_tree *tree, tlv_seq_info_t *seq_info)
 {
     proto_tree_add_item(tree, hf_zvt_text_lines_line,
-            tvb, offset, len, seq_info->txt_enc | ENC_NA);
+            tvb, offset, len, seq_info->txt_enc);
     return len;
 }
 
@@ -1117,7 +1118,7 @@ dissect_zvt_apdu(tvbuff_t *tvb, int offset, packet_info *pinfo, proto_tree *tree
         ctrl = tvb_get_ntohs(tvb, offset);
         proto_tree_add_item(apdu_tree, hf_zvt_ctrl, tvb, offset, 2, ENC_BIG_ENDIAN);
         col_append_sep_str(pinfo->cinfo, COL_INFO, NULL,
-                val_to_str(ctrl, ctrl_field, "Unknown 0x%x"));
+                val_to_str(pinfo->pool, ctrl, ctrl_field, "Unknown 0x%x"));
         offset += 2;
 
         if (PINFO_FD_VISITED(pinfo)) {
@@ -1319,10 +1320,10 @@ proto_register_zvt(void)
     static hf_register_info hf[] = {
         { &hf_zvt_resp_in,
             { "Response In", "zvt.resp_in",
-                FT_FRAMENUM, BASE_NONE, NULL, 0x0, NULL, HFILL } },
+                FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_RESPONSE), 0x0, NULL, HFILL } },
         { &hf_zvt_resp_to,
             { "Response To", "zvt.resp_to",
-                FT_FRAMENUM, BASE_NONE, NULL, 0x0, NULL, HFILL } },
+                FT_FRAMENUM, BASE_NONE, FRAMENUM_TYPE(FT_FRAMENUM_REQUEST), 0x0, NULL, HFILL } },
          { &hf_zvt_serial_char,
             { "Serial character", "zvt.serial_char", FT_UINT8,
                 BASE_HEX|BASE_EXT_STRING, &serial_char_ext, 0, NULL, HFILL } },
@@ -1472,7 +1473,7 @@ proto_register_zvt(void)
     static ei_register_info ei[] = {
         { &ei_invalid_apdu_len,
             { "zvt.apdu_len.invalid", PI_PROTOCOL, PI_WARN,
-                "The APDU length is too short. The minimum length is %d",
+                "The APDU length is too short",
                 EXPFILL }}
     };
 

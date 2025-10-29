@@ -255,7 +255,7 @@ dissect_negoex_nego_message(tvbuff_t *tvb,
 
   TRY {
     /* The Random field */
-    proto_tree_add_item(tree, hf_negoex_random, tvb, offset, 32, ENC_ASCII);
+    proto_tree_add_item(tree, hf_negoex_random, tvb, offset, 32, ENC_NA);
     offset += 32;
 
     /* Protocol version */
@@ -385,7 +385,7 @@ dissect_negoex(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _
 
       /* Signature, NEGOEXTS */
       proto_tree_add_item(negoex_hdr_tree, hf_negoex_sig,
-                          tvb, offset, 8, ENC_ASCII | ENC_NA);
+                          tvb, offset, 8, ENC_ASCII);
       offset += 8;
 
       col_append_sep_str(pinfo->cinfo, COL_INFO, ", ",

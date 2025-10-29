@@ -19,6 +19,7 @@
 
 #include "ws_symbol_export.h"
 #include <wsutil/strtoi.h>
+#include <wsutil/dtoa.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -373,6 +374,8 @@ bool uat_fld_chk_oid(void*, const char*, unsigned, const void*, const void*, cha
 WS_DLL_PUBLIC
 bool uat_fld_chk_proto(void*, const char*, unsigned, const void*, const void*, char** err);
 WS_DLL_PUBLIC
+bool uat_fld_chk_field(void*, const char*, unsigned, const void*, const void*, char** err);
+WS_DLL_PUBLIC
 bool uat_fld_chk_num_dec(void*, const char*, unsigned, const void*, const void*, char** err);
 WS_DLL_PUBLIC
 bool uat_fld_chk_num_dec64(void*, const char*, unsigned, const void*, const void*, char** err);
@@ -384,6 +387,8 @@ WS_DLL_PUBLIC
 bool uat_fld_chk_num_signed_dec(void*, const char*, unsigned, const void*, const void*, char** err);
 WS_DLL_PUBLIC
 bool uat_fld_chk_num_signed_dec64(void*, const char*, unsigned, const void*, const void*, char** err);
+WS_DLL_PUBLIC
+bool uat_fld_chk_num_dbl(void*, const char*, unsigned, const void*, const void*, char** err);
 WS_DLL_PUBLIC
 bool uat_fld_chk_bool(void*, const char*, unsigned, const void*, const void*, char** err);
 WS_DLL_PUBLIC
@@ -499,7 +504,7 @@ static void basename ## _ ## field_name ## _tostr_cb(void* rec, char** out_ptr, 
 #define UAT_PROTO_FIELD_CB_DEF(basename,field_name,rec_t) UAT_CSTRING_CB_DEF(basename,field_name,rec_t)
 
 #define UAT_FLD_PROTO_FIELD(basename,field_name,title,desc) \
-    {#field_name, title, PT_TXTMOD_PROTO_FIELD, {uat_fld_chk_str,basename ## _ ## field_name ## _set_cb,basename ## _ ## field_name ## _tostr_cb},{0,0,0},0,desc,FLDFILL}
+    {#field_name, title, PT_TXTMOD_PROTO_FIELD, {uat_fld_chk_field,basename ## _ ## field_name ## _set_cb,basename ## _ ## field_name ## _tostr_cb},{0,0,0},0,desc,FLDFILL}
 
 /*
  * OID - just a CSTRING with a specific check routine
@@ -646,6 +651,28 @@ static void basename ## _ ## field_name ## _tostr_cb(void* rec, char** out_ptr, 
 {#field_name, title, PT_TXTMOD_STRING,{uat_fld_chk_num_hex64,basename ## _ ## field_name ## _set_cb,basename ## _ ## field_name ## _tostr_cb},{0,0,0},0,desc,FLDFILL}
 
 /*
+ * DBL Macros,
+ *   a double precision floating-point number contained in (((rec_t*)rec)->(field_name))
+ *
+ *   [using g_ascii_dtostr() would be fine for tostr_cb for storing data, but
+ *   produces more ugly looking values when presenting to the user. dtoa_g_fmt
+ *   produces the shortest string which also is a unique round-trip for any
+ *   particular value.]
+ */
+#define UAT_DBL_CB_DEF(basename,field_name,rec_t) \
+static void basename ## _ ## field_name ## _set_cb(void* rec, const char* buf, unsigned len, const void* UNUSED_PARAMETER(u1), const void* UNUSED_PARAMETER(u2)) {\
+    char* tmp_str = g_strndup(buf,len); \
+    ((rec_t*)rec)->field_name = g_ascii_strtod(tmp_str, NULL); \
+    g_free(tmp_str); } \
+static void basename ## _ ## field_name ## _tostr_cb(void* rec, char** out_ptr, unsigned* out_len, const void* UNUSED_PARAMETER(u1), const void* UNUSED_PARAMETER(u2)) {\
+    char buf[32]; \
+    *out_ptr = ws_strdup(dtoa_g_fmt(buf, ((rec_t*)rec)->field_name)); \
+    *out_len = (unsigned)strlen(*out_ptr); }
+
+#define UAT_FLD_DBL(basename,field_name,title,desc) \
+    {#field_name, title, PT_TXTMOD_STRING,{uat_fld_chk_num_dbl,basename ## _ ## field_name ## _set_cb,basename ## _ ## field_name ## _tostr_cb},{0,0,0},0,desc,FLDFILL}
+
+/*
  * BOOL Macros,
  *   an boolean value contained in (((rec_t*)rec)->(field_name))
  *
@@ -771,6 +798,9 @@ static void basename ## _ ## field_name ## _tostr_cb(void* rec, char** out_ptr, 
 
 #define UAT_FLD_DISSECTOR(basename,field_name,title,desc) \
     {#field_name, title, PT_TXTMOD_DISSECTOR,{uat_fld_chk_proto,basename ## _ ## field_name ## _set_cb,basename ## _ ## field_name ## _tostr_cb},{0,0,0},0,desc,FLDFILL}
+
+#define UAT_FLD_DISSECTOR_OTHER(basename,field_name,title,chk,desc) \
+    {#field_name, title, PT_TXTMOD_DISSECTOR,{chk,basename ## _ ## field_name ## _set_cb,basename ## _ ## field_name ## _tostr_cb},{0,0,0},0,desc,FLDFILL}
 
 /*
  * RANGE macros

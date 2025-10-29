@@ -32,6 +32,7 @@
 #include <epan/expert.h>
 #include <epan/conversation.h>
 #include <wiretap/wtap.h>
+#include <wsutil/array.h>
 
 #include "packet-rmt-common.h"
 #include "packet-lls.h"
@@ -83,7 +84,7 @@ try_decode_payload(tvbuff_t *tvb, packet_info *pinfo, proto_item *tree)
             char *col_info_text = wmem_strdup(pinfo->pool, col_get_text(pinfo->cinfo, COL_INFO));
             char *col_protocol_text = wmem_strdup(pinfo->pool, col_get_text(pinfo->cinfo, COL_PROTOCOL));
 
-            int mp4_dis = dissector_try_string(media_type_dissector_table, "video/mp4", tvb, pinfo, tree, NULL);
+            int mp4_dis = dissector_try_string_with_data(media_type_dissector_table, "video/mp4", tvb, pinfo, tree, true, NULL);
             char *col_protocol_text_mp4 = wmem_strdup(pinfo->pool,col_get_text(pinfo->cinfo, COL_PROTOCOL));
 
             /* Restore Protocol and Info columns and add MP4 Protocol Info */
@@ -105,7 +106,7 @@ try_uncompress(tvbuff_t *tvb, packet_info *pinfo, int offset, /*int len,*/ proto
 
         proto_tree *uncompress_tree = proto_item_add_subtree(ti, ett_uncomp_payload);
         unsigned decomp_length = tvb_captured_length(uncompress_tvb);
-        proto_item *ti_uncomp = proto_tree_add_item(uncompress_tree, hf_uncomp_payload, uncompress_tvb, 0, decomp_length, ENC_ASCII);
+        proto_item *ti_uncomp = proto_tree_add_item(uncompress_tree, hf_uncomp_payload, uncompress_tvb, 0, decomp_length, ENC_NA);
         proto_item_set_generated(ti_uncomp);
 
         proto_tree *payload_tree = proto_item_add_subtree(ti_uncomp, ett_uncomp_decode);

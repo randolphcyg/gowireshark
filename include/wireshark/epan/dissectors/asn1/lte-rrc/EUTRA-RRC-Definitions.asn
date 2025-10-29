@@ -1,4 +1,4 @@
--- 3GPP TS 36.331 V18.2.0 (2024-06)
+-- 3GPP TS 36.331 V18.6.0 (2025-06)
 
 EUTRA-RRC-Definitions DEFINITIONS AUTOMATIC TAGS ::=
 
@@ -2369,10 +2369,24 @@ RRCConnectionSetupComplete-r8-IEs ::= SEQUENCE {
 }
 
 RRCConnectionSetupComplete-v8a0-IEs ::= SEQUENCE {
-	lateNonCriticalExtension			OCTET STRING							OPTIONAL,
+	lateNonCriticalExtension			OCTET STRING (CONTAINING RRCConnectionSetupComplete-v8x0-IEs)							OPTIONAL,
 	nonCriticalExtension				RRCConnectionSetupComplete-v1020-IEs	OPTIONAL
 }
 
+-- Late non-critical extensions:
+RRCConnectionSetupComplete-v8x0-IEs ::= SEQUENCE {
+	-- Following field is only for pre REL-17 late non-critical extensions
+	lateNonCriticalExtension			OCTET STRING							OPTIONAL,
+	nonCriticalExtension				RRCConnectionSetupComplete-v17b0-IEs	OPTIONAL
+}
+
+RRCConnectionSetupComplete-v17b0-IEs ::= SEQUENCE {
+	ul-RRC-MaxCapaSegments-r17					ENUMERATED {true}				OPTIONAL,
+	-- Following field is only for late non-critical extensions from REL-17
+	nonCriticalExtension						SEQUENCE{}						OPTIONAL
+}
+
+-- Regular non-critical extensions:
 RRCConnectionSetupComplete-v1020-IEs ::= SEQUENCE {
 	gummei-Type-r10						ENUMERATED {native, mapped}				OPTIONAL,
 	rlf-InfoAvailable-r10				ENUMERATED {true}						OPTIONAL,
@@ -3543,8 +3557,13 @@ UECapabilityEnquiry-v1610-IEs ::=	SEQUENCE {
 }
 
 UECapabilityEnquiry-v1710-IEs ::=	SEQUENCE {
-	sidelinkRequest-r17					ENUMERATED {true}				OPTIONAL,	-- Need ON
-	nonCriticalExtension					SEQUENCE {}					OPTIONAL
+	sidelinkRequest-r17					ENUMERATED {true}					OPTIONAL,	-- Need ON
+	nonCriticalExtension				UECapabilityEnquiry-v17b0-IEs		OPTIONAL
+}
+
+UECapabilityEnquiry-v17b0-IEs ::=	SEQUENCE {
+	rrc-MaxCapaSegAllowed-r17			INTEGER (2..16)						OPTIONAL, -- Need ON
+	nonCriticalExtension				SEQUENCE {}							OPTIONAL
 }
 
 UE-CapabilityRequest ::=			SEQUENCE (SIZE (1..maxRAT-Capabilities)) OF RAT-Type
@@ -4684,7 +4703,7 @@ InterFreqCarrierFreqInfo-v1610	::= SEQUENCE {
 
 InterFreqCarrierFreqInfo-v1800	::= SEQUENCE {
 	satelliteAssistanceInfoList-r18		SEQUENCE (SIZE(1..maxSat-r17)) OF SatelliteId-r18
-																			OPTIONAL,	-- Need OR
+																			OPTIONAL,	-- Need OP
 	freqBandIndicatorAerial-r18			FreqBandIndicator-r11				OPTIONAL,	-- Need OR
 	freqBandInfoAerial-r18				NS-PmaxListAerial-r18				OPTIONAL,	-- Need OR
 	multiBandInfoListAerial-r18			MultiBandInfoListAerial-r18			OPTIONAL	-- Need OR
@@ -5631,12 +5650,17 @@ SystemInformationBlockType32-r17 ::= SEQUENCE {
 	lateNonCriticalExtension			OCTET STRING					OPTIONAL,
 	...,
 	[[	satelliteInfoList-v1800			SatelliteInfoList-v1800	OPTIONAL	-- Need OR
+	]],
+	[[	satelliteInfoList-v1830			SatelliteInfoList-v1830	OPTIONAL	-- Need OR
 	]]
+
 }
 
 SatelliteInfoList-r17 ::=	SEQUENCE (SIZE (1..maxSat-r17)) OF SatelliteInfo-r17
 
 SatelliteInfoList-v1800 ::=	SEQUENCE (SIZE (1..maxSat-r17)) OF CarrierFreqList-v1800
+
+SatelliteInfoList-v1830 ::=	SEQUENCE (SIZE (1..maxSat-r17)) OF CarrierFreqList-v1830
 
 SatelliteInfo-r17 ::=			SEQUENCE {
 	satelliteId-r17				INTEGER (0..255),
@@ -5658,6 +5682,10 @@ SatelliteInfo-r17 ::=			SEQUENCE {
 }
 
 CarrierFreqList-v1800 ::=		SEQUENCE (SIZE (1..maxFreq)) OF ARFCN-ValueEUTRA
+
+CarrierFreqList-v1830 ::=		SEQUENCE {
+	carrierFreqList-r18				SEQUENCE (SIZE (1..maxFreq)) OF ARFCN-ValueEUTRA-r9
+}
 
 
 SystemInformationBlockType33-r18 ::= SEQUENCE {
@@ -13185,16 +13213,26 @@ UE-EUTRA-Capability-v14x0-IEs ::= SEQUENCE {
 }
 
 UE-EUTRA-Capability-v15x0-IEs ::= SEQUENCE {
-	-- Following field is only to be used for late REL-15 extensions
-	lateNonCriticalExtension			OCTET STRING							OPTIONAL,
+	lateNonCriticalExtension			OCTET STRING (CONTAINING UE-EUTRA-Capability-v15o0-IEs)							OPTIONAL,
 	nonCriticalExtension				UE-EUTRA-Capability-v16c0-IEs			OPTIONAL
+}
+
+UE-EUTRA-Capability-v15o0-IEs ::= SEQUENCE {
+	measParameters-v15o0				MeasParameters-v15o0,
+	-- Following field is only to be used for late REL-15 extensions
+	nonCriticalExtension				SEQUENCE {}								OPTIONAL
 }
 
 UE-EUTRA-Capability-v16c0-IEs ::= SEQUENCE {
 	measParameters-v16c0				MeasParameters-v16c0,
 	-- Following field is only to be used for late REL-16 extensions
 	lateNonCriticalExtension			OCTET STRING							OPTIONAL,
-	nonCriticalExtension				SEQUENCE {}							OPTIONAL
+	nonCriticalExtension				UE-EUTRA-Capability-v17b0-IEs			OPTIONAL
+}
+
+UE-EUTRA-Capability-v17b0-IEs ::= SEQUENCE {
+	ul-RRC-MaxCapaSegments-r17			ENUMERATED {supported}					OPTIONAL,
+	nonCriticalExtension				SEQUENCE {}								OPTIONAL
 }
 
 -- Regular non critical extensions
@@ -13573,6 +13611,16 @@ UE-EUTRA-Capability-v1800-IEs ::= SEQUENCE {
 	sl-Parameters-v1800						SL-Parameters-v1800						OPTIONAL,
 	son-Parameters-v1800					SON-Parameters-v1800,
 	ue-BasedNetwPerfMeasParameters-v1800	UE-BasedNetwPerfMeasParameters-v1800,
+	nonCriticalExtension					UE-EUTRA-Capability-v1830-IEs			OPTIONAL
+}
+
+UE-EUTRA-Capability-v1830-IEs ::= SEQUENCE {
+	ntn-Parameters-v1830					NTN-Parameters-v1830,
+	nonCriticalExtension					UE-EUTRA-Capability-v1840-IEs			OPTIONAL
+}
+
+UE-EUTRA-Capability-v1840-IEs ::= SEQUENCE {
+	measParameters-v1840					MeasParameters-v1840,
 	nonCriticalExtension					SEQUENCE {}								OPTIONAL
 }
 
@@ -13803,6 +13851,10 @@ NTN-Parameters-v1800 ::=		SEQUENCE {
 	ntn-Autonomous-GNSS-Fix-r18						ENUMERATED {supported}			OPTIONAL,
 	ntn-UplinkTxExtension-r18						ENUMERATED {supported}			OPTIONAL,
 	ntn-GNSS-EnhScenarioSupport-r18					ENUMERATED {ngso,gso}			OPTIONAL
+}
+
+NTN-Parameters-v1830 ::=		SEQUENCE {
+	satelliteInfoConfigDedicated-r18				ENUMERATED {supported}			OPTIONAL
 }
 
 ProcessingTimelineSet-r15 ::=		ENUMERATED {set1, set2}
@@ -14410,7 +14462,7 @@ RF-Parameters-v1630 ::=				SEQUENCE {
 }
 
 RF-Parameters-v1800 ::=				SEQUENCE {
-	 -- Support handling of aerial-specific Ns and Pmax list broadcasted by the cell
+ -- Support handling of aerial-specific Ns and Pmax list broadcasted by the cell
 	multiNS-PmaxAerial-r18					ENUMERATED {supported}					OPTIONAL,
 	supportedBandListEUTRA-v1800			SupportedBandListEUTRA-v1800			OPTIONAL,
 	supportedBandCombination-v1800			SupportedBandCombination-v1800			OPTIONAL,
@@ -15003,8 +15055,12 @@ MeasParameters-v1530 ::=			SEQUENCE {
 	multipleCellsMeasExtension-r15			ENUMERATED {supported}			OPTIONAL
 }
 
+MeasParameters-v15o0 ::=			SEQUENCE {
+	a4-a5-ReportOnLeaveSupport-r15			ENUMERATED {supported}			OPTIONAL
+}
+
 MeasParameters-v1610 ::=		SEQUENCE {
-	bandInfoNR-v1610					SEQUENCE (SIZE (1..maxBands)) OF MeasGapInfoNR-r16	OPTIONAL,
+	bandInfoNR-r16						SEQUENCE (SIZE (1..maxBands)) OF MeasGapInfoNR-r16	OPTIONAL,
 	altFreqPriority-r16					ENUMERATED {supported}							OPTIONAL,
 	ce-DL-ChannelQualityReporting-r16	ENUMERATED {supported}							OPTIONAL,
 	ce-MeasRSS-Dedicated-r16			ENUMERATED {supported}							OPTIONAL,
@@ -15037,6 +15093,10 @@ MeasParameters-v1770 ::=			SEQUENCE {
 
 MeasParameters-v1800 ::=	SEQUENCE {
 	bandInfoNR-v1800				SEQUENCE (SIZE (1..maxBands)) OF MeasGapInfoNR-r18
+}
+
+MeasParameters-v1840 ::=	SEQUENCE {
+	simultaneousRxDataSSB-DiffNumerology-FR1-r18	ENUMERATED {supported}	OPTIONAL
 }
 
 SharedSpectrumMeasNR-r17 ::=		SEQUENCE {

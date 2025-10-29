@@ -984,7 +984,7 @@ dissect_openflow_oxm_v4(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree,
             proto_tree_add_item(oxm_tree, hf_openflow_v4_oxm_value_vlan_vid, tvb, offset, 2, ENC_BIG_ENDIAN);
             offset+=2;
             if (oxm_hm) {
-                proto_tree_add_item(oxm_tree, hf_openflow_v4_oxm_mask_vlan, tvb, offset, 2, ENC_NA);
+                proto_tree_add_item(oxm_tree, hf_openflow_v4_oxm_mask_vlan, tvb, offset, 2, ENC_BIG_ENDIAN);
                 offset+=2;
             }
             break;
@@ -1560,7 +1560,7 @@ dissect_openflow_error_v4(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tre
     switch(error_type) {
     case OFPET_HELLO_FAILED:
         /* uint8_t data[0]; contains an ASCII text string */
-        proto_tree_add_item(tree, hf_openflow_v4_error_data_text, tvb, offset, length - 12, ENC_NA|ENC_ASCII);
+        proto_tree_add_item(tree, hf_openflow_v4_error_data_text, tvb, offset, length - 12, ENC_ASCII);
         /*offset += length - 12;*/
         break;
 

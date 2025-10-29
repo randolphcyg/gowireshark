@@ -14,6 +14,8 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-windows-common.h"
 #include "packet-smb-common.h"
 
@@ -498,7 +500,7 @@ dissect_announce_change(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int
 
 			/* Domain SID */
 			offset = dissect_nt_sid(
-				tvb, offset, tree, "Domain", NULL, -1);
+				tvb, pinfo, offset, tree, "Domain", NULL, -1);
 		}
 
 		/* NT version */
@@ -550,7 +552,7 @@ dissect_smb_sam_logon_req(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, i
 		offset = ((offset + 3)/4)*4;
 
 		/* Domain SID */
-		offset = dissect_nt_sid(tvb, offset, tree, "Domain", NULL, -1);
+		offset = dissect_nt_sid(tvb, pinfo, offset, tree, "Domain", NULL, -1);
 	}
 
 	/* NT version */
@@ -894,7 +896,7 @@ dissect_smb_logon(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 	/* get the Command field */
 	cmd = tvb_get_uint8(tvb, offset);
 
-	col_add_str(pinfo->cinfo, COL_INFO, val_to_str(cmd, commands, "Unknown Command:%02x") );
+	col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, cmd, commands, "Unknown Command:%02x") );
 
 	if (tree) {
 		item = proto_tree_add_item(tree, proto_smb_logon, tvb,

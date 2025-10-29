@@ -201,11 +201,32 @@ lua_nstime_to_sec(const nstime_t *nstime)
 }
 
 static double
-lua_delta_nstime_to_sec(const Pinfo pinfo, const frame_data *fd, uint32_t prev_num)
+lua_delta_prev_captured_sec(const Pinfo pinfo, const frame_data *fd)
 {
     nstime_t del;
 
-    frame_delta_abs_time(pinfo->ws_pinfo->epan, fd, prev_num, &del);
+    /*
+     * XXX - there's no way to report "there *is* no delta time,
+     * because either 1) this frame has no time stamp, 2) the
+     * previous frame doesn't exist, or 2) it exists but *it*
+     * has no time stamp.
+     */
+    frame_delta_time_prev_captured(pinfo->ws_pinfo->epan, fd, &del);
+    return lua_nstime_to_sec(&del);
+}
+
+static double
+lua_delta_prev_displayed_sec(const Pinfo pinfo, const frame_data *fd)
+{
+    nstime_t del;
+
+    /*
+     * XXX - there's no way to report "there *is* no delta time,
+     * because either 1) this frame has no time stamp, 2) the
+     * previous frame doesn't exist, or 2) it exists but *it*
+     * has no time stamp.
+     */
+    frame_delta_time_prev_displayed(pinfo->ws_pinfo->epan, fd, &del);
     return lua_nstime_to_sec(&del);
 }
 
@@ -229,10 +250,10 @@ WSLUA_ATTRIBUTE_BLOCK_NUMBER_GETTER(Pinfo,abs_ts,lua_nstime_to_sec(&obj->ws_pinf
 WSLUA_ATTRIBUTE_BLOCK_NUMBER_GETTER(Pinfo,rel_ts,lua_nstime_to_sec(&obj->ws_pinfo->rel_ts));
 
 /* WSLUA_ATTRIBUTE Pinfo_delta_ts RO Number of seconds passed since the last captured packet. */
-WSLUA_ATTRIBUTE_BLOCK_NUMBER_GETTER(Pinfo,delta_ts,lua_delta_nstime_to_sec(obj, obj->ws_pinfo->fd, obj->ws_pinfo->num - 1));
+WSLUA_ATTRIBUTE_BLOCK_NUMBER_GETTER(Pinfo,delta_ts,lua_delta_prev_captured_sec(obj, obj->ws_pinfo->fd));
 
 /* WSLUA_ATTRIBUTE Pinfo_delta_dis_ts RO Number of seconds passed since the last displayed packet. */
-WSLUA_ATTRIBUTE_BLOCK_NUMBER_GETTER(Pinfo,delta_dis_ts,lua_delta_nstime_to_sec(obj, obj->ws_pinfo->fd, obj->ws_pinfo->fd->prev_dis_num));
+WSLUA_ATTRIBUTE_BLOCK_NUMBER_GETTER(Pinfo,delta_dis_ts,lua_delta_prev_displayed_sec(obj, obj->ws_pinfo->fd));
 
 /* WSLUA_ATTRIBUTE Pinfo_curr_proto RO Which Protocol are we dissecting. */
 WSLUA_ATTRIBUTE_NAMED_STRING_GETTER(Pinfo,curr_proto,ws_pinfo->current_proto);
@@ -403,11 +424,15 @@ static int Pinfo_get_lo(lua_State *L) {
     return 1;
 }
 
-/* WSLUA_ATTRIBUTE Pinfo_conversation WO Sets the packet conversation to the given Proto object. */
+/* WSLUA_ATTRIBUTE Pinfo_conversation RW
+   On read, returns a <<lua_class_Conversation,``Conversation``>> object (equivalent to ``Conversation.find_from_pinfo(pinfo, 0, True)``)
+
+   On write, sets the <<lua_class_Dissector,``Dissector``>> for the current conversation (shortcut for ``pinfo.conversation.dissector = dissector``). Accepts either a <<lua_class_Dissector,``Dissector``>> object or a <<lua_class_Proto,``Proto``>> object with an assigned dissector */
 static int Pinfo_set_conversation(lua_State *L) {
     Pinfo pinfo = checkPinfo(L,1);
     Proto proto = checkProto(L,2);
     conversation_t  *conversation;
+
 
     if (!proto->handle) {
         luaL_error(L,"Proto %s has no registered dissector", proto->name? proto->name:"<UNKNOWN>");
@@ -419,6 +444,14 @@ static int Pinfo_set_conversation(lua_State *L) {
 
     return 0;
 }
+
+static int Pinfo_get_conversation(lua_State *L) {
+    Pinfo pinfo = checkPinfo(L,1);
+    Conversation conv = find_or_create_conversation(pinfo->ws_pinfo);
+    pushConversation(L, conv);
+    WSLUA_RETURN(1);
+}
+
 
 /* Gets registered as metamethod automatically by WSLUA_REGISTER_CLASS/META */
 static int Pinfo__gc(lua_State* L) {
@@ -472,7 +505,7 @@ WSLUA_ATTRIBUTES Pinfo_attributes[] = {
     WSLUA_ATTRIBUTE_RWREG(Pinfo,in_error_pkt),
     WSLUA_ATTRIBUTE_ROREG(Pinfo,match_uint),
     WSLUA_ATTRIBUTE_ROREG(Pinfo,match_string),
-    WSLUA_ATTRIBUTE_WOREG(Pinfo,conversation),
+    WSLUA_ATTRIBUTE_RWREG(Pinfo,conversation),
     WSLUA_ATTRIBUTE_RWREG(Pinfo,p2p_dir),
     { NULL, NULL, NULL }
 };

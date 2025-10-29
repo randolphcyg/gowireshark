@@ -94,6 +94,8 @@ GlobalN3IWF-ID/n3IWF-ID globalN3IWF-ID_n3IWF-ID
 GlobalTNGF-ID/tNGF-ID globalTNGF-ID_tNGF-ID
 GlobalTWIF-ID/tWIF-ID globalTWIF-ID_tWIF-ID
 GlobalW-AGF-ID/w-AGF-ID globalW-AGF-ID_w-AGF-ID
+RANTimingSynchronisationStatusInfo/synchronisationState synchronisationState-enum
+RANTimingSynchronisationStatusInfo/parentTImeSource parentTImeSource-enum
 
 #.FIELD_ATTR
 GlobalGNB-ID/gNB-ID       ABBREV=globalGNB_ID.gNB_ID
@@ -114,7 +116,7 @@ UE-NGAP-IDs/aMF-UE-NGAP-ID ABBREV=AMF_UE_NGAP_ID
 #.FN_FTR ProtocolIE-ID
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str_ext(ngap_data->protocol_ie_id, &ngap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
+                           val_to_str_ext(actx->pinfo->pool, ngap_data->protocol_ie_id, &ngap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
 #.END
 
@@ -861,7 +863,7 @@ RecommendedCellItem/timeStayedInCell DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=U
 
 #.FN_FTR TimeStamp
   if (timestamp_tvb) {
-    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
+    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(actx->pinfo->pool, timestamp_tvb, 0));
   }
 
 #.TYPE_ATTR
@@ -1025,7 +1027,7 @@ PeriodicRegistrationUpdateTimer TYPE=FT_UINT8 DISPLAY=BASE_CUSTOM STRINGS=CF_FUN
 
 #.FN_FTR VolumeTimedReport-Item/startTimeStamp
   if (timestamp_tvb) {
-    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
+    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(actx->pinfo->pool, timestamp_tvb, 0));
   }
 
 #.FN_BODY VolumeTimedReport-Item/endTimeStamp VAL_PTR = &timestamp_tvb
@@ -1034,7 +1036,7 @@ PeriodicRegistrationUpdateTimer TYPE=FT_UINT8 DISPLAY=BASE_CUSTOM STRINGS=CF_FUN
 
 #.FN_FTR VolumeTimedReport-Item/endTimeStamp
   if (timestamp_tvb) {
-    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(timestamp_tvb, 0));
+    proto_item_append_text(actx->created_item, " (%s)", tvb_ntp_fmt_ts_sec(actx->pinfo->pool, timestamp_tvb, 0));
   }
 
 #.FN_BODY NRPPa-PDU VAL_PTR = &parameter_tvb
@@ -1224,6 +1226,23 @@ LAC TYPE = FT_UINT16 DISPLAY = BASE_DEC_HEX
     dissect_nr_rrc_nr_RLF_Report_r16_PDU(nr_ue_rlc_report_tvb, actx->pinfo, subtree, NULL);
   }
 
+#.FN_BODY GTP-TEID VAL_PTR = &parameter_tvb LEN_PTR = &len
+  tvbuff_t *parameter_tvb = NULL;
+  uint32_t teid = 0;
+  const char *imsi = NULL;
+
+%(DEFAULT_BODY)s
+  if (!parameter_tvb)
+    return offset;
+
+  if (proto_is_frame_protocol(actx->pinfo->layers, "http2")) {
+    imsi = http2_get_stream_imsi(actx->pinfo);
+    if(imsi) {
+      teid = tvb_get_uint32(parameter_tvb, 0, ENC_BIG_ENDIAN);
+      gtp_add_teid_imsi(teid, imsi);
+    }
+  }
+
 #.TYPE_ATTR
 Periodicity DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_microseconds)
 
@@ -1261,7 +1280,7 @@ FiveG-TMSI TYPE = FT_UINT32 DISPLAY = BASE_DEC_HEX
 %(DEFAULT_BODY)s
   if (parameter_tvb) {
     proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_ngap_GlobalCable_ID);
-    proto_tree_add_item(subtree, hf_ngap_GlobalCable_ID_str, parameter_tvb, 0, -1, ENC_UTF_8 | ENC_NA);
+    proto_tree_add_item(subtree, hf_ngap_GlobalCable_ID_str, parameter_tvb, 0, -1, ENC_UTF_8);
   }
 
 #.TYPE_ATTR
@@ -1854,6 +1873,12 @@ id-UserPlaneFailureIndication                          ProtocolIE-ID
 id-UserPlaneFailureIndicationReport                    ProtocolIE-ID
 id-SourceSN-to-TargetSN-QMCInfo                        ProtocolIE-ID
 id-QoERVQoEReportingPaths                              ProtocolIE-ID
+id-UserLocationInformationN3IWF-without-PortNumber     ProtocolIE-ID
+id-AUN3DeviceAccessInfo                                ProtocolIE-ID
+id-TAIMBSSupportList                                   ProtocolIE-ID
+id-ExtendedBackupAMFName                               ProtocolIE-ID
+id-ExtendedOldAMF                                      ProtocolIE-ID
+
 
 #.END
 
@@ -2169,6 +2194,9 @@ SLPositioningRangingServiceInfo                          N ngap.ies id-SLPositio
 PDUSessionListMTCommHReq                                 N ngap.ies id-PDUSessionListMTCommHReq
 MBS-NGUFailureIndication                                 N ngap.ies id-MBS-NGUFailureIndication
 UserPlaneFailureIndication                               N ngap.ies id-UserPlaneFailureIndication
+UserLocationInformationN3IWF-without-PortNumber          N ngap.ies id-UserLocationInformationN3IWF-without-PortNumber
+AUN3DeviceAccessInfo                                     N ngap.ies id-AUN3DeviceAccessInfo
+Extended-AMFName                                         N ngap.ies id-ExtendedOldAMF
 
 #NGAP-PROTOCOL-EXTENSION
 
@@ -2307,6 +2335,8 @@ MN-only-MDT-collection                                 N ngap.extension id-MN-on
 UserPlaneFailureIndicationReport                       N ngap.extension id-UserPlaneFailureIndicationReport
 QMCConfigInfo                                          N ngap.extension id-SourceSN-to-TargetSN-QMCInfo
 QoERVQoEReportingPaths                                 N ngap.extension id-QoERVQoEReportingPaths
+TAIMBSSupportList                                      N ngap.extension id-TAIMBSSupportList
+Extended-AMFName                                       N ngap.extension id-ExtendedBackupAMFName
 
 #NGAP-ELEMENTARY-PROCEDURE
 
@@ -2550,14 +2580,25 @@ UEContextResumeResponseTransfer                S ngap.n2_ie_type "UE_CONTEXT_RES
 UEContextSuspendRequestTransfer                S ngap.n2_ie_type "UE_CONTEXT_SUSPEND_REQ"
 SourceToTarget-TransparentContainer            S ngap.n2_ie_type "SRC_TO_TAR_CONTAINER"
 TargetToSource-TransparentContainer            S ngap.n2_ie_type "TAR_TO_SRC_CONTAINER"
+TargettoSource-Failure-TransparentContainer    S ngap.n2_ie_type "TAR_TO_SRC_FAIL_CONTAINER"
 RANStatusTransfer-TransparentContainer         S ngap.n2_ie_type "RAN_STATUS_TRANS_CONTAINER"
 SONConfigurationTransfer                       S ngap.n2_ie_type "SON_CONFIG_TRANSFER"
 NRPPa-PDU                                      S ngap.n2_ie_type "NRPPA_PDU"
 UERadioCapability                              S ngap.n2_ie_type "UE_RADIO_CAPABILITY"
+RIMInformationTransfer                         S ngap.n2_ie_type "RIM_INFO_TRANSFER"
+PC5QoSParameters                               S ngap.n2_ie_type "PC5_QOS_PARA"
+EarlyStatusTransfer-TransparentContainer       S ngap.n2_ie_type "EARLY_STATUS_TRANS_CONTAINER"
+UERadioCapabilityForPaging                     S ngap.n2_ie_type "UE_RADIO_CAPABILITY_FOR_PAGING"
 MBSSessionSetupOrModRequestTransfer            S ngap.n2_ie_type "MBS_SES_REQ"
 MBSSessionSetupOrModResponseTransfer           S ngap.n2_ie_type "MBS_SES_RSP"
 MBSSessionSetupOrModFailureTransfer            S ngap.n2_ie_type "MBS_SES_FAIL"
 MBSSessionReleaseResponseTransfer              S ngap.n2_ie_type "MBS_SES_REL_RSP"
+BroadcastTransportRequestTransfer              S ngap.n2_ie_type "BC_TRA_REQ"
+BroadcastTransportResponseTransfer             S ngap.n2_ie_type "BC_TRA_RSP"
+BroadcastTransportFailureTransfer              S ngap.n2_ie_type "BC_TRA_FAIL"
+MulticastSessionActivationRequestTransfer      S ngap.n2_ie_type "MBS_SES_ACT_REQ"
+MulticastSessionDeactivationRequestTransfer    S ngap.n2_ie_type "MBS_SES_DEACT_REQ"
+MulticastSessionUpdateRequestTransfer          S ngap.n2_ie_type "MBS_SES_UPD_REQ"
 
 #.FN_HDR AMFConfigurationUpdate
   set_message_label(actx, MTYPE_AMF_CONFIGURATION_UPDATE);
@@ -3224,6 +3265,11 @@ MBSSessionReleaseResponseTransfer              S ngap.n2_ie_type "MBS_SES_REL_RS
   if (json_tvb)
     col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "TargetToSource-TransparentContainer");
 
+#.FN_HDR TargettoSource-Failure-TransparentContainer
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "TargettoSource-Failure-TransparentContainer");
+
 #.FN_HDR RANStatusTransfer-TransparentContainer
   tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
   if (json_tvb)
@@ -3244,6 +3290,26 @@ MBSSessionReleaseResponseTransfer              S ngap.n2_ie_type "MBS_SES_REL_RS
   if (json_tvb)
     col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UERadioCapability");
 
+#.FN_HDR RIMInformationTransfer
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "RIMInformationTransfer");
+
+#.FN_HDR PC5QoSParameters
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "PC5QoSParameters");
+
+#.FN_HDR EarlyStatusTransfer-TransparentContainer
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "EarlyStatusTransfer-TransparentContainer");
+
+#.FN_HDR UERadioCapabilityForPaging
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "UERadioCapabilityForPaging");
+
 #.FN_HDR MBSSessionSetupOrModRequestTransfer
   tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
   if (json_tvb)
@@ -3263,6 +3329,36 @@ MBSSessionReleaseResponseTransfer              S ngap.n2_ie_type "MBS_SES_REL_RS
   tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
   if (json_tvb)
     col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MBSSessionReleaseResponseTransfer");
+
+#.FN_HDR BroadcastTransportRequestTransfer
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "BroadcastTransportRequestTransfer");
+
+#.FN_HDR BroadcastTransportResponseTransfer
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "BroadcastTransportResponseTransfer");
+
+#.FN_HDR BroadcastTransportFailureTransfer
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "BroadcastTransportFailureTransfer");
+
+#.FN_HDR MulticastSessionActivationRequestTransfer
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MulticastSessionActivationRequestTransfer");
+
+#.FN_HDR MulticastSessionDeactivationRequestTransfer
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MulticastSessionDeactivationRequestTransfer");
+
+#.FN_HDR MulticastSessionUpdateRequestTransfer
+  tvbuff_t* json_tvb = (tvbuff_t*)p_get_proto_data(actx->pinfo->pool, actx->pinfo, proto_json, 0);
+  if (json_tvb)
+    col_append_sep_str(actx->pinfo->cinfo, COL_INFO, NULL, "MulticastSessionUpdateRequestTransfer");
 
 #
 # Editor modelines  -  https://www.wireshark.org/tools/modelines.html

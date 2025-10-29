@@ -14,6 +14,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <wsutil/pint.h>
+
+/*
+ * DBS Etherwatch (text format)
+ *
+ * Text output from DBS Etherwatch is supported.  DBS Etherwatch is available
+ * from: https://web.archive.org/web/20070612033348/http://www.users.bigpond.com/dbsneddon/software.htm.
+*/
+
 /* This module reads the text output of the 'DBS-ETHERTRACE' command in VMS
  * It was initially based on vms.c.
  */
@@ -71,11 +80,11 @@ static const char dbs_etherwatch_rec_magic[]  =
 #define DBS_ETHERWATCH_MAX_ETHERNET_PACKET_LEN   1514
 
 static bool dbs_etherwatch_read(wtap *wth, wtap_rec *rec,
-    Buffer *buf, int *err, char **err_info, int64_t *data_offset);
+    int *err, char **err_info, int64_t *data_offset);
 static bool dbs_etherwatch_seek_read(wtap *wth, int64_t seek_off,
-    wtap_rec *rec, Buffer *buf, int *err, char **err_info);
-static bool parse_dbs_etherwatch_packet(FILE_T fh, wtap_rec *rec,
-    Buffer* buf, int *err, char **err_info);
+    wtap_rec *rec, int *err, char **err_info);
+static bool parse_dbs_etherwatch_packet(wtap *wth, FILE_T fh, wtap_rec *rec,
+    int *err, char **err_info);
 static unsigned parse_single_hex_dump_line(char* rec, uint8_t *buf,
     int byte_offset);
 static unsigned parse_hex_dump(char* dump, uint8_t *buf, char separator, char end);
@@ -195,7 +204,7 @@ wtap_open_return_val dbs_etherwatch_open(wtap *wth, int *err, char **err_info)
 
 /* Find the next packet and parse it; called from wtap_read(). */
 static bool dbs_etherwatch_read(wtap *wth, wtap_rec *rec,
-    Buffer *buf, int *err, char **err_info, int64_t *data_offset)
+    int *err, char **err_info, int64_t *data_offset)
 {
     int64_t offset;
 
@@ -206,19 +215,18 @@ static bool dbs_etherwatch_read(wtap *wth, wtap_rec *rec,
     *data_offset = offset;
 
     /* Parse the packet */
-    return parse_dbs_etherwatch_packet(wth->fh, rec, buf, err, err_info);
+    return parse_dbs_etherwatch_packet(wth, wth->fh, rec, err, err_info);
 }
 
 /* Used to read packets in random-access fashion */
 static bool
 dbs_etherwatch_seek_read(wtap *wth, int64_t seek_off,
-    wtap_rec *rec, Buffer *buf, int *err, char **err_info)
+    wtap_rec *rec, int *err, char **err_info)
 {
     if (file_seek(wth->random_fh, seek_off - 1, SEEK_SET, err) == -1)
         return false;
 
-    return parse_dbs_etherwatch_packet(wth->random_fh, rec, buf, err,
-        err_info);
+    return parse_dbs_etherwatch_packet(wth, wth->random_fh, rec, err, err_info);
 }
 
 /* Parse a packet */
@@ -266,23 +274,24 @@ unnumbered. Unnumbered has length 1, numbered 2.
 #define CTL_UNNUMB_MASK     0x03
 #define CTL_UNNUMB_VALUE    0x03
 static bool
-parse_dbs_etherwatch_packet(FILE_T fh, wtap_rec *rec, Buffer* buf,
+parse_dbs_etherwatch_packet(wtap *wth, FILE_T fh, wtap_rec *rec,
     int *err, char **err_info)
 {
     uint8_t *pd;
     char    line[DBS_ETHERWATCH_LINE_LENGTH];
     int num_items_scanned;
-    int eth_hdr_len, pkt_len, csec;
-    int length_pos, length_from, length;
+    int pkt_len_signed, csec_signed;
+    unsigned eth_hdr_len, pkt_len, csec;
+    unsigned length_pos, length_from, length;
     struct tm tm;
     char mon[4] = "xxx";
     char *p;
     static const char months[] = "JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC";
-    int count, line_count;
+    unsigned count, line_count;
 
     /* Make sure we have enough room for a regular Ethernet packet */
-    ws_buffer_assure_space(buf, DBS_ETHERWATCH_MAX_ETHERNET_PACKET_LEN);
-    pd = ws_buffer_start_ptr(buf);
+    ws_buffer_assure_space(&rec->data, DBS_ETHERWATCH_MAX_ETHERNET_PACKET_LEN);
+    pd = ws_buffer_start_ptr(&rec->data);
 
     eth_hdr_len = 0;
     memset(&tm, 0, sizeof(tm));
@@ -348,12 +357,19 @@ parse_dbs_etherwatch_packet(FILE_T fh, wtap_rec *rec, Buffer* buf,
         return false;
     }
 
+    /*
+     * %u doesn't fail if the value has a sign; it works like the
+     * strto*() routines.
+     *
+     * Use %d, scan into signed values, and then check whether they're
+     * < 0.
+     */
     num_items_scanned = sscanf(line + LENGTH_POS,
                 "%9d byte buffer at %2d-%3s-%4d %2d:%2d:%2d.%9d",
-                &pkt_len,
+                &pkt_len_signed,
                 &tm.tm_mday, mon,
                 &tm.tm_year, &tm.tm_hour, &tm.tm_min,
-                &tm.tm_sec, &csec);
+                &tm.tm_sec, &csec_signed);
 
     if (num_items_scanned != 8) {
         *err = WTAP_ERR_BAD_FILE;
@@ -361,11 +377,20 @@ parse_dbs_etherwatch_packet(FILE_T fh, wtap_rec *rec, Buffer* buf,
         return false;
     }
 
-    if (pkt_len < 0) {
+    if (pkt_len_signed < 0) {
         *err = WTAP_ERR_BAD_FILE;
         *err_info = g_strdup("dbs_etherwatch: packet header has a negative packet length");
         return false;
     }
+
+    if (csec_signed < 0) {
+        *err = WTAP_ERR_BAD_FILE;
+        *err_info = g_strdup("dbs_etherwatch: packet header has a negative microseconds time stamp");
+        return false;
+    }
+
+    pkt_len = (unsigned) pkt_len_signed;
+    csec = (unsigned) csec_signed;
 
     /* Determine whether it is Ethernet II or IEEE 802 */
     if(strncmp(&line[ETH_II_CHECK_POS], ETH_II_CHECK_STR,
@@ -429,12 +454,11 @@ parse_dbs_etherwatch_packet(FILE_T fh, wtap_rec *rec, Buffer* buf,
             eth_hdr_len += PID_LENGTH;
         }
         /* Write the length in the header */
-        length = eth_hdr_len - length_from + pkt_len;
-        pd[length_pos] = (length) >> 8;
-        pd[length_pos+1] = (length) & 0xFF;
+        length = (eth_hdr_len - length_from) + pkt_len;
+        phtonu16(&pd[length_pos], length);
     }
 
-    rec->rec_type = REC_TYPE_PACKET;
+    wtap_setup_packet_rec(rec, wth->file_encap);
     rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
     rec->presence_flags = WTAP_HAS_TS|WTAP_HAS_CAP_LEN;
 
@@ -462,8 +486,8 @@ parse_dbs_etherwatch_packet(FILE_T fh, wtap_rec *rec, Buffer* buf,
     }
 
     /* Make sure we have enough room, even for an oversized Ethernet packet */
-    ws_buffer_assure_space(buf, rec->rec_header.packet_header.caplen);
-    pd = ws_buffer_start_ptr(buf);
+    ws_buffer_assure_space(&rec->data, rec->rec_header.packet_header.caplen);
+    pd = ws_buffer_start_ptr(&rec->data);
 
     /*
      * We don't have an FCS in this frame.

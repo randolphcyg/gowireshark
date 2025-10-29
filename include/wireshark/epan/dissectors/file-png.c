@@ -17,6 +17,7 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/tfs.h>
+#include <wsutil/array.h>
 
 #define MAKE_TYPE_VAL(a, b, c, d)   ((a)<<24 | (b)<<16 | (c)<<8 | (d))
 
@@ -196,10 +197,10 @@ dissect_png_text(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree)
         return;
     }
 
-    proto_tree_add_item(tree, hf_png_text_keyword, tvb, offset, nul_offset, ENC_ISO_8859_1|ENC_NA);
+    proto_tree_add_item(tree, hf_png_text_keyword, tvb, offset, nul_offset, ENC_ISO_8859_1);
     offset = nul_offset+1; /* length of the key word + 0 character */
 
-    proto_tree_add_item(tree, hf_png_text_string, tvb, offset, tvb_captured_length_remaining(tvb, offset), ENC_ISO_8859_1|ENC_NA);
+    proto_tree_add_item(tree, hf_png_text_string, tvb, offset, tvb_captured_length_remaining(tvb, offset), ENC_ISO_8859_1);
 
 }
 

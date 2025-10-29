@@ -15,6 +15,8 @@
 #include <epan/to_str.h>
 #include <epan/ipproto.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-wccp.h"
 
 void proto_register_wccp(void);
@@ -541,7 +543,7 @@ find_wccp_address_table(tvbuff_t *tvb, int offset,
    we need to fix that
 */
 
-static const char * decode_wccp_encoded_address(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
+static const char * decode_wccp_encoded_address(tvbuff_t *tvb, int offset, packet_info *pinfo,
                         proto_tree *info_tree _U_, wccp_address_table* addr_table)
 {
   uint32_t host_addr;
@@ -552,7 +554,7 @@ static const char * decode_wccp_encoded_address(tvbuff_t *tvb, int offset, packe
     {
       /* no; return the IPv4 IP */
       host_addr = tvb_get_ipv4(tvb,offset);
-      buffer = (char *) wmem_alloc(wmem_packet_scope(), WS_INET_ADDRSTRLEN);
+      buffer = (char *) wmem_alloc(pinfo->pool, WS_INET_ADDRSTRLEN);
       ip_addr_to_str_buf(&host_addr, buffer, WS_INET_ADDRSTRLEN);
     }
   else
@@ -566,7 +568,7 @@ static const char * decode_wccp_encoded_address(tvbuff_t *tvb, int offset, packe
       addr_index = (host_addr & 0x0000FFFF);
 
       if (reserv != 0) {
-        buffer = wmem_strdup(wmem_packet_scope(), "INVALID: reserved part non zero");
+        buffer = wmem_strdup(pinfo->pool, "INVALID: reserved part non zero");
       }
       else {
         /* now check if it's IPv4 or IPv6 we need to print */
@@ -576,51 +578,51 @@ static const char * decode_wccp_encoded_address(tvbuff_t *tvb, int offset, packe
 
           /* special case: index 0 -> undefined IP */
           if (addr_index == 0) {
-            buffer = wmem_strdup(wmem_packet_scope(), "0.0.0.0");
+            buffer = wmem_strdup(pinfo->pool, "0.0.0.0");
             break;
           }
           /* are we be beyond the end of the table? */
           if (addr_index > addr_table->table_length) {
-            buffer = wmem_strdup_printf(wmem_packet_scope(), "INVALID IPv4 index: %d > %d",
+            buffer = wmem_strdup_printf(pinfo->pool, "INVALID IPv4 index: %d > %d",
                        addr_index, addr_table->table_length);
             break;
           }
 
           /* ok get the IP */
           if (addr_table->table_ipv4 != NULL) {
-            buffer = (char *) wmem_alloc(wmem_packet_scope(), WS_INET_ADDRSTRLEN);
+            buffer = (char *) wmem_alloc(pinfo->pool, WS_INET_ADDRSTRLEN);
             ip_addr_to_str_buf(&addr_table->table_ipv4[addr_index-1], buffer, WS_INET_ADDRSTRLEN);
           }
           else {
-            buffer = wmem_strdup(wmem_packet_scope(), "INVALID IPv4 table empty!");
+            buffer = wmem_strdup(pinfo->pool, "INVALID IPv4 table empty!");
           }
           break;
         case 2:
           /* IPv6 */
           /* special case: index 0 -> undefined IP */
           if (addr_index == 0) {
-            buffer = wmem_strdup(wmem_packet_scope(), "::");
+            buffer = wmem_strdup(pinfo->pool, "::");
             break;
           }
 
           /* are we be beyond the end of the table? */
           if (addr_index > addr_table->table_length) {
-            buffer = wmem_strdup_printf(wmem_packet_scope(), "INVALID IPv6 index: %d > %d",
+            buffer = wmem_strdup_printf(pinfo->pool, "INVALID IPv6 index: %d > %d",
                        addr_index, addr_table->table_length);
             break;
           }
 
           /* ok get the IP */
           if (addr_table->table_ipv6 != NULL) {
-            buffer = (char *) wmem_alloc(wmem_packet_scope(), WS_INET6_ADDRSTRLEN);
+            buffer = (char *) wmem_alloc(pinfo->pool, WS_INET6_ADDRSTRLEN);
             ip6_to_str_buf(&(addr_table->table_ipv6[addr_index-1]), buffer, WS_INET6_ADDRSTRLEN);
           }
           else {
-            buffer = wmem_strdup(wmem_packet_scope(), "INVALID IPv6 table empty!");
+            buffer = wmem_strdup(pinfo->pool, "INVALID IPv6 table empty!");
           }
           break;
         default:
-          buffer = wmem_strdup(wmem_packet_scope(), "INVALID IP family");
+          buffer = wmem_strdup(pinfo->pool, "INVALID IP family");
           break;
         }
       }
@@ -695,7 +697,7 @@ static proto_item* wccp_add_ipaddress_item(proto_tree* tree, int hf_index, int h
                         "INVALID IPv6 table empty!");
     }
 
-    return proto_tree_add_ipv4_format(tree, hf_index, tvb, offset, length, host_addr, "INVALID IP family");
+    return proto_tree_add_uint_format(tree, hf_index, tvb, offset, length, host_addr, "INVALID IP family");
 }
 
 #define WCCP_IP_MAX_LENGTH (WS_INET_ADDRSTRLEN > 46 ? WS_INET_ADDRSTRLEN : 46)
@@ -1221,14 +1223,14 @@ dissect_wccp2_router_assignment_element(tvbuff_t *tvb, int offset,
 }
 
 static const char *
-assignment_bucket_name(uint8_t bucket)
+assignment_bucket_name(wmem_allocator_t* allocator, uint8_t bucket)
 {
   const char *cur;
 
   if (bucket == 0xff) {
-    cur= "Unassigned";
+    cur= wmem_strdup(allocator, "Unassigned");
   } else {
-    cur=wmem_strdup_printf(wmem_packet_scope(), "%u%s", bucket & 0x7F,
+    cur=wmem_strdup_printf(allocator, "%u%s", bucket & 0x7F,
                          (bucket & 0x80) ? " (Alt)" : "");
   }
   return cur;
@@ -1333,7 +1335,7 @@ static int dissect_wccp2_hash_buckets_assignment_element(tvbuff_t *tvb, int offs
     bucket = tvb_get_uint8(tvb, offset);
     proto_tree_add_uint_format(element_tree, hf_bucket, tvb, offset, 1,
                         bucket, "Bucket %3d: %10s",
-                        i, assignment_bucket_name(bucket));
+                        i, assignment_bucket_name(pinfo->pool, bucket));
   }
   return length;
 }
@@ -1526,7 +1528,7 @@ dissect_wccp2r1_address_table_info(tvbuff_t *tvb, int offset, int length,
         tvb_get_ipv6(tvb, offset, &(wccp_wccp_address_table->table_ipv6[i]));
       break;
     default:
-      addr = wmem_strdup_printf(wmem_packet_scope(), "unknown family %d", wccp_wccp_address_table->family);
+      addr = wmem_strdup_printf(pinfo->pool, "unknown family %d", wccp_wccp_address_table->family);
     };
 
     if (element_tree) {
@@ -1588,7 +1590,7 @@ dissect_wccp2_hash_assignment_info(tvbuff_t *tvb, int offset, int length,
     bucket = tvb_get_uint8(tvb, offset);
     proto_tree_add_uint_format(info_tree, hf_bucket, tvb, offset, 1,
                         bucket, "Bucket %3d: %10s",
-                        i, assignment_bucket_name(bucket));
+                        i, assignment_bucket_name(pinfo->pool, bucket));
   }
   return length;
 }
@@ -1863,7 +1865,7 @@ dissect_wccp2_capability_element(tvbuff_t *tvb, int offset, int length,
   capability_type = tvb_get_ntohs(tvb, offset);
   element_tree = proto_tree_add_subtree_format(info_tree, tvb, offset, -1, ett_capability_element, &te,
                                                "Type: %s",
-                                               val_to_str(capability_type,
+                                               val_to_str(pinfo->pool, capability_type,
                                                           capability_type_vals,
                                                           "Unknown (0x%08X)"));
   header = te;
@@ -2516,7 +2518,7 @@ dissect_wccp2_info(tvbuff_t *tvb, int offset,
     }
 
     info_tree = proto_tree_add_subtree(wccp_tree, tvb, offset, -1, ett, &tf,
-                             val_to_str(type, info_type_vals, "Unknown info type (%u)"));
+                             val_to_str(pinfo->pool, type, info_type_vals, "Unknown info type (%u)"));
 
     proto_tree_add_item(info_tree, hf_item_type, tvb, offset, 2, ENC_BIG_ENDIAN);
 
@@ -2675,7 +2677,7 @@ dissect_wccp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
 
   col_set_str(pinfo->cinfo, COL_PROTOCOL, "WCCP");
 
-  col_add_str(pinfo->cinfo, COL_INFO, val_to_str(wccp_message_type,
+  col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, wccp_message_type,
                                                    wccp_type_vals, "Unknown WCCP message (%u)"));
 
   wccp_tree_item = proto_tree_add_item(tree, proto_wccp, tvb, offset, -1, ENC_NA);
@@ -2976,7 +2978,7 @@ proto_register_wccp(void)
         NULL, HFILL }
     },
     { &hf_router_identity_ip_index,
-      { "IP Address", "wccp.router_identity.ip_address.index", FT_UINT32, BASE_HEX, NULL, 0x0,
+      { "IP Address", "wccp.router_identity.ip_address.index", FT_UINT32, BASE_DEC, NULL, 0x0,
         NULL, HFILL }
     },
     { &hf_router_identity_ipv4,
@@ -3060,7 +3062,7 @@ proto_register_wccp(void)
         NULL, HFILL }
     },
     { &hf_assignment_key_ip_index,
-      { "Assignment Key IP Address", "wccp.assignment_key.ip_index", FT_UINT32, BASE_HEX, NULL, 0x0,
+      { "Assignment Key IP Address", "wccp.assignment_key.ip_index", FT_UINT32, BASE_DEC, NULL, 0x0,
         NULL, HFILL }
     },
     { &hf_assignment_key_ipv4,
@@ -3148,7 +3150,7 @@ proto_register_wccp(void)
         NULL, HFILL }
     },
     { &hf_wc_identity_ip_address_index,
-      { "Web Cache Identity", "wccp.wc_identity_ip_address.index", FT_UINT32, BASE_HEX, NULL, 0x0,
+      { "Web Cache Identity", "wccp.wc_identity_ip_address.index", FT_UINT32, BASE_DEC, NULL, 0x0,
         "The IP identifying the Web Cache", HFILL }
     },
     { &hf_wc_identity_ip_address_ipv4,

@@ -40,8 +40,6 @@
  */
 %option prefix="k12text_"
 
-%option outfile="k12text.c"
-
 /* Options useful for debugging				*/
 /* noline:  Prevent generation of #line directives	*/
 /*	    Seems to be required when using the		*/
@@ -253,7 +251,7 @@ static bool
 k12text_set_headers(wtap_rec *rec, k12text_state_t *state,
     int *err, char **err_info)
 {
-	rec->rec_type = REC_TYPE_PACKET;
+	wtap_setup_packet_rec(rec, state->g_encap);
 	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 	rec->presence_flags = WTAP_HAS_TS|WTAP_HAS_CAP_LEN;
 
@@ -261,8 +259,6 @@ k12text_set_headers(wtap_rec *rec, k12text_state_t *state,
 	rec->ts.nsecs = 1000000*state->g_ms + 1000*state->g_ns;
 
 	rec->rec_header.packet_header.caplen = rec->rec_header.packet_header.len = state->ii;
-
-	rec->rec_header.packet_header.pkt_encap = state->g_encap;
 
 	/* The file-encap is WTAP_ENCAP_PER_PACKET */
 	switch(state->g_encap) {
@@ -346,7 +342,7 @@ k12text_run_scanner(k12text_state_t *state, FILE_T fh, int start_state,
 }
 
 static bool
-k12text_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, char ** err_info, int64_t *data_offset)
+k12text_read(wtap *wth, wtap_rec *rec, int *err, char ** err_info, int64_t *data_offset)
 {
 	k12text_t *k12text = (k12text_t *)wth->priv;
 	k12text_state_t state;
@@ -389,15 +385,14 @@ k12text_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err, char ** err_info, 
 		g_free(state.bb);
 		return false;
 	}
-	ws_buffer_assure_space(buf, rec->rec_header.packet_header.caplen);
-	memcpy(ws_buffer_start_ptr(buf), state.bb, rec->rec_header.packet_header.caplen);
+	ws_buffer_append(&rec->data, state.bb, rec->rec_header.packet_header.caplen);
 
 	g_free(state.bb);
 	return true;
 }
 
 static bool
-k12text_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec, Buffer *buf, int *err, char **err_info)
+k12text_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec, int *err, char **err_info)
 {
 	k12text_state_t state;
 
@@ -427,8 +422,7 @@ k12text_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec, Buffer *buf, int *
 		g_free(state.bb);
 		return false;
 	}
-	ws_buffer_assure_space(buf, rec->rec_header.packet_header.caplen);
-	memcpy(ws_buffer_start_ptr(buf), state.bb, rec->rec_header.packet_header.caplen);
+	ws_buffer_append(&rec->data, state.bb, rec->rec_header.packet_header.caplen);
 
 	g_free(state.bb);
 	return true;
@@ -485,8 +479,9 @@ static const struct { int e; const char* s; } encaps[] = {
 
 static bool
 k12text_dump(wtap_dumper *wdh, const wtap_rec *rec,
-	     const uint8_t *pd, int *err, char **err_info _U_) {
+	     int *err, char **err_info _U_) {
 #define K12BUF_SIZE 196808
+	const uint8_t *pd;
 	char *buf;
 	size_t left = K12BUF_SIZE;
 	size_t wl;
@@ -537,6 +532,8 @@ k12text_dump(wtap_dumper *wdh, const wtap_rec *rec,
 	wl = snprintf(p, left, "%.3d,%.3d   %s\r\n|0   |", ms, ns, str_enc);
 	p += wl;
 	left -= wl;
+
+	pd = ws_buffer_start_ptr(&rec->data);
 
 	for(i = 0; i < rec->rec_header.packet_header.caplen && left > 2; i++) {
 		wl = snprintf(p, left, "%.2x|", pd[i]);

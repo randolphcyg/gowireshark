@@ -42,6 +42,7 @@ typedef void (*tap_finish_cb)(void *tapdata);
 #define TL_REQUIRES_PROTO_TREE      0x00000001	    /**< non-NULL protocol tree */
 #define TL_REQUIRES_COLUMNS         0x00000002	    /**< columns */
 #define TL_REQUIRES_ERROR_PACKETS   0x00000004	    /**< include packet even if pinfo->flags.in_error_pkt is set */
+#define TL_REQUIRES_PROTOCOLS       0x00000020	    /**< don't fake protocols */
 
 /** TL_REQUIRES_PROTO_TREE does not generate the full protocol tree;
  * any fields not referenced (e.g., in a filter) will still be "faked."
@@ -61,6 +62,12 @@ typedef void (*tap_finish_cb)(void *tapdata);
 /** Flags to indicate what the packet cb should do */
 #define TL_IGNORE_DISPLAY_FILTER    0x00000010      /**< use packet, even if it would be filtered out */
 #define TL_DISPLAY_FILTER_IGNORED   0x00100000      /**< flag for the conversation handler */
+#define TL_LIMIT_TO_DISPLAY_FILTER  0x00000040      /**< limit to the main display filter, and retap if it changes. */
+
+/** Flags to indicate how the IP aggregation should behave during the statistics cb */
+#define TL_IP_AGGREGATION_NULL      0x00000100      /**< default analysis, no aggregation at all */
+#define TL_IP_AGGREGATION_ORI       0x00000200      /**< replace with subnets when possible, and keep original data */
+#define TL_IP_AGGREGATION_RESERVED  0x00000400      /**< reserved */
 
 typedef struct {
 	void (*register_tap_listener)(void);   /* routine to call to register tap listener */
@@ -253,6 +260,9 @@ WS_DLL_PUBLIC void tap_listeners_dfilter_recompile(void);
 /** this function removes a tap listener */
 WS_DLL_PUBLIC void remove_tap_listener(void *tapdata);
 
+/** This function sets new flags to a tap listener */
+WS_DLL_PUBLIC GString *set_tap_flags(void *tapdata, unsigned flags);
+
 /**
  * Return true if we have one or more tap listeners that require dissection,
  * false otherwise.
@@ -302,6 +312,12 @@ WS_DLL_PUBLIC const void *fetch_tapped_data(int tap_id, int idx);
 /** Clean internal structures
  */
 extern void tap_cleanup(void);
+
+/** Loads the main filter in the tapping system for taps that limit their
+ * results to the main display filter. Does not take ownership of the filter,
+ * which must still be freed in the main program.
+ */
+WS_DLL_PUBLIC void tap_load_main_filter(struct epan_dfilter *dfcode);
 
 #ifdef __cplusplus
 }

@@ -91,11 +91,12 @@ InitiatingMessage/value initiatingMessagevalue
 UnsuccessfulOutcome/value unsuccessfulOutcome_value
 SuccessfulOutcome/value successfulOutcome_value
 
-#GlobalGNB-ID/gNB-ID globalGNB-ID_gNB-ID
-
+GlobalenGNB-ID/gNB-ID eNGNB-ID-choice
+ENGNB-ID/gNB-ID gnb-id-bit-string
+GlobalGNB-ID/gNB-ID gNB-ID-choice
+E2SM-NI-CallProcessID-Format2/callProcess-ID callProcess-ID-format2
 
 #.FIELD_ATTR
-#GlobalGNB-ID/gNB-ID       ABBREV=globalGNB_ID.gNB_ID
 
 #.FN_BODY ProtocolIE-ID VAL_PTR=&e2ap_data->protocol_ie_id
   struct e2ap_private_data *e2ap_data = e2ap_get_private_data(actx->pinfo);
@@ -104,7 +105,7 @@ SuccessfulOutcome/value successfulOutcome_value
 #.FN_FTR ProtocolIE-ID
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str_ext(e2ap_data->protocol_ie_id, &e2ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
+                           val_to_str_ext(actx->pinfo->pool, e2ap_data->protocol_ie_id, &e2ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
 #.END
 
@@ -113,7 +114,7 @@ SuccessfulOutcome/value successfulOutcome_value
 # #.FN_BODY E2AP-PDU VAL_PTR=&value
 #   uint32_t value;
 # %(DEFAULT_BODY)s
-#   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (%%s)", val_to_str(value, e2ap_E2AP_PDU_vals, "Unknown"));
+#   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (%%s)", val_to_str(actx->pinfo->pool, value, e2ap_E2AP_PDU_vals, "Unknown"));
 
 
 
@@ -126,7 +127,7 @@ SuccessfulOutcome/value successfulOutcome_value
 #.FN_BODY ProcedureCode  VAL_PTR = &e2ap_data->procedure_code
   struct e2ap_private_data *e2ap_data = e2ap_get_private_data(actx->pinfo);
 %(DEFAULT_BODY)s
-  //col_append_fstr(actx->pinfo->cinfo, COL_INFO, "%%s", val_to_str(e2ap_data->procedure_code, e2ap_ProcedureCode_vals, "Unknown"));
+  //col_append_fstr(actx->pinfo->cinfo, COL_INFO, "%%s", val_to_str(actx->pinfo->pool, e2ap_data->procedure_code, e2ap_ProcedureCode_vals, "Unknown"));
 #.END
 
 
@@ -242,7 +243,7 @@ SuccessfulOutcome/value successfulOutcome_value
   int ts_offset = offset;
   %(DEFAULT_BODY)s
   /* Add as a generated field the timestamp decoded */
-  const char *time_str = tvb_ntp_fmt_ts_sec(tvb, (ts_offset+7)/8);
+  const char *time_str = tvb_ntp_fmt_ts_sec(actx->pinfo->pool, tvb, (ts_offset+7)/8);
   proto_item *ti = proto_tree_add_string(tree, hf_e2ap_timestamp_string, tvb, (ts_offset+7)/8, 4, time_str);
   proto_item_set_generated(ti);
 
@@ -270,9 +271,18 @@ SuccessfulOutcome/value successfulOutcome_value
       /* Have we found a match on the name? */
       if (tvb_strneql(parameter_tvb, m, g_ran_function_name_table[n], name_len) == 0) {
         /* We don't yet know the OID (should be OK),
-           so for now just call with the first/only available dissector for this RAN Function name */
+	   so for now, call with the last/only available dissector for this RAN Function name */
+
         if (g_ran_functions_available_dissectors[n].num_available_dissectors) {
-          g_ran_functions_available_dissectors[n].ran_function_dissectors[0]->functions.ran_function_definition_dissector(parameter_tvb, actx->pinfo, tree, NULL);
+	  /* Choose the one with the highest major version number */
+	  unsigned best_index=0, highest_version=0;
+	  for (unsigned d=0; d < g_ran_functions_available_dissectors[n].num_available_dissectors; d++) {
+	    if (g_ran_functions_available_dissectors[n].ran_function_dissectors[d]->major_version > highest_version) {
+	      best_index = d;
+	    }
+	  }
+	  /* Use it */
+	  g_ran_functions_available_dissectors[n].ran_function_dissectors[best_index]->functions.ran_function_definition_dissector(parameter_tvb, actx->pinfo, tree, NULL);
           found = true;
           found_index = n;
           break;
@@ -840,8 +850,8 @@ RICQueryResponse                         N e2ap.proc.sout id-RICquery
 
 
 #.FN_HDR E2nodeConfigurationUpdate
-  set_message_label(actx, MTYPE_E2_CONFIGURATION_UPDATE_FAIL);
-  set_stats_message_type(actx->pinfo, MTYPE_E2_CONFIGURATION_UPDATE_FAIL);
+  set_message_label(actx, MTYPE_E2_CONFIGURATION_UPDATE);
+  set_stats_message_type(actx->pinfo, MTYPE_E2_CONFIGURATION_UPDATE);
 
 
 #.FN_HDR E2nodeConfigurationUpdateAcknowledge
@@ -865,12 +875,9 @@ RICQueryResponse                         N e2ap.proc.sout id-RICquery
   set_message_label(actx, MTYPE_E2_SETUP_RESPONSE);
   set_stats_message_type(actx->pinfo, MTYPE_E2_SETUP_RESPONSE);
 
-
-
 #.FN_HDR ErrorIndication
   set_message_label(actx, MTYPE_ERROR_INDICATION);
   set_stats_message_type(actx->pinfo, MTYPE_ERROR_INDICATION);
-
 
 #.FN_HDR ResetRequest
   set_message_label(actx, MTYPE_RESET_REQUEST);
@@ -879,7 +886,6 @@ RICQueryResponse                         N e2ap.proc.sout id-RICquery
 #.FN_HDR ResetResponse
   set_message_label(actx, MTYPE_RESET_RESPONSE);
   set_stats_message_type(actx->pinfo, MTYPE_RESET_RESPONSE);
-
 
 #.FN_HDR RICcontrolAcknowledge
   set_message_label(actx, MTYPE_RIC_CONTROL_ACK);
@@ -893,16 +899,25 @@ RICQueryResponse                         N e2ap.proc.sout id-RICquery
   set_message_label(actx, MTYPE_RIC_CONTROL_REQUEST);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_CONTROL_REQUEST);
 
-
 #.FN_HDR RICindication
   set_message_label(actx, MTYPE_RIC_IND);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_IND);
 
+#.FN_HDR RICQueryRequest
+  set_message_label(actx, MTYPE_RIC_QUERY_REQUEST);
+  set_stats_message_type(actx->pinfo, MTYPE_RIC_QUERY_REQUEST);
+
+#.FN_HDR RICQueryResponse
+  set_message_label(actx, MTYPE_RIC_QUERY_RESPONSE);
+  set_stats_message_type(actx->pinfo, MTYPE_RIC_QUERY_RESPONSE);
+
+#.FN_HDR RICQueryFailure
+  set_message_label(actx, MTYPE_RIC_QUERY_FAILURE);
+  set_stats_message_type(actx->pinfo, MTYPE_RIC_QUERY_FAILURE);
 
 #.FN_HDR RICserviceQuery
   set_message_label(actx, MTYPE_RIC_SERVICE_QUERY);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_SERVICE_QUERY);
-
 
 #.FN_HDR RICserviceUpdate
   set_message_label(actx, MTYPE_RIC_SERVICE_UPDATE);
@@ -916,8 +931,6 @@ RICQueryResponse                         N e2ap.proc.sout id-RICquery
   set_message_label(actx, MTYPE_RIC_SERVICE_UPDATE_FAIL);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_SERVICE_UPDATE_FAIL);
 
-
-
 #.FN_HDR RICsubscriptionFailure
   set_message_label(actx, MTYPE_RIC_SUBSCRIPTION_FAIL);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_SUBSCRIPTION_FAIL);
@@ -929,8 +942,6 @@ RICQueryResponse                         N e2ap.proc.sout id-RICquery
 #.FN_HDR RICsubscriptionResponse
   set_message_label(actx, MTYPE_RIC_SUBSCRIPTION_RESPONSE);
   set_stats_message_type(actx->pinfo, MTYPE_RIC_SUBSCRIPTION_RESPONSE);
-
-
 
 #.FN_HDR RICsubscriptionDeleteFailure
   set_message_label(actx, MTYPE_RIC_SUBSCRIPTION_DELETE_FAIL);

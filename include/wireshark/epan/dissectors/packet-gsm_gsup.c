@@ -8,19 +8,7 @@
  * By Gerald Combs <gerald@wireshark.org>
  * Copyright 1998 Gerald Combs
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
 #include "config.h"
@@ -739,7 +727,7 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 
 		att_tree = proto_tree_add_subtree_format(tree, tvb, offset-2, len+2, ett_gsup_ie, &ti,
 						"IE: %s",
-						val_to_str(tag, gsup_iei_types, "Unknown 0x%02x"));
+						val_to_str(pinfo->pool, tag, gsup_iei_types, "Unknown 0x%02x"));
 		proto_tree_add_item(att_tree, hf_gsup_iei, tvb, offset-2, 1, ENC_BIG_ENDIAN);
 		proto_tree_add_uint(att_tree, hf_gsup_ie_len, tvb, offset-1, 1, len);
 
@@ -796,7 +784,7 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 			proto_item_append_text(gsup_ti, ", IMSI: %s", str);
 			break;
 		case OSMO_GSUP_MSISDN_IE:
-			str = dissect_e164_msisdn(tvb, att_tree, offset+1, len-1, E164_ENC_BCD);
+			str = dissect_e164_msisdn(tvb, pinfo, att_tree, offset+1, len-1, E164_ENC_BCD);
 			proto_item_append_text(ti, ", %s", str);
 			proto_item_append_text(gsup_ti, ", MSISDN: %s", str);
 			break;
@@ -809,7 +797,7 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 			} else {
                                 char *name_out;
 
-				get_dns_name(tvb, offset, len, 0, &apn, &apn_len);
+				get_dns_name(pinfo->pool, tvb, offset, len, 0, &apn, &apn_len);
 				name_out = format_text(pinfo->pool, apn, apn_len);
 				proto_tree_add_string(att_tree, hf_gsup_apn, tvb, offset, len, name_out);
 				proto_item_append_text(ti, ", %s", name_out);
@@ -849,7 +837,7 @@ dissect_gsup_tlvs(tvbuff_t *tvb, int base_offs, int length, packet_info *pinfo, 
 			proto_tree_add_item(att_tree, hf_gsup_freeze_ptmsi, tvb, offset, len, ENC_NA);
 			break;
 		case OSMO_GSUP_SESSION_ID_IE:
-			proto_tree_add_item(att_tree, hf_gsup_session_id, tvb, offset, len, ENC_NA);
+			proto_tree_add_item(att_tree, hf_gsup_session_id, tvb, offset, len, ENC_BIG_ENDIAN);
 			break;
 		case OSMO_GSUP_SESSION_STATE_IE:
 			proto_tree_add_item(att_tree, hf_gsup_session_state, tvb, offset, len, ENC_NA);
@@ -965,7 +953,7 @@ dissect_gsup(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "GSUP");
 
 	col_clear(pinfo->cinfo, COL_INFO);
-	str = val_to_str(msg_type, gsup_msg_types, "Unknown GSUP Message Type 0x%02x");
+	str = val_to_str(pinfo->pool, msg_type, gsup_msg_types, "Unknown GSUP Message Type 0x%02x");
 	col_append_fstr(pinfo->cinfo, COL_INFO, "%s ", str);
 
 	ti = proto_tree_add_protocol_format(tree, proto_gsup, tvb, 0, len, "GSUP %s", str);

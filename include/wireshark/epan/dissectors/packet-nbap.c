@@ -16,8 +16,11 @@
  * Ref: 3GPP TS 25.433 version 6.6.0 Release 6
  */
 
+#define WS_LOG_DOMAIN "packet-nbap"
 #include "config.h"
+#include <wireshark.h>
 
+#include <epan/to_str.h>
 #include <epan/packet.h>
 #include <epan/sctpppids.h>
 #include <epan/asn1.h>
@@ -47,15 +50,6 @@
 
 
 #define NBAP_IGNORE_PORT 255
-
-/* Debug */
-#define DEBUG_NBAP 0
-#if DEBUG_NBAP
-#include <epan/to_str.h>
-#define nbap_debug(...) ws_warning(__VA_ARGS__)
-#else
-#define nbap_debug(...)
-#endif
 
 void proto_register_nbap(void);
 void proto_reg_handoff_nbap(void);
@@ -6774,9 +6768,9 @@ enum ib_sg_enc_type {
 };
 
 static const enum_val_t ib_sg_enc_vals[] = {
-  {"Encoding Variant 1 (TS 25.433 Annex D.2)",
+  {"Variant1",
    "Encoding Variant 1 (TS 25.433 Annex D.2)", IB_SG_DATA_ENC_VAR_1},
-  {"Encoding Variant 2 (TS 25.433 Annex D.3)",
+  {"Variant2",
    "Encoding Variant 2 (TS 25.433 Annex D.3)", IB_SG_DATA_ENC_VAR_2},
   {NULL, NULL, -1}
 };
@@ -6988,8 +6982,8 @@ dissect_nbap_ProcedureID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
                                    ett_nbap_ProcedureID, ProcedureID_sequence);
 
   ProcedureID = wmem_strdup_printf(actx->pinfo->pool, "%s/%s",
-                                 val_to_str(nbap_private_data->procedure_code, VALS(nbap_ProcedureCode_vals), "unknown(%u)"),
-                                 val_to_str(nbap_private_data->dd_mode, VALS(nbap_DdMode_vals), "unknown(%u)"));
+                                 val_to_str(actx->pinfo->pool, nbap_private_data->procedure_code, VALS(nbap_ProcedureCode_vals), "unknown(%u)"),
+                                 val_to_str(actx->pinfo->pool, nbap_private_data->dd_mode, VALS(nbap_DdMode_vals), "unknown(%u)"));
   nbap_private_data->crnc_context_present = false; /*Reset CRNC Com context present flag.*/
 
 
@@ -8236,7 +8230,7 @@ dissect_nbap_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
   nbap_get_private_data(actx->pinfo)->protocol_ie_id = protocol_ie_id; /* To carry around the packet */
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str_ext(protocol_ie_id, &nbap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
+                           val_to_str_ext(actx->pinfo->pool, protocol_ie_id, &nbap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
 
   return offset;
@@ -8869,7 +8863,7 @@ dissect_nbap_TransportLayerAddress(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t
       /* IPv4 */
       nbap_private_data->transportLayerAddress_ipv4 = tvb_get_ipv4(parameter_tvb, 3);
     }
-    dissect_nsap(nsap_tvb, 0, 20, nsap_tree);
+    dissect_nsap(nsap_tvb, actx->pinfo, 0, 20, nsap_tree);
   }
 
 
@@ -12586,7 +12580,7 @@ uint32_t transportLayerAddress_ipv4;
 uint16_t bindingID;
 nbap_private_data_t* nbap_private_data = nbap_get_private_data(actx->pinfo);
 
-nbap_debug("Frame %u CommonTransportChannel-InformationResponse Start", actx->pinfo->num);
+ws_debug("Frame %u CommonTransportChannel-InformationResponse Start", actx->pinfo->num);
 
 nbap_private_data->transportLayerAddress_ipv4 = 0;
 nbap_private_data->binding_id_port = 0;
@@ -12614,11 +12608,11 @@ nbap_private_data->binding_id_port = 0;
   conversation_set_port2(conv, bindingID);
 
   delete_setup_conv(request_conv);
-  nbap_debug("    Frame %u conversation setup frame: %u %s:%u -> %s:%u", actx->pinfo->num, conv->setup_frame,
-            address_to_str(actx->pinfo->pool, &conv->key_ptr->addr1), conv->key_ptr->port1,
-            address_to_str(actx->pinfo->pool, &conv->key_ptr->addr2), conv->key_ptr->port2);
+  ws_debug("    Frame %u conversation setup frame: %u %s:%u -> %s:%u", actx->pinfo->num, conv->setup_frame,
+            address_to_str(actx->pinfo->pool, conversation_key_addr1(conv->key_ptr)), conversation_key_port1(conv->key_ptr),
+            address_to_str(actx->pinfo->pool, conversation_key_addr2(conv->key_ptr)), conversation_key_port2(conv->key_ptr));
 
-  nbap_debug("Frame %u CommonTransportChannel-InformationResponse End", actx->pinfo->num);
+  ws_debug("Frame %u CommonTransportChannel-InformationResponse End", actx->pinfo->num);
 
 
 
@@ -18708,7 +18702,7 @@ nbap_private_data->num_items = 1;
         return offset;
     }
 
-    nbap_debug("Frame %u E-DCH-MACdFlow-Specific-InfoItem-to-Modify",
+    ws_debug("Frame %u E-DCH-MACdFlow-Specific-InfoItem-to-Modify",
         actx->pinfo->num);
 
     /****** Look up old port and ip information since this is not included in this message ******/
@@ -18724,13 +18718,13 @@ nbap_private_data->num_items = 1;
         expert_add_info(actx->pinfo, NULL, &ei_nbap_no_find_port_info);
         return offset;
     }
-    nbap_debug("    Found com_context_id %u",nbap_private_data->com_context_id);
+    ws_debug("    Found com_context_id %u",nbap_private_data->com_context_id);
 
     /*Set the appropriate port, cheat and use same variable.*/
     e_dch_macdflow_id = nbap_private_data->e_dch_macdflow_id;
     nbap_private_data->binding_id_port = old_info->crnc_port[e_dch_macdflow_id];
 
-    nbap_debug(" Port %u loaded from old_info->crnc_port[e_dch_macdflow_id %u]",nbap_private_data->binding_id_port, e_dch_macdflow_id);
+    ws_debug(" Port %u loaded from old_info->crnc_port[e_dch_macdflow_id %u]",nbap_private_data->binding_id_port, e_dch_macdflow_id);
 
     /*TODO: Fix this for ipv6 as well!*/
     nbap_private_data->transportLayerAddress_ipv4 = old_info->crnc_address;
@@ -18829,7 +18823,7 @@ dissect_nbap_E_DCH_FDD_Information_to_Modify(tvbuff_t *tvb _U_, int offset _U_, 
 
 address     dst_addr, null_addr;
 conversation_t *conversation,*old_conversation = NULL;
-umts_fp_conversation_info_t *umts_fp_conversation_info _U_;
+umts_fp_conversation_info_t *umts_fp_conversation_info = NULL;
 fp_edch_channel_info_t* fp_edch_channel_info;
 void *conv_proto_data = NULL;
 uint32_t transportLayerAddress_ipv4;
@@ -18864,11 +18858,11 @@ nbap_private_data->binding_id_port = 0;
             0, NO_ADDR_B|NO_PORT_B);
 
         if(old_conversation){
-            nbap_debug("Frame %u E-DCH-FDD-Information-to-Modify: found old conv on IP %s Port %u",
+            ws_debug("Frame %u E-DCH-FDD-Information-to-Modify: found old conv on IP %s Port %u",
                 actx->pinfo->num,
                 address_to_str(actx->pinfo->pool, &dst_addr), bindingID);
         }else{
-            nbap_debug("Frame %u E-DCH-FDD-Information-to-Modify: Did not find old conv on IP %s Port %u",
+            ws_debug("Frame %u E-DCH-FDD-Information-to-Modify: Did not find old conv on IP %s Port %u",
                 actx->pinfo->num,
                 address_to_str(actx->pinfo->pool, &dst_addr), bindingID);
         }
@@ -23675,12 +23669,11 @@ dissect_nbap_HSDSCH_MACdFlow_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *a
   nbap_private_data->hsdsch_macdflow_id = hsdsch_macdflow_id;
 
   num_items = nbap_private_data->num_items;
-DISSECTOR_ASSERT(num_items < maxNrOfMACdFlows+1);
-DISSECTOR_ASSERT(num_items > 0);
 
-hsdsch_macdflow_ids = nbap_private_data->hsdsch_macdflow_ids;
-hsdsch_macdflow_ids[num_items-1] = hsdsch_macdflow_id;
-
+  if ((num_items > 0) && (num_items < maxNrOfMACdFlows+1)) {
+    hsdsch_macdflow_ids = nbap_private_data->hsdsch_macdflow_ids;
+    hsdsch_macdflow_ids[num_items-1] = hsdsch_macdflow_id;
+  }
 
   return offset;
 }
@@ -23992,7 +23985,7 @@ dissect_nbap_HSDSCH_FDD_Information(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
  */
     address     null_addr;
     conversation_t *conversation = NULL;
-    umts_fp_conversation_info_t *umts_fp_conversation_info;
+    umts_fp_conversation_info_t *umts_fp_conversation_info = NULL;
     fp_hsdsch_channel_info_t* fp_hsdsch_channel_info = NULL;
     uint32_t i;
     nbap_hsdsch_channel_info_t* nbap_hsdsch_channel_info;
@@ -24020,7 +24013,7 @@ dissect_nbap_HSDSCH_FDD_Information(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
     clear_address(&null_addr);
     for (i = 0; i < maxNrOfMACdFlows; i++) {
         if (nbap_hsdsch_channel_info[i].crnc_port != 0){
-            nbap_debug("Frame %u HSDSCH-MACdFlows-Information:hsdsch_macdflow_id %u Look for conv on IP %s Port %u",
+            ws_debug("Frame %u HSDSCH-MACdFlows-Information:hsdsch_macdflow_id %u Look for conv on IP %s Port %u",
                         actx->pinfo->num,
                         i,
                         address_to_str (actx->pinfo->pool, &(nbap_hsdsch_channel_info[i].crnc_address)),
@@ -24030,7 +24023,7 @@ dissect_nbap_HSDSCH_FDD_Information(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_
 
             if (conversation == NULL) {
                 /* It's not part of any conversation - create a new one. */
-                nbap_debug("Frame %u HSDSCH-MACdFlows-Information: Set up conv on Port %u", actx->pinfo->num, nbap_hsdsch_channel_info[i].crnc_port);
+                ws_debug("Frame %u HSDSCH-MACdFlows-Information: Set up conv on Port %u", actx->pinfo->num, nbap_hsdsch_channel_info[i].crnc_port);
                 conversation = conversation_new(actx->pinfo->num, &(nbap_hsdsch_channel_info[i].crnc_address),
                     &null_addr, CONVERSATION_UDP, nbap_hsdsch_channel_info[i].crnc_port,
                     0, NO_ADDR2|NO_PORT2);
@@ -24329,7 +24322,7 @@ dissect_nbap_HSDSCH_Information_to_Modify(tvbuff_t *tvb _U_, int offset _U_, asn
  */
     address     null_addr;
     conversation_t *conversation = NULL;
-    umts_fp_conversation_info_t *umts_fp_conversation_info;
+    umts_fp_conversation_info_t *umts_fp_conversation_info = NULL;
     fp_hsdsch_channel_info_t* fp_hsdsch_channel_info = NULL;
     uint32_t i;
     nbap_hsdsch_channel_info_t* nbap_hsdsch_channel_info;
@@ -24356,12 +24349,12 @@ dissect_nbap_HSDSCH_Information_to_Modify(tvbuff_t *tvb _U_, int offset _U_, asn
     /* Set port to zero use that as an indication of whether we have data or not */
     clear_address(&null_addr);
 
-    nbap_debug("Frame %u HSDSCH-MACdFlows-Information Start",
+    ws_debug("Frame %u HSDSCH-MACdFlows-Information Start",
         actx->pinfo->num);
 
     for (i = 0; i < maxNrOfMACdFlows; i++) {
         if (nbap_hsdsch_channel_info[i].crnc_port != 0){
-            nbap_debug("    hsdsch_macdflow_id %u Look for conv on IP %s Port %u",
+            ws_debug("    hsdsch_macdflow_id %u Look for conv on IP %s Port %u",
                         i,
                         address_to_str (actx->pinfo->pool, &(nbap_hsdsch_channel_info[i].crnc_address)),
                         nbap_hsdsch_channel_info[i].crnc_port);
@@ -24370,7 +24363,7 @@ dissect_nbap_HSDSCH_Information_to_Modify(tvbuff_t *tvb _U_, int offset _U_, asn
 
             if (conversation == NULL) {
                 /* It's not part of any conversation - create a new one. */
-                nbap_debug("    Set up conv on Port %u", nbap_hsdsch_channel_info[i].crnc_port);
+                ws_debug("    Set up conv on Port %u", nbap_hsdsch_channel_info[i].crnc_port);
 
                 conversation = conversation_new(actx->pinfo->num, &(nbap_hsdsch_channel_info[i].crnc_address),
                     &null_addr, CONVERSATION_UDP, nbap_hsdsch_channel_info[i].crnc_port,
@@ -24428,7 +24421,7 @@ dissect_nbap_HSDSCH_Information_to_Modify(tvbuff_t *tvb _U_, int offset _U_, asn
                 }
             }
         }
-        nbap_debug("Frame %u HSDSCH-MACdFlows-Information End",
+        ws_debug("Frame %u HSDSCH-MACdFlows-Information End",
             actx->pinfo->num);
 
     }
@@ -28485,7 +28478,7 @@ dissect_nbap_NodeB_CommunicationContextID(tvbuff_t *tvb _U_, int offset _U_, asn
   /* Checking if CRNC context is present in this frame */
   crnc_context_present = nbap_private_data->crnc_context_present;
   if(crnc_context_present) {
-    /* This message contains both context fields. Updaaing the contexts map if needed. */
+    /* This message contains both context fields. Updating the contexts map if needed. */
     if (PINFO_FD_VISITED(actx->pinfo)){
         return offset;
     }
@@ -28503,7 +28496,7 @@ dissect_nbap_NodeB_CommunicationContextID(tvbuff_t *tvb _U_, int offset _U_, asn
     /* No CRNC context field in this message, check if Node B context is already mapped to CRNC context. */
     cur_val = (nbap_com_context_id_t *)wmem_tree_lookup32(com_context_map,node_b_com_context_id);
     if(cur_val != NULL){
-      /* A mapping was found. Adding to prvivate data. */
+      /* A mapping was found. Adding to private data. */
       nbap_private_data->com_context_id = cur_val->crnc_context;
       nbap_private_data->crnc_context_present = true;
     }
@@ -29084,7 +29077,7 @@ static int
 dissect_nbap_RL_Specific_DCH_Info_Item(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
 address     dst_addr, null_addr;
 conversation_t *conversation = NULL;
-umts_fp_conversation_info_t *umts_fp_conversation_info;
+umts_fp_conversation_info_t *umts_fp_conversation_info = NULL;
 int i, j, num_tf;
 uint32_t transportLayerAddress_ipv4;
 uint16_t bindingID;
@@ -29192,10 +29185,10 @@ nbap_private_data->dch_id = 0xFFFFFFFF;
                     umts_fp_conversation_info->dch_ids_in_flow_list[umts_fp_conversation_info->num_dch_in_flow] = i;
                     set_umts_fp_conv_data(conversation, umts_fp_conversation_info);
                 }
+                ws_debug("Frame %u RL-Specific-DCH-Info-Item Start", actx->pinfo->num);
+                ws_debug("    Total no of ch in flow will be: %d", umts_fp_conversation_info->num_dch_in_flow);
+                ws_debug("Frame %u RL-Specific-DCH-Info-Item End", actx->pinfo->num);
             }
-            nbap_debug("Frame %u RL-Specific-DCH-Info-Item Start", actx->pinfo->num);
-            nbap_debug("    Total no of ch in flow will be: %d", umts_fp_conversation_info->num_dch_in_flow);
-            nbap_debug("Frame %u RL-Specific-DCH-Info-Item End", actx->pinfo->num);
         }
 
 
@@ -29307,16 +29300,16 @@ nbap_private_data->binding_id_port = 0;
                     /*Ip address might be useful as well*/
                     nbap_edch_port_info->crnc_address = nbap_private_data->transportLayerAddress_ipv4;
 
-                    nbap_debug("Frame %u RL-Specific-E-DCH-Information-Item Start",
+                    ws_debug("Frame %u RL-Specific-E-DCH-Information-Item Start",
                         actx->pinfo->num);
 
-                    nbap_debug("    wmem_tree_insert32(edch_flow_port_map) com_context_id %u e_dch_macdflow_id %u IP %s Port %u",
+                    ws_debug("    wmem_tree_insert32(edch_flow_port_map) com_context_id %u e_dch_macdflow_id %u IP %s Port %u",
                         umts_fp_conversation_info->com_context_id,e_dch_macdflow_id,
                         address_to_str(actx->pinfo->pool, &dst_addr),bindingID);
 
                     wmem_tree_insert32(edch_flow_port_map, umts_fp_conversation_info->com_context_id, nbap_edch_port_info);
                 }else{
-                    nbap_debug("    Insert in existing edch_flow_port_map com_context_id %u e_dch_macdflow_id %u IP %s Port %u",
+                    ws_debug("    Insert in existing edch_flow_port_map com_context_id %u e_dch_macdflow_id %u IP %s Port %u",
                         umts_fp_conversation_info->com_context_id,e_dch_macdflow_id,
                         address_to_str(actx->pinfo->pool, &dst_addr), bindingID);
 
@@ -29330,7 +29323,7 @@ nbap_private_data->binding_id_port = 0;
 
                 set_umts_fp_conv_data(conversation, umts_fp_conversation_info);
 
-                nbap_debug("Frame %u RL-Specific-E-DCH-Information-Item End", actx->pinfo->num);
+                ws_debug("Frame %u RL-Specific-E-DCH-Information-Item End", actx->pinfo->num);
             }
     }
 
@@ -32784,7 +32777,7 @@ address dst_addr, null_addr;
 conversation_t *conversation;
 
 fp_fach_channel_info_t* fp_fach_channel_info;
-umts_fp_conversation_info_t *umts_fp_conversation_info;
+umts_fp_conversation_info_t *umts_fp_conversation_info = NULL;
 int i, j, num_tf;
 uint32_t transportLayerAddress_ipv4;
 uint16_t bindingID;
@@ -32953,7 +32946,7 @@ address dst_addr, null_addr;
 conversation_t *conversation;
 
 fp_pch_channel_info_t *fp_pch_channel_info;
-umts_fp_conversation_info_t *umts_fp_conversation_info;
+umts_fp_conversation_info_t *umts_fp_conversation_info = NULL;
 int i, j, num_tf;
 uint32_t transportLayerAddress_ipv4;
 uint16_t bindingID;
@@ -33008,12 +33001,12 @@ nbap_private_data->num_items = 1;
     common_transport_channel_id = nbap_private_data->common_transport_channel_id;
     umts_fp_conversation_info->fp_dch_channel_info[0].num_ul_chans = num_tf = nbap_dch_chnl_info[common_transport_channel_id].num_ul_chans;
 
-    nbap_debug("Frame %u PCH-ParametersItem-CTCH-SetupRqstFDD Start: num_tf %u", actx->pinfo->num, num_tf);
+    ws_debug("Frame %u PCH-ParametersItem-CTCH-SetupRqstFDD Start: num_tf %u", actx->pinfo->num, num_tf);
 
     for (j = 0; j < num_tf; j++) {
       umts_fp_conversation_info->fp_dch_channel_info[0].ul_chan_tf_size[j] = nbap_dch_chnl_info[common_transport_channel_id].ul_chan_tf_size[j];
       umts_fp_conversation_info->fp_dch_channel_info[0].ul_chan_num_tbs[j] = nbap_dch_chnl_info[common_transport_channel_id].ul_chan_num_tbs[j];
-      nbap_debug("    UL tf %u ul_chan_tf_size %u",j, nbap_dch_chnl_info[common_transport_channel_id].ul_chan_tf_size[j]);
+      ws_debug("    UL tf %u ul_chan_tf_size %u",j, nbap_dch_chnl_info[common_transport_channel_id].ul_chan_tf_size[j]);
     }
 
     /* Traffic flows per DCH(DL) */
@@ -33021,13 +33014,13 @@ nbap_private_data->num_items = 1;
     for (j = 0; j < num_tf; j++) {
       umts_fp_conversation_info->fp_dch_channel_info[0].dl_chan_tf_size[j] = nbap_dch_chnl_info[common_transport_channel_id].dl_chan_tf_size[j];
       umts_fp_conversation_info->fp_dch_channel_info[0].dl_chan_num_tbs[j] = nbap_dch_chnl_info[common_transport_channel_id].dl_chan_num_tbs[j];
-      nbap_debug("    DL tf %u ul_chan_tf_size %u",j, nbap_dch_chnl_info[common_transport_channel_id].dl_chan_tf_size[j]);
+      ws_debug("    DL tf %u ul_chan_tf_size %u",j, nbap_dch_chnl_info[common_transport_channel_id].dl_chan_tf_size[j]);
     }
 
     /* Set data for associated DCH's if we have any */
     i = common_transport_channel_id;
 
-    nbap_debug("    commontransportchannelid %u next ch %u",common_transport_channel_id, nbap_dch_chnl_info[i].next_dch);
+    ws_debug("    commontransportchannelid %u next ch %u",common_transport_channel_id, nbap_dch_chnl_info[i].next_dch);
 
     umts_fp_conversation_info->dch_ids_in_flow_list[0] = common_transport_channel_id;
     while(nbap_dch_chnl_info[i].next_dch != 0 && umts_fp_conversation_info->num_dch_in_flow < FP_maxNrOfDCHs){
@@ -33050,7 +33043,7 @@ nbap_private_data->num_items = 1;
     }
     umts_fp_conversation_info->num_dch_in_flow++;
 
-    nbap_debug("    num_dch_in_flow %u", umts_fp_conversation_info->num_dch_in_flow);
+    ws_debug("    num_dch_in_flow %u", umts_fp_conversation_info->num_dch_in_flow);
 
     umts_fp_conversation_info->dch_ids_in_flow_list[umts_fp_conversation_info->num_dch_in_flow] = i;
     set_umts_fp_conv_data(conversation, umts_fp_conversation_info);
@@ -33058,7 +33051,7 @@ nbap_private_data->num_items = 1;
     /* Add Setup Conversation to list, we need it in response msg */
     add_setup_conv(actx->pinfo, nbap_private_data->transaction_id, nbap_private_data->dd_mode, common_transport_channel_id, actx->pinfo->num, &dst_addr, bindingID, umts_fp_conversation_info, conversation);
 
-    nbap_debug("Frame %u PCH-ParametersItem-CTCH-SetupRqstFDD End", actx->pinfo->num);
+    ws_debug("Frame %u PCH-ParametersItem-CTCH-SetupRqstFDD End", actx->pinfo->num);
   }
 
 
@@ -33097,7 +33090,7 @@ dissect_nbap_RACH_ParametersItem_CTCH_SetupRqstFDD(tvbuff_t *tvb _U_, int offset
 address dst_addr, null_addr;
 conversation_t *conversation;
 fp_rach_channel_info_t* fp_rach_channel_info;
-umts_fp_conversation_info_t *umts_fp_conversation_info;
+umts_fp_conversation_info_t *umts_fp_conversation_info = NULL;
 int j, num_tf;
 uint32_t transportLayerAddress_ipv4;
 uint16_t bindingID;
@@ -55448,32 +55441,32 @@ static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto
 {
   uint32_t protocol_ie_id;
   protocol_ie_id = nbap_get_private_data(pinfo)->protocol_ie_id;
-  return (dissector_try_uint_new(nbap_ies_dissector_table, protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(nbap_ies_dissector_table, protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   uint32_t protocol_ie_id;
   protocol_ie_id = nbap_get_private_data(pinfo)->protocol_ie_id;
-  return (dissector_try_uint_new(nbap_extension_dissector_table, protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(nbap_extension_dissector_table, protocol_ie_id, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   if (!ProcedureID) return 0;
-  return (dissector_try_string(nbap_proc_imsg_dissector_table, ProcedureID, tvb, pinfo, tree, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_string_with_data(nbap_proc_imsg_dissector_table, ProcedureID, tvb, pinfo, tree, true, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   if (!ProcedureID) return 0;
-  return (dissector_try_string(nbap_proc_sout_dissector_table, ProcedureID, tvb, pinfo, tree, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_string_with_data(nbap_proc_sout_dissector_table, ProcedureID, tvb, pinfo, tree, true, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   if (!ProcedureID) return 0;
-  return (dissector_try_string(nbap_proc_uout_dissector_table, ProcedureID, tvb, pinfo, tree, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_string_with_data(nbap_proc_uout_dissector_table, ProcedureID, tvb, pinfo, tree, true, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 static void add_hsdsch_bind(packet_info *pinfo){
   address null_addr;
@@ -55562,7 +55555,7 @@ static uint32_t calculate_setup_conv_key(const uint32_t transaction_id, const ui
   key = transaction_id << 16;
   key |= (dd_mode & 0x03) << 14;
   key |= (channel_id & 0x3fff);
-  nbap_debug("\tCalculating key 0x%04x", key);
+  ws_debug("\tCalculating key 0x%04x", key);
   return key;
 }
 
@@ -55572,7 +55565,7 @@ static void add_setup_conv(const packet_info *pinfo _U_, const uint32_t transact
   nbap_setup_conv_t *new_conv = NULL;
   uint32_t key;
 
-  nbap_debug("Creating new setup conv\t TransactionID: %u\tddMode: %u\tChannelID: %u\t %s:%u",
+  ws_debug("Creating new setup conv\t TransactionID: %u\tddMode: %u\tChannelID: %u\t %s:%u",
   transaction_id, dd_mode, channel_id, address_to_str(pinfo->pool, addr), port);
 
   new_conv = wmem_new0(wmem_file_scope(), nbap_setup_conv_t);
@@ -55596,16 +55589,16 @@ static nbap_setup_conv_t* find_setup_conv(const packet_info *pinfo _U_, const ui
 {
   nbap_setup_conv_t *conv;
   uint32_t key;
-  nbap_debug("Looking for Setup Conversation match\t TransactionID: %u\t ddMode: %u\t ChannelID: %u", transaction_id, dd_mode, channel_id);
+  ws_debug("Looking for Setup Conversation match\t TransactionID: %u\t ddMode: %u\t ChannelID: %u", transaction_id, dd_mode, channel_id);
 
   key = calculate_setup_conv_key(transaction_id, dd_mode, channel_id);
 
   conv = (nbap_setup_conv_t*) wmem_map_lookup(nbap_setup_conv_table, GUINT_TO_POINTER(key));
 
   if(conv == NULL){
-    nbap_debug("\tDidn't find Setup Conversation match");
+    ws_debug("\tDidn't find Setup Conversation match");
   }else{
-    nbap_debug("\tFOUND Setup Conversation match\t TransactionID: %u\t ddMode: %u\t ChannelID: %u\t %s:%u",
+    ws_debug("\tFOUND Setup Conversation match\t TransactionID: %u\t ddMode: %u\t ChannelID: %u\t %s:%u",
          conv->transaction_id, conv->dd_mode, conv->channel_id, address_to_str(pinfo->pool, &(conv->addr)), conv->port);
   }
 
@@ -55618,7 +55611,7 @@ static void delete_setup_conv(nbap_setup_conv_t *conv)
 
   /* check if conversation exist */
   if(conv == NULL){
-    nbap_debug("Trying delete Setup Conversation that does not exist (ptr == NULL)\t");
+    ws_debug("Trying delete Setup Conversation that does not exist (ptr == NULL)\t");
     return;
   }
   key = calculate_setup_conv_key(conv->transaction_id, conv->dd_mode, conv->channel_id);
@@ -59596,7 +59589,7 @@ void proto_register_nbap(void)
         FT_UINT32, BASE_DEC, VALS(nbap_Criticality_vals), 0,
         NULL, HFILL }},
     { &hf_nbap_ie_field_value,
-      { "value", "nbap.value_element",
+      { "value", "nbap.ie_field_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "ProtocolIE_Field_value", HFILL }},
     { &hf_nbap_ProtocolExtensionContainer_item,
@@ -59616,7 +59609,7 @@ void proto_register_nbap(void)
         FT_UINT32, BASE_DEC, VALS(nbap_PrivateIE_ID_vals), 0,
         "PrivateIE_ID", HFILL }},
     { &hf_nbap_private_value,
-      { "value", "nbap.value_element",
+      { "value", "nbap.private_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "PrivateIE_Field_value", HFILL }},
     { &hf_nbap_ActivationInformation_item,
@@ -60036,7 +60029,7 @@ void proto_register_nbap(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
     { &hf_nbap_initialPhase_0_1048575,
-      { "initialPhase", "nbap.initialPhase",
+      { "initialPhase", "nbap.initialPhase_0_1048575",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_1048575_", HFILL }},
     { &hf_nbap_steadyStatePhase,
@@ -68788,19 +68781,19 @@ void proto_register_nbap(void)
         FT_UINT32, BASE_DEC, VALS(nbap_MessageDiscriminator_vals), 0,
         NULL, HFILL }},
     { &hf_nbap_initiatingMessagevalue,
-      { "value", "nbap.value_element",
+      { "value", "nbap.initiatingMessagevalue_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InitiatingMessage_value", HFILL }},
     { &hf_nbap_successfulOutcome_value,
-      { "value", "nbap.value_element",
+      { "value", "nbap.successfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SuccessfulOutcome_value", HFILL }},
     { &hf_nbap_unsuccessfulOutcome_value,
-      { "value", "nbap.value_element",
+      { "value", "nbap.unsuccessfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "UnsuccessfulOutcome_value", HFILL }},
     { &hf_nbap_outcome_value,
-      { "value", "nbap.value_element",
+      { "value", "nbap.outcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "Outcome_value", HFILL }},
     { &hf_nbap_PreambleSignatures_signature15,

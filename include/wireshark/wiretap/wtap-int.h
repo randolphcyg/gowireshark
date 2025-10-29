@@ -27,15 +27,15 @@ WS_DLL_PUBLIC
 int wtap_fstat(wtap *wth, ws_statb64 *statb, int *err);
 
 typedef bool (*subtype_read_func)(struct wtap*, wtap_rec *,
-                                      Buffer *, int *, char **, int64_t *);
+                                  int *, char **, int64_t *);
 typedef bool (*subtype_seek_read_func)(struct wtap*, int64_t, wtap_rec *,
-                                           Buffer *, int *, char **);
+                                       int *, char **);
 
 /**
  * Struct holding data of the currently read file.
  */
 struct wtap {
-    FILE_T                      fh;
+    FILE_T                      fh;                     /**< Primary FILE_T for sequential reads */
     FILE_T                      random_fh;              /**< Secondary FILE_T for random access */
     bool                        ispipe;                 /**< true if the file is a pipe */
     int                         file_type_subtype;
@@ -44,26 +44,27 @@ struct wtap {
     GArray                      *shb_iface_to_global;   /**< An array mapping the per-section interface numbers to global IDs */
     GArray                      *interface_data;        /**< An array holding the interface data from pcapng IDB:s or equivalent(?)*/
     unsigned                    next_interface_data;    /**< Next interface data that wtap_get_next_interface_description() will show */
-    GArray                      *nrbs;                  /**< holds the Name Res Blocks, or NULL */
+    GArray                      *nrbs;                  /**< Holds the Name Res Blocks, or NULL */
     GArray                      *dsbs;                  /**< An array of DSBs (of type wtap_block_t), or NULL if not supported. */
-    GArray                      *meta_events;           /**< An array of meta eventss (of type wtap_block_t), or NULL if not supported. */
-
+    GArray                      *meta_events;           /**< An array of meta events (of type wtap_block_t), or NULL if not supported. */
+    GArray                      *dpibs;                 /**< An array of DPIBs (of type wtap_block_t), or NULL if not supported. */
+    unsigned                    next_dpib_id;           /**< Next DPIB id  */
     char                        *pathname;              /**< File pathname; might just be "-" */
 
-    void                        *priv;          /* this one holds per-file state and is free'd automatically by wtap_close() */
-    void                        *wslua_data;    /* this one holds wslua state info and is not free'd */
+    void                        *priv;                  /**< Stores per-file state and is free'd automatically by wtap_close() */
+    void                        *wslua_data;            /**< Stores wslua state info and is not free'd */
 
-    subtype_read_func           subtype_read;
-    subtype_seek_read_func      subtype_seek_read;
+    subtype_read_func           subtype_read;           /**< Function called for sequential reads */
+    subtype_seek_read_func      subtype_seek_read;      /**< Function called for random access reads */
     void                        (*subtype_sequential_close)(struct wtap*);
     void                        (*subtype_close)(struct wtap*);
-    int                         file_encap;    /* per-file, for those
+    int                         file_encap;    /**< Per-file encapsulation type, for those
                                                 * file formats that have
                                                 * per-file encapsulation
                                                 * types rather than per-packet
                                                 * encapsulation types
                                                 */
-    int                         file_tsprec;   /* per-file timestamp precision
+    int                         file_tsprec;    /**< Per-file timestamp precision
                                                 * of the fractional part of
                                                 * the time stamp, for those
                                                 * file formats that have
@@ -90,9 +91,8 @@ typedef void *WFILE_T;
 typedef bool (*subtype_add_idb_func)(struct wtap_dumper*, wtap_block_t,
                                          int *, char **);
 
-typedef bool (*subtype_write_func)(struct wtap_dumper*,
-                                       const wtap_rec *rec,
-                                       const uint8_t*, int*, char**);
+typedef bool (*subtype_write_func)(struct wtap_dumper*, const wtap_rec*,
+                                   int*, char**);
 typedef bool (*subtype_finish_func)(struct wtap_dumper*, int*, char**);
 
 struct wtap_dumper {
@@ -129,9 +129,11 @@ struct wtap_dumper {
     const GArray            *nrbs_growing;          /**< A reference to an array of NRBs (of type wtap_block_t) */
     const GArray            *dsbs_growing;          /**< A reference to an array of DSBs (of type wtap_block_t) */
     const GArray            *mevs_growing;          /**< A reference to an array of Sysdig meta events (of type wtap_block_t) */
+    const GArray            *dpibs_growing;          /**< A reference to an array of DPIBs (of type wtap_block_t) */
     unsigned                nrbs_growing_written;   /**< Number of already processed NRBs in nrbs_growing. */
     unsigned                dsbs_growing_written;   /**< Number of already processed DSBs in dsbs_growing. */
     unsigned                mevs_growing_written;   /**< Number of already processed meta events in mevs_growing. */
+    unsigned                dpibs_growing_written;   /**< Number of already processed DPIBs in dsbs_growing. */
 };
 
 WS_DLL_PUBLIC bool wtap_dump_file_write(wtap_dumper *wdh, const void *buf,
@@ -140,8 +142,6 @@ WS_DLL_PUBLIC int64_t wtap_dump_file_seek(wtap_dumper *wdh, int64_t offset, int 
 WS_DLL_PUBLIC int64_t wtap_dump_file_tell(wtap_dumper *wdh, int *err);
 
 extern int wtap_num_file_types;
-
-#include <wsutil/pint.h>
 
 /* Macros to byte-swap possibly-unaligned 64-bit, 32-bit and 16-bit quantities;
  * they take a pointer to the quantity, and byte-swap it in place.
@@ -179,100 +179,6 @@ extern int wtap_num_file_types;
         (p)[1] = (p)[0];   \
         (p)[0] = tmp;      \
     }
-
-
-/* Pointer routines to put items out in a particular byte order.
- * These will work regardless of the byte alignment of the pointer.
- */
-
-#ifndef phtons
-#define phtons(p, v) \
-    {                 \
-        (p)[0] = (uint8_t)((v) >> 8);    \
-        (p)[1] = (uint8_t)((v) >> 0);    \
-    }
-#endif
-
-#ifndef phton24
-#define phton24(p, v) \
-    {                 \
-        (p)[0] = (uint8_t)((v) >> 16);    \
-        (p)[1] = (uint8_t)((v) >> 8);     \
-        (p)[2] = (uint8_t)((v) >> 0);     \
-    }
-#endif
-
-#ifndef phtonl
-#define phtonl(p, v) \
-    {                 \
-        (p)[0] = (uint8_t)((v) >> 24);    \
-        (p)[1] = (uint8_t)((v) >> 16);    \
-        (p)[2] = (uint8_t)((v) >> 8);     \
-        (p)[3] = (uint8_t)((v) >> 0);     \
-    }
-#endif
-
-#ifndef phtonll
-#define phtonll(p, v) \
-    {                 \
-        (p)[0] = (uint8_t)((v) >> 56);    \
-        (p)[1] = (uint8_t)((v) >> 48);    \
-        (p)[2] = (uint8_t)((v) >> 40);    \
-        (p)[3] = (uint8_t)((v) >> 32);    \
-        (p)[4] = (uint8_t)((v) >> 24);    \
-        (p)[5] = (uint8_t)((v) >> 16);    \
-        (p)[6] = (uint8_t)((v) >> 8);     \
-        (p)[7] = (uint8_t)((v) >> 0);     \
-    }
-#endif
-
-#ifndef phtole8
-#define phtole8(p, v) \
-    {                 \
-        (p)[0] = (uint8_t)((v) >> 0);    \
-    }
-#endif
-
-#ifndef phtoles
-#define phtoles(p, v) \
-    {                 \
-        (p)[0] = (uint8_t)((v) >> 0);    \
-        (p)[1] = (uint8_t)((v) >> 8);    \
-    }
-#endif
-
-#ifndef phtole24
-#define phtole24(p, v) \
-    {                 \
-        (p)[0] = (uint8_t)((v) >> 0);     \
-        (p)[1] = (uint8_t)((v) >> 8);     \
-        (p)[2] = (uint8_t)((v) >> 16);    \
-    }
-#endif
-
-#ifndef phtolel
-#define phtolel(p, v) \
-    {                 \
-        (p)[0] = (uint8_t)((v) >> 0);     \
-        (p)[1] = (uint8_t)((v) >> 8);     \
-        (p)[2] = (uint8_t)((v) >> 16);    \
-        (p)[3] = (uint8_t)((v) >> 24);    \
-    }
-#endif
-
-#ifndef phtolell
-#define phtolell(p, v) \
-    {                 \
-        (p)[0] = (uint8_t)((v) >> 0);     \
-        (p)[1] = (uint8_t)((v) >> 8);     \
-        (p)[2] = (uint8_t)((v) >> 16);    \
-        (p)[3] = (uint8_t)((v) >> 24);    \
-        (p)[4] = (uint8_t)((v) >> 32);    \
-        (p)[5] = (uint8_t)((v) >> 40);    \
-        (p)[6] = (uint8_t)((v) >> 48);    \
-        (p)[7] = (uint8_t)((v) >> 56);    \
-    }
-#endif
 
 /*
  * Read a given number of bytes from a file into a buffer or, if
@@ -314,7 +220,8 @@ wtap_read_bytes(FILE_T fh, void *buf, unsigned int count, int *err,
     char **err_info);
 
 /*
- * Read packet data into a Buffer, growing the buffer as necessary.
+ * Read a given number of bytes from a file into a Buffer, growing the
+ * buffer as necessary.
  *
  * This returns an error on a short read, even if the short read hit
  * the EOF immediately.  (The assumption is that each packet has a
@@ -324,7 +231,7 @@ wtap_read_bytes(FILE_T fh, void *buf, unsigned int count, int *err,
  */
 WS_DLL_PUBLIC
 bool
-wtap_read_packet_bytes(FILE_T fh, Buffer *buf, unsigned length, int *err,
+wtap_read_bytes_buffer(FILE_T fh, Buffer *buf, unsigned length, int *err,
     char **err_info);
 
 /*
@@ -332,21 +239,28 @@ wtap_read_packet_bytes(FILE_T fh, Buffer *buf, unsigned length, int *err,
  * as a single packet.
  */
 bool
-wtap_full_file_read(wtap *wth, wtap_rec *rec, Buffer *buf,
-    int *err, char **err_info, int64_t *data_offset);
+wtap_full_file_read(wtap *wth, wtap_rec *rec, int *err, char **err_info,
+    int64_t *data_offset);
 
 /*
  * Implementation of wth->subtype_seek_read that reads the full file contents
  * as a single packet.
  */
 bool
-wtap_full_file_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec, Buffer *buf, int *err, char **err_info);
+wtap_full_file_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
+    int *err, char **err_info);
 
 /**
  * Add an IDB to the interface data for a file.
  */
 void
 wtap_add_idb(wtap *wth, wtap_block_t idb);
+
+/**
+ * Add a DPIB to the dpibs list for a file.
+ */
+ void
+ wtap_add_dpib(wtap *wth, wtap_block_t dpib);
 
 /**
  * Invokes the callback with the given name resolution block.

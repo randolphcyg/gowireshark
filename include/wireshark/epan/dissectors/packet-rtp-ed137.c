@@ -32,6 +32,7 @@
 #include <epan/to_str.h>
 #include <epan/expert.h>
 #include <epan/conversation.h>
+#include <wsutil/array.h>
 
 #include "packet-rtp.h"
 
@@ -652,7 +653,7 @@ dissect_rtp_hdr_ext_ed137(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, v
                             break;
                         }
                         default:
-                            proto_tree_add_item( rtp_hext_tree3, hf_rtp_hdr_ed137_ft_value, tvb, hdrext_offset, 4, ENC_NA);
+                            proto_tree_add_item( rtp_hext_tree3, hf_rtp_hdr_ed137_ft_value, tvb, hdrext_offset, 4, ENC_BIG_ENDIAN);
                             break;
                     }
                 }
@@ -1302,7 +1303,7 @@ proto_register_rtp_ed137(void)
             &hf_rtp_hdr_ed137,
             {
                 "ED137 extension",
-                "rtp.ext.ed137",
+                "rtp.ext.ed137hdr",
                 FT_NONE,
                 BASE_NONE,
                 NULL,

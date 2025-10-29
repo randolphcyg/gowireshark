@@ -53,6 +53,11 @@ ProtocolExtensionField/id ext_id
 #PrivateIE-Field/value private_value
 ProtocolIE-Field/value ie_field_value
 
+GlobalGNB-ID/gNB-ID gnb-id-choice
+IndirectPathAddition/targetRelayUEID targetRelayUEID-bit-string
+PathSwitchConfiguration/targetRelayUEID targetRelayUEID-bit-string
+ReferenceConfiguration/referenceConfiguration referenceConfiguration-item
+
 #.FN_BODY ProtocolIE-ID VAL_PTR=&f1ap_data->protocol_ie_id
   f1ap_private_data_t *f1ap_data = f1ap_get_private_data(actx->pinfo);
 %(DEFAULT_BODY)s
@@ -60,7 +65,7 @@ ProtocolIE-Field/value ie_field_value
 #.FN_FTR ProtocolIE-ID
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str_ext(f1ap_data->protocol_ie_id, &f1ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
+                           val_to_str_ext(actx->pinfo->pool, f1ap_data->protocol_ie_id, &f1ap_ProtocolIE_ID_vals_ext, "unknown (%d)"));
   }
 
 #.FN_PARS ProtocolIE-Field/value  FN_VARIANT=_pdu_new  TYPE_REF_FN=dissect_ProtocolIEFieldValue
@@ -206,6 +211,7 @@ id-MulticastCommonConfiguration             ProcedureCode
 id-BroadcastTransportResourceRequest        ProcedureCode
 id-DUCUAccessAndMobilityIndication          ProcedureCode
 id-SRSInformationReservationNotification    ProcedureCode
+id-CUDUMobilityInitiationRequest            ProcedureCode
 
 # ProtocolIE-ID
 id-Cause                                             ProtocolIE-ID
@@ -1007,7 +1013,7 @@ id-SRSPosRRCInactiveValidityAreaConfig               ProtocolIE-ID
 id-PosValidityAreaCellList                           ProtocolIE-ID
 id-SRSReservationType                                ProtocolIE-ID
 id-SymbolIndex                                       ProtocolIE-ID
-id-PRSBandwidthAggregationRequestIndication          ProtocolIE-ID
+id-PRSBWAggregationRequestInfoList                   ProtocolIE-ID
 id-AggregatedPosSRSResourceIDList                    ProtocolIE-ID
 id-AggregatedPRSResourceSetList                      ProtocolIE-ID
 id-PhaseQuality                                      ProtocolIE-ID
@@ -1041,6 +1047,20 @@ id-LTMCFRAResourceConfig-List                        ProtocolIE-ID
 id-F1U-PathFailure                                   ProtocolIE-ID
 id-MeasBasedOnAggregatedResources                    ProtocolIE-ID
 id-SIB23-message                                     ProtocolIE-ID
+id-BarringExemptionforEmerCallInfo                   ProtocolIE-ID
+id-SIB17bis-message                                  ProtocolIE-ID
+id-ReportingIntervalIMs                              ProtocolIE-ID
+id-Transmission-Bandwidth-asymmetric                 ProtocolIE-ID
+id-TagIDPointer                                      ProtocolIE-ID
+id-LocalOrigin                                       ProtocolIE-ID
+id-LTMResetInformation                               ProtocolIE-ID
+id-SRSPosPeriodicConfigHyperSFNIndex                 ProtocolIE-ID
+id-PreconfiguredSRSInformation                       ProtocolIE-ID
+id-candidatePSCellsToCancel                          ProtocolIE-ID
+id-MobilityInitiation                                ProtocolIE-ID
+id-ValidityAreaSpecificSRSInformationExtended        ProtocolIE-ID
+id-PLMNIndexNRAssistanceInfoForNetShar               ProtocolIE-ID
+
 #.END
 
 #.REGISTER
@@ -1646,6 +1666,11 @@ EarlySyncServingCellInformation                   N f1ap.ies id-EarlySyncServing
 RANSharingAssistanceInformation                   N f1ap.ies id-RANSharingAssistanceInformation
 LTMCFRAResourceConfig-List                        N f1ap.ies id-LTMCFRAResourceConfig-List
 F1U-PathFailure                                   N f1ap.ies id-F1U-PathFailure
+LocalOrigin                                       N f1ap.ies id-LocalOrigin
+LTMResetInformation                               N f1ap.ies id-LTMResetInformation
+RequestedSRSPreconfigurationCharacteristics-List  N f1ap.ies id-PreconfiguredSRSInformation
+MobilityInitiation                                N f1ap.ies id-MobilityInitiation
+PLMNIndexNR                                       N f1ap.ies id-PLMNIndexNRAssistanceInfoForNetShar
 
 #F1AP-PROTOCOL-EXTENSION
 GNB-CUSystemInformation                           N f1ap.extension id-gNB-CUSystemInformation
@@ -1861,7 +1886,7 @@ BW-Aggregation-Request-Indication                 N f1ap.extension id-BW-Aggrega
 TimingReportingGranularityFactorExtended          N f1ap.extension id-TimingReportingGranularityFactorExtended
 PosValidityAreaCellList                           N f1ap.extension id-PosValidityAreaCellList
 SymbolIndex                                       N f1ap.extension id-SymbolIndex
-PRSBandwidthAggregationRequestIndication          N f1ap.extension id-PRSBandwidthAggregationRequestIndication
+PRSBWAggregationRequestInfoList                   N f1ap.extension id-PRSBWAggregationRequestInfoList
 AggregatedPosSRSResourceIDList                    N f1ap.extension id-AggregatedPosSRSResourceIDList
 AggregatedPRSResourceSetList                      N f1ap.extension id-AggregatedPRSResourceSetList
 MeasuredFrequencyHops                             N f1ap.extension id-MeasuredFrequencyHops
@@ -1877,6 +1902,14 @@ NRPCI                                             N f1ap.extension id-NR-PCI
 PeerUE-ID                                         N f1ap.extension id-PeerUE-ID
 MeasBasedOnAggregatedResources                    N f1ap.extension id-MeasBasedOnAggregatedResources
 SIB23-message                                     N f1ap.extension id-SIB23-message
+BarringExemptionforEmerCallInfo                   N f1ap.extension id-BarringExemptionforEmerCallInfo
+SIB17bis-message                                  N f1ap.extension id-SIB17bis-message
+ReportingIntervalIMs                              N f1ap.extension id-ReportingIntervalIMs
+Transmission-Bandwidth-asymmetric                 N f1ap.extension id-Transmission-Bandwidth-asymmetric
+TagIDPointer                                      N f1ap.extension id-TagIDPointer
+SRSPosPeriodicConfigHyperSFNIndex                 N f1ap.extension id-SRSPosPeriodicConfigHyperSFNIndex
+PSCellList                                        N f1ap.extension id-candidatePSCellsToCancel
+ValidityAreaSpecificSRSInformationExtended        N f1ap.extension id-ValidityAreaSpecificSRSInformationExtended
 
 #F1AP-ELEMENTARY-PROCEDURE
 Reset                                    N f1ap.proc.imsg id-Reset
@@ -2128,6 +2161,8 @@ BroadcastTransportResourceRequest        N f1ap.proc.imsg id-BroadcastTransportR
 DUCUAccessAndMobilityIndication          N f1ap.proc.imsg id-DUCUAccessAndMobilityIndication
 
 SRSInformationReservationNotification    N f1ap.proc.imsg id-SRSInformationReservationNotification
+
+CUDUMobilityInitiationRequest            N f1ap.proc.imsg id-CUDUMobilityInitiationRequest
 
 #.FN_BODY AdditionalSIBMessageList-Item/additionalSIB VAL_PTR = &param_tvb
   tvbuff_t *param_tvb = NULL;
@@ -3020,6 +3055,14 @@ Periodicity DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_microseconds)
     dissect_nr_rrc_SIB17_r17_PDU(param_tvb, actx->pinfo, subtree, NULL);
   }
 
+#.FN_BODY SIB17bis-message VAL_PTR = &param_tvb
+  tvbuff_t *param_tvb = NULL;
+%(DEFAULT_BODY)s
+  if (param_tvb) {
+    proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_f1ap_SIB17bis_message);
+    dissect_nr_rrc_SIB17bis_r18_PDU(param_tvb, actx->pinfo, subtree, NULL);
+  }
+
 #.FN_BODY SIB20-message VAL_PTR = &param_tvb
   tvbuff_t *param_tvb = NULL;
 %(DEFAULT_BODY)s
@@ -3115,7 +3158,7 @@ Periodicity DISPLAY=BASE_DEC|BASE_UNIT_STRING STRINGS=UNS(&units_microseconds)
 %(DEFAULT_BODY)s
   if (param_tvb) {
     proto_tree *subtree = proto_item_add_subtree(actx->created_item, ett_f1ap_PosAssistance_Information);
-    dissect_nrppa_Assistance_Information_PDU(param_tvb, actx->pinfo, subtree, NULL);
+    dissect_nrppa_AssistanceInformationFailureList_PDU(param_tvb, actx->pinfo, subtree, NULL);
   }
 
 #.FN_BODY LocationMeasurementInformation VAL_PTR = &param_tvb
@@ -4020,6 +4063,9 @@ N6JitterInformation/n6JitterUpperBound DISPLAY=BASE_CUSTOM STRINGS=CF_FUNC(f1ap_
 #.FN_HDR SRSInformationReservationNotification
   set_message_label(actx, MTYPE_SRS_INFORMATION_RESERVATION_NOTIFICATION);
   set_stats_message_type(actx->pinfo, MTYPE_SRS_INFORMATION_RESERVATION_NOTIFICATION);
+#.FN_HDR CUDUMobilityInitiationRequest
+  set_message_label(actx, MTYPE_CU_DU_MOBILITY_INITIATION_REQUEST);
+  set_stats_message_type(actx->pinfo, MTYPE_CU_DU_MOBILITY_INITIATION_REQUEST);
 #.END
 
 #

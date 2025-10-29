@@ -20,7 +20,6 @@
 #include <epan/prefs.h>
 #include <epan/expert.h>
 #include <epan/tap.h>
-#include <epan/rtp_pt.h>
 #include <epan/show_exception.h>
 #include <epan/addr_resolv.h>
 #include <epan/conversation.h>
@@ -29,16 +28,19 @@
 
 #include <wsutil/strtoi.h>
 #include <wsutil/str_util.h>
+#include <wsutil/array.h>
 
 #include "packet-media-type.h"
 #include "packet-sdp.h"
+#include "packet-http.h"
 
 /* un-comment the following as well as this line in conversation.c, to enable debug printing */
 /* #define DEBUG_CONVERSATION */
 #include "conversation_debug.h"
 
+#include "packet-gsm_osmux.h"
 #include "packet-rtp.h"
-
+#include "packet-rtp_pt.h"
 #include "packet-rtcp.h"
 #include "packet-t38.h"
 #include "packet-msrp.h"
@@ -69,6 +71,7 @@ static int proto_sprt;
 static const char* UNKNOWN_ENCODING = "Unknown";
 static wmem_tree_t *sdp_transport_reqs;
 static wmem_tree_t *sdp_transport_rsps;
+static wmem_map_t *sdp_rtsp_control_map;
 
 /* preference globals */
 static bool global_sdp_establish_conversation = true;
@@ -254,6 +257,10 @@ typedef struct {
     address conn_addr;          /**< The address from the "c=" line (default
                                      from session level, possibly overridden at
                                      the media level). */
+    char* control_uri;          /**< RTSP media control URI, parsed from "a=control:"
+                                     XXX - allowed to default to session level if not
+                                     overridden if only one media desc, but this is
+                                     not implemented yet. */
     transport_media_pt_t media; /**< Information about payload numbers for this media. */
 
     /*
@@ -561,6 +568,12 @@ sdp_new_media_description(wmem_array_t *media_descriptions, session_info_t *sess
         rtp_dyn_payload_dup(session_info->rtp_dyn_payload);
 
     return media_desc;
+}
+
+rtp_dyn_payload_t *
+sdp_get_rtsp_media_desc(const char* control_uri)
+{
+    return wmem_map_lookup(sdp_rtsp_control_map, control_uri);
 }
 
 /* Remove information about media descriptions which are unused. These appeared
@@ -918,10 +931,10 @@ static void dissect_key_mgmt(tvbuff_t *tvb, packet_info * pinfo, proto_item * ti
     add_new_data_source(pinfo, keymgmt_tvb, "Key Management Data");
 
     if ((prtcl_id != NULL) && (key_mgmt_dissector_table != NULL)) {
-        found_match = dissector_try_string(key_mgmt_dissector_table,
+        found_match = dissector_try_string_with_data(key_mgmt_dissector_table,
                                            (const char *)prtcl_id,
                                            keymgmt_tvb, pinfo,
-                                           key_tree, NULL);
+                                           key_tree, true, NULL);
     }
 
     if (found_match) {
@@ -1130,7 +1143,7 @@ dissect_sdp_media(tvbuff_t *tvb, packet_info* pinfo, proto_item *ti,
             media_format = tvb_get_string_enc(pinfo->pool, tvb, offset, tokenlen, ENC_UTF_8|ENC_NA);
             if (g_ascii_isdigit(media_format[0])) {
                 proto_tree_add_string(sdp_media_tree, hf_media_format, tvb, offset,
-                                      tokenlen, val_to_str_ext((uint32_t)strtoul((char*)media_format, NULL, 10), &rtp_payload_type_vals_ext, "%u"));
+                                      tokenlen, val_to_str_ext(pinfo->pool, (uint32_t)strtoul((char*)media_format, NULL, 10), &rtp_payload_type_vals_ext, "%u"));
 
                 if (media_desc) {
                     idx = media_desc->media.pt_count;
@@ -1519,6 +1532,7 @@ typedef struct {
 #define SDP_ED137_FID           10
 #define SDP_RTCP                11
 #define SDP_RTCP_MUX            12
+#define SDP_CONTROL             13
 
 static const sdp_names_t sdp_media_attribute_names[] = {
     { "Unknown-name"},    /* 0 Pad so that the real headers start at index 1 */
@@ -1534,6 +1548,7 @@ static const sdp_names_t sdp_media_attribute_names[] = {
     { "fid" },            /* 10 */
     { "rtcp" },           /* 11 */
     { "rtcp-mux" },       /* 12 */
+    { "control" },        /* 13 */
 };
 
 static int find_sdp_media_attribute_names(tvbuff_t *tvb, int offset, unsigned len)
@@ -1796,7 +1811,7 @@ dissect_sdp_media_attribute_path(packet_info *pinfo, tvbuff_t *tvb, uint8_t *att
 
         /* Port is after next ':' */
         port_offset = tvb_find_uint8(tvb, address_offset, -1, ':');
-        /* Check if port is present if not skipp */
+        /* Check if port is present, if not skip */
         if (port_offset!= -1) {
             /* Port ends with '/' */
             port_end_offset = tvb_find_uint8(tvb, port_offset, -1, '/');
@@ -2145,6 +2160,13 @@ static void dissect_sdp_media_attribute(tvbuff_t *tvb, packet_info *pinfo, proto
             proto_tree_add_item(sdp_media_attribute_tree, hf_media_attribute_value,
                                 tvb, offset, -1, ENC_UTF_8);
             break;
+        case SDP_CONTROL:
+            if (media_desc) {
+                media_desc->control_uri = wmem_ascii_strdown(wmem_file_scope(), attribute_value, -1);
+            }
+            proto_tree_add_item(sdp_media_attribute_tree, hf_media_attribute_value,
+                                tvb, offset, -1, ENC_UTF_8);
+            break;
         default:
             /* No special treatment for values of this attribute type, just add as one item. */
             proto_tree_add_item(sdp_media_attribute_tree, hf_media_attribute_value,
@@ -2312,6 +2334,33 @@ apply_sdp_transport(packet_info *pinfo, transport_info_t *transport_info, int re
             (media_description_t *)wmem_array_index(transport_info->media_descriptions, i);
         uint32_t current_rtp_port = 0;
 
+        /* "a=control:" is an attribute unique to RTSP. RTSP uses the same
+         * transport types as RTP but the port is either zero or merely a
+         * suggestion, actual information is obtained by later RTSP methods.
+         * We do not apply the descriptor here but save it, keyed by the
+         * URI. (RTSP clients can also receive media description via other
+         * protocols like HTTP, so there is no guarantee that the RTSP protocol
+         * is the caller here.)
+         */
+        if (media_desc->control_uri) {
+            /* Ensure that we do not attempt to set it below. */
+            media_desc->media.set_rtp = true;
+            if (setup_info && setup_info->base_uri) {
+                char *absolute_uri = determine_http_location_target(wmem_file_scope(), setup_info->base_uri, media_desc->control_uri);
+                if (absolute_uri) {
+                    media_desc->control_uri = absolute_uri;
+                }
+            }
+            ascii_strdown_inplace(media_desc->control_uri);
+            /* If there are multiple entries with the same URI they SHOULD be
+             * the same, so we could free the existing entry.  */
+            rtp_dyn_payload_t *old_rtp_pt;
+            old_rtp_pt = wmem_map_insert(sdp_rtsp_control_map, media_desc->control_uri, media_desc->media.rtp_dyn_payload);
+            if (old_rtp_pt) {
+                rtp_dyn_payload_free(old_rtp_pt);
+            }
+        }
+
         /* Add (s)rtp and (s)rtcp conversation, if available (overrides t38 if conversation already set) */
         if ((media_desc->media_port != 0) &&
             !media_desc->media.set_rtp &&
@@ -2347,7 +2396,13 @@ apply_sdp_transport(packet_info *pinfo, transport_info_t *transport_info, int re
                                  media_desc->media.rtp_dyn_payload, srtp_info,
                                  setup_info);
                 DENDENT();
-            } else if (!setup_info || !setup_info->is_osmux) {
+            } else if (setup_info && setup_info->is_osmux) {
+                DPRINT(("calling osmux_add_address, channel=%d, media_port=%d",
+                        i, media_desc->media_port));
+                DINDENT();
+                osmux_add_address(pinfo, &media_desc->conn_addr, media_desc->media_port, 0, establish_frame);
+                DENDENT();
+            } else {
                 DPRINT(("calling rtp_add_address, channel=%d, media_port=%d",
                         i, media_desc->media_port));
                 DINDENT();
@@ -2896,7 +2951,7 @@ dissect_sdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
                     if (strlen(sdp_pi->summary_str))
                         (void) g_strlcat(sdp_pi->summary_str, " ", 50);
                     (void) g_strlcat(sdp_pi->summary_str,
-                              val_to_str_ext(media_desc->media.pt[j], &rtp_payload_type_short_vals_ext, "%u"),
+                              val_to_str_ext(pinfo->pool, media_desc->media.pt[j], &rtp_payload_type_short_vals_ext, "%u"),
                               50);
                 }
             }
@@ -3182,7 +3237,7 @@ proto_register_sdp(void)
         },
         { &hf_media_port,
             { "Media Port", "sdp.media.port",
-              FT_UINT16, BASE_DEC, NULL, 0x0,
+              FT_UINT16, BASE_PT_UDP, NULL, 0x0,
               NULL, HFILL }
         },
         { &hf_media_port_string,
@@ -3482,6 +3537,7 @@ proto_register_sdp(void)
 
     sdp_transport_reqs = wmem_tree_new_autoreset(wmem_epan_scope(), wmem_file_scope());
     sdp_transport_rsps = wmem_tree_new_autoreset(wmem_epan_scope(), wmem_file_scope());
+    sdp_rtsp_control_map = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), wmem_str_hash, g_str_equal);
 
     /*
      * Register the dissector by name, so other dissectors can

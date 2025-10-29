@@ -511,6 +511,9 @@ typedef struct cip_connID_info {
 
    // Actual Packet Interval in microseconds.
    uint32_t api;
+
+   // These are used to track the previous timestamps for each direction. These are only used during a first pass calculation.
+   nstime_t timestamp;
 } cip_connID_info_t;
 
 enum cip_safety_format_type {CIP_SAFETY_BASE_FORMAT, CIP_SAFETY_EXTENDED_FORMAT};
@@ -653,6 +656,9 @@ extern int  dissect_padded_epath_len_usint(packet_info *pinfo, proto_tree *tree,
 extern int  dissect_padded_epath_len_uint(packet_info *pinfo, proto_tree *tree, proto_item *item, tvbuff_t *tvb,
    int offset, int total_len);
 
+extern int dissect_cip_id_status(packet_info* pinfo, proto_tree* tree, proto_item* item, tvbuff_t* tvb,
+   int offset, int total_len);
+
 extern void load_cip_request_data(packet_info *pinfo, cip_simple_request_info_t *req_data);
 extern void reset_cip_request_info(cip_simple_request_info_t* req_data);
 extern bool should_dissect_cip_response(tvbuff_t *tvb, int offset, uint8_t gen_status);
@@ -687,6 +693,7 @@ extern int hf_attr_class_opt_service_num;
 extern int hf_attr_class_service_code;
 extern int hf_attr_class_num_class_attr;
 extern int hf_attr_class_num_inst_attr;
+extern int hf_cip_instance16;
 
 #define CLASS_ATTRIBUTE_1_NAME  "Revision"
 #define CLASS_ATTRIBUTE_2_NAME  "Max Instance"

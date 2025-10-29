@@ -662,14 +662,14 @@ winreg_dissect_bitmap_security_secinfo(tvbuff_t *tvb _U_, int offset _U_, packet
 
 
 /* IDL: bitmap { */
-/* IDL: 	KEY_QUERY_VALUE =  0x00001 , */
-/* IDL: 	KEY_SET_VALUE =  0x00002 , */
-/* IDL: 	KEY_CREATE_SUB_KEY =  0x00004 , */
-/* IDL: 	KEY_ENUMERATE_SUB_KEYS =  0x00008 , */
-/* IDL: 	KEY_NOTIFY =  0x00010 , */
-/* IDL: 	KEY_CREATE_LINK =  0x00020 , */
-/* IDL: 	KEY_WOW64_64KEY =  0x00100 , */
-/* IDL: 	KEY_WOW64_32KEY =  0x00200 , */
+/* IDL: 	KEY_QUERY_VALUE =  0x00000001 , */
+/* IDL: 	KEY_SET_VALUE =  0x00000002 , */
+/* IDL: 	KEY_CREATE_SUB_KEY =  0x00000004 , */
+/* IDL: 	KEY_ENUMERATE_SUB_KEYS =  0x00000008 , */
+/* IDL: 	KEY_NOTIFY =  0x00000010 , */
+/* IDL: 	KEY_CREATE_LINK =  0x00000020 , */
+/* IDL: 	KEY_WOW64_64KEY =  0x00000100 , */
+/* IDL: 	KEY_WOW64_32KEY =  0x00000200 , */
 /* IDL: } */
 
 
@@ -1375,7 +1375,7 @@ winreg_dissect_OpenHKCR_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1449,7 +1449,7 @@ winreg_dissect_OpenHKCU_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1523,7 +1523,7 @@ winreg_dissect_OpenHKLM_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1597,7 +1597,7 @@ winreg_dissect_OpenHKPD_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1671,7 +1671,7 @@ winreg_dissect_OpenHKU_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1719,7 +1719,7 @@ winreg_dissect_CloseKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1855,7 +1855,7 @@ winreg_dissect_CreateKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_info
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1919,7 +1919,7 @@ winreg_dissect_DeleteKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_info
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -1973,7 +1973,7 @@ winreg_dissect_DeleteValue_response(tvbuff_t *tvb _U_, int offset _U_, packet_in
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -2087,7 +2087,7 @@ winreg_dissect_EnumKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -2255,7 +2255,7 @@ winreg_dissect_EnumValue_response(tvbuff_t *tvb _U_, int offset _U_, packet_info
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -2310,7 +2310,7 @@ winreg_dissect_FlushKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -2382,7 +2382,7 @@ winreg_dissect_GetKeySecurity_response(tvbuff_t *tvb _U_, int offset _U_, packet
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -2463,7 +2463,7 @@ winreg_dissect_LoadKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -2564,7 +2564,7 @@ winreg_dissect_NotifyChangeKeyValue_response(tvbuff_t *tvb _U_, int offset _U_, 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -2666,7 +2666,7 @@ winreg_dissect_OpenKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -2895,7 +2895,7 @@ winreg_dissect_QueryInfoKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_i
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3045,7 +3045,7 @@ winreg_dissect_QueryValue_response(tvbuff_t *tvb _U_, int offset _U_, packet_inf
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3149,7 +3149,7 @@ winreg_dissect_ReplaceKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_inf
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3224,7 +3224,7 @@ winreg_dissect_RestoreKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_inf
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3305,7 +3305,7 @@ winreg_dissect_SaveKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_info *
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3378,7 +3378,7 @@ winreg_dissect_SetKeySecurity_response(tvbuff_t *tvb _U_, int offset _U_, packet
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3477,7 +3477,7 @@ winreg_dissect_SetValue_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3545,7 +3545,7 @@ winreg_dissect_UnLoadKey_response(tvbuff_t *tvb _U_, int offset _U_, packet_info
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3634,7 +3634,7 @@ winreg_dissect_InitiateSystemShutdown_response(tvbuff_t *tvb _U_, int offset _U_
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3685,7 +3685,7 @@ winreg_dissect_AbortSystemShutdown_response(tvbuff_t *tvb _U_, int offset _U_, p
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3748,7 +3748,7 @@ winreg_dissect_GetVersion_response(tvbuff_t *tvb _U_, int offset _U_, packet_inf
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3820,7 +3820,7 @@ winreg_dissect_OpenHKCC_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -3894,7 +3894,7 @@ winreg_dissect_OpenHKDD_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4049,7 +4049,7 @@ winreg_dissect_QueryMultipleValues_response(tvbuff_t *tvb _U_, int offset _U_, p
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4153,7 +4153,7 @@ winreg_dissect_InitiateSystemShutdownEx_response(tvbuff_t *tvb _U_, int offset _
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4249,7 +4249,7 @@ winreg_dissect_SaveKeyEx_response(tvbuff_t *tvb _U_, int offset _U_, packet_info
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4327,7 +4327,7 @@ winreg_dissect_OpenHKPT_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4401,7 +4401,7 @@ winreg_dissect_OpenHKPN_response(tvbuff_t *tvb _U_, int offset _U_, packet_info 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4573,7 +4573,7 @@ winreg_dissect_QueryMultipleValues2_response(tvbuff_t *tvb _U_, int offset _U_, 
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4659,7 +4659,7 @@ winreg_dissect_DeleteKeyEx_response(tvbuff_t *tvb _U_, int offset _U_, packet_in
 	offset = dissect_ndr_uint32(tvb, offset, pinfo, tree, di, drep, hf_winreg_werror, &status);
 
 	if (status != 0)
-		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", Error: %s", val_to_str_ext(pinfo->pool, status, &WERR_errors_ext, "Unknown DOS error 0x%08x"));
 
 	return offset;
 }
@@ -4800,21 +4800,21 @@ void proto_register_dcerpc_winreg(void)
 	{ &hf_winreg_winreg_AbortSystemShutdown_server,
 	  { "Server", "winreg.winreg_AbortSystemShutdown.server", FT_UINT16, BASE_DEC, NULL, 0, NULL, HFILL }},
 	{ &hf_winreg_winreg_AccessMask_KEY_CREATE_LINK,
-	  { "KEY CREATE LINK", "winreg.winreg_AccessMask.KEY_CREATE_LINK", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_CREATE_LINK_tfs), ( 0x00020 ), NULL, HFILL }},
+	  { "KEY CREATE LINK", "winreg.winreg_AccessMask.KEY_CREATE_LINK", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_CREATE_LINK_tfs), ( 0x00000020 ), NULL, HFILL }},
 	{ &hf_winreg_winreg_AccessMask_KEY_CREATE_SUB_KEY,
-	  { "KEY CREATE SUB KEY", "winreg.winreg_AccessMask.KEY_CREATE_SUB_KEY", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_CREATE_SUB_KEY_tfs), ( 0x00004 ), NULL, HFILL }},
+	  { "KEY CREATE SUB KEY", "winreg.winreg_AccessMask.KEY_CREATE_SUB_KEY", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_CREATE_SUB_KEY_tfs), ( 0x00000004 ), NULL, HFILL }},
 	{ &hf_winreg_winreg_AccessMask_KEY_ENUMERATE_SUB_KEYS,
-	  { "KEY ENUMERATE SUB KEYS", "winreg.winreg_AccessMask.KEY_ENUMERATE_SUB_KEYS", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_ENUMERATE_SUB_KEYS_tfs), ( 0x00008 ), NULL, HFILL }},
+	  { "KEY ENUMERATE SUB KEYS", "winreg.winreg_AccessMask.KEY_ENUMERATE_SUB_KEYS", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_ENUMERATE_SUB_KEYS_tfs), ( 0x00000008 ), NULL, HFILL }},
 	{ &hf_winreg_winreg_AccessMask_KEY_NOTIFY,
-	  { "KEY NOTIFY", "winreg.winreg_AccessMask.KEY_NOTIFY", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_NOTIFY_tfs), ( 0x00010 ), NULL, HFILL }},
+	  { "KEY NOTIFY", "winreg.winreg_AccessMask.KEY_NOTIFY", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_NOTIFY_tfs), ( 0x00000010 ), NULL, HFILL }},
 	{ &hf_winreg_winreg_AccessMask_KEY_QUERY_VALUE,
-	  { "KEY QUERY VALUE", "winreg.winreg_AccessMask.KEY_QUERY_VALUE", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_QUERY_VALUE_tfs), ( 0x00001 ), NULL, HFILL }},
+	  { "KEY QUERY VALUE", "winreg.winreg_AccessMask.KEY_QUERY_VALUE", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_QUERY_VALUE_tfs), ( 0x00000001 ), NULL, HFILL }},
 	{ &hf_winreg_winreg_AccessMask_KEY_SET_VALUE,
-	  { "KEY SET VALUE", "winreg.winreg_AccessMask.KEY_SET_VALUE", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_SET_VALUE_tfs), ( 0x00002 ), NULL, HFILL }},
+	  { "KEY SET VALUE", "winreg.winreg_AccessMask.KEY_SET_VALUE", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_SET_VALUE_tfs), ( 0x00000002 ), NULL, HFILL }},
 	{ &hf_winreg_winreg_AccessMask_KEY_WOW64_32KEY,
-	  { "KEY WOW64 32KEY", "winreg.winreg_AccessMask.KEY_WOW64_32KEY", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_WOW64_32KEY_tfs), ( 0x00200 ), NULL, HFILL }},
+	  { "KEY WOW64 32KEY", "winreg.winreg_AccessMask.KEY_WOW64_32KEY", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_WOW64_32KEY_tfs), ( 0x00000200 ), NULL, HFILL }},
 	{ &hf_winreg_winreg_AccessMask_KEY_WOW64_64KEY,
-	  { "KEY WOW64 64KEY", "winreg.winreg_AccessMask.KEY_WOW64_64KEY", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_WOW64_64KEY_tfs), ( 0x00100 ), NULL, HFILL }},
+	  { "KEY WOW64 64KEY", "winreg.winreg_AccessMask.KEY_WOW64_64KEY", FT_BOOLEAN, 32, TFS(&winreg_AccessMask_KEY_WOW64_64KEY_tfs), ( 0x00000100 ), NULL, HFILL }},
 	{ &hf_winreg_winreg_CreateKey_action_taken,
 	  { "Action Taken", "winreg.winreg_CreateKey.action_taken", FT_UINT32, BASE_DEC, VALS(winreg_winreg_CreateAction_vals), 0, NULL, HFILL }},
 	{ &hf_winreg_winreg_CreateKey_keyclass,

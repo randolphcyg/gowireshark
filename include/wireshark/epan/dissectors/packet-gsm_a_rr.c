@@ -1557,9 +1557,10 @@ int f_k(int k, int *w, int range)
 
 static void dissect_channel_list_n_range(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_, uint32_t offset, unsigned len, int range)
 {
-    int         curr_offset = offset, bit_offset, f0, arfcn_orig, w[64], wsize, i;
+    int         curr_offset = offset, bit_offset, f0, w[64], wsize, i;
     int         octet, nwi  = 1, jwi=0, imax, iused, arfcn;
     uint8_t     list[1024];
+    uint64_t    arfcn_orig;
     proto_tree *subtree;
 
     memset((void*)list,0,sizeof(list));
@@ -1579,10 +1580,10 @@ static void dissect_channel_list_n_range(tvbuff_t *tvb, proto_tree *tree, packet
     }
     else {
         bit_offset = curr_offset*8 + 7;
-        arfcn_orig = (int) tvb_get_bits(tvb, bit_offset, 10, false);
-        proto_tree_add_bits_item(subtree, hf_n_range_orig_arfcn, tvb, bit_offset, 10, ENC_BIG_ENDIAN);
+        proto_tree_add_bits_ret_val(subtree, hf_n_range_orig_arfcn, tvb, bit_offset, 10, &arfcn_orig, ENC_BIG_ENDIAN);
         bit_offset+=10;
 
+        /* N.B. cannot go out of bounds as read only 10 bits */
         list[arfcn_orig] = 1;
 
         switch (range) {
@@ -1606,7 +1607,7 @@ static void dissect_channel_list_n_range(tvbuff_t *tvb, proto_tree *tree, packet
 
     /* extract the variable size w[] elements */
     for (i=1; i<=imax; i++) {
-        w[i] = (int) tvb_get_bits(tvb, bit_offset, wsize, false);
+        w[i] = tvb_get_bits32(tvb, bit_offset, wsize, ENC_BIG_ENDIAN);
         proto_tree_add_bytes_format(subtree, hf_gsm_a_rr_w_elements, tvb, bit_offset>>3, ((bit_offset+wsize-1)>>3) - (bit_offset>>3) + 1 , NULL, "%s W(%d): %d",
                             decode_bits_in_field(pinfo->pool, bit_offset, wsize, w[i], ENC_BIG_ENDIAN),
                             i,
@@ -1919,7 +1920,7 @@ de_rr_cell_select_indic(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_,
 
                     while (idx > 0)
                     {
-                        w[i] = tvb_get_bits(tvb, bit_offset, wsize, ENC_BIG_ENDIAN);
+                        w[i] = tvb_get_bits32(tvb, bit_offset, wsize, ENC_BIG_ENDIAN);
                         bit_offset += wsize;
                         idx -= wsize;
                         if (w[i] == 0)
@@ -1991,7 +1992,7 @@ de_rr_cell_select_indic(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo _U_,
 
                     while (idx > 0)
                     {
-                        w[i] = tvb_get_bits(tvb, bit_offset, wsize, ENC_BIG_ENDIAN);
+                        w[i] = tvb_get_bits32(tvb, bit_offset, wsize, ENC_BIG_ENDIAN);
                         bit_offset += wsize;
                         idx -= wsize;
                         if (w[i]  ==  0)
@@ -5732,7 +5733,7 @@ de_rr_si2quater_meas_info_utran_fdd_desc(tvbuff_t *tvb, proto_tree *tree, int bi
 
             while (idx > 0)
             {
-                w[i] = tvb_get_bits(tvb, curr_bit_offset, wsize, ENC_BIG_ENDIAN);
+                w[i] = tvb_get_bits32(tvb, curr_bit_offset, wsize, ENC_BIG_ENDIAN);
                 curr_bit_offset += wsize;
                 idx -= wsize;
                 if (w[i] == 0)
@@ -5812,7 +5813,7 @@ de_rr_si2quater_meas_info_utran_tdd_desc(tvbuff_t *tvb, proto_tree *tree, int bi
 
             while (idx > 0)
             {
-                w[i] = tvb_get_bits(tvb, curr_bit_offset, wsize, ENC_BIG_ENDIAN);
+                w[i] = tvb_get_bits32(tvb, curr_bit_offset, wsize, ENC_BIG_ENDIAN);
                 curr_bit_offset += wsize;
                 idx -= wsize;
                 if (w[i] == 0)
@@ -12167,7 +12168,7 @@ dissect_ccch(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     ett_tree = -1;
     hf_idx = -1;
     msg_fcn_p = NULL;
-    col_append_fstr(pinfo->cinfo, COL_INFO, "(%s) ",val_to_str(pd,gsm_a_pd_short_str_vals,"Unknown (%u)"));
+    col_append_fstr(pinfo->cinfo, COL_INFO, "(%s) ",val_to_str(pinfo->pool, pd,gsm_a_pd_short_str_vals,"Unknown (%u)"));
 
     /*
      * octet 1
@@ -15007,7 +15008,7 @@ proto_register_gsm_a_rr(void)
         { &ei_gsm_a_rr_ie_underrun, { "gsm_a.rr.ie_underrun", PI_COMMENTS_GROUP, PI_NOTE, "IE under-runs stated length", EXPFILL }},
         { &ei_gsm_a_rr_data_not_dissected, { "gsm_a.rr.data_not_dissected", PI_UNDECODED, PI_WARN, "Not dissected yet", EXPFILL }},
         { &ei_gsm_a_rr_unknown_version, { "gsm_a.rr.unknown_version", PI_PROTOCOL, PI_WARN, "Unknown version", EXPFILL }},
-        { &ei_gsm_a_rr_extraneous_data, { "gsm_a.rr.extraneous_data", PI_PROTOCOL, PI_NOTE, "Extraneous Data, dissector bug or later version spec(report to wireshark.org)", EXPFILL }},
+        { &ei_gsm_a_rr_extraneous_data, { "gsm_a.rr.extraneous_data", PI_PROTOCOL, PI_NOTE, "Extraneous Data, dissector bug or later version spec (report to wireshark.org)", EXPFILL }},
         { &ei_gsm_a_rr_missing_mandatory_element, { "gsm_a.rr.missing_mandatory_element", PI_PROTOCOL, PI_ERROR, "Missing Mandatory element, rest of dissection is suspect", EXPFILL }},
     };
 

@@ -22,6 +22,20 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#if !GLIB_CHECK_VERSION(2, 60, 0)
+
+#define g_queue_clear_full queue_clear_full
+static inline void
+queue_clear_full (GQueue * queue, GDestroyNotify free_func)
+{
+  gpointer data;
+
+  while ((data = g_queue_pop_head (queue)) != NULL)
+    free_func (data);
+}
+
+#endif
+
 #if !GLIB_CHECK_VERSION(2, 61, 2)
 
 typedef volatile gint   gatomicrefcount;
@@ -84,6 +98,69 @@ g_array_binary_search (GArray        *array,
 }
 #endif
 
+#if !GLIB_CHECK_VERSION(2, 64, 0)
+typedef struct _GRealPtrArray  GRealPtrArray;
+
+struct _GRealPtrArray
+{
+  gpointer       *pdata;
+  guint           len;
+  guint           alloc;
+  gatomicrefcount ref_count;
+  guint8          null_terminated : 1; /* always either 0 or 1, so it can be added to array lengths */
+  GDestroyNotify  element_free_func;
+};
+
+static inline gpointer
+g_array_steal (GArray *array,
+               gsize *len)
+{
+  GRealArray *rarray;
+  gpointer segment;
+
+  g_return_val_if_fail (array != NULL, NULL);
+
+  rarray = (GRealArray *) array;
+  segment = (gpointer) rarray->data;
+
+  if (len != NULL)
+    *len = rarray->len;
+
+  rarray->data  = NULL;
+  rarray->len   = 0;
+  rarray->alloc = 0;
+  return segment;
+}
+
+static inline gpointer *
+g_ptr_array_steal (GPtrArray *array,
+                   gsize *len)
+{
+  GRealPtrArray *rarray;
+  gpointer *segment;
+
+  g_return_val_if_fail (array != NULL, NULL);
+
+  rarray = (GRealPtrArray *) array;
+  segment = (gpointer *) rarray->pdata;
+
+  if (len != NULL)
+    *len = rarray->len;
+
+  rarray->pdata = NULL;
+  rarray->len   = 0;
+  rarray->alloc = 0;
+  return segment;
+}
+
+static inline guint8 *
+g_byte_array_steal (GByteArray *array,
+                    gsize *len)
+{
+  return (guint8 *) g_array_steal ((GArray *) array, len);
+}
+#endif
+
 #if !GLIB_CHECK_VERSION(2, 68, 0)
 static inline void *
 g_memdup2(const void *mem, size_t byte_size)
@@ -99,6 +176,12 @@ g_memdup2(const void *mem, size_t byte_size)
 
   return new_mem;
 }
+#endif
+
+#if !GLIB_CHECK_VERSION(2, 74, 0)
+#ifndef G_REGEX_DEFAULT
+#define G_REGEX_DEFAULT ((GRegexCompileFlags)0)
+#endif
 #endif
 
 #ifdef __cplusplus

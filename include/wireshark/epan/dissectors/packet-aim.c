@@ -685,10 +685,11 @@ aim_init_family(int proto, int ett, uint16_t family, const aim_subtype *subtypes
 static int
 dissect_aim_ssi_result(tvbuff_t *tvb, packet_info *pinfo, proto_tree *aim_tree)
 {
-	col_add_str(pinfo->cinfo, COL_INFO,
-	    val_to_str(tvb_get_ntohs(tvb, 0), aim_ssi_result_codes, "Unknown SSI result code 0x%02x"));
+	uint32_t code;
+	proto_tree_add_item_ret_uint(aim_tree, hf_aim_ssi_result_code, tvb, 0, 2, ENC_BIG_ENDIAN, &code);
 
-	proto_tree_add_item (aim_tree, hf_aim_ssi_result_code, tvb, 0, 2, ENC_BIG_ENDIAN);
+	col_add_str(pinfo->cinfo, COL_INFO,
+		val_to_str(pinfo->pool, code, aim_ssi_result_codes, "Unknown SSI result code 0x%02x"));
 
 	return 2;
 }
@@ -1542,10 +1543,11 @@ dissect_aim_newconn(tvbuff_t *tvb, packet_info *pinfo, int offset,
 static int
 dissect_aim_snac_error(tvbuff_t *tvb, packet_info *pinfo, proto_tree *aim_tree)
 {
-	col_add_str(pinfo->cinfo, COL_INFO,
-	    val_to_str(tvb_get_ntohs(tvb, 0), aim_snac_errors, "Unknown SNAC error 0x%02x"));
+	uint32_t error;
+	proto_tree_add_item_ret_uint(aim_tree, hf_aim_snac_error, tvb, 0, 2, ENC_BIG_ENDIAN, &error);
 
-	proto_tree_add_item (aim_tree, hf_aim_snac_error, tvb, 0, 2, ENC_BIG_ENDIAN);
+	col_add_str(pinfo->cinfo, COL_INFO,
+		val_to_str(pinfo->pool, error, aim_snac_errors, "Unknown SNAC error 0x%02x"));
 
 	return dissect_aim_tlv_sequence(tvb, pinfo, 2, aim_tree, aim_client_tlvs);
 }
@@ -2971,9 +2973,9 @@ static const value_string extended_data_message_types[] = {
 	{ 0, NULL },
 };
 
-#define EXTENDED_DATA_MFLAG_NORMAL 0x01
-#define EXTENDED_DATA_MFLAG_AUTO   0x02
-#define EXTENDED_DATA_MFLAG_MULTI  0x80
+#define EXTENDED_DATA_MFLAG_NORMAL 0x0001
+#define EXTENDED_DATA_MFLAG_AUTO   0x0002
+#define EXTENDED_DATA_MFLAG_MULTI  0x0080
 
 #define EVIL_ORIGIN_ANONYMOUS		1
 #define EVIL_ORIGIN_NONANONYMOUS 	2
@@ -3159,7 +3161,7 @@ dissect_aim_plugin(proto_tree *entry, tvbuff_t *tvb, int offset, e_guid_t* out_p
 
 	plugin = aim_find_plugin(uuid);
 
-	ti = proto_tree_add_item(entry, hf_aim_messaging_plugin, tvb, offset, 16, ENC_NA);
+	ti = proto_tree_add_item(entry, hf_aim_messaging_plugin, tvb, offset, 16, ENC_BIG_ENDIAN);
 	proto_item_append_text(ti, " (%s)", plugin ? plugin->name:"Unknown");
 
 	return offset+16;

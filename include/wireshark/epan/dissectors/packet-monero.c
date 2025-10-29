@@ -11,7 +11,8 @@
 #include "config.h"
 
 #include <epan/packet.h>
-#include <epan/exceptions.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
 
@@ -156,11 +157,11 @@ static unsigned
 get_monero_pdu_length(packet_info *pinfo _U_, tvbuff_t *tvb,
                        int offset, void *data _U_)
 {
-  uint32_t length;
+  unsigned length;
   length = MONERO_HEADER_LENGTH;
 
   /* add payload length */
-  length += tvb_get_letoh64(tvb, offset+8);
+  length += (unsigned)tvb_get_letoh64(tvb, offset+8);
 
   return length;
 }
@@ -330,7 +331,7 @@ static int dissect_encoded_value(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
       offset += length;
 
       proto_tree_add_item(tree, hf_monero_payload_item_value_string, tvb, offset, (int) string_length, ENC_NA);
-      offset += string_length;
+      offset += (int)string_length;
       break;
 
     case MONERO_PAYLOAD_TYPE_BOOLEAN:
@@ -385,7 +386,7 @@ static int dissect_monero_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree 
   proto_tree_add_item(tree,             hf_monero_protocol,     tvb,  29,  4, ENC_LITTLE_ENDIAN);
   offset += MONERO_HEADER_LENGTH;
 
-  command_label = val_to_str(command, monero_commands, "[Unknown command %d]");
+  command_label = val_to_str(pinfo->pool, command, monero_commands, "[Unknown command %d]");
   col_add_str(pinfo->cinfo, COL_INFO, command_label);
 
   /* data payload */

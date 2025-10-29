@@ -60,6 +60,16 @@ static int hf_edonkey_string_length;
 static int hf_edonkey_fileinfo;
 static int hf_edonkey_clientinfo;
 static int hf_edonkey_serverinfo;
+static int hf_edonkey_tcp_flags;
+static int hf_edonkey_aux_port;
+static int hf_edonkey_server_reported_ip;
+static int hf_edonkey_soft_limit_files;
+static int hf_edonkey_hard_limit_files;
+static int hf_edonkey_number_of_lowid_users;
+static int hf_edonkey_udp_flags;
+static int hf_edonkey_udp_obfuscation_port;
+static int hf_edonkey_tcp_obfuscation_port;
+static int hf_edonkey_server_udp_key;
 static int hf_emule_aich_partnum;
 static int hf_emule_aich_root_hash;
 static int hf_emule_aich_hash_entry;
@@ -654,13 +664,13 @@ static int lookup_str_index(char* str, int length, const value_string *vs)
     return -1;
 }
 
-static uint8_t edonkey_metatag_name_get_type(tvbuff_t *tvb, int start, int length, uint8_t special_tagtype)
+static uint8_t edonkey_metatag_name_get_type(tvbuff_t *tvb, packet_info* pinfo, int start, int length, uint8_t special_tagtype)
 {
     uint8_t *tag_name;
 
     if (try_val_to_str(special_tagtype, edonkey_special_tags) == NULL) {
         int idx;
-        tag_name = tvb_get_string_enc(wmem_packet_scope(), tvb, start, length, ENC_ASCII|ENC_NA);
+        tag_name = tvb_get_string_enc(pinfo->pool, tvb, start, length, ENC_ASCII|ENC_NA);
         idx = lookup_str_index(tag_name, length, edonkey_special_tags);
         if (idx < 0)
             return EDONKEY_STAG_UNKNOWN;
@@ -716,7 +726,7 @@ static int dissect_kademlia_search_condition(tvbuff_t *tvb, packet_info *pinfo _
 }
 
 /* Dissects the eDonkey meta tag */
-static int dissect_edonkey_metatag(tvbuff_t *tvb, packet_info *pinfo _U_,
+static int dissect_edonkey_metatag(tvbuff_t *tvb, packet_info *pinfo,
                                    int offset, proto_tree *tree)
 {
     /* <Meta Tag> ::= <Tag Type (uint8_t)> <Tag Name> <Tag> */
@@ -780,7 +790,7 @@ static int dissect_edonkey_metatag(tvbuff_t *tvb, packet_info *pinfo _U_,
             if (tag_type==real_tag_type)
                 proto_tree_add_uint(metatag_tree, hf_edonkey_metatag_namesize, tvb, offset+1, 2, tag_name_size);
             edonkey_tree_add_metatag_name(metatag_tree, tvb, tag_offset-tag_name_size, tag_name_size, special_tagtype);
-            trans_tagtype = edonkey_metatag_name_get_type(tvb, offset+3, tag_name_size, special_tagtype);
+            trans_tagtype = edonkey_metatag_name_get_type(tvb, pinfo, offset+3, tag_name_size, special_tagtype);
             if (trans_tagtype == EDONKEY_STAG_IP) {
                 proto_tree_add_item(metatag_tree, hf_edonkey_ip, tvb, tag_offset, 4, ENC_BIG_ENDIAN);
             }
@@ -825,7 +835,7 @@ static int dissect_edonkey_metatag(tvbuff_t *tvb, packet_info *pinfo _U_,
             if (tag_type==real_tag_type)
                 proto_tree_add_uint(metatag_tree, hf_edonkey_metatag_namesize, tvb, offset+1, 2, tag_name_size);
             edonkey_tree_add_metatag_name(metatag_tree, tvb, tag_offset-tag_name_size, tag_name_size, special_tagtype);
-            proto_tree_add_item(metatag_tree, hf_edonkey_meta_tag_value_uint, tvb, tag_offset, 1, ENC_NA);
+            proto_tree_add_item(metatag_tree, hf_edonkey_meta_tag_value_uint, tvb, tag_offset, 1, ENC_LITTLE_ENDIAN);
             break;
 
         case EDONKEY_MTAG_BOOL:
@@ -837,7 +847,7 @@ static int dissect_edonkey_metatag(tvbuff_t *tvb, packet_info *pinfo _U_,
             if (tag_type==real_tag_type)
                 proto_tree_add_uint(metatag_tree, hf_edonkey_metatag_namesize, tvb, offset+1, 2, tag_name_size);
             edonkey_tree_add_metatag_name(metatag_tree, tvb, tag_offset-tag_name_size, tag_name_size, special_tagtype);
-            proto_tree_add_item(metatag_tree, hf_edonkey_meta_tag_value_uint, tvb, tag_offset, 1, ENC_NA);
+            proto_tree_add_item(metatag_tree, hf_edonkey_meta_tag_value_uint, tvb, tag_offset, 1, ENC_LITTLE_ENDIAN);
             break;
 
         case EDONKEY_MTAG_BOOL_ARRAY:
@@ -1861,8 +1871,25 @@ static void dissect_edonkey_tcp_message(uint8_t msg_type,
 
         case EDONKEY_MSG_CLIENT_CB_REQ:  /* Client Callback Request: <Client ID> */
         case EDONKEY_MSG_CALLBACK_FAIL:  /* Callback Fail:           <Client ID> */
-        case EDONKEY_MSG_ID_CHANGE:      /* ID Change:               <Client ID> */
             offset = dissect_edonkey_client_id(tvb, pinfo, offset, tree, false);
+            break;
+
+        case EDONKEY_MSG_ID_CHANGE:      /* ID Change: <Client ID> [<TCP Flags>] [<Aux Port>] [<Server IP> <Obfu Port>] */
+            offset = dissect_edonkey_client_id(tvb, pinfo, offset, tree, false);
+            if (length >= 8) {
+                proto_tree_add_item(tree, hf_edonkey_tcp_flags, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+                offset += 4;
+            }
+            if (length >= 12) {
+                proto_tree_add_item(tree, hf_edonkey_aux_port, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+                offset += 4;
+            }
+            if (length >= 20) {
+                proto_tree_add_item(tree, hf_edonkey_server_reported_ip, tvb, offset, 4, ENC_BIG_ENDIAN);
+                offset += 4;
+                proto_tree_add_item(tree, hf_edonkey_tcp_obfuscation_port, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+                offset += 4;
+            }
             break;
 
         case EDONKEY_MSG_NEW_CLIENT_ID:  /* New Client ID: <Client ID> <Client ID> */
@@ -2163,7 +2190,7 @@ static int dissect_edonkey_udp_message(uint8_t msg_type,
             offset += 4;
             break;
 
-        case EDONKEY_MSG_UDP_SERVER_STATUS:  /* Server Status: <uint32_t> <Nusers> <Nfiles> <Nusersmax> */
+        case EDONKEY_MSG_UDP_SERVER_STATUS:  /* Server Status: <uint32_t> <Nusers> <Nfiles> [<Nusersmax>] [<NsoftFiles> <NhardFiles>] [<UDPFlags>] [<NlowIdUsers>] [<UDPObfuscationPort> <TCPObfuscationPort> <ServerUDPKey>] */
             proto_tree_add_item(tree, hf_edonkey_challenge, tvb, offset, 4, ENC_LITTLE_ENDIAN);
             offset += 4;
             proto_tree_add_item(tree, hf_edonkey_number_of_users, tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -2171,6 +2198,28 @@ static int dissect_edonkey_udp_message(uint8_t msg_type,
             offset += 8;
             if (offset < msg_end) {
                 proto_tree_add_item(tree, hf_edonkey_max_number_of_users, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+                offset += 4;
+            }
+            if (offset + 8 <= msg_end) {
+                proto_tree_add_item(tree, hf_edonkey_soft_limit_files, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+                offset += 4;
+                proto_tree_add_item(tree, hf_edonkey_hard_limit_files, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+                offset += 4;
+            }
+            if (offset + 4 <= msg_end) {
+                proto_tree_add_item(tree, hf_edonkey_udp_flags, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+                offset += 4;
+            }
+            if (offset + 4 <= msg_end) {
+                proto_tree_add_item(tree, hf_edonkey_number_of_lowid_users, tvb, offset, 4, ENC_LITTLE_ENDIAN);
+                offset += 4;
+            }
+            if (offset + 8 <= msg_end) {
+                proto_tree_add_item(tree, hf_edonkey_udp_obfuscation_port, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+                offset += 2;
+                proto_tree_add_item(tree, hf_edonkey_tcp_obfuscation_port, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+                offset += 2;
+                proto_tree_add_item(tree, hf_edonkey_server_udp_key, tvb, offset, 4, ENC_LITTLE_ENDIAN);
                 offset += 4;
             }
             break;
@@ -3273,13 +3322,22 @@ void proto_register_edonkey(void) {
                 FT_BYTES, BASE_NONE, NULL, 0, "BSOB Tag Value", HFILL } },
         { &hf_kademlia_udp_port,
             { "UDP Port", "edonkey.kademlia.udp_port",
-                FT_UINT16, BASE_DEC, NULL, 0, "Kademlia UDP Port", HFILL } },
+                FT_UINT16, BASE_PT_UDP, NULL, 0, "Kademlia UDP Port", HFILL } },
         { &hf_kademlia_ip,
             { "IP", "edonkey.kademlia.ip",
                 FT_IPv4, BASE_NONE, NULL, 0, "eDonkey IP", HFILL } },
         { &hf_kademlia_tcp_port,
             { "TCP Port", "edonkey.kademlia.tcp_port",
-                FT_UINT16, BASE_DEC, NULL, 0, "Kademlia TCP Port", HFILL } },
+                FT_UINT16, BASE_PT_TCP, NULL, 0, "Kademlia TCP Port", HFILL } },
+        { &hf_edonkey_tcp_flags,
+            { "TCP Flags", "edonkey.tcp_flags",
+                FT_UINT32, BASE_HEX, NULL, 0, "eDonkey TCP Flags (ID Change)", HFILL } },
+        { &hf_edonkey_aux_port,
+            { "Auxiliary Port", "edonkey.aux_port",
+                FT_UINT32, BASE_DEC, NULL, 0, "eDonkey Auxiliary Port (Value) (ID Change)", HFILL } },
+        { &hf_edonkey_server_reported_ip,
+            { "Server Reported IP", "edonkey.server_reported_ip",
+                FT_IPv4, BASE_NONE, NULL, 0, "eDonkey Server Reported IP (ID Change)", HFILL } },
 #if 0
         { &hf_kademlia_unparsed_data_length,
             { "Kademlia unparsed data length", "edonkey.kademlia.unparsed",
@@ -3315,7 +3373,28 @@ void proto_register_edonkey(void) {
         { &hf_edonkey_unparsed_data_length,
             { "eDonkey unparsed data length", "edonkey.unparsed",
                 FT_UINT32, BASE_DEC_HEX, NULL, 0, "eDonkey trailing or unparsed data length", HFILL } },
-
+        { &hf_edonkey_hard_limit_files, 
+            { "Hard limit on number of files", "edonkey.hard_limit_files", 
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_edonkey_soft_limit_files, 
+            { "Soft limit on number of files", "edonkey.soft_limit_files", 
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_edonkey_number_of_lowid_users, 
+            { "Number of LowID Users", "edonkey.number_of_lowid_users", 
+                FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
+        { &hf_edonkey_udp_flags, 
+            { "Server UDP Support Flags", "edonkey.udp_flags", 
+                FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+        { &hf_edonkey_tcp_obfuscation_port, 
+            { "TCP Obfuscation Port", "edonkey.tcp_obfuscation_port", 
+                FT_UINT16, BASE_PT_TCP, NULL, 0x0, NULL, HFILL }},
+        { &hf_edonkey_udp_obfuscation_port, 
+            { "UDP Obfuscation Port", "edonkey.udp_obfuscation_port", 
+                FT_UINT16, BASE_PT_UDP, NULL, 0x0, NULL, HFILL }},
+        { &hf_edonkey_server_udp_key, 
+            { "Server UDP Key", "edonkey.server_udp_key", 
+                FT_UINT32, BASE_HEX, NULL, 0x0, NULL, HFILL }},
+      
       /* Generated from convert_proto_tree_add_text.pl */
       { &hf_edonkey_list_size, { "List Size", "edonkey.list_size", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_edonkey_meta_tag_value_revision, { "Meta Tag Value", "edonkey.meta_tag_value.revision", FT_UINT32, BASE_CUSTOM, CF_FUNC(edonkey_fmt_revision), 0x0, NULL, HFILL }},

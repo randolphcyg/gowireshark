@@ -1,7 +1,7 @@
 /* packet-ngap.c
  * Routines for NG-RAN NG Application Protocol (NGAP) packet dissection
  * Copyright 2018, Anders Broman <anders.broman@ericsson.com>
- * Copyright 2018-2024, Pascal Quantin <pascal@wireshark.org>
+ * Copyright 2018-2025, Pascal Quantin <pascal@wireshark.org>
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
- * References: 3GPP TS 38.413 v18.2.0 (2024-06)
+ * References: 3GPP TS 38.413 v18.6.0 (2025-06)
  */
 
 #include "config.h"
@@ -45,12 +45,14 @@
 #include "packet-ntp.h"
 #include "packet-gsm_a_common.h"
 #include "packet-media-type.h"
+#include "packet-http2.h"
+#include "packet-gtp.h"
 
 #define PNAME  "NG Application Protocol"
 #define PSNAME "NGAP"
 #define PFNAME "ngap"
 
-/* Dissector will use SCTP PPID 18 or SCTP port. IANA assigned port = 36412 */
+/* Dissector will use SCTP PPID 60 or SCTP port. IANA assigned port = 38412 */
 #define SCTP_PORT_NGAP 38412
 
 void proto_register_ngap(void);
@@ -143,6 +145,7 @@ static int hf_ngap_GlobalCable_ID_str;
 static int hf_ngap_UpdateFeedback_CN_PDB_DL;
 static int hf_ngap_UpdateFeedback_CN_PDB_UL;
 static int hf_ngap_UpdateFeedback_reserved;
+static int hf_ngap_extensionValue_data;
 #include "packet-ngap-hf.c"
 
 /* Initialize the subtree pointers */
@@ -193,6 +196,7 @@ static int ett_ngap_successfulPSCellChangeReportContainer;
 #include "packet-ngap-ett.c"
 
 static expert_field ei_ngap_number_pages_le15;
+static expert_field ei_ngap_disable_nrppa_encapsulation;
 
 enum{
   INITIATING_MESSAGE,
@@ -565,6 +569,7 @@ static const enum_val_t ngap_lte_container_vals[] = {
 /* Global variables */
 static range_t *gbl_ngapSctpRange;
 static bool ngap_dissect_container = true;
+static bool ngap_disable_nrppa_encapsulation = false;
 static int ngap_dissect_target_ng_ran_container_as = NGAP_NG_RAN_CONTAINER_AUTOMATIC;
 static int ngap_dissect_lte_container_as = NGAP_LTE_CONTAINER_AUTOMATIC;
 
@@ -632,6 +637,12 @@ static int dissect_MBSSessionSetupOrModRequestTransfer_PDU(tvbuff_t *tvb _U_, pa
 static int dissect_MBSSessionSetupOrModResponseTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
 static int dissect_MBSSessionSetupOrModFailureTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
 static int dissect_MBSSessionReleaseResponseTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_BroadcastTransportRequestTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_BroadcastTransportResponseTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_BroadcastTransportFailureTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_MulticastSessionActivationRequestTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_MulticastSessionDeactivationRequestTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
+static int dissect_MulticastSessionUpdateRequestTransfer_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_);
 
 static const value_string ngap_serialNumber_gs_vals[] = {
   { 0, "Display mode immediate, cell wide"},
@@ -827,7 +838,7 @@ static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto
   ngap_ctx.ProtocolIE_ID       = ngap_data->protocol_ie_id;
   ngap_ctx.ProtocolExtensionID = ngap_data->protocol_extension_id;
 
-  return (dissector_try_uint_new(ngap_ies_dissector_table, ngap_data->protocol_ie_id, tvb, pinfo, tree, false, &ngap_ctx)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(ngap_ies_dissector_table, ngap_data->protocol_ie_id, tvb, pinfo, tree, false, &ngap_ctx)) ? tvb_captured_length(tvb) : 0;
 }
 /* Currently not used
 static int dissect_ProtocolIEFieldPairFirstValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree)
@@ -855,28 +866,30 @@ static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_in
   ngap_ctx.ProtocolIE_ID       = ngap_data->protocol_ie_id;
   ngap_ctx.ProtocolExtensionID = ngap_data->protocol_extension_id;
 
-  return (dissector_try_uint_new(ngap_extension_dissector_table, ngap_data->protocol_extension_id, tvb, pinfo, tree, true, &ngap_ctx)) ? tvb_captured_length(tvb) : 0;
+  if (!dissector_try_uint_with_data(ngap_extension_dissector_table, ngap_data->protocol_extension_id, tvb, pinfo, tree, true, &ngap_ctx))
+    proto_tree_add_item(tree, hf_ngap_extensionValue_data, tvb, 0, -1, ENC_NA);
+  return tvb_captured_length(tvb);
 }
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct ngap_private_data *ngap_data = ngap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(ngap_proc_imsg_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(ngap_proc_imsg_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct ngap_private_data *ngap_data = ngap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(ngap_proc_sout_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(ngap_proc_sout_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
   struct ngap_private_data *ngap_data = ngap_get_private_data(pinfo);
 
-  return (dissector_try_uint_new(ngap_proc_uout_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(ngap_proc_uout_dissector_table, ngap_data->procedure_code, tvb, pinfo, tree, true, data)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_QosFlowAdditionalInfoListRel_PDU(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
@@ -902,7 +915,7 @@ ngap_stats_tree_packet(stats_tree* st, packet_info* pinfo _U_,
 
     tick_stat_node(st, st_str_packets, 0, false);
     stats_tree_tick_pivot(st, st_node_packet_types,
-                          val_to_str(pi->ngap_mtype, mtype_names,
+                          val_to_str(pinfo->pool, pi->ngap_mtype, mtype_names,
                                      "Unknown packet type (%d)"));
     return TAP_PACKET_REDRAW;
 }
@@ -981,12 +994,18 @@ find_n2_info_content(char *json_data, jsmntok_t *token, const char *n2_info_cont
   if (!str || strcmp(str, content_id))
     return false;
   str = json_get_string(json_data, n2_info_content_token, "ngapIeType");
-  if (str)
-    *subdissector = dissector_get_string_handle(ngap_n2_ie_type_dissector_table, str);
-  else if (json_get_double(json_data, n2_info_content_token, "ngapMessageType", &ngap_msg_type))
+  if (str) {
+    if (!strcmp(str, "NRPPA_PDU") && ngap_disable_nrppa_encapsulation) {
+      *subdissector = nrppa_handle;
+    } else {
+      *subdissector = dissector_get_string_handle(ngap_n2_ie_type_dissector_table, str);
+    }
+  } else if (json_get_double(json_data, n2_info_content_token,
+                             "ngapMessageType", &ngap_msg_type)) {
     *subdissector = ngap_handle;
-  else
+  } else {
     *subdissector = NULL;
+  }
   return true;
 }
 
@@ -1065,10 +1084,10 @@ dissect_ngap_media_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
     goto found;
   cur_tok = json_get_array(json_data, tokens, "pduSessionList");
   if (cur_tok) {
-    int i, count;
-    count = json_get_array_len(cur_tok);
-    for (i = 0; i < count; i++) {
-      jsmntok_t *array_tok = json_get_array_index(cur_tok, i);
+    const int count = json_get_array_len(cur_tok);
+    jsmntok_t* array_tok = json_get_array_index(cur_tok, 0);
+    for (int i = 0; i < count; i++, array_tok = json_get_next_object(array_tok)) {
+
       if (find_n2_info_content(json_data, array_tok, "n2InfoContent",
                                content_info->content_id, &subdissector))
         goto found;
@@ -1086,6 +1105,12 @@ dissect_ngap_media_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
   if (find_n2_info_content(json_data, tokens, "ueRadioCapability",
                            content_info->content_id, &subdissector))
     goto found;
+  if (find_n2_info_content(json_data, tokens, "ueNbiotRadioCapability",
+                           content_info->content_id, &subdissector))
+    goto found;
+  if (find_n2_info_content(json_data, tokens, "ueRadioCapabilityForPaging",
+                           content_info->content_id, &subdissector))
+    goto found;
 
 found:
   if (subdissector) {
@@ -1097,6 +1122,11 @@ found:
     if (subdissector != ngap_handle) {
         ngap_item = proto_tree_add_item(tree, proto_ngap, tvb, 0, -1, ENC_NA);
         ngap_tree = proto_item_add_subtree(ngap_item, ett_ngap);
+        if (ngap_disable_nrppa_encapsulation && subdissector == nrppa_handle) {
+          expert_add_info_format(pinfo, ngap_item,
+                                 &ei_ngap_disable_nrppa_encapsulation,
+                                 "Encapsulation of NRPPa in NGAP is disabled");
+        }
     } else {
         ngap_tree = tree;
     }
@@ -1429,6 +1459,10 @@ void proto_register_ngap(void) {
       { "Reserved", "ngap.UpdateFeedback.reserved",
         FT_UINT8, BASE_HEX, NULL, 0x3f,
         NULL, HFILL }},
+    { &hf_ngap_extensionValue_data,
+      { "Data", "ngap.extensionValue.data",
+        FT_BYTES, BASE_NONE|BASE_ALLOW_ZERO, NULL, 0,
+        NULL, HFILL }},
 #include "packet-ngap-hfarr.c"
   };
 
@@ -1482,7 +1516,10 @@ void proto_register_ngap(void) {
   };
 
   static ei_register_info ei[] = {
-    { &ei_ngap_number_pages_le15, { "ngap.number_pages_le15", PI_MALFORMED, PI_ERROR, "Number of pages should be <=15", EXPFILL }}
+    { &ei_ngap_number_pages_le15, { "ngap.number_pages_le15", PI_MALFORMED, PI_ERROR, "Number of pages should be <=15", EXPFILL }},
+    { &ei_ngap_disable_nrppa_encapsulation,
+      { "ngap.disable_nrppa_encapsulation", PI_PROTOCOL, PI_CHAT, "Encapsulation of NRPPa in NGAP is disabled", EXPFILL }
+    }
   };
 
   module_t *ngap_module;
@@ -1517,6 +1554,13 @@ void proto_register_ngap(void) {
                                  "Dissect TransparentContainer",
                                  "Dissect TransparentContainers that are opaque to NGAP",
                                  &ngap_dissect_container);
+  prefs_register_bool_preference(ngap_module, "disable_nrppa_encapsulation",
+                                 "Disable encapsulation of NRPPa in NGAP",
+                                 "The standard indicates that NRPPa PDU must "
+                                 "be encapsulated in ngap.NRPPa-PDU ASN1 type. "
+                                 "However, Huawei AMF use the NRPPa ASN1 type "
+                                 "directly.",
+                                 &ngap_disable_nrppa_encapsulation);
   prefs_register_enum_preference(ngap_module, "dissect_target_ng_ran_container_as",
                                  "Dissect target NG-RAN container as",
                                  "Select whether target NG-RAN container should be decoded automatically"

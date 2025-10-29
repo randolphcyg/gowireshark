@@ -1,7 +1,7 @@
 /* file-blf.c
  * BLF File Format.
- * By Dr. Lars Voelker <lars.voelker@technica-engineering.de>
- * Copyright 2020-2021 Dr. Lars Voelker
+ * By Dr. Lars Völker <lars.voelker@technica-engineering.de>
+ * Copyright 2020-2025 Dr. Lars Völker
   *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -24,6 +24,7 @@
 #include <epan/expert.h>
 
 #include <wiretap/blf.h>
+#include <wsutil/array.h>
 
 static int proto_blf;
 static int proto_blf_ethernetstatus_obj;
@@ -54,8 +55,19 @@ static int hf_blf_lobj_hdr_len;
 static int hf_blf_lobj_hdr_type;
 static int hf_blf_lobj_obj_len;
 static int hf_blf_lobj_obj_type;
+static int hf_blf_lobj_obj_flags;
+static int hf_blf_lobj_obj_flags_time_ten_ms;
+static int hf_blf_lobj_obj_flags_time_one_ns;
+static int hf_blf_lobj_client_index;
+static int hf_blf_lobj_time_stamp_status;
+static int hf_blf_lobj_reserved;
+static int hf_blf_lobj_obj_version;
+static int hf_blf_lobj_obj_timestamp;
+static int hf_blf_lobj_org_timestamp;
 static int hf_blf_lobj_hdr_remains;
 static int hf_blf_lobj_payload;
+static int hf_blf_lobj_payload_channel_8bit;
+static int hf_blf_lobj_payload_channel_16bit;
 
 static int hf_blf_cont_comp_method;
 static int hf_blf_cont_res1;
@@ -141,6 +153,8 @@ static int ett_blf;
 static int ett_blf_header;
 static int ett_blf_obj;
 static int ett_blf_obj_header;
+static int ett_blf_obj_header_flags;
+static int ett_blf_obj_payload;
 static int ett_blf_logcontainer_payload;
 static int ett_blf_app_text_payload;
 
@@ -269,9 +283,16 @@ static const value_string blf_object_names[] = {
     { BLF_OBJTYPE_ATTRIBUTE_EVENT,                  "Attribute Event" },
     { BLF_OBJTYPE_DISTRIBUTED_OBJECT_CHANGE,        "Distributed Object Change" },
     { BLF_OBJTYPE_ETHERNET_PHY_STATE,               "Ethernet PHY State" },
+    { BLF_OBJTYPE_MACSEC_STATUS,                    "MACsec Status" },
+    { BLF_OBJTYPE_10BASET1S_STATUS,                 "10BASE-T1S Status" },
+    { BLF_OBJTYPE_10BASET1S_STATISTIC,              "10BASE-T1S Statistic" },
+    { BLF_OBJTYPE_TUNNEL_PROTO_DECODER_EVENT,       "Tunnel Protocol Decoder Event" },
+    { BLF_OBJTYPE_CAN_XL_CHANNEL_FRAME,             "CAN XL Channel Frame" },
+    { BLF_OBJTYPE_CAN_XL_CHANNEL_ERRORFRAME,        "CAN XL Channel Error" },
     { 0, NULL }
 };
 
+/* blf.c has the same table! */
 static const value_string application_names[] = {
     { 0,    "Unknown" },
     { 1,    "Vector CANalyzer" },
@@ -432,15 +453,6 @@ static const value_string blf_eth_phystate_eventstate_vals[] = {
     { 0, NULL }
 };
 
-#define BLF_BUSTYPE_CAN 1
-#define BLF_BUSTYPE_LIN 5
-#define BLF_BUSTYPE_MOST 6
-#define BLF_BUSTYPE_FLEXRAY 7
-#define BLF_BUSTYPE_J1708 9
-#define BLF_BUSTYPE_ETHERNET 11
-#define BLF_BUSTYPE_WLAN 13
-#define BLF_BUSTYPE_AFDX 14
-
 void proto_register_file_blf(void);
 void proto_reg_handoff_file_blf(void);
 static int dissect_blf_next_object(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset);
@@ -451,7 +463,8 @@ static const uint8_t blf_lobj_magic[MAGIC_NUMBER_SIZE] = { 'L', 'O', 'B', 'J' };
 
 
 static proto_item *
-dissect_blf_header_date(proto_tree *tree, int hf, tvbuff_t *tvb, int offset, int length) {
+dissect_blf_header_date(proto_tree *tree, packet_info* pinfo, int hf, tvbuff_t *tvb, int offset, int length) {
+
     static const value_string weekday_names[] = {
     { 0,    "Sunday"},
     { 1,    "Monday"},
@@ -463,35 +476,46 @@ dissect_blf_header_date(proto_tree *tree, int hf, tvbuff_t *tvb, int offset, int
     { 0, NULL }
     };
 
-    uint16_t year        = tvb_get_uint16(tvb, offset +  0, ENC_LITTLE_ENDIAN);
-    uint16_t month       = tvb_get_uint16(tvb, offset +  2, ENC_LITTLE_ENDIAN);
-    uint16_t day_of_week = tvb_get_uint16(tvb, offset +  4, ENC_LITTLE_ENDIAN);
-    uint16_t day         = tvb_get_uint16(tvb, offset +  6, ENC_LITTLE_ENDIAN);
-    uint16_t hour        = tvb_get_uint16(tvb, offset +  8, ENC_LITTLE_ENDIAN);
-    uint16_t minute      = tvb_get_uint16(tvb, offset + 10, ENC_LITTLE_ENDIAN);
-    uint16_t sec         = tvb_get_uint16(tvb, offset + 12, ENC_LITTLE_ENDIAN);
-    uint16_t ms          = tvb_get_uint16(tvb, offset + 14, ENC_LITTLE_ENDIAN);
+    nstime_t ns_ts;
+    struct tm tm = { 0 };
 
-    header_field_info *hfinfo = proto_registrar_get_nth(hf);
+    uint16_t year        = tvb_get_letohs(tvb, offset +  0);
+    tm.tm_year = year;
+    if (tm.tm_year != 0)
+        tm.tm_year -= 1900;
+    tm.tm_mon            = tvb_get_letohs(tvb, offset +  2);
+    tm.tm_wday           = tvb_get_letohs(tvb, offset +  4);
+    tm.tm_mday           = tvb_get_letohs(tvb, offset +  6);
+    tm.tm_hour           = tvb_get_letohs(tvb, offset +  8);
+    tm.tm_min            = tvb_get_letohs(tvb, offset + 10);
+    tm.tm_sec            = tvb_get_letohs(tvb, offset + 12);
+    tm.tm_isdst          = -1; // Let mktime() determine if DST is in effect
+    uint16_t ms = tvb_get_letohs(tvb, offset + 14);
 
-    return proto_tree_add_bytes_format(tree, hf, tvb, offset, length, NULL,
-                                       "%s: %s %d-%02d-%02d %02d:%02d:%02d.%03d",
-                                       hfinfo->name,
-                                       val_to_str(day_of_week, weekday_names, "%d"),
-                                       year, month, day, hour, minute, sec, ms);
+    ns_ts.secs = mktime(&tm);
+    ns_ts.nsecs = ms * 1000000;
+
+    return proto_tree_add_time_format_value(tree, hf, tvb, offset, length, &ns_ts,
+                                            "%s %d-%02d-%02d %02d:%02d:%02d.%03d",
+                                            val_to_str(pinfo->pool, tm.tm_mday, weekday_names, "%d"),
+                                            year, tm.tm_mon, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, ms);
 }
 
-static proto_item *
-dissect_blf_api_version(proto_tree *tree, int hf, tvbuff_t *tvb, int offset, int length) {
-    uint8_t major = tvb_get_uint8(tvb, offset + 0);
-    uint8_t minor = tvb_get_uint8(tvb, offset + 1);
-    uint8_t build = tvb_get_uint8(tvb, offset + 2);
-    uint8_t patch = tvb_get_uint8(tvb, offset + 3);
+static void
+version_format(char* string, uint32_t value)
+{
+    uint8_t patch = value % 100;
+    value /= 100;
 
-    header_field_info *hfinfo = proto_registrar_get_nth(hf);
+    uint8_t build = value % 100;
+    value /= 100;
 
-    return proto_tree_add_bytes_format(tree, hf, tvb, offset, length, NULL, "%s: %d.%d.%d.%d",
-                                       hfinfo->name, major, minor, build, patch);
+    uint8_t minor = value % 100;
+    value /= 100;
+
+    uint8_t major = value % 100;
+
+    snprintf(string, ITEM_LABEL_LENGTH, "%d.%d.%d.%d", major, minor, build, patch);
 }
 
 static int
@@ -506,6 +530,7 @@ dissect_blf_lobj(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int of
     tvbuff_t      *sub_tvb;
 
     uint32_t       hdr_length;
+    uint32_t       hdr_type;
     uint32_t       obj_length;
     unsigned       obj_type;
     uint32_t       comp_method;
@@ -519,24 +544,63 @@ dissect_blf_lobj(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int of
     objtree = proto_item_add_subtree(ti_root, ett_blf_obj);
 
     ti_lobj_hdr = proto_tree_add_item(objtree, hf_blf_lobj_hdr, tvb, offset, -1, ENC_NA);
-    subtree = proto_item_add_subtree(ti_lobj_hdr, ett_blf_obj);
+    subtree = proto_item_add_subtree(ti_lobj_hdr, ett_blf_obj_header);
 
     proto_tree_add_item(subtree, hf_blf_lobj_magic, tvb, offset, 4, ENC_NA);
     offset += 4;
+
     ti = proto_tree_add_item_ret_uint(subtree, hf_blf_lobj_hdr_len, tvb, offset, 2, ENC_LITTLE_ENDIAN, &hdr_length);
     if (hdr_length < sizeof (struct blf_blockheader)) {
         expert_add_info(pinfo, ti, &ei_blf_object_header_length_too_short);
     }
     offset += 2;
-    proto_tree_add_item(subtree, hf_blf_lobj_hdr_type, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+
+    proto_tree_add_item_ret_uint(subtree, hf_blf_lobj_hdr_type, tvb, offset, 2, ENC_LITTLE_ENDIAN, &hdr_type);
     offset += 2;
+
     ti = proto_tree_add_item_ret_uint(subtree, hf_blf_lobj_obj_len, tvb, offset, 4, ENC_LITTLE_ENDIAN, &obj_length);
     if (obj_length < hdr_length) {
         expert_add_info(pinfo, ti, &ei_blf_object_length_less_than_header_length);
     }
     offset += 4;
+
     proto_tree_add_item_ret_uint(subtree, hf_blf_lobj_obj_type, tvb, offset, 4, ENC_LITTLE_ENDIAN, &obj_type);
     offset += 4;
+
+    if ((int)hdr_length > 16 && (hdr_type == 1 || hdr_type == 2)) {
+        static int* const obj_header_flags[] = {
+            &hf_blf_lobj_obj_flags_time_ten_ms,
+            &hf_blf_lobj_obj_flags_time_one_ns,
+            NULL
+        };
+
+        proto_tree_add_bitmask(subtree, tvb, offset, hf_blf_lobj_obj_flags, ett_blf_obj_header_flags, obj_header_flags, ENC_LITTLE_ENDIAN);
+        offset += 4;
+
+        if (hdr_type == 1) {
+            proto_tree_add_item(subtree, hf_blf_lobj_client_index, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+        } else if (hdr_type == 2) {
+            proto_tree_add_item(subtree, hf_blf_lobj_time_stamp_status, tvb, offset, 1, ENC_NA);
+            proto_tree_add_item(subtree, hf_blf_lobj_reserved, tvb, offset + 1, 1, ENC_NA);
+        }
+        offset += 2;
+
+        proto_tree_add_item(subtree, hf_blf_lobj_obj_version, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+        offset += 2;
+
+        proto_tree_add_item(subtree, hf_blf_lobj_obj_timestamp, tvb, offset, 8, ENC_LITTLE_ENDIAN);
+        offset += 8;
+
+        if (hdr_type == 2) {
+            proto_tree_add_item(subtree, hf_blf_lobj_org_timestamp, tvb, offset, 8, ENC_LITTLE_ENDIAN);
+            offset += 8;
+        }
+    }
+
+    if ((offset - offset_orig) - hdr_length > 0) {
+        proto_tree_add_item(subtree, hf_blf_lobj_hdr_remains, tvb, offset, hdr_length - (offset - offset_orig), ENC_NA);
+        offset = offset_orig + hdr_length;
+    }
     proto_item_set_end(ti_lobj_hdr, tvb, offset);
 
     /* check if the whole object is present or if it was truncated */
@@ -547,7 +611,7 @@ dissect_blf_lobj(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int of
     }
 
     proto_item_set_end(ti_root, tvb, offset_orig + obj_length);
-    proto_item_append_text(ti_root, " (%s)", val_to_str(obj_type, blf_object_names, "%d"));
+    proto_item_append_text(ti_root, " (%s)", val_to_str(pinfo->pool, obj_type, blf_object_names, "%d"));
 
     switch (obj_type) {
         case BLF_OBJTYPE_LOG_CONTAINER:
@@ -587,10 +651,6 @@ dissect_blf_lobj(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int of
         {
             unsigned source;
             unsigned textlength;
-            if (offset - offset_orig < (int)hdr_length) {
-                proto_tree_add_item(subtree, hf_blf_lobj_hdr_remains, tvb, offset, hdr_length - (offset - offset_orig), ENC_NA);
-                offset = offset_orig + hdr_length;
-            }
 
             ti = proto_tree_add_item(objtree, hf_blf_lobj_payload, tvb, offset, obj_length - hdr_length, ENC_NA);
             subtree = proto_item_add_subtree(ti, ett_blf_app_text_payload);
@@ -668,13 +728,8 @@ dissect_blf_lobj(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int of
             uint32_t namelength;
             uint32_t datalength;
 
-            if (offset - offset_orig < (int)hdr_length) {
-                proto_tree_add_item(subtree, hf_blf_lobj_hdr_remains, tvb, offset, hdr_length - (offset - offset_orig), ENC_NA);
-                offset = offset_orig + hdr_length;
-            }
-
             ti = proto_tree_add_item(objtree, hf_blf_lobj_payload, tvb, offset, obj_length - hdr_length, ENC_NA);
-            subtree = proto_item_add_subtree(ti, ett_blf_app_text_payload);
+            subtree = proto_item_add_subtree(ti, ett_blf_obj_payload);
 
             /* uint32_t type {}; */
             proto_tree_add_item(subtree, hf_blf_sys_var_type, tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -694,7 +749,7 @@ dissect_blf_lobj(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int of
             /* uint64_t reservedSystemVariable2 {}; */
             proto_tree_add_item(subtree, hf_blf_sys_var_reservedsystemvariable2, tvb, offset, 8, ENC_LITTLE_ENDIAN);
             offset += 8;
-            proto_tree_add_item(subtree, hf_blf_sys_var_name, tvb, offset, namelength, ENC_UTF_8 | ENC_NA);
+            proto_tree_add_item(subtree, hf_blf_sys_var_name, tvb, offset, namelength, ENC_UTF_8);
             offset += namelength;
             proto_tree_add_item(subtree, hf_blf_sys_var_data, tvb, offset, datalength, ENC_NA);
             offset += datalength;
@@ -715,13 +770,9 @@ dissect_blf_lobj(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int of
                 &hf_blf_eth_status_flags1_b0,
                 NULL
             };
-            if (offset - offset_orig < (int)hdr_length) {
-                proto_tree_add_item(subtree, hf_blf_lobj_hdr_remains, tvb, offset, hdr_length - (offset - offset_orig), ENC_NA);
-                offset = offset_orig + hdr_length;
-            }
 
             ti = proto_tree_add_item(objtree, hf_blf_lobj_payload, tvb, offset, obj_length - hdr_length, ENC_NA);
-            subtree = proto_item_add_subtree(ti, ett_blf_app_text_payload);
+            subtree = proto_item_add_subtree(ti, ett_blf_obj_payload);
 
             /* uint16_t channel {}; */
             proto_tree_add_item(subtree, hf_blf_eth_status_channel, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -763,13 +814,8 @@ dissect_blf_lobj(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int of
             break;
         case BLF_OBJTYPE_ETHERNET_FRAME_EX:
         {
-            if (offset - offset_orig < (int)hdr_length) {
-                proto_tree_add_item(subtree, hf_blf_lobj_hdr_remains, tvb, offset, hdr_length - (offset - offset_orig), ENC_NA);
-                offset = offset_orig + hdr_length;
-            }
-
             ti = proto_tree_add_item(objtree, hf_blf_lobj_payload, tvb, offset, obj_length - hdr_length, ENC_NA);
-            subtree = proto_item_add_subtree(ti, ett_blf_app_text_payload);
+            subtree = proto_item_add_subtree(ti, ett_blf_obj_payload);
 
             /* uint16_t structLength {}; */
             proto_tree_add_item(subtree, hf_blf_eth_frame_ext_structlength, tvb, offset, 2, ENC_LITTLE_ENDIAN);
@@ -808,13 +854,8 @@ dissect_blf_lobj(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int of
             uint32_t triggerblocknamelength;
             uint32_t triggerconditionlength;
 
-            if (offset - offset_orig < (int)hdr_length) {
-                proto_tree_add_item(subtree, hf_blf_lobj_hdr_remains, tvb, offset, hdr_length - (offset - offset_orig), ENC_NA);
-                offset = offset_orig + hdr_length;
-            }
-
             ti = proto_tree_add_item(objtree, hf_blf_lobj_payload, tvb, offset, obj_length - hdr_length, ENC_NA);
-            subtree = proto_item_add_subtree(ti, ett_blf_app_text_payload);
+            subtree = proto_item_add_subtree(ti, ett_blf_obj_payload);
 
             /* uint32_t state {}; */
             proto_tree_add_item(subtree, hf_blf_trigg_cond_state, tvb, offset, 4, ENC_LITTLE_ENDIAN);
@@ -841,41 +882,79 @@ dissect_blf_lobj(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, int of
                 &hf_blf_eth_phy_state_flags1_b0,
                 NULL
             };
-            if (offset - offset_orig < (int)hdr_length) {
-                proto_tree_add_item(subtree, hf_blf_lobj_hdr_remains, tvb, offset, hdr_length - (offset - offset_orig), ENC_NA);
-                offset = offset_orig + hdr_length;
-            }
 
             ti = proto_tree_add_item(objtree, hf_blf_lobj_payload, tvb, offset, obj_length - hdr_length, ENC_NA);
-            subtree = proto_item_add_subtree(ti, ett_blf_app_text_payload);
+            subtree = proto_item_add_subtree(ti, ett_blf_obj_payload);
 
             /* uint16_t channel {}; */
-            proto_tree_add_item(subtree, hf_blf_eth_phystate_channel, tvb, offset, 2, ENC_BIG_ENDIAN);
+            proto_tree_add_item(subtree, hf_blf_eth_phystate_channel, tvb, offset, 2, ENC_LITTLE_ENDIAN);
             offset += 2;
             /* uint16_t flags; */
-            proto_tree_add_bitmask_list(subtree, tvb, offset, 2, flags1, ENC_BIG_ENDIAN);
+            proto_tree_add_bitmask_list(subtree, tvb, offset, 2, flags1, ENC_LITTLE_ENDIAN);
             offset += 2;
             /* uint8_t phyState {}; */
-            proto_tree_add_item(subtree, hf_blf_eth_phy_state_phystate, tvb, offset, 1, ENC_BIG_ENDIAN);
+            proto_tree_add_item(subtree, hf_blf_eth_phy_state_phystate, tvb, offset, 1, ENC_NA);
             offset += 1;
             /* uint8_t eventState {}; */
-            proto_tree_add_item(subtree, hf_blf_eth_phy_state_eventstate, tvb, offset, 1, ENC_BIG_ENDIAN);
+            proto_tree_add_item(subtree, hf_blf_eth_phy_state_eventstate, tvb, offset, 1, ENC_NA);
             offset += 1;
             /* uint8_t hardwareChannel {}; */
-            proto_tree_add_item(subtree, hf_blf_eth_phy_state_hardwarechannel, tvb, offset, 1, ENC_BIG_ENDIAN);
+            proto_tree_add_item(subtree, hf_blf_eth_phy_state_hardwarechannel, tvb, offset, 1, ENC_NA);
             offset += 1;
             /* uint8_t res1 {}; */
-            proto_tree_add_item(subtree, hf_blf_eth_phy_state_res1, tvb, offset, 1, ENC_BIG_ENDIAN);
+            proto_tree_add_item(subtree, hf_blf_eth_phy_state_res1, tvb, offset, 1, ENC_NA);
             offset += 1;
         }
         break;
         default:
-            if (offset - offset_orig < (int)hdr_length) {
-                proto_tree_add_item(subtree, hf_blf_lobj_hdr_remains, tvb, offset, hdr_length - (offset - offset_orig), ENC_NA);
-                offset = offset_orig + hdr_length;
+            ti = proto_tree_add_item(objtree, hf_blf_lobj_payload, tvb, offset, obj_length - hdr_length, ENC_NA);
+            subtree = proto_item_add_subtree(ti, ett_blf_obj_payload);
+
+            /* lets add at least the channels for the formats not being parsed */
+            if ((BLF_OBJTYPE_CAN_MESSAGE <= obj_type && obj_type <= BLF_OBJTYPE_CAN_STATISTIC) ||
+                (BLF_OBJTYPE_LIN_MESSAGE <= obj_type && obj_type <= BLF_OBJTYPE_MOST_STATISTIC) ||
+                (BLF_OBJTYPE_FLEXRAY_DATA <= obj_type && obj_type <= BLF_OBJTYPE_FLEXRAY_STATUS) ||
+                (BLF_OBJTYPE_FLEXRAY_ERROR <= obj_type && obj_type <= BLF_OBJTYPE_FLEXRAY_RCVMESSAGE) ||
+                (BLF_OBJTYPE_LIN_STATISTIC <= obj_type && obj_type <= BLF_OBJTYPE_J1708_MESSAGE) ||
+                (BLF_OBJTYPE_FLEXRAY_RCVMESSAGE_EX <= obj_type && obj_type <= BLF_OBJTYPE_MOST_STRESS) ||
+                (BLF_OBJTYPE_CAN_ERROR_EXT <= obj_type && obj_type <= BLF_OBJTYPE_CAN_DRIVER_ERROR_EXT) ||
+                (BLF_OBJTYPE_MOST_150_MESSAGE <= obj_type && obj_type <= BLF_OBJTYPE_CAN_MESSAGE2) ||
+                (obj_type == BLF_OBJTYPE_LIN_DISTURBANCE_EVENT) ||
+                (BLF_OBJTYPE_WLAN_FRAME <= obj_type && obj_type <= BLF_OBJTYPE_MOST_ECL) ||
+                (obj_type == BLF_OBJTYPE_AFDX_STATISTIC) ||
+                (obj_type == BLF_OBJTYPE_CAN_FD_MESSAGE) ||
+                (obj_type == BLF_OBJTYPE_ETHERNET_STATUS) ||
+                (BLF_OBJTYPE_AFDX_STATUS <= obj_type && obj_type <= BLF_OBJTYPE_A429_BUS_STATISTIC) ||
+                (obj_type == BLF_OBJTYPE_ETHERNET_STATISTIC) ||
+                (BLF_OBJTYPE_ETHERNET_PHY_STATE <= obj_type && obj_type <= BLF_OBJTYPE_MACSEC_STATUS)) {
+                /* 16bit channel */
+                proto_tree_add_item(subtree, hf_blf_lobj_payload_channel_16bit, tvb, offset, 2, ENC_LITTLE_ENDIAN);
+            } else if ((obj_type == BLF_OBJTYPE_CAN_FD_MESSAGE_64) ||
+                       (obj_type == BLF_OBJTYPE_CAN_FD_ERROR_64) ||
+                       (obj_type == BLF_OBJTYPE_CAN_XL_CHANNEL_FRAME) ||
+                       (obj_type == BLF_OBJTYPE_CAN_XL_CHANNEL_ERRORFRAME)) {
+                /* 8 bit channel */
+                proto_tree_add_item(subtree, hf_blf_lobj_payload_channel_8bit, tvb, offset, 1, ENC_NA);
+            } else if (obj_type == BLF_OBJTYPE_ETHERNET_RX_ERROR) {
+                /* 16 bit channel after 2 byte offset */
+                proto_tree_add_item(subtree, hf_blf_lobj_payload_channel_16bit, tvb, offset + 2, 2, ENC_LITTLE_ENDIAN);
+            } else if ((obj_type == BLF_OBJTYPE_GPS_EVENT) ||
+                       (obj_type == BLF_OBJTYPE_A429_MESSAGE) ||
+                       (BLF_OBJTYPE_ETHERNET_FRAME_EX <= obj_type && obj_type <= BLF_OBJTYPE_ETHERNET_ERROR_FORWARDED)) {
+                /* 16 bit channel after 4 byte offset */
+                proto_tree_add_item(subtree, hf_blf_lobj_payload_channel_16bit, tvb, offset + 4, 2, ENC_LITTLE_ENDIAN);
+            } else if ((obj_type == BLF_OBJTYPE_ETHERNET_FRAME) ||
+                       (obj_type == BLF_OBJTYPE_AFDX_FRAME)) {
+                /* 16 bit channel after 6 byte offset */
+                proto_tree_add_item(subtree, hf_blf_lobj_payload_channel_16bit, tvb, offset + 6, 2, ENC_LITTLE_ENDIAN);
+            } else if ((BLF_OBJTYPE_LIN_MESSAGE2 <= obj_type && obj_type <= BLF_OBJTYPE_LIN_LONG_DOM_SIG) ||
+                       (obj_type == BLF_OBJTYPE_LIN_LONG_DOM_SIG) ||
+                       (obj_type == BLF_OBJTYPE_LIN_LONG_DOM_SIG2) ||
+                       (obj_type == BLF_OBJTYPE_LIN_UNEXPECTED_WAKEUP)) {
+                /* 16 bit channel after 12 byte offset */
+                proto_tree_add_item(subtree, hf_blf_lobj_payload_channel_16bit, tvb, offset + 12, 2, ENC_LITTLE_ENDIAN);
             }
 
-            proto_tree_add_item(objtree, hf_blf_lobj_payload, tvb, offset, obj_length - hdr_length, ENC_NA);
             offset = offset_orig + obj_length;
             break;
     }
@@ -923,7 +1002,7 @@ dissect_blf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 
     ti = proto_tree_add_item(tree, proto_blf, tvb, offset, -1, ENC_NA);
     blf_tree = proto_item_add_subtree(ti, ett_blf);
-    length = tvb_get_uint32(tvb, 4, ENC_LITTLE_ENDIAN);
+    length = tvb_get_letohl(tvb, 4);
 
     ti = proto_tree_add_item(blf_tree, hf_blf_file_header, tvb, offset, length, ENC_NA);
     subtree = proto_item_add_subtree(ti, ett_blf_header);
@@ -935,7 +1014,7 @@ dissect_blf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
         expert_add_info(pinfo, ti, &ei_blf_file_header_length_too_short);
     }
     offset += 4;
-    dissect_blf_api_version(subtree, hf_blf_file_header_api, tvb, offset, 4);
+    proto_tree_add_item(subtree, hf_blf_file_header_api, tvb, offset, 4, ENC_LITTLE_ENDIAN);
     offset += 4;
     proto_tree_add_item(subtree, hf_blf_file_header_app, tvb, offset, 1, ENC_NA);
     offset += 1;
@@ -953,9 +1032,9 @@ dissect_blf(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
     offset += 4;
     proto_tree_add_item(subtree, hf_blf_file_header_app_build, tvb, offset, 4, ENC_LITTLE_ENDIAN);
     offset += 4;
-    dissect_blf_header_date(subtree, hf_blf_file_header_start_date, tvb, offset, 16);
+    dissect_blf_header_date(subtree, pinfo, hf_blf_file_header_start_date, tvb, offset, 16);
     offset += 16;
-    dissect_blf_header_date(subtree, hf_blf_file_header_end_date, tvb, offset, 16);
+    dissect_blf_header_date(subtree, pinfo, hf_blf_file_header_end_date, tvb, offset, 16);
     offset += 16;
     proto_tree_add_item(subtree, hf_blf_file_header_restore_point_offset, tvb, offset, 4, ENC_LITTLE_ENDIAN);
     offset += 8;
@@ -1177,7 +1256,7 @@ proto_register_file_blf(void) {
         { &hf_blf_file_header_length,
             { "Header Length", "blf.file_header.length", FT_UINT32, BASE_DEC, NULL, 0x00, NULL, HFILL }},
         { &hf_blf_file_header_api,
-            { "API Version", "blf.file_header.api", FT_BYTES, BASE_NONE, NULL, 0x00, NULL, HFILL }},
+            { "API Version", "blf.file_header.api", FT_UINT32, BASE_CUSTOM, CF_FUNC(version_format), 0x00, NULL, HFILL }},
         { &hf_blf_file_header_app,
             { "Application", "blf.file_header.application", FT_UINT8, BASE_DEC, VALS(application_names), 0x00, NULL, HFILL }},
         { &hf_blf_file_header_comp_level,
@@ -1195,9 +1274,9 @@ proto_register_file_blf(void) {
         { &hf_blf_file_header_app_build,
             { "Application Build", "blf.file_header.application_build", FT_UINT32, BASE_DEC, NULL, 0x00, NULL, HFILL }},
         { &hf_blf_file_header_start_date,
-            { "Start Date", "blf.file_header.start_date", FT_BYTES, BASE_NONE, NULL, 0x00, NULL, HFILL }},
+            { "Start Date", "blf.file_header.start_date", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL, 0x00, NULL, HFILL }},
         { &hf_blf_file_header_end_date,
-            { "End Date", "blf.file_header.end_date", FT_BYTES, BASE_NONE, NULL, 0x00, NULL, HFILL }},
+            { "End Date", "blf.file_header.end_date", FT_ABSOLUTE_TIME, ABSOLUTE_TIME_UTC, NULL, 0x00, NULL, HFILL }},
         { &hf_blf_file_header_restore_point_offset,
             { "Restore Point Offset", "blf.file_header.restore_point_offset", FT_UINT64, BASE_DEC, NULL, 0x00, NULL, HFILL }},
 
@@ -1215,10 +1294,33 @@ proto_register_file_blf(void) {
             { "Object Length", "blf.object.header.object_length", FT_UINT32, BASE_DEC, NULL, 0x00, NULL, HFILL }},
         { &hf_blf_lobj_obj_type,
             { "Object Type", "blf.object.header.object_type", FT_UINT32, BASE_DEC, VALS(blf_object_names), 0x00, NULL, HFILL }},
+        { &hf_blf_lobj_obj_flags,
+            { "Object Flags", "blf.object.header.object_flags", FT_UINT32, BASE_HEX, NULL, 0x00, NULL, HFILL }},
+        { &hf_blf_lobj_obj_flags_time_ten_ms,
+            { "Time Resolution 10ms", "blf.object.header.object_flags.timeres_ten_ms", FT_BOOLEAN, 32, NULL, 0x00000001,  NULL, HFILL } },
+        { &hf_blf_lobj_obj_flags_time_one_ns,
+            { "Time Resolution 1ns", "blf.object.header.object_flags.timeres_one_ms", FT_BOOLEAN, 32, NULL, 0x00000002,  NULL, HFILL } },
+        { &hf_blf_lobj_client_index,
+            { "Client Index", "blf.object.header.client_index", FT_UINT16, BASE_HEX, NULL, 0x00, NULL, HFILL }},
+        { &hf_blf_lobj_time_stamp_status,
+            { "Time Stamp Status", "blf.object.header.time_stamp_status", FT_UINT8, BASE_HEX, NULL, 0x00, NULL, HFILL }},
+        { &hf_blf_lobj_reserved,
+            { "Reserved", "blf.object.header.reserved", FT_UINT8, BASE_HEX, NULL, 0x00, NULL, HFILL }},
+        { &hf_blf_lobj_obj_version,
+            { "Object Version", "blf.object.header.object_version", FT_UINT16, BASE_DEC, NULL, 0x00, NULL, HFILL }},
+        { &hf_blf_lobj_obj_timestamp,
+            { "Object Timestamp", "blf.object.header.object_timestamp", FT_UINT64, BASE_DEC, NULL, 0x00, NULL, HFILL }},
+        { &hf_blf_lobj_org_timestamp,
+            { "Original Timestamp", "blf.object.header.original_timestamp", FT_UINT64, BASE_DEC, NULL, 0x00, NULL, HFILL }},
+
         { &hf_blf_lobj_hdr_remains,
             { "Header unparsed", "blf.object.header.unparsed", FT_BYTES, BASE_NONE, NULL, 0x00, NULL, HFILL }},
         { &hf_blf_lobj_payload,
             { "Payload", "blf.object.payload", FT_BYTES, BASE_NONE, NULL, 0x00, NULL, HFILL }},
+        { &hf_blf_lobj_payload_channel_8bit,
+            { "Channel", "blf.object.payload.channel_8bit", FT_UINT8, BASE_DEC, NULL, 0x00, NULL, HFILL} },
+        { &hf_blf_lobj_payload_channel_16bit,
+            { "Channel", "blf.object.payload.channel_16bit", FT_UINT16, BASE_DEC, NULL, 0x00, NULL, HFILL} },
 
         { &hf_blf_cont_comp_method,
             { "Compression Method", "blf.object.logcontainer.compression_method", FT_UINT16, BASE_HEX, VALS(blf_compression_names), 0x00, NULL, HFILL }},
@@ -1386,6 +1488,8 @@ proto_register_file_blf(void) {
         &ett_blf_header,
         &ett_blf_obj,
         &ett_blf_obj_header,
+        &ett_blf_obj_header_flags,
+        &ett_blf_obj_payload,
         &ett_blf_logcontainer_payload,
         &ett_blf_app_text_payload,
     };

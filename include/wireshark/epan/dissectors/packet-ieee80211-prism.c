@@ -258,7 +258,7 @@ prism_rate_return(wmem_allocator_t *scope, uint32_t rate)
 
 
 /* HT20 Rate table MAX NSS = 4 */
-static unsigned int ht_20_tbl[32][2] =
+static const unsigned int ht_20_tbl[32][2] =
 {
     { 65,   72   },   /* MCS 0 */
     { 130,  144  },   /* MCS 1 */
@@ -295,7 +295,7 @@ static unsigned int ht_20_tbl[32][2] =
 };
 
 /* HT40 Rate table MAX NSS = 4 */
-static unsigned int ht_40_tbl[32][2] =
+static const unsigned int ht_40_tbl[32][2] =
 {
     { 135,  150  },    /* MCS 0 */
     { 270,  300  },    /* MCS 1 */
@@ -331,7 +331,7 @@ static unsigned int ht_40_tbl[32][2] =
     { 5400, 6000 }};   /* MCS 31 */
 
 /* VHT20 Rate Table MAX NSS = 4 */
-static unsigned int vht_20_tbl[10][8] =
+static const unsigned int vht_20_tbl[10][8] =
 {
     { 65,  72,  130,  144,  195,  217,   260,   289},    /* MCS 0 */
     { 130, 144, 260,  289,  390,  433,   520,   578},    /* MCS 1 */
@@ -346,7 +346,7 @@ static unsigned int vht_20_tbl[10][8] =
 };
 
 /* VHT40 Rate Table MAX NSS = 4 */
-static unsigned int vht_40_tbl[10][8] =
+static const unsigned int vht_40_tbl[10][8] =
 {
     { 135,  150,  270,   300,  405,  450,   540,   600},    /* MCS 0 */
     { 270,  300,  540,   600,  810,  900,  1080,  1200},    /* MCS 1 */
@@ -361,7 +361,7 @@ static unsigned int vht_40_tbl[10][8] =
 };
 
 /* VHT80 Rate Table MAX NSS = 4 */
-static unsigned int vht_80_tbl[10][8] =
+static const unsigned int vht_80_tbl[10][8] =
 {
     {  293,  325,  585,  650,   878,   975,   1170,   1300},   /* MCS 0 */
     {  585,  650, 1170, 1300,  1755,  1950,   2340,   2600},   /* MCS 1 */
@@ -376,7 +376,7 @@ static unsigned int vht_80_tbl[10][8] =
 };
 
 /* VHT160 Rate Table MAX NSS = 4 */
-static unsigned int vht_160_tbl[10][8] =
+static const unsigned int vht_160_tbl[10][8] =
 {
     {  585,  650,  1170,  1300,  1755,  1950,  2340,  2600},   /* MCS 0 */
     { 1170, 1300,  2340,  2600,  3510,  3900,  4680,  5200},   /* MCS 1 */
@@ -614,7 +614,7 @@ capture_prism(const unsigned char *pd, int offset, int len, capture_packet_info_
         return false;
 
     /* Some captures with DLT_PRISM have the AVS WLAN header */
-    cookie = pntoh32(pd);
+    cookie = pntohu32(pd);
     if ((cookie == WLANCAP_MAGIC_COOKIE_V1) ||
         (cookie == WLANCAP_MAGIC_COOKIE_V2)) {
         return call_capture_dissector(wlancap_cap_handle, pd, offset, len, cpinfo, pseudo_header);
@@ -716,7 +716,7 @@ dissect_prism(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U
 
             proto_tree_add_item(prism_did_tree, hf_ieee80211_prism_did_type, tvb, offset, 4, byte_order);
             did = tvb_get_uint32(tvb, offset, byte_order);
-            proto_item_append_text(ti_did, " %s", val_to_str(did, prism_did_vals, "Unknown %x") );
+            proto_item_append_text(ti_did, " %s", val_to_str(pinfo->pool, did, prism_did_vals, "Unknown %x") );
         }
         offset += 4;
 
@@ -1048,7 +1048,7 @@ static hf_register_info hf_prism[] = {
       NULL, HFILL }}
 };
 
-static int *tree_array[] = {
+static int *ett_array[] = {
     &ett_prism,
     &ett_prism_did,
     &ett_sig_ab
@@ -1059,7 +1059,7 @@ void proto_register_ieee80211_prism(void)
     proto_prism = proto_register_protocol("Prism capture header", "Prism",
                                           "prism");
     proto_register_field_array(proto_prism, hf_prism, array_length(hf_prism));
-    proto_register_subtree_array(tree_array, array_length(tree_array));
+    proto_register_subtree_array(ett_array, array_length(ett_array));
 
     prism_handle = register_dissector("prism", dissect_prism, proto_prism);
 }

@@ -846,12 +846,11 @@ typedef uint16_t (**elem_func_hander)(tvbuff_t *tvb, proto_tree *tree, packet_in
 int
 dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree) {
 
-    proto_item *lat_item, *long_item, *major_item, *minor_item, *alt_item, *uncer_item, *loc_uri_item;
+    proto_item *lat_item, *long_item, *major_item, *minor_item, *orientation_item, *alt_item, *uncer_item, *loc_uri_item;
     /*proto_tree *subtree; */
     uint32_t     type_of_shape;
     int         offset = 0;
     int         length;
-    uint8_t     value;
     uint32_t    uvalue32;
     int32_t     svalue32;
     char        *deg_lat_str;
@@ -888,9 +887,8 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
             return length;
         proto_tree_add_item(tree, hf_gsm_a_geo_loc_sign_of_lat, tvb, offset, 1, ENC_BIG_ENDIAN);
 
-        uvalue32  = tvb_get_ntoh24(tvb,offset);
         /* convert degrees (X/0x7fffff) * 90 = degrees */
-        lat_item = proto_tree_add_item(tree, hf_gsm_a_geo_loc_deg_of_lat, tvb, offset, 3, ENC_BIG_ENDIAN);
+        lat_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_deg_of_lat, tvb, offset, 3, ENC_BIG_ENDIAN, &uvalue32);
         deg_lat_str = wmem_strdup_printf(pinfo->pool, "%s%.5f",
             (uvalue32 & 0x00800000) ? "-" : "",
             ((double)(uvalue32 & 0x7fffff)/8388607.0) * 90);
@@ -899,9 +897,8 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
         offset = offset + 3;
         if (length < 7)
             return offset;
-        svalue32   = tvb_get_ntoh24(tvb,offset);
+        long_item = proto_tree_add_item_ret_int(tree, hf_gsm_a_geo_loc_deg_of_long, tvb, offset, 3, ENC_BIG_ENDIAN, &svalue32);
         svalue32 |= (svalue32 & 0x800000) ? 0xff000000 : 0x00000000;
-        long_item = proto_tree_add_item(tree, hf_gsm_a_geo_loc_deg_of_long, tvb, offset, 3, ENC_BIG_ENDIAN);
         /* (X/0xffffff) *360 = degrees */
         deg_lon_str = wmem_strdup_printf(pinfo->pool, "%.5f",
             ((double)svalue32/16777215.0) * 360);
@@ -912,30 +909,28 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
             if (length < 8)
                 return offset;
             /* Uncertainty code */
-            value = tvb_get_uint8(tvb,offset)&0x7f;
-            uncer_item = proto_tree_add_item(tree, hf_gsm_a_geo_loc_uncertainty_code, tvb, offset, 1, ENC_BIG_ENDIAN);
-            proto_item_append_text(uncer_item, " (%.1f m)", 10 * (pow(1.1, (double)value) - 1));
+            uncer_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_uncertainty_code, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+            proto_item_append_text(uncer_item, " (%.1f m)", 10 * (pow(1.1, (double)uvalue32) - 1));
         }else if (type_of_shape == ELLIPSOID_POINT_WITH_UNCERT_ELLIPSE) {
             /* Ellipsoid Point with uncertainty Ellipse */
             /* Uncertainty semi-major octet 10
              * To convert to metres 10*(((1.1)^X)-1)
              */
-            value      = tvb_get_uint8(tvb,offset) & 0x7f;
-            major_item = proto_tree_add_item(tree, hf_gsm_a_geo_loc_uncertainty_semi_major, tvb, offset, 1, ENC_BIG_ENDIAN);
-            proto_item_append_text(major_item, " (%.1f m)", 10 * (pow(1.1, (double)value) - 1));
+            major_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_uncertainty_semi_major, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+            proto_item_append_text(major_item, " (%.1f m)", 10 * (pow(1.1, (double)uvalue32) - 1));
             offset++;
             /* Uncertainty semi-minor Octet 11
              * To convert to metres 10*(((1.1)^X)-1)
              */
-            value      = tvb_get_uint8(tvb,offset)&0x7f;
-            minor_item = proto_tree_add_item(tree, hf_gsm_a_geo_loc_uncertainty_semi_minor, tvb, offset, 1, ENC_BIG_ENDIAN);
-            proto_item_append_text(minor_item, " (%.1f m)", 10 * (pow(1.1, (double)value) - 1));
+            minor_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_uncertainty_semi_minor, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+            proto_item_append_text(minor_item, " (%.1f m)", 10 * (pow(1.1, (double)uvalue32) - 1));
             offset++;
             /* TS 23.032 V15.1.0 (2018-09)
              * Orientation of major axis octet 12
              * allowed value from 0-179
              */
-            proto_tree_add_item(tree, hf_gsm_a_geo_loc_orientation_of_major_axis, tvb, offset, 1, ENC_BIG_ENDIAN);
+            orientation_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_orientation_of_major_axis, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+            proto_item_append_text(orientation_item, " (%d degrees)", 2 * uvalue32);
             offset++;
             /* Confidence */
             proto_tree_add_item(tree, hf_gsm_a_geo_loc_confidence, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -943,43 +938,40 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
         }else if (type_of_shape == ELLIPSOID_POINT_WITH_ALT) {
             /* Ellipsoid Point with Altitude */
             /*D: Direction of Altitude */
-            proto_tree_add_item(tree, hf_gsm_a_geo_loc_D, tvb, offset, 1, ENC_BIG_ENDIAN);
+            proto_tree_add_item(tree, hf_gsm_a_geo_loc_D, tvb, offset, 2, ENC_BIG_ENDIAN);
             /* Altitude */
             proto_tree_add_item(tree, hf_gsm_a_geo_loc_altitude, tvb, offset, 2, ENC_BIG_ENDIAN);
         }else if (type_of_shape == ELLIPSOID_POINT_WITH_ALT_AND_UNCERT_ELLIPSOID) {
             /* Ellipsoid Point with altitude and uncertainty ellipsoid */
             /*D: Direction of Altitude octet 8,9 */
-            proto_tree_add_item(tree, hf_gsm_a_geo_loc_D, tvb, offset, 1, ENC_BIG_ENDIAN);
+            proto_tree_add_item(tree, hf_gsm_a_geo_loc_D, tvb, offset, 2, ENC_BIG_ENDIAN);
             /* Altitude Octet 8,9*/
             proto_tree_add_item(tree, hf_gsm_a_geo_loc_altitude, tvb, offset, 2, ENC_BIG_ENDIAN);
             offset = offset +2;
             /* Uncertainty semi-major octet 10
              * To convert to metres 10*(((1.1)^X)-1)
              */
-            value      = tvb_get_uint8(tvb,offset)&0x7f;
-            major_item = proto_tree_add_item(tree, hf_gsm_a_geo_loc_uncertainty_semi_major, tvb, offset, 1, ENC_BIG_ENDIAN);
-            proto_item_append_text(major_item, " (%.1f m)", 10 * (pow(1.1, (double)value) - 1));
+            major_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_uncertainty_semi_major, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+            proto_item_append_text(major_item, " (%.1f m)", 10 * (pow(1.1, (double)uvalue32) - 1));
             offset++;
             /* Uncertainty semi-minor Octet 11
              * To convert to metres 10*(((1.1)^X)-1)
              */
-            value      = tvb_get_uint8(tvb,offset)&0x7f;
-            minor_item = proto_tree_add_item(tree, hf_gsm_a_geo_loc_uncertainty_semi_minor, tvb, offset, 1, ENC_BIG_ENDIAN);
-            proto_item_append_text(minor_item, " (%.1f m)", 10 * (pow(1.1, (double)value) - 1));
+            minor_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_uncertainty_semi_minor, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+            proto_item_append_text(minor_item, " (%.1f m)", 10 * (pow(1.1, (double)uvalue32) - 1));
             offset++;
             /* Orientation of major axis octet 12
              * allowed value from 0-179 to convert
              * to actual degrees multiply by 2.
              */
-            value = tvb_get_uint8(tvb,offset)&0x7f;
-            proto_tree_add_uint(tree, hf_gsm_a_geo_loc_orientation_of_major_axis, tvb, offset, 1, value*2);
+            orientation_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_orientation_of_major_axis, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+            proto_item_append_text(orientation_item, " (%d degrees)", 2 * uvalue32);
             offset++;
             /* Uncertainty Altitude 13
              * to convert to metres 45*(((1.025)^X)-1)
              */
-            value = tvb_get_uint8(tvb,offset)&0x7f;
-            alt_item = proto_tree_add_item(tree, hf_gsm_a_geo_loc_uncertainty_altitude, tvb, offset, 1, ENC_BIG_ENDIAN);
-            proto_item_append_text(alt_item, " (%.1f m)", 45 * (pow(1.025, (double)value) - 1));
+            alt_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_uncertainty_altitude, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+            proto_item_append_text(alt_item, " (%.1f m)", 45 * (pow(1.025, (double)uvalue32) - 1));
             offset++;
             /* Confidence octet 14
              */
@@ -1074,7 +1066,8 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
         proto_item_append_text(minor_item, " (%.5f m)", 0.3 * (pow(1.02, (double)uvalue32) - 1));
         offset++;
         /* Orientation of major axis */
-        proto_tree_add_item(tree, hf_gsm_a_geo_loc_orientation_of_major_axis, tvb, offset, 1, ENC_BIG_ENDIAN);
+        orientation_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_orientation_of_major_axis, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+        proto_item_append_text(orientation_item, " (%d degrees)", 2 * uvalue32);
         offset++;
         /* Confidence */
         proto_tree_add_item(tree, hf_gsm_a_geo_loc_confidence, tvb, offset, 1, ENC_BIG_ENDIAN);
@@ -1123,7 +1116,8 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
         proto_item_append_text(minor_item, " (%.5f m)", 0.3 * (pow(1.02, (double)uvalue32) - 1));
         offset++;
         /* Orientation of major axis */
-        proto_tree_add_item(tree, hf_gsm_a_geo_loc_orientation_of_major_axis, tvb, offset, 1, ENC_BIG_ENDIAN);
+        orientation_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_orientation_of_major_axis, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+        proto_item_append_text(orientation_item, " (%d degrees)", 2 * uvalue32);
         offset++;
 
         /* Horizontal confidence */
@@ -1135,9 +1129,8 @@ dissect_geographical_description(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tr
         offset++;
 
         /* High accuracy uncertainty altitude */
-        value = tvb_get_uint8(tvb, offset) & 0x7f;
-        alt_item = proto_tree_add_item(tree, hf_gsm_a_geo_loc_high_acc_uncertainty_alt, tvb, offset, 1, ENC_BIG_ENDIAN);
-        proto_item_append_text(alt_item, " (%.1f m)", 45 * (pow(1.025, (double)value) - 1));
+        alt_item = proto_tree_add_item_ret_uint(tree, hf_gsm_a_geo_loc_high_acc_uncertainty_alt, tvb, offset, 1, ENC_BIG_ENDIAN, &uvalue32);
+        proto_item_append_text(alt_item, " (%.1f m)", 45 * (pow(1.025, (double)uvalue32) - 1));
         offset++;
 
         /* Vertical confidence*/
@@ -1291,67 +1284,67 @@ dissect_description_of_velocity(tvbuff_t *tvb, proto_tree *tree, packet_info *pi
     return (curr_offset - offset);
 }
 
-const char* get_gsm_a_msg_string(int pdu_type, int idx)
+const char* get_gsm_a_msg_string(wmem_allocator_t* pool, int pdu_type, int idx)
 {
     const char *msg_string = NULL;
 
     switch (pdu_type) {
     case GSM_A_PDU_TYPE_BSSMAP:
-        msg_string = val_to_str_ext(idx, &gsm_bssmap_elem_strings_ext, "GSM_A_PDU_TYPE_BSSMAP (%u)");
+        msg_string = val_to_str_ext(pool, idx, &gsm_bssmap_elem_strings_ext, "GSM_A_PDU_TYPE_BSSMAP (%u)");
         break;
     case GSM_A_PDU_TYPE_DTAP:
-        msg_string = val_to_str_ext(idx, &gsm_dtap_elem_strings_ext, "GSM_A_PDU_TYPE_DTAP (%u)");
+        msg_string = val_to_str_ext(pool, idx, &gsm_dtap_elem_strings_ext, "GSM_A_PDU_TYPE_DTAP (%u)");
         break;
     case GSM_A_PDU_TYPE_RP:
-        msg_string = val_to_str_ext(idx, &gsm_rp_elem_strings_ext, "GSM_A_PDU_TYPE_RP (%u)");
+        msg_string = val_to_str_ext(pool, idx, &gsm_rp_elem_strings_ext, "GSM_A_PDU_TYPE_RP (%u)");
         break;
     case GSM_A_PDU_TYPE_RR:
-        msg_string = val_to_str_ext(idx, &gsm_rr_elem_strings_ext, "GSM_A_PDU_TYPE_RR (%u)");
+        msg_string = val_to_str_ext(pool, idx, &gsm_rr_elem_strings_ext, "GSM_A_PDU_TYPE_RR (%u)");
         break;
     case GSM_A_PDU_TYPE_COMMON:
-        msg_string = val_to_str_ext(idx, &gsm_common_elem_strings_ext, "GSM_A_PDU_TYPE_COMMON (%u)");
+        msg_string = val_to_str_ext(pool, idx, &gsm_common_elem_strings_ext, "GSM_A_PDU_TYPE_COMMON (%u)");
         break;
     case GSM_A_PDU_TYPE_GM:
-        msg_string = val_to_str_ext(idx, &gsm_gm_elem_strings_ext, "GSM_A_PDU_TYPE_GM (%u)");
+        msg_string = val_to_str_ext(pool, idx, &gsm_gm_elem_strings_ext, "GSM_A_PDU_TYPE_GM (%u)");
         break;
     case GSM_A_PDU_TYPE_BSSLAP:
-        msg_string = val_to_str_ext(idx, &gsm_bsslap_elem_strings_ext, "GSM_A_PDU_TYPE_BSSLAP (%u)");
+        msg_string = val_to_str_ext(pool, idx, &gsm_bsslap_elem_strings_ext, "GSM_A_PDU_TYPE_BSSLAP (%u)");
         break;
     case GSM_PDU_TYPE_BSSMAP_LE:
-        msg_string = val_to_str_ext(idx, &gsm_bssmap_le_elem_strings_ext, "GSM_PDU_TYPE_BSSMAP_LE (%u)");
+        msg_string = val_to_str_ext(pool, idx, &gsm_bssmap_le_elem_strings_ext, "GSM_PDU_TYPE_BSSMAP_LE (%u)");
         break;
     case NAS_PDU_TYPE_COMMON:
-        msg_string = val_to_str_ext(idx, &nas_eps_common_elem_strings_ext, "NAS_PDU_TYPE_COMMON (%u)");
+        msg_string = val_to_str_ext(pool, idx, &nas_eps_common_elem_strings_ext, "NAS_PDU_TYPE_COMMON (%u)");
         break;
     case NAS_PDU_TYPE_EMM:
-        msg_string = val_to_str_ext(idx, &nas_emm_elem_strings_ext, "NAS_PDU_TYPE_EMM (%u)");
+        msg_string = val_to_str_ext(pool, idx, &nas_emm_elem_strings_ext, "NAS_PDU_TYPE_EMM (%u)");
         break;
     case NAS_PDU_TYPE_ESM:
-        msg_string = val_to_str_ext(idx, &nas_esm_elem_strings_ext, "NAS_PDU_TYPE_ESM (%u)");
+        msg_string = val_to_str_ext(pool, idx, &nas_esm_elem_strings_ext, "NAS_PDU_TYPE_ESM (%u)");
         break;
     case SGSAP_PDU_TYPE:
-        msg_string = val_to_str_ext(idx, &sgsap_elem_strings_ext, "SGSAP_PDU_TYPE (%u)");
+        msg_string = val_to_str_ext(pool, idx, &sgsap_elem_strings_ext, "SGSAP_PDU_TYPE (%u)");
         break;
     case BSSGP_PDU_TYPE:
-        msg_string = val_to_str_ext(idx, &bssgp_elem_strings_ext, "BSSGP_PDU_TYPE (%u)");
+        msg_string = val_to_str_ext(pool, idx, &bssgp_elem_strings_ext, "BSSGP_PDU_TYPE (%u)");
         break;
     case GMR1_IE_COMMON:
-        msg_string = val_to_str_ext(idx, &gmr1_ie_common_strings_ext, "GMR1_IE_COMMON (%u)");
+        msg_string = val_to_str_ext(pool, idx, &gmr1_ie_common_strings_ext, "GMR1_IE_COMMON (%u)");
         break;
     case GMR1_IE_RR:
-        msg_string = val_to_str_ext(idx, &gmr1_ie_rr_strings_ext, "GMR1_IE_RR (%u)");
+        msg_string = val_to_str_ext(pool, idx, &gmr1_ie_rr_strings_ext, "GMR1_IE_RR (%u)");
         break;
     case NAS_5GS_PDU_TYPE_COMMON:
-        msg_string = val_to_str_ext(idx, &nas_5gs_common_elem_strings_ext, "NAS_5GS_PDU_TYPE_COMMON (%u)");
+        msg_string = val_to_str_ext(pool, idx, &nas_5gs_common_elem_strings_ext, "NAS_5GS_PDU_TYPE_COMMON (%u)");
         break;
     case NAS_5GS_PDU_TYPE_MM:
-        msg_string = val_to_str_ext(idx, &nas_5gs_mm_elem_strings_ext, "NAS_5GS_PDU_TYPE_MM (%u)");
+        msg_string = val_to_str_ext(pool, idx, &nas_5gs_mm_elem_strings_ext, "NAS_5GS_PDU_TYPE_MM (%u)");
         break;
     case NAS_5GS_PDU_TYPE_SM:
-        msg_string = val_to_str_ext(idx, &nas_5gs_sm_elem_strings_ext, "NAS_5GS_PDU_TYPE_SM (%u)");
+        msg_string = val_to_str_ext(pool, idx, &nas_5gs_sm_elem_strings_ext, "NAS_5GS_PDU_TYPE_SM (%u)");
         break;
     case NAS_5GS_PDU_TYPE_UPDP:
-        msg_string = val_to_str_ext(idx, &nas_5gs_updp_elem_strings_ext, "NAS_5GS_PDU_TYPE_UPDP (%u)");
+        msg_string = val_to_str_ext(pool, idx, &nas_5gs_updp_elem_strings_ext, "NAS_5GS_PDU_TYPE_UPDP (%u)");
         break;
     default:
         DISSECTOR_ASSERT_NOT_REACHED();
@@ -1849,7 +1842,7 @@ uint16_t elem_t(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint8_t iei
             get_hf_elem_id(pdu_type), tvb,
             curr_offset, 1, oct,
             "%s%s",
-            val_to_str_ext(idx, &elem_names_ext, "Unknown (%u)"),
+            val_to_str_ext(pinfo->pool, idx, &elem_names_ext, "Unknown (%u)"),
             (name_add == NULL) || (name_add[0] == '\0') ? "" : name_add);
 
         consumed = 1;
@@ -2705,7 +2698,7 @@ de_ms_cm_3(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset,
 
     if (eightPskStructPresent == 1)
     {
-        /* At lesst Modulation Capability and cap1,cap2 present indicators are present */
+        /* At least Modulation Capability and cap1,cap2 present indicators are present */
         uint8_t psk_struct_len = 3;
         uint32_t tmp_bit_offset = bit_offset;
 
@@ -4436,7 +4429,7 @@ proto_register_gsm_a_common(void)
         NULL, HFILL}
     },
     { &hf_gsm_a_dtm_e_gprs_high_multi_slot_info_present,
-        { "DTM E/GPRS High Multi Slot Information present", "gsm_a.classmark3.dtm_e_gprs_high_mutli_slot_info_present",
+        { "DTM E/GPRS High Multi Slot Information present", "gsm_a.classmark3.dtm_e_gprs_high_multi_slot_info_present",
         FT_BOOLEAN, BASE_NONE, NULL, 0x00,
         NULL, HFILL}
     },
@@ -4721,12 +4714,12 @@ proto_register_gsm_a_common(void)
         NULL, HFILL }
     },
     { &hf_gsm_a_h_uncertainty_speed,
-        { "Horizontal Uncertainty Speed", "gsm_a.gad.v_uncertainty_speed",
+        { "Horizontal Uncertainty Speed", "gsm_a.gad.h_uncertainty_speed",
         FT_UINT8, BASE_DEC, NULL, 0x0,
         NULL, HFILL }
     },
     { &hf_gsm_a_v_uncertainty_speed,
-        { "Vertical Uncertainty Speed", "gsm_a.gad.h_uncertainty_speed",
+        { "Vertical Uncertainty Speed", "gsm_a.gad.v_uncertainty_speed",
         FT_UINT8, BASE_DEC, NULL, 0x0,
         NULL, HFILL }
     },
@@ -4797,7 +4790,7 @@ proto_register_gsm_a_common(void)
             NUM_GSM_COMMON_ELEM];
 
     static ei_register_info ei[] = {
-        { &ei_gsm_a_extraneous_data, { "gsm_a.extraneous_data", PI_PROTOCOL, PI_NOTE, "Extraneous Data, dissector bug or later version spec(report to wireshark.org)", EXPFILL }},
+        { &ei_gsm_a_extraneous_data, { "gsm_a.extraneous_data", PI_PROTOCOL, PI_NOTE, "Extraneous Data, dissector bug or later version spec (report to wireshark.org)", EXPFILL }},
         { &ei_gsm_a_unknown_element, { "gsm_a.unknown_element", PI_PROTOCOL, PI_ERROR, "Unknown - aborting dissection", EXPFILL }},
         { &ei_gsm_a_unknown_pdu_type, { "gsm_a.unknown_pdu_type", PI_PROTOCOL, PI_WARN, "Unknown PDU type", EXPFILL }},
         { &ei_gsm_a_no_element_dissector, { "gsm_a.no_element_dissector", PI_PROTOCOL, PI_WARN, "No element dissector, rest of dissection may be incorrect", EXPFILL }},

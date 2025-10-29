@@ -220,6 +220,9 @@ static int zbee_nwk_address_type = -1;
 
 static int zbee_nwk_tap;
 
+/* Cached protocol identifier */
+static int proto_ieee802154;
+
 /********************/
 /* Field Names      */
 /********************/
@@ -366,8 +369,9 @@ static const value_string zbee_nwk_link_power_delta_types[] = {
 };
 
 static const value_string zbee_nwk_commissioning_types[] = {
-    { 0x00, "Initial Join with Key Negotiation" },
-    { 0x01, "Rejoin with Key Negotiation" },
+    { 0x00, "Initial Join" },
+    { 0x01, "Rejoin" },
+    { 0x02, "Establish Trusted Link" },
     { 0, NULL }
 };
 
@@ -382,7 +386,7 @@ GHashTable *zbee_table_link_keyring;
 
 static int zbee_nwk_address_to_str(const address* addr, char *buf, int buf_len)
 {
-    uint16_t zbee_nwk_addr = pletoh16(addr->data);
+    uint16_t zbee_nwk_addr = pletohu16(addr->data);
 
     if ((zbee_nwk_addr == ZBEE_BCAST_ALL) || (zbee_nwk_addr == ZBEE_BCAST_ACTIVE) || (zbee_nwk_addr == ZBEE_BCAST_ROUTERS)) {
         return (int)g_strlcpy(buf, "Broadcast", buf_len) + 1;
@@ -531,8 +535,7 @@ dissect_zbee_nwk_full(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
         nwk_hints = (zbee_nwk_hints_t *)p_get_proto_data(wmem_file_scope(), pinfo, proto_zbee_nwk, 0);
     }
 
-    ieee_hints = (ieee802154_hints_t *)p_get_proto_data(wmem_file_scope(), pinfo,
-            proto_get_id_by_filter_name(IEEE802154_PROTOABBREV_WPAN), 0);
+    ieee_hints = (ieee802154_hints_t *)p_get_proto_data(wmem_file_scope(), pinfo, proto_ieee802154, 0);
 
     /* Add ourself to the protocol column, clear the info column, and create the protocol tree. */
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "ZigBee");
@@ -2486,6 +2489,9 @@ void proto_reg_handoff_zbee_nwk(void)
     heur_dissector_add(IEEE802154_PROTOABBREV_WPAN_BEACON, dissect_zbee_beacon_heur, "ZigBee Beacon", "zbee_wpan_beacon", proto_zbee_beacon, HEURISTIC_ENABLE);
     heur_dissector_add(IEEE802154_PROTOABBREV_WPAN_BEACON, dissect_zbip_beacon_heur, "ZigBee IP Beacon", "zbip_wpan_beacon", proto_zbip_beacon, HEURISTIC_ENABLE);
     heur_dissector_add(IEEE802154_PROTOABBREV_WPAN, dissect_zbee_nwk_heur, "ZigBee Network Layer over IEEE 802.15.4", "zbee_nwk_wpan", proto_zbee_nwk, HEURISTIC_ENABLE);
+
+    proto_ieee802154 = proto_get_id_by_filter_name(IEEE802154_PROTOABBREV_WPAN);
+
 } /* proto_reg_handoff_zbee */
 
 static void free_keyring_key(void *key)

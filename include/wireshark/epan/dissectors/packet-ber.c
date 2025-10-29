@@ -295,7 +295,7 @@ static oid_user_t *oid_users;
 static unsigned num_oid_users;
 
 #define MAX_SYNTAX_NAMES 128
-/* Define non_const_value_string as a hack to prevent chackAPIs.pl from complaining */
+/* Define non_const_value_string as a hack to prevent checkAPIs.pl from complaining */
 #define non_const_value_string value_string
 static non_const_value_string syntax_names[MAX_SYNTAX_NAMES+1] = {
     {0, ""},
@@ -1085,9 +1085,9 @@ call_ber_oid_callback(const char *oid, tvbuff_t *tvb, int offset, packet_info *p
     if (oid == NULL ||
         ((((syntax = get_ber_oid_syntax(oid)) == NULL) ||
           /* First see if a syntax has been registered for this oid (user defined) */
-          (len = dissector_try_string(ber_syntax_dissector_table, syntax, next_tvb, pinfo, tree, data)) == 0) &&
+          (len = dissector_try_string_with_data(ber_syntax_dissector_table, syntax, next_tvb, pinfo, tree, true, data)) == 0) &&
          /* Then try registered oid's */
-         (len = dissector_try_string(ber_oid_dissector_table, oid, next_tvb, pinfo, tree, data)) == 0))
+         (len = dissector_try_string_with_data(ber_oid_dissector_table, oid, next_tvb, pinfo, tree, true, data)) == 0))
     {
         proto_item *item      = NULL;
         proto_tree *next_tree = NULL;
@@ -1145,7 +1145,7 @@ call_ber_syntax_callback(const char *syntax, tvbuff_t *tvb, int offset, packet_i
 
     next_tvb = tvb_new_subset_remaining(tvb, offset);
     if (syntax == NULL ||
-        (len = dissector_try_string(ber_syntax_dissector_table, syntax, next_tvb, pinfo, tree, NULL)) == 0)
+        (len = dissector_try_string_with_data(ber_syntax_dissector_table, syntax, next_tvb, pinfo, tree, true, NULL)) == 0)
     {
         proto_item *item = NULL;
 
@@ -2246,7 +2246,7 @@ proto_tree_add_debug_text(tree, "SEQUENCE dissect_ber_sequence(%s) entered\n", n
         /*if (ind) {  this sequence was of indefinite length, if this is implicit indefinite impossible maybe
                     but ber dissector uses this to eat the tag length then pass into here... EOC still on there...*/
             if ((tvb_get_uint8(tvb, offset) == 0) && (tvb_get_uint8(tvb, offset+1) == 0)) {
-                /* If the first bytes is 00 00 of a indefenert length field it's a zero length field*/
+                /* If the first bytes is 00 00 of a indefinite length field it's a zero length field*/
                 offset = dissect_ber_identifier(actx->pinfo, tree, tvb, offset, &ber_class, &pc, &tag);
                 dissect_ber_length(actx->pinfo, tree, tvb, offset, &len, &ind);
                 proto_item_append_text(item, " 0 items");
@@ -3001,7 +3001,7 @@ proto_tree_add_debug_text(tree, "CHOICE dissect_ber_choice(%s) trying again\n", 
             }
             if (!(ch->flags & BER_FLAGS_NOOWNTAG)) {
                 if (ind) {
-                /* we are traversing a indfinite length choice where we did not pass the tag length */
+                /* we are traversing a indefinite length choice where we did not pass the tag length */
                 /* we need to eat the EOC */
                     if (show_internal_ber_fields) {
                         proto_tree_add_item(tree, hf_ber_choice_eoc, tvb, end_offset-2, 2, ENC_NA);
@@ -4274,11 +4274,15 @@ dissect_ber_file(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data
 {
     struct ber_phdr *ber = (struct ber_phdr *)data;
     const char *ptr;
-    const char *file_syntax = NULL;
+    const char *syntax = NULL;
 
-    if ((ptr = strrchr(ber->pathname, '.')) != NULL)
-        file_syntax = get_ber_oid_syntax(ptr);
-    return dissect_ber_common(tvb, pinfo, tree, file_syntax);
+    if (decode_as_syntax) {
+        syntax = decode_as_syntax;
+    } else if ((ptr = strrchr(ber->pathname, '.')) != NULL) {
+        syntax = get_ber_oid_syntax(ptr);
+    }
+
+    return dissect_ber_common(tvb, pinfo, tree, syntax);
 }
 
 bool
@@ -4330,7 +4334,7 @@ proto_register_ber(void)
                 "OCTETSTRING", "ber.unknown.OCTETSTRING", FT_BYTES, BASE_NONE,
                 NULL, 0, "This is an unknown OCTETSTRING", HFILL }},
         { &hf_ber_unknown_BER_OCTETSTRING, {
-                "OCTETSTRING [BER encoded]", "ber.unknown.OCTETSTRING", FT_NONE, BASE_NONE,
+                "OCTETSTRING [BER encoded]", "ber.unknown.OCTETSTRING", FT_BYTES, BASE_NO_DISPLAY_VALUE,
                 NULL, 0, "This is an BER encoded OCTETSTRING", HFILL }},
         { &hf_ber_unknown_BER_primitive, {
                 "Primitive [BER encoded]", "ber.unknown.primitive", FT_NONE, BASE_NONE,

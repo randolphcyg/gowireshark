@@ -21,14 +21,13 @@
 
 #include <epan/packet.h>
 #include <epan/conversation.h>
-#include <epan/exceptions.h>
 #include <epan/reassemble.h>
 #include <epan/expert.h>
 #include <epan/aftypes.h>
 #include <epan/tap.h>
 #include <epan/proto_data.h>
-#include <epan/to_str.h>
-
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include <wsutil/str_util.h>
 
 #include "packet-iax2.h"
@@ -1454,7 +1453,7 @@ static uint32_t dissect_ies(tvbuff_t *tvb, packet_info *pinfo, uint32_t offset,
           apparent_addr_family = tvb_get_letohs(tvb, offset+2);
           proto_tree_add_uint(sockaddr_tree, hf_IAX_IE_APPARENTADDR_SINFAMILY, tvb, offset + 2, 2, apparent_addr_family);
 
-          if (apparent_addr_family == LINUX_AF_INET) {
+          if (apparent_addr_family == LINUX_AF_INET && ie_data->peer_address.type == AT_IPv4) {
             uint32_t addr;
             proto_tree_add_uint(sockaddr_tree, hf_IAX_IE_APPARENTADDR_SINPORT, tvb, offset + 4, 2, ie_data->peer_port);
             memcpy(&addr, ie_data->peer_address.data, 4);
@@ -1556,7 +1555,7 @@ static uint32_t dissect_ies(tvbuff_t *tvb, packet_info *pinfo, uint32_t offset,
                               ie_finfo->rep->representation);
         else {
           uint8_t *ie_val = (uint8_t *)wmem_alloc(pinfo->pool, ITEM_LABEL_LENGTH);
-          proto_item_fill_label(ie_finfo, ie_val);
+          proto_item_fill_label(ie_finfo, ie_val, NULL);
           proto_item_set_text(ti, "Information Element: %s",
                               ie_val);
         }
@@ -1616,7 +1615,7 @@ static uint32_t dissect_iax2_command(tvbuff_t *tvb, uint32_t offset,
   offset++;
 
   col_append_fstr(pinfo->cinfo, COL_INFO, " %s",
-                     val_to_str_ext(csub, &iax_iax_subclasses_ext, "unknown (0x%02x)"));
+                     val_to_str_ext(pinfo->pool, csub, &iax_iax_subclasses_ext, "unknown (0x%02x)"));
 
   if (offset >= tvb_reported_length(tvb))
     return offset;
@@ -1836,15 +1835,15 @@ dissect_fullpacket(tvbuff_t *tvb, uint32_t offset,
 
   /* add frame type to info line */
   col_add_fstr(pinfo->cinfo, COL_INFO, "%s, source call# %d, timestamp %ums",
-                 val_to_str_ext(type, &iax_frame_types_ext, "Unknown (0x%02x)"),
+                 val_to_str_ext(pinfo->pool, type, &iax_frame_types_ext, "Unknown (0x%02x)"),
                  scallno, ts);
 
-  iax2_info->messageName = val_to_str_ext(type, &iax_frame_types_ext, "Unknown (0x%02x)");
+  iax2_info->messageName = val_to_str_ext(pinfo->pool, type, &iax_frame_types_ext, "Unknown (0x%02x)");
 
   switch (type) {
   case AST_FRAME_IAX:
     offset=dissect_iax2_command(tvb, offset+9, pinfo, packet_type_tree, iax_packet);
-    iax2_info->messageName = val_to_str_ext(csub, &iax_iax_subclasses_ext, "unknown (0x%02x)");
+    iax2_info->messageName = val_to_str_ext(pinfo->pool, csub, &iax_iax_subclasses_ext, "unknown (0x%02x)");
     if (csub < NUM_TAP_IAX_VOIP_STATES) iax2_info->callState = tap_iax_voip_state[csub];
     break;
 
@@ -1863,8 +1862,8 @@ dissect_fullpacket(tvbuff_t *tvb, uint32_t offset,
     offset += 10;
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " %s",
-                      val_to_str_ext(csub, &iax_cmd_subclasses_ext, "unknown (0x%02x)"));
-    iax2_info->messageName = val_to_str_ext (csub, &iax_cmd_subclasses_ext, "unknown (0x%02x)");
+                      val_to_str_ext(pinfo->pool, csub, &iax_cmd_subclasses_ext, "unknown (0x%02x)"));
+    iax2_info->messageName = val_to_str_ext(pinfo->pool, csub, &iax_cmd_subclasses_ext, "unknown (0x%02x)");
     if (csub < NUM_TAP_CMD_VOIP_STATES) iax2_info->callState = tap_cmd_voip_state[csub];
     break;
 
@@ -1927,7 +1926,7 @@ dissect_fullpacket(tvbuff_t *tvb, uint32_t offset,
     offset += 10;
 
     col_append_fstr(pinfo->cinfo, COL_INFO, " %s",
-                      val_to_str(csub, iax_modem_subclasses, "unknown (0x%02x)"));
+                      val_to_str(pinfo->pool, csub, iax_modem_subclasses, "unknown (0x%02x)"));
     break;
 
   case AST_FRAME_TEXT:
@@ -2530,7 +2529,7 @@ static void dissect_payload(tvbuff_t *tvb, uint32_t offset,
 
   if (!video && iax_call && iax_call -> dataformat != 0) {
       col_append_fstr(pinfo->cinfo, COL_INFO, ", data, format %s",
-                      val_to_str(iax_call -> dataformat,
+                      val_to_str(pinfo->pool, iax_call -> dataformat,
                                  iax_dataformats, "unknown (0x%02x)"));
 #if 0
       if (out_of_order)
@@ -2538,7 +2537,7 @@ static void dissect_payload(tvbuff_t *tvb, uint32_t offset,
 #endif
   } else {
       col_append_fstr(pinfo->cinfo, COL_INFO, ", %s",
-                      val64_to_str_ext(CODEC_MASK(codec), &codec_types_ext, "unknown (0x%04x)"));
+                      val64_to_str_ext_wmem(pinfo->pool, CODEC_MASK(codec), &codec_types_ext, "unknown (0x%04x)"));
   }
 
   nbytes = tvb_reported_length(sub_tvb);

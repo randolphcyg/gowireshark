@@ -67,7 +67,7 @@
 #include "packet-http2.h"
 #include "packet-media-type.h"
 
-#include "wsutil/pint.h"
+#include <wsutil/array.h>
 
 #define GRPC_MESSAGE_HEAD_LEN 5
 
@@ -234,13 +234,13 @@ dissect_body_data(proto_tree *grpc_tree, packet_info *pinfo, tvbuff_t *tvb, cons
     * of a method is defined as an individual dissector, so we try dissect using
     * grpc_message_info first.
     */
-    dissected = dissector_try_string(grpc_message_type_subdissector_table, grpc_message_info,
-        next_tvb, pinfo, parent_tree, grpc_message_info);
+    dissected = dissector_try_string_with_data(grpc_message_type_subdissector_table, grpc_message_info,
+        next_tvb, pinfo, parent_tree, true, grpc_message_info);
 
     if (dissected == 0) {
         /* not dissected yet, we try common subdissector again. */
-        dissector_try_string(grpc_message_type_subdissector_table, http2_content_type,
-            next_tvb, pinfo, parent_tree, grpc_message_info);
+        dissector_try_string_with_data(grpc_message_type_subdissector_table, http2_content_type,
+            next_tvb, pinfo, parent_tree, true, grpc_message_info);
     }
 }
 
@@ -327,6 +327,7 @@ dissect_grpc_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, grpc_co
     unsigned offset = 0;
     unsigned tvb_len = tvb_reported_length(tvb);
     const char* proto_name;
+    bool saved_writable;
 
     DISSECTOR_ASSERT(grpc_ctx != NULL);
 
@@ -365,10 +366,12 @@ dissect_grpc_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, grpc_co
             break;
         }
         /* ready to add information into protocol columns and tree */
-        if (offset == 0) { /* change columns only when there is at least one grpc message will be parsed */
+        saved_writable = col_get_writable(pinfo->cinfo, COL_PROTOCOL);
+        if (offset == 0) { /* change columns only for the first grpc message */
             col_set_str(pinfo->cinfo, COL_PROTOCOL, proto_name);
             col_append_fstr(pinfo->cinfo, COL_INFO, " (%s)", proto_name);
-            col_set_fence(pinfo->cinfo, COL_PROTOCOL);
+        } else {
+            col_set_writable(pinfo->cinfo, COL_PROTOCOL, false);
         }
         ti = proto_tree_add_item(tree, proto_grpc, tvb, offset, message_length + GRPC_MESSAGE_HEAD_LEN, ENC_NA);
         grpc_tree = proto_item_add_subtree(ti, ett_grpc_message);
@@ -379,6 +382,7 @@ dissect_grpc_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, grpc_co
         }
 
         offset = dissect_grpc_message(tvb, offset, GRPC_MESSAGE_HEAD_LEN + message_length, pinfo, grpc_tree, grpc_ctx);
+        col_set_writable(pinfo->cinfo, COL_PROTOCOL, saved_writable);
     }
 
     return tvb_captured_length(tvb);

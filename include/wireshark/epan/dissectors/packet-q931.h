@@ -18,7 +18,7 @@
 WS_DLL_PUBLIC void dissect_q931_bearer_capability_ie(tvbuff_t *, int, int,
     proto_tree *);
 
-extern void dissect_q931_cause_ie(tvbuff_t *, int, int,
+extern void dissect_q931_cause_ie(tvbuff_t *, packet_info*, int, int,
     proto_tree *, int, uint8_t *,const value_string *);
 
 extern void dissect_q931_progress_indicator_ie(tvbuff_t *, int, int,
@@ -45,8 +45,8 @@ typedef struct _q931_packet_info {
  * without having to duplicate it. With MSVC and a
  * libwireshark.dll, we need a special declaration.
  */
-WS_DLL_PUBLIC value_string_ext q931_cause_code_vals_ext;
-WS_DLL_PUBLIC const value_string q931_message_type_vals[];
+extern value_string_ext q931_cause_code_vals_ext;
+extern const value_string q931_message_type_vals[];
 
 extern value_string_ext q931_protocol_discriminator_vals_ext;
 extern value_string_ext q931_progress_description_vals_ext;

@@ -610,7 +610,7 @@ dissect_p772_PrimaryPrecedence(bool implicit_tag _U_, tvbuff_t *tvb _U_, int off
                                                 &precedence);
 
   if(precedence != -1)
-   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (primary=%s)", val_to_str(precedence, p772_PrimaryPrecedence_vals, "precedence(%d)"));
+   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (primary=%s)", val_to_str(actx->pinfo->pool, precedence, p772_PrimaryPrecedence_vals, "precedence(%d)"));
 
 
   return offset;
@@ -638,7 +638,7 @@ dissect_p772_CopyPrecedence(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset
                                                 &precedence);
 
   if(precedence != -1)
-   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (copy=%s)", val_to_str(precedence, p772_CopyPrecedence_vals, "precedence(%d)"));
+   col_append_fstr(actx->pinfo->cinfo, COL_INFO, " (copy=%s)", val_to_str(actx->pinfo->pool, precedence, p772_CopyPrecedence_vals, "precedence(%d)"));
 
   return offset;
 }
@@ -1470,7 +1470,7 @@ void proto_register_p772(void) {
         FT_STRING, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_p772_message_type_type,
-      { "type", "p772.type",
+      { "type", "p772.message_type_type",
         FT_INT32, BASE_DEC, VALS(p772_TypeMessage_vals), 0,
         "TypeMessage", HFILL }},
     { &hf_p772_identifier,
@@ -1482,7 +1482,7 @@ void proto_register_p772(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_p772_address_list_type,
-      { "type", "p772.type",
+      { "type", "p772.address_list_type",
         FT_INT32, BASE_DEC, VALS(p772_AddressListType_vals), 0,
         "AddressListType", HFILL }},
     { &hf_p772_listName,
@@ -1502,7 +1502,7 @@ void proto_register_p772(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_p772_other_recipient_type,
-      { "type", "p772.type",
+      { "type", "p772.other_recipient_type",
         FT_INT32, BASE_DEC, VALS(p772_OtherRecipientType_vals), 0,
         "OtherRecipientType", HFILL }},
     { &hf_p772_designator,

@@ -378,7 +378,13 @@ static int hf_multislot_capability_egprs_multislot_class_exist;
 static int hf_multislot_capability_dtm_gprs_multislot_class_exist;
 
 static int hf_content_rf_power_capability;
-static int hf_content_a5_bits;
+static int hf_content_a51_bit;
+static int hf_content_a52_bit;
+static int hf_content_a53_bit;
+static int hf_content_a54_bit;
+static int hf_content_a55_bit;
+static int hf_content_a56_bit;
+static int hf_content_a57_bit;
 static int hf_content_es_ind;
 static int hf_content_ps;
 static int hf_content_vgcs;
@@ -2699,8 +2705,14 @@ static const
 CSN_DESCR_BEGIN       (Content_t)
   M_UINT              (Content_t,  RF_Power_Capability,  3, &hf_content_rf_power_capability),
 
-  M_NEXT_EXIST_OR_NULL(Content_t, Exist_A5_bits, 1, &hf_a5_bits_exist),
-  M_UINT_OR_NULL      (Content_t,  A5_bits,  7, &hf_content_a5_bits),
+  M_NEXT_EXIST_OR_NULL(Content_t, Exist_A5_bits, 7, &hf_a5_bits_exist),
+  M_UINT_OR_NULL      (Content_t,  A51_bit,  1, &hf_content_a51_bit),
+  M_UINT_OR_NULL      (Content_t,  A52_bit,  1, &hf_content_a52_bit),
+  M_UINT_OR_NULL      (Content_t,  A53_bit,  1, &hf_content_a53_bit),
+  M_UINT_OR_NULL      (Content_t,  A54_bit,  1, &hf_content_a54_bit),
+  M_UINT_OR_NULL      (Content_t,  A55_bit,  1, &hf_content_a55_bit),
+  M_UINT_OR_NULL      (Content_t,  A56_bit,  1, &hf_content_a56_bit),
+  M_UINT_OR_NULL      (Content_t,  A57_bit,  1, &hf_content_a57_bit),
 
   M_UINT_OR_NULL      (Content_t,  ES_IND,  1, &hf_content_es_ind),
   M_UINT_OR_NULL      (Content_t,  PS,  1, &hf_content_ps),
@@ -3070,31 +3082,31 @@ CSN_DESCR_END  (Ext_Channel_Request_desc_t)
 static const
 CSN_DESCR_BEGIN(EGPRS_BEP_LinkQualityMeasurements_type2_t)
 
-  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_GMSK_MEAN_BEP, 1, &hf_egprs_prr_additionsr7_gmsk_mean_bep_exist),
+  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_GMSK_MEAN_BEP, 2, &hf_egprs_prr_additionsr7_gmsk_mean_bep_exist),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  GMSK_MEAN_BEP,  5, &hf_egprs_prr_additionsr7_gmsk_mean_bep),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  GMSK_CV_BEP, 3, &hf_egprs_prr_additionsr7_gmsk_cv_bep),
 
-  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_8PSK_MEAN_BEP, 1, &hf_egprs_prr_additionsr7_8psk_mean_bep_exist),
+  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_8PSK_MEAN_BEP, 2, &hf_egprs_prr_additionsr7_8psk_mean_bep_exist),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  p8PSK_MEAN_BEP,  5, &hf_egprs_prr_additionsr7_8psk_mean_bep),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  p8PSK_CV_BEP, 3, &hf_egprs_prr_additionsr7_8psk_cv_bep),
 
-  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_QPSK_MEAN_BEP, 1, &hf_egprs_prr_additionsr7_qpsk_mean_bep_exist),
+  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_QPSK_MEAN_BEP, 2, &hf_egprs_prr_additionsr7_qpsk_mean_bep_exist),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  QPSK_MEAN_BEP,  5, &hf_egprs_prr_additionsr7_qpsk_mean_bep),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  QPSK_CV_BEP, 3, &hf_egprs_prr_additionsr7_qpsk_cv_bep),
 
-  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_16QAM_NSR_MEAN_BEP, 1, &hf_egprs_prr_additionsr7_16qam_nsr_mean_bep_exist),
+  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_16QAM_NSR_MEAN_BEP, 2, &hf_egprs_prr_additionsr7_16qam_nsr_mean_bep_exist),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  p16QAM_NSR_MEAN_BEP,  5, &hf_egprs_prr_additionsr7_16qam_nsr_mean_bep),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  p16QAM_NSR_CV_BEP, 3, &hf_egprs_prr_additionsr7_16qam_nsr_cv_bep),
 
-  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_32QAM_NSR_MEAN_BEP, 1, &hf_egprs_prr_additionsr7_32qam_nsr_mean_bep_exist),
+  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_32QAM_NSR_MEAN_BEP, 2, &hf_egprs_prr_additionsr7_32qam_nsr_mean_bep_exist),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  p32QAM_NSR_MEAN_BEP,  5, &hf_egprs_prr_additionsr7_32qam_nsr_mean_bep),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  p32QAM_NSR_CV_BEP, 3, &hf_egprs_prr_additionsr7_32qam_nsr_cv_bep),
 
-  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_16QAM_HSR_MEAN_BEP, 1, &hf_egprs_prr_additionsr7_16qam_hsr_mean_bep_exist),
+  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_16QAM_HSR_MEAN_BEP, 2, &hf_egprs_prr_additionsr7_16qam_hsr_mean_bep_exist),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  p16QAM_HSR_MEAN_BEP,  5, &hf_egprs_prr_additionsr7_16qam_hsr_mean_bep),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  p16QAM_HSR_CV_BEP, 3, &hf_egprs_prr_additionsr7_16qam_hsr_cv_bep),
 
-  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_32QAM_HSR_MEAN_BEP, 1, &hf_egprs_prr_additionsr7_32qam_hsr_mean_bep_exist),
+  M_NEXT_EXIST (EGPRS_BEP_LinkQualityMeasurements_type2_t, Exist_32QAM_HSR_MEAN_BEP, 2, &hf_egprs_prr_additionsr7_32qam_hsr_mean_bep_exist),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  p32QAM_HSR_MEAN_BEP,  5, &hf_egprs_prr_additionsr7_32qam_hsr_mean_bep),
   M_UINT       (EGPRS_BEP_LinkQualityMeasurements_type2_t,  p32QAM_HSR_CV_BEP, 3, &hf_egprs_prr_additionsr7_32qam_hsr_cv_bep),
 
@@ -5192,7 +5204,7 @@ static CSN_CallBackStatus_t callback_UTRAN_FDD_compute_FDD_CELL_INFORMATION(prot
 
       while (idx > 0)
       {
-        w[i] = tvb_get_bits(tvb, curr_bit_offset, wsize, ENC_BIG_ENDIAN);
+        w[i] = tvb_get_bits32(tvb, curr_bit_offset, wsize, ENC_BIG_ENDIAN);
         curr_bit_offset += wsize;
         idx -= wsize;
         if (w[i] == 0)
@@ -5295,7 +5307,7 @@ static CSN_CallBackStatus_t callback_UTRAN_TDD_compute_TDD_CELL_INFORMATION(prot
 
       while (idx > 0)
       {
-        w[i] = tvb_get_bits(tvb, curr_bit_offset, wsize, ENC_BIG_ENDIAN);
+        w[i] = tvb_get_bits32(tvb, curr_bit_offset, wsize, ENC_BIG_ENDIAN);
         curr_bit_offset += wsize;
         idx -= wsize;
         if (w[i] == 0)
@@ -11342,9 +11354,46 @@ proto_register_gsm_rlcmac(void)
         NULL, HFILL
       }
     },
-    { &hf_content_a5_bits,
-      { "A5_bits",        "gsm_rlcmac.ul.a5_bits",
-        FT_UINT8, BASE_DEC, NULL, 0x0,
+
+    { &hf_content_a51_bit,
+      { "A5/1",        "gsm_rlcmac.ul.a51_bit",
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
+        NULL, HFILL
+      }
+    },
+    { &hf_content_a52_bit,
+      { "A5/2",        "gsm_rlcmac.ul.a52_bit",
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
+        NULL, HFILL
+      }
+    },
+    { &hf_content_a53_bit,
+      { "A5/3",        "gsm_rlcmac.ul.a53_bit",
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
+        NULL, HFILL
+      }
+    },
+    { &hf_content_a54_bit,
+      { "A5/4",        "gsm_rlcmac.ul.a54_bit",
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
+        NULL, HFILL
+      }
+    },
+    { &hf_content_a55_bit,
+      { "A5/5",        "gsm_rlcmac.ul.a55_bit",
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
+        NULL, HFILL
+      }
+    },
+    { &hf_content_a56_bit,
+      { "A5/6",        "gsm_rlcmac.ul.a56_bit",
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
+        NULL, HFILL
+      }
+    },
+    { &hf_content_a57_bit,
+      { "A5/7",        "gsm_rlcmac.ul.a57_bit",
+        FT_BOOLEAN, BASE_NONE, NULL, 0x0,
         NULL, HFILL
       }
     },
@@ -14128,13 +14177,13 @@ proto_register_gsm_rlcmac(void)
       }
     },
     { &hf_target_cell_gsm_immediate_rel,
-      { "IMMEDIATE_REL",        "gsm_rlcmac.dl.taget_cell_immediate_rel",
+      { "IMMEDIATE_REL",        "gsm_rlcmac.dl.target_cell_immediate_rel",
         FT_UINT8, BASE_DEC, NULL, 0x0,
         NULL, HFILL
       }
     },
     { &hf_target_cell_gsm_bsic,
-      { "BSIC",        "gsm_rlcmac.dl.taget_cell_gsm_bsic",
+      { "BSIC",        "gsm_rlcmac.dl.target_cell_gsm_bsic",
         FT_UINT8, BASE_DEC, NULL, 0x0,
         NULL, HFILL
       }

@@ -27,13 +27,16 @@
  */
 
 
+#define WS_LOG_DOMAIN "packet-snort"
 #include "config.h"
+#include <wireshark.h>
 
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/expert.h>
 #include <wsutil/file_util.h>
 #include <wsutil/report_message.h>
+#include <wsutil/to_str.h>
 #include <wiretap/wtap.h>
 
 #include "packet-snort-config.h"
@@ -282,7 +285,7 @@ static bool look_for_pcre(content_t *content, tvbuff_t *tvb, unsigned start_offs
     GRegex *regex;
     GMatchInfo *match_info;
     bool match_found = false;
-    GRegexCompileFlags regex_compile_flags = (GRegexCompileFlags)0;
+    GRegexCompileFlags regex_compile_flags = G_REGEX_DEFAULT;
 
     /* Make sure pcre string is ready for regex library. */
     if (!content_convert_pcre_for_regex(content)) {
@@ -760,17 +763,17 @@ static void snort_show_alert(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo
             return;
         }
         else {
-            tvbuff_t *reassembled_tvb;
+            struct data_source *source;
             /* Show link back to segment where alert was detected. */
             ti = proto_tree_add_uint(tree, hf_snort_reassembled_from, tvb, 0, 0,
                                      alert->original_frame);
             proto_item_set_generated(ti);
 
             /* Should find this if look late enough.. */
-            reassembled_tvb = get_data_source_tvb_by_name(pinfo, "Reassembled TCP");
-            if (reassembled_tvb) {
+            source = get_data_source_by_name(pinfo, "Reassembled TCP");
+            if (source != NULL) {
                 /* Will look for content using the TVB instead of just this frame's one */
-                tvb = reassembled_tvb;
+                tvb = get_data_source_tvb(source);
             }
             /* TODO: for correctness, would be good to lookup + remember the offset of the source
              * frame within the reassembled PDU frame, to make sure we find the content in the
@@ -778,7 +781,7 @@ static void snort_show_alert(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo
         }
     }
 
-    snort_debug_printf("Showing alert (sid=%u) in frame %u\n", alert->sid, pinfo->num);
+    ws_debug("Showing alert (sid=%u) in frame %u", alert->sid, pinfo->num);
 
     /* Show in expert info if configured to. */
     if (snort_show_alert_expert_info) {
@@ -791,9 +794,19 @@ static void snort_show_alert(proto_tree *tree, tvbuff_t *tvb, packet_info *pinfo
         if (!alert->raw_alert_ts_fixed) {
             /* Write 6 figures to position after decimal place in timestamp. Must have managed to
                parse out fields already, so will definitely be long enough for memcpy() to succeed. */
-            char digits[7];
-            snprintf(digits, 7, "%06d", pinfo->abs_ts.nsecs / 1000);
-            memcpy(alert->raw_alert+18, digits, 6);
+            char digits[8];
+            int bytes_written;
+            /* Since this is an absolute time, pinfo->abs_ts.nsecs should be
+             * positive (unless something very wrong has gone on).
+             *
+             * Snort has a particular timestamp format (found in snort_parse_ts)
+             * that always uses "." as the decimal point.
+             *
+             * format_fractional_part_nsecs returns the bytes written (not
+             * including the terminating '\0')
+             */
+            bytes_written = format_fractional_part_nsecs(digits, sizeof(digits), (uint32_t)(pinfo->abs_ts.nsecs), ".", WS_TSPREC_USEC);
+            memcpy(alert->raw_alert+17, digits, bytes_written);
             alert->raw_alert_ts_fixed = true;
         }
         ti = proto_tree_add_string(snort_tree, hf_snort_raw_alert, tvb, 0, 0, alert->raw_alert);
@@ -1186,13 +1199,18 @@ snort_dissector(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
             rec.rec_header.packet_header.caplen = tvb_captured_length(tvb);
             rec.rec_header.packet_header.len = tvb_reported_length(tvb);
 
+            ws_buffer_init(&rec.data, rec.rec_header.packet_header.caplen);
+            ws_buffer_append(&rec.data, tvb_get_ptr(tvb, 0, rec.rec_header.packet_header.caplen), rec.rec_header.packet_header.caplen);
+
             /* Dump frame into snort's stdin */
-            if (!wtap_dump(current_session.pdh, &rec, tvb_get_ptr(tvb, 0, tvb_reported_length(tvb)), &write_err, &err_info)) {
+            if (!wtap_dump(current_session.pdh, &rec, &write_err, &err_info)) {
+                ws_buffer_free(&rec.data);
                 /* XXX - report the error somehow? */
                 g_free(err_info);
                 current_session.working = false;
                 return 0;
             }
+            ws_buffer_free(&rec.data);
             if (!wtap_dump_flush(current_session.pdh, &write_err)) {
                 /* XXX - report the error somehow? */
                 current_session.working = false;
@@ -1298,20 +1316,20 @@ static void snort_start(void)
     ws_statb64 binary_stat, config_stat;
 
     if (ws_stat64(pref_snort_binary_filename, &binary_stat) != 0) {
-        snort_debug_printf("Can't run snort - executable '%s' not found\n", pref_snort_binary_filename);
+        ws_debug("Can't run snort - executable '%s' not found", pref_snort_binary_filename);
         report_failure("Snort dissector: Can't run snort - executable '%s' not found\n", pref_snort_binary_filename);
         return;
     }
 
     if (ws_stat64(pref_snort_config_filename, &config_stat) != 0) {
-        snort_debug_printf("Can't run snort - config file '%s' not found\n", pref_snort_config_filename);
+        ws_debug("Can't run snort - config file '%s' not found", pref_snort_config_filename);
         report_failure("Snort dissector: Can't run snort - config file '%s' not found\n", pref_snort_config_filename);
         return;
     }
 
 #ifdef S_IXUSR
     if (!(binary_stat.st_mode & S_IXUSR)) {
-        snort_debug_printf("Snort binary '%s' is not executable\n", pref_snort_binary_filename);
+        ws_debug("Snort binary '%s' is not executable", pref_snort_binary_filename);
         report_failure("Snort dissector: Snort binary '%s' is not executable\n", pref_snort_binary_filename);
         return;
     }
@@ -1324,7 +1342,7 @@ static void snort_start(void)
 #endif
 
     /* Create snort process and set up pipes */
-    snort_debug_printf("\nRunning %s with config file %s\n", pref_snort_binary_filename, pref_snort_config_filename);
+    ws_debug("Running %s with config file %s", pref_snort_binary_filename, pref_snort_config_filename);
     if (!g_spawn_async_with_pipes(NULL,          /* working_directory */
                                   (char **)argv,
                                   NULL,          /* envp */

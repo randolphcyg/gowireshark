@@ -2391,7 +2391,7 @@ static void cdma2k_message_ORIGINATION(proto_item *item,tvbuff_t *tvb,proto_tree
                 l_offset += 5;
                 while (Qos_Parms_Length > 0)
                 {
-                    item4 = proto_tree_add_item(subtree1, hf_cdma2k_Qos_Parms, tvb, (l_offset/8),8, ENC_BIG_ENDIAN);
+                    item4 = proto_tree_add_item(subtree1, hf_cdma2k_Qos_Parms, tvb, (l_offset/8), 1, ENC_BIG_ENDIAN);
                     subtree1 = proto_item_add_subtree(item4, ett_cdma2k_subtree2);
                     proto_item_append_text(item4," 0x%02x",tvb_get_bits8(tvb,l_offset, 8));
                     l_offset+=8;
@@ -3864,10 +3864,10 @@ static void cdma2k_message_ALERT_WITH_INFO(proto_item *item,tvbuff_t *tvb,proto_
                     proto_tree_add_bits_item(subtree1, hf_cdma2k_Amplitude, tvb, *offset*8+4,8, ENC_BIG_ENDIAN);
                     *offset+=1;
                     item2 = proto_tree_add_item(subtree1, hf_cdma2k_Freq, tvb, *offset,2, ENC_NA);
-                    proto_item_append_text(item2, " [01] : %02d", tvb_get_bits8(tvb,*offset*8+4,10));
+                    proto_item_append_text(item2, " [01] : %02d", tvb_get_bits16(tvb,*offset*8+4,10, ENC_BIG_ENDIAN));
                     *offset+=1;
                     item2 = proto_tree_add_item(subtree1, hf_cdma2k_Freq, tvb, *offset,2, ENC_NA);
-                    proto_item_append_text(item2, " [02] : %02d", tvb_get_bits8(tvb,*offset*8+6,10));
+                    proto_item_append_text(item2, " [02] : %02d", tvb_get_bits16(tvb,*offset*8+6,10, ENC_BIG_ENDIAN));
                     *offset+=2;
                     proto_tree_add_item(subtree1, hf_cdma2k_On_Time, tvb, *offset,1, ENC_BIG_ENDIAN);
                     *offset+=1;

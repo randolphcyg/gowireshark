@@ -25,6 +25,8 @@
 #include <epan/prefs.h>
 #include <epan/proto_data.h>
 #include <epan/uat.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include <tap.h>
 #include <ui/tap-credentials.h>
 
@@ -371,9 +373,9 @@ static int dissect_zmtp_command(tvbuff_t *tvb, int offset, packet_info *pinfo _U
     if (strcmp(command_name, "READY") == 0) {
         switch (mechanism) {
             case MECH_CURVE:
-                proto_tree_add_item(tree, hf_zmtp_curvezmq_nonce, tvb, offset, 8, ENC_ASCII);
+                proto_tree_add_item(tree, hf_zmtp_curvezmq_nonce, tvb, offset, 8, ENC_NA);
                 offset += 8;
-                proto_tree_add_item(tree, hf_zmtp_curvezmq_box, tvb, offset, -1, ENC_ASCII);
+                proto_tree_add_item(tree, hf_zmtp_curvezmq_box, tvb, offset, -1, ENC_NA);
                 break;
             default:
                 /* Metadata */
@@ -412,13 +414,13 @@ static int dissect_zmtp_command(tvbuff_t *tvb, int offset, packet_info *pinfo _U
                                 username, password);
 
                 /* Also tap credentials */
-                tap_credential_t* auth = wmem_new0(wmem_packet_scope(), tap_credential_t);
+                tap_credential_t* auth = wmem_new0(pinfo->pool, tap_credential_t);
                 auth->num = pinfo->num;
                 auth->proto = "ZMTP";
                 auth->password_hf_id = hf_zmtp_password;
                 auth->username = (char*)username;
                 auth->username_num = pinfo->num;
-                auth->info = wmem_strdup_printf(wmem_packet_scope(), "PLAIN: username/password");
+                auth->info = wmem_strdup_printf(pinfo->pool, "PLAIN: username/password");
                 tap_queue_packet(credentials_tap, pinfo, auth);
                 break;
             }
@@ -443,13 +445,13 @@ static int dissect_zmtp_command(tvbuff_t *tvb, int offset, packet_info *pinfo _U
                     proto_tree_add_item(tree, hf_zmtp_padding, tvb, offset, 70, ENC_NA);
                     offset += 70;
                     /* 32 bytes publickey */
-                    proto_tree_add_item(tree, hf_zmtp_curvezmq_publickey, tvb, offset, 32, ENC_ASCII);
+                    proto_tree_add_item(tree, hf_zmtp_curvezmq_publickey, tvb, offset, 32, ENC_NA);
                     offset += 32;
                     /* 8 bytes nonce */
-                    proto_tree_add_item(tree, hf_zmtp_curvezmq_nonce, tvb, offset, 8, ENC_ASCII);
+                    proto_tree_add_item(tree, hf_zmtp_curvezmq_nonce, tvb, offset, 8, ENC_NA);
                     offset += 8;
                     /* 80 bytes signature */
-                    proto_tree_add_item(tree, hf_zmtp_curvezmq_signature, tvb, offset, 80, ENC_ASCII);
+                    proto_tree_add_item(tree, hf_zmtp_curvezmq_signature, tvb, offset, 80, ENC_NA);
                     offset += 80;
                 }
                 else {
@@ -467,10 +469,10 @@ static int dissect_zmtp_command(tvbuff_t *tvb, int offset, packet_info *pinfo _U
         switch (mechanism) {
             case MECH_CURVE:
                 /* Nonce (16 bytes) */
-                proto_tree_add_item(tree, hf_zmtp_curvezmq_nonce, tvb, offset, 16, ENC_ASCII);
+                proto_tree_add_item(tree, hf_zmtp_curvezmq_nonce, tvb, offset, 16, ENC_NA);
                 offset += 16;
                 /* Box (128 bytes) */
-                proto_tree_add_item(tree, hf_zmtp_curvezmq_box, tvb, offset, 128, ENC_ASCII);
+                proto_tree_add_item(tree, hf_zmtp_curvezmq_box, tvb, offset, 128, ENC_NA);
                 offset += 128;
                 break;
             default:
@@ -487,13 +489,13 @@ static int dissect_zmtp_command(tvbuff_t *tvb, int offset, packet_info *pinfo _U
                 break;
             case MECH_CURVE:
                 /* cookie (96 bytes) */
-                proto_tree_add_item(tree, hf_zmtp_curvezmq_cookie, tvb, offset, 96, ENC_ASCII);
+                proto_tree_add_item(tree, hf_zmtp_curvezmq_cookie, tvb, offset, 96, ENC_NA);
                 offset += 96;
                 /* nonce (8 bytes) */
-                proto_tree_add_item(tree, hf_zmtp_curvezmq_nonce, tvb, offset, 8, ENC_ASCII);
+                proto_tree_add_item(tree, hf_zmtp_curvezmq_nonce, tvb, offset, 8, ENC_NA);
                 offset += 8;
                 /* box (remainder) */
-                proto_tree_add_item(tree, hf_zmtp_curvezmq_box, tvb, offset, -1, ENC_ASCII);
+                proto_tree_add_item(tree, hf_zmtp_curvezmq_box, tvb, offset, -1, ENC_NA);
                 break;
             default:
                 /* Unexpected mechanism for receiving "INITIATE" */
@@ -534,6 +536,7 @@ dissect_zmtp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
     proto_tree *zmtp_tree;
     proto_item *root_ti;
     int offset = 0;
+    char* str_flags;
 
     /* Protocol column */
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "zmtp");
@@ -585,10 +588,10 @@ dissect_zmtp_message(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
         flags_ti = proto_tree_add_bitmask(zmtp_tree, tvb, offset, hf_zmtp_flags,
                                           ett_zmtp_flags, flags_fields, ENC_BIG_ENDIAN);
     }
-	offset += 1;
-    col_append_fstr(pinfo->cinfo, COL_INFO, "%s ",
-                    val_to_str(flags, flags_vals, "Unknown(%u)"));
-    proto_item_append_text(root_ti, " (%s)", val_to_str(flags, flags_vals, "Unknown(%u)"));
+    offset += 1;
+    str_flags = val_to_str(pinfo->pool, flags, flags_vals, "Unknown(%u)");
+    col_append_fstr(pinfo->cinfo, COL_INFO, "%s ", str_flags);
+    proto_item_append_text(root_ti, " (%s)", str_flags);
 
     uint64_t length;
 
@@ -708,6 +711,11 @@ dissect_zmtp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
     return tvb_reported_length(tvb);
 }
 
+static void
+apply_zmtp_prefs(void)
+{
+    global_zmtp_port_range = prefs_get_range_value("zmtp", "tcp.port");
+}
 
 void
 proto_register_zmtp(void)
@@ -846,7 +854,7 @@ proto_register_zmtp(void)
     expert_zmtp = expert_register_protocol(proto_zmtp);
     expert_register_field_array(expert_zmtp, ei, array_length(ei));
 
-    zmtp_module = prefs_register_protocol(proto_zmtp, proto_reg_handoff_zmtp);
+    zmtp_module = prefs_register_protocol(proto_zmtp, apply_zmtp_prefs);
 
     zmtp_tcp_protocols_uat = uat_new("ZMTP TCP Protocols",
         sizeof(zmtp_tcp_protocol_t),
@@ -871,12 +879,6 @@ proto_register_zmtp(void)
                                     "ZMTP Data Type", proto_zmtp, FT_UINT16, BASE_DEC);
 
     credentials_tap = register_tap("credentials");
-}
-
-static void
-apply_zmtp_prefs(void)
-{
-    global_zmtp_port_range = prefs_get_range_value("zmtp", "tcp.port");
 }
 
 void

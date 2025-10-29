@@ -18,6 +18,8 @@
 #include <epan/prefs.h>
 #include <epan/proto_data.h>
 #include <epan/show_exception.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 #include <wiretap/wtap.h>
 
@@ -67,9 +69,9 @@ static const char *global_rlc_kasumi_key;
 static int global_rlc_li_size = RLC_LI_UPPERLAYER;
 
 static const enum_val_t li_size_enumvals[] = {
-    {"7 bits", "7 bits", RLC_LI_7BITS},
-    {"15 bits", "15 bits", RLC_LI_15BITS},
-    {"Let upper layers decide", "Let upper layers decide", RLC_LI_UPPERLAYER},
+    {"7", "7 bits", RLC_LI_7BITS},
+    {"15", "15 bits", RLC_LI_15BITS},
+    {"per_upper_layer", "Let upper layers decide", RLC_LI_UPPERLAYER},
     {NULL, NULL, -1}};
 
 /* fields */
@@ -1705,7 +1707,7 @@ rlc_um_reassemble(tvbuff_t *tvb, uint16_t offs, packet_info *pinfo, proto_tree *
           struct rlc_li *li, uint16_t num_li, bool li_is_on_2_bytes,
           struct atm_phdr *atm)
 {
-    uint8_t   i;
+    uint16_t  i;
     bool      dissected = false;
     int       length;
     tvbuff_t *next_tvb  = NULL;
@@ -2252,7 +2254,7 @@ rlc_am_reassemble(tvbuff_t *tvb, uint16_t offs, packet_info *pinfo,
           uint16_t num_li, bool final, bool li_is_on_2_bytes,
           struct atm_phdr *atm)
 {
-    uint8_t   i;
+    uint16_t  i;
     bool      piggyback = false, dissected = false;
     tvbuff_t *next_tvb  = NULL;
 
@@ -3067,7 +3069,7 @@ proto_register_rlc(void)
         { &ei_rlc_kasumi_implementation_missing, { "rlc.kasumi_implementation_missing", PI_UNDECODED, PI_WARN, "Unable to decipher packet since KASUMI implementation is missing.", EXPFILL }},
         { &ei_rlc_li_reserved, { "rlc.li.reserved", PI_PROTOCOL, PI_WARN, "Uses reserved LI", EXPFILL }},
         { &ei_rlc_li_incorrect_warn, { "rlc.li.incorrect", PI_PROTOCOL, PI_WARN, "Incorrect LI value", EXPFILL }},
-        { &ei_rlc_li_incorrect_mal, { "rlc.li.incorrect", PI_MALFORMED, PI_ERROR, "Incorrect LI value 0x%x", EXPFILL }},
+        { &ei_rlc_li_incorrect_mal, { "rlc.li.incorrect", PI_MALFORMED, PI_ERROR, "Incorrect LI value", EXPFILL }},
         { &ei_rlc_li_too_many, { "rlc.li.too_many", PI_MALFORMED, PI_ERROR, "Too many LI entries", EXPFILL }},
         { &ei_rlc_header_only, { "rlc.header_only.expert", PI_SEQUENCE, PI_NOTE, "RLC PDU SDUs have been omitted", EXPFILL }},
         { &ei_rlc_sufi_len, { "rlc.sufi.len.invalid", PI_MALFORMED, PI_ERROR, "Invalid length", EXPFILL }},

@@ -16,8 +16,6 @@ proper helper routines
 
 #include "config.h"
 
-#include <math.h>
-
 #include <epan/packet.h>
 #include <epan/exceptions.h>
 #include <epan/oids.h>
@@ -25,6 +23,11 @@ proper helper routines
 #include <epan/asn1.h>
 #include <epan/expert.h>
 #include <wsutil/str_util.h>
+#include <epan/tfs.h>
+
+#include <wsutil/array.h>
+#include <wsutil/ws_padding_to.h>
+
 #include "packet-per.h"
 
 void proto_register_per(void);
@@ -224,7 +227,7 @@ dissect_per_open_type_internal(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx,
 			} else {
 				val_tvb = tvb_new_octet_aligned(pdu_tvb, pdu_offset, pdu_length * 8);
 			}
-			/* Add new data source if the offet was unaligned */
+			/* Add new data source if the offset was unaligned */
 			if ((pdu_offset & 7) != 0) {
 				add_new_data_source(actx->pinfo, val_tvb, "Unaligned OCTET STRING");
 			}
@@ -1082,7 +1085,7 @@ dissect_per_any_oid(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree
 	}
 	if (actx->aligned) BYTE_ALIGN_OFFSET(offset);
 	val_tvb = tvb_new_octet_aligned(tvb, offset, length * 8);
-	/* Add new data source if the offet was unaligned */
+	/* Add new data source if the offset was unaligned */
 	if ((offset & 7) != 0) {
 		add_new_data_source(actx->pinfo, val_tvb, "Unaligned OCTET STRING");
 	}
@@ -1193,9 +1196,6 @@ DEBUG_ENTRY("dissect_per_boolean");
 	return offset+1;
 }
 
-
-
-
 /* we currently only handle integers up to 32 bits in length. */
 uint32_t
 dissect_per_integer(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index, int32_t *value)
@@ -1248,7 +1248,6 @@ dissect_per_integer(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree
 		REPORT_DISSECTOR_BUG("PER integer field that's not an FT_INT* or FT_UINT*");
 	}
 
-
 	actx->created_item = it;
 
 	if(value){
@@ -1257,8 +1256,8 @@ dissect_per_integer(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree
 
 	return offset;
 }
-/* 64 bits experimental version, internal for now */
-static uint32_t
+
+uint32_t
 dissect_per_integer64b(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index, int64_t *value)
 {
 	uint32_t i, length;
@@ -2183,7 +2182,7 @@ DEBUG_ENTRY("dissect_per_sequence_eag");
 static tvbuff_t *dissect_per_bit_string_display(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index, header_field_info *hfi, uint32_t length, int * const *named_bits, int num_named_bits _U_)
 {
 	tvbuff_t *out_tvb = NULL;
-	uint32_t pad_length=0;
+	uint32_t pad_length;
 	uint64_t value;
 
 	out_tvb = tvb_new_octet_aligned(tvb, offset, length);
@@ -2192,8 +2191,8 @@ static tvbuff_t *dissect_per_bit_string_display(tvbuff_t *tvb, uint32_t offset, 
 	if (hfi) {
 		actx->created_item = proto_tree_add_item(tree, hf_index, out_tvb, 0, -1, ENC_BIG_ENDIAN);
 		proto_item_append_text(actx->created_item, " [bit length %u", length);
-		if (length%8) {
-			pad_length = 8-(length%8);
+		pad_length = WS_PADDING_TO_8(length);
+		if (pad_length!=0) {
 			proto_item_append_text(actx->created_item, ", %u LSB pad bits", pad_length);
 		}
 
@@ -2797,7 +2796,7 @@ call_per_oid_callback(const char *oid, tvbuff_t *tvb, packet_info *pinfo, proto_
 	}
 
 	if (oid == NULL ||
-		(dissector_try_string(per_oid_dissector_table, oid, val_tvb, pinfo, tree, actx)) == 0)
+		(dissector_try_string_with_data(per_oid_dissector_table, oid, val_tvb, pinfo, tree, true, actx)) == 0)
 	{
 		proto_tree_add_expert(tree, pinfo, &ei_per_oid_not_implemented, val_tvb, 0, -1);
 		dissect_per_open_type(tvb, start_offset, actx, tree, hf_index, NULL);

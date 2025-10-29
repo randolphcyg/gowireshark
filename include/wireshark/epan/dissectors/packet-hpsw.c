@@ -91,7 +91,7 @@ dissect_hpsw_tlv(tvbuff_t *tvb, packet_info *pinfo, int offset, int length,
 
     case HPFOO_DEVICE_NAME:
         if (length > 0) {
-            proto_tree_add_item(tree, hf_hpsw_device_name, tvb, offset, length, ENC_NA|ENC_ASCII);
+            proto_tree_add_item(tree, hf_hpsw_device_name, tvb, offset, length, ENC_ASCII);
         } else {
             expert_add_info_format(pinfo, ti, &ei_hpsw_tlvlength_bad, "Device Name: Bad length %u", length);
         }
@@ -99,7 +99,7 @@ dissect_hpsw_tlv(tvbuff_t *tvb, packet_info *pinfo, int offset, int length,
 
     case HPFOO_DEVICE_VERSION:
         if (length > 0) {
-            proto_tree_add_item(tree, hf_hpsw_device_version, tvb, offset, length, ENC_NA|ENC_ASCII);
+            proto_tree_add_item(tree, hf_hpsw_device_version, tvb, offset, length, ENC_ASCII);
         } else {
             expert_add_info_format(pinfo, ti, &ei_hpsw_tlvlength_bad, "Version: Bad length %u", length);
         }
@@ -107,7 +107,7 @@ dissect_hpsw_tlv(tvbuff_t *tvb, packet_info *pinfo, int offset, int length,
 
     case HPFOO_CONFIG_NAME:
         if (length > 0) {
-            proto_tree_add_item(tree, hf_hpsw_config_name, tvb, offset, length, ENC_NA|ENC_ASCII);
+            proto_tree_add_item(tree, hf_hpsw_config_name, tvb, offset, length, ENC_ASCII);
         } else {
             expert_add_info_format(pinfo, ti, &ei_hpsw_tlvlength_bad, "Config Name: Bad length %u", length);
         }
@@ -139,7 +139,7 @@ dissect_hpsw_tlv(tvbuff_t *tvb, packet_info *pinfo, int offset, int length,
 
     case HPFOO_DOMAIN:
         if (length > 0) {
-            proto_tree_add_item(tree, hf_hpsw_domain, tvb, offset, length, ENC_NA|ENC_ASCII);
+            proto_tree_add_item(tree, hf_hpsw_domain, tvb, offset, length, ENC_ASCII);
         } else {
             expert_add_info_format(pinfo, ti, &ei_hpsw_tlvlength_bad, "Domain: Bad length %u", length);
         }
@@ -248,7 +248,7 @@ dissect_hpsw(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
             break;
 
         tlv_tree = proto_tree_add_subtree(hp_tree, tvb, offset, length+2, ett_hpsw_tlv, NULL,
-                                 val_to_str(type, hpsw_tlv_type_vals, "Unknown TLV type: 0x%02x"));
+                                 val_to_str(pinfo->pool, type, hpsw_tlv_type_vals, "Unknown TLV type: 0x%02x"));
 
         /* type */
         proto_tree_add_uint(tlv_tree, hf_hpsw_tlvtype, tvb, offset, 1, type);

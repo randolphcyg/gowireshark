@@ -87,7 +87,7 @@
  *   Mobile radio interface Layer 3 specification;
  *   Core network protocols;
  *   Stage 3
- *   (3GPP TS 24.008 version 18.6.0 Release 18)
+ *   (3GPP TS 24.008 version 18.8.0 Release 18)
  *
  * Wireshark - Network traffic analyzer
  * By Gerald Combs <gerald@wireshark.org>
@@ -609,7 +609,15 @@ static int hf_gsm_a_gm_sm_pco_ecs_addr_ipv4;
 static int hf_gsm_a_gm_sm_pco_ecs_addr_ipv6;
 static int hf_gsm_a_gm_sm_pco_ecs_addr_fqdn_len;
 static int hf_gsm_a_gm_sm_pco_ecs_addr_fqdn;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_cont_len;
 static int hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_cont;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_espili;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_eami;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_tlsgi;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_tlsai;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_tlscsci;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_supported_plmns_info_list_cont_len;
+static int hf_gsm_a_gm_sm_pco_ecs_addr_supported_plmns_info_list_cont;
 static int hf_gsm_a_gm_sm_pco_ecsp_id;
 static int hf_gsm_a_gm_sm_pco_pvs_ipv4;
 static int hf_gsm_a_gm_sm_pco_pvs_ipv6;
@@ -4510,7 +4518,7 @@ de_sm_apn(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, 
 
 	curr_offset = offset;
 
-	proto_tree_add_item(tree, hf_gsm_a_gm_apn, tvb, curr_offset, len, ENC_APN_STR | ENC_NA);
+	proto_tree_add_item(tree, hf_gsm_a_gm_apn, tvb, curr_offset, len, ENC_APN_STR);
 	curr_offset += len;
 
 	EXTRANEOUS_DATA_CHECK(len, curr_offset - offset, pinfo, &ei_gsm_a_gm_extraneous_data);
@@ -4588,6 +4596,7 @@ static const range_string gsm_a_sm_pco_ms2net_prot_vals[] = {
 	{ 0x0051, 0x0051, "SDNAEPC EAP message with the length of two octets" },
 	{ 0x0052, 0x0052, "SDNAEPC DN-specific identity" },
 	{ 0x0056, 0x0056, "UE policy container with the length of two octets" },
+	{ 0x0057, 0x0057, "URSP provisioning in EPS support indicator" },
 	{ 0xff00, 0xffff, "Operator Specific Use" },
 	{ 0, 0, NULL }
 };
@@ -4655,6 +4664,7 @@ static const range_string gsm_a_sm_pco_net2ms_prot_vals[] = {
 	{ 0x004a, 0x004a, "Network support of MAC address range in 5GS indicator" },
 	{ 0x0051, 0x0051, "SDNAEPC EAP message with the length of two octets" },
 	{ 0x0056, 0x0056, "UE policy container with the length of two octets" },
+	{ 0x0057, 0x0057, "URSP provisioning in EPS support indicator" },
 	{ 0xff00, 0xffff, "Operator Specific Use" },
 	{ 0, 0, NULL }
 };
@@ -4873,7 +4883,7 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, 
 				break;
 			case 0x000E:
 				if ((link_dir == P2P_DIR_DL) && (e_len > 0)) {
-					dissect_e164_msisdn(tvb, pco_tree, curr_offset, e_len, E164_ENC_BCD);
+					dissect_e164_msisdn(tvb, pinfo, pco_tree, curr_offset, e_len, E164_ENC_BCD);
 				}
 				break;
 			case 0x0010:
@@ -4975,7 +4985,7 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, 
 				break;
 			case 0x0027:
 				if (link_dir == P2P_DIR_DL && e_len > 0) {
-					proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_acs_info, tvb, curr_offset, e_len, ENC_NA|ENC_UTF_8);
+					proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_acs_info, tvb, curr_offset, e_len, ENC_UTF_8);
 				}
 				break;
 			case 0x0028:
@@ -5005,7 +5015,7 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, 
 							proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_dns_serv_sec_info_port_number, tvb, curr_offset+1, 2, ENC_BIG_ENDIAN);
 							break;
 						case 2:
-							proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_dns_serv_sec_info_auth_domain_name, tvb, curr_offset+1, e_len-1, ENC_APN_STR | ENC_NA);
+							proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_dns_serv_sec_info_auth_domain_name, tvb, curr_offset+1, e_len-1, ENC_APN_STR);
 							break;
 						case 3:
 							proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_dns_serv_sec_info_spki_pin_set, tvb, curr_offset+1, e_len-1, ENC_NA);
@@ -5042,20 +5052,52 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, 
 						case 2:
 							proto_tree_add_item_ret_uint(pco_tree, hf_gsm_a_gm_sm_pco_ecs_addr_fqdn_len, tvb, ie_offset, 1, ENC_BIG_ENDIAN, &fqdn_len);
 							ie_offset++;
-							proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_ecs_addr_fqdn, tvb, ie_offset, fqdn_len, ENC_NA|ENC_APN_STR);
+							proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_ecs_addr_fqdn, tvb, ie_offset, fqdn_len, ENC_APN_STR);
 							ie_offset += fqdn_len;
 							break;
 						default:
 							goto skip_ecs_addr;
 					}
-					if ((ie_offset - curr_offset) < e_len)
-						proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_cont, tvb, ie_offset, e_len - (ie_offset - curr_offset), ENC_NA);
+					if ((ie_offset - curr_offset) < e_len) {
+						uint32_t cont_len;
+
+						proto_tree_add_item_ret_uint(pco_tree, hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_cont_len, tvb, ie_offset, 1, ENC_BIG_ENDIAN, &cont_len);
+						ie_offset++;
+						proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_cont, tvb, ie_offset, cont_len, ENC_NA);
+						ie_offset += cont_len;
+						if ((ie_offset - curr_offset) < e_len) {
+							uint64_t flags;
+							static int* const ecs_flags[] = {
+								&hf_gsm_a_gm_sm_pco_ecs_addr_espili,
+								&hf_gsm_a_gm_sm_pco_ecs_addr_eami,
+								NULL
+							};
+
+							proto_tree_add_bitmask_list_ret_uint64(pco_tree, tvb, ie_offset, 1, ecs_flags, ENC_BIG_ENDIAN, &flags);
+							ie_offset++;
+							if (flags & 0x01) {
+								static int* const ecs_auth_meth[] = {
+									&hf_gsm_a_gm_sm_pco_ecs_addr_tlsgi,
+									&hf_gsm_a_gm_sm_pco_ecs_addr_tlsai,
+									&hf_gsm_a_gm_sm_pco_ecs_addr_tlscsci,
+									NULL
+								};
+								proto_tree_add_bitmask_list(pco_tree, tvb, ie_offset, 1, ecs_auth_meth, ENC_BIG_ENDIAN);
+								ie_offset++;
+							}
+							if (flags & 0x02) {
+								proto_tree_add_item_ret_uint(pco_tree, hf_gsm_a_gm_sm_pco_ecs_addr_supported_plmns_info_list_cont_len, tvb, ie_offset, 1, ENC_BIG_ENDIAN, &cont_len);
+								ie_offset++;
+								proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_ecs_addr_supported_plmns_info_list_cont, tvb, ie_offset, cont_len, ENC_NA);
+							}
+						}
+					}
 					skip_ecs_addr:;
 				}
 				break;
 			case 0x0035:
 				if (link_dir == P2P_DIR_DL && e_len > 1) {
-					proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_ecsp_id, tvb, curr_offset, e_len, ENC_NA|ENC_UTF_8);
+					proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_ecsp_id, tvb, curr_offset, e_len, ENC_UTF_8);
 				}
 				break;
 			case 0x0036:
@@ -5079,7 +5121,7 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, 
 					} else {
 						proto_tree_add_item_ret_uint(pco_tree, hf_gsm_a_gm_sm_pco_pvs_name_len, tvb, ie_offset, 1, ENC_BIG_ENDIAN, &field_len);
 						ie_offset++;
-						proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_pvs_name, tvb, ie_offset, field_len, ENC_NA|ENC_APN_STR);
+						proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_pvs_name, tvb, ie_offset, field_len, ENC_APN_STR);
 						ie_offset += field_len;
 					}
 					proto_tree_add_bitmask_list_ret_uint64(pco_tree, tvb, ie_offset, 1, ind, ENC_BIG_ENDIAN, &flags);
@@ -5126,7 +5168,7 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, 
 				break;
 			case 0x003d:
 				if (link_dir == P2P_DIR_DL && e_len > 0) {
-					proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_fqdn, tvb, curr_offset, e_len, ENC_NA|ENC_APN_STR);
+					proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_eas_rediscovery_support_ind_with_impacted_eas_fqdn, tvb, curr_offset, e_len, ENC_APN_STR);
 				}
 				break;
 			 case 0x0041:
@@ -5145,7 +5187,7 @@ de_sm_pco(tvbuff_t *tvb, proto_tree *tree, packet_info *pinfo, uint32_t offset, 
 				break;
 			case 0x0052:
 				if (link_dir == P2P_DIR_UL && e_len > 0) {
-					proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_sdnaepc_dn_specific_id, tvb, curr_offset, e_len, ENC_NA|ENC_UTF_8);
+					proto_tree_add_item(pco_tree, hf_gsm_a_gm_sm_pco_sdnaepc_dn_specific_id, tvb, curr_offset, e_len, ENC_UTF_8);
 				}
 				break;
 			case 0x0056:
@@ -9904,8 +9946,48 @@ proto_register_gsm_a_gm(void)
 		    FT_STRING, BASE_NONE, NULL, 0x0,
 		    NULL, HFILL }
 		},
+		{ &hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_cont_len,
+		  { "Spatial validity condition contents length", "gsm_a.gm.sm.pco.ecs_addr.spatial_valid_cond_cont_len",
+		    FT_UINT8, BASE_DEC, NULL, 0x0,
+		    NULL, HFILL }
+		},
 		{ &hf_gsm_a_gm_sm_pco_ecs_addr_spatial_valid_cond_cont,
 		  { "Spatial validity condition contents", "gsm_a.gm.sm.pco.ecs_addr.spatial_valid_cond_cont",
+		    FT_BYTES, BASE_NONE, NULL, 0x0,
+		    NULL, HFILL }
+		},
+		{ &hf_gsm_a_gm_sm_pco_ecs_addr_espili,
+		  { "ESPILI", "gsm_a.gm.sm.pco.ecs_addr.espili",
+		    FT_BOOLEAN, 8, TFS(&tfs_included_not_included), 0x02,
+		    NULL, HFILL }
+		},
+		{ &hf_gsm_a_gm_sm_pco_ecs_addr_eami,
+		  { "EAMI", "gsm_a.gm.sm.pco.ecs_addr.eami",
+		    FT_BOOLEAN, 8, TFS(&tfs_included_not_included), 0x01,
+		    NULL, HFILL }
+		},
+		{ &hf_gsm_a_gm_sm_pco_ecs_addr_tlsgi,
+		  { "TLSGI", "gsm_a.gm.sm.pco.ecs_addr.tlsgi",
+		    FT_BOOLEAN, 8, TFS(&tfs_supported_not_supported), 0x04,
+		    NULL, HFILL }
+		},
+		{ &hf_gsm_a_gm_sm_pco_ecs_addr_tlsai,
+		  { "TLSAI", "gsm_a.gm.sm.pco.ecs_addr.tlsai",
+		    FT_BOOLEAN, 8, TFS(&tfs_supported_not_supported), 0x02,
+		    NULL, HFILL }
+		},
+		{ &hf_gsm_a_gm_sm_pco_ecs_addr_tlscsci,
+		  { "TLSCSCI", "gsm_a.gm.sm.pco.ecs_addr.tlscsci",
+		    FT_BOOLEAN, 8, TFS(&tfs_supported_not_supported), 0x01,
+		    NULL, HFILL }
+		},
+		{ &hf_gsm_a_gm_sm_pco_ecs_addr_supported_plmns_info_list_cont_len,
+		  { "ECS supported PLMNs information list length", "gsm_a.gm.sm.pco.ecs_addr.supported_plmns_info_list_cont_len",
+		    FT_UINT8, BASE_DEC, NULL, 0x0,
+		    NULL, HFILL }
+		},
+		{ &hf_gsm_a_gm_sm_pco_ecs_addr_supported_plmns_info_list_cont,
+		  { "ECS supported PLMNs information list", "gsm_a.gm.sm.pco.ecs_addr.supported_plmns_info_list_cont",
 		    FT_BYTES, BASE_NONE, NULL, 0x0,
 		    NULL, HFILL }
 		},
@@ -10101,6 +10183,17 @@ proto_register_gsm_a_gm(void)
 	/* subdissector code */
 	gprs_sm_pco_subdissector_table = register_dissector_table("sm_pco.protocol",
 		"GPRS SM PCO PPP protocol", proto_a_gm, FT_UINT16, BASE_HEX);
+
+	register_external_value_string("gsm_a_bssmap_msg_strings", gsm_a_bssmap_msg_strings);
+	register_external_value_string("gsm_a_dtap_msg_mm_strings", gsm_a_dtap_msg_mm_strings);
+	register_external_value_string("gsm_a_dtap_msg_rr_strings", gsm_a_dtap_msg_rr_strings);
+	register_external_value_string("gsm_a_dtap_msg_cc_strings", gsm_a_dtap_msg_cc_strings);
+	register_external_value_string("gsm_a_dtap_msg_gmm_strings", gsm_a_dtap_msg_gmm_strings);
+	register_external_value_string("gsm_a_dtap_msg_sms_strings", gsm_a_dtap_msg_sms_strings);
+	register_external_value_string("gsm_a_dtap_msg_sm_strings", gsm_a_dtap_msg_sm_strings);
+	register_external_value_string("gsm_a_dtap_msg_ss_strings", gsm_a_dtap_msg_ss_strings);
+	register_external_value_string("gsm_a_dtap_msg_tp_strings", gsm_a_dtap_msg_tp_strings);
+	register_external_value_string("gsm_a_rr_short_pd_msg_strings", gsm_a_rr_short_pd_msg_strings);
 }
 
 void

@@ -308,36 +308,37 @@ WSLUA_METHOD TreeItem_add_packet_field(lua_State *L) {
      tree_item:add_packet_field(proto_field [,tvbrange], encoding, ...)
      ----
 
-     In Wireshark version 1.11.3, this function was changed to return more than
-     just the new child <<lua_class_TreeItem,`TreeItem`>>. The child is the first return value, so that
-     function chaining will still work as before; but it now also returns more information.
-     The second return is the value of the extracted field (i.e., a number, `UInt64`, `Address`, etc.).
-     The third return is is the offset where data should be read next. This is useful when the length of the
-     field is not known in advance. The additional return values may be null if the field type
-     is not well supported in the Lua API.
+     This function returns more than just the new child <<lua_class_TreeItem,`TreeItem`>>.
+     The child is the first return value, so that function chaining will still work; but it
+     also returns more information. The second return is the value of the extracted field
+     (i.e., a number, `UInt64`, `Address`, etc.). The third return is is the offset where
+     data should be read next. This is useful when the length of the field is not known in
+     advance. The additional return values may be null if the field type is not well supported
+     in the Lua API.
 
-     Another new feature added to this function in Wireshark version 1.11.3 is the
-     ability to extract native number `ProtoField`++s++ from string encoding in the
-     `TvbRange`, for ASCII-based and similar string encodings. For example, a
-     <<lua_class_ProtoField,`ProtoField`>> of type `ftypes.UINT32` can be extracted from a `TvbRange`
-     containing the ASCII string "123", and it will correctly decode the ASCII to
-     the number `123`, both in the tree as well as for the second return value of
-     this function. To do so, you must set the `encoding` argument of this function
-     to the appropriate string `ENC_*` value, bitwise-or'd with the `ENC_STRING`
-     value. `ENC_STRING` is guaranteed to be a unique bit flag, and
-     thus it can added instead of bitwise-or'ed as well. Only single-byte ASCII digit
-     string encoding types can be used for this, such as `ENC_ASCII` and `ENC_UTF_8`.
+     This function can extract a <<lua_class_ProtoField,`ProtoField`>> of type `ftypes.BYTES`
+     or `ftypes.ABSOLUTE_TIME` from a string in the `TvbRange` in ASCII-based and similar
+     encodings. For example, a `ProtoField` of `ftypes.BYTES` can be extracted from a `TvbRange`
+     containing the ASCII string "a1b2c3d4e5f6", and it will correctly decode the ASCII both in the
+     tree as well as for the second return value, which will be a <<lua_class_ByteArray,`ByteArray`>>.
+     To do so, you must set the `encoding` argument of this function to the appropriate string `ENC_*`
+     value, bitwise-or'd (or added) with the `ENC_STR_HEX` value and one or more `ENC_SEP_XXX` values
+     indicating which encodings are allowed. For `ftypes.ABSOLUTE_TIME`, one of the `ENC_ISO_8601_*`
+     encodings or `ENC_IMF_DATE_TIME` must be used, and the second return value is a <<lua_class_NSTime,`NSTime`>>.
+     Only single-byte ASCII digit string encodings such as `ENC_ASCII` and `ENC_UTF_8` can be used for this.
 
-     For example, assuming the <<lua_class_Tvb,`Tvb`>> named "`tvb`" contains the string "123":
+     For example, assuming the <<lua_class_Tvb,`Tvb`>> named "`tvb`" contains the string "abcdef"
+     (61 62 63 64 65 66 in hex):
 
      [source,lua]
      ----
      -- this is done earlier in the script
-     local myfield = ProtoField.new("Transaction ID", "myproto.trans_id", ftypes.UINT16)
+     local myfield = ProtoField.new("Transaction ID", "myproto.trans_id", ftypes.BYTES)
+     myproto.fields = { myfield }
 
      -- this is done inside a dissector, post-dissector, or heuristic function
-     -- child will be the created child tree, and value will be the number 123 or nil on failure
-     local child, value = tree:add_packet_field(myfield, tvb:range(0,3), ENC_UTF_8 + ENC_STRING)
+     -- child will be the created child tree, and value will be the ByteArray "abcdef" or nil on failure
+     local child, value = tree:add_packet_field(myfield, tvb:range(0,6), ENC_UTF_8 + ENC_STR_HEX + ENC_SEP_NONE)
      ----
 
     */
@@ -368,6 +369,9 @@ WSLUA_METHOD TreeItem_add_packet_field(lua_State *L) {
     if (! ( field = shiftProtoField(L,1) ) ) {
         luaL_error(L,"TreeField:add_packet_field not passed a ProtoField");
         return 0;
+    }
+    if (field->hfid == -2) {
+        luaL_error(L, "ProtoField %s unregistered (not added to a Proto.fields attribute)", field->abbrev);
     }
     hfid = field->hfid;
     type = field->type;
@@ -443,6 +447,10 @@ WSLUA_METHOD TreeItem_add_packet_field(lua_State *L) {
     WSLUA_RETURN(3); /* The new child <<lua_class_TreeItem,`TreeItem`>>, the field's extracted value or nil, and offset or nil. */
 }
 
+/* The following is used by TreeItem_add() and TreeItem_le() and can THROW.
+ * It should be called inside a TRY (e.g. WRAP_NON_LUA_EXCEPTIONS) block and
+ * THROW_LUA_ERROR should be used insteadof lua[L]_error.
+ */
 static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
     TvbRange tvbr;
     Proto proto;
@@ -454,10 +462,10 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
     proto_item* item = NULL;
 
     if (!tree_item) {
-        return luaL_error(L,"not a TreeItem!");
+        THROW_LUA_ERROR("not a TreeItem!");
     }
     if (tree_item->expired) {
-        luaL_error(L,"expired TreeItem");
+        THROW_LUA_ERROR("expired TreeItem");
         return 0;
     }
 
@@ -467,7 +475,7 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
             type = FT_PROTOCOL;
             ett = proto->ett;
         } else if (lua_isnil(L, 1)) {
-            return luaL_error(L, "first argument to TreeItem:add is nil!");
+            THROW_LUA_ERROR("first argument to TreeItem:add is nil!");
         }
     } else {
         hfid = field->hfid;
@@ -490,7 +498,7 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
 
         if (type == FT_STRINGZ) {
             if (tvb_find_uint8 (tvbr->tvb->ws_tvb, tvbr->offset, -1, 0) == -1) {
-                luaL_error(L,"out of bounds");
+                THROW_LUA_ERROR("out of bounds");
                 return 0;
             }
             tvbr->len = tvb_strsize (tvbr->tvb->ws_tvb, tvbr->offset);
@@ -498,6 +506,14 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
 
         if (lua_gettop(L)) {
             /* if we got here, the (L,1) index is the value to add, instead of decoding from the Tvb */
+
+            /* It's invalid for it to be nil (which has been documented for
+             * a long time). Make sure we throw our error instead of an
+             * internal Lua error (due to nested setjmp/longjmp).
+             */
+            if (lua_isnil(L, 1)) {
+                THROW_LUA_ERROR("TreeItem:add value argument is nil!");
+            }
 
             switch(type) {
                 case FT_PROTOCOL:
@@ -564,7 +580,7 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
                         uint32_t addr_value;
 
                         if (addr->type != AT_IPv4) {
-                            luaL_error(L, "Expected IPv4 address for FT_IPv4 field");
+                            THROW_LUA_ERROR("Expected IPv4 address for FT_IPv4 field");
                             return 0;
                         }
 
@@ -581,7 +597,7 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
                     {
                         Address addr = checkAddress(L,1);
                         if (addr->type != AT_IPv6) {
-                            luaL_error(L, "Expected IPv6 address for FT_IPv6 field");
+                            THROW_LUA_ERROR("Expected IPv6 address for FT_IPv6 field");
                             return 0;
                         }
 
@@ -592,7 +608,7 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
                     {
                         Address addr = checkAddress(L,1);
                         if (addr->type != AT_ETHER) {
-                            luaL_error(L, "Expected MAC address for FT_ETHER field");
+                            THROW_LUA_ERROR("Expected MAC address for FT_ETHER field");
                             return 0;
                         }
 
@@ -608,7 +624,7 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
                 case FT_VINES:
                 case FT_FCWWN:
                 default:
-                    luaL_error(L,"FT_ not yet supported");
+                    THROW_LUA_ERROR("%s not yet supported", ftype_name(type));
                     return 0;
             }
 
@@ -616,7 +632,7 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
 
         } else {
             if (type == FT_FRAMENUM) {
-                luaL_error(L, "ProtoField FRAMENUM cannot fetch value from Tvb");
+                THROW_LUA_ERROR("ProtoField FRAMENUM cannot fetch value from Tvb");
                 return 0;
             }
             /* the Lua stack is empty - no value was given - so decode the value from the tvb */
@@ -631,7 +647,8 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
         }
 
     } else {
-        /* no ProtoField or Proto was given */
+        /* no ProtoField or Proto was given - we're adding a text-only field,
+         * any remaining parameters are parts of the text label. */
         if (lua_gettop(L)) {
             const char* s = lua_tostring(L,1);
             const int hf = get_hf_wslua_text();
@@ -640,11 +657,11 @@ static int TreeItem_add_item_any(lua_State *L, bool little_endian) {
                 item = proto_tree_add_item(tree_item->tree, hf, tvbr->tvb->ws_tvb, tvbr->offset, tvbr->len, ENC_NA);
                 proto_item_set_text(item, "%s", s);
             } else {
-                luaL_error(L,"Internal error: hf_wslua_text not registered");
+                THROW_LUA_ERROR("Internal error: hf_wslua_text not registered");
             }
             lua_remove(L,1);
         } else {
-            luaL_error(L,"Tree item ProtoField/Protocol handle is invalid (ProtoField/Proto not registered?)");
+            THROW_LUA_ERROR("Tree item ProtoField/Protocol handle is invalid (ProtoField/Proto not registered?)");
         }
     }
 
@@ -726,7 +743,12 @@ WSLUA_METHOD TreeItem_add(lua_State *L) {
 #define WSLUA_OPTARG_TreeItem_add_TVBRANGE 3 /* The <<lua_class_TvbRange,`TvbRange`>> of bytes in the packet this tree item covers/represents. */
 #define WSLUA_OPTARG_TreeItem_add_VALUE 4 /* The field's value, instead of the ProtoField/Proto one. */
 #define WSLUA_OPTARG_TreeItem_add_LABEL 5 /* One or more strings to use for the tree item label, instead of the ProtoField/Proto one. */
-    WSLUA_RETURN(TreeItem_add_item_any(L,false)); /* The new child TreeItem. */
+
+    volatile int ret;
+    WRAP_NON_LUA_EXCEPTIONS(
+        ret = TreeItem_add_item_any(L,false);
+    )
+    WSLUA_RETURN(ret); /* The new child TreeItem. */
 }
 
 WSLUA_METHOD TreeItem_add_le(lua_State *L) {
@@ -745,7 +767,11 @@ WSLUA_METHOD TreeItem_add_le(lua_State *L) {
 #define WSLUA_OPTARG_TreeItem_add_le_TVBRANGE 3 /* The TvbRange of bytes in the packet this tree item covers/represents. */
 #define WSLUA_OPTARG_TreeItem_add_le_VALUE 4 /* The field's value, instead of the ProtoField/Proto one. */
 #define WSLUA_OPTARG_TreeItem_add_le_LABEL 5 /* One or more strings to use for the tree item label, instead of the ProtoField/Proto one. */
-    WSLUA_RETURN(TreeItem_add_item_any(L,true)); /* The new child TreeItem. */
+    volatile int ret;
+    WRAP_NON_LUA_EXCEPTIONS(
+        ret = TreeItem_add_item_any(L,true);
+    )
+    WSLUA_RETURN(ret); /* The new child TreeItem. */
 }
 
 /* WSLUA_ATTRIBUTE TreeItem_text RW Set/get the <<lua_class_TreeItem,`TreeItem`>>'s display string (string).
@@ -757,12 +783,12 @@ static int TreeItem_get_text(lua_State* L) {
     char label_str[ITEM_LABEL_LENGTH+1];
     char *label_ptr;
 
-    if (ti->item) {
+    if (ti->item && PITEM_FINFO(ti->item)) {
         field_info *fi = PITEM_FINFO(ti->item);
 
         if (!fi->rep) {
             label_ptr = label_str;
-            proto_item_fill_label(fi, label_str);
+            proto_item_fill_label(fi, label_str, NULL);
         } else
             label_ptr = fi->rep->representation;
 

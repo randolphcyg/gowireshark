@@ -155,6 +155,83 @@ snprint_abs_time_secs(wmem_allocator_t *scope,
     return buf;
 }
 
+static char *
+snprint_abs_time_iso8601(wmem_allocator_t *scope,
+                        field_display_e fmt, struct tm *tmp,
+                        const char *nsecs_str, int flags)
+{
+    char *buf;
+    bool add_quotes = flags & ABS_TIME_TO_STR_ADD_DQUOTES;
+    bool add_zone = flags & ABS_TIME_TO_STR_SHOW_ZONE;
+    if (fmt != ABSOLUTE_TIME_LOCAL && flags & ABS_TIME_TO_STR_SHOW_UTC_ONLY) {
+        add_zone = true;
+    }
+
+    switch (fmt) {
+        case ABSOLUTE_TIME_DOY_UTC:
+            /* ISO 8601 4.1.3 Ordinal date */
+            buf = wmem_strdup_printf(scope,
+                    "%s%04d-%03dT%02d:%02d:%02d%s%s%s",
+                    add_quotes ? "\"" : "",
+                    tmp->tm_year + 1900,
+                    tmp->tm_yday + 1,
+                    tmp->tm_hour,
+                    tmp->tm_min,
+                    tmp->tm_sec,
+                    nsecs_str,
+                    add_zone ? "Z" : "",
+                    add_quotes ? "\"" : "");
+            break;
+        case ABSOLUTE_TIME_NTP_UTC:	/* FALLTHROUGH */
+        case ABSOLUTE_TIME_UTC:		/* FALLTHROUGH */
+            buf = wmem_strdup_printf(scope,
+                    "%s%d-%02d-%02dT%02d:%02d:%02d%s%s%s",
+                    add_quotes ? "\"" : "",
+                    tmp->tm_year + 1900,
+                    tmp->tm_mon + 1,
+                    tmp->tm_mday,
+                    tmp->tm_hour,
+                    tmp->tm_min,
+                    tmp->tm_sec,
+                    nsecs_str,
+                    add_zone ? "Z" : "",
+                    add_quotes ? "\"" : "");
+            break;
+        case ABSOLUTE_TIME_LOCAL:
+        {
+            char zone_buf[8] = "";
+            if (add_zone) {
+                /*
+                 * C11 requires that strftime supports %z; unfortunately
+                 * it doesn't put the ':' in the timezone as strict ISO 8601
+                 * would require (no mixing "basic" and "extended" formats.)
+                 * XXX - Should we add in the ":"?
+                 *
+                 * We could also use _get_timezone on Windows, or on Linux and
+                 * *BSD tm_gmtoff (if HAVE_STRUCT_TM_TM_GMTOFF).
+                 */
+                strftime(zone_buf, 8, "%z", tmp);
+            }
+            buf = wmem_strdup_printf(scope,
+                    "%s%d-%02d-%02dT%02d:%02d:%02d%s%s%s",
+                    add_quotes ? "\"" : "",
+                    tmp->tm_year + 1900,
+                    tmp->tm_mon + 1,
+                    tmp->tm_mday,
+                    tmp->tm_hour,
+                    tmp->tm_min,
+                    tmp->tm_sec,
+                    nsecs_str,
+                    zone_buf,
+                    add_quotes ? "\"" : "");
+            break;
+        }
+        default:
+            ws_assert_not_reached();
+    }
+    return buf;
+}
+
 char *
 abs_time_to_str_ex(wmem_allocator_t *scope, const nstime_t *abs_time, field_display_e fmt,
                     int flags)
@@ -185,6 +262,10 @@ abs_time_to_str_ex(wmem_allocator_t *scope, const nstime_t *abs_time, field_disp
     *buf_nsecs = '\0';
     if (abs_time->nsecs != INT_MAX) {
         snprintf(buf_nsecs, sizeof(buf_nsecs), ".%09d", abs_time->nsecs);
+    }
+
+    if (flags & ABS_TIME_TO_STR_ISO8601) {
+        return snprint_abs_time_iso8601(scope, fmt, tmp, buf_nsecs, flags);
     }
 
     tzone_sep = "";
@@ -231,9 +312,9 @@ abs_time_secs_to_str_ex(wmem_allocator_t *scope, const time_t abs_time_secs, fie
  * Maximum length of a string showing days/hours/minutes/seconds.
  * (Does not include the terminating '\0'.)
  * Includes space for a '-' sign for any negative components.
- * -12345 days, 12 hours, 12 minutes, 12.123 seconds
+ * -123456789012345 days, 12 hours, 12 minutes, 12.123 seconds
  */
-#define TIME_SECS_LEN	(10+1+4+2+2+5+2+2+7+2+2+7+4)
+#define TIME_SECS_LEN	(16+1+4+2+2+5+2+2+7+2+2+7+4)
 
 /*
  * Convert an unsigned value in seconds and fractions of a second to a string,
@@ -243,10 +324,10 @@ abs_time_secs_to_str_ex(wmem_allocator_t *scope, const time_t abs_time_secs, fie
  * if false.
  */
 static void
-unsigned_time_secs_to_str_buf(uint32_t time_val, const uint32_t frac,
+unsigned_time_secs_to_str_buf(uint64_t time_val, const uint32_t frac,
                                 const bool is_nsecs, wmem_strbuf_t *buf)
 {
-    int hours, mins, secs;
+    uint64_t hours, mins, secs;
     bool do_comma = false;
 
     secs = time_val % 60;
@@ -257,25 +338,37 @@ unsigned_time_secs_to_str_buf(uint32_t time_val, const uint32_t frac,
     time_val /= 24;
 
     if (time_val != 0) {
-        wmem_strbuf_append_printf(buf, "%u day%s", time_val, PLURALIZE(time_val));
+        wmem_strbuf_append_printf(buf, "%" PRIu64 " day%s", time_val, PLURALIZE(time_val));
         do_comma = true;
     }
     if (hours != 0) {
-        wmem_strbuf_append_printf(buf, "%s%u hour%s", COMMA(do_comma), hours, PLURALIZE(hours));
+        wmem_strbuf_append_printf(buf, "%s%" PRIu64 " hour%s", COMMA(do_comma), hours, PLURALIZE(hours));
         do_comma = true;
     }
     if (mins != 0) {
-        wmem_strbuf_append_printf(buf, "%s%u minute%s", COMMA(do_comma), mins, PLURALIZE(mins));
+        wmem_strbuf_append_printf(buf, "%s%" PRIu64 " minute%s", COMMA(do_comma), mins, PLURALIZE(mins));
         do_comma = true;
     }
-    if (secs != 0 || frac != 0) {
+    if (secs != 0) {
         if (frac != 0) {
             if (is_nsecs)
-                wmem_strbuf_append_printf(buf, "%s%u.%09u seconds", COMMA(do_comma), secs, frac);
+                wmem_strbuf_append_printf(buf, "%s%" PRIu64 ".%09u seconds", COMMA(do_comma), secs, frac);
             else
-                wmem_strbuf_append_printf(buf, "%s%u.%03u seconds", COMMA(do_comma), secs, frac);
+                wmem_strbuf_append_printf(buf, "%s%" PRIu64 ".%03u seconds", COMMA(do_comma), secs, frac);
         } else
-            wmem_strbuf_append_printf(buf, "%s%u second%s", COMMA(do_comma), secs, PLURALIZE(secs));
+            wmem_strbuf_append_printf(buf, "%s%" PRIu64 " second%s", COMMA(do_comma), secs, PLURALIZE(secs));
+    } else if (frac != 0) {
+        if (is_nsecs) {
+            if (frac < 1000) {
+                wmem_strbuf_append_printf(buf, "%s%u nanosecond%s", COMMA(do_comma), frac, PLURALIZE(frac));
+            } else if (frac < 1000000) {
+                wmem_strbuf_append_printf(buf, "%s%u.%03u microseconds", COMMA(do_comma), frac / 1000, frac % 1000);
+            } else {
+                wmem_strbuf_append_printf(buf, "%s%u.%06u milliseconds", COMMA(do_comma), frac / 1000000, frac % 1000000);
+            }
+        } else {
+            wmem_strbuf_append_printf(buf, "%s%u millisecond%s", COMMA(do_comma), frac, PLURALIZE(frac));
+        }
     }
 }
 
@@ -303,23 +396,23 @@ unsigned_time_secs_to_str(wmem_allocator_t *scope, const uint32_t time_val)
  * if false.
  */
 static void
-signed_time_secs_to_str_buf(int32_t time_val, const uint32_t frac,
+signed_time_secs_to_str_buf(int64_t time_val, const uint32_t frac,
     const bool is_nsecs, wmem_strbuf_t *buf)
 {
     if(time_val < 0){
         wmem_strbuf_append_printf(buf, "-");
-        if(time_val == INT32_MIN) {
+        if(time_val == INT64_MIN) {
             /*
              * You can't fit time_val's absolute value into
-             * a 32-bit signed integer.  Just directly
-             * pass UINT32_MAX, which is its absolute
+             * a 64-bit signed integer.  Just directly
+             * pass UINT64_MAX, which is its absolute
              * value, directly to unsigned_time_secs_to_str_buf().
              *
              * (XXX - does ISO C guarantee that -(-2^n),
              * when calculated and cast to an n-bit unsigned
              * integer type, will have the value 2^n?)
              */
-            unsigned_time_secs_to_str_buf(UINT32_MAX, frac,
+            unsigned_time_secs_to_str_buf(UINT64_MAX, frac,
                 is_nsecs, buf);
         } else {
             /*
@@ -388,14 +481,14 @@ char *
 rel_time_to_str(wmem_allocator_t *scope, const nstime_t *rel_time)
 {
     wmem_strbuf_t *buf;
-    int32_t time_val;
+    int64_t time_val;
     int32_t nsec;
 
     /* If the nanoseconds part of the time stamp is negative,
        print its absolute value and, if the seconds part isn't
        (the seconds part should be zero in that case), stick
        a "-" in front of the entire time stamp. */
-    time_val = (int) rel_time->secs;
+    time_val = (int64_t) rel_time->secs;
     nsec = rel_time->nsecs;
     if (time_val == 0 && nsec == 0) {
         return wmem_strdup(scope, "0.000000000 seconds");
@@ -412,7 +505,7 @@ rel_time_to_str(wmem_allocator_t *scope, const nstime_t *rel_time)
          * or zero; if it's not, the time stamp is bogus,
          * with a positive seconds and negative microseconds.
          */
-        time_val = (int) -rel_time->secs;
+        time_val = (int64_t) -rel_time->secs;
     }
 
     signed_time_secs_to_str_buf(time_val, nsec, true, buf);

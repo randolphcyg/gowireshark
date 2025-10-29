@@ -440,8 +440,7 @@ dissect_irdma(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
      *
      * If
      * - you may be appending to the column later OR
-     * - you have constructed the string locally OR
-     * - the string was returned from a call to val_to_str()
+     * - you have constructed the string locally
      * then use "col_add_str()" instead, as that takes a copy of the string.
      *
      * The function "col_add_fstr()" can be used instead of "col_add_str()"; it
@@ -519,8 +518,8 @@ dissect_irdma(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
         set_address_tvb(&pinfo->net_src, AT_IPv4, 4, tvb, IRDMA_HDR_SRCIP4);
         copy_address_shallow(&pinfo->src, &pinfo->net_src);
 
-        src_str = tvb_address_with_resolution_to_str(wmem_packet_scope(), tvb, AT_IPv4, IRDMA_HDR_SRCIP4);
-        dst_str = tvb_address_with_resolution_to_str(wmem_packet_scope(), tvb, AT_IPv4, IRDMA_HDR_DSTIP4);
+        src_str = tvb_address_with_resolution_to_str(pinfo->pool, tvb, AT_IPv4, IRDMA_HDR_SRCIP4);
+        dst_str = tvb_address_with_resolution_to_str(pinfo->pool, tvb, AT_IPv4, IRDMA_HDR_DSTIP4);
 
         proto_tree_add_item(irdma_tree, hf_irdma_ip4src, tvb, IRDMA_HDR_SRCIP4, 4, ENC_BIG_ENDIAN);
         ti = proto_tree_add_item(irdma_tree, hf_irdma_ip4addr, tvb, IRDMA_HDR_SRCIP4, 4, ENC_BIG_ENDIAN);
@@ -538,8 +537,8 @@ dissect_irdma(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U
         set_address_tvb(&pinfo->net_src, AT_IPv6, 16, tvb, IRDMA_HDR_SRCIP);
         copy_address_shallow(&pinfo->src, &pinfo->net_src);
 
-        src_str = tvb_address_with_resolution_to_str(wmem_packet_scope(), tvb, AT_IPv6, IRDMA_HDR_SRCIP);
-        dst_str = tvb_address_with_resolution_to_str(wmem_packet_scope(), tvb, AT_IPv6, IRDMA_HDR_DSTIP);
+        src_str = tvb_address_with_resolution_to_str(pinfo->pool, tvb, AT_IPv6, IRDMA_HDR_SRCIP);
+        dst_str = tvb_address_with_resolution_to_str(pinfo->pool, tvb, AT_IPv6, IRDMA_HDR_DSTIP);
 
         proto_tree_add_item(irdma_tree, hf_irdma_ip6src, tvb, IRDMA_HDR_SRCIP, 16, ENC_NA);
         ti = proto_tree_add_item(irdma_tree, hf_irdma_ip6addr, tvb, IRDMA_HDR_SRCIP, 16, ENC_NA);
@@ -596,7 +595,7 @@ dissect_irdmaqp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "RDMA-QP");
 
     uint16_t msg_type = tvb_get_ntohs(tvb, IRDMA_QP_TYPE);
-    const char *msg_type_str = val_to_str(msg_type, irdmaqp_type_str,
+    const char *msg_type_str = val_to_str(pinfo->pool, msg_type, irdmaqp_type_str,
                                           "Unknown message (0x%04X)");
 
     col_add_fstr(pinfo->cinfo, COL_INFO,
@@ -656,7 +655,7 @@ dissect_irdmalink(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *dat
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "RDMA-Link");
 
     uint16_t msg_type = tvb_get_ntohs(tvb, IRDMA_LINK_TYPE);
-    const char *msg_type_str = val_to_str(msg_type, irdmalink_type_str,
+    const char *msg_type_str = val_to_str(pinfo->pool, msg_type, irdmalink_type_str,
                                           "Unknown message (0x%04X)");
 
     col_add_str(pinfo->cinfo, COL_INFO, msg_type_str);
@@ -816,11 +815,11 @@ dissect_irdmaep(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data 
                            pinfo->srcport, pinfo->destport);
 
     set_address(&group_addr, AT_STRINGZ, 25,
-                tvb_bytes_to_str(wmem_packet_scope(), tvb, IRDMA_EP_GRPID, 12));
+                tvb_bytes_to_str(pinfo->pool, tvb, IRDMA_EP_GRPID, 12));
 
     uint8_t msg_type = tvb_get_uint8(tvb, IRDMA_EP_TYPE);
     uint8_t msg_length = tvb_get_uint8(tvb, IRDMA_EP_LEN);
-    const char *msg_type_str = val_to_str(msg_type, irdmaep_type_str,
+    const char *msg_type_str = val_to_str(pinfo->pool, msg_type, irdmaep_type_str,
                                           "UNKNOWN (0x%02X)");
     col_append_fstr(pinfo->cinfo, COL_INFO, " [%s]", msg_type_str);
 
@@ -1513,11 +1512,11 @@ dissect_irdmaep_data(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             high_port = pinfo->srcport;
             }
 
-        if (dissector_try_uint_new(irdmaep_dissector_table, low_port,
+        if (dissector_try_uint_with_data(irdmaep_dissector_table, low_port,
                                    tvb, pinfo, tree, true, pdata))
             return;
 
-        if (dissector_try_uint_new(irdmaep_dissector_table, high_port,
+        if (dissector_try_uint_with_data(irdmaep_dissector_table, high_port,
                                    tvb, pinfo, tree, true, pdata))
             return;
         }

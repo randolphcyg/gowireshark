@@ -45,21 +45,28 @@
 #include <epan/tap.h>
 #include <epan/srt_table.h>
 #include <epan/exported_pdu.h>
-#include <epan/diam_dict.h>
 #include <epan/sctpppids.h>
 #include <epan/show_exception.h>
 #include <epan/to_str.h>
 #include <epan/strutil.h>
 #include <epan/afn.h>
 #include <epan/tfs.h>
+
 #include <wsutil/filesystem.h>
 #include <wsutil/report_message.h>
+#include <wsutil/ws_padding_to.h>
+
+#include <libxml/tree.h>
+#include <libxml/parser.h>
+#include <libxml/xpath.h>
+#include <wsutil/strtoi.h>
 #include "packet-tcp.h"
 #include "packet-diameter.h"
 #include "packet-tls.h"
 #include "packet-dtls.h"
 #include "packet-e212.h"
 #include "packet-e164.h"
+#include "packet-eap.h"
 
 void proto_register_diameter(void);
 void proto_reg_handoff_diameter(void);
@@ -75,15 +82,6 @@ void proto_reg_handoff_diameter(void);
 #define DIAM_FLAGS_RESERVED6 0x02
 #define DIAM_FLAGS_RESERVED7 0x01
 #define DIAM_FLAGS_RESERVED  0x0f
-
-#if 0
-#define DIAM_LENGTH_MASK  0x00ffffffl
-#define DIAM_COMMAND_MASK DIAM_LENGTH_MASK
-#define DIAM_GET_FLAGS(dh)                ((dh.flagsCmdCode & ~DIAM_COMMAND_MASK) >> 24)
-#define DIAM_GET_VERSION(dh)              ((dh.versionLength & (~DIAM_LENGTH_MASK)) >> 24)
-#define DIAM_GET_COMMAND(dh)              (dh.flagsCmdCode & DIAM_COMMAND_MASK)
-#define DIAM_GET_LENGTH(dh)               (dh.versionLength & DIAM_LENGTH_MASK)
-#endif
 
 /* Diameter AVP Flags */
 #define AVP_FLAGS_P 0x20
@@ -102,7 +100,7 @@ static int exported_pdu_tap = -1;
 
 /* Conversation Info */
 typedef struct _diameter_conv_info_t {
-	wmem_map_t *pdu_trees;
+	wmem_tree_t *pdus_tree;
 } diameter_conv_info_t;
 
 typedef struct _diam_ctx_t {
@@ -140,10 +138,21 @@ typedef struct _diam_dictionary_t {
 	wmem_tree_t *avps;
 	wmem_tree_t *vnds;
 	value_string_ext *applications;
-	value_string *commands;
 } diam_dictionary_t;
 
-typedef diam_avp_t *(*avp_constructor_t)(const avp_type_t *, uint32_t, diam_vnd_t *, const char *,  const value_string *, void *);
+typedef struct _avp_constructor_data_t {
+
+	const avp_type_t* type;
+	uint32_t code;
+	diam_vnd_t* vendor;
+	const char* name;
+	const value_string* vs;
+	void* data;
+	wmem_array_t* hf_array;
+	GPtrArray* ett_array;
+} avp_constructor_data_t;
+
+typedef diam_avp_t *(*avp_constructor_t)(avp_constructor_data_t* constructor_data);
 
 struct _avp_type_t {
 	const char *name;
@@ -152,14 +161,6 @@ struct _avp_type_t {
 	int base;
 	avp_constructor_t build;
 };
-
-struct _build_dict {
-	wmem_array_t *hf;
-	GPtrArray    *ett;
-	GHashTable   *types;
-	GHashTable   *avps;
-};
-
 
 typedef struct _address_avp_t {
 	int ett;
@@ -188,9 +189,7 @@ static diam_vnd_t unknown_vendor = { 0xffffffff, NULL, NULL };
 static diam_vnd_t no_vnd = { 0, NULL, NULL };
 static diam_avp_t unknown_avp = {0, &unknown_vendor, simple_avp, -1, -1, NULL };
 static const value_string *cmd_vs;
-static diam_dictionary_t dictionary = { NULL, NULL, NULL, NULL };
-static struct _build_dict build_dict;
-static const value_string *vnd_short_vs;
+static diam_dictionary_t dictionary = { NULL, NULL, NULL};
 static dissector_handle_t data_handle;
 static dissector_handle_t eap_handle;
 
@@ -284,6 +283,9 @@ static int hf_diameter_user_equipment_info_mac;
 static int hf_diameter_user_equipment_info_eui64;
 static int hf_diameter_user_equipment_info_modified_eui64;
 
+static int hf_diameter_result_code_cmd_level;
+static int hf_diameter_result_code_mscc_level;
+
 static int ett_diameter;
 static int ett_diameter_flags;
 static int ett_diameter_avp_flags;
@@ -323,23 +325,23 @@ static dissector_handle_t diameter_sctp_handle;
 /* desegmentation of Diameter over TCP */
 static bool gbl_diameter_desegment = true;
 
+/* do not use IP/Port to search conversation of Diameter */
+static bool gbl_diameter_use_ip_port_for_conversation = true;
+
+/* add Association IMSI to all messages in session */
+static bool gbl_diameter_session_imsi = false;
+
+static wmem_tree_t *diameter_conversations;
+
+/* Relation between session -> imsi */
+static wmem_map_t* diam_session_imsi;
+
 /* Dissector tables */
 static dissector_table_t diameter_dissector_table;
 static dissector_table_t diameter_3gpp_avp_dissector_table;
 static dissector_table_t diameter_ericsson_avp_dissector_table;
 static dissector_table_t diameter_verizon_avp_dissector_table;
 static dissector_table_t diameter_expr_result_vnd_table;
-
-static const char *avpflags_str[] = {
-	"---",
-	"--P",
-	"-M-",
-	"-MP",
-	"V--",
-	"V-P",
-	"VM-",
-	"VMP",
-};
 
 #define SUBSCRIPTION_ID_TYPE_E164	0
 #define SUBSCRIPTION_ID_TYPE_IMSI	1
@@ -401,7 +403,7 @@ diameterstat_init(struct register_srt* srt _U_, GArray* srt_array)
 	diameterstat_cmd_str_hash = g_hash_table_new(g_str_hash,g_str_equal);
 	g_hash_table_insert(diameterstat_cmd_str_hash, "Unknown", idx);
 
-	/** @todo the filter to use in stead of NULL is "diameter.cmd.code"
+	/** @todo the filter to use instead of NULL is "diameter.cmd.code"
 	 * to enable the filter popup in the service response time dialogue
 	 * Note to make it work the command code must be stored rather than the
 	 * index.
@@ -455,6 +457,18 @@ dissect_diameter_vendor_id(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tr
 }
 
 static int
+dissect_diameter_session_id(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree _U_, void *data)
+{
+	int length = tvb_reported_length(tvb);
+
+	if (gbl_diameter_session_imsi) {
+		diam_sub_dis_t *diam_sub_dis = (diam_sub_dis_t*)data;
+		diam_sub_dis->session_id = (const char *)tvb_get_string_enc(pinfo->pool, tvb, 0, length, ENC_UTF_8|ENC_BIG_ENDIAN);
+	}
+	return length;
+}
+
+static int
 dissect_diameter_eap_payload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
 	bool save_writable;
@@ -491,7 +505,7 @@ dissect_diameter_3gpp2_exp_res(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
 	if (tree) {
 		pi = proto_tree_add_item(tree, hf_diameter_3gpp2_exp_res, tvb, 0, 4, ENC_BIG_ENDIAN);
 		diam_sub_dis->avp_str = (char *)wmem_alloc(pinfo->pool, ITEM_LABEL_LENGTH+1);
-		proto_item_fill_label(PITEM_FINFO(pi), diam_sub_dis->avp_str);
+		proto_item_fill_label(PITEM_FINFO(pi), diam_sub_dis->avp_str, NULL);
 		diam_sub_dis->avp_str = strstr(diam_sub_dis->avp_str,": ")+2;
 	}
 
@@ -506,7 +520,7 @@ dissect_diameter_other_vendor_exp_res(diam_ctx_t *c, tvbuff_t *tvb, proto_tree *
 	if (tree) {
 		pi = proto_tree_add_item(tree, hf_diameter_other_vendor_exp_res, tvb, 0, 4, ENC_BIG_ENDIAN);
 		diam_sub_dis->avp_str = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-		proto_item_fill_label(PITEM_FINFO(pi), diam_sub_dis->avp_str);
+		proto_item_fill_label(PITEM_FINFO(pi), diam_sub_dis->avp_str, NULL);
 		diam_sub_dis->avp_str = strstr(diam_sub_dis->avp_str,": ")+2;
 	}
 }
@@ -555,10 +569,12 @@ static int
 dissect_diameter_user_name(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data)
 {
 	diam_sub_dis_t *diam_sub_dis = (diam_sub_dis_t*)data;
-	uint32_t application_id = 0, str_len;
+	uint32_t application_id = 0, cmd_code = 0, str_len;
+	const char *imsi = NULL;
 
 	if (diam_sub_dis) {
 		application_id = diam_sub_dis->application_id;
+		cmd_code = diam_sub_dis->cmd_code;
 	}
 
 	switch (application_id) {
@@ -567,8 +583,48 @@ dissect_diameter_user_name(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 	case DIAM_APPID_3GPP_S7A:
 	case DIAM_APPID_3GPP_S13:
 		str_len = tvb_reported_length(tvb);
-		dissect_e212_utf8_imsi(tvb, pinfo, tree, 0, str_len);
+		imsi = dissect_e212_utf8_imsi(tvb, pinfo, tree, 0, str_len);
+		if (gbl_diameter_session_imsi && !diam_sub_dis->imsi) {
+			diam_sub_dis->imsi = imsi;
+		}
 		return str_len;
+	case DIAM_APPID_3GPP_SWX:
+		if (cmd_code != 305) {
+			str_len = tvb_reported_length(tvb);
+			imsi = dissect_e212_utf8_imsi(tvb, pinfo, tree, 0, str_len);
+			if (gbl_diameter_session_imsi && !diam_sub_dis->imsi) {
+				diam_sub_dis->imsi = imsi;
+			}
+			return str_len;
+		}
+		// cmd_code 305 (Push-Profile), can be either a User Profile
+		// Update (8.1.2.3), in which case User-Name is an IMSI as
+		// above, or an HSS Reset Indication (8.1.2.4.1), in which
+		// case User-Name is a User List containing a wild card
+		// or leading digits of IMSI series.
+		break;
+	case DIAM_APPID_3GPP_SWM:
+	case DIAM_APPID_3GPP_STA:
+	case DIAM_APPID_3GPP_S6B:
+		if (cmd_code == 268) {
+			// 3GPP TS 29.273 - For cmd_code 268 (Diameter-EAP),
+			// "The identity shall be represented in NAI form as
+			// specified in IETF RFC 4282 [15] and shall be formatted
+			// as defined in clause 19 of 3GPP TS 23.003 [14]. This
+			// IE shall include the leading digit used to
+			// differentiate between authentication schemes."
+			//
+			// Note that SWa uses the STa application ID, and
+			// SWd uses the application ID associated with
+			// the proxied command (STa here as well).
+			//
+			// For other command codes, the User-Name is different
+			// and does *not* include the leading digit as in EAP.
+			str_len = tvb_reported_length(tvb);
+			dissect_eap_identity_3gpp(tvb, pinfo, tree, 0, str_len);
+			return str_len;
+		}
+		break;
 	}
 
 	return 0;
@@ -622,6 +678,31 @@ dissect_diameter_mip6_feature_vector(tvbuff_t *tvb, packet_info *pinfo _U_, prot
 	return 8;
 }
 
+/* AVP Code: 268 Result-Code */
+static int
+dissect_diameter_result_code(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data)
+{
+	proto_item *pi;
+	diam_sub_dis_t *diam_sub_dis_inf = (diam_sub_dis_t*)data;
+
+	if (!diam_sub_dis_inf->dis_gouped) {
+		// Do not check length. This is done in function "unsigned32_avp"
+		pi = proto_tree_add_item(tree, hf_diameter_result_code_cmd_level, tvb, 0, 4, ENC_BIG_ENDIAN);
+		proto_item_set_generated(pi);
+		return 4;
+	}
+
+	/* AVP: Multiple-Services-Credit-Control(456) */
+	if (diam_sub_dis_inf->group_avp_code == 456) {
+		// Do not check length. This is done in function "unsigned32_avp"
+		pi = proto_tree_add_item(tree, hf_diameter_result_code_mscc_level, tvb, 0, 4, ENC_BIG_ENDIAN);
+		proto_item_set_generated(pi);
+		return 4;
+	}
+
+	return 0;
+}
+
 /* AVP Code: 443 Subscription-Id */
 static int
 dissect_diameter_subscription_id(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data)
@@ -650,15 +731,19 @@ dissect_diameter_subscription_id_data(tvbuff_t *tvb, packet_info *pinfo, proto_t
 	uint32_t str_len;
 	diam_sub_dis_t *diam_sub_dis_inf = (diam_sub_dis_t*)data;
 	uint32_t subscription_id_type = diam_sub_dis_inf->subscription_id_type;
+	const char *imsi = NULL;
 
 	switch (subscription_id_type) {
 	case SUBSCRIPTION_ID_TYPE_IMSI:
 		str_len = tvb_reported_length(tvb);
-		dissect_e212_utf8_imsi(tvb, pinfo, tree, 0, str_len);
+		imsi = dissect_e212_utf8_imsi(tvb, pinfo, tree, 0, str_len);
+		if (gbl_diameter_session_imsi && !diam_sub_dis_inf->imsi) {
+			diam_sub_dis_inf->imsi = imsi;
+		}
 		return str_len;
 	case SUBSCRIPTION_ID_TYPE_E164:
 		str_len = tvb_reported_length(tvb);
-		dissect_e164_msisdn(tvb, tree, 0, str_len, E164_ENC_UTF8);
+		dissect_e164_msisdn(tvb, pinfo, tree, 0, str_len, E164_ENC_UTF8);
 		return str_len;
 	}
 
@@ -703,7 +788,7 @@ dissect_diameter_user_equipment_info_value(tvbuff_t *tvb, packet_info *pinfo, pr
 		/* IMEISV is 16 digits, but often transmitted BCD coded in 8 octets.
 		   Some implementations use IMEI (15 digits) instead of IMEISV */
 		if (len == 8) {
-			proto_tree_add_item(tree, hf_diameter_user_equipment_info_imeisv, tvb, 0, len, ENC_BCD_DIGITS_0_9|ENC_LITTLE_ENDIAN|ENC_NA);
+			proto_tree_add_item(tree, hf_diameter_user_equipment_info_imeisv, tvb, 0, len, ENC_BCD_DIGITS_0_9|ENC_LITTLE_ENDIAN);
 			return len;
 		} else if (len == 16) {
 			proto_tree_add_item(tree, hf_diameter_user_equipment_info_imeisv, tvb, 0, len, ENC_ASCII);
@@ -758,16 +843,16 @@ call_avp_subdissector(uint32_t vendorid, uint32_t code, tvbuff_t *subtvb, packet
 	TRY {
 		switch (vendorid) {
 		case 0:
-			dissector_try_uint_new(diameter_dissector_table, code, subtvb, pinfo, avp_tree, false, diam_sub_dis_inf);
+			dissector_try_uint_with_data(diameter_dissector_table, code, subtvb, pinfo, avp_tree, false, diam_sub_dis_inf);
 			break;
 		case VENDOR_ERICSSON:
-			dissector_try_uint_new(diameter_ericsson_avp_dissector_table, code, subtvb, pinfo, avp_tree, false, diam_sub_dis_inf);
+			dissector_try_uint_with_data(diameter_ericsson_avp_dissector_table, code, subtvb, pinfo, avp_tree, false, diam_sub_dis_inf);
 			break;
 		case VENDOR_VERIZON:
-			dissector_try_uint_new(diameter_verizon_avp_dissector_table, code, subtvb, pinfo, avp_tree, false, diam_sub_dis_inf);
+			dissector_try_uint_with_data(diameter_verizon_avp_dissector_table, code, subtvb, pinfo, avp_tree, false, diam_sub_dis_inf);
 			break;
 		case VENDOR_THE3GPP:
-			dissector_try_uint_new(diameter_3gpp_avp_dissector_table, code, subtvb, pinfo, avp_tree, false, diam_sub_dis_inf);
+			dissector_try_uint_with_data(diameter_3gpp_avp_dissector_table, code, subtvb, pinfo, avp_tree, false, diam_sub_dis_inf);
 			break;
 		default:
 			break;
@@ -790,7 +875,6 @@ dissect_diameter_avp(diam_ctx_t *c, tvbuff_t *tvb, int offset, diam_sub_dis_t *d
 	uint32_t code           = tvb_get_ntohl(tvb,offset);
 	uint32_t len            = tvb_get_ntohl(tvb,offset+4);
 	uint32_t vendor_flag    = len & 0x80000000;
-	uint32_t flags_bits_idx = (len & 0xE0000000) >> 29;
 	uint32_t flags_bits     = (len & 0xFF000000) >> 24;
 	uint32_t vendorid       = vendor_flag ? tvb_get_ntohl(tvb,offset+8) : 0 ;
 	wmem_tree_key_t k[3];
@@ -815,7 +899,7 @@ dissect_diameter_avp(diam_ctx_t *c, tvbuff_t *tvb, int offset, diam_sub_dis_t *d
 	a = (diam_avp_t *)wmem_tree_lookup32_array(dictionary.avps,k);
 
 	len &= 0x00ffffff;
-	pad_len =  (len % 4) ? 4 - (len % 4) : 0 ;
+	pad_len = WS_PADDING_TO_4(len);
 
 	if (!a) {
 		a = &unknown_avp;
@@ -832,7 +916,7 @@ dissect_diameter_avp(diam_ctx_t *c, tvbuff_t *tvb, int offset, diam_sub_dis_t *d
 
 	if (vendor->vs_avps_ext == NULL) {
 		wmem_array_sort(vendor->vs_avps, compare_avps);
-		vendor->vs_avps_ext = value_string_ext_new(VND_AVP_VS(vendor),
+		vendor->vs_avps_ext = value_string_ext_new(wmem_epan_scope(), VND_AVP_VS(vendor),
 							   VND_AVP_VS_LEN(vendor)+1,
 							   wmem_strdup_printf(wmem_epan_scope(), "diameter_vendor_%s",
 									   enterprises_lookup(vendorid, "Unknown")));
@@ -881,7 +965,8 @@ dissect_diameter_avp(diam_ctx_t *c, tvbuff_t *tvb, int offset, diam_sub_dis_t *d
 
 	offset += 4;
 
-	proto_item_set_text(avp_item,"AVP: %s(%u) l=%u f=%s", code_str, code, len, avpflags_str[flags_bits_idx]);
+	proto_item_set_text(avp_item,"%s", code_str);
+
 	if (update_col_info) {
 		col_append_fstr(c->pinfo->cinfo, COL_INFO, " %s", code_str);
 	}
@@ -913,7 +998,6 @@ dissect_diameter_avp(diam_ctx_t *c, tvbuff_t *tvb, int offset, diam_sub_dis_t *d
 
 	/* Vendor flag */
 	if (vendor_flag) {
-		proto_item_append_text(avp_item," vnd=%s", val_to_str(vendorid, vnd_short_vs, "%d"));
 		pi = proto_tree_add_item(avp_tree,hf_diameter_avp_vendor_id,tvb,offset,4,ENC_BIG_ENDIAN);
 		if (vendor == &unknown_vendor) {
 			proto_tree *tu = proto_item_add_subtree(pi,ett_unknown);
@@ -922,9 +1006,25 @@ dissect_diameter_avp(diam_ctx_t *c, tvbuff_t *tvb, int offset, diam_sub_dis_t *d
 		offset += 4;
 	}
 
+	/* Data is empty so return now */
 	if ( len == (uint32_t)(vendor_flag ? 12 : 8) ) {
-		/* Data is empty so return now */
-		proto_tree_add_expert(avp_tree, c->pinfo, &ei_diameter_avp_no_data, tvb, offset, 0);
+		/* AVP=Requested-Service-Unit(437) may be empty.
+		 *
+		 * RFC 4006, 8.16 (page 64):
+		 * The Requested-Service-Unit AVP MAY contain the amount of requested
+		 * service units or the requested monetary value.  It MUST be present in
+		 * the initial interrogation and within the intermediate interrogations
+		 * in which new quota is requested.
+		 *
+		 * Command-Code = "Credit-Control" (272)
+		 * ApplicationID = "Diameter Credit Control Application" (4)
+		 */
+		if (!((code == 437)
+		     && (diam_sub_dis_inf->cmd_code == 272)
+			 && (diam_sub_dis_inf->parent_message_is_request)
+			 && (diam_sub_dis_inf->application_id == 4))) {
+			proto_tree_add_expert(avp_tree, c->pinfo, &ei_diameter_avp_no_data, tvb, offset, 0);
+		}
 		/* pad_len is always 0 in this case, but kept here for consistency */
 		return len+pad_len;
 	}
@@ -954,14 +1054,14 @@ dissect_diameter_avp(diam_ctx_t *c, tvbuff_t *tvb, int offset, diam_sub_dis_t *d
 		&& (diam_sub_dis_inf->vendor_id != VENDOR_THE3GPP))
 	{
 		/* call subdissector */
-		if (!dissector_try_uint_new(diameter_expr_result_vnd_table, diam_sub_dis_inf->vendor_id,
+		if (!dissector_try_uint_with_data(diameter_expr_result_vnd_table, diam_sub_dis_inf->vendor_id,
 					    subtvb, c->pinfo, avp_tree, false, diam_sub_dis_inf)) {
 			/* No subdissector for this vendor ID, use the generic one */
 			dissect_diameter_other_vendor_exp_res(c, subtvb, avp_tree, diam_sub_dis_inf);
 		}
 
 		if (diam_sub_dis_inf->avp_str) {
-			proto_item_append_text(avp_item," val=%s", diam_sub_dis_inf->avp_str);
+			proto_item_append_text(avp_item, ": %s", diam_sub_dis_inf->avp_str);
 		}
 	} else {
 		avp_str = a->dissector_rfc(c,a,subtvb, diam_sub_dis_inf);
@@ -973,9 +1073,9 @@ dissect_diameter_avp(diam_ctx_t *c, tvbuff_t *tvb, int offset, diam_sub_dis_t *d
 
 	/* Let the subdissector have precedence filling in the avp_item string */
 	if (diam_sub_dis_inf->avp_str) {
-		proto_item_append_text(avp_item," val=%s", diam_sub_dis_inf->avp_str);
+		proto_item_append_text(avp_item, ": %s", diam_sub_dis_inf->avp_str);
 	} else if (avp_str) {
-		proto_item_append_text(avp_item," val=%s", avp_str);
+		proto_item_append_text(avp_item, ": %s", avp_str);
 	}
 
 
@@ -1042,7 +1142,7 @@ address_rfc_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *dia
 
 	if (c->tree) {
 		label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-		proto_item_fill_label(PITEM_FINFO(pi), label);
+		proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 		label = strstr(label,": ")+2;
 	}
 
@@ -1089,7 +1189,7 @@ time_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *diam_sub_d
 	if (c->tree) {
 		label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
 		pi = proto_tree_add_item(c->tree, (a->hf_value), tvb, 0, 4, ENC_TIME_SECS_NTP|ENC_BIG_ENDIAN);
-		proto_item_fill_label(PITEM_FINFO(pi), label);
+		proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 		label = strstr(label,": ")+2;
 	}
 
@@ -1123,7 +1223,7 @@ address_radius_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *
 
 	if (c->tree) {
 		label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-		proto_item_fill_label(PITEM_FINFO(pi), label);
+		proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 		label = strstr(label,": ")+2;
 	}
 
@@ -1138,7 +1238,7 @@ simple_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *diam_sub
 	if (c->tree) {
 		proto_item *pi = proto_tree_add_item(c->tree,a->hf_value,tvb,0,tvb_reported_length(tvb),ENC_BIG_ENDIAN);
 		label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-		proto_item_fill_label(PITEM_FINFO(pi), label);
+		proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 		label = strstr(label,": ")+2;
 	}
 
@@ -1153,7 +1253,7 @@ utf8_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *diam_sub_d
 	if (c->tree) {
 		proto_item *pi = proto_tree_add_item(c->tree,a->hf_value,tvb,0,tvb_reported_length(tvb),ENC_UTF_8|ENC_BIG_ENDIAN);
 		label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-		proto_item_fill_label(PITEM_FINFO(pi), label);
+		proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 		label = strstr(label,": ")+2;
 	}
 
@@ -1172,7 +1272,7 @@ integer32_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *diam_
 		if (c->tree) {
 			pi= proto_tree_add_item(c->tree, a->hf_value, tvb, 0, length, ENC_BIG_ENDIAN);
 			label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-			proto_item_fill_label(PITEM_FINFO(pi), label);
+			proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 			label = strstr(label,": ")+2;
 		}
 	}
@@ -1200,7 +1300,7 @@ integer64_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *diam_
 		if (c->tree) {
 			pi= proto_tree_add_item(c->tree, a->hf_value, tvb, 0, length, ENC_BIG_ENDIAN);
 			label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-			proto_item_fill_label(PITEM_FINFO(pi), label);
+			proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 			label = strstr(label,": ")+2;
 		}
 	}
@@ -1228,7 +1328,7 @@ unsigned32_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *diam
 		if (c->tree) {
 			diam_sub_dis_inf->item = pi = proto_tree_add_item(c->tree, a->hf_value, tvb, 0, length, ENC_BIG_ENDIAN);
 			label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-			proto_item_fill_label(PITEM_FINFO(pi), label);
+			proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 			label = strstr(label,": ")+2;
 		}
 	}
@@ -1256,7 +1356,7 @@ unsigned64_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *diam
 		if (c->tree) {
 			pi= proto_tree_add_item(c->tree, a->hf_value, tvb, 0, length, ENC_BIG_ENDIAN);
 			label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-			proto_item_fill_label(PITEM_FINFO(pi), label);
+			proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 			label = strstr(label,": ")+2;
 		}
 	}
@@ -1284,7 +1384,7 @@ float32_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *diam_su
 		if (c->tree) {
 			pi= proto_tree_add_item(c->tree,a->hf_value, tvb, 0, length, ENC_BIG_ENDIAN);
 			label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-			proto_item_fill_label(PITEM_FINFO(pi), label);
+			proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 			label = strstr(label,": ")+2;
 		}
 	}
@@ -1312,7 +1412,7 @@ float64_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *diam_su
 		if (c->tree) {
 			pi= proto_tree_add_item(c->tree, a->hf_value, tvb, 0, length, ENC_BIG_ENDIAN);
 			label = (char *)wmem_alloc(c->pinfo->pool, ITEM_LABEL_LENGTH+1);
-			proto_item_fill_label(PITEM_FINFO(pi), label);
+			proto_item_fill_label(PITEM_FINFO(pi), label, NULL);
 			label = strstr(label,": ")+2;
 		}
 	}
@@ -1340,25 +1440,20 @@ grouped_avp(diam_ctx_t *c, diam_avp_t *a, tvbuff_t *tvb, diam_sub_dis_t *diam_su
 
 	/* Set the flag that we are dissecting a grouped AVP */
 	diam_sub_dis_inf->dis_gouped = true;
+	diam_sub_dis_inf->group_avp_code = a->code;
 	while (offset < len) {
 		offset += dissect_diameter_avp(c, tvb, offset, diam_sub_dis_inf, false);
 	}
 	/* Clear info collected in grouped AVP */
 	diam_sub_dis_inf->vendor_id  = 0;
 	diam_sub_dis_inf->dis_gouped = false;
+	diam_sub_dis_inf->group_avp_code = 0;
 	diam_sub_dis_inf->avp_str = NULL;
 
 	c->tree = pt;
 
 	return NULL;
 }
-
-static const char *msgflags_str[] = {
-	"----", "---T", "--E-", "--ET",
-	"-P--", "-P-T", "-PE-", "-PET",
-	"R---", "R--T", "R-E-", "R-ET",
-	"RP--", "RP-T", "RPE-", "RPET"
-};
 
 static int * const diameter_flags_fields[] = {
 	&hf_diameter_flags_request,
@@ -1389,6 +1484,7 @@ dissect_diameter_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	diameter_conv_info_t *diameter_conv_info;
 	diameter_req_ans_pair_t *diameter_pair = NULL;
 	wmem_tree_t *pdus_tree;
+	wmem_tree_key_t key[3];
 	proto_item *it;
 	nstime_t ns;
 	diam_sub_dis_t *diam_sub_dis_inf = wmem_new0(pinfo->pool, diam_sub_dis_t);
@@ -1447,80 +1543,59 @@ dissect_diameter_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	proto_tree_add_item_ret_uint(diam_tree, hf_diameter_hopbyhopid, tvb, 12, 4, ENC_BIG_ENDIAN, &hop_by_hop_id);
 	proto_tree_add_item_ret_uint(diam_tree, hf_diameter_endtoendid, tvb, 16, 4, ENC_BIG_ENDIAN, &end_to_end_id);
 
-	col_add_fstr(pinfo->cinfo, COL_INFO,
-			 "cmd=%s%s(%d) flags=%s %s=%s(%d) h2h=%x e2e=%x",
-			 cmd_str,
-			 ((flags_bits>>4)&0x08) ? " Request" : " Answer",
-			 cmd,
-			 msgflags_str[((flags_bits>>4)&0x0f)],
-			 "appl",
-			 val_to_str_ext_const(diam_sub_dis_inf->application_id, dictionary.applications, "Unknown"),
-			 diam_sub_dis_inf->application_id,
-			 hop_by_hop_id,
-			 end_to_end_id);
-
+	col_add_fstr(pinfo->cinfo, COL_INFO, "%s%s", cmd_str, ((flags_bits>>4)&0x08) ? " Request" : " Answer");
 	col_append_str(pinfo->cinfo, COL_INFO, " | ");
 	col_set_fence(pinfo->cinfo, COL_INFO);
 
 
 	/* Conversation tracking stuff */
-	/*
-	 * FIXME: Looking at epan/conversation.c it seems unlikely that this will work properly in
-	 * multi-homed SCTP connections. This will probably need to be fixed at some point.
-	 */
+	if (!gbl_diameter_use_ip_port_for_conversation) {
+		pdus_tree = diameter_conversations;
+	} else {
+		conversation = find_or_create_conversation(pinfo);
 
-	conversation = find_or_create_conversation(pinfo);
+		diameter_conv_info = (diameter_conv_info_t *)conversation_get_proto_data(conversation, proto_diameter);
+		if (!diameter_conv_info) {
+			diameter_conv_info = wmem_new(wmem_file_scope(), diameter_conv_info_t);
+			diameter_conv_info->pdus_tree = wmem_tree_new(wmem_file_scope());
 
-	diameter_conv_info = (diameter_conv_info_t *)conversation_get_proto_data(conversation, proto_diameter);
-	if (!diameter_conv_info) {
-		diameter_conv_info = wmem_new(wmem_file_scope(), diameter_conv_info_t);
-		diameter_conv_info->pdu_trees = wmem_map_new(wmem_file_scope(), g_direct_hash, g_direct_equal);
-
-		conversation_add_proto_data(conversation, proto_diameter, diameter_conv_info);
-	}
-
-	/* pdus_tree is an wmem_tree keyed by frame number (in order to handle hop-by-hop collisions */
-	pdus_tree = (wmem_tree_t *)wmem_map_lookup(diameter_conv_info->pdu_trees, GUINT_TO_POINTER(hop_by_hop_id));
-
-	if (pdus_tree == NULL && (flags_bits & DIAM_FLAGS_R)) {
-		/* This is the first request we've seen with this hop-by-hop id */
-		pdus_tree = wmem_tree_new(wmem_file_scope());
-		wmem_map_insert(diameter_conv_info->pdu_trees, GUINT_TO_POINTER(hop_by_hop_id), pdus_tree);
-	}
-
-	if (pdus_tree) {
-		if (!pinfo->fd->visited) {
-			if (flags_bits & DIAM_FLAGS_R) {
-				/* This is a request */
-				diameter_pair = wmem_new(wmem_file_scope(), diameter_req_ans_pair_t);
-				diameter_pair->hop_by_hop_id = hop_by_hop_id;
-				diameter_pair->end_to_end_id = end_to_end_id;
-				diameter_pair->cmd_code = cmd;
-				diameter_pair->result_code = 0;
-				diameter_pair->cmd_str = cmd_str;
-				diameter_pair->req_frame = pinfo->num;
-				diameter_pair->ans_frame = 0;
-				diameter_pair->req_time = pinfo->abs_ts;
-				wmem_tree_insert32(pdus_tree, pinfo->num, (void *)diameter_pair);
-			} else {
-				/* Look for a request which occurs earlier in the trace than this answer. */
-				diameter_pair = (diameter_req_ans_pair_t *)wmem_tree_lookup32_le(pdus_tree, pinfo->num);
-
-				/* Verify the end-to-end-id matches before declaring a match */
-				if (diameter_pair && diameter_pair->end_to_end_id == end_to_end_id) {
-					diameter_pair->ans_frame = pinfo->num;
-				}
-			}
-		} else {
-			/* Look for a request which occurs earlier in the trace than this answer. */
-			diameter_pair = (diameter_req_ans_pair_t *)wmem_tree_lookup32_le(pdus_tree, pinfo->num);
-
-			/* If the end-to-end ID doesn't match then this is not the request we were
-			 * looking for.
-			 */
-			if (diameter_pair && diameter_pair->end_to_end_id != end_to_end_id)
-				diameter_pair = NULL;
+			conversation_add_proto_data(conversation, proto_diameter, diameter_conv_info);
 		}
+
+		pdus_tree = diameter_conv_info->pdus_tree;
+	}
+
+	key[0].length = 1;
+	key[0].key = &hop_by_hop_id;
+	key[1].length = 1;
+	key[1].key = &end_to_end_id;
+	key[2].length = 0;
+	key[2].key = NULL;
+
+	if (!pinfo->fd->visited) {
+		if (flags_bits & DIAM_FLAGS_R) {
+			/* This is a request */
+			diameter_pair = wmem_new(wmem_file_scope(), diameter_req_ans_pair_t);
+			diameter_pair->hop_by_hop_id = hop_by_hop_id;
+			diameter_pair->end_to_end_id = end_to_end_id;
+			diameter_pair->cmd_code = cmd;
+			diameter_pair->result_code = 0;
+			diameter_pair->cmd_str = cmd_str;
+			diameter_pair->req_frame = pinfo->num;
+			diameter_pair->ans_frame = 0;
+			diameter_pair->req_time = pinfo->abs_ts;
+			wmem_tree_insert32_array(pdus_tree, key, (void *)diameter_pair);
+		} else {
+			/* This is a answer */
+			diameter_pair = (diameter_req_ans_pair_t *)wmem_tree_lookup32_array(pdus_tree, key);
+
+			/* Request should be earlier in the trace than this answer. */
+			if (diameter_pair && !diameter_pair->ans_frame && diameter_pair->req_frame < pinfo->num) {
+				diameter_pair->ans_frame = pinfo->num;
+			}
+		}
+	} else {
+		diameter_pair = (diameter_req_ans_pair_t *)wmem_tree_lookup32_array(pdus_tree, key);
 	}
 
 	if (!diameter_pair) {
@@ -1564,6 +1639,20 @@ dissect_diameter_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, voi
 	/* Dissect AVPs until the end of the packet is reached */
 	while (offset < packet_len) {
 		offset += dissect_diameter_avp(c, tvb, offset, diam_sub_dis_inf, false);
+	}
+
+	if (gbl_diameter_session_imsi) {
+		if (diam_sub_dis_inf->session_id && !wmem_map_contains(diam_session_imsi, diam_sub_dis_inf->session_id) && diam_sub_dis_inf->imsi) {
+			wmem_map_insert(diam_session_imsi,
+					wmem_strdup(wmem_file_scope(), diam_sub_dis_inf->session_id),
+					wmem_strdup(wmem_file_scope(), diam_sub_dis_inf->imsi));
+		}
+		if (diam_sub_dis_inf->session_id) {
+			char *imsi = (char *)wmem_map_lookup(diam_session_imsi, diam_sub_dis_inf->session_id);
+			if (imsi) {
+				add_assoc_imsi_item(tvb, diam_tree, imsi);
+			}
+		}
 	}
 
 	/* Handle requests for which no answers were found and
@@ -1719,6 +1808,14 @@ dissect_diameter_avps(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void 
 	return tvb_reported_length(tvb);
 }
 
+/*******************************************************************************************************************
+ *
+ * START OF DIAMETER XML DATA DICTIONARY PROCESSSING
+ *
+ * This turns XML data files into (dynamic) hf and ett fields for use by the dissector
+ *
+ *******************************************************************************************************************/
+
 static char *
 alnumerize(char *name)
 {
@@ -1741,7 +1838,7 @@ alnumerize(char *name)
 static unsigned
 reginfo(int *hf_ptr, const char *name, const char *abbr, const char *desc,
 	enum ftenum ft, field_display_e base, value_string_ext *vs_ext,
-	uint32_t mask)
+	uint32_t mask, wmem_array_t* hf_array)
 {
 	hf_register_info hf;
 
@@ -1760,13 +1857,13 @@ reginfo(int *hf_ptr, const char *name, const char *abbr, const char *desc,
 		hf.hfinfo.strings = vs_ext;
 	}
 
-	wmem_array_append_one(build_dict.hf,hf);
-	return wmem_array_get_count(build_dict.hf);
+	wmem_array_append_one(hf_array,hf);
+	return wmem_array_get_count(hf_array);
 }
 
 static void
 basic_avp_reginfo(diam_avp_t *a, const char *name, enum ftenum ft,
-		  field_display_e base, value_string_ext *vs_ext)
+		  field_display_e base, value_string_ext *vs_ext, wmem_array_t* hf_array, GPtrArray* ett_array)
 {
 	hf_register_info hf;
 	int *ettp = &(a->ett);
@@ -1790,12 +1887,12 @@ basic_avp_reginfo(diam_avp_t *a, const char *name, enum ftenum ft,
 		hf.hfinfo.strings = vs_ext;
 	}
 
-	wmem_array_append(build_dict.hf,&hf,1);
-	g_ptr_array_add(build_dict.ett,ettp);
+	wmem_array_append(hf_array,&hf,1);
+	g_ptr_array_add(ett_array,ettp);
 }
 
 static diam_avp_t *
-build_gen_address_avp(diam_avp_t *a, address_avp_t *t, const char *name)
+build_gen_address_avp(diam_avp_t *a, address_avp_t *t, const char *name, wmem_array_t* hf_array, GPtrArray* ett_array)
 {
 	int *ettp = &(t->ett);
 
@@ -1810,29 +1907,29 @@ build_gen_address_avp(diam_avp_t *a, address_avp_t *t, const char *name)
 	t->hf_e164_str = -1;
 	t->hf_other = -1;
 
-	basic_avp_reginfo(a, name, FT_BYTES, BASE_NONE, NULL);
+	basic_avp_reginfo(a, name, FT_BYTES, BASE_NONE, NULL, hf_array, ett_array);
 
 	reginfo(&(t->hf_address_type), wmem_strconcat(wmem_epan_scope(), name, " Address Family", NULL),
 		alnumerize(wmem_strconcat(wmem_epan_scope(), "diameter.", name, ".addr_family", NULL)),
-		NULL, FT_UINT16, (field_display_e)(BASE_DEC|BASE_EXT_STRING), &diameter_avp_data_addrfamily_vals_ext, 0);
+		NULL, FT_UINT16, (field_display_e)(BASE_DEC|BASE_EXT_STRING), &diameter_avp_data_addrfamily_vals_ext, 0, hf_array);
 
 	reginfo(&(t->hf_ipv4), wmem_strconcat(wmem_epan_scope(), name, " Address", NULL),
 		alnumerize(wmem_strconcat(wmem_epan_scope(), "diameter.", name, ".IPv4", NULL)),
-		NULL, FT_IPv4, BASE_NONE, NULL, 0);
+		NULL, FT_IPv4, BASE_NONE, NULL, 0, hf_array);
 
 	reginfo(&(t->hf_ipv6), wmem_strconcat(wmem_epan_scope(), name, " Address", NULL),
 		alnumerize(wmem_strconcat(wmem_epan_scope(), "diameter.", name, ".IPv6", NULL)),
-		NULL, FT_IPv6, BASE_NONE, NULL, 0);
+		NULL, FT_IPv6, BASE_NONE, NULL, 0, hf_array);
 
 	reginfo(&(t->hf_e164_str), wmem_strconcat(wmem_epan_scope(), name, " Address", NULL),
 		alnumerize(wmem_strconcat(wmem_epan_scope(), "diameter.", name, ".E164", NULL)),
-		NULL, FT_STRING, BASE_NONE, NULL, 0);
+		NULL, FT_STRING, BASE_NONE, NULL, 0, hf_array);
 
 	reginfo(&(t->hf_other), wmem_strconcat(wmem_epan_scope(), name, " Address", NULL),
 		alnumerize(wmem_strconcat(wmem_epan_scope(), "diameter.", name, ".Bytes", NULL)),
-		NULL, FT_BYTES, BASE_NONE, NULL, 0);
+		NULL, FT_BYTES, BASE_NONE, NULL, 0, hf_array);
 
-	g_ptr_array_add(build_dict.ett,ettp);
+	g_ptr_array_add(ett_array, ettp);
 
 	return a;
 }
@@ -1851,15 +1948,13 @@ build_gen_address_avp(diam_avp_t *a, address_avp_t *t, const char *name)
  * use Diameter encoding for all AVPs
  */
 static diam_avp_t *
-build_ipaddress_avp(const avp_type_t *type _U_, uint32_t code,
-		    diam_vnd_t *vendor, const char *name,
-		    const value_string *vs _U_, void *data _U_)
+build_ipaddress_avp(avp_constructor_data_t* constructor_data)
 {
 	diam_avp_t *a = wmem_new0(wmem_epan_scope(), diam_avp_t);
 	address_avp_t *t = wmem_new(wmem_epan_scope(), address_avp_t);
 
-	a->code = code;
-	a->vendor = vendor;
+	a->code = constructor_data->code;
+	a->vendor = constructor_data->vendor;
 /*
  * It seems like the radius AVPs 1-255 will use the defs from RADIUS in which case:
  * https://tools.ietf.org/html/rfc2685
@@ -1882,57 +1977,52 @@ build_ipaddress_avp(const avp_type_t *type _U_, uint32_t code,
  *    defined in [IANAADFAM].  The AddressType is used to discriminate
  *    the content and format of the remaining octets.
  */
-	if (code<256) {
+	if (constructor_data->code<256) {
 		a->dissector_rfc = address_radius_avp;
 	} else {
 		a->dissector_rfc = address_rfc_avp;
 	}
-	return build_gen_address_avp(a, t, name);
+	return build_gen_address_avp(a, t, constructor_data->name, constructor_data->hf_array, constructor_data->ett_array);
 }
 
 static diam_avp_t *
-build_address_avp(const avp_type_t *type _U_, uint32_t code,
-		  diam_vnd_t *vendor, const char *name,
-		  const value_string *vs _U_, void *data _U_)
+build_address_avp(avp_constructor_data_t* constructor_data)
 {
 	diam_avp_t *a = wmem_new0(wmem_epan_scope(), diam_avp_t);
 	address_avp_t *t = wmem_new(wmem_epan_scope(), address_avp_t);
 
-	a->code = code;
-	a->vendor = vendor;
+	a->code = constructor_data->code;
+	a->vendor = constructor_data->vendor;
 	a->dissector_rfc = address_rfc_avp;
 
-	return build_gen_address_avp(a, t, name);
+	return build_gen_address_avp(a, t, constructor_data->name, constructor_data->hf_array, constructor_data->ett_array);
 }
 
 static diam_avp_t *
-build_proto_avp(const avp_type_t *type _U_, uint32_t code,
-		diam_vnd_t *vendor, const char *name _U_,
-		const value_string *vs _U_, void *data)
+build_proto_avp(avp_constructor_data_t* constructor_data)
 {
 	diam_avp_t *a = wmem_new0(wmem_epan_scope(), diam_avp_t);
 	proto_avp_t *t = wmem_new0(wmem_epan_scope(), proto_avp_t);
 	int *ettp = &(a->ett);
 
-	a->code = code;
-	a->vendor = vendor;
+	a->code = constructor_data->code;
+	a->vendor = constructor_data->vendor;
 	a->dissector_rfc = proto_avp;
 	a->ett = -1;
 	a->hf_value = -2;
 	a->type_data = t;
 
-	t->name = (char *)data;
+	t->name = (char *)constructor_data->data;
 	t->handle = NULL;
 	t->reassemble_mode = REASEMBLE_NEVER;
 
-	g_ptr_array_add(build_dict.ett,ettp);
+	g_ptr_array_add(constructor_data->ett_array, ettp);
 
 	return a;
 }
 
 static diam_avp_t *
-build_simple_avp(const avp_type_t *type, uint32_t code, diam_vnd_t *vendor,
-		 const char *name, const value_string *vs, void *data _U_)
+build_simple_avp(avp_constructor_data_t* constructor_data)
 {
 	diam_avp_t *a;
 	value_string_ext *vs_ext = NULL;
@@ -1942,9 +2032,9 @@ build_simple_avp(const avp_type_t *type, uint32_t code, diam_vnd_t *vendor,
 	/*
 	 * Only 32-bit or shorter integral types can have a list of values.
 	 */
-	base = (field_display_e)type->base;
-	if (vs != NULL) {
-		switch (type->ft) {
+	base = (field_display_e)constructor_data->type->base;
+	if (constructor_data->vs != NULL) {
+		switch (constructor_data->type->ft) {
 
 		case FT_UINT8:
 		case FT_UINT16:
@@ -1956,50 +2046,49 @@ build_simple_avp(const avp_type_t *type, uint32_t code, diam_vnd_t *vendor,
 
 		default:
 			report_failure("Diameter Dictionary: AVP '%s' has a list of values but isn't of a 32-bit or shorter integral type (%s)\n",
-				name, ftype_name(type->ft));
+				constructor_data->name, ftype_name(constructor_data->type->ft));
 			return NULL;
 		}
-		while (vs[i].strptr) {
+		while (constructor_data->vs[i].strptr) {
 		  i++;
 		}
-		vs_ext = value_string_ext_new(vs, i+1, wmem_strconcat(wmem_epan_scope(), name, "_vals_ext", NULL));
+		vs_ext = value_string_ext_new(wmem_epan_scope(), constructor_data->vs, i+1, wmem_strconcat(wmem_epan_scope(), constructor_data->name, "_vals_ext", NULL));
 		base = (field_display_e)(base|BASE_EXT_STRING);
 	}
 
 	a = wmem_new0(wmem_epan_scope(), diam_avp_t);
-	a->code = code;
-	a->vendor = vendor;
-	a->dissector_rfc = type->rfc;
+	a->code = constructor_data->code;
+	a->vendor = constructor_data->vendor;
+	a->dissector_rfc = constructor_data->type->rfc;
 	a->ett = -1;
 	a->hf_value = -1;
 
-	basic_avp_reginfo(a, name, type->ft, base, vs_ext);
+	basic_avp_reginfo(a, constructor_data->name, constructor_data->type->ft, base, vs_ext, constructor_data->hf_array, constructor_data->ett_array);
 
 	return a;
 }
 
 static diam_avp_t *
-build_appid_avp(const avp_type_t *type, uint32_t code, diam_vnd_t *vendor,
-		const char *name, const value_string *vs, void *data _U_)
+build_appid_avp(avp_constructor_data_t* constructor_data)
 {
 	diam_avp_t *a;
 	field_display_e base;
 
 	a = wmem_new0(wmem_epan_scope(), diam_avp_t);
-	a->code = code;
-	a->vendor = vendor;
-	a->dissector_rfc = type->rfc;
+	a->code = constructor_data->code;
+	a->vendor = constructor_data->vendor;
+	a->dissector_rfc = constructor_data->type->rfc;
 	a->ett = -1;
 	a->hf_value = -1;
 
-	if (vs != NULL) {
+	if (constructor_data->vs != NULL) {
 		report_failure("Diameter Dictionary: AVP '%s' (of type AppId) has a list of values but the list won't be used\n",
-				name);
+			constructor_data->name);
 	}
 
-	base = (field_display_e)(type->base|BASE_EXT_STRING);
+	base = (field_display_e)(constructor_data->type->base|BASE_EXT_STRING);
 
-	basic_avp_reginfo(a, name, type->ft, base, dictionary.applications);
+	basic_avp_reginfo(a, constructor_data->name, constructor_data->type->ft, base, dictionary.applications, constructor_data->hf_array, constructor_data->ett_array);
 	return a;
 }
 
@@ -2007,7 +2096,7 @@ static const avp_type_t basic_types[] = {
 	{"octetstring"			, simple_avp		, FT_BYTES			, BASE_NONE			, build_simple_avp  },
 	{"octetstringorutf8"	, simple_avp		, FT_BYTES			, BASE_SHOW_ASCII_PRINTABLE	, build_simple_avp  },
 	{"utf8string"			, utf8_avp			, FT_STRING			, BASE_NONE			, build_simple_avp  },
-	{"grouped"				, grouped_avp		, FT_BYTES			, BASE_NONE			, build_simple_avp  },
+	{"grouped"				, grouped_avp		, FT_BYTES			, BASE_NO_DISPLAY_VALUE			, build_simple_avp  },
 	{"integer32"			, integer32_avp		, FT_INT32			, BASE_DEC			, build_simple_avp  },
 	{"unsigned32"			, unsigned32_avp	, FT_UINT32			, BASE_DEC			, build_simple_avp  },
 	{"integer64"			, integer64_avp		, FT_INT64			, BASE_DEC			, build_simple_avp  },
@@ -2070,45 +2159,748 @@ strcase_equal(const void *ka, const void *kb)
 	return g_ascii_strcasecmp(a,b) == 0;
 }
 
-static bool
-ddict_cleanup_cb(wmem_allocator_t* allocator _U_, wmem_cb_event_t event _U_, void *user_data)
+
+/*******************************************************************************************************************
+ *
+ * START STRUCTURES FOR LIBXML2 PARSING
+ *
+ * Structures used created by the XML processing data from/using the libxml2 API\
+ * Also includes "helper" functions for populating, cleaning and printing those structures
+ *
+ *******************************************************************************************************************/
+
+typedef struct ddict_application
 {
-	ddict_t *d = (ddict_t *)user_data;
-	ddict_free(d);
-	return false;
+	xmlChar* name;
+	unsigned code;
+
+} ddict_application_t;
+
+static void
+ddictionary_clean_application(void* data, void* user_data _U_)
+{
+	ddict_application_t* a = (ddict_application_t*)data;
+	xmlFree(a->name);
+	g_free(a);
 }
 
+static void
+ddictionary_populate_application(void* data, void* user_data)
+{
+	ddict_application_t* a = (ddict_application_t*)data;
+	wmem_array_t* arr = (wmem_array_t*)user_data;
+	value_string item;
+
+	item.value = a->code;
+	item.strptr = wmem_strdup(wmem_epan_scope(), a->name);
+	if (!a->name) {
+		report_failure("Diameter Dictionary: Invalid Application (empty name): id=%d\n", a->code);
+		return;
+	}
+
+	wmem_array_append_one(arr, item);
+}
+
+static void
+ddictionary_print_application(void* data, void* user_data)
+{
+	ddict_application_t* a = (ddict_application_t*)data;
+	FILE* fh = (FILE*)user_data;
+
+	fprintf(fh, "Application: %s[%u]:\n",
+		a->name ? (char*)a->name : "-",
+		a->code);
+}
+
+
+typedef struct ddict_vendor
+{
+	xmlChar* name;
+	xmlChar* desc;
+	unsigned code;
+
+} ddict_vendor_t;
+
+static void ddictionary_clean_vendor(void* data, void* user_data _U_)
+{
+	ddict_vendor_t* v = (ddict_vendor_t*)data;
+	xmlFree(v->name);
+	xmlFree(v->desc);
+	g_free(v);
+}
+
+typedef struct populate_vendor_data
+{
+	GHashTable* vendors;
+	wmem_tree_t* vnds;
+
+} populate_vendor_data_t;
+
+static void
+ddictionary_populate_vendor(void* data, void* user_data)
+{
+	ddict_vendor_t* v = (ddict_vendor_t*)data;
+	populate_vendor_data_t* pop_data = (populate_vendor_data_t*)user_data;
+	diam_vnd_t* vnd;
+
+	if (v->name == NULL) {
+		report_failure("Diameter Dictionary: Invalid Vendor (empty name): code==%d\n", v->code);
+		return;
+	}
+
+	if (g_hash_table_lookup(pop_data->vendors, v->name))
+		return;
+
+	vnd = wmem_new(wmem_epan_scope(), diam_vnd_t);
+	vnd->code = v->code;
+	vnd->vs_avps = wmem_array_new(wmem_epan_scope(), sizeof(value_string));
+	wmem_array_set_null_terminator(vnd->vs_avps);
+	wmem_array_bzero(vnd->vs_avps);
+	vnd->vs_avps_ext = NULL;
+	wmem_tree_insert32(pop_data->vnds, vnd->code, vnd);
+	g_hash_table_insert(pop_data->vendors, v->name, vnd);
+}
+
+static void
+ddictionary_print_vendor(void* data, void* user_data)
+{
+	ddict_vendor_t* v = (ddict_vendor_t*)data;
+	FILE* fh = (FILE*)user_data;
+
+	fprintf(fh, "Vendor: %s[%u]:\n",
+		v->name ? (char*)v->name : "-",
+		v->code);
+}
+
+
+typedef struct ddict_command
+{
+	xmlChar* name;
+	xmlChar* vendor;
+	unsigned code;
+
+} ddict_command_t;
+
+static void
+ddictionary_clean_command(void* data, void* user_data _U_)
+{
+	ddict_command_t* c = (ddict_command_t*)data;
+	xmlFree(c->name);
+	xmlFree(c->vendor);
+	g_free(c);
+}
+
+typedef struct populate_command_data
+{
+	GHashTable* vendors;
+	GArray* cmds;
+
+} populate_command_data_t;
+
+static void
+ddictionary_populate_command(void* data, void* user_data)
+{
+	ddict_command_t* c = (ddict_command_t*)data;
+	populate_command_data_t* pop_data = (populate_command_data_t*)user_data;
+
+	if (c->vendor == NULL) {
+		report_failure("Diameter Dictionary: Invalid Vendor (empty name) for command %s\n",
+			c->name ? (char*)c->name : "(null)");
+		return;
+	}
+
+	if ((diam_vnd_t*)g_hash_table_lookup(pop_data->vendors, c->vendor)) {
+		value_string item;
+
+		item.value = c->code;
+		item.strptr = wmem_strdup(wmem_epan_scope(), c->name);
+
+		g_array_append_val(pop_data->cmds, item);
+	}
+	else {
+		report_failure("Diameter Dictionary: No Vendor: %s\n", c->vendor);
+	}
+}
+
+static void
+ddictionary_print_command(void* data, void* user_data)
+{
+	ddict_command_t* c = (ddict_command_t*)data;
+	FILE* fh = (FILE*)user_data;
+
+	fprintf(fh, "Command: %s[%u] \n",
+		c->name ? (char*)c->name : "-",
+		c->code);
+}
+
+
+typedef struct ddict_typedefn
+{
+	xmlChar* name;
+	xmlChar* parent;
+
+} ddict_typedefn_t;
+
+
+static void
+ddictionary_clean_typedefn(void* data, void* user_data _U_)
+{
+	ddict_typedefn_t* t = (ddict_typedefn_t*)data;
+	xmlFree(t->name);
+	xmlFree(t->parent);
+	g_free(t);
+}
+
+static void
+ddictionary_populate_typedefn(void* data, void* user_data)
+{
+	GHashTable* types = (GHashTable*)user_data;
+	ddict_typedefn_t* t = (ddict_typedefn_t*)data;
+	const avp_type_t* parent = NULL;
+
+	/* try to get the parent type */
+	if (t->name == NULL) {
+		report_failure("Diameter Dictionary: Invalid Type (empty name): parent==%s\n", t->parent ? (char*)t->parent : "(null)");
+		return;
+	}
+
+	if (g_hash_table_lookup(types, t->name))
+		return;
+
+	if (t->parent)
+		parent = (avp_type_t*)g_hash_table_lookup(types, t->parent);
+
+	if (parent == NULL)
+		parent = &basic_types[0];
+
+	/* insert the parent type for this type */
+	g_hash_table_insert(types, t->name, (void*)parent);
+}
+
+static void
+ddictionary_print_typedefn(void* data, void* user_data)
+{
+	ddict_typedefn_t* t = (ddict_typedefn_t*)data;
+	FILE* fh = (FILE*)user_data;
+
+	fprintf(fh, "Type: %s -> %s \n",
+		t->name ? (char*)t->name : "-",
+		t->parent ? (char*)t->parent : "");
+}
+
+typedef struct ddict_avp
+{
+	xmlChar* name;
+	xmlChar* description;
+	xmlChar* vendor;
+	xmlChar* type;
+	unsigned code;
+	GSList* gavps;
+	GSList* enums;
+
+} ddict_avp_t;
+
+typedef struct ddict_avp_enum
+{
+	xmlChar* name;
+	unsigned code;
+} ddict_avp_enum_t;
+
+typedef struct ddict_gavp
+{
+	xmlChar* name;
+} ddict_gavp_t;
+
+typedef struct ddict_xmlpi
+{
+	xmlChar* name;
+	xmlChar* key;
+	xmlChar* value;
+} ddict_xmlpi_t;
+
+
+static void
+ddictionary_clean_xmlpi(void* data, void* user_data _U_)
+{
+	ddict_xmlpi_t* x = (ddict_xmlpi_t*)data;
+	xmlFree(x->name);
+	xmlFree(x->key);
+	xmlFree(x->value);
+	g_free(x);
+}
+
+static void
+ddictionary_clean_gavp(void* data, void* user_data _U_)
+{
+	ddict_gavp_t* g = (ddict_gavp_t*)data;
+	xmlFree(g->name);
+	g_free(g);
+}
+
+static void
+ddictionary_clean_enum(void* data, void* user_data _U_)
+{
+	ddict_avp_enum_t* e = (ddict_avp_enum_t*)data;
+	xmlFree(e->name);
+	g_free(e);
+}
+
+static void
+ddictionary_clean_avp(void* data, void* user_data)
+{
+	ddict_avp_t* a = (ddict_avp_t*)data;
+	xmlFree(a->name);
+	xmlFree(a->description);
+	xmlFree(a->vendor);
+	xmlFree(a->type);
+
+	g_slist_foreach(a->gavps, ddictionary_clean_gavp, user_data);
+	g_slist_free(a->gavps);
+	g_slist_foreach(a->enums, ddictionary_clean_enum, user_data);
+	g_slist_free(a->enums);
+	g_free(a);
+}
+
+typedef struct populate_avp_data
+{
+	GHashTable* vendors;
+	GHashTable* types;
+	GHashTable* build_avps;
+	wmem_tree_t* dict_avps;
+	GSList* xmlpis;
+	wmem_array_t* hf_array;
+	GPtrArray* ett_array;
+
+} populate_avp_data_t;
+
+static void
+ddictionary_populate_enum(void* data, void* user_data)
+{
+	ddict_avp_enum_t* e = (ddict_avp_enum_t*)data;
+	wmem_array_t* arr = (wmem_array_t*)user_data;
+
+	value_string item = { e->code, wmem_strdup(wmem_epan_scope(), e->name) };
+	wmem_array_append_one(arr, item);
+}
+
+static void
+ddictionary_populate_avp(void* data, void* user_data)
+{
+	ddict_avp_t* a = (ddict_avp_t*)data;
+	populate_avp_data_t* pop_data = (populate_avp_data_t*)user_data;
+
+	diam_vnd_t* vnd;
+	value_string* vs = NULL;
+	const char* vend = a->vendor ? (const char*)a->vendor : "None";
+	void* avp_data = NULL;
+	const avp_type_t* type = NULL;
+	value_string end_value_string = { 0, NULL };
+
+	if (a->name == NULL) {
+		report_failure("Diameter Dictionary: Invalid AVP (empty name)\n");
+		return;
+	}
+
+	if ((vnd = (diam_vnd_t*)g_hash_table_lookup(pop_data->vendors, vend))) {
+		value_string vndvs;
+
+		vndvs.value = a->code;
+		vndvs.strptr = wmem_strdup(wmem_epan_scope(), a->name);
+
+		wmem_array_append_one(vnd->vs_avps, vndvs);
+	}
+	else {
+		report_failure("Diameter Dictionary: No Vendor: %s\n", vend);
+		vnd = &unknown_vendor;
+	}
+
+	if (a->enums != NULL) {
+		wmem_array_t* arr = wmem_array_new(wmem_epan_scope(), sizeof(value_string));
+		g_slist_foreach(a->enums, ddictionary_populate_enum, arr);
+
+		wmem_array_sort(arr, compare_avps);
+		wmem_array_append_one(arr, end_value_string);
+		vs = (value_string*)wmem_array_get_raw(arr);
+	}
+
+	for (GSList* elem = pop_data->xmlpis; elem; elem = elem->next) {
+		ddict_xmlpi_t* x = (ddict_xmlpi_t*)elem->data;
+
+		if ((strcase_equal(x->name, "avp-proto") && strcase_equal(x->key, a->name))
+			|| (a->type && strcase_equal(x->name, "type-proto") && strcase_equal(x->key, a->type))
+			) {
+			static avp_type_t proto_type = { "proto", proto_avp, FT_UINT32, BASE_HEX, build_proto_avp };
+			type = &proto_type;
+
+			avp_data = wmem_strdup(wmem_epan_scope(), x->value);
+			break;
+		}
+	}
+
+	if ((type == NULL) && a->type)
+		type = (avp_type_t*)g_hash_table_lookup(pop_data->types, a->type);
+
+	if (type == NULL)
+		type = &basic_types[0];
+
+	char* avp_name = wmem_strdup(wmem_epan_scope(), a->name);
+	avp_constructor_data_t avp_constructor = { type, a->code, vnd, avp_name, vs, avp_data, pop_data->hf_array, pop_data->ett_array };
+	diam_avp_t* avp = type->build(&avp_constructor);
+	if (avp != NULL) {
+		g_hash_table_insert(pop_data->build_avps, avp_name, avp);
+
+		wmem_tree_key_t k[3];
+
+		k[0].length = 1;
+		k[0].key = &(a->code);
+		k[1].length = 1;
+		k[1].key = &(vnd->code);
+		k[2].length = 0;
+		k[2].key = NULL;
+
+		wmem_tree_insert32_array(pop_data->dict_avps, k, avp);
+	}
+}
+
+static void
+ddictionary_print_gavp(void* data, void* user_data)
+{
+	ddict_gavp_t* g = (ddict_gavp_t*)data;
+	FILE* fh = (FILE*)user_data;
+
+	fprintf(fh, "\tGAVP: %s\n",
+		g->name ? (char*)g->name : "-");
+}
+
+static void
+ddictionary_print_avp_enum(void* data, void* user_data)
+{
+	ddict_avp_enum_t* e = (ddict_avp_enum_t*)data;
+	FILE* fh = (FILE*)user_data;
+
+	fprintf(fh, "\tEnum: %s[%u]\n",
+		e->name ? (char*)e->name : "-",
+		e->code);
+}
+
+static void
+ddictionary_print_avp(void* data, void* user_data)
+{
+	ddict_avp_t* a = (ddict_avp_t*)data;
+	FILE* fh = (FILE*)user_data;
+
+	fprintf(fh, "AVP: %s[%u:%s] %s %s\n",
+		a->name ? (char*)a->name : "-",
+		a->code,
+		a->vendor ? (char*)a->vendor : "None",
+		a->type ? (char*)a->type : "-",
+		a->description ? (char*)a->description : "");
+
+	g_slist_foreach(a->gavps, ddictionary_print_gavp, fh);
+	g_slist_foreach(a->enums, ddictionary_print_avp_enum, fh);
+}
+
+static bool
+ddictionary_process_command(xmlNodePtr command, GSList** commands)
+{
+	ddict_command_t* element = g_new(ddict_command_t, 1);
+	element->name = xmlGetProp(command, (const xmlChar*)"name");
+	element->vendor = xmlGetProp(command, (const xmlChar*)"vendor-id");
+	xmlChar* code = xmlGetProp(command, (const xmlChar*)"code");
+	if (code != NULL) {
+		ws_strtou32(code, NULL, &element->code);
+		xmlFree(code);
+	}
+
+	(*commands) = g_slist_prepend((*commands), element);
+
+	return true;
+}
+
+static bool
+ddictionary_process_avp(xmlNodePtr avp, GSList** avps)
+{
+	ddict_avp_t* element = g_new0(ddict_avp_t, 1);
+
+	element->name = xmlGetProp(avp, (const xmlChar*)"name");
+	element->description = xmlGetProp(avp, (const xmlChar*)"description");
+	element->vendor = xmlGetProp(avp, (const xmlChar*)"vendor-id");
+	xmlChar* code = xmlGetProp(avp, (const xmlChar*)"code");
+	if (code != NULL) {
+		ws_strtou32(code, NULL, &element->code);
+		xmlFree(code);
+	}
+
+	//Iterate through the child elements
+	for (xmlNodePtr current_node = avp->children; current_node != NULL; current_node = current_node->next) {
+		if (current_node->type != XML_ELEMENT_NODE)
+			continue;
+
+		if (xmlStrcmp(current_node->name, (const xmlChar*)"type") == 0) {
+			element->type = xmlGetProp(current_node, (const xmlChar*)"type-name");
+		}
+		else if (xmlStrcmp(current_node->name, (const xmlChar*)"enum") == 0) {
+			ddict_avp_enum_t* avp_enum = g_new(ddict_avp_enum_t, 1);
+
+			avp_enum->name = xmlGetProp(current_node, (const xmlChar*)"name");
+			code = xmlGetProp(current_node, (const xmlChar*)"code");
+			if (code != NULL) {
+				if (code[0] == '-') {
+					//Enumerated values can be 32-bit integers, but treat them as unsigned
+					int32_t tmp;
+					ws_strtoi32(code, NULL, &tmp);
+					avp_enum->code = (unsigned)tmp;
+				}
+				else {
+					ws_strtou32(code, NULL, &avp_enum->code);
+				}
+				xmlFree(code);
+			}
+			element->enums = g_slist_prepend(element->enums, avp_enum);
+		}
+		else if (xmlStrcmp(current_node->name, (const xmlChar*)"grouped") == 0) {
+			//All AVPs under the grouped element are considered Grouped type
+			element->type = xmlStrdup("Grouped");
+
+			for (xmlNodePtr group_children = current_node->children; group_children != NULL; group_children = group_children->next) {
+				if (group_children->type != XML_ELEMENT_NODE)
+					continue;
+				if (xmlStrcmp(group_children->name, (const xmlChar*)"gavp") == 0) {
+					ddict_gavp_t* group = g_new(ddict_gavp_t, 1);
+					group->name = xmlGetProp(group_children, (const xmlChar*)"name");
+
+					element->gavps = g_slist_prepend(element->gavps, group);
+				}
+			}
+
+		}
+	}
+
+	//Reverse all of the lists so they are in the proper order
+	element->enums = g_slist_reverse(element->enums);
+	element->gavps = g_slist_reverse(element->gavps);
+
+	(*avps) = g_slist_prepend((*avps), element);
+	return true;
+}
+
+
+typedef struct _ddict_t {
+	GSList* applications;
+	GSList* vendors;
+	GSList* cmds;
+	GSList* typedefns;
+	GSList* avps;
+	GSList* xmlpis;
+} ddict_t;
+
+static void
+ddictionary_new_print(FILE* fh, ddict_t* dict)
+{
+	g_slist_foreach(dict->applications, ddictionary_print_application, fh);
+	g_slist_foreach(dict->vendors, ddictionary_print_vendor, fh);
+	g_slist_foreach(dict->cmds, ddictionary_print_command, fh);
+	g_slist_foreach(dict->typedefns, ddictionary_print_typedefn, fh);
+	g_slist_foreach(dict->avps, ddictionary_print_avp, fh);
+}
+
+static void
+ddictionary_clean(ddict_t* dict)
+{
+	g_slist_foreach(dict->applications, ddictionary_clean_application, NULL);
+	g_slist_free(dict->applications);
+	g_slist_foreach(dict->vendors, ddictionary_clean_vendor, NULL);
+	g_slist_free(dict->vendors);
+	g_slist_foreach(dict->cmds, ddictionary_clean_command, NULL);
+	g_slist_free(dict->cmds);
+	g_slist_foreach(dict->typedefns, ddictionary_clean_typedefn, NULL);
+	g_slist_free(dict->typedefns);
+	g_slist_foreach(dict->avps, ddictionary_clean_avp, NULL);
+	g_slist_free(dict->avps);
+	g_slist_foreach(dict->xmlpis, ddictionary_clean_xmlpi, NULL);
+	g_slist_free(dict->xmlpis);
+}
+
+/*******************************************************************************************************************
+ *
+ * END STRUCTURES FOR LIBXML2 PARSING
+ *
+ *******************************************************************************************************************/
+
+struct xml_read_data
+{
+	xmlDocPtr doc;
+	const char* filename;
+};
+
+static void
+ddictionary_read_xml_file(void* param)
+{
+	struct xml_read_data* data = (struct xml_read_data*)param;
+	data->doc = xmlReadFile(data->filename, NULL, XML_PARSE_NOENT|XML_PARSE_NONET);
+}
+
+static bool
+ddictionary_process_file(const char* dir, const char* filename, ddict_t* dict)
+{
+	xmlNodePtr root_element = NULL;
+	bool status = true;
+	struct xml_read_data func_data = {NULL, filename};
+
+	proto_execute_in_directory(dir, ddictionary_read_xml_file, &func_data);
+
+	if (func_data.doc == NULL)
+		return false;
+
+	root_element = xmlDocGetRootElement(func_data.doc);
+	if (root_element == NULL) {
+		status = false;
+		goto cleanup;
+	}
+
+	// Process the document children for XML pis
+	for (xmlNodePtr pi_node = func_data.doc->children; pi_node != NULL; pi_node = pi_node->next) {
+		if (pi_node->type != XML_PI_NODE)
+			continue;
+
+		if ((xmlStrcmp(pi_node->name, (const xmlChar*)"type-proto") == 0) ||
+		    (xmlStrcmp(pi_node->name, (const xmlChar*)"avp-proto") == 0)) {
+			ddict_xmlpi_t* element = g_new0(ddict_xmlpi_t, 1);
+			element->name = xmlStrdup(pi_node->name);
+
+			//Although the syntax looks like properties, the contents have to be "manually" parsed
+			xmlChar* content = xmlNodeGetContent(pi_node);
+
+			char* key_start = strstr((char*)content, "key=\"");
+			char* value_start = strstr((char*)content, "value=\"");
+
+			if (key_start) {
+				key_start += strlen("key=\"");
+				char* key_end = strchr(key_start, '"');
+				if (key_end) {
+					element->key = xmlStrndup(key_start, (int)(key_end - key_start));
+				}
+			}
+			if (value_start) {
+				value_start += strlen("key=\"");
+				char* value_end = strchr(value_start, '"');
+				if (value_end) {
+					element->value = xmlStrndup(value_start, (int)(value_end - value_start));
+				}
+			}
+
+			dict->xmlpis = g_slist_prepend(dict->xmlpis, element);
+			xmlFree(content);
+		}
+	}
+
+	// Iterate through top-level child elements
+	for (xmlNodePtr current_node = root_element->children; current_node != NULL; current_node = current_node->next) {
+		if (current_node->type == XML_ELEMENT_NODE) {
+			// Process <base> element
+			if (xmlStrcmp(current_node->name, (const xmlChar*)"base") == 0) {
+
+				//Process any <command> elements
+				for (xmlNodePtr base_children = current_node->children; base_children != NULL; base_children = base_children->next) {
+					if (base_children->type == XML_ELEMENT_NODE) {
+						if (xmlStrcmp(base_children->name, (const xmlChar*)"command") == 0) {
+							ddictionary_process_command(base_children, &dict->cmds);
+						}
+						// Process <typedefn> elements
+						else if (xmlStrcmp(base_children->name, (const xmlChar*)"typedefn") == 0) {
+							ddict_typedefn_t* element = g_new(ddict_typedefn_t, 1);
+							element->name = xmlGetProp(base_children, (const xmlChar*)"type-name");
+							element->parent = xmlGetProp(base_children, (const xmlChar*)"type-parent");
+							dict->typedefns = g_slist_prepend(dict->typedefns, element);
+						}
+						// Process <avp> elements
+						else if (xmlStrcmp(base_children->name, (const xmlChar*)"avp") == 0) {
+							ddictionary_process_avp(base_children, &dict->avps);
+						}
+					}
+				}
+			}
+			// Process <application> elements
+			else if (xmlStrcmp(current_node->name, (const xmlChar*)"application") == 0) {
+				ddict_application_t* element = g_new0(ddict_application_t, 1);
+				element->name = xmlGetProp(current_node, (const xmlChar*)"name");
+				xmlChar* id = xmlGetProp(current_node, (const xmlChar*)"id");
+				if (id != NULL) {
+					ws_strtou32(id, NULL, &element->code);
+					xmlFree(id);
+				}
+
+				dict->applications = g_slist_prepend(dict->applications, element);
+
+				for (xmlNodePtr base_children = current_node->children; base_children != NULL; base_children = base_children->next) {
+					if (base_children->type == XML_ELEMENT_NODE) {
+						//Process any <command> elements
+						if (xmlStrcmp(base_children->name, (const xmlChar*)"command") == 0) {
+							ddictionary_process_command(base_children, &dict->cmds);
+						}
+						// Process <avp> elements
+						else if (xmlStrcmp(base_children->name, (const xmlChar*)"avp") == 0) {
+							ddictionary_process_avp(base_children, &dict->avps);
+						}
+					}
+				}
+			}
+			// Process <vendor> elements
+			else if (xmlStrcmp(current_node->name, (const xmlChar*)"vendor") == 0) {
+				ddict_vendor_t* element = g_new0(ddict_vendor_t, 1);
+				xmlChar* code = xmlGetProp(current_node, (const xmlChar*)"code");
+				element->name = xmlGetProp(current_node, (const xmlChar*)"vendor-id");
+				element->desc = xmlGetProp(current_node, (const xmlChar*)"name");
+				if (code != NULL) {
+					ws_strtou32(code, NULL, &element->code);
+					xmlFree(code);
+				}
+
+				dict->vendors = g_slist_prepend(dict->vendors, element);
+
+				for (xmlNodePtr base_children = current_node->children; base_children != NULL; base_children = base_children->next) {
+					if (base_children->type == XML_ELEMENT_NODE) {
+						// Process <avp> elements
+						if (xmlStrcmp(base_children->name, (const xmlChar*)"avp") == 0) {
+							ddictionary_process_avp(base_children, &dict->avps);
+						}
+					}
+				}
+
+			}
+		}
+	}
+
+	//Reverse all of the lists so they are in the proper order
+	dict->applications = g_slist_reverse(dict->applications);
+	dict->vendors = g_slist_reverse(dict->vendors);
+	dict->cmds = g_slist_reverse(dict->cmds);
+	dict->typedefns = g_slist_reverse(dict->typedefns);
+	dict->avps = g_slist_reverse(dict->avps);
+	dict->xmlpis = g_slist_reverse(dict->xmlpis);
+
+cleanup:
+	xmlFreeDoc(func_data.doc);
+
+	return status;
+}
 
 /* Note: Dynamic "value string arrays" (e.g., vs_avps, ...) are constructed using */
 /*       "zero-terminated" GArrays so that they will have the same form as standard        */
 /*       value_string arrays created at compile time. Since the last entry in a            */
 /*       value_string array must be {0, NULL}, we are assuming that NULL == 0 (hackish).   */
-
 static int
-dictionary_load(void)
+ddictionary_load(wmem_array_t* hf_array, GPtrArray* ett_array)
 {
-	ddict_t *d;
-	ddict_application_t *p;
-	ddict_vendor_t *v;
-	ddict_cmd_t *c;
-	ddict_typedefn_t *t;
-	ddict_avp_t *a;
-	bool do_debug_parser = getenv("WIRESHARK_DEBUG_DIAM_DICT_PARSER") ? true : false;
 	bool do_dump_dict = getenv("WIRESHARK_DUMP_DIAM_DICT") ? true : false;
-	char *dir;
-	const avp_type_t *type;
-	const avp_type_t *octetstring = &basic_types[0];
-	diam_avp_t *avp;
-	GHashTable *vendors = g_hash_table_new(strcase_hash,strcase_equal);
-	diam_vnd_t *vnd;
-	GArray *vnd_shrt_arr = g_array_new(true,true,sizeof(value_string));
-	GArray *all_cmds = g_array_new(true,true,sizeof(value_string));
-
-	/* Pre allocate the arrays big enough to hold the hf:s and etts:s*/
-	build_dict.hf = wmem_array_sized_new(wmem_epan_scope(), sizeof(hf_register_info), 4096);
-	build_dict.ett = g_ptr_array_sized_new(4096);
-	build_dict.types = g_hash_table_new(strcase_hash,strcase_equal);
-	build_dict.avps = g_hash_table_new(strcase_hash,strcase_equal);
+	char* dir;
+	const avp_type_t* type;
+	GHashTable *vendors = g_hash_table_new(strcase_hash, strcase_equal),
+		   *build_dict_types = g_hash_table_new(strcase_hash, strcase_equal),
+		   *build_dict_avps = g_hash_table_new(strcase_hash, strcase_equal);
+	GArray* all_cmds = g_array_new(true, true, sizeof(value_string));
+	value_string end_value_string = { 0, NULL };
+	ddict_t all_data = { NULL, NULL, NULL, NULL, NULL, NULL};
 
 	dictionary.vnds = wmem_tree_new(wmem_epan_scope());
 	dictionary.avps = wmem_tree_new(wmem_epan_scope());
@@ -2120,231 +2912,78 @@ dictionary_load(void)
 	wmem_array_set_null_terminator(no_vnd.vs_avps);
 	wmem_array_bzero(no_vnd.vs_avps);
 
-	wmem_tree_insert32(dictionary.vnds,0,&no_vnd);
-	g_hash_table_insert(vendors,"None",&no_vnd);
+	wmem_tree_insert32(dictionary.vnds, 0, &no_vnd);
+	g_hash_table_insert(vendors, "None", &no_vnd);
 
 	/* initialize the types hash with the known basic types */
 	for (type = basic_types; type->name; type++) {
-		g_hash_table_insert(build_dict.types,(char *)type->name,(void *)type);
+		g_hash_table_insert(build_dict_types, (char*)type->name, (void*)type);
 	}
 
 	/* load the dictionary */
-	dir = wmem_strdup_printf(NULL, "%s" G_DIR_SEPARATOR_S "diameter" G_DIR_SEPARATOR_S, get_datafile_dir());
-	d = ddict_scan(dir,"dictionary.xml",do_debug_parser);
+	dir = wmem_strdup_printf(NULL, "%s" G_DIR_SEPARATOR_S "diameter", get_datafile_dir());
+	bool success = ddictionary_process_file(dir, "./dictionary.xml", &all_data);
 	wmem_free(NULL, dir);
-	if (d == NULL) {
-		g_hash_table_destroy(vendors);
-		g_array_free(vnd_shrt_arr, true);
-		return 0;
-	}
-	wmem_register_callback(wmem_epan_scope(), ddict_cleanup_cb, d);
 
-	if (do_dump_dict) ddict_print(stdout, d);
+	if (do_dump_dict)
+		ddictionary_new_print(stdout, &all_data);
 
 	/* populate the types */
-	for (t = d->typedefns; t; t = t->next) {
-		const avp_type_t *parent = NULL;
-		/* try to get the parent type */
-
-		if (t->name == NULL) {
-			report_failure("Diameter Dictionary: Invalid Type (empty name): parent==%s\n",
-				t->parent ? t->parent : "(null)");
-			continue;
-		}
-
-
-		if (g_hash_table_lookup(build_dict.types,t->name))
-			continue;
-
-		if (t->parent) {
-			parent = (avp_type_t *)g_hash_table_lookup(build_dict.types,t->parent);
-		}
-
-		if (!parent) parent = octetstring;
-
-		/* insert the parent type for this type */
-		g_hash_table_insert(build_dict.types,t->name,(void *)parent);
-	}
+	g_slist_foreach(all_data.typedefns, ddictionary_populate_typedefn, build_dict_types);
 
 	/* populate the applications */
-	if ((p = d->applications)) {
-		wmem_array_t *arr = wmem_array_new(wmem_epan_scope(), sizeof(value_string));
-		value_string term[1];
-
-		term[0].value =  0;
-		term[0].strptr = NULL;
-
-		for (; p; p = p->next) {
-			value_string item[1];
-
-			item[0].value = p->code;
-			item[0].strptr = p->name;
-			if (!p->name) {
-				report_failure("Diameter Dictionary: Invalid Application (empty name): id=%d\n", p->code);
-				continue;
-			}
-
-			wmem_array_append_one(arr,item);
-		}
+	if (all_data.applications != NULL)
+	{
+		wmem_array_t* arr = wmem_array_new(wmem_epan_scope(), sizeof(value_string));
+		g_slist_foreach(all_data.applications, ddictionary_populate_application, arr);
 
 		wmem_array_sort(arr, compare_avps);
-		wmem_array_append_one(arr,term);
+
+		//Terminate the value_string list
+		wmem_array_append_one(arr, end_value_string);
 
 		/* TODO: Remove duplicates */
 
-		dictionary.applications = value_string_ext_new((value_string *)wmem_array_get_raw(arr),
-								wmem_array_get_count(arr),
-								wmem_strdup(wmem_epan_scope(), "applications_vals_ext"));
+		dictionary.applications = value_string_ext_new(wmem_epan_scope(), (value_string*)wmem_array_get_raw(arr),
+			wmem_array_get_count(arr),
+			wmem_strdup(wmem_epan_scope(), "applications_vals_ext"));
 	}
 
-	if ((v = d->vendors)) {
-		for ( ; v; v = v->next) {
-			value_string item[1];
+	/* populate the vendors */
+	populate_vendor_data_t vendor_populate = { vendors, dictionary.vnds };
+	g_slist_foreach(all_data.vendors, ddictionary_populate_vendor, &vendor_populate);
 
-			item[0].value = v->code;
-			item[0].strptr = v->name;
+	/* populate the commands */
+	populate_command_data_t command_populate = { vendors, all_cmds };
+	g_slist_foreach(all_data.cmds, ddictionary_populate_command, &command_populate);
 
-			if (v->name == NULL) {
-				report_failure("Diameter Dictionary: Invalid Vendor (empty name): code==%d\n", v->code);
-				continue;
-			}
+	/* populate the avps */
+	populate_avp_data_t avp_populate = { vendors, build_dict_types, build_dict_avps, dictionary.avps, all_data.xmlpis, hf_array, ett_array };
+	g_slist_foreach(all_data.avps, ddictionary_populate_avp, &avp_populate);
 
-			if (g_hash_table_lookup(vendors,v->name))
-				continue;
+	cmd_vs = (const value_string*)g_array_free(all_cmds, false);
 
-			g_array_append_val(vnd_shrt_arr,item);
-
-			vnd = wmem_new(wmem_epan_scope(), diam_vnd_t);
-			vnd->code = v->code;
-			vnd->vs_avps = wmem_array_new(wmem_epan_scope(), sizeof(value_string));
-			wmem_array_set_null_terminator(vnd->vs_avps);
-			wmem_array_bzero(vnd->vs_avps);
-			vnd->vs_avps_ext = NULL;
-			wmem_tree_insert32(dictionary.vnds,vnd->code,vnd);
-			g_hash_table_insert(vendors,v->name,vnd);
-		}
-	}
-
-	vnd_short_vs = (value_string *)g_array_free(vnd_shrt_arr, false);
-
-	if ((c = d->cmds)) {
-		for (; c; c = c->next) {
-			if (c->vendor == NULL) {
-				report_failure("Diameter Dictionary: Invalid Vendor (empty name) for command %s\n",
-					c->name ? c->name : "(null)");
-				continue;
-			}
-
-			if ((diam_vnd_t *)g_hash_table_lookup(vendors,c->vendor)) {
-				value_string item[1];
-
-				item[0].value =  c->code;
-				item[0].strptr = c->name;
-
-				g_array_append_val(all_cmds,item);
-			} else {
-				report_failure("Diameter Dictionary: No Vendor: %s\n",c->vendor);
-			}
-		}
-	}
-
-
-	for (a = d->avps; a; a = a->next) {
-		ddict_enum_t *e;
-		value_string *vs = NULL;
-		const char *vend = a->vendor ? a->vendor : "None";
-		ddict_xmlpi_t *x;
-		void *avp_data = NULL;
-
-		if (a->name == NULL) {
-			report_failure("Diameter Dictionary: Invalid AVP (empty name)\n");
-			continue;
-		}
-
-		if ((vnd = (diam_vnd_t *)g_hash_table_lookup(vendors,vend))) {
-			value_string vndvs[1];
-
-			vndvs[0].value =  a->code;
-			vndvs[0].strptr = a->name;
-
-
-			wmem_array_append_one(vnd->vs_avps,vndvs);
-		} else {
-			report_failure("Diameter Dictionary: No Vendor: %s\n",vend);
-			vnd = &unknown_vendor;
-		}
-
-		if ((e = a->enums)) {
-			wmem_array_t *arr = wmem_array_new(wmem_epan_scope(), sizeof(value_string));
-			value_string term[1];
-
-			term[0].value =  0;
-			term[0].strptr = NULL;
-
-			for (; e; e = e->next) {
-				value_string item[1];
-
-				item[0].value =  e->code;
-				item[0].strptr = e->name;
-				wmem_array_append_one(arr,item);
-			}
-			wmem_array_sort(arr, compare_avps);
-			wmem_array_append_one(arr,term);
-			vs = (value_string *)wmem_array_get_raw(arr);
-		}
-
-		type = NULL;
-
-		for( x = d->xmlpis; x; x = x->next ) {
-			if ( (strcase_equal(x->name,"avp-proto") && strcase_equal(x->key,a->name))
-				 || (a->type && strcase_equal(x->name,"type-proto") && strcase_equal(x->key,a->type))
-				 ) {
-				static avp_type_t proto_type = {"proto", proto_avp, FT_UINT32, BASE_HEX, build_proto_avp};
-				type =  &proto_type;
-
-				avp_data = x->value;
-				break;
-			}
-		}
-
-		if ( (!type) && a->type )
-			type = (avp_type_t *)g_hash_table_lookup(build_dict.types,a->type);
-
-		if (!type) type = octetstring;
-
-		avp = type->build( type, a->code, vnd, a->name, vs, avp_data);
-		if (avp != NULL) {
-			g_hash_table_insert(build_dict.avps, a->name, avp);
-
-			{
-				wmem_tree_key_t k[3];
-
-				k[0].length = 1;
-				k[0].key	= &(a->code);
-				k[1].length = 1;
-				k[1].key	= &(vnd->code);
-				k[2].length = 0;
-				k[2].key	= NULL;
-
-				wmem_tree_insert32_array(dictionary.avps,k,avp);
-			}
-		}
-	}
-	g_hash_table_destroy(build_dict.types);
-	g_hash_table_destroy(build_dict.avps);
+	/* Clean up */
+	g_hash_table_destroy(build_dict_types);
+	g_hash_table_destroy(build_dict_avps);
 	g_hash_table_destroy(vendors);
 
-	cmd_vs = (const value_string *)g_array_free(all_cmds, false);
+	ddictionary_clean(&all_data);
 
-	return 1;
+	return success;
 }
+/*******************************************************************************************************************
+ *
+ * END OF DIAMETER XML DATA DICTIONARY PROCESSSING
+ *
+ *******************************************************************************************************************/
 
 /*
  * This does most of the registration work; see register_diameter_fields()
  * for the reason why we split it off.
  */
 static void
-real_register_diameter_fields(void)
+real_register_diameter_fields(wmem_array_t* hf_array, GPtrArray* ett_array)
 {
 	expert_module_t* expert_diameter;
 	unsigned i, ett_length;
@@ -2508,7 +3147,11 @@ real_register_diameter_fields(void)
 	{ &hf_diameter_user_equipment_info_eui64,
 		{ "EUI64","diameter.user_equipment_info.eui64", FT_EUI64, BASE_NONE, NULL, 0x0, NULL, HFILL }},
 	{ &hf_diameter_user_equipment_info_modified_eui64,
-		{ "Modified EUI64","diameter.user_equipment_info.modified_eui64", FT_EUI64, BASE_NONE, NULL, 0x0, NULL, HFILL }}
+		{ "Modified EUI64","diameter.user_equipment_info.modified_eui64", FT_EUI64, BASE_NONE, NULL, 0x0, NULL, HFILL }},
+	{ &hf_diameter_result_code_cmd_level,
+		{ "Result-Code-Command-Level", "diameter.Result-Code.Command-Level", FT_UINT32, BASE_DEC, NULL, 0x0,	NULL, HFILL }},
+	{ &hf_diameter_result_code_mscc_level,
+		{ "Result-Code-MSCC-Level", "diameter.Result-Code.MSCC-Level", FT_UINT32, BASE_DEC, NULL, 0x0,	NULL, HFILL }}
 	};
 
 	int *ett_base[] = {
@@ -2539,35 +3182,42 @@ real_register_diameter_fields(void)
 		{ &ei_diameter_unexpected_imei_as_user_equipment_info,{ "diameter.unexpected_imei_as_user_equipment_info", PI_MALFORMED, PI_ERROR, "Found IMEI as User-Equipment-Info-Value but IMEISV was expected", EXPFILL }},
 	};
 
-	wmem_array_append(build_dict.hf, hf_base, array_length(hf_base));
+	wmem_array_append(hf_array, hf_base, array_length(hf_base));
 	ett_length = array_length(ett_base);
 	for (i = 0; i < ett_length; i++) {
-		g_ptr_array_add(build_dict.ett, ett_base[i]);
+		g_ptr_array_add(ett_array, ett_base[i]);
 	}
 
-	proto_register_field_array(proto_diameter, (hf_register_info *)wmem_array_get_raw(build_dict.hf), wmem_array_get_count(build_dict.hf));
-	proto_register_subtree_array((int **)build_dict.ett->pdata, build_dict.ett->len);
+	proto_register_field_array(proto_diameter, (hf_register_info *)wmem_array_get_raw(hf_array), wmem_array_get_count(hf_array));
+	proto_register_subtree_array((int **)ett_array->pdata, ett_array->len);
 	expert_diameter = expert_register_protocol(proto_diameter);
 	expert_register_field_array(expert_diameter, ei, array_length(ei));
 
-	g_ptr_array_free(build_dict.ett,true);
+	g_ptr_array_free(ett_array,true);
 
+	diameter_conversations = wmem_tree_new_autoreset(wmem_epan_scope(), wmem_file_scope());
+	diam_session_imsi = wmem_map_new_autoreset(wmem_epan_scope(), wmem_file_scope(), wmem_str_hash, g_str_equal);
 }
 
 static void
 register_diameter_fields(const char *unused _U_)
 {
+#define DIAMETER_DYNAMIC_HF_SIZE		4096
 	/*
 	 * The hf_base[] array for Diameter refers to a variable
-	 * that is set by dictionary_load(), so we need to call
-	 * dictionary_load() before hf_base[] is initialized.
+	 * that is set by ddictionary_load(), so we need to call
+	 * ddictionary_load() before hf_base[] is initialized.
 	 *
-	 * To ensure that, we call dictionary_load() and then
+	 * To ensure that, we call ddictionary_load() and then
 	 * call a routine that defines hf_base[] and does all
 	 * the registration work.
 	 */
-	dictionary_load();
-	real_register_diameter_fields();
+	 /* Pre allocate the arrays big enough to hold the hf:s and etts:s*/
+	wmem_array_t* hf_array = wmem_array_sized_new(wmem_epan_scope(), sizeof(hf_register_info), DIAMETER_DYNAMIC_HF_SIZE);
+	GPtrArray* ett_array = g_ptr_array_sized_new(DIAMETER_DYNAMIC_HF_SIZE);
+
+	ddictionary_load(hf_array, ett_array);
+	real_register_diameter_fields(hf_array, ett_array);
 }
 
 void
@@ -2606,6 +3256,20 @@ proto_register_diameter(void)
 				       "Whether the Diameter dissector should reassemble messages spanning multiple TCP segments."
 				       " To use this option, you must also enable \"Allow subdissectors to reassemble TCP streams\" in the TCP protocol settings.",
 				       &gbl_diameter_desegment);
+
+	/* conversation searching */
+	prefs_register_bool_preference(diameter_module, "conversation",
+		"Use IP/Port for request/response conversation",
+		"Whether the Diameter dissector should use IP addresses and SCTP/TCP ports to find request/response conversation."
+		" Conversation search will failed in cases of multi-homed SCTP or multiple TCP (loadshare more) connections."
+		" In such cases need disable this option and only combination of End-To-End and Hop-By-Hop will be used to find request/response",
+		&gbl_diameter_use_ip_port_for_conversation);
+
+	prefs_register_bool_preference(diameter_module, "session_imsi",
+		"Add \"Association IMSI\" to all messages in one session",
+		"Take IMSI value of first AVP with E.212 encoding and add field \"Association IMSI\"(e212.assoc.imsi) to all messages"
+		" with the same Session-Id",
+		&gbl_diameter_session_imsi);
 
 	/*  Register some preferences we no longer support, so we can report
 	 *  them as obsolete rather than just illegal.
@@ -2651,11 +3315,17 @@ proto_reg_handoff_diameter(void)
 	/* AVP Code: 124 MIP6-Feature-Vector */
 	dissector_add_uint("diameter.base", 124, create_dissector_handle(dissect_diameter_mip6_feature_vector, proto_diameter));
 
+	/* AVP Code: 263 Session-Id */
+	dissector_add_uint("diameter.base", 263, create_dissector_handle(dissect_diameter_session_id, proto_diameter));
+
 	/* AVP Code: 265 Supported-Vendor-Id */
 	dissector_add_uint("diameter.base", 265, create_dissector_handle(dissect_diameter_vendor_id, proto_diameter));
 
 	/* AVP Code: 266 Vendor-Id */
 	dissector_add_uint("diameter.base", 266, create_dissector_handle(dissect_diameter_vendor_id, proto_diameter));
+
+	/* AVP Code: 268 Result-Code */
+	dissector_add_uint("diameter.base", 268, create_dissector_handle(dissect_diameter_result_code, proto_diameter));
 
 	/* AVP Code: 443 Subscription-Id */
 	dissector_add_uint("diameter.base", 443, create_dissector_handle(dissect_diameter_subscription_id, proto_diameter));

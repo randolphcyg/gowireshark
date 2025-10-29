@@ -93,20 +93,21 @@ enum {
   COL_DEF_NET_DST,    /**< 30) Network layer dest address */
   COL_DEF_NET_SRC,    /**< 31) Network layer source address */
   COL_NUMBER,         /**< 32) Packet list item number */
-  COL_PACKET_LENGTH,  /**< 33) Packet length in bytes */
-  COL_PROTOCOL,       /**< 34) Protocol */
-  COL_REL_TIME,       /**< 35) Relative time */
-  COL_DEF_SRC,        /**< 36) Source address */
-  COL_DEF_SRC_PORT,   /**< 37) Source port */
-  COL_RES_SRC,        /**< 38) Resolved source */
-  COL_UNRES_SRC,      /**< 39) Unresolved source */
-  COL_RES_SRC_PORT,   /**< 40) Resolved source port */
-  COL_UNRES_SRC_PORT, /**< 41) Unresolved source port */
-  COL_UTC_YMD_TIME,   /**< 42) UTC date, as YYYY-MM-DD, and time */
-  COL_UTC_YDOY_TIME,  /**< 43) UTC date, as YYYY/DOY, and time */
-  COL_UTC_TIME,       /**< 44) UTC time */
-  COL_CLS_TIME,       /**< 45) Command line-specified time (default relative) */
-  NUM_COL_FMTS        /**< 46) Should always be last */
+  COL_NUMBER_DIS,     /**< 33) Packet list item number displayed */
+  COL_PACKET_LENGTH,  /**< 34) Packet length in bytes */
+  COL_PROTOCOL,       /**< 35) Protocol */
+  COL_REL_TIME,       /**< 36) Relative time */
+  COL_DEF_SRC,        /**< 37) Source address */
+  COL_DEF_SRC_PORT,   /**< 38) Source port */
+  COL_RES_SRC,        /**< 39) Resolved source */
+  COL_UNRES_SRC,      /**< 40) Unresolved source */
+  COL_RES_SRC_PORT,   /**< 41) Resolved source port */
+  COL_UNRES_SRC_PORT, /**< 42) Unresolved source port */
+  COL_UTC_YMD_TIME,   /**< 43) UTC date, as YYYY-MM-DD, and time */
+  COL_UTC_YDOY_TIME,  /**< 44) UTC date, as YYYY/DOY, and time */
+  COL_UTC_TIME,       /**< 45) UTC time */
+  COL_CLS_TIME,       /**< 46) Command line-specified time (default relative) */
+  NUM_COL_FMTS        /**< 47) Should always be last */
 };
 
 /** Are the columns writable?
@@ -164,8 +165,9 @@ WS_DLL_PUBLIC void col_clear(column_info *cinfo, const int col);
 
 /** Set (replace) the text of a column element, the text won't be formatted or copied.
  *
- * Use this for simple static strings like protocol names. Don't use for untrusted strings
- * or strings that may contain unprintable characters.
+ * Use this for simple static strings like protocol names. Don't use for untrusted
+ * strings, strings that may contain unprintable characters, or strings which are
+ * freed before the packet_info (and hence column_info) struct.
  *
  * Usually used to set const strings!
  *

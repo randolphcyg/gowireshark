@@ -141,9 +141,11 @@
 #include <epan/uat.h>
 #include <epan/sminmpec.h>
 #include <epan/tfs.h>
+
 #include <wsutil/str_util.h>
 #include <wsutil/strtoi.h>
 #include <wsutil/array.h>
+#include <wsutil/ws_padding_to.h>
 
 void proto_register_dhcp(void);
 void proto_reg_handoff_dhcp(void);
@@ -209,6 +211,7 @@ static int hf_dhcp_option_value_u_secs;
 static int hf_dhcp_option_value_stringz;
 static int hf_dhcp_option_value_ip_address;
 static int hf_dhcp_option_value_boolean;
+static int hf_dhcp_option_rfc_3396_detected;
 static int hf_dhcp_suboption_length;
 
 static int hf_dhcp_option_padding;					/* 0 */
@@ -257,6 +260,7 @@ static int hf_dhcp_option_nis_domain;				/* 40 */
 static int hf_dhcp_option_nis_server;				/* 41 */
 static int hf_dhcp_option_ntp_server;				/* 42 */
 
+static int hf_dhcp_option43_suboption;					/* 43 unknown vendor suboption */
 static int hf_dhcp_option43_value;					/* 43 suboption value */
 static int hf_dhcp_option43_value_8;				/* 43 suboption value */
 static int hf_dhcp_option43_value_32;				/* 43 suboption value */
@@ -569,11 +573,7 @@ static int hf_dhcp_option_netinfo_parent_server_tag;		/* 113 */
 static int hf_dhcp_option_captive_portal;				/* 114 (ex 160) */
 static int hf_dhcp_option_dhcp_auto_configuration;			/* 116 */
 static int hf_dhcp_option_dhcp_name_service_search_option;		/* 117 */
-static int hf_dhcp_option_dhcp_dns_domain_search_list_rfc_3396_detected;	/* 119 */
-static int hf_dhcp_option_dhcp_dns_domain_search_list_refer_last_option;	/* 119 */
 static int hf_dhcp_option_dhcp_dns_domain_search_list_fqdn;		/* 119 */
-static int hf_dhcp_option_sip_server_rfc_3396_detected;			/* 120 */
-static int hf_dhcp_option_sip_server_refer_last_option;			/* 120 */
 static int hf_dhcp_option_sip_server_enc;				/* 120 */
 static int hf_dhcp_option_sip_server_name;				/* 120 */
 static int hf_dhcp_option_sip_server_address;			/* 120 */
@@ -722,6 +722,8 @@ static expert_field ei_dhcp_bad_bitfield;
 static expert_field ei_dhcp_missing_subopt_length;
 static expert_field ei_dhcp_missing_subopt_value;
 static expert_field ei_dhcp_mal_duid;
+static expert_field ei_dhcp_rfc3396_refer_last_option;
+static expert_field ei_dhcp_opt_overload_wrong_field;
 static expert_field ei_dhcp_opt_overload_file_end_missing;
 static expert_field ei_dhcp_opt_overload_sname_end_missing;
 static expert_field ei_dhcp_subopt_unknown_type;
@@ -757,7 +759,6 @@ typedef struct dhcp_option_data
 {
 	unsigned char option;
 	uint8_t *overload;
-	tvbuff_t *orig_tvb;
 	const char *dhcp_type;
 	const uint8_t *vendor_class_id;
 } dhcp_option_data_t;
@@ -851,12 +852,6 @@ struct rfc3396_for_option_t {
 	unsigned int index_current_block;
 	tvbuff_t* tvb_composite;
 };
-
-/* The RFC 3397 allows to cut long option (RFC 3396). */
-struct rfc3396_for_option_t rfc3396_dns_domain_search_list;
-
-/* The RFC 3361 allows to cut long option (RFC 3396). */
-struct rfc3396_for_option_t rfc3396_sip_server;
 
 enum {
 	RFC_3361_ENC_FQDN,
@@ -1033,8 +1028,8 @@ static bool novell_string;
 static int dhcp_uuid_endian = ENC_LITTLE_ENDIAN;
 
 static const enum_val_t dhcp_uuid_endian_vals[] = {
-	{ "Little Endian", "Little Endian",	ENC_LITTLE_ENDIAN},
-	{ "Big Endian",	 "Big Endian", ENC_BIG_ENDIAN },
+	{ "LE", "Little Endian",	ENC_LITTLE_ENDIAN},
+	{ "BE",	"Big Endian", ENC_BIG_ENDIAN },
 	{ NULL, NULL, 0 }
 };
 
@@ -1044,8 +1039,8 @@ static int dhcp_secs_endian = DHCP_SECS_ENDIAN_AUTODETECT;
 
 static const enum_val_t dhcp_secs_endian_vals[] = {
 	{ "Autodetect", "Autodetect", DHCP_SECS_ENDIAN_AUTODETECT},
-	{ "Little Endian", "Little Endian", ENC_LITTLE_ENDIAN},
-	{ "Big Endian", "Big Endian", ENC_BIG_ENDIAN },
+	{ "LE", "Little Endian", ENC_LITTLE_ENDIAN},
+	{ "BE", "Big Endian", ENC_BIG_ENDIAN },
 	{ NULL, NULL, 0 }
 };
 
@@ -1998,7 +1993,8 @@ dissect_dhcpopt_basic_type(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 static int
 dhcp_option(tvbuff_t *tvb, packet_info *pinfo, proto_tree *bp_tree, int voff,
 	     int eoff, bool first_pass, bool *at_end, const char **dhcp_type_p,
-	     const uint8_t **vendor_class_id_p, uint8_t *overload_p)
+	     const uint8_t **vendor_class_id_p, uint8_t *overload_p,
+	     wmem_map_t *rfc3396_map)
 {
 	const struct opt_info *opt;
 	unsigned char		 code = tvb_get_uint8(tvb, voff);
@@ -2009,6 +2005,8 @@ dhcp_option(tvbuff_t *tvb, packet_info *pinfo, proto_tree *bp_tree, int voff,
 	tvbuff_t *option_tvb;
 	dhcp_option_data_t option_data;
 
+	/* Note overload_p is NULL inside the overloaded areas; it makes no
+	 * sense to set it again. */
 	/* Options whose length isn't "optlen + 2". */
 	switch (code) {
 
@@ -2037,7 +2035,7 @@ dhcp_option(tvbuff_t *tvb, packet_info *pinfo, proto_tree *bp_tree, int voff,
 				vti = proto_tree_add_uint_format_value(bp_tree, hf_dhcp_option_type,
 						tvb, voff, 1, 0, "(255) End");
 				v_tree = proto_item_add_subtree(vti, ett_dhcp_option);
-				if (*overload_p)
+				if (overload_p == NULL)
 					proto_tree_add_item(v_tree, hf_dhcp_option_end_overload, tvb, voff, 1, ENC_BIG_ENDIAN);
 				else
 					proto_tree_add_item(v_tree, hf_dhcp_option_end, tvb, voff, 1, ENC_BIG_ENDIAN);
@@ -2073,6 +2071,12 @@ dhcp_option(tvbuff_t *tvb, packet_info *pinfo, proto_tree *bp_tree, int voff,
 	optlen = tvb_get_uint8(tvb, voff+1);
 	consumed = optlen + 2;
 
+	struct rfc3396_for_option_t *rfc3396_data = wmem_map_lookup(rfc3396_map, GUINT_TO_POINTER(code));
+	if (rfc3396_data == NULL) {
+		rfc3396_data = wmem_new0(pinfo->pool, struct rfc3396_for_option_t);
+		wmem_map_insert(rfc3396_map, GUINT_TO_POINTER(code), rfc3396_data);
+	}
+
 	/*
 	 * In the first pass, we don't put anything into the protocol
 	 * tree; we just check for some options we have to look at
@@ -2095,12 +2099,14 @@ dhcp_option(tvbuff_t *tvb, packet_info *pinfo, proto_tree *bp_tree, int voff,
 			switch (code) {
 
 			case 52:
-				*overload_p = tvb_get_uint8(tvb, voff+2);
+				if (overload_p != NULL) {
+					*overload_p = tvb_get_uint8(tvb, voff+2);
+				}
 				break;
 
 			case 53:
 				*dhcp_type_p =
-				    val_to_str(tvb_get_uint8(tvb, voff+2),
+				    val_to_str(pinfo->pool, tvb_get_uint8(tvb, voff+2),
 					opt53_text,
 					"Unknown Message Type (0x%02x)");
 				break;
@@ -2110,14 +2116,10 @@ dhcp_option(tvbuff_t *tvb, packet_info *pinfo, proto_tree *bp_tree, int voff,
 					tvb_get_string_enc(pinfo->pool,
 					tvb, voff+2, consumed-2, ENC_ASCII);
 				break;
-			case 119:
-				rfc3396_dns_domain_search_list.total_number_of_block++;
-				break;
-			case 120:
-				rfc3396_sip_server.total_number_of_block++;
-				break;
 			}
 		}
+
+		rfc3396_data->total_number_of_block++;
 
 		/*
 		 * We don't do anything else here.
@@ -2147,11 +2149,48 @@ dhcp_option(tvbuff_t *tvb, packet_info *pinfo, proto_tree *bp_tree, int voff,
 	option_data.overload = overload_p;
 	option_data.dhcp_type = *dhcp_type_p;
 	option_data.vendor_class_id = *vendor_class_id_p;
-	option_data.orig_tvb = tvb;
 
-	if (!dissector_try_uint_new(dhcp_option_table, code, option_tvb, pinfo, v_tree, false, &option_data)) {
-		/* hf_dhcp_option_value is already in tree, just make it visible */
-		proto_item_set_visible(ti_value);
+	/* RFC 3396 4 Applicability and 7 Decoding Agent Behavior both clearly
+	 * state that decoding agents MUST consider any case where an option
+	 * code is repeated as a split option and reassemble it, even for
+	 * options that are not "concatenation-requiring."
+	 *
+	 * However, cf.
+	 * https://www.ietf.org/archive/id/draft-tojens-dhcp-option-concat-considerations-00.html
+	 * which notes that real world DHCP implementations do not do this, and
+	 * that, especially in the case of fixed length option types, this is
+	 * less robust than actually used approaches of intepreting the options
+	 * separately, and choosing one option while discarding others.
+	 *
+	 * XXX - Perhaps we want a preference of which options to concatenate?
+	 */
+	if (rfc3396_data->total_number_of_block == 1) {
+		if (!dissector_try_uint_with_data(dhcp_option_table, code, option_tvb, pinfo, v_tree, false, &option_data)) {
+			/* hf_dhcp_option_value is already in tree, just make it visible */
+			proto_item_set_visible(ti_value);
+		}
+	} else {
+		proto_item *ti;
+		rfc3396_data->index_current_block++;
+		ti = proto_tree_add_string(v_tree, hf_dhcp_option_rfc_3396_detected, tvb, voff+2, optlen,
+								wmem_strdup_printf(pinfo->pool, "%u/%u", rfc3396_data->index_current_block, rfc3396_data->total_number_of_block));
+		if (optlen) {
+			if (rfc3396_data->tvb_composite == NULL) {
+				rfc3396_data->tvb_composite = tvb_new_composite();
+			}
+			tvb_composite_append(rfc3396_data->tvb_composite, option_tvb);
+		}
+		if (rfc3396_data->index_current_block != rfc3396_data->total_number_of_block) {
+			expert_add_info_format(pinfo, ti, &ei_dhcp_rfc3396_refer_last_option, "For the data, please refer to the last option %u, %u/%u", code, rfc3396_data->total_number_of_block, rfc3396_data->total_number_of_block);
+		} else if (rfc3396_data->tvb_composite != NULL) {
+			tvb_composite_finalize(rfc3396_data->tvb_composite);
+			add_new_data_source(pinfo, rfc3396_data->tvb_composite, "RFC 3396 Long Option");
+			if (!dissector_try_uint_with_data(dhcp_option_table, code, rfc3396_data->tvb_composite, pinfo, v_tree, false, &option_data)) {
+				proto_tree_add_item(v_tree, hf_dhcp_option_value, rfc3396_data->tvb_composite, 0, tvb_reported_length(rfc3396_data->tvb_composite), ENC_NA);
+			}
+		} else {
+			expert_add_info_format(pinfo, ti, &ei_dhcp_bad_length, "RFC 3396 Long Option with combined length 0");
+		}
 	}
 
 	return consumed;
@@ -2195,16 +2234,116 @@ dissect_dhcpopt_static_route(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree
 	return tvb_captured_length(tvb);
 }
 
+typedef unsigned(*test_option_len_t)(unsigned);
+
+/* Look for 'encapsulated vendor-specific options' */
+static bool
+test_encapsulated_vendor_options(tvbuff_t *tvb, int optoff, int optend, test_option_len_t test_len)
+{
+	uint8_t	subopt;
+	uint8_t	subopt_len;
+
+	while (optoff < optend) {
+		subopt = tvb_get_uint8(tvb, optoff);
+		optoff++;
+
+		/* Skip padding */
+		if (subopt == 0)
+			continue;
+		/* We are done, skip any remaining bytes */
+		if (subopt == 255)
+			break;
+
+		/* We expect a length byte next */
+		if (optoff >= optend)
+			return false;
+		subopt_len = tvb_get_uint8(tvb, optoff);
+
+		if (test_len) {
+			unsigned expected_subopt_len = test_len(subopt);
+			if (expected_subopt_len && expected_subopt_len != subopt_len)
+				return false;
+		}
+		optoff++;
+
+		/* Check remaining room for suboption in option */
+		if (optoff + subopt_len > optend)
+			return false;
+		optoff += subopt_len;
+	}
+	return true;
+}
+
+/* Note that Option 43 encapsulated vendor-specific options (RFC 2132 8.4)
+ * treat option 0 as padding and option 255 as end of suboptions, unlike
+ * Option 125 which does not treat them specially (RFC 3925 4).
+ */
+static int
+dissect_option43_generic_suboption(packet_info *pinfo, proto_item *v_ti, proto_tree *v_tree,
+				 tvbuff_t *tvb)
+{
+	unsigned    suboptoff = 0;
+	unsigned    optend = tvb_reported_length(tvb);
+	uint8_t	    subopt;
+	uint32_t	    subopt_len;
+	proto_item *item;
+	proto_tree *sub_tree;
+
+	item = proto_tree_add_item(v_tree, hf_dhcp_option43_suboption, tvb, suboptoff, 1, ENC_NA);
+	subopt = tvb_get_uint8(tvb, suboptoff);
+
+	suboptoff+=1;
+
+	if (subopt == 0) {
+		/* Padding */
+		return suboptoff;
+	}
+
+	if (subopt == 255) {
+		/* END */
+		/* XXX - Should there be expert info if there are more bytes? */
+		return optend;
+	}
+
+	if (suboptoff >= optend) {
+		expert_add_info_format(pinfo, v_ti, &ei_dhcp_missing_subopt_length,
+									"Suboption %d: no room left in option for suboption length", subopt);
+		return optend;
+	}
+
+	sub_tree = proto_item_add_subtree(item, ett_dhcp_option43_suboption);
+	proto_tree_add_item_ret_uint(sub_tree, hf_dhcp_suboption_length, tvb, suboptoff, 1, ENC_NA, &subopt_len);
+	suboptoff++;
+
+	if (suboptoff+subopt_len > optend) {
+		expert_add_info_format(pinfo, item, &ei_dhcp_missing_subopt_value,
+						"Suboption %d: no room left in option for suboption value", subopt);
+		return optend;
+	}
+
+	proto_tree_add_item(sub_tree, hf_dhcp_option43_value, tvb, suboptoff, subopt_len, ENC_NA);
+	suboptoff+= subopt_len;
+
+	return suboptoff;
+
+}
+
 static int
 dissect_dhcpopt_vendor_specific_info(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
 	heur_dtbl_entry_t *hdtbl_entry;
-	proto_tree *vendor_tree;
 
 	if (!dissector_try_heuristic(dhcp_vendor_info_subdissector, tvb, pinfo, tree, &hdtbl_entry, data)) {
-		/* Default Vendor-Specific Info.. display in bytes */
-		vendor_tree = proto_item_add_subtree(tree, ett_dhcp_option);
-		proto_tree_add_item(vendor_tree, hf_dhcp_option43_value, tvb, 0, tvb_reported_length(tvb), ENC_NA);
+		int offset = 0;
+		if (test_encapsulated_vendor_options(tvb, offset, tvb_reported_length(tvb), NULL)) {
+			/* Generic encapsulated options per RFC 2132 8.4 */
+			while (tvb_reported_length_remaining(tvb, offset)) {
+				offset += dissect_option43_generic_suboption(pinfo, proto_tree_get_parent(tree), tree, tvb_new_subset_remaining(tvb, offset));
+			}
+		} else {
+			/* Default Vendor-Specific Info.. display in bytes */
+			proto_tree_add_item(tree, hf_dhcp_option43_value, tvb, offset, tvb_reported_length(tvb), ENC_NA);
+		}
 	}
 
 	return tvb_captured_length(tvb);
@@ -2214,80 +2353,33 @@ static int
 dissect_dhcpopt_option_overload(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 {
 	int offset = 0;
-	int	suboffset, suboffset_end;
-	bool at_end;
 	dhcp_option_data_t *option_data = (dhcp_option_data_t*)data;
-	uint32_t	byte;
 
 	if (tvb_reported_length(tvb) < 1) {
 		expert_add_info_format(pinfo, tree, &ei_dhcp_bad_length, "length isn't >= 1");
 		return 1;
 	}
 
-	proto_tree_add_item_ret_uint(tree, hf_dhcp_option_option_overload, tvb, offset, 1, ENC_BIG_ENDIAN, &byte);
-
-	/* Just in case we find an option 52 in sname or file */
-	if ((*option_data->overload >= 1) && (*option_data->overload <= 3)) {
-		if (byte & OPT_OVERLOAD_SNAME) {
-			proto_item *oti;
-			proto_tree *overload_tree = proto_tree_add_subtree(tree, option_data->orig_tvb,
-				SERVER_NAME_OFFSET, SERVER_NAME_LEN, ett_dhcp_server_hostname, &oti,
-				"Server host name option overload");
-			uint8_t ignore_overload = 0;
-			suboffset = SERVER_NAME_OFFSET;
-			suboffset_end = SERVER_NAME_OFFSET + SERVER_NAME_LEN;
-			at_end = false;
-			rfc3396_dns_domain_search_list.index_current_block = 0;
-			rfc3396_sip_server.index_current_block = 0;
-			while (suboffset < suboffset_end && !at_end) {
-				suboffset += dhcp_option(option_data->orig_tvb, pinfo, overload_tree, suboffset,
-					suboffset_end, false, &at_end,
-					&option_data->dhcp_type, &option_data->vendor_class_id,
-					&ignore_overload);
-			}
-			if (!at_end)
-			{
-				expert_add_info(pinfo, oti, &ei_dhcp_opt_overload_sname_end_missing);
-			}
-		}
-		if (byte & OPT_OVERLOAD_FILE) {
-			proto_item *oti;
-			proto_tree *overload_tree = proto_tree_add_subtree(tree, option_data->orig_tvb,
-				FILE_NAME_OFFSET, FILE_NAME_LEN, ett_dhcp_filename_option, &oti,
-				"Boot file name option overload");
-			uint8_t ignore_overload = 0;
-			suboffset = FILE_NAME_OFFSET;
-			suboffset_end = FILE_NAME_OFFSET + FILE_NAME_LEN;
-			at_end = false;
-			rfc3396_dns_domain_search_list.index_current_block = 0;
-			rfc3396_sip_server.index_current_block = 0;
-			while (suboffset < suboffset_end && !at_end) {
-				suboffset += dhcp_option(option_data->orig_tvb, pinfo, overload_tree, suboffset,
-					suboffset_end, false, &at_end,
-					&option_data->dhcp_type, &option_data->vendor_class_id,
-					&ignore_overload);
-			}
-			if (!at_end)
-			{
-				expert_add_info(pinfo, oti, &ei_dhcp_opt_overload_file_end_missing);
-			}
-		}
-		/* The final end option is not in overload */
-		*option_data->overload = 0;
+	proto_tree_add_item(tree, hf_dhcp_option_option_overload, tvb, offset, 1, ENC_BIG_ENDIAN);
+	if (option_data->overload == NULL) {
+		// Option Overload inside the overloaded fields is nonsensical
+		expert_add_info(pinfo, tree, &ei_dhcp_opt_overload_wrong_field);
 	}
 
 	return tvb_captured_length(tvb);
 }
 
 static int
-dissect_dhcpopt_dhcp(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void* data _U_)
+dissect_dhcpopt_dhcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	uint32_t type;
+	char* str_type;
 
 	proto_tree_add_item_ret_uint(tree, hf_dhcp_option_dhcp, tvb, 0, 1, ENC_NA, &type);
 	/* Show the message type name on the Message Type option, and in the protocol root */
-	proto_item_append_text(tree, " (%s)", val_to_str(type, opt53_text, "Unknown Message Type (0x%02x)"));
-	proto_item_append_text(proto_item_get_parent(tree), " (%s)", val_to_str(type, opt53_text, "Unknown Message Type (0x%02x)"));
+	str_type = val_to_str(pinfo->pool, type, opt53_text, "Unknown Message Type (0x%02x)");
+	proto_item_append_text(tree, " (%s)", str_type);
+	proto_item_append_text(proto_item_get_parent(tree), " (%s)", str_type);
 
 	return tvb_captured_length(tvb);
 }
@@ -2457,7 +2549,7 @@ dissect_dhcpopt_user_class_information(tvbuff_t *tvb, packet_info *pinfo, proto_
 		proto_tree_add_item(tree, hf_dhcp_option77_user_class_binary_data, tvb, offset, ms_data_length, ENC_STRING);
 		offset += ms_data_length;
 		/* User Class Binary Data is padded to 4-byte boundary */
-		uint16_t padding_length = (4 - (ms_data_length % 4)) & 0x3;
+		uint16_t padding_length = WS_PADDING_TO_4(ms_data_length);
 		if (padding_length > 0) {
 			proto_tree_add_item(tree, hf_dhcp_option77_user_class_padding, tvb, offset, padding_length, ENC_NA);
 			offset += padding_length;
@@ -2595,7 +2687,7 @@ dissect_dhcpopt_client_full_domain_name(tvbuff_t *tvb, packet_info *pinfo, proto
 
 	if (length > 3) {
 		if (fqdn_flags & F_FQDN_E) {
-			get_dns_name(tvb, offset+3, length-3, offset+3, (const char **)&dns_name, &dns_name_len);
+			get_dns_name(pinfo->pool, tvb, offset+3, length-3, offset+3, (const char **)&dns_name, &dns_name_len);
 			proto_tree_add_string(tree, hf_dhcp_fqdn_name,
 				tvb, offset+3, length-3, format_text(pinfo->pool, dns_name, dns_name_len));
 		} else {
@@ -2901,54 +2993,23 @@ static int
 dissect_dhcpopt_dhcp_domain_search(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	int length = tvb_reported_length(tvb);
+	int offset = 0;
 	char		*name_out;
 	const unsigned char	*dns_name;
 	int		dns_name_len;
 
-	/* Encoding Long Options in the Dynamic Host Configuration Protocol (DHCPv4) (RFC 3396) */
 	/* Domain Names - Implementation And Specification (RFC 1035) */
-	rfc3396_dns_domain_search_list.index_current_block++;
-	if (rfc3396_dns_domain_search_list.total_number_of_block > 1) {
-		proto_tree_add_string(tree, hf_dhcp_option_dhcp_dns_domain_search_list_rfc_3396_detected, tvb, 0, length,
-								wmem_strdup_printf(pinfo->pool, "%u/%u", rfc3396_dns_domain_search_list.index_current_block, rfc3396_dns_domain_search_list.total_number_of_block));
-		if (rfc3396_dns_domain_search_list.index_current_block != rfc3396_dns_domain_search_list.total_number_of_block) {
-			proto_tree_add_string(tree, hf_dhcp_option_dhcp_dns_domain_search_list_refer_last_option, tvb, 0, length,
-								wmem_strdup_printf(pinfo->pool, "%u/%u", rfc3396_dns_domain_search_list.total_number_of_block, rfc3396_dns_domain_search_list.total_number_of_block));
-		}
-	}
 
-	if (rfc3396_dns_domain_search_list.tvb_composite == NULL && length) {
-		/* We use composite tvb for managing RFC 3396 */
-		rfc3396_dns_domain_search_list.tvb_composite = tvb_new_composite();
-	}
+	/* We will display the information about fqdn */
+	int consumedx = 0;
 
-	/* Concatenate the block before being interpreted for managing RFC 3396 */
-	if (length)
-		tvb_composite_append(rfc3396_dns_domain_search_list.tvb_composite, tvb_new_subset_length(tvb, 0, length));
-
-	if (rfc3396_dns_domain_search_list.index_current_block == rfc3396_dns_domain_search_list.total_number_of_block
-		&& rfc3396_dns_domain_search_list.tvb_composite) {
-		/* Here, we are into the last (or unique) option 119. */
-		/* We will display the information about fqdn */
-		unsigned int consumedx = 0;
-		unsigned int composite_offset = 0;
-		tvb_composite_finalize(rfc3396_dns_domain_search_list.tvb_composite);
-
-		while (composite_offset < tvb_reported_length(rfc3396_dns_domain_search_list.tvb_composite)) {
-			/* use the get_dns_name method that manages all techniques of RFC 1035 (compression pointer and so on) */
-			consumedx = get_dns_name(rfc3396_dns_domain_search_list.tvb_composite, composite_offset,
-				tvb_reported_length(rfc3396_dns_domain_search_list.tvb_composite), 0, (const char **)&dns_name, &dns_name_len);
-			name_out = format_text(pinfo->pool, dns_name, dns_name_len);
-			if (rfc3396_dns_domain_search_list.total_number_of_block == 1) {
-				/* RFC 3396 is not used, so we can easily link the fqdn with v_tree. */
-				proto_tree_add_string(tree, hf_dhcp_option_dhcp_dns_domain_search_list_fqdn, tvb, composite_offset, consumedx, name_out);
-			} else {
-				/* RFC 3396 is used, so the option is split into several option 119. We don't link fqdn with v_tree. */
-				proto_tree_add_string(tree, hf_dhcp_option_dhcp_dns_domain_search_list_fqdn, tvb, 0, 0, name_out);
-			}
-			composite_offset += consumedx;
-		}
-		rfc3396_dns_domain_search_list.tvb_composite = NULL;
+	while (tvb_reported_length_remaining(tvb, offset) > 0) {
+		/* use the get_dns_name method that manages all techniques of RFC 1035 (compression pointer and so on) */
+		consumedx = get_dns_name(pinfo->pool, tvb, offset,
+			length, 0, (const char **)&dns_name, &dns_name_len);
+		name_out = format_text(pinfo->pool, dns_name, dns_name_len);
+		proto_tree_add_string(tree, hf_dhcp_option_dhcp_dns_domain_search_list_fqdn, tvb, offset, consumedx, name_out);
+		offset += consumedx;
 	}
 
 	return tvb_captured_length(tvb);
@@ -2958,105 +3019,55 @@ static int
 dissect_dhcpopt_sip_servers(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
 	int length = tvb_reported_length(tvb);
+	int offset = 0;
 	const unsigned char	*dns_name;
 	int		dns_name_len;
 	char		*name_out;
 
-	/* Encoding Long Options in the Dynamic Host Configuration Protocol (DHCPv4) (RFC 3396) */
 	/* Domain Names - Implementation And Specification (RFC 1035) */
-	rfc3396_sip_server.index_current_block++;
-	if (rfc3396_sip_server.total_number_of_block > 1) {
-		proto_tree_add_string(tree, hf_dhcp_option_sip_server_rfc_3396_detected, tvb, 0, length,
-								wmem_strdup_printf(pinfo->pool, "%u/%u", rfc3396_sip_server.index_current_block, rfc3396_sip_server.total_number_of_block));
-		if (rfc3396_sip_server.index_current_block != rfc3396_sip_server.total_number_of_block) {
-			proto_tree_add_string(tree, hf_dhcp_option_sip_server_refer_last_option, tvb, 0, length,
-								wmem_strdup_printf(pinfo->pool, "%u/%u", rfc3396_sip_server.total_number_of_block, rfc3396_sip_server.total_number_of_block));
+	/* We will display the information about SIP server */
+	uint32_t enc;
+
+	proto_tree_add_item_ret_uint(tree, hf_dhcp_option_sip_server_enc, tvb, offset, 1, ENC_NA, &enc);
+	offset += 1;
+
+	switch (enc) {
+	case RFC_3361_ENC_FQDN: {
+		int consumedx = 0;
+		if (length < 3) {
+			expert_add_info_format(pinfo, tree, &ei_dhcp_bad_length, "length isn't >= 3 (len = %u)", length);
+			break;
 		}
+
+		while (tvb_reported_length_remaining(tvb, offset) > 0) {
+			/* use the get_dns_name method that manages all techniques of RFC 1035 (compression pointer and so on) */
+			consumedx = get_dns_name(pinfo->pool, tvb, offset, length,
+				1 /* ignore enc */, (const char **)&dns_name, &dns_name_len);
+			name_out = format_text(pinfo->pool, dns_name, dns_name_len);
+
+			proto_tree_add_string(tree, hf_dhcp_option_sip_server_name, tvb, offset, consumedx, name_out);
+			offset += consumedx;
+		}
+		break;
 	}
-
-	if (rfc3396_sip_server.tvb_composite == NULL && length) {
-		/* We use composite tvb for managing RFC 3396 */
-		rfc3396_sip_server.tvb_composite = tvb_new_composite();
-	}
-
-	/* Concatenate the block before being interpreted for managing RFC 3396 */
-	if (length)
-		tvb_composite_append(rfc3396_sip_server.tvb_composite, tvb_new_subset_length(tvb, 0, length));
-
-	if (rfc3396_sip_server.index_current_block == rfc3396_sip_server.total_number_of_block
-		&& rfc3396_sip_server.tvb_composite) {
-		/* Here, we are into the last (or unique) option 120. */
-		/* We will display the information about SIP server */
-		uint8_t enc;
-		unsigned int composite_offset = 1; /* ignore enc */
-		tvb_composite_finalize(rfc3396_sip_server.tvb_composite);
-
-		enc = tvb_get_uint8(rfc3396_sip_server.tvb_composite, 0);
-		if (rfc3396_sip_server.total_number_of_block == 1) {
-			/* RFC 3396 is not used, so we can easily link the fqdn with tree. */
-			proto_tree_add_uint(tree, hf_dhcp_option_sip_server_enc, tvb, 0, 1, enc);
-		} else {
-			/* RFC 3396 is used, so the option is split into several option 120. We don't link fqdn with tree. */
-			proto_tree_add_uint(tree, hf_dhcp_option_sip_server_enc, tvb, 0, 0, enc);
-		}
-
-		switch (enc) {
-		case RFC_3361_ENC_FQDN: {
-			unsigned int consumedx = 0;
-			if (tvb_reported_length(rfc3396_sip_server.tvb_composite) < 3) {
-				expert_add_info_format(pinfo, tree, &ei_dhcp_bad_length, "length isn't >= 3 (len = %u)", tvb_reported_length(rfc3396_sip_server.tvb_composite));
-				break;
-			}
-
-			while (composite_offset < tvb_reported_length(rfc3396_sip_server.tvb_composite)) {
-				/* use the get_dns_name method that manages all techniques of RFC 1035 (compression pointer and so on) */
-				consumedx = get_dns_name(rfc3396_sip_server.tvb_composite, composite_offset, tvb_reported_length(rfc3396_sip_server.tvb_composite),
-					1 /* ignore enc */, (const char **)&dns_name, &dns_name_len);
-				name_out = format_text(pinfo->pool, dns_name, dns_name_len);
-
-				if (rfc3396_sip_server.total_number_of_block == 1) {
-					/* RFC 3396 is not used, so we can easily link the fqdn with v_tree. */
-					proto_tree_add_string(tree, hf_dhcp_option_sip_server_name, tvb, composite_offset, consumedx, name_out);
-				} else {
-					/* RFC 3396 is used, so the option is split into several option 120. We don't link fqdn with v_tree. */
-					proto_tree_add_string(tree, hf_dhcp_option_sip_server_name, tvb, 0, 0, name_out);
-				}
-				composite_offset += consumedx;
-			}
-			rfc3396_sip_server.tvb_composite = NULL;
+	case RFC_3361_ENC_IPADDR:
+		if (length < 5) {
+			expert_add_info_format(pinfo, tree, &ei_dhcp_bad_length, "length isn't >= 5 (len = %u)", length);
 			break;
 		}
-		case RFC_3361_ENC_IPADDR:
-			if (tvb_reported_length(rfc3396_sip_server.tvb_composite) < 5) {
-				expert_add_info_format(pinfo, tree, &ei_dhcp_bad_length, "length isn't >= 5 (len = %u)", tvb_reported_length(rfc3396_sip_server.tvb_composite));
-				break;
-			}
-			/* x % 2^n == x & (2^n - 1) note : (assuming x is a positive integer) */
-			if ((tvb_reported_length(rfc3396_sip_server.tvb_composite) - 1) & 3) {
-				if (rfc3396_sip_server.total_number_of_block == 1)
-					expert_add_info_format(pinfo, tree, &ei_dhcp_bad_length, "length isn't a multiple of 4 plus 1 (len = %u).", tvb_reported_length(rfc3396_sip_server.tvb_composite));
-				else
-					expert_add_info_format(pinfo, tree, &ei_dhcp_bad_length,
-						"length isn't a multiple of 4 plus 1 (len = %u). For your information with RFC 3396, the length is the length sum of all options 120 into this BOOTP packet.",
-						tvb_reported_length(rfc3396_sip_server.tvb_composite));
-				break;
-			}
-			while (composite_offset < tvb_reported_length(rfc3396_sip_server.tvb_composite)) {
-				if (rfc3396_sip_server.total_number_of_block == 1) {
-					/* RFC 3396 is not used, so we can easily link the fqdn with v_tree. */
-					proto_tree_add_item(tree, hf_dhcp_option_sip_server_address, tvb, composite_offset, 4, ENC_BIG_ENDIAN);
-				} else {
-					uint32_t sip_server = tvb_get_ipv4(rfc3396_sip_server.tvb_composite, composite_offset);
-					/* RFC 3396 is used, so the option is split into several option 120. We don't link fqdn with v_tree. */
-					proto_tree_add_ipv4(tree, hf_dhcp_option_sip_server_address, tvb, 0, 0, sip_server);
-				}
-				composite_offset += 4;
-			}
-			break;
-		default:
-			expert_add_info_format(pinfo, tree, &ei_dhcp_option_sip_server_address_encoding, "RFC 3361 defines only 0 and 1 for Encoding byte (Encoding = %u).", enc);
+		/* x % 2^n == x & (2^n - 1) note : (assuming x is a positive integer) */
+		if ((length - 1) & 3) {
+			expert_add_info_format(pinfo, tree, &ei_dhcp_bad_length, "length isn't a multiple of 4 plus 1 (len = %u).", length);
 			break;
 		}
+		while (tvb_reported_length_remaining(tvb, offset) > 0) {
+			proto_tree_add_item(tree, hf_dhcp_option_sip_server_address, tvb, offset, 4, ENC_BIG_ENDIAN);
+			offset += 4;
+		}
+		break;
+	default:
+		expert_add_info_format(pinfo, tree, &ei_dhcp_option_sip_server_address_encoding, "RFC 3361 defines only 0 and 1 for Encoding byte (Encoding = %u).", enc);
+		break;
 	}
 
 	return tvb_captured_length(tvb);
@@ -3170,9 +3181,9 @@ dissect_dhcpopt_vi_vendor_class(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 	int offset = 0;
 	uint32_t enterprise = 0;
 	uint32_t option_data_len = 0;
-	uint32_t data_len = 0;
+	int data_len = 0;
 	int s_end;
-	proto_item *eti;
+	proto_item *eti, *expert_ti;
 	proto_tree *e_tree;
 	proto_tree *vcdi_tree;
 
@@ -3197,11 +3208,27 @@ dissect_dhcpopt_vi_vendor_class(tvbuff_t *tvb, packet_info *pinfo, proto_tree *t
 
 		while (offset < s_end) {
 			tvbuff_t *enterprise_tvb = tvb_new_subset_length(tvb, offset, option_data_len);
+			/* XXX - Do we really want to try the dissector table for *each*
+			 * vendor-class-data for the same enterprise? This tvb is too long on
+			 * subsequent iterations. Only giving the table dissector one attempt
+			 * (and skipping past bytes it doesn't dissect to s_end) might be simpler.
+			 */
 			int bytes_dissected = dissector_try_uint(dhcp_enterprise_class_table, enterprise, enterprise_tvb, pinfo, e_tree);
 			if (bytes_dissected == 0) {
 				vcdi_tree = proto_tree_add_subtree(e_tree, tvb, offset, option_data_len, ett_dhcp_option124_vendor_class_data_item, NULL, "Vendor Class Data Item");
-
-				proto_tree_add_item_ret_uint(vcdi_tree, hf_dhcp_option_vi_class_data_item_length, tvb, offset, 1, ENC_NA, &data_len);
+				/* According to RFC 3925, *each* vendor-class-data instance has
+				 * its own length, but in practice some vendors have only included
+				 * the overall per-enterprise option length. See the dhcwg m-l:
+				 * https://mailarchive.ietf.org/arch/msg/dhcwg/B4fNsvUR0EHxcrKDsKCf7lBrc3s/
+				 */
+				data_len = tvb_get_uint8(tvb, offset);
+				if (offset + data_len >= s_end) {
+					expert_ti = proto_tree_add_item(vcdi_tree, hf_dhcp_option_vi_class_data_item_data, tvb, offset, s_end - offset, ENC_NA);
+					expert_add_info(pinfo, expert_ti, &ei_dhcp_nonstd_option_data);
+					offset = s_end;
+					break;
+				}
+				proto_tree_add_item(vcdi_tree, hf_dhcp_option_vi_class_data_item_length, tvb, offset, 1, ENC_NA);
 				offset += 1;
 				proto_tree_add_item(vcdi_tree, hf_dhcp_option_vi_class_data_item_data, tvb, offset, data_len, ENC_NA);
 
@@ -3253,7 +3280,7 @@ dissect_dhcpopt_rdnss(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void*
 	proto_tree_add_item(tree, hf_dhcp_option_rdnss_sec_dns_server, tvb, offset, 4, ENC_BIG_ENDIAN);
 	offset += 4;
 
-	get_dns_name(tvb, offset, tvb_reported_length_remaining(tvb,offset), offset, (const char **)&dns_name, &dns_name_len);
+	get_dns_name(pinfo->pool, tvb, offset, tvb_reported_length_remaining(tvb,offset), offset, (const char **)&dns_name, &dns_name_len);
 	proto_tree_add_string(tree, hf_dhcp_option_rdnss_domain, tvb, offset,
 			tvb_reported_length_remaining(tvb,offset), format_text(pinfo->pool, dns_name, dns_name_len));
 
@@ -3343,7 +3370,7 @@ dissect_dhcpopt_pcp_server(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
 		offset += 1;
 		ip_list_length += 1;
 		while (((list_length - 1)%4 == 0) && (ip_list_length < list_length) && tvb_reported_length_remaining(tvb,offset) >= 4) {
-			proto_tree_add_item(tree_pcp, hf_dhcp_option_pcp_server, tvb, offset, 4, ENC_NA);
+			proto_tree_add_item(tree_pcp, hf_dhcp_option_pcp_server, tvb, offset, 4, ENC_BIG_ENDIAN);
 			offset += 4;
 			ip_list_length += 4;
 		}
@@ -4120,22 +4147,22 @@ dissect_vendor_avaya_param(proto_tree *tree, packet_info *pinfo, proto_item *vti
 		proto_tree_add_string(tree, hf_dhcp_option242_avaya_httpdir, tvb, optoff, len, field + 8);
 	}
 	else if((strncmp(field, "STATIC=", 7) == 0) && ( len > 7)) {
-		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_static, tvb, optoff, len, field + 7, "%s (%s)", field + 7, str_to_str(field + 7, option242_avaya_static_vals, "Unknown (%s)"));
+		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_static, tvb, optoff, len, field + 7, "%s (%s)", field + 7, str_to_str_wmem(pinfo->pool, field + 7, option242_avaya_static_vals, "Unknown (%s)"));
 	}
 	else if((strncmp(field, "MCIPADD=", 8) == 0) && ( len > 8)) {
 		proto_tree_add_string(tree, hf_dhcp_option242_avaya_mcipadd, tvb, optoff, len, field + 8);
 	}
 	else if((strncmp(field, "DOT1X=", 6) == 0) && ( len > 6)) {
-		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_dot1x, tvb, optoff, len, field + 6, "%s (%s)", field + 6, str_to_str(field + 6, option242_avaya_dot1x_vals, "Unknown (%s)"));
+		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_dot1x, tvb, optoff, len, field + 6, "%s (%s)", field + 6, str_to_str_wmem(pinfo->pool, field + 6, option242_avaya_dot1x_vals, "Unknown (%s)"));
 	}
 	else if((strncmp(field, "ICMPDU=", 7) == 0) && ( len > 7)) {
-		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_icmpdu, tvb, optoff, len, field + 7, "%s (%s)", field + 7, str_to_str(field + 7, option242_avaya_icmpdu_vals, "Unknown (%s)"));
+		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_icmpdu, tvb, optoff, len, field + 7, "%s (%s)", field + 7, str_to_str_wmem(pinfo->pool, field + 7, option242_avaya_icmpdu_vals, "Unknown (%s)"));
 	}
 	else if((strncmp(field, "ICMPRED=", 8) == 0) && ( len > 8)) {
-		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_icmpred, tvb, optoff, len, field + 8, "%s (%s)", field + 8, str_to_str(field + 8, option242_avaya_icmpred_vals, "Unknown (%s)"));
+		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_icmpred, tvb, optoff, len, field + 8, "%s (%s)", field + 8, str_to_str_wmem(pinfo->pool, field + 8, option242_avaya_icmpred_vals, "Unknown (%s)"));
 	}
 	else if((strncmp(field, "L2Q=", 4) == 0) && ( len > 4)) {
-		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_l2q, tvb, optoff, len, field + 4, "%s (%s)", field + 4, str_to_str(field + 4, option242_avaya_l2q_vals, "Unknown (%s)"));
+		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_l2q, tvb, optoff, len, field + 4, "%s (%s)", field + 4, str_to_str_wmem(pinfo->pool, field + 4, option242_avaya_l2q_vals, "Unknown (%s)"));
 	}
 	else if((strncmp(field, "L2QVLAN=", 8) == 0) && ( len > 8)) {
 		int32_t val = -1;
@@ -4148,19 +4175,19 @@ dissect_vendor_avaya_param(proto_tree *tree, packet_info *pinfo, proto_item *vti
 			expert_add_info(pinfo, pi, &ei_dhcp_option242_avaya_l2qvlan_invalid);
 	}
 	else if((strncmp(field, "LOGLOCAL=", 9) == 0) && ( len > 9)) {
-		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_loglocal, tvb, optoff, len, field + 9, "%s (%s)", field + 9, str_to_str(field + 9, option242_avaya_loglocal_vals, "Unknown (%s)"));
+		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_loglocal, tvb, optoff, len, field + 9, "%s (%s)", field + 9, str_to_str_wmem(pinfo->pool, field + 9, option242_avaya_loglocal_vals, "Unknown (%s)"));
 	}
 	else if((strncmp(field, "PHY1STAT=", 9) == 0) && ( len > 9)) {
-		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_phy1stat, tvb, optoff, len, field + 9, "%s (%s)", field + 9, str_to_str(field + 9, option242_avaya_phystat_vals, "Unknown (%s)"));
+		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_phy1stat, tvb, optoff, len, field + 9, "%s (%s)", field + 9, str_to_str_wmem(pinfo->pool, field + 9, option242_avaya_phystat_vals, "Unknown (%s)"));
 	}
 	else if((strncmp(field, "PHY2STAT=", 9) == 0) && ( len > 9)) {
-		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_phy2stat, tvb, optoff, len, field + 9, "%s (%s)", field + 9, str_to_str(field + 9, option242_avaya_phystat_vals, "Unknown (%s)"));
+		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_phy2stat, tvb, optoff, len, field + 9, "%s (%s)", field + 9, str_to_str_wmem(pinfo->pool, field + 9, option242_avaya_phystat_vals, "Unknown (%s)"));
 	}
 	else if((strncmp(field, "PROCPSWD=", 9) == 0) && ( len > 9)) {
 		proto_tree_add_string(tree, hf_dhcp_option242_avaya_procpswd, tvb, optoff, len, field + 9);
 	}
 	else if((strncmp(field, "PROCSTAT=", 9) == 0) && ( len > 9)) {
-		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_procstat, tvb, optoff, len, field + 9, "%s (%s)", field + 9, str_to_str(field + 9, option242_avaya_procstat_vals, "Unknown (%s)"));
+		proto_tree_add_string_format_value(tree, hf_dhcp_option242_avaya_procstat, tvb, optoff, len, field + 9, "%s (%s)", field + 9, str_to_str_wmem(pinfo->pool, field + 9, option242_avaya_procstat_vals, "Unknown (%s)"));
 	}
 	else if((strncmp(field, "SNMPADD=", 8) == 0) && ( len > 8)) {
 		proto_tree_add_string(tree, hf_dhcp_option242_avaya_snmpadd, tvb, optoff, len, field + 8);
@@ -4762,7 +4789,7 @@ dissect_vendor_bsdp_boot_image(proto_tree *v_tree, tvbuff_t *tvb, int optoff)
 		NULL
 	};
 
-	proto_tree_add_bitmask(v_tree, tvb, optoff, hf_dhcp_option43_bsdp_boot_image_attribute, ett_dhcp_o43_bsdp_attributes_flags, dhcp_o43_bsdp_attributes_flags, ENC_NA);
+	proto_tree_add_bitmask(v_tree, tvb, optoff, hf_dhcp_option43_bsdp_boot_image_attribute, ett_dhcp_o43_bsdp_attributes_flags, dhcp_o43_bsdp_attributes_flags, ENC_BIG_ENDIAN);
 }
 
 static int
@@ -4812,7 +4839,7 @@ dissect_vendor_bsdp_suboption(packet_info *pinfo, proto_item *v_ti, proto_tree *
 	switch(subopt)
 	{
 		case 1:
-			proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_message_type, tvb, suboptoff, subopt_len, ENC_ASCII|ENC_NA);
+			proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_message_type, tvb, suboptoff, subopt_len, ENC_NA);
 			break;
 		case 2:
 			proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_version, tvb, suboptoff, subopt_len, ENC_BIG_ENDIAN);
@@ -4830,30 +4857,30 @@ dissect_vendor_bsdp_suboption(packet_info *pinfo, proto_item *v_ti, proto_tree *
 			proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_boot_image_list_path, tvb, suboptoff, subopt_len, ENC_ASCII);
 			break;
 		case 7:
-			ti = proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_default_boot_image_id, tvb, suboptoff, subopt_len, ENC_BIG_ENDIAN|ENC_NA);
+			ti = proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_default_boot_image_id, tvb, suboptoff, subopt_len, ENC_BIG_ENDIAN);
 			o43bsdp_va_tree = proto_item_add_subtree(ti, ett_dhcp_o43_bsdp_boot_image);
 			dissect_vendor_bsdp_boot_image(o43bsdp_va_tree, tvb, suboptoff);
-			proto_tree_add_item(o43bsdp_va_tree, hf_dhcp_option43_bsdp_boot_image_index, tvb, suboptoff+2, subopt_len-2, ENC_BIG_ENDIAN|ENC_NA);
+			proto_tree_add_item(o43bsdp_va_tree, hf_dhcp_option43_bsdp_boot_image_index, tvb, suboptoff+2, subopt_len-2, ENC_BIG_ENDIAN);
 			break;
 		case 8:
-			ti = proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_selected_boot_image_id, tvb, suboptoff, subopt_len, ENC_BIG_ENDIAN|ENC_NA);
+			ti = proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_selected_boot_image_id, tvb, suboptoff, subopt_len, ENC_BIG_ENDIAN);
 			o43bsdp_vc_tree = proto_item_add_subtree(ti, ett_dhcp_o43_bsdp_boot_image);
 			dissect_vendor_bsdp_boot_image(o43bsdp_vc_tree, tvb, suboptoff);
-			proto_tree_add_item(o43bsdp_vc_tree, hf_dhcp_option43_bsdp_boot_image_index, tvb, suboptoff+2, subopt_len-2, ENC_BIG_ENDIAN|ENC_NA);
+			proto_tree_add_item(o43bsdp_vc_tree, hf_dhcp_option43_bsdp_boot_image_index, tvb, suboptoff+2, subopt_len-2, ENC_BIG_ENDIAN);
 			break;
 		case 9:
-			ti = proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_boot_image_list, tvb, suboptoff, subopt_len, ENC_BIG_ENDIAN|ENC_NA);
+			ti = proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_boot_image_list, tvb, suboptoff, subopt_len, ENC_NA);
 			attributes_len = subopt_len;
 			attributes_off = suboptoff;
 			o43bsdp_vd_tree = proto_item_add_subtree(ti, ett_dhcp_o43_bsdp_image_desc_list);
 			while (attributes_len >= 5) {
 				string_len = tvb_get_uint8(tvb, attributes_off+4);
 				if (string_len > 0) {
-					tj = proto_tree_add_item(o43bsdp_vd_tree, hf_dhcp_option43_bsdp_image_desc, tvb, attributes_off, string_len+5, ENC_BIG_ENDIAN|ENC_NA);
+					tj = proto_tree_add_item(o43bsdp_vd_tree, hf_dhcp_option43_bsdp_image_desc, tvb, attributes_off, string_len+5, ENC_NA);
 					o43bsdp_vb_tree = proto_item_add_subtree(tj, ett_dhcp_o43_bsdp_image_desc);
 					dissect_vendor_bsdp_boot_image(o43bsdp_vb_tree, tvb, attributes_off);
-					proto_tree_add_item(o43bsdp_vb_tree, hf_dhcp_option43_bsdp_boot_image_index, tvb, attributes_off+2, 2, ENC_BIG_ENDIAN|ENC_NA);
-					proto_tree_add_item(o43bsdp_vb_tree, hf_dhcp_option43_bsdp_boot_image_name_len, tvb, attributes_off+4, 1, ENC_BIG_ENDIAN|ENC_NA);
+					proto_tree_add_item(o43bsdp_vb_tree, hf_dhcp_option43_bsdp_boot_image_index, tvb, attributes_off+2, 2, ENC_BIG_ENDIAN);
+					proto_tree_add_item(o43bsdp_vb_tree, hf_dhcp_option43_bsdp_boot_image_name_len, tvb, attributes_off+4, 1, ENC_BIG_ENDIAN);
 					proto_tree_add_item(o43bsdp_vb_tree, hf_dhcp_option43_bsdp_boot_image_name, tvb, attributes_off+5, string_len, ENC_UTF_8);
 				}
 				attributes_off += 5 + string_len;
@@ -4864,7 +4891,7 @@ dissect_vendor_bsdp_suboption(packet_info *pinfo, proto_item *v_ti, proto_tree *
 			proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_netboot_firmware, tvb, suboptoff, subopt_len, ENC_NA);
 			break;
 		case 11:
-			ti = proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_attributes_filter_list, tvb, suboptoff, subopt_len, ENC_BIG_ENDIAN|ENC_NA);
+			ti = proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_attributes_filter_list, tvb, suboptoff, subopt_len, ENC_NA);
 			attributes_len = subopt_len;
 			attributes_off = suboptoff;
 			o43bsdp_va_tree = proto_item_add_subtree(ti, ett_dhcp_o43_bsdp_attributes);
@@ -4875,7 +4902,7 @@ dissect_vendor_bsdp_suboption(packet_info *pinfo, proto_item *v_ti, proto_tree *
 			}
 			break;
 		case 12:
-			proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_message_size, tvb, suboptoff, subopt_len, ENC_BIG_ENDIAN|ENC_NA);
+			proto_tree_add_item(o43bsdp_v_tree, hf_dhcp_option43_bsdp_message_size, tvb, suboptoff, subopt_len, ENC_BIG_ENDIAN);
 			break;
 	}
 
@@ -5228,36 +5255,28 @@ static const value_string option43_alcatel_app_type_vals[] = {
 	{ 0, NULL}
 };
 
-/* Look for 'encapsulated vendor-specific options' */
-static bool
-test_encapsulated_vendor_options(tvbuff_t *tvb, int optoff, int optend)
+/* If an Alcatel-Lucent Option 43 suboption has a known fixed length,
+ * return that length. Returns 0 for variable length options and unknown
+ * options.
+ */
+static unsigned
+get_alcatel_suboption_len(unsigned subopt)
 {
-	uint8_t	subopt;
-	uint8_t	subopt_len;
-
-	while (optoff < optend) {
-		subopt = tvb_get_uint8(tvb, optoff);
-		optoff++;
-
-		/* Skip padding */
-		if (subopt == 0)
-			continue;
-		/* We are done, skip any remaining bytes */
-		if (subopt == 255)
-			break;
-
-		/* We expect a length byte next */
-		if (optoff >= optend)
-			return false;
-		subopt_len = tvb_get_uint8(tvb, optoff);
-		optoff++;
-
-		/* Check remaining room for suboption in option */
-		if (optoff + subopt_len > optend)
-			return false;
-		optoff += subopt_len;
+	switch(subopt) {
+	case 58:  /* 0x3A - Alcatel-Lucent AVA VLAN Id */
+		return 2;
+	case 64:  /* 0x40 - Alcatel-Lucent TFTP1 */
+		return 4;
+	case 65:  /* 0x41 - Alcatel-Lucent TFTP2 */
+		return 4;
+	case 66:  /* 0x42 - Alcatel-Lucent APPLICATION TYPE */
+		return 1;
+	case 0:   /* Alcatel-Lucent Padding */
+	case 67:  /* 0x43 - Alcatel-Lucent SIP URL */
+	case 255: /* Alcatel-Lucent End */
+	default:
+		return 0;
 	}
-	return true;
 }
 
 static int
@@ -5303,37 +5322,23 @@ dissect_vendor_alcatel_suboption(packet_info *pinfo, proto_item *v_ti, proto_tre
 		return (optend);
 	}
 
+	unsigned subopt_len_expected = get_alcatel_suboption_len(subopt);
+	if (subopt_len_expected && subopt_len_expected != subopt_len) {
+		expert_add_info_format(pinfo, vti, &ei_dhcp_bad_length, "length isn't %u", subopt_len_expected);
+		return optend;
+	}
 	switch (subopt)
 	{
 	case 58: /* 0x3A - Alcatel-Lucent AVA VLAN Id */
-		if (subopt_len != 2) {
-			expert_add_info_format(pinfo, vti, &ei_dhcp_bad_length, "length isn't 2");
-			return (optend);
-		}
-
 		proto_tree_add_item(o43alcatel_v_tree, hf_dhcp_option43_alcatel_vlan_id, tvb, suboptoff, 2, ENC_BIG_ENDIAN);
 		break;
 	case 64: /* 0x40 - Alcatel-Lucent TFTP1 */
-		if (subopt_len != 4) {
-			expert_add_info_format(pinfo, vti, &ei_dhcp_bad_length, "length isn't 4");
-			return (optend);
-		}
-
 		proto_tree_add_item(o43alcatel_v_tree, hf_dhcp_option43_alcatel_tftp1, tvb, suboptoff, 4, ENC_BIG_ENDIAN);
 		break;
 	case 65: /* 0x41 - Alcatel-Lucent TFTP2 */
-		if (subopt_len != 4) {
-			expert_add_info_format(pinfo, vti, &ei_dhcp_bad_length, "length isn't 4");
-			return (optend);
-		}
-
 		proto_tree_add_item(o43alcatel_v_tree, hf_dhcp_option43_alcatel_tftp2, tvb, suboptoff, 4, ENC_BIG_ENDIAN);
 		break;
 	case 66: /* 0x42 - Alcatel-Lucent APPLICATION TYPE */
-		if (subopt_len != 1) {
-			expert_add_info_format(pinfo, vti, &ei_dhcp_bad_length, "length isn't 1");
-			return (optend);
-		}
 		proto_tree_add_item(o43alcatel_v_tree, hf_dhcp_option43_alcatel_app_type, tvb, suboptoff, 1, ENC_BIG_ENDIAN);
 		break;
 	case 67: /* 0x43 - Alcatel-Lucent SIP URL */
@@ -5361,7 +5366,7 @@ dissect_alcatel_lucent_vendor_info_heur( tvbuff_t *tvb, packet_info *pinfo, prot
 	s_option = tvb_get_uint8(tvb, offset);
 	if ((s_option==58 || s_option==64 || s_option==65
 		|| s_option==66 || s_option==67)
-		&& test_encapsulated_vendor_options(tvb, offset, tvb_reported_length(tvb))) {
+		&& test_encapsulated_vendor_options(tvb, offset, tvb_reported_length(tvb), get_alcatel_suboption_len)) {
 
 		/* Alcatel-Lucent DHCP Extensions */
 		proto_item_append_text(tree, " (Alcatel-Lucent)");
@@ -6986,7 +6991,7 @@ dissect_packetcable_ietf_ccc(packet_info *pinfo, proto_item *v_ti, proto_tree *v
 		switch (prov_type) {
 
 		case 0:
-			get_dns_name(tvb, suboptoff, subopt_len, suboptoff, (const char **)&dns_name, &dns_name_len);
+			get_dns_name(pinfo->pool, tvb, suboptoff, subopt_len, suboptoff, (const char **)&dns_name, &dns_name_len);
 			proto_item_append_text(vti, "%s (%u byte%s)", format_text(pinfo->pool, dns_name, dns_name_len),
 					       subopt_len - 1, plurality(subopt_len, "", "s") );
 			break;
@@ -7044,7 +7049,7 @@ dissect_packetcable_ietf_ccc(packet_info *pinfo, proto_item *v_ti, proto_tree *v
 		break;
 
 	case PKT_CCC_KRB_REALM: /* String values */
-		get_dns_name(tvb, suboptoff, subopt_len, suboptoff, (const char **)&dns_name, &dns_name_len);
+		get_dns_name(pinfo->pool, tvb, suboptoff, subopt_len, suboptoff, (const char **)&dns_name, &dns_name_len);
 		proto_item_append_text(vti, "%s (%u byte%s)", format_text(pinfo->pool, dns_name, dns_name_len),
 				       subopt_len, plurality(subopt_len, "", "s") );
 		suboptoff += subopt_len;
@@ -7141,10 +7146,12 @@ dissect_dhcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 {
 	proto_tree   *bp_tree;
 	proto_item   *bp_ti, *ti;
+	proto_item   *file_ti, *sname_ti;
 	proto_item   *fi, *hidden_item;
 	uint8_t	      op;
 	uint8_t	      htype, hlen;
-	int	      voff, eoff, tmpvoff; /* vendor offset, end offset */
+	int	      voff, eoff; /* vendor offset, end offset */
+	int	      tmpvoff, tmpvoff_end;
 	uint32_t	      ip_addr;
 	bool          at_end;
 	bool          isProxyDhcp;
@@ -7158,11 +7165,6 @@ dissect_dhcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 		&hf_dhcp_flags_reserved,
 		NULL
 	};
-
-	rfc3396_dns_domain_search_list.total_number_of_block = 0;
-	rfc3396_dns_domain_search_list.tvb_composite	     = NULL;
-	rfc3396_sip_server.total_number_of_block	     = 0;
-	rfc3396_sip_server.tvb_composite		     = NULL;
 
 	if (pinfo->srcport == PROXYDHCP_UDP_PORT ||
 	    pinfo->destport == PROXYDHCP_UDP_PORT) {
@@ -7224,17 +7226,17 @@ dissect_dhcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	bp_ti = proto_tree_add_item(tree, proto_dhcp, tvb, 0, -1, ENC_NA);
 	bp_tree = proto_item_add_subtree(bp_ti, ett_dhcp);
 
+	wmem_map_t *rfc3396_map = wmem_map_new(pinfo->pool, g_direct_hash, g_direct_equal);
 	/*
-	 * In the first pass, we just look for the DHCP message type
-	 * and Vendor class identifier options.
+	 * In the first pass, we just look for the overload, DHCP message type
+	 * and Vendor class identifier options, and any repeated options for
+	 * RFC 3396 long option concatenation.
 	 */
 	tmpvoff = voff;
 	at_end = false;
-	rfc3396_dns_domain_search_list.index_current_block = 0;
-	rfc3396_sip_server.index_current_block = 0;
 	while (tmpvoff < eoff && !at_end) {
 		offset_delta = dhcp_option(tvb, pinfo, NULL, tmpvoff, eoff, true, &at_end,
-		    &dhcp_type, &vendor_class_id, &overload);
+		    &dhcp_type, &vendor_class_id, &overload, rfc3396_map);
 		if (offset_delta <= 0) {
 			proto_tree_add_expert(bp_tree, pinfo, &ei_dhcp_option_parse_err,
 					tvb, tmpvoff, eoff);
@@ -7295,7 +7297,7 @@ dissect_dhcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	}
 	flags = tvb_get_ntohs(tvb, 10);
 	fi = proto_tree_add_bitmask(bp_tree, tvb, 10, hf_dhcp_flags,
-			       ett_dhcp_flags, dhcp_flags, ENC_NA);
+			       ett_dhcp_flags, dhcp_flags, ENC_BIG_ENDIAN);
 	proto_item_append_text(fi, " (%s)",
 	    (flags & BOOTP_BC) ? "Broadcast" : "Unicast");
 
@@ -7323,40 +7325,78 @@ dissect_dhcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 		proto_tree_add_expert(bp_tree, pinfo, &ei_dhcp_client_address_not_given, tvb, 28, 16);
 	}
 
+	/* RFC 3396 5: "The aggregate option buffer is made up of the optional
+	 * parameters field, the file field, and the sname field, in that order.
+	 * WARNING: This is not the physical ordering of these fields in the
+	 * DHCP packet."
+	 *
+	 * RFC 3396 6: "[I]f an option were split into three parts and each
+	 * part went into one of the possible option fields, the first part
+	 * would go into the optional parameters field, the second part would
+	 * go into the file field, and the third part would go into the sname
+	 * field."
+	 *
+	 * So we process and reassemble the options in the order listed above,
+	 * and move the items after processing so that they are generally in
+	 * physical ordering in the tree. (Whichever ordering choice we make
+	 * is bound to confused someone.)
+	 */
+
+	if (overload & OPT_OVERLOAD_FILE) {
+		file_ti = proto_tree_add_expert(bp_tree, pinfo, &ei_dhcp_boot_filename_overloaded_by_dhcp, tvb,
+			FILE_NAME_OFFSET, FILE_NAME_LEN);
+		tmpvoff = FILE_NAME_OFFSET;
+		tmpvoff_end = FILE_NAME_OFFSET + FILE_NAME_LEN;
+		at_end = false;
+		while (tmpvoff < tmpvoff_end && !at_end) {
+			tmpvoff += dhcp_option(tvb, pinfo, NULL, tmpvoff,
+				tmpvoff_end, true, &at_end,
+				&dhcp_type, &vendor_class_id,
+				NULL, rfc3396_map);
+		}
+	} else {
+		/* Boot file is optional */
+		if (tvb_get_uint8(tvb, FILE_NAME_OFFSET) != '\0') {
+			file_ti = proto_tree_add_item(bp_tree, hf_dhcp_file, tvb,
+					   FILE_NAME_OFFSET,
+					   FILE_NAME_LEN, ENC_ASCII);
+		} else {
+			file_ti = proto_tree_add_string_format(bp_tree, hf_dhcp_file, tvb,
+						   FILE_NAME_OFFSET,
+						   FILE_NAME_LEN,
+						   "", "Boot file name not given");
+		}
+	}
+
+
 	if (overload & OPT_OVERLOAD_SNAME) {
-		proto_tree_add_expert(bp_tree, pinfo, &ei_dhcp_server_name_overloaded_by_dhcp, tvb,
+		sname_ti = proto_tree_add_expert(bp_tree, pinfo, &ei_dhcp_server_name_overloaded_by_dhcp, tvb,
 			SERVER_NAME_OFFSET, SERVER_NAME_LEN);
+		tmpvoff = SERVER_NAME_OFFSET;
+		tmpvoff_end = SERVER_NAME_OFFSET + SERVER_NAME_LEN;
+		at_end = false;
+		while (tmpvoff < tmpvoff_end && !at_end) {
+			tmpvoff += dhcp_option(tvb, pinfo, NULL, tmpvoff,
+				tmpvoff_end, true, &at_end,
+				&dhcp_type, &vendor_class_id,
+				NULL, rfc3396_map);
+		}
 	} else {
 		/* The server host name is optional */
 		if (tvb_get_uint8(tvb, SERVER_NAME_OFFSET) != '\0') {
-			proto_tree_add_item(bp_tree, hf_dhcp_server, tvb,
+			sname_ti = proto_tree_add_item(bp_tree, hf_dhcp_server, tvb,
 					   SERVER_NAME_OFFSET,
 					   SERVER_NAME_LEN, ENC_ASCII);
 
 		} else {
-			proto_tree_add_string_format(bp_tree, hf_dhcp_server, tvb,
+			sname_ti = proto_tree_add_string_format(bp_tree, hf_dhcp_server, tvb,
 						   SERVER_NAME_OFFSET,
 						   SERVER_NAME_LEN,
 						   "", "Server host name not given");
 		}
 	}
 
-	if (overload & OPT_OVERLOAD_FILE) {
-		proto_tree_add_expert(bp_tree, pinfo, &ei_dhcp_boot_filename_overloaded_by_dhcp, tvb,
-			FILE_NAME_OFFSET, FILE_NAME_LEN);
-	} else {
-		/* Boot file is optional */
-		if (tvb_get_uint8(tvb, FILE_NAME_OFFSET) != '\0') {
-			proto_tree_add_item(bp_tree, hf_dhcp_file, tvb,
-					   FILE_NAME_OFFSET,
-					   FILE_NAME_LEN, ENC_ASCII);
-		} else {
-			proto_tree_add_string_format(bp_tree, hf_dhcp_file, tvb,
-						   FILE_NAME_OFFSET,
-						   FILE_NAME_LEN,
-						   "", "Boot file name not given");
-		}
-	}
+	proto_tree_move_item(bp_tree, sname_ti, file_ti);
 
 	voff = VENDOR_INFO_OFFSET;
 	if (dhcp_type == NULL) {
@@ -7376,11 +7416,9 @@ dissect_dhcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	}
 
 	at_end = false;
-	rfc3396_dns_domain_search_list.index_current_block = 0;
-	rfc3396_sip_server.index_current_block = 0;
 	while (voff < eoff && !at_end) {
 		offset_delta = dhcp_option(tvb, pinfo, bp_tree, voff, eoff, false, &at_end,
-		    &dhcp_type, &vendor_class_id, &overload);
+		    &dhcp_type, &vendor_class_id, &overload, rfc3396_map);
 		if (offset_delta <= 0) {
 			proto_tree_add_expert(bp_tree, pinfo, &ei_dhcp_option_parse_err,
 					tvb, voff, eoff);
@@ -7392,6 +7430,48 @@ dissect_dhcp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_
 	{
 		expert_add_info(pinfo, bp_ti, &ei_dhcp_end_option_missing);
 	}
+
+	if (overload & OPT_OVERLOAD_FILE) {
+		proto_item *oti;
+		proto_tree *overload_tree = proto_tree_add_subtree(bp_tree, tvb,
+			FILE_NAME_OFFSET, FILE_NAME_LEN, ett_dhcp_filename_option, &oti,
+			"Boot file name option overload");
+		tmpvoff = FILE_NAME_OFFSET;
+		tmpvoff_end = FILE_NAME_OFFSET + FILE_NAME_LEN;
+		at_end = false;
+		while (tmpvoff < tmpvoff_end && !at_end) {
+			tmpvoff += dhcp_option(tvb, pinfo, overload_tree, tmpvoff,
+				tmpvoff_end, false, &at_end,
+				&dhcp_type, &vendor_class_id,
+				NULL, rfc3396_map);
+		}
+		if (!at_end)
+		{
+			expert_add_info(pinfo, oti, &ei_dhcp_opt_overload_file_end_missing);
+		}
+		proto_tree_move_item(bp_tree, file_ti, oti);
+	}
+	if (overload & OPT_OVERLOAD_SNAME) {
+		proto_item *oti;
+		proto_tree *overload_tree = proto_tree_add_subtree(bp_tree, tvb,
+			SERVER_NAME_OFFSET, SERVER_NAME_LEN, ett_dhcp_server_hostname, &oti,
+			"Server host name option overload");
+		tmpvoff = SERVER_NAME_OFFSET;
+		tmpvoff_end = SERVER_NAME_OFFSET + SERVER_NAME_LEN;
+		at_end = false;
+		while (tmpvoff < tmpvoff_end && !at_end) {
+			tmpvoff += dhcp_option(tvb, pinfo, overload_tree, tmpvoff,
+				tmpvoff_end, false, &at_end,
+				&dhcp_type, &vendor_class_id,
+				NULL, rfc3396_map);
+		}
+		if (!at_end)
+		{
+			expert_add_info(pinfo, oti, &ei_dhcp_opt_overload_sname_end_missing);
+		}
+		proto_tree_move_item(bp_tree, sname_ti, oti);
+	}
+
 	if (voff < eoff) {
 		/*
 		 * Padding after the end option.
@@ -8127,6 +8207,11 @@ proto_register_dhcp(void)
 		    FT_BOOLEAN, BASE_NONE, NULL, 0x00,
 		    "Boolean DHCP/BOOTP option value", HFILL }},
 
+		{ &hf_dhcp_option_rfc_3396_detected,
+		  { "Encoding Long Options detected (RFC 3396)", "dhcp.option.rfc_3396_detected",
+		    FT_STRINGZ, BASE_NONE, NULL, 0x0,
+		    NULL, HFILL }},
+
 		{ &hf_dhcp_option_padding,
 		  { "Padding", "dhcp.option.padding",
 		    FT_BYTES, BASE_NONE, NULL, 0x0,
@@ -8352,6 +8437,10 @@ proto_register_dhcp(void)
 		    FT_IPv4, BASE_NONE, NULL, 0x00,
 		    "Option 42: Network Time Protocol Server", HFILL }},
 
+		{ &hf_dhcp_option43_suboption,
+		  { "Option 43 Suboption", "dhcp.option.vendor.suboption",
+		    FT_UINT8, BASE_DEC, NULL, 0x0,
+		    NULL, HFILL }},
 
 		{ &hf_dhcp_option43_value,
 		  { "Value", "dhcp.option.vendor.value",
@@ -9739,30 +9828,10 @@ proto_register_dhcp(void)
 		    FT_STRINGZ, BASE_NONE, NULL, 0x0,
 		    "Option 117: Name Service", HFILL }},
 
-		{ &hf_dhcp_option_dhcp_dns_domain_search_list_rfc_3396_detected,
-		  { "Encoding Long Options detected (RFC 3396)", "dhcp.option.dhcp_dns_domain_search_list_rfc_3396_detected",
-		    FT_STRINGZ, BASE_NONE, NULL, 0x0,
-		    "Option 119: Encoding Long Options detected (RFC 3396)", HFILL }},
-
-		{ &hf_dhcp_option_dhcp_dns_domain_search_list_refer_last_option,
-		  { "For the data, please refer to last option 119", "dhcp.option.dhcp_dns_domain_search_list_refer_last_option",
-		    FT_STRINGZ, BASE_NONE, NULL, 0x0,
-		    "Option 119: For the data, please refer to last option 119", HFILL }},
-
 		{ &hf_dhcp_option_dhcp_dns_domain_search_list_fqdn,
 		  { "FQDN", "dhcp.option.dhcp_dns_domain_search_list_fqdn",
 		    FT_STRINGZ, BASE_NONE, NULL, 0x0,
 		    "Option 119: FQDN", HFILL }},
-
-		{ &hf_dhcp_option_sip_server_rfc_3396_detected,
-		  { "Encoding Long Options detected (RFC 3396)", "dhcp.option.sip_server.rfc_3396_detected",
-		    FT_STRINGZ, BASE_NONE, NULL, 0x0,
-		    "Option 120: Encoding Long Options detected (RFC 3396)", HFILL }},
-
-		{ &hf_dhcp_option_sip_server_refer_last_option,
-		  { "For the data, please refer to last option 120", "dhcp.option.sip_server.refer_last_option",
-		    FT_STRINGZ, BASE_NONE, NULL, 0x0,
-		    "Option 120: For the data, please refer to last option 120", HFILL }},
 
 		{ &hf_dhcp_option_sip_server_enc,
 		  { "SIP Server Encoding", "dhcp.option.sip_server.encoding",
@@ -10437,6 +10506,8 @@ proto_register_dhcp(void)
 		{ &ei_dhcp_missing_subopt_length, { "dhcp.missing_subopt_length", PI_PROTOCOL, PI_ERROR, "no room left in option for suboption length", EXPFILL }},
 		{ &ei_dhcp_missing_subopt_value, { "dhcp.missing_subopt_value", PI_PROTOCOL, PI_ERROR, "no room left in option for suboption value", EXPFILL }},
 		{ &ei_dhcp_mal_duid, { "dhcp.malformed.duid", PI_PROTOCOL, PI_ERROR, "DUID: malformed option", EXPFILL }},
+		{ &ei_dhcp_rfc3396_refer_last_option, { "dhcp.option.refer_last_option", PI_REASSEMBLE, PI_CHAT, "For the data, please refer to the last option of this type", EXPFILL }},
+		{ &ei_dhcp_opt_overload_wrong_field, { "dhcp.option.option_overload.wrong_field", PI_PROTOCOL, PI_WARN, "overload option makes no sense in the file or sname field", EXPFILL }},
 		{ &ei_dhcp_opt_overload_file_end_missing, { "dhcp.option.option_overload.file_end_missing", PI_PROTOCOL, PI_ERROR, "file overload end option missing", EXPFILL }},
 		{ &ei_dhcp_opt_overload_sname_end_missing, { "dhcp.option.option_overload.sname_end_missing", PI_PROTOCOL, PI_ERROR, "sname overload end option missing", EXPFILL }},
 		{ &ei_dhcp_subopt_unknown_type, { "dhcp.subopt.unknown_type", PI_PROTOCOL, PI_ERROR, "ERROR, please report: Unknown subopt type handler", EXPFILL }},

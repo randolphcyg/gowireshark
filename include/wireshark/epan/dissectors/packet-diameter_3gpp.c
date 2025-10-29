@@ -24,6 +24,7 @@
 #include "packet-diameter.h"
 #include "packet-diameter_3gpp.h"
 #include "packet-gsm_a_common.h"
+#include "packet-gtp.h"
 #include "packet-gtpv2.h"
 #include "packet-e164.h"
 #include "packet-e212.h"
@@ -612,6 +613,8 @@ static int hf_diameter_3gpp_esm_cause;
 static int hf_diameter_3gpp_diameter_cause;
 static int hf_diameter_3gpp_ikev2_cause;
 
+static int hf_diameter_3gpp_selection_mode;
+
 /* Dissector handles */
 static dissector_handle_t xml_handle;
 static dissector_handle_t gsm_sms_handle;
@@ -632,6 +635,22 @@ dissect_diameter_3gpp_imsi_mnc_mcc(tvbuff_t *tvb, packet_info *pinfo, proto_tree
     dissect_e212_mcc_mnc_in_utf8_address(tvb, pinfo, tree, 0);
 
     return str_len;
+}
+
+/* AVP Code: 12 3GPP-Selection-Mode */
+static int
+dissect_diameter_3gpp_selection_mode(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
+{
+    proto_item *item;
+    uint8_t sel_mode;
+
+    /* Value in ASCII(UTF-8) */
+    sel_mode = tvb_get_uint8(tvb, 0) - 0x30;
+
+    item = proto_tree_add_uint(tree, hf_diameter_3gpp_selection_mode, tvb, 0, 1, sel_mode);
+    proto_item_set_generated(item);
+
+    return tvb_reported_length(tvb);
 }
 
 /* AVP Code: 15 3GPP-SGSN-IPv6-Address */
@@ -1291,12 +1310,12 @@ dissect_diameter_3gpp_contact(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree 
 
 /* AVP Code: 701 MSISDN */
 static int
-dissect_diameter_3gpp_msisdn(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
+dissect_diameter_3gpp_msisdn(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     int offset = 0;
     int length = tvb_reported_length(tvb);
 
-    dissect_e164_msisdn(tvb, tree, offset, length, E164_ENC_BCD);
+    dissect_e164_msisdn(tvb, pinfo, tree, offset, length, E164_ENC_BCD);
 
     return length;
 }
@@ -2138,12 +2157,12 @@ dissect_diameter_3gpp_nor_flags(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 
 /* AVP Code: 1474 GMLC-NUMBER */
 static int
-dissect_diameter_3gpp_isdn(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
+dissect_diameter_3gpp_isdn(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     int offset = 0;
     int length = tvb_reported_length(tvb);
 
-    dissect_e164_isdn(tvb, tree, offset, length, E164_ENC_BCD);
+    dissect_e164_isdn(tvb, pinfo, tree, offset, length, E164_ENC_BCD);
 
     return length;
 }
@@ -2414,12 +2433,12 @@ dissect_diameter_3gpp_uva_flags(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tre
 * AVP Code: 1645 MME-Number-for-MT-SMS
 */
 static int
-dissect_diameter_3gpp_mme_number_for_mt_sms(tvbuff_t *tvb, packet_info *pinfo _U_, proto_tree *tree, void *data _U_)
+dissect_diameter_3gpp_mme_number_for_mt_sms(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
     int offset = 0;
     int length = tvb_reported_length(tvb);
 
-    dissect_e164_isdn(tvb, tree, offset, length, E164_ENC_BCD);
+    dissect_e164_isdn(tvb, pinfo, tree, offset, length, E164_ENC_BCD);
 
     return length;
 }
@@ -3028,6 +3047,9 @@ proto_reg_handoff_diameter_3gpp(void)
 
     /* AVP Code: 8 3GPP-IMSI-MNC-MCC */
     dissector_add_uint("diameter.3gpp", 8, create_dissector_handle(dissect_diameter_3gpp_imsi_mnc_mcc, proto_diameter_3gpp));
+
+    /* AVP Code: 12 3GPP-Selection-Mode */
+    dissector_add_uint("diameter.3gpp", 12, create_dissector_handle(dissect_diameter_3gpp_selection_mode, proto_diameter_3gpp));
 
     /* AVP Code: 15 3GPP-SGSN-IPv6-Address */
     dissector_add_uint("diameter.3gpp", 15, create_dissector_handle(dissect_diameter_3gpp_sgsn_ipv6_address, proto_diameter_3gpp));
@@ -5782,7 +5804,7 @@ proto_register_diameter_3gpp(void)
         },
 
         { &hf_diameter_3gpp_ue_available_bit0,
-        { "UE-Available", "diameter.3gpp.ue_avaliable",
+        { "UE-Available", "diameter.3gpp.ue_available",
           FT_BOOLEAN, 32, TFS(&tfs_set_notset), 0x00000001,
           NULL, HFILL }
         },
@@ -6015,6 +6037,11 @@ proto_register_diameter_3gpp(void)
         { "PDN Connectivity Status", "diameter.3gpp.supported_monitoring_events.b8",
          FT_BOOLEAN, 64, TFS(&tfs_supported_not_supported), 0x0000000000000100,
           NULL, HFILL }
+        },
+        { &hf_diameter_3gpp_selection_mode,
+            { "Selection Mode", "diameter.3gpp.selection_mode",
+            FT_UINT8, BASE_DEC, VALS(gtp_sel_mode_vals), 0x00,
+            NULL, HFILL }
         },
 };
 

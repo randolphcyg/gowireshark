@@ -10,6 +10,9 @@
 #include "aethra.h"
 
 #include <string.h>
+
+#include <wsutil/pint.h>
+
 #include "wtap-int.h"
 #include "file_wrappers.h"
 
@@ -102,10 +105,10 @@ typedef struct {
 	time_t	start;
 } aethra_t;
 
-static bool aethra_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
+static bool aethra_read(wtap *wth, wtap_rec *rec, int *err,
     char **err_info, int64_t *data_offset);
 static bool aethra_seek_read(wtap *wth, int64_t seek_off,
-    wtap_rec *rec, Buffer *buf, int *err, char **err_info);
+    wtap_rec *rec, int *err, char **err_info);
 static bool aethra_read_rec_header(wtap *wth, FILE_T fh, struct aethrarec_hdr *hdr,
     wtap_rec *rec, int *err, char **err_info);
 
@@ -143,9 +146,9 @@ wtap_open_return_val aethra_open(wtap *wth, int *err, char **err_info)
 	/*
 	 * Convert the time stamp to a "time_t".
 	 */
-	tm.tm_year = pletoh16(&hdr.start_year) - 1900;
-	tm.tm_mon = pletoh16(&hdr.start_month) - 1;
-	tm.tm_mday = pletoh16(&hdr.start_day);
+	tm.tm_year = pletohu16(&hdr.start_year) - 1900;
+	tm.tm_mon = pletohu16(&hdr.start_month) - 1;
+	tm.tm_mday = pletohu16(&hdr.start_day);
 	tm.tm_hour = hdr.start_hour;
 	tm.tm_min = hdr.start_min;
 	tm.tm_sec = hdr.start_sec;
@@ -176,7 +179,7 @@ static unsigned packet;
 #endif
 
 /* Read the next packet */
-static bool aethra_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
+static bool aethra_read(wtap *wth, wtap_rec *rec, int *err,
     char **err_info, int64_t *data_offset)
 {
 	struct aethrarec_hdr hdr;
@@ -197,7 +200,7 @@ static bool aethra_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
 		 * growing the buffer to handle it.
 		 */
 		if (rec->rec_header.packet_header.caplen != 0) {
-			if (!wtap_read_packet_bytes(wth->fh, buf,
+			if (!wtap_read_bytes_buffer(wth->fh, &rec->data,
 			    rec->rec_header.packet_header.caplen, err, err_info))
 				return false;	/* Read error */
 		}
@@ -264,12 +267,13 @@ packet, hdr.rec_type, rec->rec_header.packet_header.caplen, hdr.flags);
 	}
 
 found:
+	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 	return true;
 }
 
 static bool
 aethra_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
-    Buffer *buf, int *err, char **err_info)
+    int *err, char **err_info)
 {
 	struct aethrarec_hdr hdr;
 
@@ -286,9 +290,11 @@ aethra_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
 	/*
 	 * Read the packet data.
 	 */
-	if (!wtap_read_packet_bytes(wth->random_fh, buf, rec->rec_header.packet_header.caplen, err, err_info))
+	if (!wtap_read_bytes_buffer(wth->random_fh, &rec->data,
+	    rec->rec_header.packet_header.caplen, err, err_info))
 		return false;	/* failed */
 
+	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 	return true;
 }
 
@@ -305,7 +311,7 @@ aethra_read_rec_header(wtap *wth, FILE_T fh, struct aethrarec_hdr *hdr,
 	if (!wtap_read_bytes_or_eof(fh, hdr, sizeof *hdr, err, err_info))
 		return false;
 
-	rec_size = pletoh16(hdr->rec_size);
+	rec_size = pletohu16(hdr->rec_size);
 	if (rec_size < (sizeof *hdr - sizeof hdr->rec_size)) {
 		/* The record is shorter than a record header. */
 		*err = WTAP_ERR_BAD_FILE;
@@ -328,10 +334,9 @@ aethra_read_rec_header(wtap *wth, FILE_T fh, struct aethrarec_hdr *hdr,
 
 	packet_size = rec_size - (uint32_t)(sizeof *hdr - sizeof hdr->rec_size);
 
-	msecs = pletoh32(hdr->timestamp);
-	rec->rec_type = REC_TYPE_PACKET;
-	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
+	wtap_setup_packet_rec(rec, wth->file_encap);
 	rec->presence_flags = WTAP_HAS_TS;
+	msecs = pletohu32(hdr->timestamp);
 	rec->ts.secs = aethra->start + (msecs / 1000);
 	rec->ts.nsecs = (msecs % 1000) * 1000000;
 	rec->rec_header.packet_header.caplen = packet_size;

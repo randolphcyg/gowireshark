@@ -803,7 +803,7 @@ dissect_ilp_T_msisdn(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, pr
     proto_tree *subtree;
 
     subtree = proto_item_add_subtree(actx->created_item, ett_ilp_setid);
-    dissect_e164_msisdn(msisdn_tvb, subtree, 0, 8, E164_ENC_BCD);
+    dissect_e164_msisdn(msisdn_tvb, actx->pinfo, subtree, 0, 8, E164_ENC_BCD);
   }
 
 
@@ -6141,15 +6141,15 @@ void proto_register_ilp(void) {
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_127", HFILL }},
     { &hf_ilp_modeSpecificFrequencyInfo,
-      { "modeSpecificInfo", "ilp.modeSpecificInfo",
+      { "modeSpecificInfo", "ilp.modeSpecificFrequencyInfo",
         FT_UINT32, BASE_DEC, VALS(ilp_FrequencySpecificInfo_vals), 0,
         "FrequencySpecificInfo", HFILL }},
     { &hf_ilp_fdd_fr,
-      { "fdd", "ilp.fdd_element",
+      { "fdd", "ilp.fdd_fr_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "FrequencyInfoFDD", HFILL }},
     { &hf_ilp_tdd_fr,
-      { "tdd", "ilp.tdd_element",
+      { "tdd", "ilp.tdd_fr_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "FrequencyInfoTDD", HFILL }},
     { &hf_ilp_uarfcn_UL,

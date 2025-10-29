@@ -192,10 +192,11 @@
 #define ZBEE_ZDP_POWER_SOURCE_RECHARGEABLE        0x0200
 #define ZBEE_ZDP_POWER_SOURCE_DISPOSABLE          0x0400
 #define ZBEE_ZDP_POWER_LEVEL                      0xf000
-#define ZBEE_ZDP_POWER_LEVEL_FULL                 0xc000
-#define ZBEE_ZDP_POWER_LEVEL_OK                   0x8000
-#define ZBEE_ZDP_POWER_LEVEL_LOW                  0x4000
-#define ZBEE_ZDP_POWER_LEVEL_CRITICAL             0x0000
+
+#define ZBEE_ZDP_POWER_LEVEL_FULL                 0xc
+#define ZBEE_ZDP_POWER_LEVEL_OK                   0x8
+#define ZBEE_ZDP_POWER_LEVEL_LOW                  0x4
+#define ZBEE_ZDP_POWER_LEVEL_CRITICAL             0x0
 
 #define ZBEE_ZDP_ADDR_MODE_GROUP                    0x01
 #define ZBEE_ZDP_ADDR_MODE_UNICAST                  0x03
@@ -317,6 +318,9 @@ extern int hf_zbee_zdp_tlv_id;
 extern int hf_zbee_zdp_rtg;
 extern int hf_zbee_zdp_rtg_entry;
 extern int hf_zbee_zdp_rtg_destination;
+extern int hf_zbee_zdp_rtg_mem_constrained_flag;
+extern int hf_zbee_zdp_rtg_mto_flag;
+extern int hf_zbee_zdp_rtg_rrec_req_flag;
 extern int hf_zbee_zdp_rtg_next_hop;
 extern int hf_zbee_zdp_rtg_status;
 
@@ -355,6 +359,7 @@ extern int ett_zbee_zdp_cache;
 extern int ett_zbee_zdp_nwk_desc;
 extern int ett_zbee_zdp_table_entry;
 extern int ett_zbee_zdp_perm_join_fc;
+extern int ett_zbee_zdp_rtg_status_set;
 /**************************************
  * Helper Functions
  **************************************

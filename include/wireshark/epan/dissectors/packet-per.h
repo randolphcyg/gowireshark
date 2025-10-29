@@ -84,9 +84,8 @@ WS_DLL_PUBLIC uint32_t dissect_per_relative_oid_str(tvbuff_t *tvb, uint32_t offs
 WS_DLL_PUBLIC uint32_t dissect_per_boolean(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index, bool *bool_val);
 
 WS_DLL_PUBLIC uint32_t dissect_per_integer(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index, int32_t *value);
-
+WS_DLL_PUBLIC uint32_t dissect_per_integer64b(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index, int64_t *value);
 WS_DLL_PUBLIC uint32_t dissect_per_constrained_integer(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index, uint32_t min, uint32_t max, uint32_t *value, bool has_extension);
-
 WS_DLL_PUBLIC uint32_t dissect_per_constrained_integer_64b(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index, uint64_t min, uint64_t max, uint64_t *value, bool has_extension);
 
 WS_DLL_PUBLIC uint32_t dissect_per_real(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index, double *value);
@@ -118,6 +117,9 @@ extern bool get_size_constraint_from_stack(asn1_ctx_t *actx, const char *name, i
 extern uint32_t dissect_per_length_determinant(tvbuff_t *tvb, uint32_t offset, asn1_ctx_t *actx _U_, proto_tree *tree, int hf_index, uint32_t *length, bool *is_fragmented);
 
 WS_DLL_PUBLIC int call_per_oid_callback(const char *oid, tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset, asn1_ctx_t *actx, int hf_index);
-WS_DLL_PUBLIC void register_per_oid_dissector(const char *oid, dissector_t dissector, int proto, const char *name);
 WS_DLL_PUBLIC void add_per_encoded_label(tvbuff_t* tvb, packet_info* pinfo _U_, proto_tree* tree);
+
+/* Used by custom dissector */
+WS_DLL_PUBLIC void register_per_oid_dissector(const char *oid, dissector_t dissector, int proto, const char *name);
+
 #endif  /* __PACKET_PER_H__ */

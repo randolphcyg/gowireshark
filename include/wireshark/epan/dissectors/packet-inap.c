@@ -1445,11 +1445,11 @@ dissect_inap_T_code_local(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _
   if (is_ExtensionField == false){
     if (inap_opcode_type == INAP_OPCODE_RETURN_ERROR){
       errorCode = opcode;
-      col_append_str(actx->pinfo->cinfo, COL_INFO, val_to_str(errorCode, inap_err_code_string_vals, "Unknown INAP error (%u)"));
+      col_append_str(actx->pinfo->cinfo, COL_INFO, val_to_str(actx->pinfo->pool, errorCode, inap_err_code_string_vals, "Unknown INAP error (%u)"));
       col_append_str(actx->pinfo->cinfo, COL_INFO, " ");
       col_set_fence(actx->pinfo->cinfo, COL_INFO);
     }else{
-      col_append_str(actx->pinfo->cinfo, COL_INFO, val_to_str(opcode, inap_opr_code_strings, "Unknown INAP (%u)"));
+      col_append_str(actx->pinfo->cinfo, COL_INFO, val_to_str(actx->pinfo->pool, opcode, inap_opr_code_strings, "Unknown INAP (%u)"));
       col_append_str(actx->pinfo->cinfo, COL_INFO, " ");
       col_set_fence(actx->pinfo->cinfo, COL_INFO);
     }
@@ -2563,7 +2563,7 @@ dissect_inap_Cause(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn
     return offset;
   subtree = proto_item_add_subtree(actx->created_item, ett_inap_cause);
 
-  dissect_q931_cause_ie(parameter_tvb, 0, tvb_reported_length_remaining(parameter_tvb,0), subtree, hf_inap_cause_indicator, &Cause_value, isup_parameter_type_value);
+  dissect_q931_cause_ie(parameter_tvb, actx->pinfo, 0, tvb_reported_length_remaining(parameter_tvb,0), subtree, hf_inap_cause_indicator, &Cause_value, isup_parameter_type_value);
 
 
   return offset;
@@ -11625,7 +11625,7 @@ void proto_register_inap(void) {
         FT_UINT32, BASE_DEC, VALS(inap_T_linkedId_vals), 0,
         NULL, HFILL }},
     { &hf_inap_inkedIdPresent,
-      { "present", "inap.present",
+      { "present", "inap.inkedIdPresent",
         FT_INT32, BASE_DEC, NULL, 0,
         "T_inkedIdPresent", HFILL }},
     { &hf_inap_absent,
@@ -11645,7 +11645,7 @@ void proto_register_inap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_inap_resultArgument,
-      { "result", "inap.result_element",
+      { "result", "inap.resultArgument_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "ResultArgument", HFILL }},
     { &hf_inap_errcode,
@@ -11665,15 +11665,15 @@ void proto_register_inap(void) {
         FT_INT32, BASE_DEC, VALS(inap_GeneralProblem_vals), 0,
         "GeneralProblem", HFILL }},
     { &hf_inap_invokeProblem,
-      { "invoke", "inap.invoke",
+      { "invoke", "inap.invokeProblem",
         FT_INT32, BASE_DEC, VALS(inap_InvokeProblem_vals), 0,
         "InvokeProblem", HFILL }},
     { &hf_inap_problemReturnResult,
-      { "returnResult", "inap.returnResult",
+      { "returnResult", "inap.problemReturnResult",
         FT_INT32, BASE_DEC, VALS(inap_ReturnResultProblem_vals), 0,
         "ReturnResultProblem", HFILL }},
     { &hf_inap_returnErrorProblem,
-      { "returnError", "inap.returnError",
+      { "returnError", "inap.returnErrorProblem",
         FT_INT32, BASE_DEC, VALS(inap_ReturnErrorProblem_vals), 0,
         "ReturnErrorProblem", HFILL }},
     { &hf_inap_present,
@@ -11955,7 +11955,7 @@ void proto_register_inap(void) {
   static ei_register_info ei[] = {
    { &ei_inap_unknown_invokeData, { "inap.unknown.invokeData", PI_MALFORMED, PI_WARN, "Unknown invokeData", EXPFILL }},
    { &ei_inap_unknown_returnResultData, { "inap.unknown.returnResultData", PI_MALFORMED, PI_WARN, "Unknown returnResultData", EXPFILL }},
-   { &ei_inap_unknown_returnErrorData, { "inap.unknown.returnErrorData", PI_MALFORMED, PI_WARN, "Unknown returnResultData", EXPFILL }},
+   { &ei_inap_unknown_returnErrorData, { "inap.unknown.returnErrorData", PI_MALFORMED, PI_WARN, "Unknown returnErrorData", EXPFILL }},
   };
 
   expert_module_t* expert_inap;

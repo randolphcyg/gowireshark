@@ -17,6 +17,8 @@
 #include <epan/packet.h>
 #include <epan/to_str.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include <wiretap/wtap.h>
 #include "packet-netmon.h"
 
@@ -443,7 +445,7 @@ dissect_netmon_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void*
 		break;
 	}
 
-	if (!dissector_try_uint_new(wtap_encap_table,
+	if (!dissector_try_uint_with_data(wtap_encap_table,
 		pinfo->pseudo_header->netmon.sub_encap, tvb, pinfo, tree, true,
 		(void *)pinfo->pseudo_header)) {
 		call_data_dissector(tvb, pinfo, tree);
@@ -588,7 +590,7 @@ dissect_netmon_event(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* 
 	}
 
 	provider_id_tvb = tvb_new_subset_remaining(tvb, offset);
-	if (!dissector_try_guid_new(provider_id_table, &provider_guid, provider_id_tvb, pinfo, tree, true, &provider_id_data))
+	if (!dissector_try_guid_with_data(provider_id_table, &provider_guid, provider_id_tvb, pinfo, tree, true, &provider_id_data))
 	{
 		proto_tree_add_item(event_tree, hf_netmon_event_user_data, tvb, offset, user_data_size, ENC_NA);
 		offset += user_data_size;

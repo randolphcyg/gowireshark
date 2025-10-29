@@ -577,7 +577,7 @@ Media_Specifier_dissect(tvbuff_t* tvb, proto_tree* tree, int* offset, uint32_t l
 	uint8_t media_protocol;
 
 	media_protocol = tvb_get_uint8(tvb, *offset);
-	proto_tree_add_item(tree, hf_ged125_floating_media_protocol, tvb, *offset, 1, ENC_NA|ENC_ASCII);
+	proto_tree_add_item(tree, hf_ged125_floating_media_protocol, tvb, *offset, 1, ENC_ASCII);
 	*offset += 1;
 
 	switch (media_protocol)
@@ -586,13 +586,13 @@ Media_Specifier_dissect(tvbuff_t* tvb, proto_tree* tree, int* offset, uint32_t l
 	case 'S':
 	case 'O':
 	case 'F':
-		proto_tree_add_item(tree, hf_ged125_floating_library_designator, tvb, *offset, 1, ENC_NA|ENC_ASCII);
+		proto_tree_add_item(tree, hf_ged125_floating_library_designator, tvb, *offset, 1, ENC_ASCII);
 		*offset += 1;
-		proto_tree_add_item(tree, hf_ged125_floating_payload_strg, tvb, *offset, length - 2, ENC_NA|ENC_ASCII);
+		proto_tree_add_item(tree, hf_ged125_floating_payload_strg, tvb, *offset, length - 2, ENC_ASCII);
 		break;
 
 	case 'T':
-		proto_tree_add_item(tree, hf_ged125_floating_payload_strg, tvb, *offset, length - 1, ENC_NA|ENC_ASCII);
+		proto_tree_add_item(tree, hf_ged125_floating_payload_strg, tvb, *offset, length - 1, ENC_ASCII);
 		break;
 
 	case 'D':
@@ -600,7 +600,7 @@ Media_Specifier_dissect(tvbuff_t* tvb, proto_tree* tree, int* offset, uint32_t l
 		*offset += 4;
 		proto_tree_add_item(tree, hf_ged125_Data_Playback_Formats, tvb, *offset, 4, ENC_BIG_ENDIAN);
 		*offset += 4;
-		proto_tree_add_item(tree, hf_ged125_floating_payload_strg, tvb, *offset, length - 9, ENC_NA|ENC_ASCII);
+		proto_tree_add_item(tree, hf_ged125_floating_payload_strg, tvb, *offset, length - 9, ENC_ASCII);
 		break;
 	}
 
@@ -625,7 +625,7 @@ floating_fields(tvbuff_t* tvb, packet_info *pinfo, proto_tree* tree, int offset,
 	{
 		floating_type = tvb_get_uint8(tvb, offset);
 		ti = proto_tree_add_uint_format(ged125_tree, hf_ged125_floating, tvb, offset, 1,
-											floating_type, "%s", val_to_str(floating_type,
+											floating_type, "%s", val_to_str(pinfo->pool, floating_type,
 											vals_floating_point_types, "Unknown %d"));
 		float_tree = proto_item_add_subtree(ti, ett_ged125_float_field);
 		offset += 1;
@@ -648,7 +648,7 @@ floating_fields(tvbuff_t* tvb, packet_info *pinfo, proto_tree* tree, int offset,
 			offset += 4;
 			if (length-4 > 0)
 			{
-				proto_tree_add_item(float_tree, hf_ged125_floating_payload_strg, tvb, offset, length-4, ENC_NA|ENC_ASCII);
+				proto_tree_add_item(float_tree, hf_ged125_floating_payload_strg, tvb, offset, length-4, ENC_ASCII);
 				offset += (length-4);
 			}
 			break;
@@ -660,7 +660,7 @@ floating_fields(tvbuff_t* tvb, packet_info *pinfo, proto_tree* tree, int offset,
 			offset += 1;
 			if (length-5 > 0)
 			{
-				proto_tree_add_item(float_tree, hf_ged125_floating_payload_strg, tvb, offset, length-4, ENC_NA|ENC_ASCII);
+				proto_tree_add_item(float_tree, hf_ged125_floating_payload_strg, tvb, offset, length-4, ENC_ASCII);
 				offset += (length-5);
 			}
 			break;
@@ -683,7 +683,7 @@ floating_fields(tvbuff_t* tvb, packet_info *pinfo, proto_tree* tree, int offset,
 		case 28: case 29: case 30: case 31: case 32: case 33: case 34:
 		case 37: case 38: case 39: case 40:
 		case 51: case 52: case 53: case 54: case 55: case 56: case 57: case 58:
-			proto_tree_add_item(float_tree, hf_ged125_floating_payload_strg, tvb, offset, length, ENC_NA|ENC_ASCII);
+			proto_tree_add_item(float_tree, hf_ged125_floating_payload_strg, tvb, offset, length, ENC_ASCII);
 			offset += length;
 			break;
 
@@ -726,7 +726,7 @@ service_control_dissect(tvbuff_t* tvb,proto_tree* msg_tree, proto_tree* ged125_t
 	*offset += 4;
 
 	col_add_fstr(pinfo->cinfo, COL_INFO, "Service_Control->%s DIALOGUE_ID=%u LEN=%u",
-			val_to_str(mess_type, vals_service_control_message_subvalues, "Unknown %d"), DialogueID, size);
+			val_to_str(pinfo->pool, mess_type, vals_service_control_message_subvalues, "Unknown %d"), DialogueID, size);
 
 	SendSeqNo = tvb_get_ntohl(tvb, *offset);
 	ti = proto_tree_add_item(service_tree, hf_ged125_SendSeqNo_num, tvb, *offset, 4, ENC_BIG_ENDIAN);
@@ -986,7 +986,7 @@ dissect_ged125_base_messages(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree
 
 	col_set_str(pinfo->cinfo, COL_PROTOCOL, "GED125");
 	col_add_fstr(pinfo->cinfo, COL_INFO, "%s %u bytes",
-			val_to_str(message_type, base_message_values, "Unknown %d"), size);
+			val_to_str(pinfo->pool, message_type, base_message_values, "Unknown %d"), size);
 
 	ti = proto_tree_add_item(tree, proto_ged125, tvb, 0, -1, ENC_NA);
 	ged125_tree = proto_item_add_subtree( ti, ett_ged125);

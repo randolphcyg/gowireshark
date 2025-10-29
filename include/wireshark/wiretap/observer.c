@@ -98,21 +98,21 @@ static const char *init_gmt_to_localtime_offset(void)
     return NULL;
 }
 
-static bool observer_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool observer_read(wtap *wth, wtap_rec *rec,
     int *err, char **err_info, int64_t *data_offset);
-static bool observer_seek_read(wtap *wth, int64_t seek_off,
-    wtap_rec *rec, Buffer *buf, int *err, char **err_info);
+static bool observer_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
+    int *err, char **err_info);
 static int read_packet_header(wtap *wth, FILE_T fh, union wtap_pseudo_header *pseudo_header,
     packet_entry_header *packet_header, int *err, char **err_info);
 static bool process_packet_header(wtap *wth,
     packet_entry_header *packet_header, wtap_rec *rec, int *err,
     char **err_info);
 static int read_packet_data(FILE_T fh, int offset_to_frame, int current_offset_from_packet_header,
-    Buffer *buf, int length, int *err, char **err_info);
+    wtap_rec *rec, int *err, char **err_info);
 static bool skip_to_next_packet(wtap *wth, int offset_to_next_packet,
     int current_offset_from_packet_header, int *err, char **err_info);
 static bool observer_dump(wtap_dumper *wdh, const wtap_rec *rec,
-    const uint8_t *pd, int *err, char **err_info);
+    int *err, char **err_info);
 static int observer_to_wtap_encap(int observer_encap);
 static int wtap_to_observer_encap(int wtap_encap);
 
@@ -322,7 +322,7 @@ wtap_open_return_val observer_open(wtap *wth, int *err, char **err_info)
 }
 
 /* Reads the next packet. */
-static bool observer_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool observer_read(wtap *wth, wtap_rec *rec,
     int *err, char **err_info, int64_t *data_offset)
 {
     int header_bytes_consumed;
@@ -354,8 +354,7 @@ static bool observer_read(wtap *wth, wtap_rec *rec, Buffer *buf,
 
     /* read the frame data */
     data_bytes_consumed = read_packet_data(wth->fh, packet_header.offset_to_frame,
-            header_bytes_consumed, buf, rec->rec_header.packet_header.caplen,
-            err, err_info);
+            header_bytes_consumed, rec, err, err_info);
     if (data_bytes_consumed < 0) {
         return false;
     }
@@ -370,8 +369,8 @@ static bool observer_read(wtap *wth, wtap_rec *rec, Buffer *buf,
 }
 
 /* Reads a packet at an offset. */
-static bool observer_seek_read(wtap *wth, int64_t seek_off,
-    wtap_rec *rec, Buffer *buf, int *err, char **err_info)
+static bool observer_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
+    int *err, char **err_info)
 {
     union wtap_pseudo_header *pseudo_header = &rec->rec_header.packet_header.pseudo_header;
     packet_entry_header packet_header;
@@ -392,7 +391,7 @@ static bool observer_seek_read(wtap *wth, int64_t seek_off,
 
     /* read the frame data */
     data_bytes_consumed = read_packet_data(wth->random_fh, packet_header.offset_to_frame,
-        offset, buf, rec->rec_header.packet_header.caplen, err, err_info);
+        offset, rec, err, err_info);
     if (data_bytes_consumed < 0) {
         return false;
     }
@@ -543,11 +542,18 @@ static bool
 process_packet_header(wtap *wth, packet_entry_header *packet_header,
     wtap_rec *rec, int *err, char **err_info)
 {
-    /* set the wiretap record metadata fields */
-    rec->rec_type = REC_TYPE_PACKET;
+    /*
+     * Set the wiretap record metadata fields.
+     *
+     * XXX - the link=layer type is per-packet, as it's in the packet
+     * header, but there's also a link-layer type in the file header,
+     * from which we get the file's encapsulation.  What relationship
+     * does the latter have to the former?  Do we ever need to make
+     * the file's encapsulation WTAP_ENCAP_PER_PACKET?
+     */
+    wtap_setup_packet_rec(rec, observer_to_wtap_encap(packet_header->network_type));
     rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
     rec->presence_flags = WTAP_HAS_TS|WTAP_HAS_CAP_LEN;
-    rec->rec_header.packet_header.pkt_encap = observer_to_wtap_encap(packet_header->network_type);
     if(wth->file_encap == WTAP_ENCAP_FIBRE_CHANNEL_FC2_WITH_FRAME_DELIMS) {
         rec->rec_header.packet_header.len = packet_header->network_size;
         rec->rec_header.packet_header.caplen = packet_header->captured_size;
@@ -622,11 +628,11 @@ process_packet_header(wtap *wth, packet_entry_header *packet_header,
 }
 
 static int
-read_packet_data(FILE_T fh, int offset_to_frame, int current_offset_from_packet_header, Buffer *buf,
-    int length, int *err, char **err_info)
+read_packet_data(FILE_T fh, int offset_to_frame, int current_offset_from_packet_header,
+    wtap_rec *rec, int *err, char **err_info)
 {
     int seek_increment;
-    int bytes_consumed = 0;
+    uint32_t bytes_consumed = 0;
 
     /* validate offsets */
     if (offset_to_frame < current_offset_from_packet_header) {
@@ -646,9 +652,11 @@ read_packet_data(FILE_T fh, int offset_to_frame, int current_offset_from_packet_
     }
 
     /* read in the packet data */
-    if (!wtap_read_packet_bytes(fh, buf, length, err, err_info))
+    if (!wtap_read_bytes_buffer(fh, &rec->data,
+                                rec->rec_header.packet_header.caplen,
+                                err, err_info))
         return false;
-    bytes_consumed += length;
+    bytes_consumed += rec->rec_header.packet_header.caplen;
 
     return bytes_consumed;
 }
@@ -801,7 +809,6 @@ static bool observer_dump_open(wtap_dumper *wdh, int *err,
 /* Write a record for a packet to a dump file.
    Returns true on success, false on failure. */
 static bool observer_dump(wtap_dumper *wdh, const wtap_rec *rec,
-    const uint8_t *pd,
     int *err, char **err_info _U_)
 {
     observer_dump_private_state * private_state = NULL;
@@ -811,6 +818,7 @@ static bool observer_dump(wtap_dumper *wdh, const wtap_rec *rec,
     /* We can only write packet records. */
     if (rec->rec_type != REC_TYPE_PACKET) {
         *err = WTAP_ERR_UNWRITABLE_REC_TYPE;
+        *err_info = wtap_unwritable_rec_type_err_string(rec);
         return false;
     }
 
@@ -870,7 +878,7 @@ static bool observer_dump(wtap_dumper *wdh, const wtap_rec *rec,
     }
 
     /* write the packet data */
-    if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err)) {
+    if (!wtap_dump_file_write(wdh, ws_buffer_start_ptr(&rec->data), rec->rec_header.packet_header.caplen, err)) {
         return false;
     }
 

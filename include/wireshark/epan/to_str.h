@@ -23,6 +23,7 @@
 #define MAX_ADDR_STR_LEN 256
 #define VINES_ADDR_LEN   6
 #define EUI64_STR_LEN    24
+#define EUI64_ADDR_LEN   8
 #define AX25_ADDR_LEN    7
 #define FCWWN_ADDR_LEN   8
 
@@ -90,6 +91,9 @@ WS_DLL_PUBLIC char* tvb_address_with_resolution_to_str(wmem_allocator_t *scope, 
 
 #define tvb_fc_to_str(scope, tvb, offset) tvb_address_to_str(scope, tvb, AT_FC, offset)
 
+/* Note this assumes that the address is in network byte order, but
+ * IEEE 802.15.4 puts EUI-64 addresses in reverse (Little Endian) order.
+ */
 #define tvb_eui64_to_str(scope, tvb, offset) tvb_address_to_str(scope, tvb, AT_EUI64, offset)
 
 /** Turn an address type retrieved from a tvb into a string.
@@ -122,6 +126,7 @@ WS_DLL_PUBLIC char* tvb_address_var_to_str(wmem_allocator_t *scope, tvbuff_t *tv
 #define ABS_TIME_TO_STR_SHOW_ZONE       (1U << 0)
 #define ABS_TIME_TO_STR_ADD_DQUOTES     (1U << 1)
 #define ABS_TIME_TO_STR_SHOW_UTC_ONLY   (1U << 2)
+#define ABS_TIME_TO_STR_ISO8601         (1U << 3)
 
 WS_DLL_PUBLIC char *abs_time_to_str_ex(wmem_allocator_t *scope,
                                         const nstime_t *, field_display_e fmt,

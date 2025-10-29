@@ -27,6 +27,17 @@ extern "C" {
 extern bool wireshark_abort_on_dissector_bug;
 extern bool wireshark_abort_on_too_many_items;
 
+/** Report a dissector bug (and optionally abort).
+ @param format printf like format string
+ @param ... printf like parameters */
+WS_DLL_PUBLIC void ws_dissector_bug(const char *format, ...)
+    G_GNUC_PRINTF(1,2);
+
+/** Report a dissector OOPS (and optionally abort).
+ @param format printf like format string *literal*
+ @param ... printf like parameters */
+#define ws_dissector_oops(_fmt, ...) ws_dissector_bug("OOPS: " _fmt, __VA_ARGS__)
+
 typedef struct epan_dissect epan_dissect_t;
 
 struct epan_dfilter;
@@ -49,6 +60,9 @@ struct packet_provider_funcs {
 	const char *(*get_interface_name)(struct packet_provider_data *prov, uint32_t interface_id, unsigned section_number);
 	const char *(*get_interface_description)(struct packet_provider_data *prov, uint32_t interface_id, unsigned section_number);
 	wtap_block_t (*get_modified_block)(struct packet_provider_data *prov, const frame_data *fd);
+	int32_t(*get_process_id)(struct packet_provider_data *prov, uint32_t process_info_id, unsigned section_number);
+	const char *(*get_process_name)(struct packet_provider_data *prov, uint32_t process_info_id, unsigned section_number);
+	const uint8_t *(*get_process_uuid)(struct packet_provider_data *prov, uint32_t process_info_id, unsigned section_number, size_t *uuid_size);
 };
 
 /**
@@ -71,26 +85,6 @@ Plugins - Some of the protocol dissectors are implemented as plugins. Source cod
 
 Display-Filters - the display filter engine at epan/dfilter
 
-
-
-Ref2 for further edits - delete when done
-	\section Introduction
-
-	This document describes the data structures and the functions exported by the CACE Technologies AirPcap library.
-	The AirPcap library provides low-level access to the AirPcap driver including advanced capabilities such as channel setting,
-	link type control and WEP configuration.<br>
-	This manual includes the following sections:
-
-	\note throughout this documentation, \e device refers to a physical USB AirPcap device, while \e adapter is an open API
-	instance. Most of the AirPcap API operations are adapter-specific but some of them, like setting the channel, are
-	per-device and will be reflected on all the open adapters. These functions will have "Device" in their name, e.g.
-	AirpcapSetDeviceChannel().
-
-	\b Sections:
-
-	- \ref airpcapfuncs
-	- \ref airpcapdefs
-	- \ref radiotap
 */
 
 /**
@@ -159,6 +153,13 @@ WS_DLL_PUBLIC const char *epan_get_interface_name(const epan_t *session, uint32_
 
 WS_DLL_PUBLIC const char *epan_get_interface_description(const epan_t *session, uint32_t interface_id, unsigned section_number);
 
+WS_DLL_PUBLIC int32_t epan_get_process_id(const epan_t *session, uint32_t process_info_id, unsigned section_number);
+
+WS_DLL_PUBLIC const char *epan_get_process_name(const epan_t *session, uint32_t process_info_id, unsigned section_number);
+
+WS_DLL_PUBLIC const uint8_t *epan_get_process_uuid(const epan_t *session, uint32_t process_info_id, unsigned section_number, size_t *uuid_size);
+
+
 const nstime_t *epan_get_frame_ts(const epan_t *session, uint32_t frame_num);
 
 WS_DLL_PUBLIC void epan_free(epan_t *session);
@@ -206,30 +207,33 @@ epan_dissect_fake_protocols(epan_dissect_t *edt, const bool fake_protocols);
 WS_DLL_PUBLIC
 void
 epan_dissect_run(epan_dissect_t *edt, int file_type_subtype,
-        wtap_rec *rec, tvbuff_t *tvb, frame_data *fd,
-        struct epan_column_info *cinfo);
+        wtap_rec *rec, frame_data *fd, struct epan_column_info *cinfo);
 
 WS_DLL_PUBLIC
 void
 epan_dissect_run_with_taps(epan_dissect_t *edt, int file_type_subtype,
-        wtap_rec *rec, tvbuff_t *tvb, frame_data *fd,
-        struct epan_column_info *cinfo);
+        wtap_rec *rec, frame_data *fd, struct epan_column_info *cinfo);
 
-/** run a single file packet dissection */
+/** run a dissection of file data */
 WS_DLL_PUBLIC
 void
 epan_dissect_file_run(epan_dissect_t *edt, wtap_rec *rec,
-        tvbuff_t *tvb, frame_data *fd, struct epan_column_info *cinfo);
+        frame_data *fd, struct epan_column_info *cinfo);
 
 WS_DLL_PUBLIC
 void
 epan_dissect_file_run_with_taps(epan_dissect_t *edt, wtap_rec *rec,
-        tvbuff_t *tvb, frame_data *fd, struct epan_column_info *cinfo);
+        frame_data *fd, struct epan_column_info *cinfo);
 
 /** Prime an epan_dissect_t's proto_tree using the fields/protocols used in a dfilter. */
 WS_DLL_PUBLIC
 void
 epan_dissect_prime_with_dfilter(epan_dissect_t *edt, const struct epan_dfilter *dfcode);
+
+/** Prime an epan_dissect_t's proto_tree using the fields/protocols used in a dfilter, marked for print. */
+WS_DLL_PUBLIC
+void
+epan_dissect_prime_with_dfilter_print(epan_dissect_t *edt, const struct epan_dfilter *dfcode);
 
 /** Prime an epan_dissect_t's proto_tree with a field/protocol specified by its hfid */
 WS_DLL_PUBLIC
@@ -264,7 +268,7 @@ epan_dissect_free(epan_dissect_t* edt);
 
 /** Sets custom column */
 const char *
-epan_custom_set(epan_dissect_t *edt, GSList *ids, int occurrence,
+epan_custom_set(epan_dissect_t *edt, GSList *ids, int occurrence, bool display_details,
 				char *result, char *expr, const int size);
 
 /**

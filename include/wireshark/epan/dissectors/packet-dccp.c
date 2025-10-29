@@ -195,8 +195,6 @@ static const range_string dccp_feature_numbers_rvals[] = {
     {0, 0,   NULL}
 };
 
-static const unit_name_string units_bytes_sec = { "bytes/sec", NULL };
-
 static int proto_dccp;
 static int dccp_tap;
 static int dccp_follow_tap;
@@ -565,7 +563,7 @@ dccpip_endpoint_packet(void *pit, packet_info *pinfo, epan_dissect_t *edt _U_, c
 }
 
 /* Return the current stream count */
-uint32_t get_dccp_stream_count(void)
+static uint32_t get_dccp_stream_count(void)
 {
     return dccp_stream_count;
 }
@@ -1210,6 +1208,7 @@ dissect_dccp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
             SET_CKSUM_VEC_PTR(cksum_vec[2], (const uint8_t *) &phdr, 4);
             break;
         case AT_IPv6:
+        case AT_ILNP_NID:
             phdr[0] = g_htonl(reported_len);
             phdr[1] = g_htonl(IP_PROTO_DCCP);
             SET_CKSUM_VEC_PTR(cksum_vec[2], (const uint8_t *) &phdr, 8);
@@ -1312,7 +1311,7 @@ dissect_dccp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
             expert_add_info_format(pinfo, offset_item, &ei_dccp_advertised_header_length_bad,
                 "Advertised header length (%u) is smaller than the minimum (%u) for %s",
                 advertised_dccp_header_len, offset + 4,
-                val_to_str(dccph->type, dccp_packet_type_vals, "Unknown (%u)"));
+                val_to_str(pinfo->pool, dccph->type, dccp_packet_type_vals, "Unknown (%u)"));
             return tvb_reported_length(tvb);
         }
         dccph->service_code = tvb_get_ntohl(tvb, offset);
@@ -1320,7 +1319,7 @@ dissect_dccp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
             proto_tree_add_uint(dccp_tree, hf_dccp_service_code, tvb, offset, 4,
                                 dccph->service_code);
         col_append_fstr(pinfo->cinfo, COL_INFO, " (service=%s)",
-                        val_to_str(dccph->service_code, dccp_service_code_vals, "Unknown (%u)"));
+                        val_to_str(pinfo->pool, dccph->service_code, dccp_service_code_vals, "Unknown (%u)"));
         offset += 4; /* move offset past the service code */
 
         if( !(dccpd->fwd->static_flags & DCCP_S_BASE_SEQ_SET) ) {
@@ -1368,7 +1367,7 @@ dissect_dccp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
             proto_tree_add_uint(dccp_tree, hf_dccp_service_code, tvb, offset, 4,
                                 dccph->service_code);
         col_append_fstr(pinfo->cinfo, COL_INFO, " (service=%s)",
-                        val_to_str(dccph->service_code, dccp_service_code_vals, "Unknown (%u)"));
+                        val_to_str(pinfo->pool, dccph->service_code, dccp_service_code_vals, "Unknown (%u)"));
 
         offset += 4; /* move offset past the service code */
 
@@ -1388,7 +1387,7 @@ dissect_dccp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
                 expert_add_info_format(pinfo, offset_item, &ei_dccp_advertised_header_length_bad,
                     "Advertised header length (%u) is smaller than the minimum (%u) for %s",
                     advertised_dccp_header_len, offset + 8,
-                    val_to_str(dccph->type, dccp_packet_type_vals, "Unknown (%u)"));
+                    val_to_str(pinfo->pool, dccph->type, dccp_packet_type_vals, "Unknown (%u)"));
                 return tvb_reported_length(tvb);
             }
             dccph->ack_reserved = tvb_get_ntohs(tvb, offset);
@@ -1423,7 +1422,7 @@ dissect_dccp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
                 expert_add_info_format(pinfo, offset_item, &ei_dccp_advertised_header_length_bad,
                     "Advertised header length (%u) is smaller than the minimum (%u) for %s",
                     advertised_dccp_header_len, offset + 4,
-                    val_to_str(dccph->type, dccp_packet_type_vals, "Unknown (%u)"));
+                    val_to_str(pinfo->pool, dccph->type, dccp_packet_type_vals, "Unknown (%u)"));
                 return tvb_reported_length(tvb);
             }
             dccph->ack_reserved = tvb_get_uint8(tvb, offset);
@@ -1521,7 +1520,7 @@ dissect_dccp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_
             expert_add_info_format(pinfo, offset_item, &ei_dccp_advertised_header_length_bad,
                 "Advertised header length (%u) is smaller than the minimum (%u) for %s",
                 advertised_dccp_header_len, offset + 8,
-                val_to_str(dccph->type, dccp_packet_type_vals, "Unknown (%u)"));
+                val_to_str(pinfo->pool, dccph->type, dccp_packet_type_vals, "Unknown (%u)"));
             return tvb_reported_length(tvb);
         }
         dccph->ack_reserved = tvb_get_ntohs(tvb, offset);
@@ -1922,7 +1921,7 @@ proto_register_dccp(void)
         { &hf_dccp_data_dropped, { "Data Dropped", "dccp.data_dropped", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_dccp_ccid3_loss_event_rate, { "CCID3 Loss Event Rate", "dccp.ccid3_loss_event_rate", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
         { &hf_dccp_ccid3_loss_intervals, { "CCID3 Loss Intervals", "dccp.ccid3_loss_intervals", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
-        { &hf_dccp_ccid3_receive_rate, { "CCID3 Receive Rate", "dccp.ccid3_receive_rate", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_bytes_sec), 0x0, NULL, HFILL }},
+        { &hf_dccp_ccid3_receive_rate, { "CCID3 Receive Rate", "dccp.ccid3_receive_rate", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_byte_bytespsecond), 0x0, NULL, HFILL }},
         { &hf_dccp_option_reserved, { "Reserved", "dccp.option_reserved", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_dccp_ccid_option_data, { "CCID option", "dccp.ccid_option_data", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
         { &hf_dccp_option_unknown, { "Unknown", "dccp.option_unknown", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},

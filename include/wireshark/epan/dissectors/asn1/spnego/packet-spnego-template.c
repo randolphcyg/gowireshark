@@ -24,6 +24,7 @@
 #include <epan/asn1.h>
 #include <epan/conversation.h>
 #include <epan/proto_data.h>
+#include <epan/tfs.h>
 #include <wsutil/wsgcrypt.h>
 #include <wsutil/array.h>
 #include "packet-gssapi.h"
@@ -308,6 +309,10 @@ dissect_spnego_krb5(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
 
     case KRB_TOKEN_IAKERB_PROXY:
       offset = dissect_spnego_IAKERB_HEADER(false, tvb, offset, &asn1_ctx, subtree, -1);
+      len = tvb_captured_length_remaining(tvb, offset);
+      if (len == 0) {
+        break;
+      }
       krb5_tvb = tvb_new_subset_remaining(tvb, offset);
       offset += dissect_kerberos_main(krb5_tvb, pinfo, subtree, false, NULL);
       break;

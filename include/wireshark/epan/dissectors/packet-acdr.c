@@ -804,7 +804,7 @@ acdr_payload_handler(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb,
             return;
     }
     // check registered media types
-    if (dissector_try_uint_new(media_type_table, data->media_type, tvb, pinfo, tree, false, data))
+    if (dissector_try_uint_with_data(media_type_table, data->media_type, tvb, pinfo, tree, false, data))
         return;
     proto_tree_add_item(tree, hf_acdr_unknown_packet, tvb, 0, 0, ENC_NA);
 }
@@ -873,8 +873,8 @@ dissect_rtp_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint8_t 
     call_dissector(rtp_dissector_handle, tvb, pinfo, tree);
 
     // see that the bottom protocol is indeed RTP and not some other protocol on top RTP
-    if (tree && tree->last_child) {
-        if (tree->last_child->finfo->hfinfo->id == proto_rtp) {
+    if (tree && tree->last_child && PITEM_FINFO(tree->last_child)) {
+        if (PITEM_HFINFO(tree->last_child)->id == proto_rtp) {
             // add the length & offset fields to the RTP payload
             rtp_data_tree = tree->last_child->last_child; // the rtp subtree->the payload field
 
@@ -1683,13 +1683,13 @@ proto_register_acdr(void)
         },
         { &hf_acdr_ext_srcudp,
             { "Packet source UDP port", "acdr.ext.src_port",
-                FT_UINT16, BASE_DEC,
+                FT_UINT16, BASE_PT_UDP,
                 NULL, 0x0,
                 NULL, HFILL }
         },
         { &hf_acdr_ext_dstudp,
             { "Packet destination UDP port", "acdr.ext.dst_port",
-                FT_UINT16, BASE_DEC,
+                FT_UINT16, BASE_PT_UDP,
                 NULL, 0x0,
                 NULL, HFILL }
         },
@@ -1971,7 +1971,7 @@ proto_register_acdr(void)
 
     expert_module_t *expert_acdr;
 
-    proto_acdr = proto_register_protocol("AUDIOCODES DEBUG RECORDING", "AC DR", "acdr");
+    proto_acdr = proto_register_protocol("Debug Recording Trace", "AC DR", "acdr");
     proto_register_field_array(proto_acdr, hf, array_length(hf));
     proto_register_subtree_array(ett, array_length(ett));
 
@@ -2030,10 +2030,7 @@ proto_reg_handoff_acdr(void)
     xml_dissector_handle = find_dissector("xml");
     ssh_dissector_handle = create_dissector_handle(dissect_acdr_ssh, proto_acdr);
 
-    // register our port number to the underlying TCP/UDP layers so our
-    // dissector gets called for the appropriate port
     dissector_add_uint_with_preference("udp.port", PORT_AC_DR, acdr_dissector_handle);
-    dissector_add_uint_with_preference("tcp.port", PORT_AC_DR, acdr_dissector_handle);
 
     // Register "local" media types
     dissector_add_uint("acdr.media_type", ACDR_VoiceAI, create_dissector_handle(dissect_acdr_voiceai, proto_acdr));

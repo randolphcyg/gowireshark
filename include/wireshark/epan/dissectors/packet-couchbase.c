@@ -265,6 +265,9 @@ static bool is_request_magic(uint8_t magic) {
 #define CLIENT_OPCODE_AUDIT_CONFIG_RELOAD     0x28
 #define CLIENT_OPCODE_SHUTDOWN                0x29
 
+#define CLIENT_OPCODE_SET_ACTIVE_ENCRYPTION_KEYS 0x2d
+#define CLIENT_OPCODE_PRUNE_ENCRYPTION_KEYS   0x2e
+
  /* Range operations.
   * These commands are used for range operations and exist within
   * protocol_binary.h for use in other projects. Range operations are
@@ -302,6 +305,9 @@ static bool is_request_magic(uint8_t magic) {
 
 #define CLIENT_OPCODE_GET_ALL_VB_SEQNOS       0x48
 
+#define CLIENT_OPCODE_GET_EX                  0x49
+#define CLIENT_OPCODE_GET_EX_REPLICA          0x4a
+
 /* DCP commands */
 #define CLIENT_OPCODE_DCP_OPEN_CONNECTION         0x50
 #define CLIENT_OPCODE_DCP_ADD_STREAM              0x51
@@ -325,6 +331,16 @@ static bool is_request_magic(uint8_t magic) {
 #define CLIENT_OPCODE_DCP_ABORT                   0x63
 #define CLIENT_OPCODE_DCP_SEQNO_ADVANCED          0x64
 #define CLIENT_OPCODE_DCP_OSO_SNAPSHOT            0x65
+
+#define CLIENT_OPCODE_GET_FUSION_STORAGE_SNAPSHOT 0x70
+#define CLIENT_OPCODE_RELEASE_FUSION_STORAGE_SNAPSHOT 0x71
+#define CLIENT_OPCODE_MOUNT_FUSION_VB             0x72
+#define CLIENT_OPCODE_UNMOUNT_FUSION_VB           0x73
+#define CLIENT_OPCODE_SYNC_FUSION_LOGSTORE        0x74
+#define CLIENT_OPCODE_START_FUSION_UPLOADER       0x75
+#define CLIENT_OPCODE_STOP_FUSION_UPLOADER        0x76
+#define CLIENT_OPCODE_DELETE_FUSION_NAMESPACE     0x77
+#define CLIENT_OPCODE_GET_FUSION_NAMESPACES       0x78
 
  /* Commands from EP (eventually persistent) and bucket engines */
 #define CLIENT_OPCODE_STOP_PERSISTENCE        0x80
@@ -406,6 +422,11 @@ static bool is_request_magic(uint8_t magic) {
 #define CLIENT_OPCODE_RANGE_SCAN_CREATE       0xda
 #define CLIENT_OPCODE_RANGE_SCAN_CONTINUE     0xdb
 #define CLIENT_OPCODE_RANGE_SCAN_CANCEL       0xdc
+
+#define CLIENT_OPCODE_PREPARE_SNAPSHOT        0xe0
+#define CLIENT_OPCODE_RELEASE_SNAPSHOT        0xe1
+#define CLIENT_OPCODE_DOWNLOAD_SNAPSHOT       0xe2
+#define CLIENT_OPCODE_GET_FILE_FRAGMENT       0xe3
 
 #define CLIENT_OPCODE_SCRUB                   0xf0
 #define CLIENT_OPCODE_ISASL_REFRESH           0xf1
@@ -876,6 +897,8 @@ static const value_string client_opcode_vals[] = {
   { CLIENT_OPCODE_AUDIT_PUT,                  "Audit Put"                },
   { CLIENT_OPCODE_AUDIT_CONFIG_RELOAD,        "Audit Config Reload"      },
   { CLIENT_OPCODE_SHUTDOWN,                   "Shutdown"                 },
+  { CLIENT_OPCODE_SET_ACTIVE_ENCRYPTION_KEYS, "Set Active Encryption Keys"},
+  { CLIENT_OPCODE_PRUNE_ENCRYPTION_KEYS,      "Prune Encryption Keys"    },
   { CLIENT_OPCODE_RGET,                       "Range Get"                },
   { CLIENT_OPCODE_RSET,                       "Range Set"                },
   { CLIENT_OPCODE_RSETQ,                      "Range Set Quietly"        },
@@ -901,6 +924,8 @@ static const value_string client_opcode_vals[] = {
   { CLIENT_OPCODE_TAP_CHECKPOINT_START,       "TAP Checkpoint Start"     },
   { CLIENT_OPCODE_TAP_CHECKPOINT_END,         "TAP Checkpoint End"       },
   { CLIENT_OPCODE_GET_ALL_VB_SEQNOS,          "Get All VBucket Seqnos"   },
+  { CLIENT_OPCODE_GET_EX,                     "GetEx"                    },
+  { CLIENT_OPCODE_GET_EX_REPLICA,             "GetEx Replica"            },
   { CLIENT_OPCODE_DCP_OPEN_CONNECTION,        "DCP Open Connection"      },
   { CLIENT_OPCODE_DCP_ADD_STREAM,             "DCP Add Stream"           },
   { CLIENT_OPCODE_DCP_CLOSE_STREAM,           "DCP Close Stream"         },
@@ -923,6 +948,15 @@ static const value_string client_opcode_vals[] = {
   { CLIENT_OPCODE_DCP_ABORT,                  "DCP Abort"                },
   { CLIENT_OPCODE_DCP_SEQNO_ADVANCED,         "DCP Seqno Advanced"       },
   { CLIENT_OPCODE_DCP_OSO_SNAPSHOT,           "DCP Out of Sequence Order Snapshot"},
+  { CLIENT_OPCODE_GET_FUSION_STORAGE_SNAPSHOT, "Get Fusion Storage Snapshot"},
+  { CLIENT_OPCODE_RELEASE_FUSION_STORAGE_SNAPSHOT, "Release Fusion Storage Snapshot"},
+  { CLIENT_OPCODE_MOUNT_FUSION_VB,            "Mount Fusion VBucket"     },
+  { CLIENT_OPCODE_UNMOUNT_FUSION_VB,          "Unmount Fusion VBucket"   },
+  { CLIENT_OPCODE_SYNC_FUSION_LOGSTORE,       "Sync Fusion Logstore"     },
+  { CLIENT_OPCODE_START_FUSION_UPLOADER,      "Start Fusion Uploader"    },
+  { CLIENT_OPCODE_STOP_FUSION_UPLOADER,       "Stop Fusion Uploader"     },
+  { CLIENT_OPCODE_DELETE_FUSION_NAMESPACE,    "Delete Fusion Namespace"  },
+  { CLIENT_OPCODE_GET_FUSION_NAMESPACES,      "Get Fusion Namespaces"    },
   { CLIENT_OPCODE_STOP_PERSISTENCE,           "Stop Persistence"         },
   { CLIENT_OPCODE_START_PERSISTENCE,          "Start Persistence"        },
   { CLIENT_OPCODE_SET_PARAM,                  "Set Parameter"            },
@@ -996,6 +1030,10 @@ static const value_string client_opcode_vals[] = {
   { CLIENT_OPCODE_RANGE_SCAN_CREATE,          "RangeScan Create"         },
   { CLIENT_OPCODE_RANGE_SCAN_CONTINUE,        "RangeScan Continue"       },
   { CLIENT_OPCODE_RANGE_SCAN_CANCEL,          "RangeScan Cancel"         },
+  { CLIENT_OPCODE_PREPARE_SNAPSHOT,           "Prepare Snapshot"         },
+  { CLIENT_OPCODE_RELEASE_SNAPSHOT,           "Release Snapshot"         },
+  { CLIENT_OPCODE_DOWNLOAD_SNAPSHOT,          "Download Snapshot"        },
+  { CLIENT_OPCODE_GET_FILE_FRAGMENT,          "Get File Fragment"        },
   { CLIENT_OPCODE_SCRUB,                      "Scrub"                    },
   { CLIENT_OPCODE_ISASL_REFRESH,              "isasl Refresh"            },
   { CLIENT_OPCODE_SSL_CERTS_REFRESH,          "SSL Certificates Refresh" },
@@ -1009,7 +1047,6 @@ static const value_string client_opcode_vals[] = {
   { CLIENT_OPCODE_ADJUST_TIMEOFDAY,           "Adjust Timeofday"         },
   { CLIENT_OPCODE_EWOULDBLOCK_CTL,            "EWOULDBLOCK Control"      },
   { CLIENT_OPCODE_GET_ERROR_MAP,              "Get Error Map"            },
-
   /* Internally defined values not valid here */
   { 0, NULL }
 };
@@ -1255,7 +1292,7 @@ static void dissect_dcp_xattrs(tvbuff_t *tvb, proto_tree *tree,
       return;
     }
 
-    ti = proto_tree_add_item(pair_tree, hf_xattr_key, tvb, offset, mark - offset, ENC_ASCII | ENC_NA);
+    ti = proto_tree_add_item(pair_tree, hf_xattr_key, tvb, offset, mark - offset, ENC_ASCII);
     xattr_size -= (mark - offset) + 1;
     pair_len -= (mark - offset) + 1;
     offset = mark + 1;
@@ -1266,13 +1303,13 @@ static void dissect_dcp_xattrs(tvbuff_t *tvb, proto_tree *tree,
       return;
     }
 
-    proto_tree_add_item(pair_tree, hf_xattr_value, tvb, offset, mark - offset, ENC_ASCII | ENC_NA);
+    proto_tree_add_item(pair_tree, hf_xattr_value, tvb, offset, mark - offset, ENC_ASCII);
     xattr_size -= (mark - offset) + 1;
     offset = mark + 1;
   }
 
   //The regular value
-  proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII | ENC_NA);
+  proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII);
 }
 
 /* Dissects the required extras for subdoc single-path packets */
@@ -1373,14 +1410,15 @@ dissect_client_extras(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 {
   proto_tree *extras_tree = NULL;
   proto_item *extras_item = NULL;
-  int         save_offset = offset, ii;
+  int         save_offset = offset;
+  unsigned    ii;
   unsigned    bpos;
   bool        illegal = false;  /* Set when extras shall not be present */
   bool        missing = false;  /* Set when extras is missing */
   bool        first_flag;
   uint32_t    flags;
   proto_item *tf;
-  const char    *tap_connect_flags[] = {
+  static const char * const tap_connect_flags[] = {
     "BACKFILL", "DUMP", "LIST_VBUCKETS", "TAKEOVER_VBUCKETS",
     "SUPPORT_ACK", "REQUEST_KEYS_ONLY", "CHECKPOINT", "REGISTERED_CLIENT"
   };
@@ -1536,7 +1574,7 @@ dissect_client_extras(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
     flags = tvb_get_ntohl(tvb, offset);
     first_flag = true;
-    for (ii = 0; ii < 8; ii++) {
+    for (ii = 0; ii < array_length(tap_connect_flags); ii++) {
       bpos = 1 << ii;
       if (flags & bpos) {
         if (first_flag) {
@@ -2091,14 +2129,14 @@ dissect_client_extras(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
   if (illegal) {
     proto_tree_add_expert_format(extras_tree, pinfo, &ei_warn_shall_not_have_extras, tvb, offset, 0,
                            "%s %s should not have extras",
-                           val_to_str_ext(opcode, &client_opcode_vals_ext, "Opcode 0x%x"),
+                           val_to_str_ext(pinfo->pool, opcode, &client_opcode_vals_ext, "Opcode 0x%x"),
                            request ? "Request" : "Response");
     offset += extlen;
   } else if (missing) {
 
     proto_tree_add_expert_format(tree, pinfo, &ei_warn_must_have_extras, tvb, offset, 0,
                            "%s %s must have Extras",
-                           val_to_str_ext(opcode, &client_opcode_vals_ext, "Opcode Ox%x"),
+                           val_to_str_ext(pinfo->pool, opcode, &client_opcode_vals_ext, "Opcode Ox%x"),
                            request ? "Request" : "Response");
 }
 
@@ -2180,7 +2218,7 @@ static void dissect_server_key(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tr
     case SERVER_OPCODE_ACTIVE_EXTERNAL_USERS:
         expert_add_info_format(pinfo, ti, &ei_warn_shall_not_have_key,
                                "%s %s shall not have Key",
-                               val_to_str_ext(opcode,
+                               val_to_str_ext(pinfo->pool, opcode,
                                               &server_opcode_vals_ext,
                                               "Opcode 0x%x"),
                                request ? "Request" : "Response");
@@ -2335,12 +2373,12 @@ dissect_client_key(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
   if (illegal) {
     expert_add_info_format(pinfo, ti, &ei_warn_shall_not_have_key, "%s %s shall not have Key",
-                           val_to_str_ext(opcode, &client_opcode_vals_ext, "Opcode 0x%x"),
+                           val_to_str_ext(pinfo->pool, opcode, &client_opcode_vals_ext, "Opcode 0x%x"),
                            request ? "Request" : "Response");
   } else if (missing) {
     proto_tree_add_expert_format(tree, pinfo, &ei_warn_must_have_key, tvb, offset, 0,
                            "%s %s must have Key",
-                           val_to_str_ext(opcode, &client_opcode_vals_ext, "Opcode Ox%x"),
+                           val_to_str_ext(pinfo->pool, opcode, &client_opcode_vals_ext, "Opcode Ox%x"),
                            request ? "Request" : "Response");
   }
 }
@@ -2371,7 +2409,7 @@ dissect_multipath_lookup_response(tvbuff_t *tvb, packet_info *pinfo,
     offset += 4;
 
     proto_tree_add_item(multipath_tree, hf_value, tvb, offset, result_len,
-                        ENC_ASCII | ENC_NA);
+                        ENC_ASCII);
     if (result_len > 0) {
         json_tvb = tvb_new_subset_length(tvb, offset, result_len);
         call_dissector(json_handle, json_tvb, pinfo, multipath_tree);
@@ -2421,7 +2459,7 @@ dissect_multipath_mutation_response(tvbuff_t *tvb, packet_info *pinfo,
       offset += 4;
 
       proto_tree_add_item(multipath_tree, hf_value, tvb, offset, result_len,
-                          ENC_ASCII | ENC_NA);
+                          ENC_ASCII);
       if (result_len > 0) {
         json_tvb = tvb_new_subset_length(tvb, offset, result_len);
         call_dissector(json_handle, json_tvb, pinfo, multipath_tree);
@@ -2481,13 +2519,13 @@ dissect_multipath_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
       if (path_len) {
         proto_tree_add_item(multipath_tree, hf_multipath_path, tvb, offset, path_len,
-                            ENC_ASCII | ENC_NA);
+                            ENC_ASCII);
         offset += path_len;
       }
 
       if (spec_value_len > 0) {
         proto_tree_add_item(multipath_tree, hf_multipath_value, tvb, offset,
-                            spec_value_len, ENC_ASCII | ENC_NA);
+                            spec_value_len, ENC_ASCII);
         offset += spec_value_len;
       }
 
@@ -2630,7 +2668,7 @@ dissect_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
       }
     } else if (has_json_value(request, opcode)) {
       tvbuff_t *json_tvb;
-      ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII | ENC_NA);
+      ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII);
       json_tvb = tvb_new_subset_length(tvb, offset, value_len);
       call_dissector(json_handle, json_tvb, pinfo, tree);
 
@@ -2643,7 +2681,7 @@ dissect_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     } else if (opcode == CLIENT_OPCODE_HELLO) {
       int curr = offset, end = offset + value_len;
       proto_tree *hello_features_tree;
-      ti = proto_tree_add_item(tree, hf_hello_features, tvb, offset, value_len, ENC_ASCII);
+      ti = proto_tree_add_item(tree, hf_hello_features, tvb, offset, value_len, ENC_NA);
       hello_features_tree = proto_item_add_subtree(ti, ett_hello_features);
       while (curr < end) {
         proto_tree_add_item(hello_features_tree, hf_hello_features_feature, tvb, curr, 2, ENC_BIG_ENDIAN);
@@ -2652,11 +2690,11 @@ dissect_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     } else if (!request && opcode == CLIENT_OPCODE_RANGE_SCAN_CREATE) {
       proto_tree_add_item(tree, hf_range_scan_uuid, tvb, offset, 16, ENC_BIG_ENDIAN);
     } else if (path_len != 0) {
-        ti = proto_tree_add_item(tree, hf_path, tvb, offset, path_len, ENC_ASCII | ENC_NA);
+        ti = proto_tree_add_item(tree, hf_path, tvb, offset, path_len, ENC_ASCII);
         value_len -= path_len;
         if (value_len > 0) {
             ti = proto_tree_add_item(tree, hf_value, tvb, offset + path_len,
-                                     value_len, ENC_ASCII | ENC_NA);
+                                     value_len, ENC_ASCII);
         }
     } else if (request && opcode == CLIENT_OPCODE_CREATE_BUCKET) {
       int sep, equals_pos, sep_pos, config_len;
@@ -2670,14 +2708,14 @@ dissect_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII);
         expert_add_info_format(pinfo, ti, &ei_separator_not_found, "Null byte not found");
       } else {
-        proto_tree_add_item(tree, hf_bucket_type, tvb, offset, sep - offset, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(tree, hf_bucket_type, tvb, offset, sep - offset, ENC_ASCII);
         config_len = value_len - (sep - offset) - 1; //Don't include NULL byte in length
         if(config_len <= 0) {
           expert_add_info_format(pinfo, ti, &ei_separator_not_found, "Separator not found in expected location");
         } else {
           offset = sep + 1;// Ignore NULL byte
 
-          ti = proto_tree_add_item(tree, hf_bucket_config, tvb, offset, config_len, ENC_ASCII | ENC_NA);
+          ti = proto_tree_add_item(tree, hf_bucket_config, tvb, offset, config_len, ENC_ASCII);
           config_tree = proto_item_add_subtree(ti, ett_config);
         }
 
@@ -2689,7 +2727,7 @@ dissect_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             expert_add_info_format(pinfo, ti, &ei_illegal_value, "Each key needs a value");
             break; // Break out the while loop
           }
-          ti = proto_tree_add_item(config_tree, hf_config_key, tvb, offset, equals_pos - offset, ENC_ASCII | ENC_NA);
+          ti = proto_tree_add_item(config_tree, hf_config_key, tvb, offset, equals_pos - offset, ENC_ASCII);
           key_tree = proto_item_add_subtree(ti, ett_config_key);
           config_len -= (equals_pos - offset + 1);
           offset = equals_pos + 1;
@@ -2704,7 +2742,7 @@ dissect_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             expert_add_info_format(pinfo, ti, &ei_separator_not_found, "Each key-value pair must be terminated by semi-colon");
             break; // Break out the while loop
           }
-          proto_tree_add_item(key_tree, hf_config_value, tvb, offset, sep_pos - offset, ENC_ASCII | ENC_NA);
+          proto_tree_add_item(key_tree, hf_config_value, tvb, offset, sep_pos - offset, ENC_ASCII);
           config_len -= (sep_pos - offset + 1);
           offset = sep_pos + 1;
         }
@@ -2720,14 +2758,14 @@ dissect_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
     } else if (request && opcode == CLIENT_OPCODE_GET_ERROR_MAP) {
       if (value_len != 2) {
         expert_add_info_format(pinfo, ti, &ei_warn_illegal_value_length, "Illegal Value length, should be 2");
-        ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII | ENC_NA);
+        ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII);
       } else {
         ti = proto_tree_add_item(tree, hf_get_errmap_version, tvb, offset, value_len, ENC_BIG_ENDIAN);
       }
     } else if (request && opcode == CLIENT_OPCODE_DCP_SNAPSHOT_MARKER) {
         if (value_len < 20) {
             expert_add_info_format(pinfo, ti, &ei_warn_illegal_value_length, "Illegal Value length, should be at least 20");
-            ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII | ENC_NA);
+            ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII);
         }
 
         proto_tree_add_item(tree, hf_extras_start_seqno, tvb, offset, 8, ENC_BIG_ENDIAN);
@@ -2740,7 +2778,7 @@ dissect_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
         if (value_len > 20) {
             if (value_len < 36) {
                 expert_add_info_format(pinfo, ti, &ei_warn_illegal_value_length, "Illegal Value length, should be at least 36");
-                ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII | ENC_NA);
+                ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII);
             }
 
             proto_tree_add_item(tree, hf_extras_max_visible_seqno, tvb, offset, 8, ENC_BIG_ENDIAN);
@@ -2751,14 +2789,14 @@ dissect_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
             if (value_len > 36) {
                 if (value_len != 44) {
                     expert_add_info_format(pinfo, ti, &ei_warn_illegal_value_length, "Illegal Value length, should be 44");
-                    ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII | ENC_NA);
+                    ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII);
                 }
 
                 proto_tree_add_item(tree, hf_extras_timestamp, tvb, offset, 8, ENC_BIG_ENDIAN);
             }
         }
     } else {
-      ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII | ENC_NA);
+      ti = proto_tree_add_item(tree, hf_value, tvb, offset, value_len, ENC_ASCII);
 #ifdef HAVE_SNAPPY
       if (datatype & DT_SNAPPY) {
         tvbuff_t* decompressed_tvb = tvb_child_uncompress_snappy(tvb, tvb, offset, tvb_captured_length_remaining(tvb, offset));
@@ -2840,11 +2878,11 @@ dissect_value(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree,
 
   if (illegal) {
     expert_add_info_format(pinfo, ti, &ei_warn_shall_not_have_value, "%s %s shall not have Value",
-                           val_to_str_ext(opcode, &client_opcode_vals_ext, "Opcode 0x%x"),
+                           val_to_str_ext(pinfo->pool, opcode, &client_opcode_vals_ext, "Opcode 0x%x"),
                            request ? "Request" : "Response");
   } else if (missing) {
     expert_add_info_format(pinfo, ti, &ei_value_missing, "%s %s must have Value",
-                           val_to_str_ext(opcode, &client_opcode_vals_ext, "Opcode 0x%x"),
+                           val_to_str_ext(pinfo->pool, opcode, &client_opcode_vals_ext, "Opcode 0x%x"),
                            request ? "Request" : "Response");
   }
 }
@@ -3164,7 +3202,7 @@ static void d_s_o_clustermap_change_notification_req(tvbuff_t *tvb,
   }
   // The payload is the clustermap in JSON
   proto_tree_add_item(tree, hf_server_clustermap_value, tvb, offset, size,
-                      ENC_ASCII | ENC_NA);
+                      ENC_ASCII);
   tvbuff_t *json_tvb = tvb_new_subset_length(tvb, offset, size);
   call_dissector(json_handle, json_tvb, pinfo, tree);
 }
@@ -3182,7 +3220,7 @@ static void d_s_o_authenticate_req(tvbuff_t *tvb,
   }
   // The payload is an JSON object with the authentication request
   proto_tree_add_item(tree, hf_server_authentication, tvb, offset, size,
-                      ENC_ASCII | ENC_NA);
+                      ENC_ASCII);
   tvbuff_t *json_tvb = tvb_new_subset_length(tvb, offset, size);
   call_dissector(json_handle, json_tvb, pinfo, tree);
 }
@@ -3200,7 +3238,7 @@ static void d_s_o_active_external_users_req(tvbuff_t *tvb,
   }
   // The payload is an JSON array with the list of the users
   proto_tree_add_item(tree, hf_server_external_users, tvb, offset, size,
-                      ENC_ASCII | ENC_NA);
+                      ENC_ASCII);
   tvbuff_t *json_tvb = tvb_new_subset_length(tvb, offset, size);
   call_dissector(json_handle, json_tvb, pinfo, tree);
 }
@@ -3213,7 +3251,7 @@ static void d_s_o_get_authorization_req(tvbuff_t *tvb,
   if (size > 0) {
     // this is an error!
     proto_item *ti = proto_tree_add_item(tree, hf_value, tvb, offset, size,
-                                         ENC_ASCII | ENC_NA);
+                                         ENC_ASCII);
     expert_add_info_format(pinfo, ti, &ei_warn_shall_not_have_value,
                            "GetAuthorization shall not have a value");
   }
@@ -3234,7 +3272,7 @@ static void d_s_o_server_ignored_response(tvbuff_t *tvb,
     return;
   }
   proto_item *ti = proto_tree_add_item(tree, hf_value, tvb, offset, size,
-                                       ENC_ASCII | ENC_NA);
+                                       ENC_ASCII);
   if (get_status(tvb) == STATUS_SUCCESS) {
     expert_add_info_format(pinfo, ti, &ei_warn_shall_not_have_value,
                            "Success should not carry value");
@@ -3255,7 +3293,7 @@ static void d_s_o_authenticate_res(tvbuff_t *tvb ,
 
   // Payload is JSON (for success and if there is an error)
   proto_tree_add_item(tree, hf_server_authentication, tvb, offset, size,
-                      ENC_ASCII | ENC_NA);
+                      ENC_ASCII);
   tvbuff_t *json_tvb = tvb_new_subset_length(tvb, offset, size);
   call_dissector(json_handle, json_tvb, pinfo, tree);
 }
@@ -3271,7 +3309,7 @@ static void d_s_o_get_authorization_res(tvbuff_t *tvb,
 
   // Payload is JSON (for success and if there is an error)
   proto_tree_add_item(tree, hf_server_get_authorization, tvb, offset, size,
-                      ENC_ASCII | ENC_NA);
+                      ENC_ASCII);
   tvbuff_t *json_tvb = tvb_new_subset_length(tvb, offset, size);
   call_dissector(json_handle, json_tvb, pinfo, tree);
 
@@ -3322,6 +3360,7 @@ static bool opcode_use_vbucket(uint8_t magic _U_, uint8_t opcode) {
  */
 static void dissect_frame_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *couchbase_tree, proto_item *couchbase_item) {
   uint8_t magic = get_magic(tvb);
+  char* str_magic;
   proto_item *ti = proto_tree_add_item(couchbase_tree, hf_magic, tvb, 0, 1, ENC_BIG_ENDIAN);
   if (try_val_to_str(magic, magic_vals) == NULL) {
     expert_add_info_format(pinfo, ti, &ei_warn_unknown_magic_byte, "Unknown magic byte: 0x%x", magic);
@@ -3342,13 +3381,14 @@ static void dissect_frame_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
     expert_add_info_format(pinfo, ti, &ei_warn_unknown_opcode, "Unknown opcode: 0x%x", opcode);
     opcode_name = "Unknown opcode";
   }
+  str_magic = val_to_str(pinfo->pool, magic, magic_vals, "Unknown magic (0x%x)");
   proto_item_append_text(couchbase_item, ", %s %s, Opcode: 0x%x",
                          opcode_name,
-                         val_to_str(magic, magic_vals, "Unknown magic (0x%x)"),
+                         str_magic,
                          opcode);
   col_append_fstr(pinfo->cinfo, COL_INFO, "%s %s, Opcode: 0x%x",
                   opcode_name,
-                  val_to_str(magic, magic_vals, "Unknown magic (0x%x)"),
+                  str_magic,
                   opcode);
 
   /* Check for flex magic, which changes the header format */
@@ -3382,8 +3422,8 @@ static void dissect_frame_header(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
     ti = proto_tree_add_item(couchbase_tree, hf_status, tvb, 6, 2, ENC_BIG_ENDIAN);
     if (status != 0) {
       expert_add_info_format(pinfo, ti, &ei_warn_unknown_opcode, "%s: %s",
-                             val_to_str_ext(opcode, &client_opcode_vals_ext, "Unknown opcode (0x%x)"),
-                             val_to_str_ext(status, &status_vals_ext, "Status: 0x%x"));
+                             val_to_str_ext(pinfo->pool, opcode, &client_opcode_vals_ext, "Unknown opcode (0x%x)"),
+                             val_to_str_ext(pinfo->pool, status, &status_vals_ext, "Status: 0x%x"));
     }
   }
 
@@ -3426,7 +3466,7 @@ static void dissect_frame_flex_info_section(tvbuff_t *tvb,
     case MAGIC_SERVER_RESPONSE:
     case MAGIC_SERVER_REQUEST:
       // None of the server initiated messages use flex frame encoding!
-      proto_tree_add_item(tree, hf_flex_extras, tvb, offset, size, ENC_UTF_8|ENC_STR_HEX);
+      proto_tree_add_item(tree, hf_flex_extras, tvb, offset, size, ENC_NA);
       proto_tree_add_expert_format(tree,
                                    pinfo,
                                    &ei_warn_unknown_flex_unsupported,
@@ -3446,7 +3486,7 @@ static void dissect_frame_flex_info_section(tvbuff_t *tvb,
                                       is_request_magic(magic));
       break;
     default:
-      proto_tree_add_item(tree, hf_flex_extras, tvb, offset, size, ENC_UTF_8|ENC_STR_HEX);
+      proto_tree_add_item(tree, hf_flex_extras, tvb, offset, size, ENC_NA);
       proto_tree_add_expert_format(tree,
                                    pinfo,
                                    &ei_warn_unknown_flex_unsupported,
@@ -3483,7 +3523,7 @@ static void dissect_frame_extras(tvbuff_t *tvb,
                             opcode, is_request_magic(magic), subdoc_path_len);
       break;
     default:
-      proto_tree_add_item(tree, hf_extras, tvb, offset, size, ENC_UTF_8|ENC_STR_HEX);
+      proto_tree_add_item(tree, hf_extras, tvb, offset, size, ENC_NA);
       proto_tree_add_expert_format(tree,
                                    pinfo,
                                    &ei_warn_unknown_extras,
@@ -3529,7 +3569,7 @@ static void dissect_client_value(tvbuff_t *tvb,
     if (status == 0) {
       dissect_value(tvb, pinfo, tree, offset, size, subdoc_path_len, opcode, false, datatype);
     } else if (size) {
-      proto_tree_add_item(tree, hf_value, tvb, offset, size, ENC_ASCII | ENC_NA);
+      proto_tree_add_item(tree, hf_value, tvb, offset, size, ENC_ASCII);
       if (status == STATUS_NOT_MY_VBUCKET || is_xerror(datatype, status)) {
         tvbuff_t *json_tvb;
         json_tvb = tvb_new_subset_length(tvb, offset, size);
@@ -3540,7 +3580,7 @@ static void dissect_client_value(tvbuff_t *tvb,
         dissect_multipath_mutation_response(tvb, pinfo, tree, offset, size);
       }
       col_append_fstr(pinfo->cinfo, COL_INFO, ", %s",
-                      val_to_str_ext(status, &status_vals_ext,
+                      val_to_str_ext(pinfo->pool, status, &status_vals_ext,
                                      "Unknown status: 0x%x"));
     } else {
       /* Newer opcodes do not include a value in non-SUCCESS responses. */
@@ -3563,13 +3603,13 @@ static void dissect_client_value(tvbuff_t *tvb,
 
         default:
           ti = proto_tree_add_item(tree, hf_value, tvb, offset, 0,
-                                   ENC_ASCII | ENC_NA);
+                                   ENC_ASCII);
           expert_add_info_format(pinfo, ti, &ei_value_missing,
                                  "%s with status %s (0x%x) must have Value",
-                                 val_to_str_ext(opcode,
+                                 val_to_str_ext(pinfo->pool, opcode,
                                                 &client_opcode_vals_ext,
                                                 "Opcode 0x%x"),
-                                 val_to_str_ext(status,
+                                 val_to_str_ext(pinfo->pool, status,
                                                 &status_vals_ext,
                                                 "Unknown"),
                                  status);
@@ -3600,7 +3640,7 @@ static void dissect_server_request_value(tvbuff_t *tvb,
       // Unknown packet type.. just dump the data
       if (size > 0) {
         proto_tree_add_item(tree, hf_value, tvb, offset, size,
-                            ENC_ASCII | ENC_NA);
+                            ENC_ASCII);
       }
       return;
   }
@@ -3612,7 +3652,7 @@ static void dissect_server_response_value(tvbuff_t *tvb,
                                          int offset,
                                          int size) {
   col_append_fstr(pinfo->cinfo, COL_INFO, ", %s",
-                  val_to_str_ext(get_status(tvb), &status_vals_ext,
+                  val_to_str_ext(pinfo->pool, get_status(tvb), &status_vals_ext,
                                  "Unknown status: 0x%x"));
 
   switch (get_opcode(tvb)) {
@@ -3632,7 +3672,7 @@ static void dissect_server_response_value(tvbuff_t *tvb,
       // Unknown packet type.. just dump the data
       if (size > 0) {
         proto_tree_add_item(tree, hf_value, tvb, offset, size,
-                            ENC_ASCII | ENC_NA);
+                            ENC_ASCII);
       }
       return;
   }
@@ -3669,7 +3709,7 @@ static void dissect_frame_value(tvbuff_t *tvb,
     default:
       // Unknown magic... just dump the data
       if (size > 0) {
-        proto_tree_add_item(tree, hf_value, tvb, offset, (int)size, ENC_ASCII | ENC_NA);
+        proto_tree_add_item(tree, hf_value, tvb, offset, (int)size, ENC_ASCII);
       }
       return;
   }
@@ -3972,7 +4012,7 @@ proto_register_couchbase(void)
     { &ei_warn_shall_not_have_extras, { "couchbase.warn.shall_not_have_extras", PI_UNDECODED, PI_WARN, "Packet shall not have extras", EXPFILL }},
     { &ei_warn_shall_not_have_key, { "couchbase.warn.shall_not_have_key", PI_UNDECODED, PI_WARN, "Packet shall not have key", EXPFILL }},
     { &ei_warn_must_have_extras, { "couchbase.warn.must_have_extras", PI_UNDECODED, PI_WARN, "Packet must have extras", EXPFILL }},
-    { &ei_warn_must_have_key, { "couchbase.warn.must_have_key", PI_UNDECODED, PI_WARN, "%s %s must have Key", EXPFILL }},
+    { &ei_warn_must_have_key, { "couchbase.warn.must_have_key", PI_UNDECODED, PI_WARN, "Message must have Key", EXPFILL }},
     { &ei_warn_illegal_extras_length, { "couchbase.warn.illegal_extras_length", PI_UNDECODED, PI_WARN, "Illegal Extras length", EXPFILL }},
     { &ei_warn_illegal_value_length, { "couchbase.warn.illegal_value_length", PI_UNDECODED, PI_WARN, "Illegal Value length", EXPFILL }},
     { &ei_warn_unknown_magic_byte, { "couchbase.warn.unknown_magic_byte", PI_UNDECODED, PI_WARN, "Unknown magic byte", EXPFILL }},
@@ -3982,9 +4022,9 @@ proto_register_couchbase(void)
     { &ei_separator_not_found, { "couchbase.warn.separator_not_found", PI_UNDECODED, PI_WARN, "Separator not found", EXPFILL }},
     { &ei_illegal_value, { "couchbase.warn.illegal_value", PI_UNDECODED, PI_WARN, "Illegal value for command", EXPFILL }},
     { &ei_compression_error, { "couchbase.error.compression", PI_UNDECODED, PI_WARN, "Compression error", EXPFILL }},
-    { &ei_warn_unknown_flex_unsupported, { "couchbase.warn.unsupported_flexible_frame", PI_UNDECODED, PI_WARN, "Flexible Response ID warning", EXPFILL }},
+    { &ei_warn_unknown_flex_unsupported, { "couchbase.warn.unsupported_flexible_frame", PI_UNDECODED, PI_WARN, "Unsupported Flexible encoding", EXPFILL }},
     { &ei_warn_unknown_flex_id, { "couchbase.warn.unknown_flexible_frame_id", PI_UNDECODED, PI_WARN, "Flexible Response ID warning", EXPFILL }},
-    { &ei_warn_unknown_flex_len, { "couchbase.warn.unknown_flexible_frame_len", PI_UNDECODED, PI_WARN, "Flexible Response ID warning", EXPFILL }}
+    { &ei_warn_unknown_flex_len, { "couchbase.warn.unknown_flexible_frame_len", PI_UNDECODED, PI_WARN, "Flexible Response Length warning", EXPFILL }}
   };
 
   static int *ett[] = {

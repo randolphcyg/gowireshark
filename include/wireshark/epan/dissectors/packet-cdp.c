@@ -276,8 +276,6 @@ static const value_string type_nrgyz_vals[] = {
     { 0, NULL }
 };
 
-static const unit_name_string units_mw = { "mW", NULL };
-
 static int
 dissect_cdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
 {
@@ -519,7 +517,7 @@ dissect_cdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
             if (tree) {
                 tlv_tree = proto_tree_add_subtree_format(cdp_tree, tvb,
                                            offset,length, ett_cdp_tlv, NULL, "Protocol Hello: %s",
-                                           val_to_str(tvb_get_ntohs(tvb, offset+7), type_hello_vals, "Unknown (0x%04x)"));
+                                           val_to_str(pinfo->pool, tvb_get_ntohs(tvb, offset+7), type_hello_vals, "Unknown (0x%04x)"));
                 proto_tree_add_item(tlv_tree, hf_cdp_tlvtype, tvb, offset + TLV_TYPE, 2, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tlv_tree, hf_cdp_tlvlength, tvb, offset + TLV_LENGTH, 2, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tlv_tree, hf_cdp_oui, tvb, offset+4, 3, ENC_BIG_ENDIAN);
@@ -554,7 +552,7 @@ dissect_cdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
                                            tvb_format_text(pinfo->pool, tvb, offset + 4, length - 4));
                 proto_tree_add_item(tlv_tree, hf_cdp_tlvtype, tvb, offset + TLV_TYPE, 2, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tlv_tree, hf_cdp_tlvlength, tvb, offset + TLV_LENGTH, 2, ENC_BIG_ENDIAN);
-                proto_tree_add_item(tlv_tree, hf_cdp_vtp_management_domain, tvb, offset + 4, length - 4, ENC_NA|ENC_ASCII);
+                proto_tree_add_item(tlv_tree, hf_cdp_vtp_management_domain, tvb, offset + 4, length - 4, ENC_ASCII);
             }
             offset += length;
             break;
@@ -697,7 +695,7 @@ dissect_cdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
                                            tvb_format_text(pinfo->pool, tvb, offset + 4, length - 4));
                 proto_tree_add_item(tlv_tree, hf_cdp_tlvtype, tvb, offset + TLV_TYPE, 2, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tlv_tree, hf_cdp_tlvlength, tvb, offset + TLV_LENGTH, 2, ENC_BIG_ENDIAN);
-                proto_tree_add_item(tlv_tree, hf_cdp_system_name, tvb, offset + 4, length - 4, ENC_NA|ENC_ASCII);
+                proto_tree_add_item(tlv_tree, hf_cdp_system_name, tvb, offset + 4, length - 4, ENC_ASCII);
             }
             offset += length;
             break;
@@ -749,7 +747,7 @@ dissect_cdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
                 proto_tree_add_item(tlv_tree, hf_cdp_tlvtype, tvb, offset + TLV_TYPE, 2, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tlv_tree, hf_cdp_tlvlength, tvb, offset + TLV_LENGTH, 2, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tlv_tree, hf_cdp_location_unknown, tvb, offset + 4, 1, ENC_BIG_ENDIAN);
-                proto_tree_add_item(tlv_tree, hf_cdp_location, tvb, offset + 5, length - 5, ENC_NA|ENC_ASCII);
+                proto_tree_add_item(tlv_tree, hf_cdp_location, tvb, offset + 5, length - 5, ENC_ASCII);
             }
             offset += length;
             break;
@@ -829,10 +827,10 @@ dissect_cdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
                 proto_tree_add_item(tlv_tree, hf_cdp_encrypted_data, tvb, offset + 4, 20, ENC_NA);
                 proto_tree_add_item(tlv_tree, hf_cdp_seen_sequence, tvb, offset + 24, 4, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tlv_tree, hf_cdp_sequence_number, tvb, offset + 28, 4, ENC_BIG_ENDIAN);
-                proto_tree_add_item(tlv_tree, hf_cdp_model_number, tvb, offset + 32, 16, ENC_NA|ENC_ASCII);
+                proto_tree_add_item(tlv_tree, hf_cdp_model_number, tvb, offset + 32, 16, ENC_ASCII);
                 proto_tree_add_item(tlv_tree, hf_cdp_unknown_pad, tvb, offset + 48, 2, ENC_BIG_ENDIAN);
-                proto_tree_add_item(tlv_tree, hf_cdp_hardware_version_id, tvb, offset + 50, 3, ENC_NA|ENC_ASCII);
-                proto_tree_add_item(tlv_tree, hf_cdp_system_serial_number, tvb, offset + 53, 11, ENC_NA|ENC_ASCII);
+                proto_tree_add_item(tlv_tree, hf_cdp_hardware_version_id, tvb, offset + 50, 3, ENC_ASCII);
+                proto_tree_add_item(tlv_tree, hf_cdp_system_serial_number, tvb, offset + 53, 11, ENC_ASCII);
                 proto_tree_add_item(tlv_tree, hf_cdp_nrgyz_unknown_values, tvb, offset + 64, 8, ENC_NA);
                 proto_tree_add_item(tlv_tree, hf_cdp_len_tlv_table, tvb, offset + 72, 2, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tlv_tree, hf_cdp_num_tlvs_table, tvb, offset + 74, 2, ENC_BIG_ENDIAN);
@@ -1028,7 +1026,7 @@ dissect_cdp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
             if (tree) {
                 tlv_tree = proto_tree_add_subtree_format(cdp_tree, tvb, offset,
                                            length, ett_cdp_tlv, NULL, "Type: %s, length: %u",
-                                           val_to_str(type, type_vals, "Unknown (0x%04x)"),
+                                           val_to_str(pinfo->pool, type, type_vals, "Unknown (0x%04x)"),
                                            length);
                 proto_tree_add_item(tlv_tree, hf_cdp_tlvtype, tvb, offset + TLV_TYPE, 2, ENC_BIG_ENDIAN);
                 proto_tree_add_item(tlv_tree, hf_cdp_tlvlength, tvb, offset + TLV_LENGTH, 2, ENC_BIG_ENDIAN);
@@ -1092,11 +1090,11 @@ dissect_address_tlv(tvbuff_t *tvb, packet_info* pinfo, int offset, int length, p
     if ((protocol_type == PROTO_TYPE_NLPID) && (protocol_length == 1)) {
         nlpid = tvb_get_uint8(tvb, offset);
         proto_tree_add_bytes_format_value(address_tree, hf_cdp_protocol, tvb, offset, protocol_length, NULL, "%s",
-                            val_to_str(nlpid, nlpid_vals, "Unknown (0x%02x)"));
+                            val_to_str(pinfo->pool, nlpid, nlpid_vals, "Unknown (0x%02x)"));
     } else if ((protocol_type == PROTO_TYPE_IEEE_802_2) && (protocol_length == 8) && (tvb_get_ntoh48(tvb, offset) == 0xAAAA03000000)) {
         etypeid = tvb_get_ntohs(tvb, offset + 6);
         proto_tree_add_bytes_format_value(address_tree, hf_cdp_protocol, tvb, offset, protocol_length, NULL, "%s",
-                            val_to_str(etypeid, etype_vals, "Unknown (0x%04x)"));
+                            val_to_str(pinfo->pool, etypeid, etype_vals, "Unknown (0x%04x)"));
     } else {
         nlpid = -1;
         proto_tree_add_item(address_tree, hf_cdp_protocol, tvb, offset, protocol_length, ENC_NA);
@@ -1214,7 +1212,7 @@ dissect_nrgyz_tlv(tvbuff_t *tvb, packet_info* pinfo, int offset, uint16_t length
             break;
         }
         else {
-            ttext = val_to_str(tlvt, type_nrgyz_vals, "Unknown (0x%04x)");
+            ttext = val_to_str(pinfo->pool, tlvt, type_nrgyz_vals, "Unknown (0x%04x)");
             switch (tlvt) {
             case TYPE_NRGYZ_ROLE:
             case TYPE_NRGYZ_DOMAIN:
@@ -1240,13 +1238,13 @@ dissect_nrgyz_tlv(tvbuff_t *tvb, packet_info* pinfo, int offset, uint16_t length
             proto_tree_add_item(etree, hf_cdp_nrgyz_tlvlength, tvb, offset + 4, 4, ENC_BIG_ENDIAN);
             switch (tlvt) {
             case TYPE_NRGYZ_ROLE:
-                proto_tree_add_item(etree, hf_cdp_nrgyz_reply_to_role, tvb, offset + 8, tlvl - 8, ENC_NA|ENC_ASCII);
+                proto_tree_add_item(etree, hf_cdp_nrgyz_reply_to_role, tvb, offset + 8, tlvl - 8, ENC_ASCII);
                 break;
             case TYPE_NRGYZ_DOMAIN:
-                proto_tree_add_item(etree, hf_cdp_nrgyz_reply_to_domain, tvb, offset + 8, tlvl - 8, ENC_NA|ENC_ASCII);
+                proto_tree_add_item(etree, hf_cdp_nrgyz_reply_to_domain, tvb, offset + 8, tlvl - 8, ENC_ASCII);
                 break;
             case TYPE_NRGYZ_NAME:
-                proto_tree_add_item(etree, hf_cdp_nrgyz_reply_to_name, tvb, offset + 8, tlvl - 8, ENC_NA|ENC_ASCII);
+                proto_tree_add_item(etree, hf_cdp_nrgyz_reply_to_name, tvb, offset + 8, tlvl - 8, ENC_ASCII);
                 break;
             case TYPE_NRGYZ_REPLYTO:
                 proto_tree_add_item(etree, hf_cdp_nrgyz_reply_to_unknown_field, tvb, offset + 8, 2, ENC_BIG_ENDIAN);
@@ -1446,7 +1444,7 @@ proto_register_cdp(void)
       { &hf_cdp_duplex, { "Duplex", "cdp.duplex", FT_BOOLEAN, BASE_NONE, TFS(&tfs_full_half), 0x0, NULL, HFILL }},
       { &hf_cdp_data, { "Data", "cdp.data", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_cdp_voice_vlan, { "Voice VLAN", "cdp.voice_vlan", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-      { &hf_cdp_power_consumption, { "Power Consumption", "cdp.power_consumption", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_mw), 0x0, NULL, HFILL }},
+      { &hf_cdp_power_consumption, { "Power Consumption", "cdp.power_consumption", FT_UINT16, BASE_DEC|BASE_UNIT_STRING, UNS(&units_milliwatt), 0x0, NULL, HFILL }},
       { &hf_cdp_mtu, { "MTU", "cdp.mtu", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_cdp_trust_bitmap, { "Trust Bitmap", "cdp.trust_bitmap", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }},
       { &hf_cdp_untrusted_port_cos, { "Untrusted port CoS", "cdp.untrusted_port_cos", FT_UINT8, BASE_HEX, NULL, 0x0, NULL, HFILL }},
@@ -1456,8 +1454,8 @@ proto_register_cdp(void)
       { &hf_cdp_location, { "Location", "cdp.location", FT_STRING, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_cdp_request_id, { "Request-ID", "cdp.request_id", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_cdp_management_id, { "Management-ID", "cdp.management_id", FT_UINT16, BASE_DEC, NULL, 0x0, NULL, HFILL }},
-      { &hf_cdp_power_requested, { "Power Requested", "cdp.power_requested", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_mw), 0x0, NULL, HFILL }},
-      { &hf_cdp_power_available, { "Power Available", "cdp.power_available", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_mw), 0x0, NULL, HFILL }},
+      { &hf_cdp_power_requested, { "Power Requested", "cdp.power_requested", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_milliwatt), 0x0, NULL, HFILL }},
+      { &hf_cdp_power_available, { "Power Available", "cdp.power_available", FT_UINT32, BASE_DEC|BASE_UNIT_STRING, UNS(&units_milliwatt), 0x0, NULL, HFILL }},
       { &hf_cdp_encrypted_data, { "Encrypted Data", "cdp.encrypted_data", FT_BYTES, BASE_NONE, NULL, 0x0, NULL, HFILL }},
       { &hf_cdp_seen_sequence, { "Seen Sequence?", "cdp.seen_sequence", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},
       { &hf_cdp_sequence_number, { "Sequence Number", "cdp.sequence_number", FT_UINT32, BASE_DEC, NULL, 0x0, NULL, HFILL }},

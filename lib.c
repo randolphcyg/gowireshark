@@ -137,7 +137,7 @@ bool get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset, cJSON *cjson_hex,
   gboolean multiple_sources;
   GSList *src_le;
   tvbuff_t *tvb;
-  char *line, *name;
+  char *line, *description;
   const guchar *cp;
   guint length;
   struct data_source *src;
@@ -154,9 +154,9 @@ bool get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset, cJSON *cjson_hex,
     src = (struct data_source *)src_le->data;
     tvb = get_data_source_tvb(src);
     if (multiple_sources) {
-      name = get_data_source_name(src);
-      line = g_strdup_printf("%s:", name);
-      wmem_free(NULL, name);
+      description = get_data_source_description(src);
+      line = g_strdup_printf("%s:", description);
+      wmem_free(NULL, description);
       g_free(line);
     }
     length = tvb_captured_length(tvb);
@@ -196,6 +196,9 @@ bool init_env() {
    * @param load_wiretap_plugins Load Wiretap plugins when initializing library.
    */
   wtap_init(TRUE);
+
+  ws_log_set_level(LOG_LEVEL_WARNING);
+
   /**
    * Init the whole epan module.
    *
@@ -535,9 +538,9 @@ bool read_packet(epan_dissect_t **edt_r) {
   int64_t data_offset = 0;
   wtap_rec rec;
 
-  wtap_rec_init(&rec);
+  wtap_rec_init(&rec, 1514);
 
-  if (!wtap_read(cf.provider.wth, &rec, &cf.buf, &err, &err_info,
+  if (!wtap_read(cf.provider.wth, &rec, &err, &err_info,
                  &data_offset)) {
     wtap_rec_reset(&rec);
     return false;
@@ -557,22 +560,13 @@ bool read_packet(epan_dissect_t **edt_r) {
     return false;
   }
 
-  prime_epan_dissect_with_postdissector_wanted_hfids(edt);
   frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref,
                                 cf.provider.prev_dis);
 
   cf.provider.ref = &fd;
 
-  tvbuff_t *tvb = tvb_new_real_data(cf.buf.data, data_offset, data_offset);
-  if (!tvb) {
-    epan_dissect_free(edt);
-    frame_data_destroy(&fd);
-    wtap_rec_reset(&rec);
-    return false;
-  }
-
   // core dissect process
-  epan_dissect_run_with_taps(edt, cf.cd_t, &rec, tvb, &fd, &cf.cinfo);
+  epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
   frame_data_set_after_dissect(&fd, &cum_bytes);
 
   cf.provider.prev_cap = cf.provider.prev_dis =

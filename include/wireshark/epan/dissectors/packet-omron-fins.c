@@ -23,6 +23,8 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 void proto_register_omron_fins(void);
 void proto_reg_handoff_omron_fins(void);
 
@@ -3401,7 +3403,7 @@ dissect_omron_fins_tcp_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, 
     col_set_str(pinfo->cinfo, COL_PROTOCOL, "OMRON");
 
     col_add_fstr(pinfo->cinfo, COL_INFO, "FINS/TCP : %s",
-                 val_to_str(tcp_command, tcp_command_cv, "Unknown (%d)"));
+                 val_to_str(pinfo->pool, tcp_command, tcp_command_cv, "Unknown (%d)"));
 
     if (tree) {
         ti = proto_tree_add_item(tree, proto_omron_fins, tvb, 0, -1, ENC_NA);
@@ -4202,7 +4204,7 @@ proto_register_omron_fins(void)
 
     static ei_register_info ei[] = {
         { &ei_omron_command_code, { "omron.command.unknown", PI_UNDECODED, PI_WARN, "Unknown Command-Code", EXPFILL }},
-        { &ei_oomron_command_memory_area_code, { "omron.memory.area.read.unknown", PI_UNDECODED, PI_WARN, "Unknown Memory-Area-Code (%u)", EXPFILL }},
+        { &ei_oomron_command_memory_area_code, { "omron.memory.area.read.unknown", PI_UNDECODED, PI_WARN, "Unknown Memory-Area-Code", EXPFILL }},
         { &ei_omron_bad_length, { "omron.bad_length", PI_MALFORMED, PI_WARN, "Unexpected Length", EXPFILL }},
     };
 

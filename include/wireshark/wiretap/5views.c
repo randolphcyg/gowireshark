@@ -11,6 +11,8 @@
 
 #include <string.h>
 
+#include <wsutil/pint.h>
+
 #include "wtap-int.h"
 #include "file_wrappers.h"
 
@@ -73,7 +75,7 @@ typedef struct
 	uint32_t	RecSize;		/* Size of one record */
 	uint32_t	RecNb;			/* Number of records */
 	uint32_t	Utc;
-	uint32_t	NanoSecondes;
+	uint32_t	NanoSeconds;
 	uint32_t	RecInfo;		/* Info about Alarm / Event / Frame captured */
 }t_5VW_TimeStamped_Header;
 
@@ -84,14 +86,14 @@ typedef struct
 #define CST_5VW_CAPTURES_RECORD		(CST_5VW_SECTION_CAPTURES << 28)	/* 0x80000000 */
 #define CST_5VW_SYSTEM_RECORD		0x00000000U
 
-static bool _5views_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
+static bool _5views_read(wtap *wth, wtap_rec *rec, int *err,
     char **err_info, int64_t *data_offset);
 static bool _5views_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
-    Buffer *buf, int *err, char **err_info);
+    int *err, char **err_info);
 static bool _5views_read_header(wtap *wth, FILE_T fh, t_5VW_TimeStamped_Header *hdr,
     wtap_rec *rec, int *err, char **err_info);
 
-static bool _5views_dump(wtap_dumper *wdh, const wtap_rec *rec, const uint8_t *pd, int *err, char **err_info);
+static bool _5views_dump(wtap_dumper *wdh, const wtap_rec *rec, int *err, char **err_info);
 static bool _5views_dump_finish(wtap_dumper *wdh, int *err, char **err_info);
 
 static int _5views_file_type_subtype = -1;
@@ -119,7 +121,7 @@ _5views_open(wtap *wth, int *err, char **err_info)
 
 	/* Check Version */
 	Capture_Header.Info_Header.Version =
-	    pletoh32(&Capture_Header.Info_Header.Version);
+	    pletohu32(&Capture_Header.Info_Header.Version);
 	switch (Capture_Header.Info_Header.Version) {
 
 	case CST_5VW_INFO_RECORD_VERSION:
@@ -133,7 +135,7 @@ _5views_open(wtap *wth, int *err, char **err_info)
 
 	/* Check File Type */
 	Capture_Header.Info_Header.FileType =
-	    pletoh32(&Capture_Header.Info_Header.FileType);
+	    pletohu32(&Capture_Header.Info_Header.FileType);
 	if((Capture_Header.Info_Header.FileType & CST_5VW_CAPTURE_FILE_TYPE_MASK) != CST_5VW_CAPTURE_FILEID)
 	{
 		*err = WTAP_ERR_UNSUPPORTED;
@@ -182,7 +184,7 @@ _5views_open(wtap *wth, int *err, char **err_info)
 
 /* Read the next packet */
 static bool
-_5views_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
+_5views_read(wtap *wth, wtap_rec *rec, int *err,
     char **err_info, int64_t *data_offset)
 {
 	t_5VW_TimeStamped_Header TimeStamped_Header;
@@ -225,13 +227,13 @@ _5views_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
 		return false;
 	}
 
-	return wtap_read_packet_bytes(wth->fh, buf,
+	return wtap_read_bytes_buffer(wth->fh, &rec->data,
 	    rec->rec_header.packet_header.caplen, err, err_info);
 }
 
 static bool
 _5views_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
-    Buffer *buf, int *err, char **err_info)
+    int *err, char **err_info)
 {
 	t_5VW_TimeStamped_Header TimeStamped_Header;
 
@@ -251,8 +253,8 @@ _5views_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
 	/*
 	 * Read the packet data.
 	 */
-	return wtap_read_packet_bytes(wth->random_fh, buf, rec->rec_header.packet_header.caplen,
-	    err, err_info);
+	return wtap_read_bytes_buffer(wth->random_fh, &rec->data,
+	    rec->rec_header.packet_header.caplen, err, err_info);
 }
 
 /* Read the header of the next packet.  Return true on success, false
@@ -266,7 +268,7 @@ _5views_read_header(wtap *wth, FILE_T fh, t_5VW_TimeStamped_Header *hdr,
 	    err, err_info))
 		return false;
 
-	hdr->Key = pletoh32(&hdr->Key);
+	hdr->Key = pletohu32(&hdr->Key);
 	if (hdr->Key != CST_5VW_RECORDS_HEADER_KEY) {
 		*err = WTAP_ERR_BAD_FILE;
 		*err_info = ws_strdup_printf("5views: Time-stamped header has bad key value 0x%08X",
@@ -274,16 +276,16 @@ _5views_read_header(wtap *wth, FILE_T fh, t_5VW_TimeStamped_Header *hdr,
 		return false;
 	}
 
-	hdr->RecSubType = pletoh32(&hdr->RecSubType);
-	hdr->RecSize = pletoh32(&hdr->RecSize);
-	hdr->Utc = pletoh32(&hdr->Utc);
-	hdr->NanoSecondes = pletoh32(&hdr->NanoSecondes);
+	hdr->RecSubType = pletohu32(&hdr->RecSubType);
+	hdr->RecSize = pletohu32(&hdr->RecSize);
+	hdr->Utc = pletohu32(&hdr->Utc);
+	hdr->NanoSeconds = pletohu32(&hdr->NanoSeconds);
 
-	rec->rec_type = REC_TYPE_PACKET;
+	wtap_setup_packet_rec(rec, wth->file_encap);
 	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 	rec->presence_flags = WTAP_HAS_TS;
 	rec->ts.secs = hdr->Utc;
-	rec->ts.nsecs = hdr->NanoSecondes;
+	rec->ts.nsecs = hdr->NanoSeconds;
 	rec->rec_header.packet_header.caplen = hdr->RecSize;
 	rec->rec_header.packet_header.len = hdr->RecSize;
 
@@ -347,9 +349,8 @@ static bool _5views_dump_open(wtap_dumper *wdh, int *err, char **err_info _U_)
 
 /* Write a record for a packet to a dump file.
    Returns true on success, false on failure. */
-static bool _5views_dump(wtap_dumper *wdh,
-	const wtap_rec *rec,
-	const uint8_t *pd, int *err, char **err_info _U_)
+static bool _5views_dump(wtap_dumper *wdh, const wtap_rec *rec,
+	int *err, char **err_info _U_)
 {
 	_5views_dump_t *_5views = (_5views_dump_t *)wdh->priv;
 	t_5VW_TimeStamped_Header HeaderFrame;
@@ -357,6 +358,7 @@ static bool _5views_dump(wtap_dumper *wdh,
 	/* We can only write packet records. */
 	if (rec->rec_type != REC_TYPE_PACKET) {
 		*err = WTAP_ERR_UNWRITABLE_REC_TYPE;
+		*err_info = wtap_unwritable_rec_type_err_string(rec);
 		return false;
 	}
 
@@ -395,7 +397,7 @@ static bool _5views_dump(wtap_dumper *wdh,
 		return false;
 	}
 	HeaderFrame.Utc = GUINT32_TO_LE((uint32_t)rec->ts.secs);
-	HeaderFrame.NanoSecondes = GUINT32_TO_LE(rec->ts.nsecs);
+	HeaderFrame.NanoSeconds = GUINT32_TO_LE(rec->ts.nsecs);
 	HeaderFrame.RecSize = GUINT32_TO_LE(rec->rec_header.packet_header.len);
 	HeaderFrame.RecInfo = GUINT32_TO_LE(0);
 
@@ -405,7 +407,7 @@ static bool _5views_dump(wtap_dumper *wdh,
 		return false;
 
 	/* write the data */
-	if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
+	if (!wtap_dump_file_write(wdh, ws_buffer_start_ptr(&rec->data), rec->rec_header.packet_header.caplen, err))
 		return false;
 
 	_5views->nframes ++;

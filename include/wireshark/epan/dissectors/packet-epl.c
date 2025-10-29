@@ -76,11 +76,7 @@
 #include <wsutil/wslog.h>
 #include <string.h>
 
-#ifdef HAVE_LIBXML2
-	#define IF_LIBXML(x) x
-#else
-	#define IF_LIBXML(x)
-#endif
+#define IF_LIBXML(x) x
 
 void proto_register_epl(void);
 void proto_reg_handoff_epl(void);
@@ -1747,7 +1743,7 @@ static const struct epl_datatype {
 	{ "Time_of_Day",    &hf_epl_od_time,    ENC_NA },
 	{ "Time_Diff",      &hf_epl_od_time_difference, ENC_NA  },
 #endif
-	{ "NETTIME",        &hf_epl_od_time, ENC_TIME_SECS_NSECS, 8 },
+	{ "NETTIME",        &hf_epl_od_time, ENC_TIME_SECS_NSECS|ENC_BIG_ENDIAN, 8 },
 
 	{ 0, 0, 0, 0 }
 };
@@ -2966,12 +2962,12 @@ dissect_epl_pres(struct epl_convo *convo, proto_tree *epl_tree, tvbuff_t *tvb, p
 	if (pinfo->srcport != EPL_MN_NODEID)   /* check if the sender is CN or MN */
 	{
 		col_append_fstr(pinfo->cinfo, COL_INFO, "  %s",
-						val_to_str(state, epl_nmt_cs_vals, "Unknown(%d)"));
+						val_to_str(pinfo->pool, state, epl_nmt_cs_vals, "Unknown(%d)"));
 	}
 	else /* MN */
 	{
 		col_append_fstr(pinfo->cinfo, COL_INFO, "  %s",
-						val_to_str(state, epl_nmt_ms_vals, "Unknown(%d)"));
+						val_to_str(pinfo->pool, state, epl_nmt_ms_vals, "Unknown(%d)"));
 	}
 
 
@@ -3030,12 +3026,12 @@ dissect_epl_soa(proto_tree *epl_tree, tvbuff_t *tvb, packet_info *pinfo, int off
 	if (pinfo->srcport != EPL_MN_NODEID)   /* check if CN or MN */
 	{
 		col_append_fstr(pinfo->cinfo, COL_INFO, "  %s",
-						val_to_str(state, epl_nmt_cs_vals, "Unknown(%d)"));
+						val_to_str(pinfo->pool, state, epl_nmt_cs_vals, "Unknown(%d)"));
 	}
 	else /* MN */
 	{
 		col_append_fstr(pinfo->cinfo, COL_INFO, "  %s",
-						val_to_str(state, epl_nmt_ms_vals, "Unknown(%d)"));
+						val_to_str(pinfo->pool, state, epl_nmt_ms_vals, "Unknown(%d)"));
 	}
 
 	proto_tree_add_item(epl_tree, hf_epl_soa_eplv, tvb, offset, 1, ENC_LITTLE_ENDIAN);
@@ -3207,7 +3203,7 @@ dissect_epl_ainv(proto_tree *epl_tree, tvbuff_t *tvb, packet_info *pinfo, int of
 
 	svid = tvb_get_uint8(tvb, offset);
 
-	col_append_fstr(pinfo->cinfo, COL_INFO, "(%s)  ", rval_to_str(svid, asnd_svid_id_vals, "UNKNOWN(%d)"));
+	col_append_fstr(pinfo->cinfo, COL_INFO, "(%s)  ", rval_to_str_wmem(pinfo->pool, svid, asnd_svid_id_vals, "UNKNOWN(%d)"));
 
 	item = proto_tree_add_uint(epl_tree, hf_epl_asnd_svid, tvb, offset, 1, svid );
 	offset += 1;
@@ -3261,7 +3257,7 @@ dissect_epl_asnd_nmtreq(proto_tree *epl_tree, tvbuff_t *tvb, packet_info *pinfo,
 	offset += 2;
 
 	col_append_str(pinfo->cinfo, COL_INFO,
-						val_to_str_ext(rcid, &asnd_cid_vals_ext, "Unknown (%d)"));
+						val_to_str_ext(pinfo->pool, rcid, &asnd_cid_vals_ext, "Unknown (%d)"));
 
 	return offset;
 }
@@ -3327,7 +3323,7 @@ dissect_epl_asnd_nmtcmd(proto_tree *epl_tree, tvbuff_t *tvb, packet_info *pinfo,
 	proto_tree_add_uint(epl_tree, hf_epl_asnd_nmtcommand_cid, tvb, offset, 1, epl_asnd_nmtcommand_cid);
 	offset += 2;
 
-	col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext(epl_asnd_nmtcommand_cid, &asnd_cid_vals_ext, "Unknown(%d)"));
+	col_append_str(pinfo->cinfo, COL_INFO, val_to_str_ext(pinfo->pool, epl_asnd_nmtcommand_cid, &asnd_cid_vals_ext, "Unknown(%d)"));
 
 	switch (epl_asnd_nmtcommand_cid)
 	{
@@ -3356,7 +3352,7 @@ dissect_epl_asnd_nmtcmd(proto_tree *epl_tree, tvbuff_t *tvb, packet_info *pinfo,
 			errorcode = tvb_get_letohs(tvb, offset);
 			if (errorcode != 0)
 			{
-				col_append_fstr(pinfo->cinfo, COL_INFO, " (%s)", val_to_str(errorcode, errorcode_vals, "Unknown Error(0x%04x"));
+				col_append_fstr(pinfo->cinfo, COL_INFO, " (%s)", val_to_str(pinfo->pool, errorcode, errorcode_vals, "Unknown Error(0x%04x"));
 				proto_tree_add_item(epl_tree, hf_epl_asnd_nmtcommand_resetnode_reason, tvb, offset, 2, ENC_LITTLE_ENDIAN);
 			}
 			else
@@ -3521,7 +3517,7 @@ dissect_epl_asnd_ires(struct epl_convo *convo, proto_tree *epl_tree, tvbuff_t *t
 	proto_tree_add_item(epl_tree, hf_epl_asnd_identresponse_vex2, tvb, offset, 48, ENC_NA);
 	offset += 48;
 
-	col_append_str(pinfo->cinfo, COL_INFO, val_to_str(convo->device_type, epl_device_profiles, "Device Profile %d"));
+	col_append_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, convo->device_type, epl_device_profiles, "Device Profile %d"));
 
 	return offset;
 }
@@ -3598,7 +3594,7 @@ dissect_epl_asnd_sres(proto_tree *epl_tree, tvbuff_t *tvb, packet_info *pinfo, i
 	offset += 1;
 
 	nmt_state = tvb_get_uint8(tvb, offset);
-	col_append_fstr(pinfo->cinfo, COL_INFO, "%s   ", val_to_str(nmt_state, epl_nmt_cs_vals, "Unknown (%d)"));
+	col_append_fstr(pinfo->cinfo, COL_INFO, "%s   ", val_to_str(pinfo->pool, nmt_state, epl_nmt_cs_vals, "Unknown (%d)"));
 
 	if (pinfo->srcport != EPL_MN_NODEID)   /* check if CN or MN */
 	{
@@ -3861,7 +3857,7 @@ dissect_epl_sdo_command(proto_tree *epl_tree, tvbuff_t *tvb, packet_info *pinfo,
 		segment_size = tvb_get_letohs(tvb, offset + 3);
 
 		col_append_fstr(pinfo->cinfo, COL_INFO, "Cmd:%s,TID=%02d ",
-						val_to_str(segmented, epl_sdo_asnd_cmd_segmentation_abbr, " Inv(%d)"), transaction_id);
+						val_to_str(pinfo->pool, segmented, epl_sdo_asnd_cmd_segmentation_abbr, " Inv(%d)"), transaction_id);
 
 		proto_tree_add_item(sdo_cmd_tree, hf_epl_asnd_sdo_cmd_transaction_id, tvb, offset, 1, ENC_LITTLE_ENDIAN);
 		offset += 1;
@@ -4049,7 +4045,7 @@ dissect_epl_sdo_command_write_by_index(struct epl_convo *convo, proto_tree *epl_
 			sub_val = str_to_val(sub_str, sod_cmd_sub_str_val, error);
 
 			col_append_fstr(pinfo->cinfo, COL_INFO, "%s[%d]: (0x%04X/%d)",
-							val_to_str_ext(EPL_ASND_SDO_COMMAND_WRITE_BY_INDEX, &epl_sdo_asnd_commands_short_ext, "Command(%02X)"),
+							val_to_str_ext(pinfo->pool, EPL_ASND_SDO_COMMAND_WRITE_BY_INDEX, &epl_sdo_asnd_commands_short_ext, "Command(%02X)"),
 							segment_size, idx, subindex);
 
 			if (obj || sod_index == error)
@@ -4366,7 +4362,7 @@ dissect_epl_sdo_command_write_multiple_by_index(struct epl_convo *convo, proto_t
 	{   /* request */
 
 		col_append_fstr(pinfo->cinfo, COL_INFO, "%s[%d]:",
-				val_to_str_ext(EPL_ASND_SDO_COMMAND_WRITE_MULTIPLE_PARAMETER_BY_INDEX,
+				val_to_str_ext(pinfo->pool, EPL_ASND_SDO_COMMAND_WRITE_MULTIPLE_PARAMETER_BY_INDEX,
 				&epl_sdo_asnd_commands_short_ext, "Command(%02X)"),
 				segment_size);
 
@@ -4581,7 +4577,7 @@ dissect_epl_sdo_command_write_multiple_by_index(struct epl_convo *convo, proto_t
 	else
 	{
 		col_append_fstr(pinfo->cinfo, COL_INFO, "Response %s[%d]:",
-				val_to_str_ext(EPL_ASND_SDO_COMMAND_WRITE_MULTIPLE_PARAMETER_BY_INDEX,
+				val_to_str_ext(pinfo->pool, EPL_ASND_SDO_COMMAND_WRITE_MULTIPLE_PARAMETER_BY_INDEX,
 				&epl_sdo_asnd_commands_short_ext, "Command(%02X)"),
 				segment_size);
 
@@ -4699,7 +4695,7 @@ dissect_epl_sdo_command_read_multiple_by_index(struct epl_convo *convo, proto_tr
 	if (response)
 	{
 		col_append_fstr(pinfo->cinfo, COL_INFO, "%s[%d]:",
-				val_to_str_ext(EPL_ASND_SDO_COMMAND_READ_MULTIPLE_PARAMETER_BY_INDEX,
+				val_to_str_ext(pinfo->pool, EPL_ASND_SDO_COMMAND_READ_MULTIPLE_PARAMETER_BY_INDEX,
 				&epl_sdo_asnd_commands_short_ext, "Command(%02X)"),
 				segment_size);
 
@@ -4940,7 +4936,7 @@ dissect_epl_sdo_command_read_multiple_by_index(struct epl_convo *convo, proto_tr
 	else
 	{
 		col_append_fstr(pinfo->cinfo, COL_INFO, "Request %s[%d]:",
-				val_to_str_ext(EPL_ASND_SDO_COMMAND_READ_MULTIPLE_PARAMETER_BY_INDEX,
+				val_to_str_ext(pinfo->pool, EPL_ASND_SDO_COMMAND_READ_MULTIPLE_PARAMETER_BY_INDEX,
 				&epl_sdo_asnd_commands_short_ext, "Command(%02X)"),
 				segment_size);
 
@@ -5092,7 +5088,7 @@ dissect_epl_sdo_command_read_by_index(struct epl_convo *convo, proto_tree *epl_t
 		offset += 1;
 
 		col_append_fstr(pinfo->cinfo, COL_INFO, "%s[%d]: (0x%04X/%d)",
-						 val_to_str_ext(EPL_ASND_SDO_COMMAND_READ_BY_INDEX, &epl_sdo_asnd_commands_short_ext, "Command(%02X)"),
+						 val_to_str_ext(pinfo->pool, EPL_ASND_SDO_COMMAND_READ_BY_INDEX, &epl_sdo_asnd_commands_short_ext, "Command(%02X)"),
 						 segment_size, idx, subindex);
 		col_append_fstr(pinfo->cinfo, COL_INFO, " (%s", val_to_str_ext_const(((uint32_t) (idx << 16)), &sod_index_names, "User Defined"));
 		col_append_fstr(pinfo->cinfo, COL_INFO, "/%s)",val_to_str_ext_const((subindex|(idx<<16)), &sod_index_names, "User Defined"));
@@ -5238,14 +5234,14 @@ static struct profile *profile_load(wmem_allocator_t *allocator, const char *pat
 		if (!epl_eds_load(profile, path))
 			profile_del(profile);
 	}
-#if HAVE_LIBXML2
+
 	else if (g_str_has_suffix(path, ".xdd") || g_str_has_suffix(path, ".xdc"))
 	{
 		profile = profile_new(allocator);
 		if (!epl_xdd_load(profile, path))
 			profile_del(profile);
 	}
-#endif
+
 	if (!profile)
 		report_failure("Profile '%s' couldn't be parsed", path);
 
@@ -5345,6 +5341,7 @@ proto_register_epl(void)
 			{ "NetTime", "epl.soc.nettime",
 				FT_ABSOLUTE_TIME, ABSOLUTE_TIME_LOCAL, NULL, 0x0, NULL, HFILL }
 		},
+		/* TODO: should this be FT_RELATIVE_TIME? */
 		{ &hf_epl_soc_relativetime,
 			{ "RelativeTime", "epl.soc.relativetime",
 				FT_UINT64, BASE_DEC, NULL, 0x0, NULL, HFILL }
@@ -6383,10 +6380,8 @@ proto_register_epl(void)
 	prefs_register_bool_preference(epl_module, "use_sdo_mappings", "Use SDO ObjectMappings for PDO dissection",
 		"Partition PDOs according to ObjectMappings sent via SDO", &use_sdo_mappings);
 
-#ifdef HAVE_LIBXML2
 	prefs_register_bool_preference(epl_module, "use_xdc_mappings", "Use XDC ObjectMappings for PDO dissection",
 		"If you want to parse the defaultValue (XDD) and actualValue (XDC) attributes for ObjectMappings in order to detect default PDO mappings, which may not be sent over SDO ", &use_xdc_mappings);
-#endif
 
 	prefs_register_bool_preference(epl_module, "interpret_untyped_as_le", "Interpret short (<64bit) data as little endian integers",
 		"If a data field has untyped data under 8 byte long, interpret it as unsigned little endian integer and show decimal and hexadecimal representation thereof. Otherwise use stock data dissector", &interpret_untyped_as_le);
@@ -6516,13 +6511,8 @@ epl_profile_uat_fld_fileopen_check_cb(void *record _U_, const char *path, unsign
 
 	if (g_str_has_suffix(path, ".xdd") || g_str_has_suffix(path, ".xdc"))
 	{
-#ifdef HAVE_LIBXML2
 		*err = NULL;
 		return true;
-#else
-		*err = ws_strdup_printf("*.xdd and *.xdc support not compiled in. %s", supported);
-		return false;
-#endif
 	}
 
 	*err = g_strdup(supported);

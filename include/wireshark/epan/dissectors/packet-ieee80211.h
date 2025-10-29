@@ -34,8 +34,12 @@ typedef struct {
 typedef struct {
   uint16_t discovered_key_mic_len; /* Discovered from the first EAPOL frame */
   bool last_akm_suite_set;    /* Have we set this? */
+  bool mld_set;
   uint32_t last_akm_suite;
   uint16_t owe_group;
+  uint16_t sae_group;
+  uint8_t ap_mld[6];
+  uint8_t sta_mld[6];
 } ieee80211_conversation_data_t;
 
 typedef struct {
@@ -153,7 +157,7 @@ bool is_broadcast_bssid(const address *bssid);
 #define FLAG_TO_DS            0x01
 #define FLAG_FROM_DS          0x02
 #define FLAG_MORE_FRAGMENTS   0x04
-#define FLAG_RETRY            0x08
+#define FLAG_RETRY            0x08    /* overloaded for S1G dynamic indication */
 #define FLAG_POWER_MGT        0x10
 #define FLAG_MORE_DATA        0x20
 #define FLAG_PROTECTED        0x40
@@ -349,6 +353,11 @@ typedef struct anqp_info_dissector_data {
 #define WFA_SUBTYPE_OWE_TRANSITION_MODE        28
 #define WFA_SUBTYPE_TRANSITION_DISABLE_KDE     32
 #define WFA_SUBTYPE_QOS_MGMT                   34 /* 0x22 */
+#define WFA_SUBTYPE_RSN_OVERRIDE               41 /* 0x29 */
+#define WFA_SUBTYPE_RSN_OVERRIDE_2             42 /* 0x2A */
+#define WFA_SUBTYPE_RSNX_OVERRIDE              43 /* 0x2B */
+#define WFA_SUBTYPE_RSN_SELECTION              44 /* 0x2C */
+#define WFA_SUBTYPE_RSN_OVERRIDE_LINK_KDE      45 /* 0x2D */
 
 /* WFA Public Action Types */
 #define WFA_SUBTYPE_ACTION_QOS_MGMT          0x1A
@@ -393,7 +402,7 @@ typedef struct anqp_info_dissector_data {
 #define TAG_ERP_INFO                  42
 #define TAG_TS_DELAY                  43
 #define TAG_TCLAS_PROCESS             44
-#define TAG_HT_CAPABILITY             45 /* IEEE Stc 802.11n/D2.0 */
+#define TAG_HT_CAPABILITY             45 /* IEEE Std 802.11n */
 #define TAG_QOS_CAPABILITY            46
 #define TAG_ERP_INFO_OLD              47 /* IEEE Std 802.11g/D4.0 */
 #define TAG_RSN_IE                    48
@@ -409,7 +418,7 @@ typedef struct anqp_info_dissector_data {
 #define TAG_DSE_REG_LOCATION          58
 #define TAG_SUPPORTED_OPERATING_CLASSES             59 /* IEEE Std 802.11w-2009 */
 #define TAG_EXTENDED_CHANNEL_SWITCH_ANNOUNCEMENT    60 /* IEEE Std 802.11w-2009 */
-#define TAG_HT_INFO                   61  /* IEEE Stc 802.11n/D2.0 */
+#define TAG_HT_OPERATION              61  /* IEEE Std 802.11n */
 #define TAG_SECONDARY_CHANNEL_OFFSET  62  /* IEEE Stc 802.11n/D1.10/D2.0 */
 #define TAG_BSS_AVG_ACCESS_DELAY      63
 #define TAG_ANTENNA                   64

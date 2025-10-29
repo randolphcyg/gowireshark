@@ -92,13 +92,13 @@ static dissector_handle_t rlc_ps_dtch_handle;
 static dissector_handle_t rrc_handle;
 
 /* MAC-is reassembly */
-static unsigned MAX_TSN = 64;
+static size_t MAX_TSN = 64;
 static uint16_t mac_tsn_size = 6;
 static int global_mac_tsn_size = MAC_TSN_6BITS;
 int get_mac_tsn_size(void) { return global_mac_tsn_size; }
 static const enum_val_t tsn_size_enumvals[] = {
-    {"6 bits",  "6 bits",  MAC_TSN_6BITS},
-    {"14 bits", "14 bits", MAC_TSN_14BITS},
+    {"6",  "6 bits",  MAC_TSN_6BITS},
+    {"14", "14 bits", MAC_TSN_14BITS},
     {NULL, NULL, -1}};
 enum mac_is_fragment_type {
     MAC_IS_HEAD,
@@ -858,9 +858,8 @@ static body_parts ** get_body_parts(mac_is_channel * ch)
     /* If there was no body_part* array for this channel, create one. */
     if (bpa == NULL) {
         mac_is_channel * channel;
-        uint16_t i;
         bpa = wmem_alloc_array(wmem_file_scope(), body_parts*, MAX_TSN); /* Create new body_parts-pointer array */
-        for (i = 0; i < MAX_TSN; i++) {
+        for (size_t i = 0; i < MAX_TSN; i++) {
             bpa[i] = wmem_new0(wmem_file_scope(), body_parts); /* Fill it with body_parts. */
         }
         channel = wmem_new(wmem_file_scope(), mac_is_channel); /* Alloc new channel for use in hash table. */
@@ -1535,7 +1534,7 @@ proto_register_umts_mac(void)
         { &ei_mac_unknown_content, { "mac.unknown_content", PI_MALFORMED, PI_ERROR, "Unknown RACH DCCH/DTCH Content", EXPFILL }},
         { &ei_mac_rach_tctf_unknown, { "mac.rach_tctf.unknown", PI_MALFORMED, PI_ERROR, "Unknown RACH TCTF", EXPFILL }},
         { &ei_mac_cs_dtch_not_implemented, { "mac.cs_dtch.not_implemented", PI_DEBUG, PI_ERROR, "CS DTCH Is not implemented", EXPFILL }},
-        { &ei_mac_fach_content_type_unknown, { "mac.fach_content_type.unknown", PI_UNDECODED, PI_WARN, " Unimplemented FACH Content type!", EXPFILL }},
+        { &ei_mac_fach_content_type_unknown, { "mac.fach_content_type.unknown", PI_UNDECODED, PI_WARN, "Unimplemented FACH Content type!", EXPFILL }},
         { &ei_mac_no_logical_channel, { "mac.no_logical_channel", PI_PROTOCOL, PI_WARN, "Frame is missing logical channel", EXPFILL }},
         { &ei_mac_faked_logical_channel_id, { "mac.faked_logical_channel_id", PI_PROTOCOL, PI_WARN, "This is a faked logical channel id!", EXPFILL }},
         { &ei_mac_macis_sdu_reassembled, { "mac.macis_sdu.reassembled", PI_REASSEMBLE, PI_CHAT, "Reassembled MAC-is SDU", EXPFILL }},

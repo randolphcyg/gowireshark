@@ -179,9 +179,8 @@ dissect_idmp_OBJECT_IDENTIFIER(bool implicit_tag _U_, tvbuff_t *tvb _U_, int off
 
 static int
 dissect_idmp_Bind_argument(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	struct SESSION_DATA_STRUCTURE *session = (struct SESSION_DATA_STRUCTURE*)actx->private_data;
-
-	return call_idmp_oid_callback(tvb, offset, actx->pinfo, (ROS_OP_BIND | ROS_OP_ARGUMENT), top_tree, session);
+  struct SESSION_DATA_STRUCTURE *session = (struct SESSION_DATA_STRUCTURE*)actx->private_data;
+  offset = call_idmp_oid_callback(tvb, offset, actx->pinfo, (ROS_OP_BIND | ROS_OP_ARGUMENT), top_tree, session);
 
 
   return offset;
@@ -198,13 +197,13 @@ static const ber_sequence_t IdmBind_sequence[] = {
 
 static int
 dissect_idmp_IdmBind(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	protocolID = saved_protocolID = NULL;
+  protocolID = saved_protocolID = NULL;
   offset = dissect_ber_sequence(implicit_tag, actx, tree, tvb, offset,
                                    IdmBind_sequence, hf_index, ett_idmp_IdmBind);
 
-	if (protocolID) {
-		saved_protocolID = wmem_strdup(wmem_epan_scope(), protocolID);
-	}
+  if (protocolID) {
+    saved_protocolID = wmem_strdup(wmem_epan_scope(), protocolID);
+  }
   return offset;
 }
 
@@ -212,9 +211,8 @@ dissect_idmp_IdmBind(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, a
 
 static int
 dissect_idmp_Bind_result(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	struct SESSION_DATA_STRUCTURE *session = (struct SESSION_DATA_STRUCTURE*)actx->private_data;
-
-	return call_idmp_oid_callback(tvb, offset, actx->pinfo, (ROS_OP_BIND | ROS_OP_RESULT), top_tree, session);
+  struct SESSION_DATA_STRUCTURE *session = (struct SESSION_DATA_STRUCTURE*)actx->private_data;
+  offset = call_idmp_oid_callback(tvb, offset, actx->pinfo, (ROS_OP_BIND | ROS_OP_RESULT), top_tree, session);
 
 
   return offset;
@@ -265,9 +263,8 @@ dissect_idmp_T_aETitleError(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset
 
 static int
 dissect_idmp_Bind_error(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	struct SESSION_DATA_STRUCTURE *session = (struct SESSION_DATA_STRUCTURE*)actx->private_data;
-
-	return call_idmp_oid_callback(tvb, offset, actx->pinfo, (ROS_OP_BIND| ROS_OP_ERROR), top_tree, session);
+  struct SESSION_DATA_STRUCTURE *session = (struct SESSION_DATA_STRUCTURE*)actx->private_data;
+  offset = call_idmp_oid_callback(tvb, offset, actx->pinfo, (ROS_OP_BIND| ROS_OP_ERROR), top_tree, session);
 
 
   return offset;
@@ -337,9 +334,8 @@ dissect_idmp_Code(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1
 
 static int
 dissect_idmp_T_argument(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	struct SESSION_DATA_STRUCTURE *session = (struct SESSION_DATA_STRUCTURE*)actx->private_data;
-
-	return call_idmp_oid_callback(tvb, offset, actx->pinfo, (ROS_OP_INVOKE | ROS_OP_ARGUMENT | opcode), top_tree, session);
+  struct SESSION_DATA_STRUCTURE *session = (struct SESSION_DATA_STRUCTURE*)actx->private_data;
+  offset = call_idmp_oid_callback(tvb, offset, actx->pinfo, (ROS_OP_INVOKE | ROS_OP_ARGUMENT | opcode), top_tree, session);
 
 
   return offset;
@@ -396,9 +392,8 @@ dissect_idmp_InvokeId(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, 
 
 static int
 dissect_idmp_T_result(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-	struct SESSION_DATA_STRUCTURE *session = (struct SESSION_DATA_STRUCTURE*)actx->private_data;
-
-	return call_idmp_oid_callback(tvb, offset, actx->pinfo, (ROS_OP_INVOKE | ROS_OP_RESULT | opcode), top_tree, session);
+  struct SESSION_DATA_STRUCTURE *session = (struct SESSION_DATA_STRUCTURE*)actx->private_data;
+  offset = call_idmp_oid_callback(tvb, offset, actx->pinfo, (ROS_OP_INVOKE | ROS_OP_RESULT | opcode), top_tree, session);
 
 
   return offset;
@@ -784,11 +779,11 @@ void proto_register_idmp(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_idmp_idm_result,
-      { "result", "idmp.result_element",
+      { "result", "idmp.idm_result_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "IdmResult", HFILL }},
     { &hf_idmp_idm_error,
-      { "error", "idmp.error_element",
+      { "error", "idmp.idm_error_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_idmp_reject,
@@ -824,7 +819,7 @@ void proto_register_idmp(void)
         FT_UINT32, BASE_DEC, VALS(x509ce_GeneralName_vals), 0,
         "GeneralName", HFILL }},
     { &hf_idmp_bind_argument,
-      { "argument", "idmp.argument_element",
+      { "argument", "idmp.bind_argument_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "Bind_argument", HFILL }},
     { &hf_idmp_respondingAETitle,
@@ -832,11 +827,11 @@ void proto_register_idmp(void)
         FT_UINT32, BASE_DEC, VALS(x509ce_GeneralName_vals), 0,
         "GeneralName", HFILL }},
     { &hf_idmp_bind_result,
-      { "result", "idmp.result_element",
+      { "result", "idmp.bind_result_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "Bind_result", HFILL }},
     { &hf_idmp_bind_errcode,
-      { "errcode", "idmp.errcode_element",
+      { "errcode", "idmp.bind_errcode_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "Bind_errcode", HFILL }},
     { &hf_idmp_aETitleError,
@@ -844,7 +839,7 @@ void proto_register_idmp(void)
         FT_UINT32, BASE_DEC, VALS(idmp_T_aETitleError_vals), 0,
         NULL, HFILL }},
     { &hf_idmp_bind_error,
-      { "error", "idmp.error_element",
+      { "error", "idmp.bind_error_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "Bind_error", HFILL }},
     { &hf_idmp_invokeID,

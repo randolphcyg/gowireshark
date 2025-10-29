@@ -1,6 +1,8 @@
 /* packet-collectd.c
  * Routines for collectd (http://collectd.org/) network plugin dissection
  *
+ * https://github.com/collectd/collectd/wiki/Binary-protocol
+ *
  * Copyright 2008 Bruno Premont <bonbons at linux-vserver.org>
  * Copyright 2009-2013 Florian Forster <octo at collectd.org>
  *
@@ -15,10 +17,14 @@
 
 #include <epan/packet.h>
 #include <epan/expert.h>
+#include <epan/proto_data.h>
 #include <epan/stats_tree.h>
 #include <epan/to_str.h>
+#include <epan/uat.h>
+#include <epan/exceptions.h>
 
 #include <wsutil/str_util.h>
+#include <wsutil/wsgcrypt.h>
 
 #define STR_NONNULL(str) ((str) ? ((const char*)str) : "(null)")
 
@@ -40,6 +46,9 @@
 void proto_register_collectd(void);
 
 static dissector_handle_t collectd_handle;
+
+#define TAP_DATA_KEY 0
+#define COL_DATA_KEY 1
 
 typedef struct value_data_s {
 	const uint8_t *host;
@@ -92,6 +101,16 @@ typedef struct tap_data_s {
 	string_counter_t *plugins;
 	string_counter_t *types;
 } tap_data_t;
+
+typedef struct column_data_s {
+	unsigned pkt_plugins;
+	unsigned pkt_values;
+	unsigned pkt_messages;
+	unsigned pkt_unknown;
+	unsigned pkt_errors;
+
+	const uint8_t *pkt_host;
+} column_data_t;
 
 static const value_string part_names[] = {
 	{ TYPE_VALUES,          "VALUES" },
@@ -158,6 +177,7 @@ static int hf_collectd_val_unknown;
 static int hf_collectd_data_severity;
 static int hf_collectd_data_message;
 static int hf_collectd_data_sighash;
+static int hf_collectd_data_sighash_status;
 static int hf_collectd_data_initvec;
 static int hf_collectd_data_username_len;
 static int hf_collectd_data_username;
@@ -185,9 +205,149 @@ static expert_field ei_collectd_type;
 static expert_field ei_collectd_invalid_length;
 static expert_field ei_collectd_data_valcnt;
 static expert_field ei_collectd_garbage;
+static expert_field ei_collectd_sighash_bad;
 
 /* Prototype for the handoff function */
 void proto_reg_handoff_collectd (void);
+
+typedef struct {
+	char *username;
+	char *password;
+
+	bool cipher_hd_created;
+	bool md_hd_created;
+	gcry_cipher_hd_t cipher_hd;
+	gcry_md_hd_t md_hd;
+
+} uat_collectd_record_t;
+
+static uat_collectd_record_t *uat_collectd_records;
+
+static uat_t *collectd_uat;
+static unsigned num_uat;
+
+UAT_CSTRING_CB_DEF(uat_collectd_records, username, uat_collectd_record_t)
+UAT_CSTRING_CB_DEF(uat_collectd_records, password, uat_collectd_record_t)
+
+static void*
+uat_collectd_record_copy_cb(void* n, const void* o, size_t size _U_) {
+	uat_collectd_record_t* new_rec = (uat_collectd_record_t *)n;
+	const uat_collectd_record_t* old_rec = (const uat_collectd_record_t *)o;
+
+	new_rec->username = g_strdup(old_rec->username);
+	new_rec->password = g_strdup(old_rec->password);
+
+	new_rec->cipher_hd_created = FALSE;
+	new_rec->md_hd_created = FALSE;
+
+	return new_rec;
+}
+
+static bool
+uat_collectd_record_update_cb(void* r, char** err _U_) {
+	uat_collectd_record_t* rec = (uat_collectd_record_t *)r;
+
+	if (rec->cipher_hd_created) {
+		gcry_cipher_close(rec->cipher_hd);
+		rec->cipher_hd_created = false;
+	}
+	if (rec->md_hd_created) {
+		gcry_md_close(rec->md_hd);
+		rec->md_hd_created = false;
+	}
+
+	return true;
+}
+
+static void
+uat_collectd_record_free_cb(void* r) {
+	uat_collectd_record_t* rec = (uat_collectd_record_t *)r;
+
+	g_free(rec->username);
+	g_free(rec->password);
+
+	if (rec->cipher_hd_created) {
+		gcry_cipher_close(rec->cipher_hd);
+		rec->cipher_hd_created = false;
+	}
+	if (rec->md_hd_created) {
+		gcry_md_close(rec->md_hd);
+		rec->md_hd_created = false;
+	}
+}
+
+static uat_collectd_record_t*
+collectd_get_record(const char* username)
+{
+	uat_collectd_record_t *record = NULL;
+	for (unsigned i = 0; i < num_uat; ++i) {
+		record = &uat_collectd_records[i];
+		if (strcmp(username, record->username) == 0) {
+			return record;
+		}
+	}
+	return NULL;
+}
+
+static gcry_cipher_hd_t*
+collectd_get_cipher(const char* username)
+{
+	uat_collectd_record_t *record = collectd_get_record(username);
+	if (record == NULL) {
+		return NULL;
+	}
+	if (record->cipher_hd_created) {
+		return &record->cipher_hd;
+	}
+	gcry_error_t err;
+	unsigned char password_hash[32];
+	DISSECTOR_ASSERT(record->password);
+	gcry_md_hash_buffer(GCRY_MD_SHA256, password_hash, record->password, strlen(record->password));
+	if (gcry_cipher_open(&record->cipher_hd, GCRY_CIPHER_AES256, GCRY_CIPHER_MODE_OFB, 0)) {
+		gcry_cipher_close(record->cipher_hd);
+		ws_debug("error opening aes256 cipher handle");
+		return NULL;
+	}
+
+	err = gcry_cipher_setkey(record->cipher_hd, password_hash, sizeof(password_hash));
+	if (err != 0) {
+		gcry_cipher_close(record->cipher_hd);
+		ws_debug("error setting key");
+		return NULL;
+	}
+	record->cipher_hd_created = true;
+	return &record->cipher_hd;
+}
+
+static gcry_md_hd_t*
+collectd_get_md(const char* username)
+{
+	uat_collectd_record_t *record = collectd_get_record(username);
+	if (record == NULL) {
+		return NULL;
+	}
+	if (record->md_hd_created) {
+		gcry_md_reset(record->md_hd);
+		return &record->md_hd;
+	}
+	gcry_error_t err;
+	DISSECTOR_ASSERT(record->password);
+	err = gcry_md_open(&record->md_hd, GCRY_MD_SHA256, GCRY_MD_FLAG_HMAC);
+	if (err != 0) {
+		gcry_md_close(record->md_hd);
+		ws_debug("error opening sha256 message digest handle: %s", gcry_strerror(err));
+		return NULL;
+	}
+
+	err = gcry_md_setkey(record->md_hd, record->password, strlen(record->password));
+	if (err != 0) {
+		gcry_md_close(record->md_hd);
+		ws_debug("error setting key: %s", gcry_strerror(err));
+		return NULL;
+	}
+	record->md_hd_created = true;
+	return &record->md_hd;
+}
 
 static nstime_t
 collectd_time_to_nstime (uint64_t t)
@@ -381,7 +541,7 @@ dissect_collectd_string (tvbuff_t *tvb, packet_info *pinfo, int type_hf,
 
 	proto_tree_add_uint (pt, hf_collectd_type, tvb, offset, 2, type);
 	proto_tree_add_uint (pt, hf_collectd_length, tvb, offset + 2, 2, length);
-	proto_tree_add_item_ret_string (pt, type_hf, tvb, *ret_offset, *ret_length, ENC_ASCII|ENC_NA, pinfo->pool, ret_string);
+	proto_tree_add_item_ret_string (pt, type_hf, tvb, *ret_offset, *ret_length, ENC_ASCII, pinfo->pool, ret_string);
 
 	proto_item_append_text(pt, "\"%s\"", *ret_string);
 
@@ -727,6 +887,7 @@ dissect_collectd_signature (tvbuff_t *tvb, packet_info *pinfo,
 	int type;
 	int length;
 	int size;
+	const uint8_t *username;
 
 	size = tvb_reported_length_remaining (tvb, offset);
 	if (size < 4)
@@ -776,15 +937,42 @@ dissect_collectd_signature (tvbuff_t *tvb, packet_info *pinfo,
 	proto_tree_add_uint (pt, hf_collectd_type, tvb, offset, 2, type);
 	proto_tree_add_uint (pt, hf_collectd_length, tvb, offset + 2, 2,
 			     length);
-	proto_tree_add_item (pt, hf_collectd_data_sighash, tvb, offset + 4, 32, ENC_NA);
-	proto_tree_add_item (pt, hf_collectd_data_username, tvb, offset + 36, length - 36, ENC_ASCII);
-
+	// proto_tree_add_checksum adds two ti but only returns the first,
+	// which makes it hard to move the username after the second item,
+	// so extract the string directly, then add a username item later.
+	//
+	// XXX - Are we sure this string is ASCII? Probably UTF-8 these days.
+	// The same goes for all the other strings in the protocol.
+	username = tvb_get_string_enc(pinfo->pool, tvb, offset + 36, length - 36, ENC_ASCII);
+	uint8_t *hash = NULL;
+	gcry_md_hd_t *md_hd = collectd_get_md(username);
+	if (md_hd) {
+		uint8_t *buffer = tvb_memdup(pinfo->pool, tvb, offset + 36, tvb_reported_length_remaining(tvb, offset + 36));
+		gcry_md_write(*md_hd, buffer, size - 36);
+		hash = gcry_md_read(*md_hd, GCRY_MD_SHA256);
+		if (hash == NULL) {
+			ws_debug("gcry_md_read failed");
+		}
+	}
+	proto_tree_add_checksum_bytes(pt, tvb, offset + 4, hf_collectd_data_sighash,
+		hf_collectd_data_sighash_status, &ei_collectd_sighash_bad, pinfo,
+		hash, 32, hash ? PROTO_CHECKSUM_VERIFY : PROTO_CHECKSUM_NO_FLAGS);
+	proto_tree_add_item(pt, hf_collectd_data_username, tvb, offset + 36, length - 36, ENC_ASCII);
 	return 0;
 } /* int dissect_collectd_signature */
 
+/* We recurse after decrypting. In practice encryption is always the first
+ * part and contains everything, so we could avoid recursion by checking
+ * for it at the start of dissect_collect and not try to decrypt encrypted
+ * parts in other positions. */
 static int
-dissect_collectd_encrypted (tvbuff_t *tvb, packet_info *pinfo,
-			    int offset, proto_tree *tree_root)
+// NOLINTNEXTLINE(misc-no-recursion)
+dissect_collectd_parts(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_);
+
+static int
+// NOLINTNEXTLINE(misc-no-recursion)
+dissect_collectd_encrypted(tvbuff_t *tvb, packet_info *pinfo,
+			   int offset, proto_tree *tree_root)
 {
 	proto_item *pi;
 	proto_tree *pt;
@@ -792,6 +980,7 @@ dissect_collectd_encrypted (tvbuff_t *tvb, packet_info *pinfo,
 	int length;
 	int size;
 	int username_length;
+	const uint8_t *username;
 
 	size = tvb_reported_length_remaining (tvb, offset);
 	if (size < 4)
@@ -856,16 +1045,54 @@ dissect_collectd_encrypted (tvbuff_t *tvb, packet_info *pinfo,
 				  ett_collectd_encryption, NULL, "collectd %s segment: AES-256",
 				  val_to_str_const (type, part_names, "UNKNOWN"));
 
-	proto_tree_add_uint (pt, hf_collectd_type, tvb, offset, 2, type);
-	proto_tree_add_uint (pt, hf_collectd_length, tvb, offset + 2, 2, length);
-	proto_tree_add_uint (pt, hf_collectd_data_username_len, tvb, offset + 4, 2, username_length);
-	proto_tree_add_item (pt, hf_collectd_data_username, tvb, offset + 6, username_length, ENC_ASCII);
-	proto_tree_add_item (pt, hf_collectd_data_initvec, tvb,
-			     offset + (6 + username_length), 16, ENC_NA);
-	proto_tree_add_item (pt, hf_collectd_data_encrypted, tvb,
-			     offset + (22 + username_length),
-			     length - (22 + username_length), ENC_NA);
+	proto_tree_add_uint(pt, hf_collectd_type, tvb, offset, 2, type);
+	offset += 2;
+	proto_tree_add_uint(pt, hf_collectd_length, tvb, offset, 2, length);
+	offset += 2;
+	proto_tree_add_uint(pt, hf_collectd_data_username_len, tvb, offset, 2, username_length);
+	offset += 2;
+	proto_tree_add_item_ret_string(pt, hf_collectd_data_username, tvb, offset, username_length, ENC_ASCII, pinfo->pool, &username);
+	offset += username_length;
 
+	proto_tree_add_item(pt, hf_collectd_data_initvec, tvb,
+			     offset, 16, ENC_NA);
+	offset += 16;
+
+	int buffer_size = length - (22 + username_length);
+	// Must be >= 20 (checked above)
+	proto_tree_add_item(pt, hf_collectd_data_encrypted, tvb,
+			    offset,
+			    buffer_size, ENC_NA);
+	gcry_cipher_hd_t *cipher_hd;
+	cipher_hd = collectd_get_cipher(username);
+	if (cipher_hd) {
+		gcry_error_t err;
+		uint8_t iv[16];
+		tvb_memcpy(tvb, iv, offset - 16, 16);
+		err = gcry_cipher_setiv(*cipher_hd, iv, 16);
+		if (err != 0) {
+			ws_debug("error setting key: %s", gcry_strerror(err));
+			return 0; // Should there be another return code for this?
+		}
+		uint8_t *buffer = tvb_memdup(pinfo->pool, tvb, offset, buffer_size);
+		err = gcry_cipher_decrypt(*cipher_hd, buffer, buffer_size, NULL, 0);
+		if (err != 0) {
+			ws_debug("gcry_cipher_decrypt failed: %s", gcry_strerror(err));
+			return 0; // Should there be another return code for this?
+		}
+		tvbuff_t *decrypted_tvb = tvb_new_child_real_data(tvb, buffer, buffer_size, buffer_size);
+		add_new_data_source(pinfo, decrypted_tvb, "Decrypted collectd");
+		uint8_t hash[20];
+		gcry_md_hash_buffer(GCRY_MD_SHA1, hash, buffer + 20, buffer_size - 20);
+		proto_tree_add_checksum_bytes(pt, decrypted_tvb, 0, hf_collectd_data_sighash,
+			hf_collectd_data_sighash_status, &ei_collectd_sighash_bad, pinfo,
+			hash, 20, PROTO_CHECKSUM_VERIFY);
+		if (tvb_memeql(decrypted_tvb, 0, hash, 20) == 0) {
+			// We recurse here, but consumed 22 + username_len bytes
+			// so we'll run out of packet before stack exhaustion.
+			dissect_collectd_parts(tvb_new_subset_remaining(decrypted_tvb, 20), pinfo, tree_root, NULL);
+		}
+	}
 	return 0;
 } /* int dissect_collectd_encrypted */
 
@@ -898,125 +1125,30 @@ stats_account_string (wmem_allocator_t *scope, string_counter_t **ret_list, cons
 }
 
 static int
-dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+// NOLINTNEXTLINE(misc-no-recursion)
+dissect_collectd_parts(tvbuff_t *tvb, packet_info *pinfo, proto_tree *collectd_tree, void* data _U_)
 {
-	static tap_data_t tap_data;
-
 	int offset;
 	int size;
-	const uint8_t *pkt_host = NULL;
-	int pkt_plugins = 0, pkt_values = 0, pkt_messages = 0, pkt_unknown = 0, pkt_errors = 0;
 	value_data_t vdispatch;
 	notify_data_t ndispatch;
 	int status;
 	proto_item *pi;
-	proto_tree *collectd_tree;
 	proto_tree *pt;
 
 	memset(&vdispatch, '\0', sizeof(vdispatch));
 	memset(&ndispatch, '\0', sizeof(ndispatch));
 
-	col_set_str(pinfo->cinfo, COL_PROTOCOL, "collectd");
-	col_clear(pinfo->cinfo, COL_INFO);
-
-	offset = 0;
-	size = tvb_reported_length(tvb);
-
-	/* create the collectd protocol tree */
-	pi = proto_tree_add_item(tree, proto_collectd, tvb, 0, -1, ENC_NA);
-	collectd_tree = proto_item_add_subtree(pi, ett_collectd);
-
-	memset (&tap_data, 0, sizeof (tap_data));
+	tap_data_t *tap_data = p_get_proto_data(pinfo->pool, pinfo, proto_collectd, TAP_DATA_KEY);
+	column_data_t *col_data = p_get_proto_data(pinfo->pool, pinfo, proto_collectd, COL_DATA_KEY);
 
 	status = 0;
+	offset = 0;
+	size = tvb_reported_length(tvb);
 	while ((size > 0) && (status == 0))
 	{
-
 		int part_type;
 		int part_length;
-
-		/* Let's handle the easy case first real quick: All we do here
-		 * is extract a host name and count the number of values,
-		 * plugins and notifications. The payload is not checked at
-		 * all, but the same checks are run on the part_length stuff -
-		 * it's important to keep an eye on that. */
-		if (!tree)
-		{
-			/* Check for garbage at end of packet. */
-			if (size < 4)
-			{
-				pkt_errors++;
-				break;
-			}
-
-			part_type = tvb_get_ntohs (tvb, offset);
-			part_length  = tvb_get_ntohs (tvb, offset+2);
-
-			/* Check if part_length is in the valid range. */
-			if ((part_length < 4) || (part_length > size))
-			{
-				pkt_errors++;
-				break;
-			}
-
-			switch (part_type) {
-			case TYPE_HOST:
-				vdispatch.host = tvb_get_string_enc(pinfo->pool, tvb,
-						offset + 4, part_length - 4, ENC_ASCII);
-				if (pkt_host == NULL)
-					pkt_host = vdispatch.host;
-				break;
-			case TYPE_TIME:
-			case TYPE_TIME_HR:
-				break;
-			case TYPE_PLUGIN:
-				vdispatch.plugin = tvb_get_string_enc(pinfo->pool, tvb,
-						offset + 4, part_length - 4, ENC_ASCII);
-				pkt_plugins++;
-				break;
-			case TYPE_PLUGIN_INSTANCE:
-				break;
-			case TYPE_TYPE:
-				vdispatch.type = tvb_get_string_enc(pinfo->pool, tvb,
-						offset + 4, part_length - 4, ENC_ASCII);
-				break;
-			case TYPE_TYPE_INSTANCE:
-				break;
-			case TYPE_INTERVAL:
-			case TYPE_INTERVAL_HR:
-				break;
-			case TYPE_VALUES:
-			{
-				pkt_values++;
-
-				tap_data.values_num++;
-				stats_account_string (pinfo->pool,
-						      &tap_data.hosts,
-						      vdispatch.host);
-				stats_account_string (pinfo->pool,
-						      &tap_data.plugins,
-						      vdispatch.plugin);
-				stats_account_string (pinfo->pool,
-						      &tap_data.types,
-						      vdispatch.type);
-
-				break;
-			}
-			case TYPE_MESSAGE:
-				pkt_messages++;
-				break;
-			case TYPE_SEVERITY:
-				break;
-			default:
-				pkt_unknown++;
-			}
-
-			offset  += part_length;
-			size    -= part_length;
-			continue;
-		} /* if (!tree) */
-
-		/* Now we do the same steps again, but much more thoroughly. */
 
 		/* Check if there are at least four bytes left first.
 		 * Four bytes are used to read the type and the length
@@ -1024,11 +1156,11 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 		 * at the end of the packet. */
 		if (size < 4)
 		{
-			proto_tree_add_expert_format(pi, pinfo, &ei_collectd_garbage, tvb,
+			proto_tree_add_expert_format(collectd_tree, pinfo, &ei_collectd_garbage, tvb,
 						  offset, -1,
 						  "Garbage at end of packet: Length = %i <BAD>",
 						  size);
-			pkt_errors++;
+			col_data->pkt_errors++;
 			break;
 		}
 
@@ -1060,7 +1192,7 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 				expert_add_info_format(pinfo, pi, &ei_collectd_invalid_length,
 							"Bad part length: Larger than remaining packet size.");
 
-			pkt_errors++;
+			col_data->pkt_errors++;
 			break;
 		}
 
@@ -1077,11 +1209,11 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 					&vdispatch.host,
 					collectd_tree, /* item = */ NULL);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 			else
 			{
-				if (pkt_host == NULL)
-					pkt_host = vdispatch.host;
+				if (col_data->pkt_host == NULL)
+					col_data->pkt_host = vdispatch.host;
 				ndispatch.host_off = vdispatch.host_off;
 				ndispatch.host_len = vdispatch.host_len;
 				ndispatch.host = vdispatch.host;
@@ -1100,9 +1232,9 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 					&vdispatch.plugin,
 					collectd_tree, /* item = */ NULL);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 			else
-				pkt_plugins++;
+				col_data->pkt_plugins++;
 
 			break;
 		}
@@ -1117,7 +1249,7 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 					&vdispatch.plugin_instance,
 					collectd_tree, /* item = */ NULL);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 
 			break;
 		}
@@ -1132,7 +1264,7 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 					&vdispatch.type,
 					collectd_tree, /* item = */ NULL);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 
 			break;
 		}
@@ -1147,7 +1279,7 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 					&vdispatch.type_instance,
 					collectd_tree, /* item = */ NULL);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 
 			break;
 		}
@@ -1163,7 +1295,7 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 					&vdispatch.time_value,
 					collectd_tree, &pi);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 
 			break;
 		}
@@ -1178,7 +1310,7 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 					&vdispatch.interval,
 					collectd_tree, /* item = */ NULL);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 
 			break;
 		}
@@ -1190,19 +1322,19 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 					&vdispatch,
 					collectd_tree);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 			else
-				pkt_values++;
+				col_data->pkt_values++;
 
-			tap_data.values_num++;
+			tap_data->values_num++;
 			stats_account_string (pinfo->pool,
-					      &tap_data.hosts,
+					      &tap_data->hosts,
 					      vdispatch.host);
 			stats_account_string (pinfo->pool,
-					      &tap_data.plugins,
+					      &tap_data->plugins,
 					      vdispatch.plugin);
 			stats_account_string (pinfo->pool,
-					      &tap_data.types,
+					      &tap_data->types,
 					      vdispatch.type);
 
 			break;
@@ -1220,10 +1352,10 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 					collectd_tree, &pi);
 			if (status != 0)
 			{
-				pkt_errors++;
+				col_data->pkt_errors++;
 				break;
 			}
-			pkt_messages++;
+			col_data->pkt_messages++;
 
 			pt = proto_item_get_subtree (pi);
 
@@ -1244,7 +1376,7 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 					&ndispatch.severity,
 					collectd_tree, &pi);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 			else
 			{
 				proto_item_set_text (pi,
@@ -1263,7 +1395,7 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 							     offset,
 							     collectd_tree);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 
 			break;
 		}
@@ -1273,14 +1405,14 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 			status = dissect_collectd_encrypted (tvb, pinfo,
 					offset, collectd_tree);
 			if (status != 0)
-				pkt_errors++;
+				col_data->pkt_errors++;
 
 			break;
 		}
 
 		default:
 		{
-			pkt_unknown++;
+			col_data->pkt_unknown++;
 			pt = proto_tree_add_subtree_format(collectd_tree, tvb,
 						  offset, part_length, ett_collectd_unknown, NULL,
 						  "collectd %s segment: %i bytes",
@@ -1304,45 +1436,57 @@ dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* dat
 		size    -= part_length;
 	} /* while ((size > 4) && (status == 0)) */
 
-	if (pkt_errors && pkt_unknown)
-		col_add_fstr (pinfo->cinfo, COL_INFO,
-			      "Host=%s, %2d value%s for %d plugin%s %d message%s %d unknown, %d error%s",
-			      pkt_host,
-			      pkt_values, plurality (pkt_values, " ", "s"),
-			      pkt_plugins, plurality (pkt_plugins, ", ", "s,"),
-			      pkt_messages, plurality (pkt_messages, ", ", "s,"),
-			      pkt_unknown,
-			      pkt_errors, plurality (pkt_errors, "", "s"));
-	else if (pkt_errors)
-		col_add_fstr (pinfo->cinfo, COL_INFO, "Host=%s, %2d value%s for %d plugin%s %d message%s %d error%s",
-			      pkt_host,
-			      pkt_values, plurality (pkt_values, " ", "s"),
-			      pkt_plugins, plurality (pkt_plugins, ", ", "s,"),
-			      pkt_messages, plurality (pkt_messages, ", ", "s,"),
-			      pkt_errors, plurality (pkt_errors, "", "s"));
-	else if (pkt_unknown)
-		col_add_fstr (pinfo->cinfo, COL_INFO,
-			      "Host=%s, %2d value%s for %d plugin%s %d message%s %d unknown",
-			      pkt_host,
-			      pkt_values, plurality (pkt_values, " ", "s"),
-			      pkt_plugins, plurality (pkt_plugins, ", ", "s,"),
-			      pkt_messages, plurality (pkt_messages, ", ", "s,"),
-			      pkt_unknown);
-	else
-		col_add_fstr (pinfo->cinfo, COL_INFO, "Host=%s, %2d value%s for %d plugin%s %d message%s",
-			      pkt_host,
-			      pkt_values, plurality (pkt_values, " ", "s"),
-			      pkt_plugins, plurality (pkt_plugins, ", ", "s,"),
-			      pkt_messages, plurality (pkt_messages, "", "s"));
+	return tvb_captured_length(tvb);
+}
+
+static int
+dissect_collectd (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data _U_)
+{
+	proto_item *pi;
+	proto_tree *collectd_tree;
+
+	col_set_str(pinfo->cinfo, COL_PROTOCOL, "collectd");
+	col_clear(pinfo->cinfo, COL_INFO);
+
+	tap_data_t *tap_data = wmem_new0(pinfo->pool, tap_data_t);
+	p_add_proto_data(pinfo->pool, pinfo, proto_collectd, TAP_DATA_KEY, tap_data);
+
+	column_data_t *col_data = wmem_new0(pinfo->pool, column_data_t);
+	p_add_proto_data(pinfo->pool, pinfo, proto_collectd, COL_DATA_KEY, col_data);
+
+	/* create the collectd protocol tree */
+	pi = proto_tree_add_item(tree, proto_collectd, tvb, 0, -1, ENC_NA);
+	collectd_tree = proto_item_add_subtree(pi, ett_collectd);
+
+	dissect_collectd_parts(tvb, pinfo, collectd_tree, data);
+
+	/* Put summary information in columns */
+	col_add_fstr(pinfo->cinfo, COL_INFO, "Host=%s, %2d value%s for %d plugin%s %d message%s",
+			col_data->pkt_host,
+			col_data->pkt_values, plurality(col_data->pkt_values, " ", "s"),
+			col_data->pkt_plugins, plurality(col_data->pkt_plugins, ", ", "s,"),
+			col_data->pkt_messages, plurality(col_data->pkt_messages, ", ", "s"));
+
+	if (col_data->pkt_unknown) {
+		col_append_fstr(pinfo->cinfo, COL_INFO, ", %d unknown",
+			col_data->pkt_unknown);
+	}
+
+	if (col_data->pkt_errors) {
+		col_add_fstr(pinfo->cinfo, COL_INFO, ", %d error%s",
+			col_data->pkt_errors, plurality(col_data->pkt_errors, "", "s"));
+	}
 
 	/* Dispatch tap data. */
-	tap_queue_packet (tap_collectd, pinfo, &tap_data);
+	tap_queue_packet(tap_collectd, pinfo, tap_data);
+
 	return tvb_captured_length(tvb);
 } /* void dissect_collectd */
 
 void proto_register_collectd(void)
 {
 	expert_module_t* expert_collectd;
+	module_t *collectd_module;
 
 	/* Setup list of header fields */
 	static hf_register_info hf[] = {
@@ -1427,6 +1571,10 @@ void proto_register_collectd(void)
 			{ "Signature", "collectd.data.sighash", FT_BYTES, BASE_NONE,
 				NULL, 0x0, NULL, HFILL }
 		},
+		{ &hf_collectd_data_sighash_status,
+			{ "Signature", "collectd.data.sighash.status", FT_UINT8, BASE_NONE,
+				VALS(proto_checksum_vals), 0x0, NULL, HFILL }
+		},
 		{ &hf_collectd_data_initvec,
 			{ "Init vector", "collectd.data.initvec", FT_BYTES, BASE_NONE,
 				NULL, 0x0, NULL, HFILL }
@@ -1465,6 +1613,7 @@ void proto_register_collectd(void)
 		{ &ei_collectd_garbage, { "collectd.garbage", PI_MALFORMED, PI_ERROR, "Garbage at end of packet", EXPFILL }},
 		{ &ei_collectd_data_valcnt, { "collectd.data.valcnt.mismatch", PI_MALFORMED, PI_WARN, "Number of values and length of part do not match. Assuming length is correct.", EXPFILL }},
 		{ &ei_collectd_type, { "collectd.type.unknown", PI_UNDECODED, PI_NOTE, "Unknown part type", EXPFILL }},
+		{ &ei_collectd_sighash_bad, { "collectd.data.sighash.bad", PI_CHECKSUM, PI_ERROR, "Bad hash", EXPFILL }},
 	};
 
 	/* Register the protocol name and description */
@@ -1475,6 +1624,31 @@ void proto_register_collectd(void)
 	proto_register_subtree_array(ett, array_length(ett));
 	expert_collectd = expert_register_protocol(proto_collectd);
 	expert_register_field_array(expert_collectd, ei, array_length(ei));
+
+	collectd_module = prefs_register_protocol(proto_collectd, NULL);
+
+	static uat_field_t collectd_uat_flds[] = {
+		UAT_FLD_CSTRING(uat_collectd_records, username, "Username", "Username"),
+		UAT_FLD_CSTRING(uat_collectd_records, password, "Password", "Password"),
+		UAT_END_FIELDS
+	};
+
+	collectd_uat = uat_new("collectd Authentication",
+		sizeof(uat_collectd_record_t),
+		"collectd",
+		true,
+		&uat_collectd_records,
+		&num_uat,
+		UAT_AFFECTS_DISSECTION,
+		NULL,
+		uat_collectd_record_copy_cb,
+		uat_collectd_record_update_cb,
+		uat_collectd_record_free_cb,
+		NULL,
+		NULL,
+		collectd_uat_flds);
+
+	prefs_register_uat_preference(collectd_module, "auth", "Authentication", "A table of user credentials for verifying signatures and decrypting encrypted packets", collectd_uat);
 
 	tap_collectd = register_tap ("collectd");
 

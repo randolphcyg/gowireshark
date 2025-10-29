@@ -101,6 +101,19 @@ ConferenceQueryResponse/result	QueryResponseResult
 ConferenceJoinResponse/result	JoinResponseResult
 ConferenceInviteResponse/result	InviteResponseResult
 
+#.FIELD_RENAME
+ConferenceCreateRequest/userData userData-set-of
+ConferenceCreateResponse/userData userData-set-of
+ConferenceQueryRequest/userData userData-set-of
+ConferenceQueryResponse/userData userData-set-of
+ConferenceJoinRequest/userData userData-set-of
+ConferenceJoinResponse/userData userData-set-of
+ConferenceInviteRequest/userData userData-set-of
+ConferenceInviteResponse/userData userData-set-of
+#ConferenceAddRequest/userData userData-set-of
+#ConferenceAddResponse/userData userData-set-of
+#ConferenceAssistanceIndication/userData userData-set-of
+
 #.FN_BODY ConnectData/connectPDU VAL_PTR = &next_tvb
     tvbuff_t	*next_tvb = NULL;
     proto_tree	*next_tree = NULL;
@@ -138,7 +151,7 @@ ConferenceInviteResponse/result	InviteResponseResult
 
 	ns = tvb_get_string_enc(actx->pinfo->pool, t124NSIdentifier, 0, tvb_reported_length(t124NSIdentifier), ENC_ASCII|ENC_NA);
 	if(ns != NULL) {
-		dissector_try_string_new(t124_ns_dissector_table, ns, next_tvb, actx->pinfo, top_tree, false, NULL);
+		dissector_try_string_with_data(t124_ns_dissector_table, ns, next_tvb, actx->pinfo, top_tree, false, NULL);
 	}
 	}
 
@@ -151,7 +164,7 @@ ConferenceInviteResponse/result	InviteResponseResult
 
 	if(next_tvb) {
 
-	     dissector_try_uint_new(t124_sd_dissector_table, channelId, next_tvb, actx->pinfo, top_tree, false, NULL);
+	     dissector_try_uint_with_data(t124_sd_dissector_table, channelId, next_tvb, actx->pinfo, top_tree, false, NULL);
 
 	}
 

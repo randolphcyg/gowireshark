@@ -19,6 +19,10 @@ set(WIRETAP_PUBLIC_HEADERS
 	wtap_opttypes.h
 )
 
+add_definitions(
+	${LIBXML2_DEFINITIONS}
+)
+
 #
 # Files that implement reading and possibly writing one or more
 # file types.  (For cases where more than one source file is
@@ -71,6 +75,7 @@ set(WIRETAP_C_MODULE_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/mplog.c
 	${CMAKE_CURRENT_SOURCE_DIR}/mime_file.c
 	${CMAKE_CURRENT_SOURCE_DIR}/mp2t.c
+	${CMAKE_CURRENT_SOURCE_DIR}/netlog.c
 	${CMAKE_CURRENT_SOURCE_DIR}/netmon.c
 	${CMAKE_CURRENT_SOURCE_DIR}/netscaler.c
 	${CMAKE_CURRENT_SOURCE_DIR}/netscreen.c
@@ -81,6 +86,10 @@ set(WIRETAP_C_MODULE_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/observer.c
 	${CMAKE_CURRENT_SOURCE_DIR}/packetlogger.c
 	${CMAKE_CURRENT_SOURCE_DIR}/pcap-common.c
+	${CMAKE_CURRENT_SOURCE_DIR}/pcapng-darwin-custom.c
+	${CMAKE_CURRENT_SOURCE_DIR}/pcapng-netflix-custom.c
+	${CMAKE_CURRENT_SOURCE_DIR}/pcapng-sysdig.c
+	${CMAKE_CURRENT_SOURCE_DIR}/peak-trc.c
 	${CMAKE_CURRENT_SOURCE_DIR}/peekclassic.c
 	${CMAKE_CURRENT_SOURCE_DIR}/peektagged.c
 	${CMAKE_CURRENT_SOURCE_DIR}/pppdump.c
@@ -93,6 +102,7 @@ set(WIRETAP_C_MODULE_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/systemd_journal.c
 	${CMAKE_CURRENT_SOURCE_DIR}/tnef.c
 	${CMAKE_CURRENT_SOURCE_DIR}/toshiba.c
+	${CMAKE_CURRENT_SOURCE_DIR}/ttl.c
 	${CMAKE_CURRENT_SOURCE_DIR}/visual.c
 	${CMAKE_CURRENT_SOURCE_DIR}/vms.c
 	${CMAKE_CURRENT_SOURCE_DIR}/vwr.c
@@ -122,6 +132,7 @@ set(WIRETAP_NONGENERATED_C_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/file_wrappers.c
 	${CMAKE_CURRENT_SOURCE_DIR}/merge.c
 	${CMAKE_CURRENT_SOURCE_DIR}/secrets-types.c
+	${CMAKE_CURRENT_SOURCE_DIR}/socketcan.c
 	${CMAKE_CURRENT_SOURCE_DIR}/wtap.c
 	${CMAKE_CURRENT_SOURCE_DIR}/wtap_opttypes.c
 )
@@ -135,13 +146,11 @@ add_lex_files(LEX_FILES WIRETAP_FILES
 	${WIRETAP_LEX_MODULE_FILES}
 	${CMAKE_CURRENT_SOURCE_DIR}/ascend_scanner.l
 	${CMAKE_CURRENT_SOURCE_DIR}/busmaster_scanner.l
-	${CMAKE_CURRENT_SOURCE_DIR}/candump_scanner.l
 )
 
 add_lemon_files(LEMON_FILES WIRETAP_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/ascend_parser.lemon
 	${CMAKE_CURRENT_SOURCE_DIR}/busmaster_parser.lemon
-	${CMAKE_CURRENT_SOURCE_DIR}/candump_parser.lemon
 )
 
 #
@@ -178,7 +187,7 @@ set_target_properties(wiretap PROPERTIES
 	PREFIX "lib"
 	COMPILE_DEFINITIONS "WS_BUILD_DLL"
 	LINK_FLAGS "${WS_LINK_FLAGS}"
-	VERSION "15.0.9" SOVERSION 15
+	VERSION "16.0.0" SOVERSION 16
 	FOLDER "DLLs"
 	INSTALL_RPATH "${LIBRARY_INSTALL_RPATH}"
 )
@@ -191,6 +200,7 @@ target_link_libraries(wiretap
 		wsutil
 		${GLIB2_LIBRARIES}
 	PRIVATE
+		${LIBXML2_LIBRARIES}
 		${ZLIB_LIBRARIES}
 		${ZLIBNG_LIBRARIES}
 		${ZSTD_LIBRARIES}
@@ -199,6 +209,7 @@ target_link_libraries(wiretap
 
 target_include_directories(wiretap SYSTEM
 	PRIVATE
+		${LIBXML2_INCLUDE_DIRS}
 		${ZLIB_INCLUDE_DIRS}
 		${ZLIBNG_INCLUDE_DIRS}
 		${ZSTD_INCLUDE_DIRS}

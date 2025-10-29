@@ -14,6 +14,8 @@
 #include <epan/packet.h>
 #include <epan/etypes.h>
 #include <epan/expert.h>
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 
 void proto_register_lltd(void);
 void proto_reg_handoff_lltd(void);
@@ -328,7 +330,7 @@ dissect_lltd_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t o
     {
         length = tvb_get_uint8(tvb, offset+1);
         tlv_tree = proto_tree_add_subtree_format(tree, tvb, offset, length+2, ett_tlv_item, &tlv_item,
-                    "TLV Item (%s)", val_to_str(type, lltd_tlv_type_vals, "Unknown (0x%02x)"));
+                    "TLV Item (%s)", val_to_str(pinfo->pool, type, lltd_tlv_type_vals, "Unknown (0x%02x)"));
         *end = false;
     }
 
@@ -405,7 +407,7 @@ dissect_lltd_tlv(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, uint32_t o
             expert_add_info_format(pinfo, tlv_item, &ei_lltd_tlv_length_invalid, "SSID length too large");
         }
 
-        proto_tree_add_item(tlv_tree, hf_lltd_ssid, tvb, offset+2, length, ENC_NA|ENC_ASCII);
+        proto_tree_add_item(tlv_tree, hf_lltd_ssid, tvb, offset+2, length, ENC_ASCII);
         break;
     case 0x07: /* IPv4 Address */
         if (length != 4)
@@ -556,7 +558,7 @@ dissect_lltd_discovery(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int 
 
     func = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(tree, hf_lltd_discovery_func, tvb, offset, 1, ENC_NA);
-    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(func, lltd_discovery_vals, "Unknown (0x%02x)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, func, lltd_discovery_vals, "Unknown (0x%02x)"));
     offset++;
 
     /* Demultiplex header */
@@ -673,7 +675,7 @@ dissect_lltd_qos(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, int offset
 
     func = tvb_get_uint8(tvb, offset);
     proto_tree_add_item(tree, hf_lltd_qos_diag_func, tvb, offset, 1, ENC_NA);
-    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(func, lltd_qos_diag_vals, "Unknown (0x%02x)"));
+    col_add_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, func, lltd_qos_diag_vals, "Unknown (0x%02x)"));
     offset++;
 
     header_tree = proto_tree_add_subtree(tree, tvb, offset, 14, ett_base_header, &header_item, "Base header");
@@ -930,11 +932,11 @@ proto_register_lltd(void)
         { &ei_lltd_tlv_length_invalid, { "lltd.tlv.length.invalid", PI_MALFORMED, PI_ERROR, "Invalid length", EXPFILL }},
         { &ei_lltd_char_reserved, { "lltd.characteristic.reserved.not_zero", PI_PROTOCOL, PI_WARN, "Non zero reserve bits", EXPFILL }},
         { &ei_lltd_too_many_paths, { "lltd.too_many_paths", PI_PROTOCOL, PI_WARN, "Too many paths to root", EXPFILL }},
-        { &ei_lltd_tlv_type, { "lltd.tlv.type.invalid", PI_PROTOCOL, PI_WARN, "Invalid TLV Type 0x%02x", EXPFILL }},
-        { &ei_lltd_discovery_func, { "lltd.discovery.invalid", PI_PROTOCOL, PI_WARN, "Invalid function 0x%02x", EXPFILL }},
+        { &ei_lltd_tlv_type, { "lltd.tlv.type.invalid", PI_PROTOCOL, PI_WARN, "Invalid TLV Type", EXPFILL }},
+        { &ei_lltd_discovery_func, { "lltd.discovery.invalid", PI_PROTOCOL, PI_WARN, "Invalid function", EXPFILL }},
         { &ei_lltd_qos_seq_num, { "lltd.qos.seq_num.cannot_be_zero", PI_PROTOCOL, PI_WARN, "Sequence number can not be 0", EXPFILL }},
-        { &ei_lltd_qos_diag_func, { "lltd.qos_diag.invalid", PI_PROTOCOL, PI_WARN, "Invalid function 0x%02x", EXPFILL }},
-        { &ei_lltd_type_of_service, { "lltd.tos.invalid", PI_PROTOCOL, PI_WARN, "Invalid Type of Service value 0x%02x", EXPFILL }},
+        { &ei_lltd_qos_diag_func, { "lltd.qos_diag.invalid", PI_PROTOCOL, PI_WARN, "Invalid function", EXPFILL }},
+        { &ei_lltd_type_of_service, { "lltd.tos.invalid", PI_PROTOCOL, PI_WARN, "Invalid Type of Service value", EXPFILL }},
     };
 
     expert_module_t* expert_lltd;

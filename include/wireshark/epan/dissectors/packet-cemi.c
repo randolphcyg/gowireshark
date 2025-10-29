@@ -1006,7 +1006,7 @@ static const uint8_t* decrypt_data_security_data_with_key( wmem_allocator_t *poo
         ctr_0[ 14 ] = 0x01;
         ctr_0[ 15 ] = 0;
 
-        decrypted = knx_ccm_encrypt( 0, key, p_bytes, p_length, encrypted + encrypted_size - 4, 4, ctr_0, 4 );
+        decrypted = knx_ccm_encrypt(pool, 0, key, p_bytes, p_length, encrypted + encrypted_size - 4, 4, ctr_0, 4 );
 
         a_bytes = (uint8_t*) wmem_alloc( pool, encrypted_size );
         if( (scf & 0x30) == 0x10 ) // A+C
@@ -2585,7 +2585,7 @@ static void dissect_simple_app_service( tvbuff_t* tvb, packet_info* pinfo, proto
   uint8_t c;
   uint16_t cc;
 
-  const char* name = val_to_str( ac, ac_vals, "AC=%u" );
+  const char* name = val_to_str(pinfo->pool, ac, ac_vals, "AC=%u" );
   col_append_fstr( cinfo, COL_INFO, " %s", name );
   if( tree )
   {

@@ -676,7 +676,7 @@ ucp_stats_tree_init(stats_tree* st)
 
 static tap_packet_status
 ucp_stats_tree_per_packet(stats_tree *st, /* st as it was passed to us */
-                                      packet_info *pinfo _U_,
+                                      packet_info *pinfo,
                                       epan_dissect_t *edt _U_,
                                       const void *p,
                                       tap_flags_t flags _U_) /* Used for getting UCP stats */
@@ -688,13 +688,13 @@ ucp_stats_tree_per_packet(stats_tree *st, /* st as it was passed to us */
     if (tap_rec->message_type == 0) /* Operation */
     {
         tick_stat_node(st, st_str_ops, st_ucp_messages, true);
-        tick_stat_node(st, val_to_str_ext(tap_rec->operation, &vals_hdr_OT_ext,
+        tick_stat_node(st, val_to_str_ext(pinfo->pool, tap_rec->operation, &vals_hdr_OT_ext,
                        "Unknown OT: %d"), st_ucp_ops, false);
     }
     else /* Result */
     {
         tick_stat_node(st, st_str_res, st_ucp_messages, true);
-        tick_stat_node(st, val_to_str_ext(tap_rec->operation, &vals_hdr_OT_ext,
+        tick_stat_node(st, val_to_str_ext(pinfo->pool, tap_rec->operation, &vals_hdr_OT_ext,
                        "Unknown OT: %d"), st_ucp_res, false);
 
         tick_stat_node(st, st_str_ucp_res, 0, true);
@@ -706,7 +706,7 @@ ucp_stats_tree_per_packet(stats_tree *st, /* st as it was passed to us */
         else /* Negative Result */
         {
             tick_stat_node(st, st_str_neg, st_ucp_results, true);
-            tick_stat_node(st, val_to_str_ext(tap_rec->result, &vals_parm_EC_ext,
+            tick_stat_node(st, val_to_str_ext(pinfo->pool, tap_rec->result, &vals_parm_EC_ext,
                            "Unknown EC: %d"), st_ucp_results_neg, false);
         }
     }
@@ -835,7 +835,7 @@ ucp_handle_string(proto_tree *tree, tvbuff_t *tvb, int field, int *offset)
 }
 
 static void
-ucp_handle_IRAstring(proto_tree *tree, tvbuff_t *tvb, int field, int *offset)
+ucp_handle_IRAstring(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, int field, int *offset)
 {
     GByteArray    *bytes;
     wmem_strbuf_t *strbuf;
@@ -853,16 +853,16 @@ ucp_handle_IRAstring(proto_tree *tree, tvbuff_t *tvb, int field, int *offset)
     }
     bytes = g_byte_array_sized_new(len);
     if (tvb_get_string_bytes(tvb, *offset, len, ENC_ASCII|ENC_STR_HEX|ENC_SEP_NONE, bytes, &tmpoff)) {
-        strval = get_ts_23_038_7bits_string_unpacked(wmem_packet_scope(), bytes->data, bytes->len);
+        strval = get_ts_23_038_7bits_string_unpacked(pinfo->pool, bytes->data, bytes->len);
     }
-    strbuf = wmem_strbuf_new(wmem_packet_scope(), strval);
+    strbuf = wmem_strbuf_new(pinfo->pool, strval);
     while ((tmpoff + 1) < idx) {
         wmem_strbuf_append_unichar_repl(strbuf);
         tmpoff += 2;
         if ((tmpoff + 1) >= idx) break;
         bytes = g_byte_array_set_size(bytes, 0);
         if (tvb_get_string_bytes(tvb, tmpoff, idx-tmpoff, ENC_ASCII|ENC_STR_HEX|ENC_SEP_NONE, bytes, &tmpoff)) {
-            strval = get_ts_23_038_7bits_string_unpacked(wmem_packet_scope(), bytes->data, bytes->len);
+            strval = get_ts_23_038_7bits_string_unpacked(pinfo->pool, bytes->data, bytes->len);
             wmem_strbuf_append(strbuf, strval);
         }
     }
@@ -908,7 +908,7 @@ ucp_handle_int(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, int field, i
         tvb_ensure_bytes_exist(tvb, *offset, len + 1);
     } else
         len = idx - *offset;
-    strval = tvb_get_string_enc(wmem_packet_scope(), tvb, *offset, len, ENC_ASCII);
+    strval = tvb_get_string_enc(pinfo->pool, tvb, *offset, len, ENC_ASCII);
     if (len > 0) {
         intval_valid = ws_strtou32(strval, NULL, &intval);
         pi = proto_tree_add_uint(tree, field, tvb, *offset, len, intval);
@@ -923,7 +923,7 @@ ucp_handle_int(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, int field, i
 }
 
 static void
-ucp_handle_time(proto_tree *tree, tvbuff_t *tvb, int field, int *offset)
+ucp_handle_time(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, int field, int *offset)
 {
     int         idx, len;
     const char *strval;
@@ -937,7 +937,7 @@ ucp_handle_time(proto_tree *tree, tvbuff_t *tvb, int field, int *offset)
         tvb_ensure_bytes_exist(tvb, *offset, len + 1);
     } else
         len = idx - *offset;
-    strval = tvb_get_string_enc(wmem_packet_scope(), tvb, *offset, len, ENC_ASCII);
+    strval = tvb_get_string_enc(pinfo->pool, tvb, *offset, len, ENC_ASCII);
     if (len > 0) {
         tval = ucp_mktime(len, strval);
         tmptime.secs  = tval;
@@ -1006,7 +1006,7 @@ ucp_handle_mt(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb, int *offset)
             ucp_handle_data(tree, tvb, hf_ucp_data_section, offset);
             break;
         case '3':
-            ucp_handle_IRAstring(tree, tvb, hf_ucp_parm_AMsg, offset);
+            ucp_handle_IRAstring(tree, pinfo, tvb, hf_ucp_parm_AMsg, offset);
             break;
         case '5':
             ucp_handle_byte(tree, tvb, hf_ucp_parm_PNC, offset);
@@ -1114,13 +1114,13 @@ ucp_handle_alphanum_OAdC(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, in
 #define UcpHandleString(field)  ucp_handle_string(tree, tvb, (field), &offset)
 
 #define UcpHandleIRAString(field) \
-                        ucp_handle_IRAstring(tree, tvb, (field), &offset)
+                        ucp_handle_IRAstring(tree, pinfo, tvb, (field), &offset)
 
 #define UcpHandleByte(field)    ucp_handle_byte(tree, tvb, (field), &offset)
 
 #define UcpHandleInt(field)     ucp_handle_int(tree, pinfo, tvb, (field), &offset)
 
-#define UcpHandleTime(field)    ucp_handle_time(tree, tvb, (field), &offset)
+#define UcpHandleTime(field)    ucp_handle_time(tree, pinfo, tvb, (field), &offset)
 
 #define UcpHandleData(field)    ucp_handle_data(tree, tvb, (field), &offset)
 
@@ -1462,7 +1462,7 @@ add_14R(proto_tree *tree, packet_info *pinfo, tvbuff_t *tvb, ucp_tap_rec_t *tap_
 }
 
 static void
-add_15O(proto_tree *tree, tvbuff_t *tvb)
+add_15O(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb)
 {                                               /* Request call barring */
     int          offset = 1;
 
@@ -1479,7 +1479,7 @@ add_15O(proto_tree *tree, tvbuff_t *tvb)
 #define add_16R(a, b, c, d) add_01R(a, b, c, d)
 
 static void
-add_17O(proto_tree *tree, tvbuff_t *tvb)
+add_17O(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb)
 {                                               /* Request call diversion */
     int          offset = 1;
 
@@ -1497,7 +1497,7 @@ add_17O(proto_tree *tree, tvbuff_t *tvb)
 #define add_18R(a, b, c, d) add_01R(a, b, c, d)
 
 static void
-add_19O(proto_tree *tree, tvbuff_t *tvb)
+add_19O(proto_tree *tree, packet_info* pinfo, tvbuff_t *tvb)
 {                                               /* Request deferred delivery*/
     int          offset = 1;
 
@@ -1861,14 +1861,14 @@ dissect_ucp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
     OT  = 10 * OT + (tvb_get_uint8(tvb, UCP_OT_OFFSET + 1) - '0');
 
     /* Create Tap record */
-    tap_rec = wmem_new0(wmem_packet_scope(), ucp_tap_rec_t);
+    tap_rec = wmem_new0(pinfo->pool, ucp_tap_rec_t);
     tap_rec->message_type = (O_R == 'O' ? 0 : 1);
     tap_rec->operation = OT;
 
      /* Make entries in  Info column on summary display */
     col_append_fstr(pinfo->cinfo, COL_INFO, "%s (%s)",
                     val_to_str_ext_const(OT,  &vals_hdr_OT_ext,  "unknown operation"),
-                    val_to_str(O_R, vals_hdr_O_R, "Unknown (%d)"));
+                    val_to_str(pinfo->pool, O_R, vals_hdr_O_R, "Unknown (%d)"));
     if (result == UCP_INV_CHK)
         col_append_str(pinfo->cinfo, COL_INFO, " [checksum invalid]");
 
@@ -1965,19 +1965,19 @@ dissect_ucp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* da
                 O_R == 'O' ? add_14O(sub_tree,tmp_tvb) : add_14R(sub_tree, pinfo, tmp_tvb, tap_rec);
                 break;
             case 15:
-                O_R == 'O' ? add_15O(sub_tree,tmp_tvb) : add_15R(sub_tree, pinfo, tmp_tvb, tap_rec);
+                O_R == 'O' ? add_15O(sub_tree,pinfo,tmp_tvb) : add_15R(sub_tree, pinfo, tmp_tvb, tap_rec);
                 break;
             case 16:
                 O_R == 'O' ? add_16O(sub_tree,tmp_tvb) : add_16R(sub_tree, pinfo, tmp_tvb, tap_rec);
                 break;
             case 17:
-                O_R == 'O' ? add_17O(sub_tree,tmp_tvb) : add_17R(sub_tree, pinfo, tmp_tvb, tap_rec);
+                O_R == 'O' ? add_17O(sub_tree,pinfo,tmp_tvb) : add_17R(sub_tree, pinfo, tmp_tvb, tap_rec);
                 break;
             case 18:
                 O_R == 'O' ? add_18O(sub_tree,tmp_tvb) : add_18R(sub_tree, pinfo, tmp_tvb, tap_rec);
                 break;
             case 19:
-                O_R == 'O' ? add_19O(sub_tree,tmp_tvb) : add_19R(sub_tree, pinfo, tmp_tvb, tap_rec);
+                O_R == 'O' ? add_19O(sub_tree,pinfo,tmp_tvb) : add_19R(sub_tree, pinfo, tmp_tvb, tap_rec);
                 break;
             case 20:
                 O_R == 'O' ? add_20O(sub_tree,tmp_tvb) : add_20R(sub_tree, pinfo, tmp_tvb, tap_rec);

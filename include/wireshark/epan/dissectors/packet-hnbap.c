@@ -468,7 +468,7 @@ dissect_hnbap_ProtocolIE_ID(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx 
 
   if (tree) {
     proto_item_append_text(proto_item_get_parent_nth(actx->created_item, 2), ": %s",
-                           val_to_str(ProtocolIE_ID, VALS(hnbap_ProtocolIE_ID_vals), "unknown (%d)"));
+                           val_to_str(actx->pinfo->pool, ProtocolIE_ID, VALS(hnbap_ProtocolIE_ID_vals), "unknown (%d)"));
   }
   return offset;
 }
@@ -2585,46 +2585,46 @@ static int dissect_HNBAP_PDU_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, prot
 
 static int dissect_ProtocolIEFieldValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(hnbap_ies_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(hnbap_ies_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_ProtocolExtensionFieldExtensionValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(hnbap_extension_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(hnbap_extension_dissector_table, ProtocolIE_ID, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 #if 0
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   if (!ProcedureCode) return 0;
-  return (dissector_try_string(hnbap_proc_imsg_dissector_table, ProcedureCode, tvb, pinfo, tree, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_string_with_data(hnbap_proc_imsg_dissector_table, ProcedureCode, tvb, pinfo, tree, true, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   if (!ProcedureCode) return 0;
-  return (dissector_try_string(hnbap_proc_sout_dissector_table, ProcedureCode, tvb, pinfo, tree, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_string_with_data(hnbap_proc_sout_dissector_table, ProcedureCode, tvb, pinfo, tree, true, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
   if (!ProcedureCode) return 0;
-  return (dissector_try_string(hnbap_proc_uout_dissector_table, ProcedureCode, tvb, pinfo, tree, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_string_with_data(hnbap_proc_uout_dissector_table, ProcedureCode, tvb, pinfo, tree, true, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 #endif
 
 static int dissect_InitiatingMessageValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(hnbap_proc_imsg_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(hnbap_proc_imsg_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_SuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(hnbap_proc_sout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(hnbap_proc_sout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int dissect_UnsuccessfulOutcomeValue(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _U_)
 {
-  return (dissector_try_uint_new(hnbap_proc_uout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
+  return (dissector_try_uint_with_data(hnbap_proc_uout_dissector_table, ProcedureCode, tvb, pinfo, tree, false, NULL)) ? tvb_captured_length(tvb) : 0;
 }
 
 static int
@@ -2835,7 +2835,7 @@ void proto_register_hnbap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_hnbap_protocol_ie_field_id,
-      { "id", "hnbap.id",
+      { "id", "hnbap.protocol_ie_field_id",
         FT_UINT32, BASE_DEC, VALS(hnbap_ProtocolIE_ID_vals), 0,
         "ProtocolIE_ID", HFILL }},
     { &hf_hnbap_criticality,
@@ -2843,7 +2843,7 @@ void proto_register_hnbap(void) {
         FT_UINT32, BASE_DEC, VALS(hnbap_Criticality_vals), 0,
         NULL, HFILL }},
     { &hf_hnbap_ie_field_value,
-      { "value", "hnbap.value_element",
+      { "value", "hnbap.ie_field_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "ProtocolIE_Field_value", HFILL }},
     { &hf_hnbap_ProtocolExtensionContainer_item,
@@ -2863,11 +2863,11 @@ void proto_register_hnbap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_hnbap_private_ie_field_id,
-      { "id", "hnbap.id",
+      { "id", "hnbap.private_ie_field_id",
         FT_UINT32, BASE_DEC, VALS(hnbap_PrivateIE_ID_vals), 0,
         "PrivateIE_ID", HFILL }},
     { &hf_hnbap_private_value,
-      { "value", "hnbap.value_element",
+      { "value", "hnbap.private_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "PrivateIE_Field_value", HFILL }},
     { &hf_hnbap_directionOfAltitude,
@@ -2943,7 +2943,7 @@ void proto_register_hnbap(void) {
         FT_BYTES, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_hnbap_geographical_location_geographical_coordinates,
-      { "geographicalCoordinates", "hnbap.geographicalCoordinates_element",
+      { "geographicalCoordinates", "hnbap.geographical_location_geographical_coordinates_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_hnbap_altitudeAndDirection,
@@ -3011,7 +3011,7 @@ void proto_register_hnbap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         "MacroCoverageInformation", HFILL }},
     { &hf_hnbap_hnb_location_information_geographical_coordinates,
-      { "geographicalCoordinates", "hnbap.geographicalCoordinates_element",
+      { "geographicalCoordinates", "hnbap.hnb_location_information_geographical_coordinates_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "GeographicalLocation", HFILL }},
     { &hf_hnbap_hNB_Identity_Info,
@@ -3047,7 +3047,7 @@ void proto_register_hnbap(void) {
         FT_BYTES, BASE_NONE, NULL, 0,
         "PLMNidentity", HFILL }},
     { &hf_hnbap_macroCellID,
-      { "cellIdentity", "hnbap.cellIdentity",
+      { "cellIdentity", "hnbap.macroCellID",
         FT_UINT32, BASE_DEC, VALS(hnbap_MacroCellID_vals), 0,
         "MacroCellID", HFILL }},
     { &hf_hnbap_uTRANCellID,
@@ -3183,15 +3183,15 @@ void proto_register_hnbap(void) {
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_hnbap_initiatingMessagevalue,
-      { "value", "hnbap.value_element",
+      { "value", "hnbap.initiatingMessagevalue_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InitiatingMessage_value", HFILL }},
     { &hf_hnbap_successfulOutcome_value,
-      { "value", "hnbap.value_element",
+      { "value", "hnbap.successfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SuccessfulOutcome_value", HFILL }},
     { &hf_hnbap_unsuccessfulOutcome_value,
-      { "value", "hnbap.value_element",
+      { "value", "hnbap.unsuccessfulOutcome_value_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "UnsuccessfulOutcome_value", HFILL }},
   };

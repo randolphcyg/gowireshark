@@ -117,7 +117,7 @@ dissect_matter_btp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *btatt_tree, vo
     int offset = 0;
 
     DISSECTOR_ASSERT(att_data);
-    bluetooth_data_t *bluetooth_data = att_data->bluetooth_data;
+    btl2cap_data_t *l2cap_data = att_data->l2cap_data;
     const uint8_t att_opcode = att_data->opcode;
     const uint32_t att_handle = att_data->handle;
 
@@ -128,7 +128,7 @@ dissect_matter_btp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *btatt_tree, vo
         return 0;
 
     /* Get UUID for current ATT handle. */
-    bluetooth_uuid_t uuid = get_gatt_bluetooth_uuid_from_handle(pinfo, att_handle, att_opcode, bluetooth_data);
+    bluetooth_uuid_t uuid = get_gatt_bluetooth_uuid_from_handle(pinfo, att_handle, att_opcode, l2cap_data);
     /* Verify that the UUID belongs to the Matter GATT service and bail otherwise. */
     if (uuid.size != 16 || (
             memcmp(uuid.data, MATTER_GATT_CHR_TX_UUID_128, 16) != 0 &&
@@ -207,7 +207,7 @@ dissect_matter_btp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *btatt_tree, vo
             // Section 4.18.3.1. BTP Handshake Request
             if (memcmp(uuid.data, MATTER_GATT_CHR_TX_UUID_128, 16) == 0) {
 
-                proto_tree_add_bitmask(tree, tvb, offset, hf_matter_btp_versions, ett_matter_btp_versions, btp_versions, ENC_NA);
+                proto_tree_add_bitmask(tree, tvb, offset, hf_matter_btp_versions, ett_matter_btp_versions, btp_versions, ENC_BIG_ENDIAN);
                 offset += 4;
                 proto_tree_add_item(tree, hf_matter_btp_mtu, tvb, offset, 2, ENC_LITTLE_ENDIAN);
                 offset += 2;

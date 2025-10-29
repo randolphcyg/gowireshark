@@ -69,7 +69,7 @@ dissect_nasdaq_soup_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent
     tvbuff_t *new_tvb = NULL;
 
     nasdaq_soup_type = tvb_get_uint8(tvb, offset);
-    proto_tree_add_item(tree, hf_nasdaq_soup_packet_type, tvb, offset, 1, ENC_ASCII|ENC_NA);
+    proto_tree_add_item(tree, hf_nasdaq_soup_packet_type, tvb, offset, 1, ENC_ASCII);
     offset++;
 
     switch (nasdaq_soup_type) {
@@ -85,7 +85,7 @@ dissect_nasdaq_soup_packet(tvbuff_t *tvb, packet_info *pinfo, proto_tree *parent
         offset += 10;
         break;
     case 'J': /* login reject */
-        proto_tree_add_item(tree, hf_nasdaq_soup_reject_code, tvb, offset, 1, ENC_ASCII|ENC_NA);
+        proto_tree_add_item(tree, hf_nasdaq_soup_reject_code, tvb, offset, 1, ENC_ASCII);
         offset++;
         break;
 
@@ -169,7 +169,7 @@ dissect_nasdaq_soup(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* d
         col_append_str(pinfo->cinfo, COL_INFO, "; ");
         col_set_fence(pinfo->cinfo, COL_INFO);
       }
-      col_append_str(pinfo->cinfo, COL_INFO, val_to_str(nasdaq_soup_type, message_types_val, "Unknown packet type (0x%02x)"));
+      col_append_str(pinfo->cinfo, COL_INFO, val_to_str(pinfo->pool, nasdaq_soup_type, message_types_val, "Unknown packet type (0x%02x)"));
 
       counter++;
       ti = proto_tree_add_item(tree, proto_nasdaq_soup, tvb, offset, linelen +1, ENC_NA);

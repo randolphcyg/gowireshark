@@ -1,4 +1,4 @@
--- 3GPP TS 38.331 V18.2.0 (2024-06)
+-- 3GPP TS 38.331 V18.6.0 (2025-06)
 
 NR-InterNodeDefinitions DEFINITIONS AUTOMATIC TAGS ::=
 
@@ -359,7 +359,7 @@ CG-Config-v1730-IEs ::=             SEQUENCE {
 
 CG-Config-v1800-IEs ::=             SEQUENCE {
     candidateServingFreqRangeListNR-r18    CandidateServingFreqRangeListNR-r18             OPTIONAL,
-    candidateServingFreqListNR-r16         CandidateServingFreqListNR-r16                  OPTIONAL,
+    candidateServingFreqListNR-r18         CandidateServingFreqListNR-r16                  OPTIONAL,
     idc-TDM-AssistanceConfig-r18           ENUMERATED {enabled}                            OPTIONAL,
     candidateCellInfoListSubsequentCPC-r18 CandidateCellInfoListCPC-r17                    OPTIONAL,
     scpac-ReferenceConfigurationSCG-r18    ReferenceConfiguration-r18                      OPTIONAL,
@@ -445,6 +445,12 @@ ConfigRestrictModReqSCG ::=         SEQUENCE {
     ]],
     [[
     requestedMaxLTM-CandidateIdSCG-r18  INTEGER(0..maxNrofLTM-Configs-r18)                  OPTIONAL
+    ]],
+    [[
+    requestedL1-MeasConfigNRDC-r18      L1-MeasConfigNRDC-r18                               OPTIONAL
+    ]],
+    [[
+    requestedLTM-ResourceConfigNRDC-r18 LTM-ResourceConfigNRDC-r18                          OPTIONAL
     ]]
 }
 
@@ -679,6 +685,12 @@ ConfigRestrictInfoSCG ::=       SEQUENCE {
     ]],
     [[
     maxNumberLTM-CandidatesSCG-r18   INTEGER(0..maxNrofLTM-Configs-r18)                               OPTIONAL
+    ]],
+    [[
+    allowedL1-MeasConfigNRDC-r18     L1-MeasConfigNRDC-r18                                            OPTIONAL
+    ]],
+    [[
+    allowedLTM-ResourceConfigNRDC-r18     LTM-ResourceConfigNRDC-r18                                  OPTIONAL
     ]]
 }
 
@@ -917,7 +929,13 @@ UERadioPagingInformation-v1700-IEs ::= SEQUENCE {
 UERadioPagingInformation-v1800-IEs ::= SEQUENCE {
     numberOfRxERedCap-r18                  ENUMERATED {one, two}                                OPTIONAL,
     supportOf2RxXR-r18                     ENUMERATED {supported}                               OPTIONAL,
-    nonCriticalExtension                   SEQUENCE {}                                          OPTIONAL
+    nonCriticalExtension                   UERadioPagingInformation-v1840-IEs                   OPTIONAL
+}
+
+UERadioPagingInformation-v1840-IEs ::= SEQUENCE {
+    dl-SchedulingOffset-PDSCH-TypeA-FDD-FR2-NTN-r18    ENUMERATED {supported}                   OPTIONAL,
+    dl-SchedulingOffset-PDSCH-TypeB-FDD-FR2-NTN-r18    ENUMERATED {supported}                   OPTIONAL,
+    nonCriticalExtension                               SEQUENCE {}                              OPTIONAL
 }
 
 -- TAG-UE-RADIO-PAGING-INFORMATION-STOP
@@ -941,6 +959,47 @@ UERadioAccessCapabilityInformation-IEs ::= SEQUENCE {
 }
 
 -- TAG-UE-RADIO-ACCESS-CAPABILITY-INFORMATION-STOP
+-- TAG-L1-MEASCONFIGNRDC-START
+
+L1-MeasConfigNRDC-r18 ::= SEQUENCE {
+    maxL1-MeasNoGapSCG-r18                 INTEGER(0..maxNrofL1-MeasNoGap-r18)                               OPTIONAL,
+    maxL1-MeasWithGapSCG-r18               INTEGER(0..maxNrofL1-MeasWithGap-r18)                             OPTIONAL,
+    maxCellsL1-MeasNoGapSCG-r18            INTEGER(0..maxNrofCellsL1-MeasNoGap-r18)                          OPTIONAL,
+    maxCellsL1-MeasWithGapSCG-r18          INTEGER(0..maxNrofCellsL1-MeasWithGap-r18)                        OPTIONAL,
+    maxTotalCellsL1-MeasNoGapSCG-r18       INTEGER(0..maxNrofTotalCellsL1-MeasNoGap-r18)                     OPTIONAL,
+    maxSSBsL1-MeasNoGapSCG-r18             INTEGER(0..maxNrofSSBsL1-MeasNoGap-r18)                           OPTIONAL,
+    maxSSBsL1-MeasWithGapSCG-r18           INTEGER(0..maxNrofSSBsL1-MeasWithGap-r18)                         OPTIONAL,
+    maxTotalSSBsL1-MeasNoGapSCG-r18        INTEGER(0..maxNrofTotalSSBsL1-MeasNoGap-r18)                      OPTIONAL,
+    maxCellsL1-MeasIntraFreqSCG-r18        INTEGER(0..maxNrofSSBsL1-MeasIntraFreq-r18)                       OPTIONAL,
+    maxCellsL1-MeasInterFreqSCG-r18        INTEGER(0..maxNrofSSBsL1-MeasInterFreq-r18)                       OPTIONAL,
+    maxReportConfigsAperiodic-r18          INTEGER(0..maxNrofReportConfigsAperiodic-r18)                     OPTIONAL,
+    maxReportConfigsPeriodic-r18           INTEGER(0..maxNrofReportConfigsPeriodic-r18)                      OPTIONAL,
+    maxReportConfigsSemiPersistent-r18     INTEGER(0..maxNrofReportConfigsSemiPersistent-r18)                OPTIONAL,
+    ...,
+    [[
+    maxSSBsL1-MeasNoGapSCGExt-r18          INTEGER(0..maxNrofSSBsL1-MeasNoGapExt-r18)                        OPTIONAL
+    ]]
+}
+
+-- TAG-L1-MEASCONFIGNRDC-STOP
+-- TAG-LTM-RESOURCECONFIGNRDC-START
+
+LTM-ResourceConfigNRDC-r18 ::= SEQUENCE {
+    maxCellsTA-Meas-r18                    INTEGER(0..maxNrofCellsTA-Meas-r18)                            OPTIONAL,
+    maxConfigJointTCI-States-r18           INTEGER(0..maxNrofConfigJointTCI-States-r18)                   OPTIONAL,
+    maxCellsJointTCI-r18                   INTEGER(0..maxNrofCellsTCI-r18)                                OPTIONAL,
+    maxConfigDL-TCI-States-r18             INTEGER(0..maxNrofConfigDL-TCI-States-r18)                     OPTIONAL,
+    maxConfigUL-TCI-States-r18             INTEGER(0..maxNrofConfigUL-TCI-States-r18)                     OPTIONAL,
+    maxCellsTCI-r18                        INTEGER(0..maxNrofCellsTCI-r18)                                OPTIONAL,
+    maxStoredConfigCells-r18               INTEGER(0..maxNrofStoredConfigCells-r18)                       OPTIONAL,
+    maxConfigCells-r18                     INTEGER(0..maxNrofConfigCells-r18)                             OPTIONAL,
+    maxActivatedJointTCI-States-r18        INTEGER(0..maxNrofActivatedJointTCI-States-r18)                OPTIONAL,
+    maxActivatedDL-TCI-States-r18          INTEGER(0..maxNrofActivatedDL-TCI-States-r18)                  OPTIONAL,
+    maxActivatedUL-TCI-States-r18          INTEGER(0..maxNrofActivatedUL-TCI-States-r18)                  OPTIONAL,
+    ...
+}
+
+-- TAG-LTM-RSOURCECONFIGNRDC-STOP
 -- TAG-RESOURCECONFIGNRDC-START
 
 ResourceConfigNRDC-r17 ::= SEQUENCE {
@@ -969,6 +1028,30 @@ maxMeasFreqsMN              INTEGER ::= 32  -- Maximum number of MN-configured m
 maxMeasFreqsSN              INTEGER ::= 32  -- Maximum number of SN-configured measurement frequencies
 maxMeasIdentitiesMN         INTEGER ::= 62  -- Maximum number of measurement identities that a UE can be configured with
 maxCellPrep                 INTEGER ::= 32  -- Maximum number of cells prepared for handover
+maxNrofL1-MeasNoGap-r18           INTEGER ::= 8  -- Maximum number of frequencies layers for L1 measurements UE can measure without gaps
+maxNrofL1-MeasWithGap-r18         INTEGER ::= 8  -- Maximum number of frequencies layers for L1 measurements UE can measure with gaps
+maxNrofCellsL1-MeasNoGap-r18      INTEGER ::= 8  -- Maximum number of neighboring cells for L1 measurements UE can measure without gaps
+maxNrofCellsL1-MeasWithGap-r18    INTEGER ::= 8  -- Maximum number of neighboring cells for L1 measurements UE can measure with gaps
+maxNrofTotalCellsL1-MeasNoGap-r18 INTEGER ::= 24 -- Maximum total number of cell across all frequencies layers UE can measure
+maxNrofSSBsL1-MeasNoGap-r18       INTEGER ::= 8  -- Maximum number of SSB resources for L1 measurements without gaps
+maxNrofSSBsL1-MeasNoGapExt-r18    INTEGER ::= 24  -- Maximum number of SSB resources for L1 measurements without gaps
+maxNrofSSBsL1-MeasWithGap-r18     INTEGER ::= 8  -- Maximum number of SSB resources for L1 measurements with gaps
+maxNrofTotalSSBsL1-MeasNoGap-r18  INTEGER ::= 64 -- Maximum total number of SSB resources for L1 measurements without gaps
+maxNrofSSBsL1-MeasIntraFreq-r18   INTEGER ::= 8  -- Maximum number of RRC configured intra-frequency LTM candidate configurations
+maxNrofSSBsL1-MeasInterFreq-r18   INTEGER ::= 8  -- Maximum number of RRC configured inter-frequency LTM candidate configurations
+maxNrofReportConfigsAperiodic-r18 INTEGER ::= 4  -- Maximum number of aperiodic LTM CSI report configurations
+maxNrofReportConfigsPeriodic-r18  INTEGER ::= 4  -- Maximum number of periodic LTM CSI report configurations
+maxNrofReportConfigsSemiPersistent-r18  INTEGER ::= 4   -- Maximum number of semi-persistent LTM CSI report configurations
+maxNrofCellsTA-Meas-r18           INTEGER ::= 8    -- Maximum number of LTM candidate cells for TA acquisition
+maxNrofConfigJointTCI-States-r18  INTEGER ::= 128  -- Maximum number of joint LTM DL TCI states that can be configured
+maxNrofConfigDL-TCI-States-r18    INTEGER ::= 128  -- Maximum number of separate LTM DL TCI states that can be configured
+maxNrofConfigUL-TCI-States-r18    INTEGER ::= 64   -- Maximum number of separate LTM UL TCI states that can be configured
+maxNrofCellsTCI-r18               INTEGER ::= 8    -- Maximum number of configured joint LTM TCI state(s) across candidate cells
+maxNrofStoredConfigCells-r18      INTEGER ::= 16   -- Maximum number cells which can be stored by the UE
+maxNrofConfigCells-r18            INTEGER ::= 4    -- Maximum number LTM candidate configurations on which UE can fast processing
+maxNrofActivatedJointTCI-States-r18  INTEGER ::= 32  -- Maximum number of joint DL TCI states that can be activated via MAC CE
+maxNrofActivatedDL-TCI-States-r18    INTEGER ::= 32  -- Maximum number of separate DL TCI states that can be activated via MAC CE
+maxNrofActivatedUL-TCI-States-r18    INTEGER ::= 32  -- Maximum number of separate DL TCI states that can be activated via MAC CE
 
 -- TAG-NR-MULTIPLICITY-AND-CONSTRAINTS-STOP
 -- TAG-NR-INTER-NODE-DEFINITIONS-END-START

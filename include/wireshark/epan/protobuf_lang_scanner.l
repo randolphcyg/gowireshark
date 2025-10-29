@@ -138,6 +138,7 @@ strdup_and_store(void* yyscanner, const char* text);
 
     /* key words */
 syntax                          PROTOBUF_LANG_PARSE(PT_SYNTAX);
+edition                         PROTOBUF_LANG_PARSE(PT_EDITION);
 import                          PROTOBUF_LANG_PARSE(PT_IMPORT);
 weak                            PROTOBUF_LANG_PARSE(PT_WEAK);
 public                          PROTOBUF_LANG_PARSE(PT_PUBLIC);
@@ -167,8 +168,8 @@ to                              PROTOBUF_LANG_PARSE(PT_TO);
 
     /* Using extended identifier because we care only about position */
 [a-zA-Z0-9_.][a-zA-Z0-9_.+-]*    PROTOBUF_LANG_PARSE(PT_IDENT);
-\"(\'|\\.|\"\"|[^"\n"])*\"       PROTOBUF_LANG_PARSE(PT_STRLIT);
-\'(\"|\\.|\'\'|[^"\n"])*\'       PROTOBUF_LANG_PARSE(PT_STRLIT);
+\"(\'|\\\"|[^\""\n"])*\"         PROTOBUF_LANG_PARSE(PT_STRLIT);
+\'(\"|\\\'|[^\'"\n"])*\'         PROTOBUF_LANG_PARSE(PT_STRLIT);
 
     /* comments */
 "//"[^\r\n]*

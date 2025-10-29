@@ -21,6 +21,9 @@
 #include <epan/packet.h>
 #include <epan/expert.h>
 #include <epan/tfs.h>
+
+#include <wsutil/ws_roundup.h>
+
 #include "packet-dcerpc.h"
 #include "packet-dcerpc-nt.h"
 #include "packet-dcerpc-spoolss.h"
@@ -1094,8 +1097,7 @@ dissect_spoolss_uint16uni(tvbuff_t *tvb, int offset, packet_info *pinfo _U_,
 	int len, remaining;
 	char *text;
 
-	if (offset % 2)
-		offset += 2 - (offset % 2);
+	offset = WS_ROUNDUP_2(offset);
 
 	/* Get remaining data in buffer as a string */
 
@@ -2830,7 +2832,7 @@ dissect_NOTIFY_OPTION(tvbuff_t *tvb, int offset, packet_info *pinfo,
 				    hf_notify_option_type, &type);
 
 	proto_item_append_text(
-		item, ": %s", val_to_str(type, printer_notify_types,
+		item, ": %s", val_to_str(pinfo->pool, type, printer_notify_types,
 					 "Unknown (%d)"));
 
 	offset = dissect_ndr_uint16(tvb, offset, pinfo, subtree, di, drep,
@@ -4639,7 +4641,7 @@ SpoolssSetJob_q(tvbuff_t *tvb, int offset, packet_info *pinfo,
 
 	col_append_fstr(
 			pinfo->cinfo, COL_INFO, ", %s jobid %d",
-			val_to_str(cmd, setjob_commands, "Unknown (%d)"),
+			val_to_str(pinfo->pool, cmd, setjob_commands, "Unknown (%d)"),
 			jobid);
 
 	return offset;
@@ -5801,8 +5803,7 @@ cb_notify_str_postprocess(packet_info *pinfo _U_,
 
 	/* Align start_offset on 4-byte boundary. */
 
-	if (start_offset % 4)
-		start_offset += 4 - (start_offset % 4);
+	start_offset = WS_ROUNDUP_4(start_offset);
 
 	/* Get string length */
 
@@ -6204,12 +6205,12 @@ dissect_NOTIFY_INFO_DATA(tvbuff_t *tvb, int offset, packet_info *pinfo,
 
 	switch(type) {
 	case PRINTER_NOTIFY_TYPE:
-		field_string = val_to_str_ext(
+		field_string = val_to_str_ext(pinfo->pool,
 			field, &printer_notify_option_data_vals_ext,
 			"Unknown (%d)");
 		break;
 	case JOB_NOTIFY_TYPE:
-		field_string = val_to_str_ext(
+		field_string = val_to_str_ext(pinfo->pool,
 			field, &job_notify_option_data_vals_ext,
 			"Unknown (%d)");
 		break;
@@ -6220,7 +6221,7 @@ dissect_NOTIFY_INFO_DATA(tvbuff_t *tvb, int offset, packet_info *pinfo,
 
 	proto_item_append_text(
 		item, "%s, %s",
-		val_to_str(type, printer_notify_types, "Unknown (%d)"),
+		val_to_str(pinfo->pool, type, printer_notify_types, "Unknown (%d)"),
 		field_string);
 
 	offset = dissect_ndr_uint32(

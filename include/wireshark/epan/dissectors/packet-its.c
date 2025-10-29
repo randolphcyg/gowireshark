@@ -1,7 +1,7 @@
 /* Do not modify this file. Changes will be overwritten.                      */
 /* Generated automatically by the ASN.1 to Wireshark dissector compiler       */
 /* packet-its.c                                                               */
-/* asn2wrs.py -q -L -o its -c ./its.cnf -s ./packet-its-template -D . -O ../.. ETSI-ITS-CDD.asn ITS-ContainerV1.asn ISO_TS_14816.asn ISO_TS_14906_Application.asn ISO_TS_19091.asn GDD.asn ISO19321IVIv2.asn ETSI_TS_103301.asn CAMv1.asn CAM-PDU-Descriptions.asn DENMv1.asn DENM-PDU-Descriptions.asn TIS_TPG_Transactions_Descriptions.asn EVCSN-PDU-Descriptions.asn EV-RSR-PDU-Descriptions.asn CPM-OriginatingStationContainers.asn CPM-PDU-Descriptionsv1.asn CPM-PDU-Descriptions.asn CPM-PerceivedObjectContainer.asn CPM-PerceptionRegionContainer.asn CPM-SensorInformationContainer.asn VAM-PDU-Descriptions.asn IMZM-PDU-Descriptions.asn */
+/* asn2wrs.py -q -L -o its -c ./its.cnf -s ./packet-its-template -D . -O ../.. ETSI-ITS-CDD.asn ITS-ContainerV1.asn ISO_TS_14816.asn ISO_TS_14906_Application.asn DSRC.asn DSRC-region.asn DSRC-addgrp-C.asn GDD.asn ISO19321IVIv2.asn ETSI_TS_103301.asn CAMv1.asn CAM-PDU-Descriptions.asn DENMv1.asn DENM-PDU-Descriptions.asn TIS_TPG_Transactions_Descriptions.asn EVCSN-PDU-Descriptions.asn EV-RSR-PDU-Descriptions.asn CPM-OriginatingStationContainers.asn CPM-PDU-Descriptionsv1.asn CPM-PDU-Descriptions.asn CPM-PerceivedObjectContainer.asn CPM-PerceptionRegionContainer.asn CPM-SensorInformationContainer.asn VAM-PDU-Descriptions.asn IMZM-PDU-Descriptions.asn */
 
 /* packet-its-template.c
  *
@@ -242,7 +242,7 @@ static int dissect_regextval_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 {
     its_private_data_t *re = (its_private_data_t*)data;
     // XXX What to do when region_id = noRegion? Test length is zero?
-    if (!dissector_try_uint_new(regionid_subdissector_table, ((uint32_t) re->region_id<<16) + (uint32_t) re->type, tvb, pinfo, tree, false, NULL))
+    if (!dissector_try_uint_with_data(regionid_subdissector_table, ((uint32_t) re->region_id<<16) + (uint32_t) re->type, tvb, pinfo, tree, false, NULL))
         call_data_dissector(tvb, pinfo, tree);
     return tvb_captured_length(tvb);
 }
@@ -251,7 +251,7 @@ static int dissect_regextval_pdu(tvbuff_t *tvb, packet_info *pinfo, proto_tree *
 static int dissect_cpmcontainers_pdu(tvbuff_t* tvb, packet_info* pinfo, proto_tree* tree, void* data _U_)
 {
     // XXX What to do when region_id = noRegion? Test length is zero?
-    if (!dissector_try_uint_new(cpmcontainer_subdissector_table, its_get_private_data(pinfo)->CpmContainerId, tvb, pinfo, tree, false, NULL))
+    if (!dissector_try_uint_with_data(cpmcontainer_subdissector_table, its_get_private_data(pinfo)->CpmContainerId, tvb, pinfo, tree, false, NULL))
         call_data_dissector(tvb, pinfo, tree);
     return tvb_captured_length(tvb);
 }
@@ -988,7 +988,7 @@ static int hf_dsrc_app_vehicleMaxLadenWeight;     /* Int2 */
 static int hf_dsrc_app_vehicleTrainMaximumWeight;  /* Int2 */
 static int hf_dsrc_app_vehicleWeightUnladen;      /* Int2 */
 
-/* --- Module DSRC --- --- ---                                                */
+/* --- Module ETSI-ITS-DSRC --- --- ---                                       */
 
 static int hf_dsrc_dsrc_MapData_PDU;              /* MapData */
 static int hf_dsrc_dsrc_RTCMcorrections_PDU;      /* RTCMcorrections */
@@ -1189,6 +1189,14 @@ static int hf_dsrc_nopxyRegional;                 /* RegionalExtension */
 static int hf_dsrc_delta;                         /* NodeOffsetPointXY */
 static int hf_dsrc_attributes;                    /* NodeAttributeSetXY */
 static int hf_dsrc_NodeSetXY_item;                /* NodeXY */
+static int hf_dsrc_reportingPoint;                /* ReportingPoint */
+static int hf_dsrc_priorityLevel;                 /* PriorityLevel */
+static int hf_dsrc_length;                        /* TrainLength */
+static int hf_dsrc_route;                         /* RouteNumber */
+static int hf_dsrc_line;                          /* LineNumber */
+static int hf_dsrc_direction;                     /* TransitDirection */
+static int hf_dsrc_tour;                          /* TourNumber */
+static int hf_dsrc_version;                       /* VersionId */
 static int hf_dsrc_OverlayLaneList_item;          /* LaneID */
 static int hf_dsrc_semiMajor;                     /* SemiMajorAxisAccuracy */
 static int hf_dsrc_semiMinor;                     /* SemiMinorAxisAccuracy */
@@ -1210,6 +1218,7 @@ static int hf_dsrc_transitOccupancy;              /* TransitVehicleOccupancy */
 static int hf_dsrc_transitSchedule;               /* DeltaTime */
 static int hf_dsrc_rdRegional;                    /* T_RequestorDescriptionRegional */
 static int hf_dsrc_rdRegional_item;               /* RegionalExtension */
+static int hf_dsrc_ocit;                          /* OcitRequestorDescriptionContainer */
 static int hf_dsrc_rpvPosition;                   /* Position3D */
 static int hf_dsrc_rpvHeading;                    /* Angle */
 static int hf_dsrc_rpvSpeed;                      /* TransmissionAndSpeed */
@@ -1391,7 +1400,7 @@ static int hf_dsrc_TransitVehicleStatus_doorOpen;
 static int hf_dsrc_TransitVehicleStatus_charging;
 static int hf_dsrc_TransitVehicleStatus_atStopLine;
 
-/* --- Module AddGrpC --- --- ---                                             */
+/* --- Module ETSI-ITS-DSRC-AddGrpC --- --- ---                               */
 
 static int hf_AddGrpC_AddGrpC_ConnectionManeuverAssist_addGrpC_PDU;  /* ConnectionManeuverAssist_addGrpC */
 static int hf_AddGrpC_AddGrpC_ConnectionTrajectory_addGrpC_PDU;  /* ConnectionTrajectory_addGrpC */
@@ -2612,7 +2621,7 @@ static int ett_dsrc_app_SoundLevel;
 static int ett_dsrc_app_VehicleDimensions;
 static int ett_dsrc_app_VehicleWeightLimits;
 
-/* --- Module DSRC --- --- ---                                                */
+/* --- Module ETSI-ITS-DSRC --- --- ---                                       */
 
 static int ett_dsrc_RegionalExtension;
 static int ett_dsrc_MapData;
@@ -2680,6 +2689,7 @@ static int ett_dsrc_NodeListXY;
 static int ett_dsrc_NodeOffsetPointXY;
 static int ett_dsrc_NodeXY;
 static int ett_dsrc_NodeSetXY;
+static int ett_dsrc_OcitRequestorDescriptionContainer;
 static int ett_dsrc_OverlayLaneList;
 static int ett_dsrc_PositionalAccuracy;
 static int ett_dsrc_PositionConfidenceSet;
@@ -2736,7 +2746,10 @@ static int ett_dsrc_LaneAttributes_Vehicle;
 static int ett_dsrc_LaneDirection;
 static int ett_dsrc_TransitVehicleStatus;
 
-/* --- Module AddGrpC --- --- ---                                             */
+/* --- Module ETSI-ITS-DSRC-REGION --- --- ---                                */
+
+
+/* --- Module ETSI-ITS-DSRC-AddGrpC --- --- ---                               */
 
 static int ett_AddGrpC_ConnectionManeuverAssist_addGrpC;
 static int ett_AddGrpC_ConnectionTrajectory_addGrpC;
@@ -2757,9 +2770,6 @@ static int ett_AddGrpC_PrioritizationResponse;
 static int ett_AddGrpC_PrioritizationResponseList;
 static int ett_AddGrpC_SignalHeadLocation;
 static int ett_AddGrpC_SignalHeadLocationList;
-
-/* --- Module REGION --- --- ---                                              */
-
 
 /* --- Module GDD --- --- ---                                                 */
 
@@ -5743,22 +5753,6 @@ dissect_its_VehicleBreakdownSubCauseCode(tvbuff_t *tvb _U_, int offset _U_, asn1
 }
 
 
-static const value_string its_VehicleHeight_vals[] = {
-  { 126, "outOfRange" },
-  { 127, "unavailable" },
-  { 0, NULL }
-};
-
-
-static int
-dissect_its_VehicleHeight(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
-  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
-                                                            1U, 128U, NULL, false);
-
-  return offset;
-}
-
-
 static const value_string its_VehicleLengthConfidenceIndication_vals[] = {
   {   0, "noTrailerPresent" },
   {   1, "trailerPresentWithKnownLength" },
@@ -8284,7 +8278,7 @@ dissect_its_PtActivation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_its_PtActivation, its_PtActivation_sequence);
 
-  dissector_try_uint_new(cam_pt_activation_table, pta->type, pta->data, actx->pinfo, tree, true, NULL);
+  dissector_try_uint_with_data(cam_pt_activation_table, pta->type, pta->data, actx->pinfo, tree, true, NULL);
   actx->private_data = priv_data;
   return offset;
 }
@@ -8889,7 +8883,7 @@ dissect_itsv1_PtActivation(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _
   offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
                                    ett_itsv1_PtActivation, itsv1_PtActivation_sequence);
 
-  dissector_try_uint_new(cam_pt_activation_table, pta->type, pta->data, actx->pinfo, tree, true, NULL);
+  dissector_try_uint_with_data(cam_pt_activation_table, pta->type, pta->data, actx->pinfo, tree, true, NULL);
   actx->private_data = priv_data;
   return offset;
 }
@@ -10652,7 +10646,7 @@ dissect_dsrc_app_VehicleWeightLimits(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx
 }
 
 
-/* --- Module DSRC --- --- ---                                                */
+/* --- Module ETSI-ITS-DSRC --- --- ---                                       */
 
 
 static const value_string dsrc_RegionId_vals[] = {
@@ -13517,6 +13511,7 @@ static const value_string dsrc_BasicVehicleRole_vals[] = {
   {  20, "pedestrian" },
   {  21, "nonMotorized" },
   {  22, "military" },
+  {  23, "tram" },
   { 0, NULL }
 };
 
@@ -13524,7 +13519,7 @@ static const value_string dsrc_BasicVehicleRole_vals[] = {
 static int
 dissect_dsrc_BasicVehicleRole(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
   offset = dissect_per_enumerated(tvb, offset, actx, tree, hf_index,
-                                     23, NULL, true, 0, NULL);
+                                     23, NULL, true, 1, NULL);
 
   return offset;
 }
@@ -13723,6 +13718,107 @@ dissect_dsrc_T_RequestorDescriptionRegional(tvbuff_t *tvb _U_, int offset _U_, a
 }
 
 
+
+static int
+dissect_dsrc_ReportingPoint(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 65535U, NULL, false);
+
+  return offset;
+}
+
+
+
+static int
+dissect_dsrc_PriorityLevel(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 255U, NULL, false);
+
+  return offset;
+}
+
+
+
+static int
+dissect_dsrc_TrainLength(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 7U, NULL, false);
+
+  return offset;
+}
+
+
+
+static int
+dissect_dsrc_RouteNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 4294967295U, NULL, false);
+
+  return offset;
+}
+
+
+
+static int
+dissect_dsrc_LineNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 4294967295U, NULL, false);
+
+  return offset;
+}
+
+
+
+static int
+dissect_dsrc_TransitDirection(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 255U, NULL, false);
+
+  return offset;
+}
+
+
+
+static int
+dissect_dsrc_TourNumber(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 4294967295U, NULL, false);
+
+  return offset;
+}
+
+
+
+static int
+dissect_dsrc_VersionId(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 4294967295U, NULL, false);
+
+  return offset;
+}
+
+
+static const per_sequence_t dsrc_OcitRequestorDescriptionContainer_sequence[] = {
+  { &hf_dsrc_reportingPoint , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_ReportingPoint },
+  { &hf_dsrc_priorityLevel  , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_PriorityLevel },
+  { &hf_dsrc_length         , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_TrainLength },
+  { &hf_dsrc_route          , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_RouteNumber },
+  { &hf_dsrc_line           , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_LineNumber },
+  { &hf_dsrc_direction      , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_TransitDirection },
+  { &hf_dsrc_tour           , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_TourNumber },
+  { &hf_dsrc_version        , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_VersionId },
+  { NULL, 0, 0, NULL }
+};
+
+static int
+dissect_dsrc_OcitRequestorDescriptionContainer(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_sequence(tvb, offset, actx, tree, hf_index,
+                                   ett_dsrc_OcitRequestorDescriptionContainer, dsrc_OcitRequestorDescriptionContainer_sequence);
+
+  return offset;
+}
+
+
 static const per_sequence_t dsrc_RequestorDescription_sequence[] = {
   { &hf_dsrc_rdId           , ASN1_EXTENSION_ROOT    , ASN1_NOT_OPTIONAL, dissect_dsrc_VehicleID },
   { &hf_dsrc_rdType         , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_RequestorType },
@@ -13733,6 +13829,7 @@ static const per_sequence_t dsrc_RequestorDescription_sequence[] = {
   { &hf_dsrc_transitOccupancy, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_TransitVehicleOccupancy },
   { &hf_dsrc_transitSchedule, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_DeltaTime },
   { &hf_dsrc_rdRegional     , ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_T_RequestorDescriptionRegional },
+  { &hf_dsrc_ocit           , ASN1_NOT_EXTENSION_ROOT, ASN1_NOT_OPTIONAL, dissect_dsrc_OcitRequestorDescriptionContainer },
   { NULL, 0, 0, NULL }
 };
 
@@ -13986,6 +14083,16 @@ dissect_dsrc_FuelType(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, p
   return offset;
 }
 
+
+
+static int
+dissect_dsrc_VehicleHeight(tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_) {
+  offset = dissect_per_constrained_integer(tvb, offset, actx, tree, hf_index,
+                                                            0U, 127U, NULL, false);
+
+  return offset;
+}
+
 /*--- PDUs ---*/
 
 static int dissect_dsrc_MapData_PDU(tvbuff_t *tvb _U_, packet_info *pinfo _U_, proto_tree *tree _U_, void *data _U_) {
@@ -14030,7 +14137,10 @@ static int dissect_dsrc_SignalStatusMessage_PDU(tvbuff_t *tvb _U_, packet_info *
 }
 
 
-/* --- Module AddGrpC --- --- ---                                             */
+/* --- Module ETSI-ITS-DSRC-REGION --- --- ---                                */
+
+
+/* --- Module ETSI-ITS-DSRC-AddGrpC --- --- ---                               */
 
 
 static const value_string AddGrpC_TimeReference_vals[] = {
@@ -14156,7 +14266,7 @@ dissect_AddGrpC_IntersectionState_addGrpC(tvbuff_t *tvb _U_, int offset _U_, asn
 
 
 static const per_sequence_t AddGrpC_LaneAttributes_addGrpC_sequence[] = {
-  { &hf_AddGrpC_maxVehicleHeight, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_VehicleHeight },
+  { &hf_AddGrpC_maxVehicleHeight, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_dsrc_VehicleHeight },
   { &hf_AddGrpC_maxVehicleWeight, ASN1_EXTENSION_ROOT    , ASN1_OPTIONAL    , dissect_its_VehicleMass },
   { NULL, 0, 0, NULL }
 };
@@ -14544,9 +14654,6 @@ static int dissect_AddGrpC_SignalStatusPackage_addGrpC_PDU(tvbuff_t *tvb _U_, pa
   offset += 7; offset >>= 3;
   return offset;
 }
-
-
-/* --- Module REGION --- --- ---                                              */
 
 
 /* --- Module GDD --- --- ---                                                 */
@@ -24629,27 +24736,27 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(its_TrajectoryInterceptionConfidence_vals), 0,
         NULL, HFILL }},
     { &hf_its_vlnContent,
-      { "content", "its.content",
+      { "content", "its.vlnContent",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_127", HFILL }},
     { &hf_its_vlnExtension,
-      { "extension", "its.extension",
+      { "extension", "its.vlnExtension",
         FT_UINT32, BASE_DEC, VALS(its_Ext1_vals), 0,
         "Ext1", HFILL }},
     { &hf_its_e1Content,
-      { "content", "its.content",
+      { "content", "its.e1Content",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_128_16511", HFILL }},
     { &hf_its_e2Extension,
-      { "extension", "its.extension",
+      { "extension", "its.e2Extension",
         FT_UINT32, BASE_DEC, VALS(its_Ext2_vals), 0,
         "Ext2", HFILL }},
     { &hf_its_e2Content,
-      { "content", "its.content",
+      { "content", "its.e2Content",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_16512_2113663", HFILL }},
     { &hf_its_e1Extension,
-      { "extension", "its.extension",
+      { "extension", "its.e1Extension",
         FT_UINT32, BASE_DEC, NULL, 0,
         "Ext3", HFILL }},
     { &hf_its_verticalAccelerationValue,
@@ -25735,7 +25842,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "Int2", HFILL }},
 
-/* --- Module DSRC --- --- ---                                                */
+/* --- Module ETSI-ITS-DSRC --- --- ---                                       */
 
     { &hf_dsrc_dsrc_MapData_PDU,
       { "MapData", "dsrc.MapData_element",
@@ -25766,7 +25873,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_mdTimeStamp,
-      { "timeStamp", "dsrc.timeStamp",
+      { "timeStamp", "dsrc.mdTimeStamp",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_moi_fmt), 0,
         "MinuteOfTheYear", HFILL }},
     { &hf_dsrc_msgIssueRevision,
@@ -25782,7 +25889,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_mdIntersections,
-      { "intersections", "dsrc.intersections",
+      { "intersections", "dsrc.mdIntersections",
         FT_UINT32, BASE_DEC, NULL, 0,
         "IntersectionGeometryList", HFILL }},
     { &hf_dsrc_roadSegments,
@@ -25798,7 +25905,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "RestrictionClassList", HFILL }},
     { &hf_dsrc_mapRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.mapRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_MAPRegional", HFILL }},
     { &hf_dsrc_mapRegional_item,
@@ -25838,7 +25945,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_spatTimeStamp,
-      { "timeStamp", "dsrc.timeStamp",
+      { "timeStamp", "dsrc.spatTimeStamp",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_moi_fmt), 0,
         "MinuteOfTheYear", HFILL }},
     { &hf_dsrc_name,
@@ -25846,11 +25953,11 @@ void proto_register_its(void)
         FT_STRING, BASE_NONE, NULL, 0,
         "DescriptiveName", HFILL }},
     { &hf_dsrc_spatIntersections,
-      { "intersections", "dsrc.intersections",
+      { "intersections", "dsrc.spatIntersections",
         FT_UINT32, BASE_DEC, NULL, 0,
         "IntersectionStateList", HFILL }},
     { &hf_dsrc_spatRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.spatRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_SPATRegional", HFILL }},
     { &hf_dsrc_spatRegional_item,
@@ -25858,7 +25965,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_srmTimeStamp,
-      { "timeStamp", "dsrc.timeStamp",
+      { "timeStamp", "dsrc.srmTimeStamp",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_moi_fmt), 0,
         "MinuteOfTheYear", HFILL }},
     { &hf_dsrc_second,
@@ -25878,7 +25985,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         "RequestorDescription", HFILL }},
     { &hf_dsrc_srmRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.srmRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_SRMRegional", HFILL }},
     { &hf_dsrc_srmRegional_item,
@@ -25886,7 +25993,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_ssmTimeStamp,
-      { "timeStamp", "dsrc.timeStamp",
+      { "timeStamp", "dsrc.ssmTimeStamp",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_moi_fmt), 0,
         "MinuteOfTheYear", HFILL }},
     { &hf_dsrc_ssmStatus,
@@ -25894,7 +26001,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "SignalStatusList", HFILL }},
     { &hf_dsrc_ssmRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.ssmRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_SSMRegional", HFILL }},
     { &hf_dsrc_ssmRegional_item,
@@ -25902,15 +26009,15 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_asType,
-      { "type", "dsrc.type",
+      { "type", "dsrc.asType",
         FT_UINT32, BASE_DEC, VALS(dsrc_AdvisorySpeedType_vals), 0,
         "AdvisorySpeedType", HFILL }},
     { &hf_dsrc_asSpeed,
-      { "speed", "dsrc.speed",
+      { "speed", "dsrc.asSpeed",
         FT_UINT32, BASE_DEC, NULL, 0,
         "SpeedAdvice", HFILL }},
     { &hf_dsrc_asConfidence,
-      { "confidence", "dsrc.confidence",
+      { "confidence", "dsrc.asConfidence",
         FT_UINT32, BASE_DEC, VALS(dsrc_SpeedConfidenceDSRC_vals), 0,
         "SpeedConfidenceDSRC", HFILL }},
     { &hf_dsrc_distance,
@@ -25922,7 +26029,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "RestrictionClassID", HFILL }},
     { &hf_dsrc_asRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.asRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_AdvisorySpeedRegional", HFILL }},
     { &hf_dsrc_asRegional_item,
@@ -25978,7 +26085,7 @@ void proto_register_its(void)
         FT_INT32, BASE_DEC, NULL, 0,
         "Scale_B12", HFILL }},
     { &hf_dsrc_clRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.clRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_ComputedLaneRegional", HFILL }},
     { &hf_dsrc_clRegional_item,
@@ -26034,7 +26141,7 @@ void proto_register_its(void)
         FT_BOOLEAN, BASE_NONE, NULL, 0,
         "PedestrianBicycleDetect", HFILL }},
     { &hf_dsrc_cmaRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.cmaRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_ConnectionManeuverAssistRegional", HFILL }},
     { &hf_dsrc_cmaRegional_item,
@@ -26102,11 +26209,11 @@ void proto_register_its(void)
         FT_INT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_fpvHeading,
-      { "heading", "dsrc.heading",
+      { "heading", "dsrc.fpvHeading",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_angle_fmt), 0,
         "HeadingDSRC", HFILL }},
     { &hf_dsrc_fpvSpeed,
-      { "speed", "dsrc.speed_element",
+      { "speed", "dsrc.fpvSpeed_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TransmissionAndSpeed", HFILL }},
     { &hf_dsrc_posAccuracy,
@@ -26158,7 +26265,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "OverlayLaneList", HFILL }},
     { &hf_dsrc_glRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.glRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_GenericLaneRegional", HFILL }},
     { &hf_dsrc_glRegional_item,
@@ -26174,7 +26281,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "LaneConnectionID", HFILL }},
     { &hf_dsrc_igId,
-      { "id", "dsrc.id_element",
+      { "id", "dsrc.igId_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "IntersectionReferenceID", HFILL }},
     { &hf_dsrc_revision,
@@ -26202,7 +26309,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "PreemptPriorityList", HFILL }},
     { &hf_dsrc_igRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.igRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_IntersectionGeometryRegional", HFILL }},
     { &hf_dsrc_igRegional_item,
@@ -26218,11 +26325,11 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "RoadRegulatorID", HFILL }},
     { &hf_dsrc_irId,
-      { "id", "dsrc.id",
+      { "id", "dsrc.irId",
         FT_UINT32, BASE_DEC, NULL, 0,
         "IntersectionID", HFILL }},
     { &hf_dsrc_isId,
-      { "id", "dsrc.id_element",
+      { "id", "dsrc.isId_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "IntersectionReferenceID", HFILL }},
     { &hf_dsrc_isStatus,
@@ -26234,7 +26341,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_moi_fmt), 0,
         "MinuteOfTheYear", HFILL }},
     { &hf_dsrc_isTimeStamp,
-      { "timeStamp", "dsrc.timeStamp",
+      { "timeStamp", "dsrc.isTimeStamp",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_dsecond_fmt), 0,
         "DSecond", HFILL }},
     { &hf_dsrc_enabledLanes,
@@ -26250,7 +26357,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_isRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.isRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_IntersectionStateRegional", HFILL }},
     { &hf_dsrc_isRegional_item,
@@ -26274,7 +26381,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(dsrc_LaneTypeAttributes_vals), 0,
         "LaneTypeAttributes", HFILL }},
     { &hf_dsrc_laRegional,
-      { "regional", "dsrc.regional_element",
+      { "regional", "dsrc.laRegional_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "RegionalExtension", HFILL }},
     { &hf_dsrc_pathEndPointAngle,
@@ -26298,7 +26405,7 @@ void proto_register_its(void)
         FT_INT32, BASE_DEC, NULL, 0,
         "MergeDivergeNodeAngle", HFILL }},
     { &hf_dsrc_ldaRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.ldaRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_LaneDataAttributeRegional", HFILL }},
     { &hf_dsrc_ldaRegional_item,
@@ -26362,7 +26469,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "AdvisorySpeedList", HFILL }},
     { &hf_dsrc_meRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.meRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_MovementEventRegional", HFILL }},
     { &hf_dsrc_meRegional_item,
@@ -26386,7 +26493,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "MovementEventList", HFILL }},
     { &hf_dsrc_msRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.msRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_MovementStateRegional", HFILL }},
     { &hf_dsrc_msRegional_item,
@@ -26418,7 +26525,7 @@ void proto_register_its(void)
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B10", HFILL }},
     { &hf_dsrc_nasxyRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.nasxyRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_NodeAttributeSetXYRegional", HFILL }},
     { &hf_dsrc_nasxyRegional_item,
@@ -26434,51 +26541,51 @@ void proto_register_its(void)
         FT_INT32, BASE_CUSTOM, CF_FUNC(its_longitude_fmt), 0,
         "Longitude", HFILL }},
     { &hf_dsrc_n20bX,
-      { "x", "dsrc.x",
+      { "x", "dsrc.n20bX",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B10", HFILL }},
     { &hf_dsrc_n20bY,
-      { "y", "dsrc.y",
+      { "y", "dsrc.n20bY",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B10", HFILL }},
     { &hf_dsrc_n22bX,
-      { "x", "dsrc.x",
+      { "x", "dsrc.n22bX",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B11", HFILL }},
     { &hf_dsrc_n22bY,
-      { "y", "dsrc.y",
+      { "y", "dsrc.n22bY",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B11", HFILL }},
     { &hf_dsrc_n24bX,
-      { "x", "dsrc.x",
+      { "x", "dsrc.n24bX",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B12", HFILL }},
     { &hf_dsrc_n24bY,
-      { "y", "dsrc.y",
+      { "y", "dsrc.n24bY",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B12", HFILL }},
     { &hf_dsrc_n26bX,
-      { "x", "dsrc.x",
+      { "x", "dsrc.n26bX",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B13", HFILL }},
     { &hf_dsrc_n26bY,
-      { "y", "dsrc.y",
+      { "y", "dsrc.n26bY",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B13", HFILL }},
     { &hf_dsrc_n28bX,
-      { "x", "dsrc.x",
+      { "x", "dsrc.n28bX",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B14", HFILL }},
     { &hf_dsrc_n28bY,
-      { "y", "dsrc.y",
+      { "y", "dsrc.n28bY",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B14", HFILL }},
     { &hf_dsrc_n32bX,
-      { "x", "dsrc.x",
+      { "x", "dsrc.n32bX",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B16", HFILL }},
     { &hf_dsrc_n32bY,
-      { "y", "dsrc.y",
+      { "y", "dsrc.n32bY",
         FT_INT32, BASE_DEC, NULL, 0,
         "Offset_B16", HFILL }},
     { &hf_dsrc_nodes,
@@ -26518,7 +26625,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         "Node_LLmD_64b", HFILL }},
     { &hf_dsrc_nopxyRegional,
-      { "regional", "dsrc.regional_element",
+      { "regional", "dsrc.nopxyRegional_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "RegionalExtension", HFILL }},
     { &hf_dsrc_delta,
@@ -26533,6 +26640,38 @@ void proto_register_its(void)
       { "NodeXY", "dsrc.NodeXY_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
+    { &hf_dsrc_reportingPoint,
+      { "reportingPoint", "dsrc.reportingPoint",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        NULL, HFILL }},
+    { &hf_dsrc_priorityLevel,
+      { "priorityLevel", "dsrc.priorityLevel",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        NULL, HFILL }},
+    { &hf_dsrc_length,
+      { "length", "dsrc.length",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "TrainLength", HFILL }},
+    { &hf_dsrc_route,
+      { "route", "dsrc.route",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "RouteNumber", HFILL }},
+    { &hf_dsrc_line,
+      { "line", "dsrc.line",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "LineNumber", HFILL }},
+    { &hf_dsrc_direction,
+      { "direction", "dsrc.direction",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "TransitDirection", HFILL }},
+    { &hf_dsrc_tour,
+      { "tour", "dsrc.tour",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "TourNumber", HFILL }},
+    { &hf_dsrc_version,
+      { "version", "dsrc.version",
+        FT_UINT32, BASE_DEC, NULL, 0,
+        "VersionId", HFILL }},
     { &hf_dsrc_OverlayLaneList_item,
       { "LaneID", "dsrc.LaneID",
         FT_UINT32, BASE_DEC, NULL, 0,
@@ -26562,7 +26701,7 @@ void proto_register_its(void)
         FT_INT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_p3dRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.p3dRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_Position3DRegional", HFILL }},
     { &hf_dsrc_p3dRegional_item,
@@ -26574,23 +26713,23 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_rslType,
-      { "type", "dsrc.type",
+      { "type", "dsrc.rslType",
         FT_UINT32, BASE_DEC, VALS(dsrc_SpeedLimitType_vals), 0,
         "SpeedLimitType", HFILL }},
     { &hf_dsrc_rslSpeed,
-      { "speed", "dsrc.speed",
+      { "speed", "dsrc.rslSpeed",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_velocity_fmt), 0,
         "Velocity", HFILL }},
     { &hf_dsrc_rdId,
-      { "id", "dsrc.id",
+      { "id", "dsrc.rdId",
         FT_UINT32, BASE_DEC, VALS(dsrc_VehicleID_vals), 0,
         "VehicleID", HFILL }},
     { &hf_dsrc_rdType,
-      { "type", "dsrc.type_element",
+      { "type", "dsrc.rdType_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "RequestorType", HFILL }},
     { &hf_dsrc_rdPosition,
-      { "position", "dsrc.position_element",
+      { "position", "dsrc.rdPosition_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "RequestorPositionVector", HFILL }},
     { &hf_dsrc_routeName,
@@ -26610,23 +26749,27 @@ void proto_register_its(void)
         FT_INT32, BASE_CUSTOM, CF_FUNC(dsrc_delta_time_fmt), 0,
         "DeltaTime", HFILL }},
     { &hf_dsrc_rdRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.rdRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_RequestorDescriptionRegional", HFILL }},
     { &hf_dsrc_rdRegional_item,
       { "RegionalExtension", "dsrc.RegionalExtension_element",
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
+    { &hf_dsrc_ocit,
+      { "ocit", "dsrc.ocit_element",
+        FT_NONE, BASE_NONE, NULL, 0,
+        "OcitRequestorDescriptionContainer", HFILL }},
     { &hf_dsrc_rpvPosition,
-      { "position", "dsrc.position_element",
+      { "position", "dsrc.rpvPosition_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "Position3D", HFILL }},
     { &hf_dsrc_rpvHeading,
-      { "heading", "dsrc.heading",
+      { "heading", "dsrc.rpvHeading",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_angle_fmt), 0,
         "Angle", HFILL }},
     { &hf_dsrc_rpvSpeed,
-      { "speed", "dsrc.speed_element",
+      { "speed", "dsrc.rpvSpeed_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TransmissionAndSpeed", HFILL }},
     { &hf_dsrc_role,
@@ -26638,7 +26781,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(dsrc_RequestSubRole_vals), 0,
         "RequestSubRole", HFILL }},
     { &hf_dsrc_rtRequest,
-      { "request", "dsrc.request",
+      { "request", "dsrc.rtRequest",
         FT_UINT32, BASE_DEC, VALS(dsrc_RequestImportanceLevel_vals), 0,
         "RequestImportanceLevel", HFILL }},
     { &hf_dsrc_iso3883,
@@ -26650,11 +26793,11 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(dsrc_VehicleType_vals), 0,
         "VehicleType", HFILL }},
     { &hf_dsrc_rtRegional,
-      { "regional", "dsrc.regional_element",
+      { "regional", "dsrc.rtRegional_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "RegionalExtension", HFILL }},
     { &hf_dsrc_scaId,
-      { "id", "dsrc.id",
+      { "id", "dsrc.scaId",
         FT_UINT32, BASE_DEC, NULL, 0,
         "RestrictionClassID", HFILL }},
     { &hf_dsrc_users,
@@ -26670,7 +26813,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(dsrc_RestrictionAppliesTo_vals), 0,
         "RestrictionAppliesTo", HFILL }},
     { &hf_dsrc_rutRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.rutRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_RestrictionUserTypeRegional", HFILL }},
     { &hf_dsrc_rutRegional_item,
@@ -26686,11 +26829,11 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_rsrId,
-      { "id", "dsrc.id",
+      { "id", "dsrc.rsrId",
         FT_UINT32, BASE_DEC, NULL, 0,
         "RoadSegmentID", HFILL }},
     { &hf_dsrc_rsId,
-      { "id", "dsrc.id_element",
+      { "id", "dsrc.rsId_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "RoadSegmentReferenceID", HFILL }},
     { &hf_dsrc_roadLaneSet,
@@ -26698,7 +26841,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "RoadLaneSetList", HFILL }},
     { &hf_dsrc_rsRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.rsRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_RoadSegmentRegional", HFILL }},
     { &hf_dsrc_rsRegional_item,
@@ -26730,11 +26873,11 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         "RegionalExtension", HFILL }},
     { &hf_dsrc_sriId,
-      { "id", "dsrc.id",
+      { "id", "dsrc.sriId",
         FT_UINT32, BASE_DEC, VALS(dsrc_VehicleID_vals), 0,
         "VehicleID", HFILL }},
     { &hf_dsrc_sriRequest,
-      { "request", "dsrc.request",
+      { "request", "dsrc.sriRequest",
         FT_UINT32, BASE_DEC, NULL, 0,
         "RequestID", HFILL }},
     { &hf_dsrc_typeData,
@@ -26742,7 +26885,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         "RequestorType", HFILL }},
     { &hf_dsrc_srId,
-      { "id", "dsrc.id_element",
+      { "id", "dsrc.srId_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "IntersectionReferenceID", HFILL }},
     { &hf_dsrc_requestID,
@@ -26762,7 +26905,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(dsrc_IntersectionAccessPoint_vals), 0,
         "IntersectionAccessPoint", HFILL }},
     { &hf_dsrc_srRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.srRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_SignalRequestRegional", HFILL }},
     { &hf_dsrc_srRegional_item,
@@ -26774,11 +26917,11 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_srpRequest,
-      { "request", "dsrc.request_element",
+      { "request", "dsrc.srpRequest_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "SignalRequest", HFILL }},
     { &hf_dsrc_srpMinute,
-      { "minute", "dsrc.minute",
+      { "minute", "dsrc.srpMinute",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_moi_fmt), 0,
         "MinuteOfTheYear", HFILL }},
     { &hf_dsrc_duration,
@@ -26786,7 +26929,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_dsecond_fmt), 0,
         "DSecond", HFILL }},
     { &hf_dsrc_srpRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.srpRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_SignalRequestPackageRegional", HFILL }},
     { &hf_dsrc_srpRegional_item,
@@ -26794,7 +26937,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_ssId,
-      { "id", "dsrc.id_element",
+      { "id", "dsrc.ssId_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "IntersectionReferenceID", HFILL }},
     { &hf_dsrc_sigStatus,
@@ -26802,7 +26945,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "SignalStatusPackageList", HFILL }},
     { &hf_dsrc_ssRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.ssRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_SignalStatusRegional", HFILL }},
     { &hf_dsrc_ssRegional_item,
@@ -26830,7 +26973,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(dsrc_IntersectionAccessPoint_vals), 0,
         "IntersectionAccessPoint", HFILL }},
     { &hf_dsrc_sspMinute,
-      { "minute", "dsrc.minute",
+      { "minute", "dsrc.sspMinute",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_moi_fmt), 0,
         "MinuteOfTheYear", HFILL }},
     { &hf_dsrc_sspStatus,
@@ -26838,7 +26981,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(dsrc_PrioritizationResponseStatus_vals), 0,
         "PrioritizationResponseStatus", HFILL }},
     { &hf_dsrc_sspRegional,
-      { "regional", "dsrc.regional",
+      { "regional", "dsrc.sspRegional",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_SignalStatusPackageRegional", HFILL }},
     { &hf_dsrc_sspRegional_item,
@@ -26846,11 +26989,11 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_dsrc_shtcheading,
-      { "heading", "dsrc.heading",
+      { "heading", "dsrc.shtcheading",
         FT_UINT32, BASE_DEC, VALS(dsrc_HeadingConfidenceDSRC_vals), 0,
         "HeadingConfidenceDSRC", HFILL }},
     { &hf_dsrc_shtcSpeed,
-      { "speed", "dsrc.speed",
+      { "speed", "dsrc.shtcSpeed",
         FT_UINT32, BASE_DEC, VALS(dsrc_SpeedConfidenceDSRC_vals), 0,
         "SpeedConfidenceDSRC", HFILL }},
     { &hf_dsrc_throttle,
@@ -26878,7 +27021,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_time_mark_fmt), 0,
         "TimeMark", HFILL }},
     { &hf_dsrc_tcdConfidence,
-      { "confidence", "dsrc.confidence",
+      { "confidence", "dsrc.tcdConfidence",
         FT_UINT32, BASE_DEC, VALS(dsrc_TimeIntervalConfidence_vals), 0,
         "TimeIntervalConfidence", HFILL }},
     { &hf_dsrc_nextTime,
@@ -26890,7 +27033,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(dsrc_TransmissionState_vals), 0,
         "TransmissionState", HFILL }},
     { &hf_dsrc_tasSpeed,
-      { "speed", "dsrc.speed",
+      { "speed", "dsrc.tasSpeed",
         FT_UINT32, BASE_CUSTOM, CF_FUNC(dsrc_velocity_fmt), 0,
         "Velocity", HFILL }},
     { &hf_dsrc_entityID,
@@ -27334,7 +27477,7 @@ void proto_register_its(void)
         FT_BOOLEAN, 8, NULL, 0x04,
         NULL, HFILL }},
 
-/* --- Module AddGrpC --- --- ---                                             */
+/* --- Module ETSI-ITS-DSRC-AddGrpC --- --- ---                               */
 
     { &hf_AddGrpC_AddGrpC_ConnectionManeuverAssist_addGrpC_PDU,
       { "ConnectionManeuverAssist-addGrpC", "AddGrpC.ConnectionManeuverAssist_addGrpC_element",
@@ -27398,7 +27541,7 @@ void proto_register_its(void)
         "PrioritizationResponseList", HFILL }},
     { &hf_AddGrpC_maxVehicleHeight,
       { "maxVehicleHeight", "AddGrpC.maxVehicleHeight",
-        FT_UINT32, BASE_DEC, VALS(its_VehicleHeight_vals), 0,
+        FT_UINT32, BASE_DEC, NULL, 0,
         "VehicleHeight", HFILL }},
     { &hf_AddGrpC_maxVehicleWeight,
       { "maxVehicleWeight", "AddGrpC.maxVehicleWeight",
@@ -27684,7 +27827,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         "Weight", HFILL }},
     { &hf_gdd_dValue,
-      { "value", "gdd.value",
+      { "value", "gdd.dValue",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_16384", HFILL }},
     { &hf_gdd_unit,
@@ -27692,7 +27835,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(gdd_Code_Units_vals), 0,
         "Code_Units_CONSTR002", HFILL }},
     { &hf_gdd_wValue,
-      { "value", "gdd.value",
+      { "value", "gdd.wValue",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_16384", HFILL }},
     { &hf_gdd_unit_01,
@@ -27804,7 +27947,7 @@ void proto_register_its(void)
         FT_STRING, BASE_NONE, NULL, 0,
         "DestRoad_roadNumberText", HFILL }},
     { &hf_gdd_dodValue,
-      { "value", "gdd.value",
+      { "value", "gdd.dodValue",
         FT_UINT32, BASE_DEC, NULL, 0,
         "DistOrDuration_value", HFILL }},
     { &hf_gdd_unit_03,
@@ -27991,7 +28134,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_ivi_gpDetectionZoneIds,
-      { "detectionZoneIds", "ivi.detectionZoneIds",
+      { "detectionZoneIds", "ivi.gpDetectionZoneIds",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_GicPartDetectionZoneIds", HFILL }},
     { &hf_ivi_its_Rrid,
@@ -27999,7 +28142,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(its_VarLengthNumber_vals), 0,
         "VarLengthNumber", HFILL }},
     { &hf_ivi_gpRelevanceZoneIds,
-      { "relevanceZoneIds", "ivi.relevanceZoneIds",
+      { "relevanceZoneIds", "ivi.gpRelevanceZoneIds",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_GicPartRelevanceZoneIds", HFILL }},
     { &hf_ivi_direction,
@@ -28007,7 +28150,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(ivi_Direction_vals), 0,
         NULL, HFILL }},
     { &hf_ivi_gpDriverAwarenessZoneIds,
-      { "driverAwarenessZoneIds", "ivi.driverAwarenessZoneIds",
+      { "driverAwarenessZoneIds", "ivi.gpDriverAwarenessZoneIds",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_GicPartDriverAwarenessZoneIds", HFILL }},
     { &hf_ivi_minimumAwarenessTime,
@@ -28091,15 +28234,15 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_ivi_tpDetectionZoneIds,
-      { "detectionZoneIds", "ivi.detectionZoneIds",
+      { "detectionZoneIds", "ivi.tpDetectionZoneIds",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_TcPartDetectionZoneIds", HFILL }},
     { &hf_ivi_tpRelevanceZoneIds,
-      { "relevanceZoneIds", "ivi.relevanceZoneIds",
+      { "relevanceZoneIds", "ivi.tpRelevanceZoneIds",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_TcPartRelevanceZoneIds", HFILL }},
     { &hf_ivi_tpDriverAwarenessZoneIds,
-      { "driverAwarenessZoneIds", "ivi.driverAwarenessZoneIds",
+      { "driverAwarenessZoneIds", "ivi.tpDriverAwarenessZoneIds",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_TcPartDriverAwarenessZoneIds", HFILL }},
     { &hf_ivi_text,
@@ -28195,8 +28338,8 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_ivi_LaneIds_item,
-      { "LaneID", "ivi.LaneID",
-        FT_UINT32, BASE_DEC, NULL, 0,
+      { "LaneID", "ivi.LaneID_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_ivi_LanePositions_item,
       { "LanePosition", "ivi.LanePosition",
@@ -28275,11 +28418,11 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_255", HFILL }},
     { &hf_ivi_acPictogramCode,
-      { "pictogramCode", "ivi.pictogramCode",
+      { "pictogramCode", "ivi.acPictogramCode",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_65535", HFILL }},
     { &hf_ivi_acValue,
-      { "value", "ivi.value",
+      { "value", "ivi.acValue",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_65535", HFILL }},
     { &hf_ivi_unit,
@@ -28387,7 +28530,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         "InternationalSign_destinationInformation", HFILL }},
     { &hf_ivi_icPictogramCode,
-      { "pictogramCode", "ivi.pictogramCode_element",
+      { "pictogramCode", "ivi.icPictogramCode_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "T_icPictogramCode", HFILL }},
     { &hf_ivi_countryCode,
@@ -28423,7 +28566,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_99", HFILL }},
     { &hf_ivi_liValidity,
-      { "validity", "ivi.validity_element",
+      { "validity", "ivi.liValidity_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "InternationalSign_applicablePeriod", HFILL }},
     { &hf_ivi_laneType,
@@ -28471,7 +28614,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "Zid", HFILL }},
     { &hf_ivi_lcLayoutComponentId,
-      { "layoutComponentId", "ivi.layoutComponentId",
+      { "layoutComponentId", "ivi.lcLayoutComponentId",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_8_", HFILL }},
     { &hf_ivi_x,
@@ -28575,7 +28718,7 @@ void proto_register_its(void)
         FT_INT32, BASE_DEC, NULL, 0,
         "BankingAngle", HFILL }},
     { &hf_ivi_rscLayoutComponentId,
-      { "layoutComponentId", "ivi.layoutComponentId",
+      { "layoutComponentId", "ivi.rscLayoutComponentId",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_4_", HFILL }},
     { &hf_ivi_code,
@@ -28603,7 +28746,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(ivi_PolygonalLine_vals), 0,
         "PolygonalLine", HFILL }},
     { &hf_ivi_tLayoutComponentId,
-      { "layoutComponentId", "ivi.layoutComponentId",
+      { "layoutComponentId", "ivi.tLayoutComponentId",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_1_4_", HFILL }},
     { &hf_ivi_language,
@@ -28615,11 +28758,11 @@ void proto_register_its(void)
         FT_STRING, BASE_NONE, NULL, 0,
         "UTF8String", HFILL }},
     { &hf_ivi_toEqualTo,
-      { "equalTo", "ivi.equalTo",
+      { "equalTo", "ivi.toEqualTo",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_TractorCharactEqualTo", HFILL }},
     { &hf_ivi_toNotEqualTo,
-      { "notEqualTo", "ivi.notEqualTo",
+      { "notEqualTo", "ivi.toNotEqualTo",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_TractorCharactNotEqualTo", HFILL }},
     { &hf_ivi_ranges,
@@ -28627,11 +28770,11 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "VehicleCharacteristicsRangesList", HFILL }},
     { &hf_ivi_teEqualTo,
-      { "equalTo", "ivi.equalTo",
+      { "equalTo", "ivi.teEqualTo",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_TrailerCharactEqualTo", HFILL }},
     { &hf_ivi_teNotEqualTo,
-      { "notEqualTo", "ivi.notEqualTo",
+      { "notEqualTo", "ivi.teNotEqualTo",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_TrailerCharactNotEqualTo", HFILL }},
     { &hf_ivi_ranges_01,
@@ -28651,11 +28794,11 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(ivi_VcOption_vals), 0,
         NULL, HFILL }},
     { &hf_ivi_vcValidity,
-      { "validity", "ivi.validity",
+      { "validity", "ivi.vcValidity",
         FT_UINT32, BASE_DEC, NULL, 0,
         "ValidityPeriods", HFILL }},
     { &hf_ivi_vcValue,
-      { "value", "ivi.value",
+      { "value", "ivi.vcValue",
         FT_UINT32, BASE_DEC, NULL, 0,
         "INTEGER_0_65535", HFILL }},
     { &hf_ivi_simpleVehicleType,
@@ -29630,15 +29773,15 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgEOFM", HFILL }},
     { &hf_tistpg_drmManagement,
-      { "management", "tistpg.management_element",
+      { "management", "tistpg.drmManagement_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgDRM_Management", HFILL }},
     { &hf_tistpg_drmSituation,
-      { "situation", "tistpg.situation_element",
+      { "situation", "tistpg.drmSituation_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgDRM_Situation", HFILL }},
     { &hf_tistpg_drmLocation,
-      { "location", "tistpg.location_element",
+      { "location", "tistpg.drmLocation_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgDRM_Location", HFILL }},
     { &hf_tistpg_generationTime,
@@ -29686,7 +29829,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(tistpg_SearchCondition_vals), 0,
         NULL, HFILL }},
     { &hf_tistpg_snmManagement,
-      { "management", "tistpg.management_element",
+      { "management", "tistpg.snmManagement_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgSNM_Management", HFILL }},
     { &hf_tistpg_tpgContainer,
@@ -29698,15 +29841,15 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         NULL, HFILL }},
     { &hf_tistpg_trmManagement,
-      { "management", "tistpg.management_element",
+      { "management", "tistpg.trmManagement_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgTRM_Management", HFILL }},
     { &hf_tistpg_trmSituation,
-      { "situation", "tistpg.situation_element",
+      { "situation", "tistpg.trmSituation_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgTRM_Situation", HFILL }},
     { &hf_tistpg_trmLocation,
-      { "location", "tistpg.location_element",
+      { "location", "tistpg.trmLocation_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgTRM_Location", HFILL }},
     { &hf_tistpg_tpgStationID,
@@ -29734,15 +29877,15 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "PairingID", HFILL }},
     { &hf_tistpg_tcmManagement,
-      { "management", "tistpg.management_element",
+      { "management", "tistpg.tcmManagement_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgTCM_Management", HFILL }},
     { &hf_tistpg_tcmSituation,
-      { "situation", "tistpg.situation_element",
+      { "situation", "tistpg.tcmSituation_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgTCM_Situation", HFILL }},
     { &hf_tistpg_tcmLocation,
-      { "location", "tistpg.location_element",
+      { "location", "tistpg.tcmLocation_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgTCM_Location", HFILL }},
     { &hf_tistpg_reservedTpg,
@@ -29774,7 +29917,7 @@ void proto_register_its(void)
         FT_STRING, BASE_NONE, NULL, 0,
         "UTF8String_SIZE_1_128", HFILL }},
     { &hf_tistpg_vdrmManagement,
-      { "management", "tistpg.management_element",
+      { "management", "tistpg.vdrmManagement_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgVDRM_Management", HFILL }},
     { &hf_tistpg_fillingStatus,
@@ -29786,7 +29929,7 @@ void proto_register_its(void)
         FT_BYTES, BASE_NONE, NULL, 0,
         "TpgAutomation", HFILL }},
     { &hf_tistpg_vdpmManagement,
-      { "management", "tistpg.management_element",
+      { "management", "tistpg.vdpmManagement_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgVDPM_Management", HFILL }},
     { &hf_tistpg_placardTable,
@@ -29830,7 +29973,7 @@ void proto_register_its(void)
         FT_NONE, BASE_NONE, NULL, 0,
         "TyreData", HFILL }},
     { &hf_tistpg_eofmManagement,
-      { "management", "tistpg.management_element",
+      { "management", "tistpg.eofmManagement_element",
         FT_NONE, BASE_NONE, NULL, 0,
         "TisTpgEOFM_Management", HFILL }},
     { &hf_tistpg_numberOfAppliedPressure,
@@ -30846,8 +30989,8 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(cpmv1_LongitudinalLanePositionConfidence_vals), 0,
         NULL, HFILL }},
     { &hf_cpmv1_laneID,
-      { "laneID", "cpmv1.laneID",
-        FT_UINT32, BASE_DEC, NULL, 0,
+      { "laneID", "cpmv1.laneID_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_cpmv1_longitudinalLanePosition,
       { "longitudinalLanePosition", "cpmv1.longitudinalLanePosition_element",
@@ -30906,36 +31049,36 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, VALS(cpmv1_OtherSublassType_vals), 0,
         "OtherSublassType", HFILL }},
     { &hf_cpmv1_nodeOffsetPointxy,
-      { "nodeOffsetPointxy", "cpmv1.nodeOffsetPointxy",
-        FT_UINT32, BASE_DEC, VALS(dsrc_NodeOffsetPointXY_vals), 0,
+      { "nodeOffsetPointxy", "cpmv1.nodeOffsetPointxy_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         NULL, HFILL }},
     { &hf_cpmv1_nodeOffsetPointZ,
       { "nodeOffsetPointZ", "cpmv1.nodeOffsetPointZ",
         FT_UINT32, BASE_DEC, VALS(cpmv1_NodeOffsetPointZ_vals), 0,
         NULL, HFILL }},
     { &hf_cpmv1_node_Z1,
-      { "node-Z1", "cpmv1.node_Z1",
-        FT_INT32, BASE_DEC, NULL, 0,
+      { "node-Z1", "cpmv1.node_Z1_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         "Offset_B10", HFILL }},
     { &hf_cpmv1_node_Z2,
-      { "node-Z2", "cpmv1.node_Z2",
-        FT_INT32, BASE_DEC, NULL, 0,
+      { "node-Z2", "cpmv1.node_Z2_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         "Offset_B11", HFILL }},
     { &hf_cpmv1_node_Z3,
-      { "node-Z3", "cpmv1.node_Z3",
-        FT_INT32, BASE_DEC, NULL, 0,
+      { "node-Z3", "cpmv1.node_Z3_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         "Offset_B12", HFILL }},
     { &hf_cpmv1_node_Z4,
-      { "node-Z4", "cpmv1.node_Z4",
-        FT_INT32, BASE_DEC, NULL, 0,
+      { "node-Z4", "cpmv1.node_Z4_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         "Offset_B13", HFILL }},
     { &hf_cpmv1_node_Z5,
-      { "node-Z5", "cpmv1.node_Z5",
-        FT_INT32, BASE_DEC, NULL, 0,
+      { "node-Z5", "cpmv1.node_Z5_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         "Offset_B14", HFILL }},
     { &hf_cpmv1_node_Z6,
-      { "node-Z6", "cpmv1.node_Z6",
-        FT_INT32, BASE_DEC, NULL, 0,
+      { "node-Z6", "cpmv1.node_Z6_element",
+        FT_NONE, BASE_NONE, NULL, 0,
         "Offset_B16", HFILL }},
 
 /* --- Module CPM-PDU-Descriptions --- --- ---                                */
@@ -31023,15 +31166,15 @@ void proto_register_its(void)
         FT_INT32, BASE_DEC, NULL, 0,
         "DeltaTimeMilliSecondSigned", HFILL }},
     { &hf_cpm_perceptionRegionPerceptionRegionConfidence,
-      { "perceptionRegionConfidence", "cpm.perceptionRegionConfidence",
+      { "perceptionRegionConfidence", "cpm.perceptionRegionPerceptionRegionConfidence",
         FT_UINT32, BASE_DEC, VALS(its_ConfidenceLevel_vals), 0,
         "ConfidenceLevel", HFILL }},
     { &hf_cpm_perceptionRegionPerceptionRegionShape,
-      { "perceptionRegionShape", "cpm.perceptionRegionShape",
+      { "perceptionRegionShape", "cpm.perceptionRegionPerceptionRegionShape",
         FT_UINT32, BASE_DEC, VALS(its_Shape_vals), 0,
         "Shape", HFILL }},
     { &hf_cpm_perceptionRegionShadowingApplies,
-      { "shadowingApplies", "cpm.shadowingApplies",
+      { "shadowingApplies", "cpm.perceptionRegionShadowingApplies",
         FT_BOOLEAN, BASE_NONE, NULL, 0,
         "T_PerceptionRegionShadowingApplies", HFILL }},
     { &hf_cpm_sensorIdList,
@@ -31039,7 +31182,7 @@ void proto_register_its(void)
         FT_UINT32, BASE_DEC, NULL, 0,
         "SequenceOfIdentifier1B", HFILL }},
     { &hf_cpm_perceptionRegionNumberOfPerceivedObjects,
-      { "numberOfPerceivedObjects", "cpm.numberOfPerceivedObjects",
+      { "numberOfPerceivedObjects", "cpm.perceptionRegionNumberOfPerceivedObjects",
         FT_UINT32, BASE_DEC, NULL, 0,
         "T_PerceptionRegionNumberOfPerceivedObjects", HFILL }},
     { &hf_cpm_perceivedObjectIds,
@@ -31560,7 +31703,7 @@ void proto_register_its(void)
     &ett_dsrc_app_VehicleDimensions,
     &ett_dsrc_app_VehicleWeightLimits,
 
-/* --- Module DSRC --- --- ---                                                */
+/* --- Module ETSI-ITS-DSRC --- --- ---                                       */
 
     &ett_dsrc_RegionalExtension,
     &ett_dsrc_MapData,
@@ -31628,6 +31771,7 @@ void proto_register_its(void)
     &ett_dsrc_NodeOffsetPointXY,
     &ett_dsrc_NodeXY,
     &ett_dsrc_NodeSetXY,
+    &ett_dsrc_OcitRequestorDescriptionContainer,
     &ett_dsrc_OverlayLaneList,
     &ett_dsrc_PositionalAccuracy,
     &ett_dsrc_PositionConfidenceSet,
@@ -31684,7 +31828,10 @@ void proto_register_its(void)
     &ett_dsrc_LaneDirection,
     &ett_dsrc_TransitVehicleStatus,
 
-/* --- Module AddGrpC --- --- ---                                             */
+/* --- Module ETSI-ITS-DSRC-REGION --- --- ---                                */
+
+
+/* --- Module ETSI-ITS-DSRC-AddGrpC --- --- ---                               */
 
     &ett_AddGrpC_ConnectionManeuverAssist_addGrpC,
     &ett_AddGrpC_ConnectionTrajectory_addGrpC,
@@ -31705,9 +31852,6 @@ void proto_register_its(void)
     &ett_AddGrpC_PrioritizationResponseList,
     &ett_AddGrpC_SignalHeadLocation,
     &ett_AddGrpC_SignalHeadLocationList,
-
-/* --- Module REGION --- --- ---                                              */
-
 
 /* --- Module GDD --- --- ---                                                 */
 

@@ -82,15 +82,15 @@ typedef struct commview_ncf_header {
 #define BAND_11N_5GHZ		0x40
 #define BAND_11N_2_4GHZ		0x80
 
-static bool commview_ncf_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool commview_ncf_read(wtap *wth, wtap_rec *rec,
                               int *err, char **err_info, int64_t *data_offset);
 static bool commview_ncf_seek_read(wtap *wth, int64_t seek_off,
 				   wtap_rec *rec,
-				   Buffer *buf, int *err, char **err_info);
+				   int *err, char **err_info);
 static bool commview_ncf_read_header(commview_ncf_header_t *cv_hdr, FILE_T fh,
 				     int *err, char **err_info);
 static bool commview_ncf_dump(wtap_dumper *wdh,	const wtap_rec *rec,
-			      const uint8_t *pd, int *err, char **err_info);
+			      int *err, char **err_info);
 
 static int commview_ncf_file_type_subtype = -1;
 static int commview_ncfx_file_type_subtype = -1;
@@ -139,7 +139,7 @@ commview_ncf_open(wtap *wth, int *err, char **err_info)
 }
 
 static int
-commview_ncf_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
+commview_ncf_read_packet(FILE_T fh, wtap_rec *rec,
     int *err, char **err_info)
 {
 	commview_ncf_header_t cv_hdr;
@@ -148,6 +148,10 @@ commview_ncf_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
 
 	if(!commview_ncf_read_header(&cv_hdr, fh, err, err_info))
 		return false;
+
+	wtap_setup_packet_rec(rec, WTAP_ENCAP_UNKNOWN);
+	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
+
 	/*
 	 * The maximum value of cv_hdr.data_len is 65535, which is less
 	 * than WTAP_MAX_PACKET_SIZE_STANDARD will ever be, so we don't need to
@@ -314,8 +318,6 @@ commview_ncf_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
 	tm.tm_sec = cv_hdr.seconds;
 	tm.tm_isdst = -1;
 
-	rec->rec_type = REC_TYPE_PACKET;
-	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 	rec->presence_flags = WTAP_HAS_TS;
 
 	rec->rec_header.packet_header.len = cv_hdr.data_len;
@@ -324,26 +326,26 @@ commview_ncf_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
 	rec->ts.secs = mktime(&tm);
 	rec->ts.nsecs = cv_hdr.usecs * 1000;
 
-	return wtap_read_packet_bytes(fh, buf, rec->rec_header.packet_header.caplen, err, err_info);
+	return wtap_read_bytes_buffer(fh, &rec->data, rec->rec_header.packet_header.caplen, err, err_info);
 }
 
 static bool
-commview_ncf_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
+commview_ncf_read(wtap *wth, wtap_rec *rec, int *err,
     char **err_info, int64_t *data_offset)
 {
 	*data_offset = file_tell(wth->fh);
 
-	return commview_ncf_read_packet(wth->fh, rec, buf, err, err_info);
+	return commview_ncf_read_packet(wth->fh, rec, err, err_info);
 }
 
 static bool
 commview_ncf_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
-    Buffer *buf, int *err, char **err_info)
+    int *err, char **err_info)
 {
 	if(file_seek(wth->random_fh, seek_off, SEEK_SET, err) == -1)
 		return false;
 
-	return commview_ncf_read_packet(wth->random_fh, rec, buf, err, err_info);
+	return commview_ncf_read_packet(wth->random_fh, rec, err, err_info);
 }
 
 static bool
@@ -429,7 +431,7 @@ commview_ncf_dump_open(wtap_dumper *wdh, int *err _U_, char **err_info _U_)
 /* Write a record for a packet to a dump file.
  * Returns true on success, false on failure. */
 static bool
-commview_ncf_dump(wtap_dumper *wdh, const wtap_rec *rec, const uint8_t *pd,
+commview_ncf_dump(wtap_dumper *wdh, const wtap_rec *rec,
     int *err, char **err_info _U_)
 {
 	commview_ncf_header_t cv_hdr = {0};
@@ -438,6 +440,7 @@ commview_ncf_dump(wtap_dumper *wdh, const wtap_rec *rec, const uint8_t *pd,
 	/* We can only write packet records. */
 	if (rec->rec_type != REC_TYPE_PACKET) {
 		*err = WTAP_ERR_UNWRITABLE_REC_TYPE;
+		*err_info = wtap_unwritable_rec_type_err_string(rec);
 		return false;
 	}
 
@@ -628,7 +631,7 @@ commview_ncf_dump(wtap_dumper *wdh, const wtap_rec *rec, const uint8_t *pd,
 		return false;
 	if (!wtap_dump_file_write(wdh, &cv_hdr.noise_level_dbm, 1, err))
 		return false;
-	if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
+	if (!wtap_dump_file_write(wdh, ws_buffer_start_ptr(&rec->data), rec->rec_header.packet_header.caplen, err))
 		return false;
 	return true;
 }
@@ -692,10 +695,10 @@ typedef struct commview_ncfx_mcs_header {
 /* Presence bits */
 #define PRESENCE_MCS_HEADER	0x00000001	/* type 0, bit 0 */
 
-static bool commview_ncfx_read(wtap *wth, wtap_rec *rec, Buffer *buf,
+static bool commview_ncfx_read(wtap *wth, wtap_rec *rec,
     int *err, char **err_info, int64_t *data_offset);
 static bool commview_ncfx_seek_read(wtap *wth, int64_t seek_off,
-    wtap_rec *rec, Buffer *buf, int *err, char **err_info);
+    wtap_rec *rec, int *err, char **err_info);
 static bool commview_ncfx_read_header(commview_ncfx_header_t *cv_hdr,
     FILE_T fh, int *err, char **err_info);
 static bool commview_ncfx_read_rf_header(commview_ncfx_rf_header_t *cv_rf_hdr,
@@ -703,7 +706,7 @@ static bool commview_ncfx_read_rf_header(commview_ncfx_rf_header_t *cv_rf_hdr,
 static bool commview_ncfx_read_mcs_header(commview_ncfx_mcs_header_t *cv_mcs_hdr,
     FILE_T fh, int *err, char **err_info);
 static bool commview_ncfx_dump(wtap_dumper *wdh, const wtap_rec *rec,
-     const uint8_t *pd, int *err, char **err_info);
+    int *err, char **err_info);
 
 wtap_open_return_val
 commview_ncfx_open(wtap *wth, int *err, char **err_info)
@@ -777,7 +780,7 @@ commview_ncfx_open(wtap *wth, int *err, char **err_info)
 }
 
 static int
-commview_ncfx_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
+commview_ncfx_read_packet(FILE_T fh, wtap_rec *rec,
     int *err, char **err_info)
 {
 	commview_ncfx_header_t cv_hdr;
@@ -789,6 +792,9 @@ commview_ncfx_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
 
 	if (!commview_ncfx_read_header(&cv_hdr, fh, err, err_info))
 		return false;
+
+	wtap_setup_packet_rec(rec, WTAP_ENCAP_UNKNOWN);
+	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 
 	/* Amount of data remaining in the record, after the header */
 	length_remaining = cv_hdr.data_len - COMMVIEW_NCFX_HEADER_SIZE;
@@ -1012,8 +1018,6 @@ commview_ncfx_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
 	tm.tm_sec = cv_hdr.seconds;
 	tm.tm_isdst = -1;
 
-	rec->rec_type = REC_TYPE_PACKET;
-	rec->block = wtap_block_create(WTAP_BLOCK_PACKET);
 	rec->presence_flags = WTAP_HAS_TS;
 
 	if (length_remaining > WTAP_MAX_PACKET_SIZE_STANDARD) {
@@ -1033,26 +1037,26 @@ commview_ncfx_read_packet(FILE_T fh, wtap_rec *rec, Buffer *buf,
 	rec->ts.secs = mktime(&tm);
 	rec->ts.nsecs = cv_hdr.usecs * 1000;
 
-	return wtap_read_packet_bytes(fh, buf, rec->rec_header.packet_header.caplen, err, err_info);
+	return wtap_read_bytes_buffer(fh, &rec->data, rec->rec_header.packet_header.caplen, err, err_info);
 }
 
 static bool
-commview_ncfx_read(wtap *wth, wtap_rec *rec, Buffer *buf, int *err,
-    char **err_info, int64_t *data_offset)
+commview_ncfx_read(wtap *wth, wtap_rec *rec, int *err, char **err_info,
+    int64_t *data_offset)
 {
 	*data_offset = file_tell(wth->fh);
 
-	return commview_ncfx_read_packet(wth->fh, rec, buf, err, err_info);
+	return commview_ncfx_read_packet(wth->fh, rec, err, err_info);
 }
 
 static bool
 commview_ncfx_seek_read(wtap *wth, int64_t seek_off, wtap_rec *rec,
-    Buffer *buf, int *err, char **err_info)
+    int *err, char **err_info)
 {
 	if(file_seek(wth->random_fh, seek_off, SEEK_SET, err) == -1)
 		return false;
 
-	return commview_ncfx_read_packet(wth->random_fh, rec, buf, err, err_info);
+	return commview_ncfx_read_packet(wth->random_fh, rec, err, err_info);
 }
 
 static bool
@@ -1193,7 +1197,7 @@ commview_ncfx_dump_open(wtap_dumper *wdh, int *err _U_, char **err_info _U_)
 /* Write a record for a packet to a dump file.
  * Returns true on success, false on failure. */
 static bool
-commview_ncfx_dump(wtap_dumper *wdh, const wtap_rec *rec, const uint8_t *pd,
+commview_ncfx_dump(wtap_dumper *wdh, const wtap_rec *rec,
     int *err, char **err_info _U_)
 {
 	commview_ncfx_header_t cv_hdr = {0};
@@ -1202,6 +1206,7 @@ commview_ncfx_dump(wtap_dumper *wdh, const wtap_rec *rec, const uint8_t *pd,
 	/* We can only write packet records. */
 	if (rec->rec_type != REC_TYPE_PACKET) {
 		*err = WTAP_ERR_UNWRITABLE_REC_TYPE;
+		*err_info = wtap_unwritable_rec_type_err_string(rec);
 		return false;
 	}
 
@@ -1349,7 +1354,8 @@ commview_ncfx_dump(wtap_dumper *wdh, const wtap_rec *rec, const uint8_t *pd,
 
 	/* XXX - RF and MCS headers */
 
-	if (!wtap_dump_file_write(wdh, pd, rec->rec_header.packet_header.caplen, err))
+	if (!wtap_dump_file_write(wdh, ws_buffer_start_ptr(&rec->data),
+	    rec->rec_header.packet_header.caplen, err))
 		return false;
 
 	return true;

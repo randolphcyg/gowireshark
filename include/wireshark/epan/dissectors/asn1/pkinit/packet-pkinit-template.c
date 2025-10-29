@@ -12,6 +12,7 @@
 #include "config.h"
 
 #include <epan/packet.h>
+#include <epan/oids.h>
 #include <epan/asn1.h>
 #include <epan/proto_data.h>
 #include <wsutil/array.h>
@@ -42,18 +43,6 @@ static int dissect_KerberosV5Spec2_PrincipalName(bool implicit_tag _U_, tvbuff_t
 static int dissect_pkinit_PKAuthenticator_Win2k(bool implicit_tag _U_, tvbuff_t *tvb _U_, int offset _U_, asn1_ctx_t *actx _U_, proto_tree *tree _U_, int hf_index _U_);
 
 #include "packet-pkinit-fn.c"
-
-int
-dissect_pkinit_PA_PK_AS_REQ(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_ctx_t *actx _U_) {
-  offset = dissect_pkinit_PaPkAsReq(false, tvb, offset, actx, tree, -1);
-  return offset;
-}
-
-int
-dissect_pkinit_PA_PK_AS_REP(proto_tree *tree, tvbuff_t *tvb, int offset, asn1_ctx_t *actx _U_) {
-  offset = dissect_pkinit_PaPkAsRep(false, tvb, offset, actx, tree, -1);
-  return offset;
-}
 
 static int
 dissect_KerberosV5Spec2_KerberosTime(bool implicit_tag _U_, tvbuff_t *tvb, int offset, asn1_ctx_t *actx, proto_tree *tree, int hf_index _U_) {
@@ -100,5 +89,16 @@ void proto_register_pkinit(void) {
 /*--- proto_reg_handoff_pkinit -------------------------------------------*/
 void proto_reg_handoff_pkinit(void) {
 #include "packet-pkinit-dis-tab.c"
-}
 
+    /* It would seem better to get these from REGISTER declarations in
+       pkinit.cnf rather than putting them in the template this way,
+       but I had trouble with that, and other existing examples are
+       done this way. [res Fri Aug 2 23:55:30 2024]
+
+       RFC-8636 "PKINIT Algorithm Agility"
+    */
+    oid_add_from_string("id-pkinit-kdf-ah-sha1"   , "1.3.6.1.5.2.3.6.1");
+    oid_add_from_string("id-pkinit-kdf-ah-sha256" , "1.3.6.1.5.2.3.6.2");
+    oid_add_from_string("id-pkinit-kdf-ah-sha512" , "1.3.6.1.5.2.3.6.3");
+    oid_add_from_string("id-pkinit-kdf-ah-sha384" , "1.3.6.1.5.2.3.6.4");
+}

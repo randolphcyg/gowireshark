@@ -37,7 +37,8 @@
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/decode_as.h>
-
+#include <epan/tfs.h>
+#include <wsutil/array.h>
 #include "packet-tcp.h"
 
 void proto_reg_handoff_smp(void);
@@ -141,7 +142,7 @@ dissect_smp_common(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, bool tds
         if (tds_payload) {
             parsed_bytes = call_dissector(tds_handle, next_tvb, pinfo, tree);
         } else {
-            parsed_bytes = dissector_try_payload(smp_payload_table, next_tvb, pinfo, tree);
+            parsed_bytes = dissector_try_payload_with_data(smp_payload_table, next_tvb, pinfo, tree, true, NULL);
         }
         if (parsed_bytes <= 0)
         {

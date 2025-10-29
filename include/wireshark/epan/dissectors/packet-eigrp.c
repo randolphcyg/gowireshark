@@ -19,6 +19,7 @@
 #include <epan/ipproto.h>
 #include <epan/expert.h>
 #include <epan/tfs.h>
+#include <wsutil/array.h>
 
 #include "packet-eigrp.h"
 #include "packet-ipx.h"
@@ -1365,12 +1366,12 @@ dissect_eigrp_services (proto_item *ti, proto_tree *tree, tvbuff_t *tvb,
 
             if (tok && tok[0] == '<') {
                 /* Looks like XML */
-                dissector_try_string(media_type_table, "application/xml",
-                                     xml_tvb, pinfo, sub_tree, NULL);
+                dissector_try_string_with_data(media_type_table, "application/xml",
+                                     xml_tvb, pinfo, sub_tree, true, NULL);
             } else {
                 /* Try plain text */
-                dissector_try_string(media_type_table, "text/plain",
-                                     xml_tvb, pinfo, sub_tree, NULL);
+                dissector_try_string_with_data(media_type_table, "text/plain",
+                                     xml_tvb, pinfo, sub_tree, true, NULL);
             }
         }
         sub_offset += length;
@@ -2428,7 +2429,7 @@ dissect_eigrp (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
     }
 
     col_add_str(pinfo->cinfo, COL_INFO,
-                val_to_str(opcode, eigrp_opcode2string, "Unknown OpCode (0x%04x)"));
+                val_to_str(pinfo->pool, opcode, eigrp_opcode2string, "Unknown OpCode (0x%04x)"));
 
     /* A protocol dissector may be called in 2 different ways - with, or
      * without a non-null "tree" argument.
@@ -2504,7 +2505,7 @@ dissect_eigrp (tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _
             }
 
             tlv_tree = proto_tree_add_subtree(eigrp_tree, tvb, offset, size, ett_eigrp_tlv, &ti,
-                                     val_to_str(tlv, eigrp_tlv2string, "Unknown TLV (0x%04x)"));
+                                     val_to_str(pinfo->pool, tlv, eigrp_tlv2string, "Unknown TLV (0x%04x)"));
 
             proto_tree_add_item(tlv_tree, hf_eigrp_tlv_type, tvb,
                                 offset, 2, ENC_BIG_ENDIAN);
