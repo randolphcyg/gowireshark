@@ -16,6 +16,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	ErrParseTcpStream = errors.New("fail to parse tcp stream")
+)
+
 type Packet struct {
 	StreamID  uint32  `json:"stream_id"`
 	PacketID  uint32  `json:"packet_id"`

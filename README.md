@@ -15,7 +15,7 @@ README: [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md
     - [1. Installation](#1-installation)
         - [1.1. Requirements](#11-requirements)
         - [1.2. Usage](#12-usage)
-        - [1.3. Invoke and Package the Service as an Image](#13-Invoke-and-Package-the-Service-as-an-Image)
+        - [1.3. Quick Start (Docker)](#13-Quick-Start-Docker)
     - [2. Detailed description](#2-detailed-description)
         - [2.1. Project directory](#21-project-directory)
         - [2.2. Call chain](#22-call-chain)
@@ -47,67 +47,90 @@ go get "github.com/randolphcyg/gowireshark"
 how to test:
 
 ```shell
-go test -v -run TestDissectPrintAllFrame
+go test -v -run TestEpanVersion
 ```
 
-1. Dissect all frame of a pcap file
+1. Fetches a specific page of frames using pagination.
 
 ```go
 package main
 
 import (
 	"fmt"
-
+	
 	"github.com/randolphcyg/gowireshark"
 )
 
 func main() {
-	inputFilepath := "pcaps/mysql.pcapng"
-	frames, err := gowireshark.GetAllFrames(inputFilepath,
-		gowireshark.WithDebug(false))
+	filepath := "./pcaps/mysql.pcapng"
+	page := 4
+	size := 20
+
+	// Optimized Pagination: Returns frames for the page and the TOTAL record count
+	frames, totalCount, err := gowireshark.GetFramesByPage(filepath, page, size)
 	if err != nil {
 		panic(err)
 	}
 
-	for _, frame := range frames {
-		fmt.Println("# Frame index:", frame.BaseLayers.WsCol.Num, "===========================")
+	// Calculate total pages on the client side
+	totalPages := (totalCount + size - 1) / size
 
-		if frame.BaseLayers.Ip != nil {
-			fmt.Println("## ip.src:", frame.BaseLayers.Ip.Src)
-			fmt.Println("## ip.dst:", frame.BaseLayers.Ip.Dst)
-		}
-		if frame.BaseLayers.Http != nil {
-			fmt.Println("## http.request.uri:", frame.BaseLayers.Http[0].RequestUri)
-		}
-		if frame.BaseLayers.Dns != nil {
-			fmt.Println("## dns:", frame.BaseLayers.Dns)
-		}
+	fmt.Printf("Total Records: %d\n", totalCount)
+	fmt.Printf("Total Pages: %d\n", totalPages)
+	fmt.Printf("Current Page: %d\n", page)
+
+	for _, frame := range frames {
+		fmt.Printf("Frame %d: %s\n", frame.BaseLayers.Frame.Number, frame.BaseLayers.WsCol.Protocol)
 	}
 }
 ```
 
-Other examples can refer to the [test file](https://github.com/randolphcyg/gowireshark/blob/main/gowireshark_test.go).
+Other examples can refer to the `*_test.go`.
 
 
-### 1.3. Invoke and Package the Service as an Image
+### 1.3. Quick Start (Docker)
+
+The easiest way to use gowireshark is via Docker, which provides a pre-compiled environment with Wireshark and all dependencies.
+
+**Build & Run:**
 
 ```shell
-docker build -t gowireshark:2.5.0 . --platform linux/amd64
+# 1. Build the image
+docker build -t gowireshark:latest . --platform linux/amd64
 
+# 2. Run the service (Map your pcap directory to /gowireshark/pcaps)
 docker run -d \
   --name gowireshark \
   -p 8090:8090 \
-  -v /xxx/pcaps/:/gowireshark/pcaps/ \
-  gowireshark:2.5.0
-  
-# Get libwireshark version
+  -v $(pwd)/pcaps/:/gowireshark/pcaps/ \
+  gowireshark:latest
+```
+
+**API Examples:**
+```shell
+# 1. Get Wireshark Version
 curl -X GET http://localhost:8090/api/v1/version/wireshark
-# {"code":0,"data":{"version":"4.4.9"},"msg":"ok"}%
-# Test
+
+# 2. Pagination Query (High Performance)
 curl -X POST \
-  http://localhost:8090/api/v1/getAllFrames \
+  http://localhost:8090/api/v1/frames/page \
   -H "Content-Type: application/json" \
-  -d '{"filepath": "/gowireshark/pcaps/mysql.pcapng", "isDebug": false, "ignoreErr": false}'
+  -d '{
+    "filepath": "/gowireshark/pcaps/mysql.pcapng",
+    "page": 1,
+    "size": 20,
+    "isDebug": true
+}'
+
+# 3. Random Access by Frame IDs
+curl -X POST \
+  http://localhost:8090/api/v1/frames/idxs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filepath": "/gowireshark/pcaps/mysql.pcapng",
+    "frameIdxs": [1, 5, 10, 32],
+    "isDebug": false
+}'
 ```
 
 ## 2. Detailed description
@@ -121,7 +144,7 @@ gowireshark
 ├── config.go
 ├── go.mod
 ├── go.sum
-├── gowireshark_test.go
+├── *_test.go
 ├── include/
 │   ├── cJSON.h
 │   ├── lib.h
@@ -136,7 +159,10 @@ gowireshark
 ├── libs/
 │   ├── libpcap.so.1
 │   ├── libwireshark.so.19
+│   ├── libwireshark.so
 │   ├── libwiretap.so.16
+│   ├── libwiretap.so
+│   ├── libwsutil.so
 │   └── libwsutil.so.17
 ├── offline.c
 ├── offline.go
@@ -148,25 +174,21 @@ gowireshark
 ```
 Detailed description of the project directory structure：
 
-| file                                            | description                                                                                 |
-|-------------------------------------------------|---------------------------------------------------------------------------------------------|
-| `include/wireshark/`                            | wireshark compiled source code                                                              |
-| `include/libpcap/`                              | libpcap uncompiled source code                                                              |
-| `libs/`                                         | wireshark、libpcap latest dll files                                                          |
-| `pcaps/`                                        | Pcap packet files used for testing                                                          |
-| `gowireshark_test.go`                           | Test files                                                                                  |
-| `uthash.h`                                      | Third-party [uthash](https://github.com/troydhanson/uthash) library                         |
-| `cJSON.c、cJSON.h`                               | Third-party [cJSON](https://github.com/DaveGamble/cJSON) library                            |
-| `lib.c、offline.c、online.c、reassembly.c`         | Code that encapsulates and enhances libpcap and wireshark functionality in C                |
-| `include/lib.h、offline.h、online.h、reassembly.h` | Some c interfaces exposed to go                                                             |
-| `layers.go`                                     | common layers parser                                                                        |
-| `registry.go`                                   | user register custom protocol parser                                                        |
-| `online.go、gowireshark.go`                      | The final interface is encapsulated with Go, and the user's Go program can be used directly |
+| file                                               | description                                                                               |
+|----------------------------------------------------|-------------------------------------------------------------------------------------------|
+| `include/wireshark/`                               | Wireshark header files (compiled dependencies).                                           |
+| `include/libpcap/`                                 | libpcap header files (core dependencies).                                                 |
+| `libs/`                                            | Latest shared library files for Wireshark and libpcap (`.so` files for Linux/macOS).      |
+| `pcaps/`                                           | PCAP packet files used for offline parsing testing.                                       |
+| `*_test.go`                                        | Go test files for all core functions.                                                     |
+| `uthash.h`                                         | Third-party [uthash](https://github.com/troydhanson/uthash) library.                      |
+| `cJSON.c, cJSON.h`                                 | Third-party [cJSON](https://github.com/DaveGamble/cJSON) library.                         |
+| `lib.c, offline.c, online.c, reassembly.c`         | C language code that encapsulates and extends libpcap and Wireshark native functionality. |
+| `include/lib.h, offline.h, online.h, reassembly.h` | C header files that expose C interfaces for Go (cgo) calls.                               |
+| `layers.go`                                        | Common network protocol layer parser (Go implementation).                                 |
+| `registry.go`                                      | Provide custom protocol parser registration for users.                                    |
+| `online.go, offline.go, etc.`                      | Final Go encapsulation layer, provide out-of-the-box APIs for user's Go program.          |
 
-
-- **lib.c、offline.c、online.c** 
-- **include/lib.h、offline.h、online.h** The declaration of the wireshark interface is encapsulated in C and finally called by the Go encapsulation.
-- **gowireshark.go** All external interfaces are encapsulated by Go.
 
 ### 2.2. Call chain
 
@@ -188,7 +210,7 @@ Note that some interfaces in this project may not be valid if the wireshark vers
 
 ```shell
 # Determine the latest release version and set environment variables
-export WIRESHARKV=4.6.0
+export WIRESHARKV=4.6.3
 # Operate in the /opt directory
 cd /opt/
 # Download the source code

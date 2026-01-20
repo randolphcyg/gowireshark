@@ -2,6 +2,10 @@
 #include <offline.h>
 #include <online.h>
 
+#define LOG_DEBUG(fmt, ...)                                                    \
+  fprintf(stderr, "[C-DEBUG] %s:%d: " fmt "\n", __func__, __LINE__,            \
+          ##__VA_ARGS__)
+
 // device_content Contains the information needed for each device
 typedef struct device_content {
   char *device;
@@ -534,6 +538,9 @@ static bool send_data_to_wrap(struct device_map *device, int printCJson) {
     int len = strlen(json_str);
     dataCallback(json_str, len, device->device_name);
     success = true;
+  } else {
+    LOG_DEBUG("Skipping Go callback (json_str: %p, cb: %p)", json_str,
+              dataCallback);
   }
 
   if (json_str) {
@@ -614,27 +621,30 @@ void before_callback_init(struct device_map *device) {
  */
 void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
                              const u_char *packet) {
+  LOG_DEBUG("Callback triggered. Len: %d", pkthdr->len);
+
   callback_arg_t *args = (callback_arg_t *)arg;
   int printCJson = (int)args->printCJson;
   char *device_name = (char *)args->device_name;
 
   struct device_map *device = find_device(device_name);
   if (!device) {
-    printf("The device is not in the global map: %s\n", device_name);
+    LOG_DEBUG("ERROR: Device not found in callback: %s", device_name);
     return;
   }
 
   gchar *err_info = NULL;
   gint64 data_offset = 0;
   if (!prepare_data(&device->content.rec, pkthdr)) {
+    LOG_DEBUG("prepare_data failed");
     wtap_rec_cleanup(&device->content.rec);
-
     return;
   }
 
-  process_packet(device, data_offset, pkthdr, packet, printCJson);
-
-  return;
+  bool ret = process_packet(device, data_offset, pkthdr, packet, printCJson);
+  if (!ret) {
+    LOG_DEBUG("process_packet returned false");
+  }
 }
 
 /**
@@ -651,12 +661,15 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr,
  */
 char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
                     int to_ms, int printCJson, char *options) {
+  LOG_DEBUG("Starting handle_packet for device: %s", device_name);
   char *err_msg;
   char err_buf[PCAP_ERRBUF_SIZE];
+
   // add a device to global device map
   err_msg = add_device(device_name, bpf_expr, num, promisc, to_ms, options);
   if (err_msg != NULL) {
     if (strlen(err_msg) != 0) {
+      LOG_DEBUG("add_device failed: %s", err_msg);
       return err_msg;
     }
   }
@@ -664,6 +677,7 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
   // fetch target device
   struct device_map *device = find_device(device_name);
   if (!device) {
+    LOG_DEBUG("Device not found after add_device");
     return "The device is not in the global map";
   }
 
@@ -672,11 +686,11 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
       pcap_open_live(device->device_name, SNAP_LEN, device->content.promisc,
                      device->content.to_ms, err_buf);
   if (!device->content.handle) {
-    // close cf file for live capture
+    LOG_DEBUG("pcap_open_live failed: %s", err_buf);
     close_cf_live(device->content.cf_live);
-
     return "pcap_open_live() couldn't open device";
   }
+  LOG_DEBUG("pcap_open_live success. Handle: %p", device->content.handle);
 
   // bpf filter
   struct bpf_program fp;
@@ -715,9 +729,25 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
 
   // loop and dissect pkg
   before_callback_init(device);
-  pcap_loop(device->content.handle, device->content.num,
-            process_packet_callback, (u_char *)&args);
+  LOG_DEBUG("Entering pcap_loop...");
+  int loop_ret = pcap_loop(device->content.handle, device->content.num,
+                           process_packet_callback, (u_char *)&args);
+  LOG_DEBUG("pcap_loop returned with code: %d", loop_ret);
 
+  LOG_DEBUG("Starting cleanup...");
+
+  if (device->content.handle) {
+    pcap_close(device->content.handle);
+    device->content.handle = NULL;
+  }
+  close_cf_live(device->content.cf_live);
+
+  /* 从 map 中移除设备 */
+  HASH_DEL(devices, device);
+  free(device->content.cf_live);
+  free(device);
+
+  LOG_DEBUG("Cleanup finished. handle_packet returning.");
   return "";
 }
 
@@ -728,20 +758,22 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc,
  *  @return char: err message
  */
 char *stop_dissect_capture_pkg(char *device_name) {
+  LOG_DEBUG("stop_dissect_capture_pkg called for: %s", device_name);
+
   struct device_map *device = find_device(device_name);
   if (!device) {
+    LOG_DEBUG("Device not found in map (maybe already stopped?)");
     return "The device is not in the global map";
   }
 
   if (!device || !device->content.handle) {
+    LOG_DEBUG("Device handle is NULL");
     return "This device has no pcap_handle, no need to close";
   }
 
+  LOG_DEBUG("Calling pcap_breakloop on handle: %p", device->content.handle);
   pcap_breakloop(device->content.handle);
-  device->content.handle = NULL;
-
-  // close cf file for live capture
-  close_cf_live(device->content.cf_live);
+  LOG_DEBUG("pcap_breakloop called");
 
   return "";
 }
