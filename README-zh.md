@@ -15,7 +15,7 @@ README: [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.
     - [1. 安装](#1-安装)
         - [1.1. 前置条件](#11-前置条件)
         - [1.2. 用法](#12-用法)
-        - [1.3. 调用并打包服务为镜像](#13-调用并打包服务为镜像)
+        - [1.3. 快速开始 (Docker 方式)](#13-快速开始-Docker-方式)
     - [2. 详细说明](#2-详细说明)
         - [2.1. 项目目录](#21-项目目录)
         - [2.2. 调用链](#22-调用链)
@@ -48,10 +48,10 @@ go get "github.com/randolphcyg/gowireshark"
 如何测试:
 
 ```shell
-go test -v -run TestDissectPrintAllFrame
+go test -v -run TestEpanVersion
 ```
 
-1. 如何解析 pcap 数据包文件所有帧
+1. 分页解析 pcap 数据包文件
 
 ```go
 package main
@@ -63,51 +63,86 @@ import (
 )
 
 func main() {
-	inputFilepath := "pcaps/mysql.pcapng"
-	frames, err := gowireshark.GetAllFrames(inputFilepath,
-		gowireshark.WithDebug(false))
+	filepath := "./pcaps/mysql.pcapng"
+	page := 4
+	size := 20
+
+	// 在业务层计算总页数
+	frames, totalCount, err := gowireshark.GetFramesByPage(filepath, page, size)
 	if err != nil {
 		panic(err)
 	}
 
-	for _, frame := range frames {
-		fmt.Println("# Frame index:", frame.BaseLayers.WsCol.Num, "===========================")
+	// 在业务层计算总页数
+	totalPages := (totalCount + size - 1) / size
 
-		if frame.BaseLayers.Ip != nil {
-			fmt.Println("## ip.src:", frame.BaseLayers.Ip.Src)
-			fmt.Println("## ip.dst:", frame.BaseLayers.Ip.Dst)
-		}
-		if frame.BaseLayers.Http != nil {
-			fmt.Println("## http.request.uri:", frame.BaseLayers.Http[0].RequestUri)
-		}
-		if frame.BaseLayers.Dns != nil {
-			fmt.Println("## dns:", frame.BaseLayers.Dns)
-		}
+	fmt.Printf("总记录数: %d\n", totalCount)
+	fmt.Printf("总页数: %d\n", totalPages)
+	fmt.Printf("当前页号: %d\n", page)
+
+	for _, frame := range frames {
+		fmt.Printf("Frame %d: %s\n", frame.BaseLayers.Frame.Number, frame.BaseLayers.WsCol.Protocol)
 	}
 }
 ```
 
-其他示例可以参考[测试文件](https://github.com/randolphcyg/gowireshark/blob/main/gowireshark_test.go)。
+其他示例可以参考`*_test.go`。
 
-### 1.3. 调用并打包服务为镜像
+### 1.3. 快速开始 (Docker 方式)
+
+无需本地安装复杂的 glib/libpcap 依赖，直接构建 Docker 镜像即可启动 HTTP 解析服务。
+
+**打包 & 启动:**
 
 ```shell
-docker build -t gowireshark:2.5.0 . --platform linux/amd64
+# 构建镜像 (使用阿里云源加速)
+docker build -t gowireshark:latest . --platform linux/amd64
 
+# 启动服务
+# 将本地 pcaps 目录映射到容器内
 docker run -d \
   --name gowireshark \
   -p 8090:8090 \
-  -v /xxx/pcaps/:/gowireshark/pcaps/ \
-  gowireshark:2.5.0
-  
-# 获取libwireshark版本
+  -v $(pwd)/pcaps/:/gowireshark/pcaps/ \
+  gowireshark:latest
+```
+
+**API 测试:**
+
+```shell
+# 1. 获取 Wireshark 版本
 curl -X GET http://localhost:8090/api/v1/version/wireshark
-# {"code":0,"data":{"version":"4.4.9"},"msg":"ok"}%
-# 测试
+
+# 2. 全量解析(慎用，适用于小文件)
 curl -X POST \
-  http://localhost:8090/api/v1/getAllFrames \
+  http://localhost:8090/api/v1/frames/all \
   -H "Content-Type: application/json" \
-  -d '{"filepath": "/gowireshark/pcaps/mysql.pcapng", "isDebug": false, "ignoreErr": false}'
+  -d '{
+    "filepath": "/gowireshark/pcaps/mysql.pcapng",
+    "isDebug": true,
+    "ignoreErr": false
+}'
+
+# 3. 分页查询(推荐，高性能)
+curl -X POST \
+  http://localhost:8090/api/v1/frames/page \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filepath": "/gowireshark/pcaps/mysql.pcapng",
+    "page": 1,
+    "size": 20,
+    "isDebug": true
+}'
+
+# 4. 指定帧号查询(随机访问)
+curl -X POST \
+  http://localhost:8090/api/v1/frames/idxs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filepath": "/gowireshark/pcaps/mysql.pcapng",
+    "frameIdxs": [1, 5, 10, 32],
+    "isDebug": false
+}'
 ```
 
 ## 2. 详细说明
@@ -121,7 +156,7 @@ gowireshark
 ├── config.go
 ├── go.mod
 ├── go.sum
-├── gowireshark_test.go
+├── *_test.go
 ├── include/
 │   ├── cJSON.h
 │   ├── lib.h
@@ -136,7 +171,10 @@ gowireshark
 ├── libs/
 │   ├── libpcap.so.1
 │   ├── libwireshark.so.19
+│   ├── libwireshark.so
 │   ├── libwiretap.so.16
+│   ├── libwiretap.so
+│   ├── libwsutil.so
 │   └── libwsutil.so.17
 ├── offline.c
 ├── offline.go
@@ -146,22 +184,22 @@ gowireshark
 ├── reassembly.c
 └── registry.go
 ```
-项目目录结构的详细说明：
+### 项目目录结构的详细说明：
 
-| 文件                                              | 说明                                                    |
-|-------------------------------------------------|-------------------------------------------------------|
-| `include/wireshark/`                            | wireshark 编译后源码                                       |
-| `include/libpcap/`                              | libpcap 未编译源码                                         |
-| `libs/`                                         | wireshark、libpcap最新动态链接库文件                            |
-| `pcaps/`                                        | 用于测试的 pcap 数据包文件                                      |
-| `gowireshark_test.go`                           | 测试文件                                                  |
-| `uthash.h`                                      | 第三方 [uthash](https://github.com/troydhanson/uthash) 库 |
-| `cJSON.c、cJSON.h`                               | 第三方[cJSON](https://github.com/DaveGamble/cJSON)库      |
-| `lib.c、offline.c、online.c、reassembly.c`         | 用C封装和加强libpcap和wireshark功能的代码                         |
-| `include/lib.h、offline.h、online.h、reassembly.h` | 暴露给go的一些c接口                                           |
-| `layers.go`                                     | 通用协议层解析器                                              |
-| `registry.go`                                   | 用户注册自定义协议解析器                                          |
-| `online.go、offline.go`                          | 用go封装最终的接口，用户go程序可直接使用                                |
+| 文件                                                 | 说明                                                    |
+|----------------------------------------------------|-------------------------------------------------------|
+| `include/wireshark/`                               | wireshark 编译相关头文件                                     |
+| `include/libpcap/`                                 | libpcap 相关头文件                                         |
+| `libs/`                                            | wireshark、libpcap最新动态链接库文件                            |
+| `pcaps/`                                           | 用于测试的 pcap 数据包文件                                      |
+| `*_test.go`                                        | 测试文件                                                  |
+| `uthash.h`                                         | 第三方 [uthash](https://github.com/troydhanson/uthash) 库 |
+| `cJSON.c、cJSON.h`                                  | 第三方[cJSON](https://github.com/DaveGamble/cJSON)库      |
+| `lib.c, offline.c, online.c, reassembly.c`         | 用C封装和加强libpcap和wireshark功能的代码                         |
+| `include/lib.h, offline.h, online.h, reassembly.h` | 暴露给go的c接口                                             |
+| `layers.go`                                        | 通用协议层解析器                                              |
+| `registry.go`                                      | 用户注册自定义协议解析器                                          |
+| `online.go, offline.go 等`                          | 用go封装最终的接口，用户go程序可直接使用                                |
 
 ### 2.2. 调用链
 
@@ -182,7 +220,7 @@ Golang =cgo=> Clang ==> Wireshark/libpcap DLL
 
 ```shell
 # 确定最新发行版本并设置环境变量
-export WIRESHARKV=4.6.0
+export WIRESHARKV=4.6.3
 # 到/opt目录下操作
 cd /opt/
 # 下载源码
@@ -285,6 +323,8 @@ cd run/ && ls -lh
 # 覆盖替换原始的 9 个 wireshark 动态链接库文件
 cd /opt/gowireshark/libs/
 cp /opt/wireshark/build/run/lib*so* .
+# macos 动态链接库
+cp /opt/wireshark/build/run/lib*dylib* .
 # 首先执行 步骤 [修正源码导入错误]
 👇
 👇
@@ -293,6 +333,12 @@ cp /opt/wireshark/build/run/lib*so* .
 rm -rf /opt/wireshark/build/
 # 将源码拷贝到项目前可以将原 /opt/gowireshark/include/wireshark/ 目录备份
 cp -r /opt/wireshark/ /opt/gowireshark/include/wireshark/
+
+# 软链接
+ln -s libwireshark.19.dylib libwireshark.dylib
+ln -s libwiretap.16.dylib   libwiretap.dylib
+ln -s libwsutil.17.dylib    libwsutil.dylib
+ls -lh
 
 # 查看项目目录结构 [项目目录父目录执行]
 tree -L 2 -F gowireshark

@@ -1,11 +1,14 @@
-ARG WIRESHARK_VER=4.6.0
+ARG WIRESHARK_VER=4.6.3
 ARG PCAP_VER=1.10.5
-ARG GO_VER=1.25.3
+ARG GO_VER=1.25.6
 
 # build Wireshark libpcap
 FROM ubuntu:24.04 AS dll-builder
 ARG WIRESHARK_VER
 ARG PCAP_VER
+
+RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.list.d/ubuntu.sources && \
+    sed -i 's@//.*security.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.list.d/ubuntu.sources
 
 # dep
 RUN apt-get update && \
@@ -25,7 +28,8 @@ RUN apt-get update && \
     libunbound-dev \
     flex \
     bison \
-    doxygen && \
+    doxygen \
+    libxml2-dev && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt
@@ -67,6 +71,9 @@ RUN rm -rf \
 FROM ubuntu:24.04 AS go-builder
 ARG GO_VER
 ARG PCAP_VER
+
+RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.list.d/ubuntu.sources && \
+    sed -i 's@//.*security.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.list.d/ubuntu.sources
 
 # dep
 RUN apt-get update && \
@@ -137,6 +144,9 @@ RUN go build -trimpath -ldflags="-s -w" -o /gowireshark/parser cmd/main.go && \
 
 # runtime
 FROM ubuntu:24.04 AS runtime
+
+RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.list.d/ubuntu.sources && \
+    sed -i 's@//.*security.ubuntu.com@//mirrors.aliyun.com@g' /etc/apt/sources.list.d/ubuntu.sources
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \

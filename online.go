@@ -13,12 +13,20 @@ package gowireshark
 import "C"
 import (
 	"log/slog"
+	"sync"
+	"unsafe"
 
 	"github.com/bytedance/sonic"
 	"github.com/pkg/errors"
 )
 
-// FrameDataChan dissect result chan map
+// frameDataChanMap stores channels for live capture results, keyed by interface name.
+var (
+	frameDataChanMap = make(map[string]chan FrameData)
+	mapMutex         sync.RWMutex
+)
+
+// FrameDataChan is the public map for accessing capture channels
 var FrameDataChan = make(map[string]chan FrameData)
 
 // PcapAddr represents an individual address (including address, netmask, broadcast address, and destination address).
@@ -37,38 +45,42 @@ type IFace struct {
 	Addresses   []PcapAddr `json:"addresses"`             // List of addresses associated with the interface
 }
 
-// ParseIFace Unmarshal interface device
+// GetIfaceChannel safely retrieves the channel for a specific interface.
+func GetIfaceChannel(ifaceName string) <-chan FrameData {
+	mapMutex.RLock()
+	defer mapMutex.RUnlock()
+	return frameDataChanMap[ifaceName]
+}
+
+// ParseIFace parses the JSON representation of interface lists.
 func ParseIFace(src string) (iFaces []IFace, err error) {
 	err = sonic.Unmarshal([]byte(src), &iFaces)
-	if err != nil {
-		return
-	}
-
-	return iFaces, nil
+	return
 }
 
-// GetIFaces Get interface list
+// GetIFaces retrieves the list of available network interfaces.
 func GetIFaces() (iFaces []IFace, err error) {
-	iFaces, err = ParseIFace(CChar2GoStr(C.get_if_list()))
-	if err != nil {
-		return
+	cList := C.get_if_list()
+	if cList == nil {
+		return nil, errors.New("failed to get interface list from C")
 	}
+	defer C.free(unsafe.Pointer(cList))
 
-	return iFaces, nil
+	iFaces, err = ParseIFace(CChar2GoStr(cList))
+	return
 }
 
-// GetIFaceNonblockStatus
-//
-// @Description: Check if a network interface is in non-blocking mode.
-// @param interfaceName: Name of the network interface.
-// @return isNonblock: True if the interface is in non-blocking mode, false otherwise.
+// GetIFaceNonblockStatus checks if a network interface is in non-blocking mode.
 func GetIFaceNonblockStatus(interfaceName string) (isNonblock bool, err error) {
 	if interfaceName == "" {
 		err = errors.Wrap(err, "interface name is blank")
 		return
 	}
 
-	nonblockStatus := C.get_if_nonblock_status(C.CString(interfaceName))
+	cName := C.CString(interfaceName)
+	defer C.free(unsafe.Pointer(cName))
+
+	nonblockStatus := C.get_if_nonblock_status(cName)
 	if nonblockStatus == 0 {
 		isNonblock = false
 	} else if nonblockStatus == 1 {
@@ -76,23 +88,25 @@ func GetIFaceNonblockStatus(interfaceName string) (isNonblock bool, err error) {
 	} else {
 		err = errors.Wrapf(ErrFromCLogic, "nonblockStatus:%v", nonblockStatus)
 	}
-
 	return
 }
 
-// SetIFaceNonblockStatus Set interface nonblock status
+// SetIFaceNonblockStatus sets the non-blocking mode for a network interface.
 func SetIFaceNonblockStatus(interfaceName string, isNonblock bool) (status bool, err error) {
 	if interfaceName == "" {
 		err = errors.Wrap(err, "interface name is blank")
 		return
 	}
 
+	cName := C.CString(interfaceName)
+	defer C.free(unsafe.Pointer(cName))
+
 	setNonblockCode := 0
 	if isNonblock {
 		setNonblockCode = 1
 	}
 
-	nonblockStatus := C.set_if_nonblock_status(C.CString(interfaceName), C.int(setNonblockCode))
+	nonblockStatus := C.set_if_nonblock_status(cName, C.int(setNonblockCode))
 	if nonblockStatus == 0 {
 		status = false
 	} else if nonblockStatus == 1 {
@@ -100,95 +114,115 @@ func SetIFaceNonblockStatus(interfaceName string, isNonblock bool) (status bool,
 	} else {
 		err = errors.Wrapf(ErrFromCLogic, "nonblockStatus:%v", nonblockStatus)
 	}
-
 	return
 }
 
 //export GetDataCallback
 func GetDataCallback(data *C.char, length C.int, interfaceName *C.char) {
-	goPacket := ""
-	if data != nil {
-		goPacket = C.GoStringN(data, length)
+	if data == nil {
+		return
 	}
+
+	goPacket := C.GoBytes(unsafe.Pointer(data), length)
 
 	interfaceNameStr := ""
 	if interfaceName != nil {
 		interfaceNameStr = C.GoString(interfaceName)
 	}
 
-	// unmarshal each pkg dissect result
 	frame, err := ParseFrameData(goPacket)
 	if err != nil {
-		slog.Warn("Error:", "ParseFrameData", err)
-		if frame != nil {
-			slog.Warn("Error:", "WsIndex", frame.Index)
+		slog.Warn("Error parsing frame data", "err", err)
+		return
+	}
+
+	// Use safe map access
+	mapMutex.RLock()
+	ch, ok := frameDataChanMap[interfaceNameStr]
+	mapMutex.RUnlock()
+
+	if ok {
+		select {
+		case ch <- *frame:
+		default:
+			slog.Warn("Channel full, dropping packet", "interface", interfaceNameStr)
 		}
-		return
-	}
-
-	if frame == nil {
-		slog.Warn("Error: ParseFrameData returned nil result")
-		return
-	}
-
-	// write packet dissect result to go pipe
-	if ch, ok := FrameDataChan[interfaceNameStr]; ok {
-		ch <- *frame
-	} else {
-		slog.Warn("Error: No channel found for interface", "interfaceName", interfaceNameStr)
 	}
 }
 
-// StartLivePacketCapture
+// StartLivePacketCapture starts capturing and dissecting packets in real-time.
+// This function blocks until the capture finishes or fails.
 //
-// @Description: Set up a callback function, capture and dissect packets in real-time.
-// @param interfaceName: Name of the network interface to capture packets from.
-// @param bpfFilter: BPF filter expression to apply to the capture.
-// @param packetCount: Number of packets to capture (0 for unlimited).
-// @param promisc: 0 for non-promiscuous mode, any other value for promiscuous mode.
-// @param timeout: Timeout for the capture operation in milliseconds.
-// @param opts: Optional configuration for the capture.
+// interfaceName: Network interface name (e.g., "eth0", "en0").
+// bpfFilter: BPF filter string (e.g., "tcp port 80").
+// packetCount: Number of packets to capture (-1 for infinite).
+// promisc: 1 for promiscuous mode, 0 otherwise.
+// timeout: Read timeout in milliseconds.
 func StartLivePacketCapture(interfaceName, bpfFilter string, packetCount, promisc, timeout int, opts ...Option) (err error) {
-	// Set up callback function
-	C.setDataCallback((C.DataCallback)(C.GetDataCallback))
-
 	if interfaceName == "" {
-		err = errors.Wrap(err, "device name is blank")
-		return
+		return errors.New("device name is blank")
 	}
 
-	conf := NewConfig(opts...)
+	// Initialize channel for this interface
+	mapMutex.Lock()
+	if _, ok := frameDataChanMap[interfaceName]; ok {
+		mapMutex.Unlock()
+		return errors.Errorf("capture already running on %s", interfaceName)
+	}
+	frameDataChanMap[interfaceName] = make(chan FrameData, 1000)
+	mapMutex.Unlock()
 
+	conf := NewConfig(opts...)
 	printCJson := 0
 	if conf.PrintCJson {
 		printCJson = 1
 	}
 
-	errMsg := C.handle_packet(C.CString(interfaceName), C.CString(bpfFilter), C.int(packetCount),
-		C.int(promisc), C.int(timeout), C.int(printCJson), C.CString(HandleConf(conf)))
+	cIfName := C.CString(interfaceName)
+	cBpf := C.CString(bpfFilter)
+	cConf := C.CString(HandleConf(conf))
+	defer func() {
+		C.free(unsafe.Pointer(cIfName))
+		C.free(unsafe.Pointer(cBpf))
+		C.free(unsafe.Pointer(cConf))
+	}()
+
+	// This call blocks
+	errMsg := C.handle_packet(cIfName, cBpf, C.int(packetCount),
+		C.int(promisc), C.int(timeout), C.int(printCJson), cConf)
+
 	if C.strlen(errMsg) != 0 {
-		err = errors.Errorf("fail to capture packet live:%s", CChar2GoStr(errMsg))
-		return
+		// Cleanup on failure
+		mapMutex.Lock()
+		delete(frameDataChanMap, interfaceName)
+		mapMutex.Unlock()
+		return errors.Errorf("fail to capture packet live: %s", CChar2GoStr(errMsg))
 	}
 
-	return
+	return nil
 }
 
-// StopLivePacketCapture
-//
-// @Description: Stop the live packet capture and free all allocated memory.
-// @param interfaceName: Name of the network interface to stop capturing from.
+// StopLivePacketCapture sends a signal to stop the capture loop for the given interface.
 func StopLivePacketCapture(interfaceName string) (err error) {
 	if interfaceName == "" {
-		err = errors.Wrap(err, "device name is blank")
-		return
+		return errors.New("device name is blank")
 	}
 
-	errMsg := C.stop_dissect_capture_pkg(C.CString(interfaceName))
+	cIfName := C.CString(interfaceName)
+	defer C.free(unsafe.Pointer(cIfName))
+
+	errMsg := C.stop_dissect_capture_pkg(cIfName)
 	if C.strlen(errMsg) != 0 {
-		err = errors.Errorf("fail to stop capture packet live:%s", CChar2GoStr(errMsg))
-		return
+		return errors.Errorf("fail to stop capture packet live: %s", CChar2GoStr(errMsg))
 	}
 
-	return
+	// Cleanup channel safely
+	mapMutex.Lock()
+	if ch, ok := frameDataChanMap[interfaceName]; ok {
+		close(ch)
+		delete(frameDataChanMap, interfaceName)
+	}
+	mapMutex.Unlock()
+
+	return nil
 }
