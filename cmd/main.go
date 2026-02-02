@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/randolphcyg/gowireshark"
+	"github.com/randolphcyg/gowireshark/pkg"
 )
 
 func main() {
@@ -68,9 +68,9 @@ func getAllFrames(c *gin.Context) {
 		return
 	}
 
-	frames, err := gowireshark.GetAllFrames(req.Filepath,
-		gowireshark.WithDebug(req.IsDebug),
-		gowireshark.IgnoreError(req.IgnoreErr),
+	frames, err := pkg.GetAllFrames(req.Filepath,
+		pkg.WithDebug(req.IsDebug),
+		pkg.IgnoreError(req.IgnoreErr),
 	)
 	if err != nil {
 		HandleError(c, 500, "wireshark parse err", err)
@@ -102,9 +102,9 @@ func getFramesByPage(c *gin.Context) {
 
 	// Call the optimized library function
 	// totalCount represents the total number of records, NOT pages.
-	frames, totalCount, err := gowireshark.GetFramesByPage(req.Filepath, req.Page, req.Size,
-		gowireshark.WithDebug(req.IsDebug),
-		gowireshark.IgnoreError(req.IgnoreErr),
+	frames, totalCount, err := pkg.GetFramesByPage(req.Filepath, req.Page, req.Size,
+		pkg.WithDebug(req.IsDebug),
+		pkg.IgnoreError(req.IgnoreErr),
 	)
 	if err != nil {
 		HandleError(c, 500, "wireshark parse err", err)
@@ -128,9 +128,9 @@ func getFramesByIdxs(c *gin.Context) {
 		return
 	}
 
-	frames, err := gowireshark.GetFramesByIdxs(req.Filepath, req.FrameIdxs,
-		gowireshark.WithDebug(req.IsDebug),
-		gowireshark.IgnoreError(req.IgnoreErr),
+	frames, err := pkg.GetFramesByIdxs(req.Filepath, req.FrameIdxs,
+		pkg.WithDebug(req.IsDebug),
+		pkg.IgnoreError(req.IgnoreErr),
 	)
 	if err != nil {
 		HandleError(c, 500, "wireshark parse err", err)
@@ -151,7 +151,7 @@ type wiresharkVersionResp struct {
 
 func getWiresharkVersion(c *gin.Context) {
 	var resp wiresharkVersionResp
-	resp.Version = gowireshark.EpanVersion()
+	resp.Version = pkg.EpanVersion()
 	Success(c, resp)
 }
 

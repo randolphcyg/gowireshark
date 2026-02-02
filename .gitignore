@@ -1,8 +1,28 @@
+# --- CGO 编译产物 ---
+# 忽略所有编译生成的二进制和库文件
+pkt_parser
+*.o
+*.a
+*.so
+*.dylib
+
+# --- 依赖汇总目录 ---
+# 这里的 /app/deps 是 Docker 镜像内路径，但在本地开发时建议将其设为 local_deps 并忽略
+/local_deps/
+/app/deps/
+
+# --- 源码压缩包与构建目录 ---
+# 防止 Wireshark 等庞大的源码包被误传
+wireshark/
+libpcap-*/
+librdkafka-*/
+third_party_src/
+*.tar.gz
+*.tar.xz
+
+# --- 系统与编辑器 ---
 .DS_Store
 .vscode/
 .idea/
-deps/
-libs/
-ceshi
-testdir
+
 pcaps/
