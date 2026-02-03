@@ -8,7 +8,7 @@ import (
 )
 
 func TestConcurrentFilenameGeneration(t *testing.T) {
-	ExtractFileDir = "./testdir"
+	ExtractFileDir = "../testdir"
 	filename := "example.txt"
 
 	var wg sync.WaitGroup

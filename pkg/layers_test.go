@@ -11,7 +11,7 @@ import (
 Parse Ethernet
 */
 func TestParseEth(t *testing.T) {
-	pcapPath := "./pcaps/https.pcapng"
+	pcapPath := "../pcaps/https.pcapng"
 	frame, err := GetFrameByIdx(pcapPath, 14, PrintCJson(true), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
@@ -32,7 +32,7 @@ func TestParseEth(t *testing.T) {
 DEMO: parse SSLv1.2
 */
 func TestParseHttps(t *testing.T) {
-	pcapPath := "./pcaps/https.pcapng"
+	pcapPath := "../pcaps/https.pcapng"
 
 	// set TLS config
 	tls := TlsConf{
