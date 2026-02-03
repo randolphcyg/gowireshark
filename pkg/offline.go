@@ -2,12 +2,6 @@ package pkg
 
 /*
 #cgo pkg-config: glib-2.0
-#cgo LDFLAGS: -Wl,-rpath,${SRCDIR}/libs
-#cgo LDFLAGS: -L${SRCDIR}/libs -lwiretap -lwsutil -lwireshark -lpcap
-#cgo CFLAGS: -I${SRCDIR}/include
-#cgo CFLAGS: -I${SRCDIR}/include/wireshark
-#cgo CFLAGS: -I${SRCDIR}/include/libpcap
-
 #include "lib.h"
 #include "online.h"
 #include "offline.h"

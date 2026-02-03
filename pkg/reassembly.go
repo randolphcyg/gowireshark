@@ -1,7 +1,7 @@
 package pkg
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/include
+#cgo pkg-config: glib-2.0
 #include "reassembly.h"
 */
 import "C"
