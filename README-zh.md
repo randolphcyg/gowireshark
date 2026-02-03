@@ -21,7 +21,7 @@ README: [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.
         - [2.2. 调用链](#22-调用链)
         - [2.3. 解析结果格式说明](#24-解析结果格式说明)
     - [3. 路线图](#3-路线图)
-    - [5. 联系](#5-联系)
+    - [4. 联系](#4-联系)
 
 ---
 
@@ -211,6 +211,6 @@ Golang =cgo=> Clang ==> Wireshark/libpcap DLL
 - [x] 支持从HTTP协议中提取文件
 - [x] 支持TCP流重组
 
-## 5. 联系
+## 4. 联系
 
 QQ群: **301969140**
