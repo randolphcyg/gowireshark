@@ -10,7 +10,7 @@ func TestFollowTcpStream(t *testing.T) {
 	handle := reassembler.RegisterCallback()
 	defer reassembler.UnregisterCallback(handle)
 
-	path := "./pcaps/https.pcapng"
+	path := "../pcaps/https.pcapng"
 	var wg sync.WaitGroup
 	wg.Add(1)
 

@@ -19,20 +19,23 @@ if [ ! -f "$DEPS_DIR/libs/libwireshark.dylib" ]; then
     cd "$DEPS_DIR"
     wget -N https://www.wireshark.org/download/src/wireshark-${WIRESHARK_VER}.tar.xz -O wireshark.tar.xz
     tar -xf wireshark.tar.xz && mv wireshark-${WIRESHARK_VER} wireshark_src
+
     mkdir -p wireshark_src/build && cd wireshark_src/build
     cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_wireshark=OFF -DENABLE_LUA=OFF -DCMAKE_INSTALL_PREFIX="$DEPS_DIR/install" ..
     ninja
 
-    # 拷贝并修复 rpath (抹除绝对路径)
+    # 拷贝并修复 rpath
     cp run/lib*.dylib "$DEPS_DIR/libs/"
     for lib in "$DEPS_DIR/libs"/*.dylib; do
         install_name_tool -id "@rpath/$(basename "$lib")" "$lib"
     done
 
     # 完整拷贝头文件目录以支持 dissectors 引用
-    cp -r ../epan ../wiretap ../wsutil "$DEPS_DIR/include/wireshark/"
-    cp ../include/*.h "$DEPS_DIR/include/wireshark/" 2>/dev/null
+    echo ">> 正在同步 Wireshark 源码头文件..."
+    cp ../*.h "$DEPS_DIR/include/wireshark/" 2>/dev/null
     cp ./*.h "$DEPS_DIR/include/wireshark/" 2>/dev/null
+    cp -r ../include/* "$DEPS_DIR/include/wireshark/"
+    cp -r ../epan ../wiretap ../wsutil "$DEPS_DIR/include/wireshark/"
 
     cd "$DEPS_DIR" && rm -rf wireshark_src wireshark.tar.xz
     cd "$PROJECT_ROOT"
@@ -51,8 +54,6 @@ if [ ! -f "$DEPS_DIR/libs/libpcap.1.dylib" ]; then
     cp "$GEN_PCAP" "$DEPS_DIR/libs/libpcap.1.dylib"
     ln -sf libpcap.1.dylib "$DEPS_DIR/libs/libpcap.dylib"
 
-    # 修复 Mach-O ID：将内部 ID 改为 @rpath/libpcap.1.dylib
-    # 这样可以解决 Library not loaded: .../libpcap.A.dylib 的报错
     install_name_tool -id "@rpath/libpcap.1.dylib" "$DEPS_DIR/libs/libpcap.1.dylib"
 
     cp ./*.h "$DEPS_DIR/include/libpcap/"

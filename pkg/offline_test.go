@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-const inputFilepath = "./pcaps/mysql.pcapng"
-const testPcapFile = "./pcaps/SAT-01-12-2018_0818.pcap"
+const inputFilepath = "../pcaps/mysql.pcapng"
+const testPcapFile = "../pcaps/SAT-01-12-2018_0818.pcap"
 
 // Test environment initialization, checking if plugins are supported.
 func TestEpanVersion(t *testing.T) {
