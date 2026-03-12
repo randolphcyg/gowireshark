@@ -210,44 +210,6 @@ int init_cf(char *filepath, char *options) {
     return 0;
 }
 
-// --- Frame Counting ---
-
-/**
- * Count total frames in pcap file
- */
-int count_frames() {
-    int err;
-    char *err_info = NULL;
-    int frame_count = 0;
-    int64_t data_offset = 0;
-
-    wtap *count_wth = wtap_open_offline(cf.filename, WTAP_TYPE_AUTO, &err, &err_info, TRUE);
-    if (count_wth == NULL) {
-        if (err_info != NULL) {
-            fprintf(stderr, "Error opening file for counting: %s\n", err_info);
-            g_free(err_info);
-        }
-        return -1;
-    }
-
-    wtap_rec rec;
-    wtap_rec_init(&rec, 1514);
-
-    while (wtap_read(count_wth, &rec, &err, &err_info, &data_offset)) {
-        frame_count++;
-    }
-
-    wtap_rec_cleanup(&rec);
-    wtap_close(count_wth);
-
-    if (err != 0 && err_info != NULL) {
-        fprintf(stderr, "Warning during counting: %s\n", err_info);
-        g_free(err_info);
-    }
-
-    return frame_count;
-}
-
 static void write_json_index(json_dumper *dumper, epan_dissect_t *edt) {
     char ts[30];
     struct tm *timeinfo;
@@ -629,7 +591,8 @@ char *get_specific_frame_hex_data(int num) {
         return res;
     }
     close_cf();
-    return "";
+
+    return strdup("");
 }
 
 /**
@@ -795,7 +758,6 @@ void get_frames_by_idxs_cb(int *idxs, int idx_count, int printCJson, FrameCallba
 
             if (dumper.output_string) g_string_free(dumper.output_string, TRUE);
             epan_dissect_free(edt);
-            frame_data_destroy(&fd);
 
             // Move to next target. Note: Handles duplicates in idxs implicitly.
             current_idx_ptr++;

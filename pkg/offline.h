@@ -10,9 +10,6 @@ int init_cf(char *filename, char *options);
 // Clean up capture file resources and close the file.
 void close_cf();
 
-// Count total frames in the PCAP file (Efficient I/O only scan).
-int count_frames();
-
 // Dissect a specific frame and return its JSON representation.
 char *proto_tree_in_json(int num, int printCJson);
 

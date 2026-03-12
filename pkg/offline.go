@@ -475,26 +475,8 @@ func GetAllFrames(path string, opts ...Option) (frames []*FrameData, err error) 
 	return frames, nil
 }
 
-// CountFrames counts total frames using a fast I/O scan.
-func CountFrames(path string) (int, error) {
-	EpanMutex.Lock()
-	defer EpanMutex.Unlock()
-
-	_, err := initCapFile(path)
-	if err != nil {
-		return 0, err
-	}
-
-	frameCount := C.count_frames()
-	if frameCount < 0 {
-		return 0, fmt.Errorf("error calling C.count_frames")
-	}
-
-	return int(frameCount), nil
-}
-
 // GetFramesByPage fetches a specific page of frames using pagination.
-func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*FrameData, count int, err error) {
+func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*FrameData, hasMore bool, err error) {
 	frames = make([]*FrameData, 0)
 
 	if page < 1 {
@@ -504,60 +486,41 @@ func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*Fra
 		size = 10
 	}
 
+	fetchSize := size + 1
+	startFrameIdx := (page-1)*size + 1
+
 	// Global Lock & Init
 	EpanMutex.Lock()
 	defer EpanMutex.Unlock()
 
 	conf, err := initCapFile(path, opts...)
 	if err != nil {
-		return frames, 0, err
+		return frames, false, err
 	}
 
 	// 1. Validate BPF filter
 	if conf.BpfFilter != "" {
 		if err := ValidateFilter(conf.BpfFilter); err != nil {
-			return frames, 0, err
+			return frames, false, err
 		}
 	}
 
-	// 2. counting
-	if conf.BpfFilter == "" {
-		// without filter, fetch frames count
-		cCount := C.count_frames()
-		if cCount < 0 {
-			return frames, 0, fmt.Errorf("error calling C.count_frames")
-		}
-		count = int(cCount)
-		if count == 0 {
-			return frames, 0, nil
-		}
-
-		startFrameIdx := (page-1)*size + 1
-		if startFrameIdx > count {
-			return frames, count, nil
-		}
-	} else {
-		// with filter, set unknown frames count
-		count = -1
-	}
-
-	startFrameIdx := (page-1)*size + 1
 	printCJson := 0
 	if conf.PrintCJson {
 		printCJson = 1
 	}
 
 	// Setup Pipeline
-	globalFrameChan = make(chan []byte, size)
+	globalFrameChan = make(chan []byte, fetchSize)
 
 	// Consumer
 	var parseWg sync.WaitGroup
 	var parseErr error
 	var errMutex sync.Mutex
-	resultChan := make(chan *FrameData, size)
+	resultChan := make(chan *FrameData, fetchSize)
 
 	// Dynamic worker count
-	workerNum := getOptimalWorkerNum(size)
+	workerNum := getOptimalWorkerNum(fetchSize)
 
 	parseWg.Add(workerNum)
 	for i := 0; i < workerNum; i++ {
@@ -582,7 +545,7 @@ func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*Fra
 	defer C.free(unsafe.Pointer(cFilter))
 
 	// Call C (Blocking I/O)
-	C.call_get_frames_by_range(C.int(startFrameIdx), C.int(size), C.int(printCJson), cFilter)
+	C.call_get_frames_by_range(C.int(startFrameIdx), C.int(fetchSize), C.int(printCJson), cFilter)
 
 	// Cleanup
 	close(globalFrameChan)
@@ -595,26 +558,26 @@ func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*Fra
 		frames = append(frames, f)
 	}
 
-	if conf.Debug {
-		slog.Info("Paged parsing completed", "frames", len(frames), "page", page)
+	if parseErr != nil {
+		return frames, hasMore, parseErr
 	}
 
 	slices.SortFunc(frames, func(a, b *FrameData) int {
 		return a.BaseLayers.Frame.Number - b.BaseLayers.Frame.Number
 	})
 
-	if parseErr != nil {
-		return frames, count, parseErr
+	if conf.Debug {
+		slog.Info("Paged parsing completed", "fetched_count", len(frames), "page", page)
 	}
 
-	// 3. fix frames count
-	if conf.BpfFilter != "" {
-		if len(frames) < size {
-			count = (page-1)*size + len(frames)
-		}
+	if len(frames) > size {
+		hasMore = true
+		frames = frames[:size]
+	} else {
+		hasMore = false
 	}
 
-	return frames, count, nil
+	return frames, hasMore, nil
 }
 
 // =======================

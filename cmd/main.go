@@ -3,23 +3,12 @@ package main
 import (
 	"log/slog"
 	"os"
-	"runtime/debug"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/randolphcyg/gowireshark/pkg"
 )
 
 func main() {
-
-	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
-		for range ticker.C {
-			// 强制 Go 进行一次完整的 GC，并尽可能把内存还给操作系统
-			debug.FreeOSMemory()
-		}
-	}()
-
 	// Initialize the Gin engine with default middleware (logger and recovery)
 	r := gin.Default()
 
@@ -42,6 +31,7 @@ func main() {
 		// 4. Fetches specific hex by their Frame Number.
 		api.POST("/frames/hex", getFrameHex)
 
+		// 5. Stream Tracking: Extracts TCP/UDP payloads for specific streams.
 		api.POST("/frames/stream", getStreamData)
 	}
 
@@ -59,7 +49,7 @@ type baseRequest struct {
 	Filepath  string `json:"filepath" binding:"required"` // Absolute path to the .pcap/.pcapng file inside the container
 	IsDebug   bool   `json:"isDebug"`                     // If true, enables verbose C-level logging
 	IgnoreErr bool   `json:"ignoreErr"`                   // If true, parsing continues even if a single frame is malformed
-	BpfFilter string `json:"bpfFilter"`
+	BpfFilter string `json:"bpfFilter"`                   // Wireshark display filter syntax
 }
 
 // getByPageRequest handles pagination parameters.
@@ -73,6 +63,44 @@ type getByPageRequest struct {
 type getByIdxsRequest struct {
 	baseRequest
 	FrameIdxs []int `json:"frameIdxs" binding:"required"` // List of specific frame numbers (e.g., [1, 5, 100])
+}
+
+type getHexRequest struct {
+	baseRequest
+	FrameIdx int `json:"frameIdx" binding:"required"`
+}
+
+type getStreamRequest struct {
+	baseRequest
+	Protocol string `json:"protocol" binding:"required"`
+}
+
+// --- Response DTOs ---
+
+// StandardResponse represents a standard API response body.
+type StandardResponse struct {
+	Code  int    `json:"code"`
+	Msg   string `json:"msg"`
+	Data  any    `json:"data,omitempty"`
+	Error string `json:"error,omitempty"`
+}
+
+// ListData represents a standard array list response.
+type ListData struct {
+	List  any `json:"list"`
+	Total int `json:"total"`
+}
+
+// PageData represents a standard paginated response (Infinite scroll / Load more style).
+type PageData struct {
+	List    any  `json:"list"`
+	HasMore bool `json:"has_more"`
+	Page    int  `json:"page"`
+	Size    int  `json:"size"`
+}
+
+type wiresharkVersionResp struct {
+	Version string `json:"version"`
 }
 
 // --- Route Handlers ---
@@ -95,9 +123,9 @@ func getAllFrames(c *gin.Context) {
 		return
 	}
 
-	Success(c, gin.H{
-		"list":  frames,
-		"total": len(frames),
+	Success(c, ListData{
+		List:  frames,
+		Total: len(frames),
 	})
 }
 
@@ -118,9 +146,7 @@ func getFramesByPage(c *gin.Context) {
 		return
 	}
 
-	// Call the optimized library function
-	// totalCount represents the total number of records, NOT pages.
-	frames, totalCount, err := pkg.GetFramesByPage(req.Filepath, req.Page, req.Size,
+	frames, hasMore, err := pkg.GetFramesByPage(req.Filepath, req.Page, req.Size,
 		pkg.WithDebug(req.IsDebug),
 		pkg.IgnoreError(req.IgnoreErr),
 		pkg.WithBpfFilter(req.BpfFilter),
@@ -130,12 +156,11 @@ func getFramesByPage(c *gin.Context) {
 		return
 	}
 
-	// Return standard pagination response structure
-	Success(c, gin.H{
-		"list":  frames,
-		"total": totalCount, // Frontend calculates pages via: ceil(total / size)
-		"page":  req.Page,
-		"size":  req.Size,
+	Success(c, PageData{
+		List:    frames,
+		HasMore: hasMore,
+		Page:    req.Page,
+		Size:    req.Size,
 	})
 }
 
@@ -156,17 +181,13 @@ func getFramesByIdxs(c *gin.Context) {
 		return
 	}
 
-	Success(c, gin.H{
-		"list":  frames,
-		"total": len(frames),
+	Success(c, ListData{
+		List:  frames,
+		Total: len(frames),
 	})
 }
 
-type getHexRequest struct {
-	baseRequest
-	FrameIdx int `json:"frameIdx" binding:"required"`
-}
-
+// getFrameHex retrieves the hex dump for a specific frame.
 func getFrameHex(c *gin.Context) {
 	var req getHexRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -187,11 +208,7 @@ func getFrameHex(c *gin.Context) {
 	Success(c, hexData)
 }
 
-type getStreamRequest struct {
-	baseRequest
-	Protocol string `json:"protocol" binding:"required"`
-}
-
+// getStreamData tracks and reassembles stream payloads.
 func getStreamData(c *gin.Context) {
 	var req getStreamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -213,10 +230,6 @@ func getStreamData(c *gin.Context) {
 
 // --- Helper Functions ---
 
-type wiresharkVersionResp struct {
-	Version string `json:"version"`
-}
-
 func getWiresharkVersion(c *gin.Context) {
 	var resp wiresharkVersionResp
 	resp.Version = pkg.EpanVersion()
@@ -228,13 +241,19 @@ func HandleError(ctx *gin.Context, code int, message string, err error) {
 	if err != nil {
 		slog.Error(message, slog.Any("error", err))
 	}
+
+	resp := StandardResponse{
+		Code: code,
+		Msg:  message,
+	}
+
+	if err != nil {
+		resp.Error = err.Error()
+	}
+
 	// Using 200 OK for business logic errors is a common convention,
 	// though 4xx/5xx is also valid depending on your API style guide.
-	ctx.JSON(200, gin.H{
-		"code":  code,
-		"msg":   message,
-		"error": err.Error(), // Include detailed error for debugging
-	})
+	ctx.JSON(200, resp)
 }
 
 // Success returns a standardized success response.
