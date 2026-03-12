@@ -29,12 +29,16 @@ void get_json_proto_tree(output_fields_t *fields, print_dissections_e print_diss
 void print_all_frame();
 
 // Parse all frames in the file and trigger the callback for each.
-void get_all_frames_cb(int printCJson, FrameCallback callback);
+void get_all_frames_cb(int printCJson, char *filter, FrameCallback callback);
 
 // Parse specific frames based on a sorted list of indices.
 void get_frames_by_idxs_cb(int *idxs, int idx_count, int printCJson, FrameCallback callback);
 
 // Parse a range of frames
-void get_frames_by_range(int start, int limit, int printCJson, FrameCallback callback);
+void get_frames_by_range(int start, int limit, int printCJson, const char *filter, FrameCallback callback);
+
+// Validate Wireshark display filter syntax.
+// Returns NULL if valid, or an error string (must be freed by caller) if invalid.
+char *validate_filter(const char *filter_str);
 
 #endif  // OFFLINE_H

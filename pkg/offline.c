@@ -1,5 +1,4 @@
 #include "offline.h"
-
 #include "reassembly.h"
 
 // Global capture file variable
@@ -91,7 +90,7 @@ void close_cf() {
 
     cf.rfcode = NULL;
     if (cf.provider.frames != NULL) {
-        free(cf.provider.frames);
+        free_frame_data_sequence(cf.provider.frames);
         cf.provider.frames = NULL;
     }
     if (cf.provider.frames_modified_blocks) {
@@ -175,7 +174,7 @@ int init_cf(char *filepath, char *options) {
 
     /* Initialize the capture file struct */
     memset(&cf, 0, sizeof(capture_file));
-    cf.filename = filepath;
+    cf.filename = g_strdup(filepath);
     cf.provider.wth = wtap_open_offline(cf.filename, WTAP_TYPE_AUTO, &err, &err_info, TRUE);
     if (err != 0 || cf.provider.wth == NULL) {
         clean();
@@ -538,7 +537,7 @@ bool read_packet(epan_dissect_t **edt_r) {
     wtap_rec_init(&rec, 1514);
 
     if (!wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
-        wtap_rec_reset(&rec);
+        wtap_rec_cleanup(&rec);
         return false;
     }
 
@@ -567,8 +566,7 @@ bool read_packet(epan_dissect_t **edt_r) {
     cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
 
     // free space
-    wtap_rec_reset(&rec);
-    frame_data_destroy(&fd);
+    wtap_rec_cleanup(&rec);
 
     *edt_r = edt;
     return true;
@@ -624,7 +622,11 @@ char *get_specific_frame_hex_data(int num) {
         epan_dissect_free(edt);
         edt = NULL;
 
-        return cJSON_PrintUnformatted(cjson_hex_root);
+        char *res = cJSON_PrintUnformatted(cjson_hex_root);
+        cJSON_Delete(cjson_hex_root);
+
+        close_cf();
+        return res;
     }
     close_cf();
     return "";
@@ -669,6 +671,7 @@ char *proto_tree_in_json(int num, int printCJson) {
             printf("%s\n", json_str);
         }
 
+        close_cf();
         return json_str ? json_str : g_strdup("");
     }
 
@@ -678,14 +681,22 @@ char *proto_tree_in_json(int num, int printCJson) {
 
 // --- Optimized Callbacks (Single Pass I/O) ---
 
-void get_all_frames_cb(int printCJson, FrameCallback callback) {
+void get_all_frames_cb(int printCJson, char *filter_str, FrameCallback callback) {
     epan_dissect_t *edt;
     cf.count = 0;
     int err = 0;
     gchar *err_info = NULL;
     int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
     wtap_rec rec;
     wtap_rec_init(&rec, 1514);
+
+    dfilter_t *dfcode = NULL;
+    if (filter_str != NULL && strlen(filter_str) > 0) {
+        if (!dfilter_compile(filter_str, &dfcode, NULL)) {
+            fprintf(stderr, "Filter compile failed: %s\n", filter_str);
+        }
+    }
 
     while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
         cf.count++;
@@ -693,7 +704,26 @@ void get_all_frames_cb(int printCJson, FrameCallback callback) {
         frame_data_init(&fd, cf.count, &rec, data_offset, 0);
 
         edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+
+        if (dfcode != NULL) {
+            epan_dissect_prime_with_dfilter(edt, dfcode);
+        }
+
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+
         epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
+
+        if (dfcode != NULL) {
+            if (!dfilter_apply_edt(dfcode, edt)) {
+                epan_dissect_free(edt);
+                wtap_rec_reset(&rec);
+                continue;
+            }
+        }
 
         json_dumper dumper = {};
         dumper.output_string = g_string_new(NULL);
@@ -707,9 +737,10 @@ void get_all_frames_cb(int printCJson, FrameCallback callback) {
 
         if (dumper.output_string) g_string_free(dumper.output_string, TRUE);
         epan_dissect_free(edt);
-        frame_data_destroy(&fd);
         wtap_rec_reset(&rec);
     }
+
+    if (dfcode != NULL) dfilter_free(dfcode);
     close_cf();
     wtap_rec_cleanup(&rec);
 }
@@ -775,36 +806,101 @@ void get_frames_by_idxs_cb(int *idxs, int idx_count, int printCJson, FrameCallba
     wtap_rec_cleanup(&rec);
 }
 
-void get_frames_by_range(int start, int limit, int printCJson, FrameCallback callback) {
+/**
+ * Validate Wireshark display filter syntax.
+ *
+ * @param filter_str the display filter string to check
+ * @return NULL if syntax is correct, otherwise returns error message (needs g_free)
+ */
+char *validate_filter(const char *filter_str) {
+    if (filter_str == NULL || strlen(filter_str) == 0) {
+        return NULL;
+    }
+
+    dfilter_t *dfcode = NULL;
+    gchar *err_msg = NULL;
+
+    // Attempt to compile the filter
+    if (!dfilter_compile(filter_str, &dfcode, &err_msg)) {
+        char *res = NULL;
+        if (err_msg != NULL) {
+            res = g_strdup(err_msg);
+            g_free(err_msg);
+        } else {
+            res = g_strdup("Unknown filter syntax error");
+        }
+        return res;
+    }
+
+    // Free the compiled filter if it was successful
+    if (dfcode != NULL) {
+        dfilter_free(dfcode);
+    }
+
+    return NULL;
+}
+
+void get_frames_by_range(int start, int limit, int printCJson, const char *filter_str, FrameCallback callback) {
     cf.count = 0;
     int err = 0;
     gchar *err_info = NULL;
     int64_t data_offset = 0;
-    int end = start + limit;
+    guint32 cum_bytes = 0;
     wtap_rec rec;
     wtap_rec_init(&rec, 1514);
     epan_dissect_t *edt = NULL;
 
+    dfilter_t *dfcode = NULL;
+    if (filter_str != NULL && strlen(filter_str) > 0) {
+        if (!dfilter_compile(filter_str, &dfcode, NULL)) {
+            fprintf(stderr, "Filter compile failed: %s\n", filter_str);
+        }
+    }
+
+    int matched_count = 0;
+    int end = start + limit;
+
     while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
         cf.count++;
 
-        // Case A: Skip IO-only before start
-        if (cf.count < start) {
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+
+        if (dfcode != NULL) {
+            epan_dissect_prime_with_dfilter(edt, dfcode);
+        }
+
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
+
+        if (dfcode != NULL) {
+            if (!dfilter_apply_edt(dfcode, edt)) {
+                epan_dissect_free(edt);
+                wtap_rec_reset(&rec);
+                continue;
+            }
+        }
+
+        matched_count++;
+
+        if (matched_count < start) {
+            epan_dissect_free(edt);
             wtap_rec_reset(&rec);
             continue;
         }
 
-        // Case B: Stop after limit
-        if (cf.count >= end) {
+        if (matched_count >= end) {
+            epan_dissect_free(edt);
             wtap_rec_reset(&rec);
             break;
         }
-
-        // Case C: Dissect
-        frame_data fd;
-        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
-        edt = epan_dissect_new(cf.epan, TRUE, TRUE);
-        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
 
         json_dumper dumper = {};
         dumper.output_string = g_string_new(NULL);
@@ -818,9 +914,10 @@ void get_frames_by_range(int start, int limit, int printCJson, FrameCallback cal
 
         if (dumper.output_string) g_string_free(dumper.output_string, TRUE);
         epan_dissect_free(edt);
-        frame_data_destroy(&fd);
         wtap_rec_reset(&rec);
     }
+
+    if (dfcode != NULL) dfilter_free(dfcode);
     close_cf();
     wtap_rec_cleanup(&rec);
 }

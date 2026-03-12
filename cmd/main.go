@@ -3,12 +3,23 @@ package main
 import (
 	"log/slog"
 	"os"
+	"runtime/debug"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/randolphcyg/gowireshark/pkg"
 )
 
 func main() {
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		for range ticker.C {
+			// 强制 Go 进行一次完整的 GC，并尽可能把内存还给操作系统
+			debug.FreeOSMemory()
+		}
+	}()
+
 	// Initialize the Gin engine with default middleware (logger and recovery)
 	r := gin.Default()
 
@@ -27,6 +38,11 @@ func main() {
 
 		// 3. Random Access: Fetches specific frames by their Frame Number.
 		api.POST("/frames/idxs", getFramesByIdxs)
+
+		// 4. Fetches specific hex by their Frame Number.
+		api.POST("/frames/hex", getFrameHex)
+
+		api.POST("/frames/stream", getStreamData)
 	}
 
 	// Start the HTTP server on port 8090
@@ -43,6 +59,7 @@ type baseRequest struct {
 	Filepath  string `json:"filepath" binding:"required"` // Absolute path to the .pcap/.pcapng file inside the container
 	IsDebug   bool   `json:"isDebug"`                     // If true, enables verbose C-level logging
 	IgnoreErr bool   `json:"ignoreErr"`                   // If true, parsing continues even if a single frame is malformed
+	BpfFilter string `json:"bpfFilter"`
 }
 
 // getByPageRequest handles pagination parameters.
@@ -71,6 +88,7 @@ func getAllFrames(c *gin.Context) {
 	frames, err := pkg.GetAllFrames(req.Filepath,
 		pkg.WithDebug(req.IsDebug),
 		pkg.IgnoreError(req.IgnoreErr),
+		pkg.WithBpfFilter(req.BpfFilter),
 	)
 	if err != nil {
 		HandleError(c, 500, "wireshark parse err", err)
@@ -105,6 +123,7 @@ func getFramesByPage(c *gin.Context) {
 	frames, totalCount, err := pkg.GetFramesByPage(req.Filepath, req.Page, req.Size,
 		pkg.WithDebug(req.IsDebug),
 		pkg.IgnoreError(req.IgnoreErr),
+		pkg.WithBpfFilter(req.BpfFilter),
 	)
 	if err != nil {
 		HandleError(c, 500, "wireshark parse err", err)
@@ -141,6 +160,55 @@ func getFramesByIdxs(c *gin.Context) {
 		"list":  frames,
 		"total": len(frames),
 	})
+}
+
+type getHexRequest struct {
+	baseRequest
+	FrameIdx int `json:"frameIdx" binding:"required"`
+}
+
+func getFrameHex(c *gin.Context) {
+	var req getHexRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		HandleError(c, 400, "invalid param", err)
+		return
+	}
+
+	hexData, err := pkg.GetHexDataByIdx(req.Filepath, req.FrameIdx,
+		pkg.WithDebug(req.IsDebug),
+		pkg.IgnoreError(req.IgnoreErr),
+	)
+
+	if err != nil {
+		HandleError(c, 500, "wireshark parse hex err", err)
+		return
+	}
+
+	Success(c, hexData)
+}
+
+type getStreamRequest struct {
+	baseRequest
+	Protocol string `json:"protocol" binding:"required"`
+}
+
+func getStreamData(c *gin.Context) {
+	var req getStreamRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		HandleError(c, 400, "invalid param", err)
+		return
+	}
+
+	res, err := pkg.GetStreamData(req.Filepath, req.BpfFilter, req.Protocol,
+		pkg.WithDebug(req.IsDebug),
+		pkg.IgnoreError(req.IgnoreErr),
+	)
+	if err != nil {
+		HandleError(c, 500, "wireshark parse stream err", err)
+		return
+	}
+
+	Success(c, res)
 }
 
 // --- Helper Functions ---

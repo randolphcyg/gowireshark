@@ -5,6 +5,7 @@
 #include <cfile.h>
 #include <epan/charsets.h>
 #include <epan/column.h>
+#include <epan/dfilter/dfilter.h>
 #include <epan/epan.h>
 #include <epan/epan_dissect.h>
 #include <epan/frame_data.h>
