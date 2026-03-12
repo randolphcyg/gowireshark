@@ -29,6 +29,7 @@ type Conf struct {
 	IgnoreError     bool    // Whether to ignore errors (default: true)
 	Debug           bool    // Debug mode (default: from environment variable DEBUG)
 	PrintCJson      bool    // Whether to print C JSON (default: false)
+	BpfFilter       string  // BPF filter
 	Tls             TlsConf // TLS configuration
 	PrintTcpStreams bool    // Whether to print TCP stream (default: false)
 }
@@ -67,6 +68,13 @@ func WithTls(tls TlsConf) Option {
 func WithDebug(debug bool) Option {
 	return func(c *Conf) {
 		c.Debug = debug
+	}
+}
+
+// WithBpfFilter sets BPF filter.
+func WithBpfFilter(filter string) Option {
+	return func(c *Conf) {
+		c.BpfFilter = filter
 	}
 }
 

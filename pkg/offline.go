@@ -10,12 +10,12 @@ package pkg
 extern void OnFrameCallback(char *json, int len, int err);
 
 // Wrappers to pass the Go function pointer to C
-static void call_get_frames_by_range(int start, int limit, int printCJson) {
-    get_frames_by_range(start, limit, printCJson, OnFrameCallback);
+static void call_get_frames_by_range(int start, int limit, int printCJson, char *filter) {
+    get_frames_by_range(start, limit, printCJson, filter, OnFrameCallback);
 }
 
-static void call_get_all_frames_cb(int printCJson) {
-    get_all_frames_cb(printCJson, OnFrameCallback);
+static void call_get_all_frames_cb(int printCJson, char *filter) {
+    get_all_frames_cb(printCJson, filter, OnFrameCallback);
 }
 
 static void call_get_frames_by_idxs_cb(int *idxs, int count, int printCJson) {
@@ -30,6 +30,7 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -46,10 +47,19 @@ var globalFrameChan chan []byte
 //
 //export OnFrameCallback
 func OnFrameCallback(jsonStr *C.char, length C.int, errCode C.int) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("Panic in OnFrameCallback", "err", r)
+		}
+	}()
+
 	if errCode != 0 {
 		return
 	}
-	// Copy C string to Go string (Safe to free C string after this returns)
+	if jsonStr == nil || length <= 0 {
+		return
+	}
+
 	goBytes := C.GoBytes(unsafe.Pointer(jsonStr), length)
 	if globalFrameChan != nil {
 		globalFrameChan <- goBytes
@@ -114,7 +124,13 @@ func initCapFile(path string, opts ...Option) (conf *Conf, err error) {
 	}
 
 	conf = NewConfig(opts...)
-	errNo := C.init_cf(C.CString(path), C.CString(HandleConf(conf)))
+
+	cPath := C.CString(path)
+	cOptions := C.CString(HandleConf(conf))
+	defer C.free(unsafe.Pointer(cPath))
+	defer C.free(unsafe.Pointer(cOptions))
+
+	errNo := C.init_cf(cPath, cOptions)
 	if errNo != 0 {
 		err = errors.Wrap(ErrReadFile, strconv.Itoa(int(errNo)))
 		return
@@ -160,13 +176,12 @@ func GetHexDataByIdx(path string, frameIdx int, opts ...Option) (hexData *HexDat
 	}
 
 	srcHex := C.get_specific_frame_hex_data(C.int(frameIdx))
-	if srcHex != nil && C.strlen(srcHex) > 0 {
-		hexData, err = ParseHexData(CChar2GoStr(srcHex))
-		if err != nil {
-			slog.Warn("ParseHexData error", "err", err)
+	if srcHex != nil {
+		defer C.free(unsafe.Pointer(srcHex))
+		if C.strlen(srcHex) > 0 {
+			hexData, err = ParseHexData(CChar2GoStr(srcHex))
 		}
 	}
-
 	return
 }
 
@@ -348,14 +363,38 @@ func GetFramesByIdxs(path string, frameIdxs []int, opts ...Option) (frames []*Fr
 	return frames, nil
 }
 
+// ValidateFilter checks if the given display filter syntax is valid.
+func ValidateFilter(filter string) error {
+	if filter == "" {
+		return nil
+	}
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+
+	cErrMsg := C.validate_filter(cFilter)
+	if cErrMsg != nil {
+		defer C.free_c_string(cErrMsg)
+		return fmt.Errorf("Syntax error in display filter: %s", CChar2GoStr(cErrMsg))
+	}
+	return nil
+}
+
 // GetAllFrames fetches all frames efficiently.
 func GetAllFrames(path string, opts ...Option) (frames []*FrameData, err error) {
+	frames = make([]*FrameData, 0)
+
 	EpanMutex.Lock()
 	defer EpanMutex.Unlock()
 
 	conf, err := initCapFile(path, opts...)
 	if err != nil {
 		return nil, err
+	}
+
+	if conf.BpfFilter != "" {
+		if err := ValidateFilter(conf.BpfFilter); err != nil {
+			return frames, err
+		}
 	}
 
 	printCJson := 0
@@ -405,8 +444,11 @@ func GetAllFrames(path string, opts ...Option) (frames []*FrameData, err error) 
 		close(doneChan)
 	}()
 
+	cFilter := C.CString(conf.BpfFilter)
+	defer C.free(unsafe.Pointer(cFilter))
+
 	// 4. Call C function
-	C.call_get_all_frames_cb(C.int(printCJson))
+	C.call_get_all_frames_cb(C.int(printCJson), cFilter)
 
 	// 5. Cleanup
 	close(globalFrameChan)
@@ -453,25 +495,13 @@ func CountFrames(path string) (int, error) {
 
 // GetFramesByPage fetches a specific page of frames using pagination.
 func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*FrameData, count int, err error) {
+	frames = make([]*FrameData, 0)
+
 	if page < 1 {
 		page = 1
 	}
 	if size < 1 {
 		size = 10
-	}
-
-	// Fast count check
-	count, err = CountFrames(path)
-	if err != nil {
-		return nil, 0, err
-	}
-	if count == 0 {
-		return []*FrameData{}, 0, nil
-	}
-
-	startFrameIdx := (page-1)*size + 1
-	if startFrameIdx > count {
-		return []*FrameData{}, count, nil
 	}
 
 	// Global Lock & Init
@@ -480,9 +510,38 @@ func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*Fra
 
 	conf, err := initCapFile(path, opts...)
 	if err != nil {
-		return nil, 0, err
+		return frames, 0, err
 	}
 
+	// 1. Validate BPF filter
+	if conf.BpfFilter != "" {
+		if err := ValidateFilter(conf.BpfFilter); err != nil {
+			return frames, 0, err
+		}
+	}
+
+	// 2. counting
+	if conf.BpfFilter == "" {
+		// without filter, fetch frames count
+		cCount := C.count_frames()
+		if cCount < 0 {
+			return frames, 0, fmt.Errorf("error calling C.count_frames")
+		}
+		count = int(cCount)
+		if count == 0 {
+			return frames, 0, nil
+		}
+
+		startFrameIdx := (page-1)*size + 1
+		if startFrameIdx > count {
+			return frames, count, nil
+		}
+	} else {
+		// with filter, set unknown frames count
+		count = -1
+	}
+
+	startFrameIdx := (page-1)*size + 1
 	printCJson := 0
 	if conf.PrintCJson {
 		printCJson = 1
@@ -519,8 +578,11 @@ func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*Fra
 		}()
 	}
 
+	cFilter := C.CString(conf.BpfFilter)
+	defer C.free(unsafe.Pointer(cFilter))
+
 	// Call C (Blocking I/O)
-	C.call_get_frames_by_range(C.int(startFrameIdx), C.int(size), C.int(printCJson))
+	C.call_get_frames_by_range(C.int(startFrameIdx), C.int(size), C.int(printCJson), cFilter)
 
 	// Cleanup
 	close(globalFrameChan)
@@ -545,5 +607,160 @@ func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*Fra
 		return frames, count, parseErr
 	}
 
+	// 3. fix frames count
+	if conf.BpfFilter != "" {
+		if len(frames) < size {
+			count = (page-1)*size + len(frames)
+		}
+	}
+
 	return frames, count, nil
+}
+
+// =======================
+// Stream Tracking
+// =======================
+
+type StreamPayload struct {
+	Dir     string `json:"dir"`
+	HexData string `json:"hexData"`
+}
+
+type StreamResult struct {
+	Payloads    []StreamPayload `json:"payloads"`
+	ClientNode  string          `json:"clientNode"`
+	ServerNode  string          `json:"serverNode"`
+	ClientBytes int             `json:"clientBytes"`
+	ServerBytes int             `json:"serverBytes"`
+}
+
+// GetStreamData With streaming read, the frame object is dropped immediately after the Payload is extracted
+func GetStreamData(path string, filter string, proto string, opts ...Option) (*StreamResult, error) {
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
+	conf, err := initCapFile(path, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	if filter != "" {
+		if err := ValidateFilter(filter); err != nil {
+			return nil, err
+		}
+	}
+
+	globalFrameChan = make(chan []byte, 1000)
+	resChan := make(chan *StreamResult, 1)
+
+	go func() {
+		result := &StreamResult{
+			ClientNode: "Client",
+			ServerNode: "Server",
+		}
+		clientPort := -1
+		currentDir := ""
+		currentHex := ""
+
+		for jsonStr := range globalFrameChan {
+			var fastFrame struct {
+				Layers struct {
+					WsCol struct {
+						DefSrc string `json:"_ws.col.def_src"`
+						DefDst string `json:"_ws.col.def_dst"`
+					} `json:"_ws.col"`
+					Tcp struct {
+						SrcPort string `json:"tcp.srcport"`
+						DstPort string `json:"tcp.dstport"`
+						Payload string `json:"tcp.payload"`
+					} `json:"tcp"`
+					Udp struct {
+						SrcPort string `json:"udp.srcport"`
+						DstPort string `json:"udp.dstport"`
+						Payload string `json:"udp.payload"`
+					} `json:"udp"`
+				} `json:"layers"`
+			}
+
+			if err := sonic.Unmarshal(jsonStr, &fastFrame); err != nil {
+				continue
+			}
+
+			payloadHex := ""
+			srcPortStr := ""
+			dstPortStr := ""
+
+			if proto == "tcp" && fastFrame.Layers.Tcp.Payload != "" {
+				payloadHex = fastFrame.Layers.Tcp.Payload
+				srcPortStr = fastFrame.Layers.Tcp.SrcPort
+				dstPortStr = fastFrame.Layers.Tcp.DstPort
+			} else if proto == "udp" && fastFrame.Layers.Udp.Payload != "" {
+				payloadHex = fastFrame.Layers.Udp.Payload
+				srcPortStr = fastFrame.Layers.Udp.SrcPort
+				dstPortStr = fastFrame.Layers.Udp.DstPort
+			}
+
+			if payloadHex == "" {
+				continue
+			}
+
+			payloadHex = strings.ReplaceAll(payloadHex, ":", "")
+
+			srcPort, _ := strconv.Atoi(srcPortStr)
+			dstPort, _ := strconv.Atoi(dstPortStr)
+
+			if clientPort == -1 && srcPort != 0 {
+				clientPort = srcPort
+				result.ClientNode = fmt.Sprintf("%s:%d", fastFrame.Layers.WsCol.DefSrc, srcPort)
+				result.ServerNode = fmt.Sprintf("%s:%d", fastFrame.Layers.WsCol.DefDst, dstPort)
+			}
+
+			dir := "server"
+			if srcPort == clientPort {
+				dir = "client"
+			}
+
+			bytesLen := len(payloadHex) / 2
+			if dir == "client" {
+				result.ClientBytes += bytesLen
+			} else {
+				result.ServerBytes += bytesLen
+			}
+
+			if currentDir == "" {
+				currentDir = dir
+				currentHex = payloadHex
+			} else if currentDir == dir {
+				currentHex += payloadHex
+			} else {
+				result.Payloads = append(result.Payloads, StreamPayload{Dir: currentDir, HexData: currentHex})
+				currentDir = dir
+				currentHex = payloadHex
+			}
+		}
+
+		if currentDir != "" {
+			result.Payloads = append(result.Payloads, StreamPayload{Dir: currentDir, HexData: currentHex})
+		}
+		if len(result.Payloads) == 0 {
+			result.Payloads = append(result.Payloads, StreamPayload{Dir: "client", HexData: ""})
+		}
+
+		resChan <- result
+	}()
+
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+
+	printCJson := 0
+	if conf.PrintCJson {
+		printCJson = 1
+	}
+	C.call_get_all_frames_cb(C.int(printCJson), cFilter)
+
+	close(globalFrameChan)
+	globalFrameChan = nil
+
+	res := <-resChan
+	return res, nil
 }
