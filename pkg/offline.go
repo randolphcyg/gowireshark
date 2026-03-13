@@ -603,14 +603,17 @@ type StreamResult struct {
 	ServerNode  string          `json:"serverNode"`
 	ClientBytes int             `json:"clientBytes"`
 	ServerBytes int             `json:"serverBytes"`
+	PacketCount int             `json:"packetCount"`
 }
 
 type FastStreamPayload struct {
-	Src     string `json:"src"`
-	Dst     string `json:"dst"`
-	SrcPort int    `json:"srcport"`
-	DstPort int    `json:"dstport"`
-	Payload string `json:"payload"`
+	Summary      bool   `json:"_summary"`
+	MatchedCount int    `json:"matched_count"`
+	Src          string `json:"src"`
+	Dst          string `json:"dst"`
+	SrcPort      int    `json:"srcport"`
+	DstPort      int    `json:"dstport"`
+	Payload      string `json:"payload"`
 }
 
 // GetStreamData With streaming read, the frame object is dropped immediately after the Payload is extracted
@@ -646,6 +649,11 @@ func GetStreamData(path string, filter string, proto string, opts ...Option) (*S
 			var fastFrame FastStreamPayload
 
 			if err := sonic.Unmarshal(jsonStr, &fastFrame); err != nil {
+				continue
+			}
+
+			if fastFrame.Summary {
+				result.PacketCount = fastFrame.MatchedCount
 				continue
 			}
 

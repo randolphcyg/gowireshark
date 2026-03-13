@@ -903,6 +903,7 @@ void get_stream_payloads_cb(const char *filter_str, const char *proto, FrameCall
     }
 
     int payload_id = proto_registrar_get_id_byname(strcmp(proto, "tcp") == 0 ? "tcp.payload" : "udp.payload");
+    int matched_packets = 0;
 
     while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
         cf.count++;
@@ -929,6 +930,8 @@ void get_stream_payloads_cb(const char *filter_str, const char *proto, FrameCall
                 continue;
             }
         }
+
+        matched_packets++;
 
         char src_ip[WS_INET6_ADDRSTRLEN] = {0};
         char dst_ip[WS_INET6_ADDRSTRLEN] = {0};
@@ -984,6 +987,10 @@ void get_stream_payloads_cb(const char *filter_str, const char *proto, FrameCall
         epan_dissect_free(edt);
         wtap_rec_reset(&rec);
     }
+
+    char *summary_json = g_strdup_printf("{\"_summary\":true,\"matched_count\":%d}", matched_packets);
+    callback(summary_json, strlen(summary_json), 0);
+    g_free(summary_json);
 
     if (dfcode != NULL) dfilter_free(dfcode);
     close_cf();
