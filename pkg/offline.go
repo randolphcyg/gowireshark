@@ -639,7 +639,6 @@ func GetStreamData(path string, filter string, proto string, opts ...Option) (*S
 		}
 		clientPort := -1
 		currentDir := ""
-		currentHex := ""
 
 		var currentBuilder strings.Builder
 
@@ -686,7 +685,7 @@ func GetStreamData(path string, filter string, proto string, opts ...Option) (*S
 		}
 
 		if currentDir != "" {
-			result.Payloads = append(result.Payloads, StreamPayload{Dir: currentDir, HexData: currentHex})
+			result.Payloads = append(result.Payloads, StreamPayload{Dir: currentDir, HexData: currentBuilder.String()})
 		}
 		if len(result.Payloads) == 0 {
 			result.Payloads = append(result.Payloads, StreamPayload{Dir: "client", HexData: ""})
