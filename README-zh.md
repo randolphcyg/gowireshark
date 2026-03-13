@@ -64,18 +64,15 @@ func main() {
 	filepath := "./pcaps/mysql.pcapng"
 	page := 4
 	size := 20
-
-	// 在业务层计算总页数
-	frames, totalCount, err := pkg.GetFramesByPage(filepath, page, size)
+	
+	frames, hasMore, err := pkg.GetFramesByPage(filepath, page, size)
 	if err != nil {
 		panic(err)
 	}
 
-	// 在业务层计算总页数
-	totalPages := (totalCount + size - 1) / size
 
-	fmt.Printf("总记录数: %d\n", totalCount)
-	fmt.Printf("总页数: %d\n", totalPages)
+
+	fmt.Printf("是否存在更多帧: %v\n", hasMore)
 	fmt.Printf("当前页号: %d\n", page)
 
 	for _, frame := range frames {

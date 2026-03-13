@@ -63,18 +63,13 @@ func main() {
 	filepath := "./pcaps/mysql.pcapng"
 	page := 4
 	size := 20
-
-	// Optimized Pagination: Returns frames for the page and the TOTAL record count
-	frames, totalCount, err := pkg.GetFramesByPage(filepath, page, size)
+	
+	frames, hasMore, err := pkg.GetFramesByPage(filepath, page, size)
 	if err != nil {
 		panic(err)
 	}
 
-	// Calculate total pages on the client side
-	totalPages := (totalCount + size - 1) / size
-
-	fmt.Printf("Total Records: %d\n", totalCount)
-	fmt.Printf("Total Pages: %d\n", totalPages)
+	fmt.Printf("exist more frames: %v\n", hasMore)
 	fmt.Printf("Current Page: %d\n", page)
 
 	for _, frame := range frames {
