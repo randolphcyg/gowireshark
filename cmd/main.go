@@ -33,6 +33,8 @@ func main() {
 
 		// 5. Stream Tracking: Extracts TCP/UDP payloads for specific streams.
 		api.POST("/frames/stream", getStreamData)
+
+		api.GET("/interfaces", getInterfaces)
 	}
 
 	// Start the HTTP server on port 8090
@@ -77,6 +79,10 @@ type getStreamRequest struct {
 
 // --- Response DTOs ---
 
+type wiresharkVersionResp struct {
+	Version string `json:"version"`
+}
+
 // StandardResponse represents a standard API response body.
 type StandardResponse struct {
 	Code  int    `json:"code"`
@@ -99,11 +105,13 @@ type PageData struct {
 	Size    int  `json:"size"`
 }
 
-type wiresharkVersionResp struct {
-	Version string `json:"version"`
-}
-
 // --- Route Handlers ---
+
+func getWiresharkVersion(c *gin.Context) {
+	var resp wiresharkVersionResp
+	resp.Version = pkg.EpanVersion()
+	Success(c, resp)
+}
 
 // getAllFrames parses the entire file and returns all frames.
 func getAllFrames(c *gin.Context) {
@@ -228,13 +236,21 @@ func getStreamData(c *gin.Context) {
 	Success(c, res)
 }
 
-// --- Helper Functions ---
+// getInterfaces retrieves the list of available network interfaces for live capture.
+func getInterfaces(c *gin.Context) {
+	iFaces, err := pkg.GetIFaces()
+	if err != nil {
+		HandleError(c, 500, "failed to get network interfaces", err)
+		return
+	}
 
-func getWiresharkVersion(c *gin.Context) {
-	var resp wiresharkVersionResp
-	resp.Version = pkg.EpanVersion()
-	Success(c, resp)
+	Success(c, ListData{
+		List:  iFaces,
+		Total: len(iFaces),
+	})
 }
+
+// --- Helper Functions ---
 
 // HandleError returns a standardized error response.
 func HandleError(ctx *gin.Context, code int, message string, err error) {
