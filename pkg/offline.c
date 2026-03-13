@@ -780,14 +780,14 @@ char *validate_filter(const char *filter_str) {
     }
 
     dfilter_t *dfcode = NULL;
-    gchar *err_msg = NULL;
+    df_error_t *df_err = NULL;
 
     // Attempt to compile the filter
-    if (!dfilter_compile(filter_str, &dfcode, &err_msg)) {
+    if (!dfilter_compile(filter_str, &dfcode, &df_err)) {
         char *res = NULL;
-        if (err_msg != NULL) {
-            res = g_strdup(err_msg);
-            g_free(err_msg);
+        if (df_err != NULL) {
+            res = g_strdup(df_err->msg);
+            df_error_free(&df_err);
         } else {
             res = g_strdup("Unknown filter syntax error");
         }
@@ -875,6 +875,112 @@ void get_frames_by_range(int start, int limit, int printCJson, const char *filte
         }
 
         if (dumper.output_string) g_string_free(dumper.output_string, TRUE);
+        epan_dissect_free(edt);
+        wtap_rec_reset(&rec);
+    }
+
+    if (dfcode != NULL) dfilter_free(dfcode);
+    close_cf();
+    wtap_rec_cleanup(&rec);
+}
+
+void get_stream_payloads_cb(const char *filter_str, const char *proto, FrameCallback callback) {
+    epan_dissect_t *edt;
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    dfilter_t *dfcode = NULL;
+    df_error_t *df_err = NULL;
+    if (filter_str != NULL && strlen(filter_str) > 0) {
+        if (!dfilter_compile(filter_str, &dfcode, &df_err)) {
+            if (df_err) df_error_free(&df_err);
+        }
+    }
+
+    int payload_id = proto_registrar_get_id_byname(strcmp(proto, "tcp") == 0 ? "tcp.payload" : "udp.payload");
+
+    while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        cf.count++;
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+
+        if (dfcode != NULL) epan_dissect_prime_with_dfilter(edt, dfcode);
+        if (payload_id != -1) epan_dissect_prime_with_hfid(edt, payload_id);
+
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
+
+        if (dfcode != NULL) {
+            if (!dfilter_apply_edt(dfcode, edt)) {
+                epan_dissect_free(edt);
+                wtap_rec_reset(&rec);
+                continue;
+            }
+        }
+
+        char src_ip[WS_INET6_ADDRSTRLEN] = {0};
+        char dst_ip[WS_INET6_ADDRSTRLEN] = {0};
+        address_to_str_buf(&edt->pi.src, src_ip, sizeof(src_ip));
+        address_to_str_buf(&edt->pi.dst, dst_ip, sizeof(dst_ip));
+        guint32 src_port = edt->pi.srcport;
+        guint32 dst_port = edt->pi.destport;
+
+        char *payload_hex = NULL;
+        if (payload_id != -1) {
+            GPtrArray *finfo_array = proto_get_finfo_ptr_array(edt->tree, payload_id);
+            if (finfo_array && finfo_array->len > 0) {
+                GString *hex_builder = g_string_new("");
+
+                for (guint i = 0; i < finfo_array->len; i++) {
+                    field_info *fi = (field_info *)g_ptr_array_index(finfo_array, i);
+                    if (fi && fi->value) {
+
+                        char *raw_repr = fvalue_to_string_repr(NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
+                        if (raw_repr) {
+                            char *r = raw_repr;
+                            char *w = raw_repr;
+                            while (*r) {
+                                if (*r != ':') {
+                                    *w++ = *r;
+                                }
+                                r++;
+                            }
+                            *w = '\0';
+
+                            g_string_append(hex_builder, raw_repr);
+                            wmem_free(NULL, raw_repr);
+                        }
+                    }
+                }
+                payload_hex = g_string_free(hex_builder, FALSE);
+            }
+        }
+
+        if (payload_hex != NULL && strlen(payload_hex) > 0) {
+            char *tiny_json = g_strdup_printf(
+                "{\"src\":\"%s\",\"dst\":\"%s\",\"srcport\":%u,\"dstport\":%u,\"payload\":\"%s\"}",
+                src_ip, dst_ip, src_port, dst_port, payload_hex
+            );
+            callback(tiny_json, strlen(tiny_json), 0);
+            g_free(tiny_json);
+        }
+
+        if (payload_hex != NULL) {
+            g_free(payload_hex);
+        }
+
         epan_dissect_free(edt);
         wtap_rec_reset(&rec);
     }

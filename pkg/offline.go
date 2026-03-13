@@ -21,6 +21,10 @@ static void call_get_all_frames_cb(int printCJson, char *filter) {
 static void call_get_frames_by_idxs_cb(int *idxs, int count, int printCJson) {
     get_frames_by_idxs_cb(idxs, count, printCJson, OnFrameCallback);
 }
+
+static void call_get_stream_payloads_cb(char *filter, char *proto) {
+    get_stream_payloads_cb(filter, proto, OnFrameCallback);
+}
 */
 import "C"
 import (
@@ -356,6 +360,10 @@ func GetFramesByIdxs(path string, frameIdxs []int, opts ...Option) (frames []*Fr
 		frames = append(frames, f)
 	}
 
+	slices.SortFunc(frames, func(a, b *FrameData) int {
+		return a.BaseLayers.Frame.Number - b.BaseLayers.Frame.Number
+	})
+
 	if parseErr != nil {
 		return frames, parseErr
 	}
@@ -597,12 +605,20 @@ type StreamResult struct {
 	ServerBytes int             `json:"serverBytes"`
 }
 
+type FastStreamPayload struct {
+	Src     string `json:"src"`
+	Dst     string `json:"dst"`
+	SrcPort int    `json:"srcport"`
+	DstPort int    `json:"dstport"`
+	Payload string `json:"payload"`
+}
+
 // GetStreamData With streaming read, the frame object is dropped immediately after the Payload is extracted
 func GetStreamData(path string, filter string, proto string, opts ...Option) (*StreamResult, error) {
 	EpanMutex.Lock()
 	defer EpanMutex.Unlock()
 
-	conf, err := initCapFile(path, opts...)
+	_, err := initCapFile(path, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -625,65 +641,31 @@ func GetStreamData(path string, filter string, proto string, opts ...Option) (*S
 		currentDir := ""
 		currentHex := ""
 
+		var currentBuilder strings.Builder
+
 		for jsonStr := range globalFrameChan {
-			var fastFrame struct {
-				Layers struct {
-					WsCol struct {
-						DefSrc string `json:"_ws.col.def_src"`
-						DefDst string `json:"_ws.col.def_dst"`
-					} `json:"_ws.col"`
-					Tcp struct {
-						SrcPort string `json:"tcp.srcport"`
-						DstPort string `json:"tcp.dstport"`
-						Payload string `json:"tcp.payload"`
-					} `json:"tcp"`
-					Udp struct {
-						SrcPort string `json:"udp.srcport"`
-						DstPort string `json:"udp.dstport"`
-						Payload string `json:"udp.payload"`
-					} `json:"udp"`
-				} `json:"layers"`
-			}
+			var fastFrame FastStreamPayload
 
 			if err := sonic.Unmarshal(jsonStr, &fastFrame); err != nil {
 				continue
 			}
 
-			payloadHex := ""
-			srcPortStr := ""
-			dstPortStr := ""
-
-			if proto == "tcp" && fastFrame.Layers.Tcp.Payload != "" {
-				payloadHex = fastFrame.Layers.Tcp.Payload
-				srcPortStr = fastFrame.Layers.Tcp.SrcPort
-				dstPortStr = fastFrame.Layers.Tcp.DstPort
-			} else if proto == "udp" && fastFrame.Layers.Udp.Payload != "" {
-				payloadHex = fastFrame.Layers.Udp.Payload
-				srcPortStr = fastFrame.Layers.Udp.SrcPort
-				dstPortStr = fastFrame.Layers.Udp.DstPort
-			}
-
-			if payloadHex == "" {
+			if fastFrame.Payload == "" {
 				continue
 			}
 
-			payloadHex = strings.ReplaceAll(payloadHex, ":", "")
-
-			srcPort, _ := strconv.Atoi(srcPortStr)
-			dstPort, _ := strconv.Atoi(dstPortStr)
-
-			if clientPort == -1 && srcPort != 0 {
-				clientPort = srcPort
-				result.ClientNode = fmt.Sprintf("%s:%d", fastFrame.Layers.WsCol.DefSrc, srcPort)
-				result.ServerNode = fmt.Sprintf("%s:%d", fastFrame.Layers.WsCol.DefDst, dstPort)
+			if clientPort == -1 && fastFrame.SrcPort != 0 {
+				clientPort = fastFrame.SrcPort
+				result.ClientNode = fmt.Sprintf("%s:%d", fastFrame.Src, fastFrame.SrcPort)
+				result.ServerNode = fmt.Sprintf("%s:%d", fastFrame.Dst, fastFrame.DstPort)
 			}
 
 			dir := "server"
-			if srcPort == clientPort {
+			if fastFrame.SrcPort == clientPort {
 				dir = "client"
 			}
 
-			bytesLen := len(payloadHex) / 2
+			bytesLen := len(fastFrame.Payload) / 2
 			if dir == "client" {
 				result.ClientBytes += bytesLen
 			} else {
@@ -692,13 +674,14 @@ func GetStreamData(path string, filter string, proto string, opts ...Option) (*S
 
 			if currentDir == "" {
 				currentDir = dir
-				currentHex = payloadHex
+				currentBuilder.WriteString(fastFrame.Payload)
 			} else if currentDir == dir {
-				currentHex += payloadHex
+				currentBuilder.WriteString(fastFrame.Payload)
 			} else {
-				result.Payloads = append(result.Payloads, StreamPayload{Dir: currentDir, HexData: currentHex})
+				result.Payloads = append(result.Payloads, StreamPayload{Dir: currentDir, HexData: currentBuilder.String()})
 				currentDir = dir
-				currentHex = payloadHex
+				currentBuilder.Reset()
+				currentBuilder.WriteString(fastFrame.Payload)
 			}
 		}
 
@@ -713,13 +696,11 @@ func GetStreamData(path string, filter string, proto string, opts ...Option) (*S
 	}()
 
 	cFilter := C.CString(filter)
+	cProto := C.CString(proto)
 	defer C.free(unsafe.Pointer(cFilter))
+	defer C.free(unsafe.Pointer(cProto))
 
-	printCJson := 0
-	if conf.PrintCJson {
-		printCJson = 1
-	}
-	C.call_get_all_frames_cb(C.int(printCJson), cFilter)
+	C.call_get_stream_payloads_cb(cFilter, cProto)
 
 	close(globalFrameChan)
 	globalFrameChan = nil

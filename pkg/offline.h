@@ -38,4 +38,6 @@ void get_frames_by_range(int start, int limit, int printCJson, const char *filte
 // Returns NULL if valid, or an error string (must be freed by caller) if invalid.
 char *validate_filter(const char *filter_str);
 
+void get_stream_payloads_cb(const char *filter_str, const char *proto, FrameCallback callback);
+
 #endif  // OFFLINE_H
