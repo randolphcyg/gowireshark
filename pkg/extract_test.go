@@ -26,21 +26,22 @@ func TestConcurrentFilenameGeneration(t *testing.T) {
 	wg.Wait()
 }
 
+// TestExtractHttpFile extracts HTTP file objects from a pcap.
+// Requires a pcap containing HTTP file transfers.
 func TestExtractHttpFile(t *testing.T) {
-	path := "./pcaps/ext.pcap"
+	pcapPath := getTestPcap(t)
 
-	frames, err := GetAllFrames(path,
-		WithDebug(false),
-		IgnoreError(false))
-
+	frames, err := GetAllFrames(pcapPath, WithDebug(false), IgnoreError(false))
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	found := false
 	for _, frame := range frames {
 		if frame.BaseLayers.Http == nil {
 			continue
 		}
+		found = true
 
 		pwd, _ := os.Getwd()
 		ExtractFileDir = filepath.Join(pwd, "testdir")
@@ -49,6 +50,10 @@ func TestExtractHttpFile(t *testing.T) {
 			t.Log(err)
 			continue
 		}
-		t.Log(genPath)
+		t.Log("Extracted:", genPath)
+	}
+
+	if !found {
+		t.Skip("No HTTP frames found in test pcap (expected if not HTTP traffic)")
 	}
 }

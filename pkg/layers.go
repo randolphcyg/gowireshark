@@ -36,7 +36,7 @@ type FrameData struct {
 // parseFieldAsArray handle Single value or multiple value
 func parseFieldAsArray(raw json.RawMessage) (*[]string, error) {
 	if len(raw) == 0 {
-		return nil, nil // 如果字段缺失或为空，返回 nil
+		return nil, nil // field is missing or empty, return nil
 	}
 
 	var singleValue string

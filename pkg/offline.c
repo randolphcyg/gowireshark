@@ -65,6 +65,8 @@ void clean() {
 
 /**
  * Clean the capture file struct.
+ * Note: epan instance is reused across requests for stability.
+ * Only the file handle and frame data are released.
  */
 void close_cf() {
     cf.stop_flag = FALSE;
@@ -198,6 +200,11 @@ int init_cf(char *filepath, char *options) {
         free(keysList);
     }
 
+    // Free previous epan instance if exists, then create new one
+    if (cf.epan != NULL) {
+        epan_free(cf.epan);
+        cf.epan = NULL;
+    }
     cf.epan = epan_new(&cf.provider, &funcs);
 
     // setup tcp follow tap
@@ -802,6 +809,28 @@ char *validate_filter(const char *filter_str) {
     return NULL;
 }
 
+/**
+ * Count total frames in the opened pcap file without full dissection.
+ * Much faster than parsing all frames — only reads packet headers.
+ */
+int count_frames() {
+    int count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        count++;
+        wtap_rec_reset(&rec);
+    }
+
+    wtap_rec_cleanup(&rec);
+    close_cf();
+    return count;
+}
+
 void get_frames_by_range(int start, int limit, int printCJson, const char *filter_str, FrameCallback callback) {
     cf.count = 0;
     int err = 0;
@@ -813,9 +842,11 @@ void get_frames_by_range(int start, int limit, int printCJson, const char *filte
     epan_dissect_t *edt = NULL;
 
     dfilter_t *dfcode = NULL;
-    if (filter_str != NULL && strlen(filter_str) > 0) {
+    bool has_filter = (filter_str != NULL && strlen(filter_str) > 0);
+    if (has_filter) {
         if (!dfilter_compile(filter_str, &dfcode, NULL)) {
             fprintf(stderr, "Filter compile failed: %s\n", filter_str);
+            has_filter = false;
         }
     }
 
@@ -828,10 +859,37 @@ void get_frames_by_range(int start, int limit, int printCJson, const char *filte
         frame_data fd;
         frame_data_init(&fd, cf.count, &rec, data_offset, 0);
 
-        edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+        /*
+         * If no display filter is active and we haven't reached the target page,
+         * skip full dissection — only read packet headers and maintain frame sequence
+         * for timestamp resolution.
+         */
+        if (!has_filter && matched_count < start - 1) {
+            matched_count++;
+            frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);
+            cf.provider.ref = &fd;
+            frame_data_set_after_dissect(&fd, &cum_bytes);
+            cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
+            wtap_rec_reset(&rec);
+            continue;
+        }
 
-        if (dfcode != NULL) {
+        /* Full dissection required: either we have a filter, or we're in the target range */
+        bool in_target_range = (!has_filter && matched_count >= start - 1) ||
+                               (has_filter && matched_count >= start - 1);
+
+        /*
+         * When filter is active but we haven't reached the target page,
+         * use lightweight dissect (no column info) — just enough to evaluate the filter.
+         */
+        if (has_filter && matched_count < start - 1) {
+            edt = epan_dissect_new(cf.epan, TRUE, FALSE);  // tree=TRUE (for filter), columns=FALSE
             epan_dissect_prime_with_dfilter(edt, dfcode);
+        } else {
+            edt = epan_dissect_new(cf.epan, TRUE, TRUE);   // full dissect for target frames
+            if (dfcode != NULL) {
+                epan_dissect_prime_with_dfilter(edt, dfcode);
+            }
         }
 
         frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);

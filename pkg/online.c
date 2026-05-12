@@ -1,7 +1,6 @@
 #include "online.h"
 
-#define LOG_DEBUG(fmt, ...) \
-    fprintf(stderr, "[C-DEBUG] %s:%d: " fmt "\n", __func__, __LINE__, ##__VA_ARGS__)
+#define LOG_DEBUG(fmt, ...) do {} while(0)
 
 // device_content Contains the information needed for each device
 typedef struct device_content {
@@ -35,7 +34,7 @@ void cap_file_init(capture_file *cf);
 char *init_cf_live(capture_file *cf_live, char *options);
 void close_cf_live(capture_file *cf_live);
 
-static bool prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr);
+static bool prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr, const u_char *packet);
 static bool send_data_to_wrap(struct device_map *device, int printCJson);
 static bool process_packet(struct device_map *device, gint64 offset,
                            const struct pcap_pkthdr *pkthdr, const u_char *packet, int printCJson);
@@ -84,8 +83,9 @@ char *add_device(char *device_name, char *bpf_expr, int num, int promisc, int to
         err_msg = init_cf_live(cf_tmp, options);
         if (err_msg != NULL) {
             if (strlen(err_msg) != 0) {
-                // close cf file
                 close_cf_live(cf_tmp);
+                free(cf_tmp);
+                free(s);
                 return "Add device failed: fail to init cf_live";
             }
         }
@@ -225,7 +225,7 @@ char *get_if_list() {
 
         // Remove the last comma and close the address array
         if (current > result && *(current - 1) == ',') {
-            current--;  // 删除逗号
+            current--;  // remove trailing comma
             remaining++;
         }
         current += snprintf(current, remaining, "]},");
@@ -234,7 +234,7 @@ char *get_if_list() {
 
     // Remove the last comma and close the JSON array
     if (current > result && *(current - 1) == ',') {
-        current--;  // 删除逗号
+        current--;  // remove trailing comma
         remaining++;
     }
     snprintf(current, remaining, "]");
@@ -471,14 +471,17 @@ void close_cf_live(capture_file *cf_live) {
  *  @param pkthdr: package header
  *  @return bool: true or false
  */
-static bool prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
-    rec->rec_type = REC_TYPE_PACKET;
+static bool prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr, const u_char *packet) {
+    if (pkthdr == NULL || packet == NULL) {
+        return false;
+    }
+
+    wtap_setup_packet_rec(rec, WTAP_ENCAP_ETHERNET);
     rec->presence_flags = WTAP_HAS_TS | WTAP_HAS_CAP_LEN;
     rec->ts.nsecs = (gint32)pkthdr->ts.tv_usec * 1000;
     rec->ts.secs = pkthdr->ts.tv_sec;
     rec->rec_header.packet_header.caplen = pkthdr->caplen;
     rec->rec_header.packet_header.len = pkthdr->len;
-    rec->rec_header.packet_header.pkt_encap = WTAP_ENCAP_ETHERNET;
 
     if (rec->rec_header.packet_header.len == 0) {
         //    printf("Header is null, frame Num:%lu\n",
@@ -489,6 +492,9 @@ static bool prepare_data(wtap_rec *rec, const struct pcap_pkthdr *pkthdr) {
     if (pkthdr->caplen > WTAP_MAX_PACKET_SIZE_STANDARD) {
         return false;
     }
+
+    ws_buffer_clean(&rec->data);
+    ws_buffer_append(&rec->data, packet, pkthdr->caplen);
 
     return true;
 }
@@ -553,6 +559,7 @@ static bool process_packet(struct device_map *device, gint64 offset,
                            const struct pcap_pkthdr *pkthdr, const u_char *packet, int printCJson) {
     frame_data fd;
     guint32 cum_bytes = 0;
+    epan_dissect_t edt;
 
     device->content.cf_live->count++;
 
@@ -562,8 +569,11 @@ static bool process_packet(struct device_map *device, gint64 offset,
                                   &device->content.cf_live->provider.ref,
                                   device->content.cf_live->provider.prev_dis);
 
+    // Create fresh dissector state for each packet
+    epan_dissect_init(&edt, device->content.cf_live->epan, TRUE, TRUE);
+
     // dissect pkg
-    epan_dissect_run_with_taps(&device->content.edt, device->content.cf_live->cd_t,
+    epan_dissect_run_with_taps(&edt, device->content.cf_live->cd_t,
                                &device->content.rec, &fd, &device->content.cf_live->cinfo);
 
     frame_data_set_after_dissect(&fd, &cum_bytes);
@@ -573,27 +583,41 @@ static bool process_packet(struct device_map *device, gint64 offset,
     device->content.prev_cap_frame = fd;
     device->content.cf_live->provider.prev_cap = &device->content.prev_cap_frame;
 
-    if (!send_data_to_wrap(device, printCJson)) {
-        // free all memory allocated
-        epan_dissect_reset(&device->content.edt);
-        frame_data_destroy(&fd);
-        wtap_rec_cleanup(&device->content.rec);
+    // Send JSON to Go
+    char *json_str = NULL;
+    json_dumper dumper = {};
+    dumper.output_string = g_string_new(NULL);
 
-        return false;
+    get_json_proto_tree(NULL, print_dissections_expanded, TRUE, NULL, PF_INCLUDE_CHILDREN,
+                        &edt, &device->content.cf_live->cinfo,
+                        proto_node_group_children_by_json_key, &dumper);
+
+    bool success = false;
+    if (json_dumper_finish(&dumper)) {
+        json_str = dumper.output_string->str;
+        if (json_str && dataCallback != NULL) {
+            if (printCJson) {
+                printf("%s\n", json_str);
+            }
+            dataCallback(json_str, strlen(json_str), device->device_name);
+            success = true;
+        }
     }
 
-    // free all memory allocated
-    epan_dissect_reset(&device->content.edt);
-    frame_data_destroy(&fd);
-    wtap_rec_cleanup(&device->content.rec);
+    if (dumper.output_string) {
+        g_string_free(dumper.output_string, TRUE);
+    }
 
-    return true;
+    // Cleanup
+    epan_dissect_cleanup(&edt);
+    frame_data_destroy(&fd);
+    wtap_rec_reset(&device->content.rec);
+
+    return success;
 }
 
 void before_callback_init(struct device_map *device) {
-    epan_dissect_init(&device->content.edt, device->content.cf_live->epan, TRUE, TRUE);
     wtap_rec_init(&device->content.rec, 1514);
-
     return;
 }
 
@@ -619,9 +643,9 @@ void process_packet_callback(u_char *arg, const struct pcap_pkthdr *pkthdr, cons
 
     gchar *err_info = NULL;
     gint64 data_offset = 0;
-    if (!prepare_data(&device->content.rec, pkthdr)) {
+    if (!prepare_data(&device->content.rec, pkthdr, packet)) {
         LOG_DEBUG("prepare_data failed");
-        wtap_rec_cleanup(&device->content.rec);
+        wtap_rec_reset(&device->content.rec);
         return;
     }
 
@@ -670,7 +694,10 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc, int
                                             device->content.to_ms, err_buf);
     if (!device->content.handle) {
         LOG_DEBUG("pcap_open_live failed: %s", err_buf);
+        HASH_DEL(devices, device);
         close_cf_live(device->content.cf_live);
+        free(device->content.cf_live);
+        free(device);
         return "pcap_open_live() couldn't open device";
     }
     LOG_DEBUG("pcap_open_live success. Handle: %p", device->content.handle);
@@ -689,17 +716,29 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc, int
     if (pcap_compile(device->content.handle, &fp, device->content.bpf_expr, 0, net) != 0) {
         fprintf(stderr, "Could not parse bpf filter %s: %s\n", device->content.bpf_expr,
                 pcap_geterr(device->content.handle));
+        pcap_close(device->content.handle);
+        device->content.handle = NULL;
+        HASH_DEL(devices, device);
+        close_cf_live(device->content.cf_live);
+        free(device->content.cf_live);
+        free(device);
         return "Could not parse bpf filter";
     }
 
     if (pcap_setfilter(device->content.handle, &fp) != 0) {
         fprintf(stderr, "Could not set filter %s: %s\n", device->content.bpf_expr,
                 pcap_geterr(device->content.handle));
+        pcap_freecode(&fp);
+        pcap_close(device->content.handle);
+        device->content.handle = NULL;
+        HASH_DEL(devices, device);
+        close_cf_live(device->content.cf_live);
+        free(device->content.cf_live);
+        free(device);
         return "Could not set bpf filter";
     }
 
-    printf("Start capture packet on device:%s bpf: %s \n", device->device_name,
-           device->content.bpf_expr);
+    pcap_freecode(&fp);
 
     // handle pcap_loop callback function args
     callback_arg_t args;
@@ -722,7 +761,7 @@ char *handle_packet(char *device_name, char *bpf_expr, int num, int promisc, int
     }
     close_cf_live(device->content.cf_live);
 
-    /* 从 map 中移除设备 */
+    /* Remove device from the hash map */
     HASH_DEL(devices, device);
     free(device->content.cf_live);
     free(device);

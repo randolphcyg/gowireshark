@@ -1,7 +1,6 @@
 package pkg
 
 /*
-#cgo pkg-config: glib-2.0
 #include "reassembly.h"
 */
 import "C"

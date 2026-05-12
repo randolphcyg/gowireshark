@@ -1,7 +1,6 @@
 package pkg
 
 /*
-#cgo pkg-config: glib-2.0
 #include "lib.h"
 #include "online.h"
 #include "offline.h"
@@ -29,6 +28,7 @@ static void call_get_stream_payloads_cb(char *filter, char *proto) {
 import "C"
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"runtime"
@@ -227,8 +227,12 @@ func ParseFrameData(src []byte) (frame *FrameData, err error) {
 	return frame, nil
 }
 
-// GetFrameByIdx gets a single frame.
+// GetFrameByIdx gets a single frame by its 1-based index.
 func GetFrameByIdx(path string, frameIdx int, opts ...Option) (frameData *FrameData, err error) {
+	if frameIdx < 1 {
+		return nil, errors.New("frameIdx must be >= 1")
+	}
+
 	EpanMutex.Lock()
 	defer EpanMutex.Unlock()
 
@@ -242,30 +246,17 @@ func GetFrameByIdx(path string, frameIdx int, opts ...Option) (frameData *FrameD
 		printCJson = 1
 	}
 
-	counter := 0
-	for {
-		counter++
-		if counter < frameIdx && frameIdx != counter {
-			continue
-		}
-
-		srcFrame := C.proto_tree_in_json(C.int(counter), C.int(printCJson))
+	srcFrame := C.proto_tree_in_json(C.int(frameIdx), C.int(printCJson))
+	if srcFrame == nil || C.strlen(srcFrame) == 0 {
 		if srcFrame != nil {
-			defer C.free_c_string(srcFrame)
-			if C.strlen(srcFrame) == 0 {
-				return frameData, ErrFrameIsBlank
-			}
+			C.free_c_string(srcFrame)
 		}
-
-		// unmarshal dissect result
-		frameData, err = ParseFrameData([]byte(CChar2GoStr(srcFrame)))
-		if err != nil {
-			slog.Warn("GetFrameByIdx:", "ParseFrameData", err)
-			return
-		}
-
-		return
+		return nil, ErrFrameIsBlank
 	}
+	defer C.free_c_string(srcFrame)
+
+	frameData, err = ParseFrameData([]byte(CChar2GoStr(srcFrame)))
+	return
 }
 
 func removeNegativeAndZero(nums []int) []int {
@@ -387,6 +378,25 @@ func ValidateFilter(filter string) error {
 	return nil
 }
 
+// CountFrames returns the total number of frames in a pcap file.
+// This is a lightweight operation — reads packet headers without full dissection.
+func CountFrames(path string, opts ...Option) (int, error) {
+	if !IsFileExist(path) {
+		return 0, errors.Wrap(ErrFileNotFound, path)
+	}
+
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
+	_, err := initCapFile(path, opts...)
+	if err != nil {
+		return 0, err
+	}
+
+	count := int(C.count_frames())
+	return count, nil
+}
+
 // GetAllFrames fetches all frames efficiently.
 func GetAllFrames(path string, opts ...Option) (frames []*FrameData, err error) {
 	frames = make([]*FrameData, 0)
@@ -481,6 +491,74 @@ func GetAllFrames(path string, opts ...Option) (frames []*FrameData, err error) 
 	}
 
 	return frames, nil
+}
+
+// StreamAllFrames dissects all frames and writes each frame's raw JSON directly to w.
+// This is the zero-copy streaming path: C produces JSON → Go copies bytes → writes to w.
+// No Go-side JSON unmarshal/marshal happens. Each frame is written as one line (NDJSON).
+// Returns the number of frames written.
+func StreamAllFrames(path string, w io.Writer, opts ...Option) (count int, err error) {
+	if !IsFileExist(path) {
+		return 0, errors.Wrap(ErrFileNotFound, path)
+	}
+
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
+	conf, err := initCapFile(path, opts...)
+	if err != nil {
+		return 0, err
+	}
+
+	if conf.BpfFilter != "" {
+		if err := ValidateFilter(conf.BpfFilter); err != nil {
+			return 0, err
+		}
+	}
+
+	printCJson := 0
+	if conf.PrintCJson {
+		printCJson = 1
+	}
+
+	// Channel receives raw JSON bytes from C callback
+	globalFrameChan = make(chan []byte, 256)
+
+	// Writer goroutine: reads from channel, writes directly to w
+	var writeWg sync.WaitGroup
+	var writeErr error
+	writeWg.Add(1)
+	go func() {
+		defer writeWg.Done()
+		for jsonBytes := range globalFrameChan {
+			_, e := w.Write(jsonBytes)
+			if e != nil {
+				writeErr = e
+				// Drain remaining to avoid blocking C callback
+				for range globalFrameChan {
+				}
+				return
+			}
+			w.Write([]byte("\n"))
+			count++
+		}
+	}()
+
+	cFilter := C.CString(conf.BpfFilter)
+	defer C.free(unsafe.Pointer(cFilter))
+
+	// Blocking: C reads file, calls OnFrameCallback for each frame
+	C.call_get_all_frames_cb(C.int(printCJson), cFilter)
+
+	// Signal writer to finish
+	close(globalFrameChan)
+	globalFrameChan = nil
+	writeWg.Wait()
+
+	if writeErr != nil {
+		return count, writeErr
+	}
+	return count, nil
 }
 
 // GetFramesByPage fetches a specific page of frames using pagination.
@@ -586,6 +664,84 @@ func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*Fra
 	}
 
 	return frames, hasMore, nil
+}
+
+// StreamFramesByPage is the zero-copy version of GetFramesByPage.
+// It writes each frame's raw JSON (from C) directly to w without Go-side unmarshal/marshal.
+// Returns (framesWritten, hasMore, error).
+func StreamFramesByPage(path string, page, size int, w io.Writer, opts ...Option) (count int, hasMore bool, err error) {
+	if page < 1 {
+		page = 1
+	}
+	if size < 1 {
+		size = 20
+	}
+
+	fetchSize := size + 1
+	startFrameIdx := (page-1)*size + 1
+
+	EpanMutex.Lock()
+	defer EpanMutex.Unlock()
+
+	conf, err := initCapFile(path, opts...)
+	if err != nil {
+		return 0, false, err
+	}
+
+	if conf.BpfFilter != "" {
+		if err := ValidateFilter(conf.BpfFilter); err != nil {
+			return 0, false, err
+		}
+	}
+
+	printCJson := 0
+	if conf.PrintCJson {
+		printCJson = 1
+	}
+
+	// Channel receives raw JSON from C callback
+	globalFrameChan = make(chan []byte, fetchSize)
+
+	// Writer goroutine: writes raw JSON directly, no parsing
+	var writeWg sync.WaitGroup
+	var writeErr error
+	collected := 0
+	writeWg.Add(1)
+	go func() {
+		defer writeWg.Done()
+		for jsonBytes := range globalFrameChan {
+			collected++
+			if collected > size {
+				// This is the extra frame for hasMore detection — don't write it
+				continue
+			}
+			_, e := w.Write(jsonBytes)
+			if e != nil {
+				writeErr = e
+				for range globalFrameChan {
+				}
+				return
+			}
+			w.Write([]byte("\n"))
+			count++
+		}
+	}()
+
+	cFilter := C.CString(conf.BpfFilter)
+	defer C.free(unsafe.Pointer(cFilter))
+
+	C.call_get_frames_by_range(C.int(startFrameIdx), C.int(fetchSize), C.int(printCJson), cFilter)
+
+	close(globalFrameChan)
+	globalFrameChan = nil
+	writeWg.Wait()
+
+	hasMore = collected > size
+
+	if writeErr != nil {
+		return count, hasMore, writeErr
+	}
+	return count, hasMore, nil
 }
 
 // =======================

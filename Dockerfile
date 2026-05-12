@@ -1,6 +1,6 @@
-ARG WIRESHARK_VER=4.6.4
+ARG WIRESHARK_VER=4.6.5
 ARG PCAP_VER=1.10.6
-ARG GO_VER=1.26.1
+ARG GO_VER=1.26.2
 ARG CJSON_VER=1.7.19
 ARG CHASH_VER=2.3.0
 
@@ -42,6 +42,8 @@ RUN cmake -G Ninja \
     -DENABLE_MAN_PAGES=OFF \
     -DDISABLE_GNUTLS=ON \
     -DENABLE_DOCS=OFF \
+    -DG_DISABLE_ASSERT=1 \
+    -DCMAKE_C_FLAGS="-DG_DISABLE_ASSERT" \
     -DENABLE_APPLICATION_BUNDLE=OFF \
     -DCMAKE_INSTALL_PREFIX=/opt/wireshark/build .. && \
     ninja -j$(nproc) && \
@@ -110,6 +112,12 @@ ENV PATH="/usr/local/go/bin:${PATH}" \
 
 COPY --from=dll-builder /app/libs/ /app/libs/
 COPY --from=dll-builder /app/include/ /app/include/
+COPY --from=dll-builder /opt/wireshark/build/share/ /app/share/
+
+ENV LD_LIBRARY_PATH="/app/libs" \
+    WIRESHARK_DATA_DIR="/app/share/wireshark" \
+    WIRESHARK_LIB_DIR="/app/libs" \
+    WIRESHARK_CONF_DIR="/tmp/gowireshark_conf"
 
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -139,8 +147,12 @@ RUN apt-get update && \
 
 COPY --from=go-builder /app/gowireshark /app/gowireshark
 COPY --from=dll-builder /app/libs/ /app/libs/
+COPY --from=dll-builder /opt/wireshark/build/share/ /app/share/
 
-ENV LD_LIBRARY_PATH=/app/libs
+ENV LD_LIBRARY_PATH=/app/libs \
+    WIRESHARK_DATA_DIR=/app/share/wireshark \
+    WIRESHARK_LIB_DIR=/app/libs \
+    WIRESHARK_CONF_DIR=/tmp/gowireshark_conf
 WORKDIR /app
 EXPOSE 8090
 ENTRYPOINT ["/app/gowireshark"]

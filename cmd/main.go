@@ -1,89 +1,141 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/randolphcyg/gowireshark/pkg"
 )
 
 func main() {
-	// Initialize the Gin engine with default middleware (logger and recovery)
 	r := gin.Default()
 
-	// Define API version grouping
+	// Health check (no auth, for K8s/Docker probes)
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	// Auth middleware
+	authToken := os.Getenv("AUTH_TOKEN")
+	if authToken != "" {
+		r.Use(authMiddleware(authToken))
+		slog.Info("Token authentication enabled")
+	} else {
+		slog.Warn("AUTH_TOKEN not set, running without authentication")
+	}
+
+	// Path restriction: only allow files under PCAP_BASE_DIR (default: /app/pcaps)
+	pcapBaseDir := os.Getenv("PCAP_BASE_DIR")
+	if pcapBaseDir == "" {
+		pcapBaseDir = "/app/pcaps"
+	}
+	r.Use(pathGuard(pcapBaseDir))
+
+	// Request timeout
+	timeoutStr := os.Getenv("REQUEST_TIMEOUT")
+	timeout := 120 * time.Second
+	if d, err := time.ParseDuration(timeoutStr); err == nil && d > 0 {
+		timeout = d
+	}
+	r.Use(timeoutMiddleware(timeout))
+
 	api := r.Group("/api/v1")
 	{
-		// System & Metadata Endpoints
+		// System
 		api.GET("/version/wireshark", getWiresharkVersion)
+		api.GET("/interfaces", getInterfaces)
 
-		// Packet Parsing Endpoints
-		// 1. Full Scan: Parses the entire file. Warning: High memory usage for large files.
+		// Frame Parsing (offline)
 		api.POST("/frames/all", getAllFrames)
-
-		// 2. Pagination: Optimized single-pass I/O. Highly recommended for large PCAP files.
+		api.POST("/frames/stream/all", streamAllFrames)
 		api.POST("/frames/page", getFramesByPage)
-
-		// 3. Random Access: Fetches specific frames by their Frame Number.
 		api.POST("/frames/idxs", getFramesByIdxs)
-
-		// 4. Fetches specific hex by their Frame Number.
+		api.POST("/frames/count", getFrameCount)
 		api.POST("/frames/hex", getFrameHex)
-
-		// 5. Stream Tracking: Extracts TCP/UDP payloads for specific streams.
 		api.POST("/frames/stream", getStreamData)
 
-		api.GET("/interfaces", getInterfaces)
+		// Live Capture (online)
+		api.POST("/capture/start", startCapture)
+		api.POST("/capture/stop", stopCapture)
+		api.GET("/capture/stream/:interface", streamCapture)
 	}
 
-	// Start the HTTP server on port 8090
-	if err := r.Run(":8090"); err != nil {
-		slog.Error("Failed to start server", "error", err)
-		os.Exit(1)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8090"
 	}
+
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: r,
+	}
+
+	// Graceful shutdown
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	slog.Info("Server started", "port", port)
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	slog.Info("Shutting down server...")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		slog.Error("Server forced to shutdown", "error", err)
+	}
+	slog.Info("Server exited")
 }
 
-// --- Request DTOs (Data Transfer Objects) ---
+// --- Request DTOs ---
 
-// baseRequest contains common parameters required for parsing logic.
 type baseRequest struct {
-	Filepath  string `json:"filepath" binding:"required"` // Absolute path to the .pcap/.pcapng file inside the container
-	IsDebug   bool   `json:"isDebug"`                     // If true, enables verbose C-level logging
-	IgnoreErr bool   `json:"ignoreErr"`                   // If true, parsing continues even if a single frame is malformed
-	BpfFilter string `json:"bpfFilter"`                   // Wireshark display filter syntax
+	Filepath  string `json:"filepath" binding:"required"`
+	IsDebug   bool   `json:"isDebug"`
+	IgnoreErr bool   `json:"ignoreErr"`
+	Filter    string `json:"filter"`
 }
 
-// getByPageRequest handles pagination parameters.
-type getByPageRequest struct {
+type pageRequest struct {
 	baseRequest
-	Page int `json:"page"` // Page number (1-based, default: 1)
-	Size int `json:"size"` // Frames per page (default: 10)
+	Page int `json:"page"`
+	Size int `json:"size"`
 }
 
-// getByIdxsRequest handles specific frame retrieval.
-type getByIdxsRequest struct {
+type idxsRequest struct {
 	baseRequest
-	FrameIdxs []int `json:"frameIdxs" binding:"required"` // List of specific frame numbers (e.g., [1, 5, 100])
+	FrameIdxs []int `json:"frameIdxs" binding:"required"`
 }
 
-type getHexRequest struct {
+type hexRequest struct {
 	baseRequest
 	FrameIdx int `json:"frameIdx" binding:"required"`
 }
 
-type getStreamRequest struct {
+type streamRequest struct {
 	baseRequest
 	Protocol string `json:"protocol" binding:"required"`
 }
 
 // --- Response DTOs ---
 
-type wiresharkVersionResp struct {
-	Version string `json:"version"`
-}
-
-// StandardResponse represents a standard API response body.
 type StandardResponse struct {
 	Code  int    `json:"code"`
 	Msg   string `json:"msg"`
@@ -91,29 +143,53 @@ type StandardResponse struct {
 	Error string `json:"error,omitempty"`
 }
 
-// ListData represents a standard array list response.
 type ListData struct {
 	List  any `json:"list"`
 	Total int `json:"total"`
 }
 
-// PageData represents a standard paginated response (Infinite scroll / Load more style).
 type PageData struct {
 	List    any  `json:"list"`
-	HasMore bool `json:"has_more"`
+	Total   int  `json:"total"`
+	HasMore bool `json:"hasMore"`
 	Page    int  `json:"page"`
 	Size    int  `json:"size"`
 }
 
-// --- Route Handlers ---
+// --- Handlers ---
 
 func getWiresharkVersion(c *gin.Context) {
-	var resp wiresharkVersionResp
-	resp.Version = pkg.EpanVersion()
-	Success(c, resp)
+	Success(c, gin.H{"version": pkg.EpanVersion()})
 }
 
-// getAllFrames parses the entire file and returns all frames.
+func getInterfaces(c *gin.Context) {
+	iFaces, err := pkg.GetIFaces()
+	if err != nil {
+		HandleError(c, 500, "failed to get network interfaces", err)
+		return
+	}
+	Success(c, ListData{List: iFaces, Total: len(iFaces)})
+}
+
+func getFrameCount(c *gin.Context) {
+	var req baseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		HandleError(c, 400, "invalid param", err)
+		return
+	}
+
+	count, err := pkg.CountFrames(req.Filepath,
+		pkg.WithDebug(req.IsDebug),
+		pkg.WithBpfFilter(req.Filter),
+	)
+	if err != nil {
+		HandleError(c, 500, "count frames failed", err)
+		return
+	}
+
+	Success(c, gin.H{"count": count})
+}
+
 func getAllFrames(c *gin.Context) {
 	var req baseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -124,57 +200,102 @@ func getAllFrames(c *gin.Context) {
 	frames, err := pkg.GetAllFrames(req.Filepath,
 		pkg.WithDebug(req.IsDebug),
 		pkg.IgnoreError(req.IgnoreErr),
-		pkg.WithBpfFilter(req.BpfFilter),
+		pkg.WithBpfFilter(req.Filter),
 	)
 	if err != nil {
-		HandleError(c, 500, "wireshark parse err", err)
+		HandleError(c, 500, "parse failed", err)
 		return
 	}
 
-	Success(c, ListData{
-		List:  frames,
-		Total: len(frames),
-	})
+	if len(frames) > 1000 {
+		c.Header("Content-Type", "application/x-ndjson")
+		c.Header("X-Total-Count", fmt.Sprintf("%d", len(frames)))
+		c.Status(200)
+		for _, frame := range frames {
+			data, _ := sonic.Marshal(frame)
+			c.Writer.Write(data)
+			c.Writer.Write([]byte("\n"))
+		}
+		c.Writer.Flush()
+	} else {
+		Success(c, ListData{List: frames, Total: len(frames)})
+	}
 }
 
-// getFramesByPage performs an optimized paginated query.
-// It uses a single I/O pass to skip unwanted frames efficiently.
+func streamAllFrames(c *gin.Context) {
+	var req baseRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		HandleError(c, 400, "invalid param", err)
+		return
+	}
+
+	c.Header("Content-Type", "application/x-ndjson")
+	c.Status(200)
+
+	count, err := pkg.StreamAllFrames(req.Filepath, c.Writer,
+		pkg.WithDebug(req.IsDebug),
+		pkg.IgnoreError(req.IgnoreErr),
+		pkg.WithBpfFilter(req.Filter),
+	)
+	if err != nil {
+		slog.Error("stream interrupted", "error", err, "frames_sent", count)
+	}
+}
+
 func getFramesByPage(c *gin.Context) {
-	var req getByPageRequest
-	// Set default values if not provided
+	var req pageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		HandleError(c, 400, "invalid param", err)
+		return
+	}
+
 	if req.Page < 1 {
 		req.Page = 1
 	}
 	if req.Size < 1 {
-		req.Size = 10
+		req.Size = 20
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		HandleError(c, 400, "invalid param", err)
+	// Zero-copy streaming path when client requests NDJSON
+	if c.GetHeader("Accept") == "application/x-ndjson" {
+		c.Header("Content-Type", "application/x-ndjson")
+		c.Status(200)
+		count, hasMore, err := pkg.StreamFramesByPage(req.Filepath, req.Page, req.Size, c.Writer,
+			pkg.WithDebug(req.IsDebug),
+			pkg.IgnoreError(req.IgnoreErr),
+			pkg.WithBpfFilter(req.Filter),
+		)
+		if err != nil {
+			slog.Error("stream page failed", "error", err, "frames_sent", count)
+		}
+		trailer := fmt.Sprintf("{\"_meta\":{\"page\":%d,\"size\":%d,\"count\":%d,\"hasMore\":%v}}\n",
+			req.Page, req.Size, count, hasMore)
+		c.Writer.Write([]byte(trailer))
+		c.Writer.Flush()
 		return
 	}
 
 	frames, hasMore, err := pkg.GetFramesByPage(req.Filepath, req.Page, req.Size,
 		pkg.WithDebug(req.IsDebug),
 		pkg.IgnoreError(req.IgnoreErr),
-		pkg.WithBpfFilter(req.BpfFilter),
+		pkg.WithBpfFilter(req.Filter),
 	)
 	if err != nil {
-		HandleError(c, 500, "wireshark parse err", err)
+		HandleError(c, 500, "parse failed", err)
 		return
 	}
 
 	Success(c, PageData{
 		List:    frames,
+		Total:   len(frames),
 		HasMore: hasMore,
 		Page:    req.Page,
 		Size:    req.Size,
 	})
 }
 
-// getFramesByIdxs retrieves specific frames efficiently.
 func getFramesByIdxs(c *gin.Context) {
-	var req getByIdxsRequest
+	var req idxsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		HandleError(c, 400, "invalid param", err)
 		return
@@ -185,19 +306,15 @@ func getFramesByIdxs(c *gin.Context) {
 		pkg.IgnoreError(req.IgnoreErr),
 	)
 	if err != nil {
-		HandleError(c, 500, "wireshark parse err", err)
+		HandleError(c, 500, "parse failed", err)
 		return
 	}
 
-	Success(c, ListData{
-		List:  frames,
-		Total: len(frames),
-	})
+	Success(c, ListData{List: frames, Total: len(frames)})
 }
 
-// getFrameHex retrieves the hex dump for a specific frame.
 func getFrameHex(c *gin.Context) {
-	var req getHexRequest
+	var req hexRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		HandleError(c, 400, "invalid param", err)
 		return
@@ -207,76 +324,242 @@ func getFrameHex(c *gin.Context) {
 		pkg.WithDebug(req.IsDebug),
 		pkg.IgnoreError(req.IgnoreErr),
 	)
-
 	if err != nil {
-		HandleError(c, 500, "wireshark parse hex err", err)
+		HandleError(c, 500, "parse hex failed", err)
 		return
 	}
 
 	Success(c, hexData)
 }
 
-// getStreamData tracks and reassembles stream payloads.
 func getStreamData(c *gin.Context) {
-	var req getStreamRequest
+	var req streamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		HandleError(c, 400, "invalid param", err)
 		return
 	}
 
-	res, err := pkg.GetStreamData(req.Filepath, req.BpfFilter, req.Protocol,
+	res, err := pkg.GetStreamData(req.Filepath, req.Filter, req.Protocol,
 		pkg.WithDebug(req.IsDebug),
 		pkg.IgnoreError(req.IgnoreErr),
 	)
 	if err != nil {
-		HandleError(c, 500, "wireshark parse stream err", err)
+		HandleError(c, 500, "stream parse failed", err)
 		return
 	}
 
 	Success(c, res)
 }
 
-// getInterfaces retrieves the list of available network interfaces for live capture.
-func getInterfaces(c *gin.Context) {
-	iFaces, err := pkg.GetIFaces()
-	if err != nil {
-		HandleError(c, 500, "failed to get network interfaces", err)
+// --- Live Capture Handlers ---
+
+type captureRequest struct {
+	Interface   string `json:"interface" binding:"required"`
+	Filter      string `json:"filter"`                        // BPF filter (e.g. "tcp port 80")
+	PacketCount int    `json:"packetCount"`                   // -1 for infinite, default: -1
+	Promisc     bool   `json:"promisc"`                       // Promiscuous mode, default: true
+	Timeout     int    `json:"timeout"`                       // Read timeout in ms, default: 100
+}
+
+type stopCaptureRequest struct {
+	Interface string `json:"interface" binding:"required"`
+}
+
+// startCapture begins live packet capture on the specified interface.
+// Capture runs in the background; use /capture/stream/:interface to consume packets.
+func startCapture(c *gin.Context) {
+	var req captureRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		HandleError(c, 400, "invalid param", err)
 		return
 	}
 
-	Success(c, ListData{
-		List:  iFaces,
-		Total: len(iFaces),
+	// Defaults
+	if req.PacketCount == 0 {
+		req.PacketCount = -1
+	}
+	if req.Timeout == 0 {
+		req.Timeout = 100
+	}
+	promisc := 1
+	if !req.Promisc {
+		promisc = 0
+	}
+
+	// Start capture in background goroutine
+	go func() {
+		err := pkg.StartLivePacketCapture(req.Interface, req.Filter, req.PacketCount, promisc, req.Timeout)
+		if err != nil {
+			slog.Error("Live capture ended with error", "interface", req.Interface, "error", err)
+		}
+	}()
+
+	// Wait briefly for channel to be created
+	time.Sleep(200 * time.Millisecond)
+
+	if pkg.GetIfaceChannel(req.Interface) == nil {
+		HandleError(c, 500, "failed to start capture", fmt.Errorf("channel not initialized for %s", req.Interface))
+		return
+	}
+
+	Success(c, gin.H{
+		"interface": req.Interface,
+		"status":    "capturing",
+		"message":   fmt.Sprintf("Use GET /api/v1/capture/stream/%s to receive packets (SSE/NDJSON)", req.Interface),
 	})
 }
 
-// --- Helper Functions ---
-
-// HandleError returns a standardized error response.
-func HandleError(ctx *gin.Context, code int, message string, err error) {
-	if err != nil {
-		slog.Error(message, slog.Any("error", err))
+// stopCapture stops live packet capture on the specified interface.
+func stopCapture(c *gin.Context) {
+	var req stopCaptureRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		HandleError(c, 400, "invalid param", err)
+		return
 	}
 
-	resp := StandardResponse{
-		Code: code,
-		Msg:  message,
+	if err := pkg.StopLivePacketCapture(req.Interface); err != nil {
+		HandleError(c, 500, "stop capture failed", err)
+		return
 	}
 
-	if err != nil {
-		resp.Error = err.Error()
-	}
-
-	// Using 200 OK for business logic errors is a common convention,
-	// though 4xx/5xx is also valid depending on your API style guide.
-	ctx.JSON(200, resp)
+	Success(c, gin.H{
+		"interface": req.Interface,
+		"status":    "stopped",
+	})
 }
 
-// Success returns a standardized success response.
-func Success(ctx *gin.Context, data any) {
-	ctx.JSON(200, gin.H{
-		"code": 0,
-		"msg":  "ok",
-		"data": data,
-	})
+// streamCapture streams captured packets as NDJSON via Server-Sent Events (long-lived connection).
+// Client connects and receives one JSON frame per line until capture stops or client disconnects.
+func streamCapture(c *gin.Context) {
+	ifaceName := c.Param("interface")
+	if ifaceName == "" {
+		HandleError(c, 400, "interface name required", fmt.Errorf("empty interface"))
+		return
+	}
+
+	ch := pkg.GetIfaceChannel(ifaceName)
+	if ch == nil {
+		HandleError(c, 404, "no active capture", fmt.Errorf("no capture running on %s", ifaceName))
+		return
+	}
+
+	c.Header("Content-Type", "application/x-ndjson")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Status(200)
+
+	flusher := c.Writer
+	clientGone := c.Request.Context().Done()
+
+	for {
+		select {
+		case frame, ok := <-ch:
+			if !ok {
+				// Channel closed (capture stopped)
+				return
+			}
+			data, err := sonic.Marshal(frame)
+			if err != nil {
+				continue
+			}
+			flusher.Write(data)
+			flusher.Write([]byte("\n"))
+			flusher.Flush()
+
+		case <-clientGone:
+			// Client disconnected
+			return
+		}
+	}
+}
+
+// --- Helpers ---
+
+func HandleError(c *gin.Context, code int, msg string, err error) {
+	slog.Error(msg, slog.Any("error", err))
+	c.JSON(200, StandardResponse{Code: code, Msg: msg, Error: err.Error()})
+}
+
+func Success(c *gin.Context, data any) {
+	c.JSON(200, StandardResponse{Code: 0, Msg: "ok", Data: data})
+}
+
+// --- Middleware ---
+
+// authMiddleware validates Bearer token from Authorization header.
+func authMiddleware(token string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Skip auth for health check
+		if c.Request.URL.Path == "/health" {
+			c.Next()
+			return
+		}
+
+		auth := c.GetHeader("Authorization")
+		if auth == "" {
+			c.AbortWithStatusJSON(401, StandardResponse{Code: 401, Msg: "missing authorization header"})
+			return
+		}
+
+		const prefix = "Bearer "
+		if len(auth) <= len(prefix) || auth[:len(prefix)] != prefix {
+			c.AbortWithStatusJSON(401, StandardResponse{Code: 401, Msg: "invalid authorization format"})
+			return
+		}
+
+		if auth[len(prefix):] != token {
+			c.AbortWithStatusJSON(403, StandardResponse{Code: 403, Msg: "invalid token"})
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// pathGuard restricts filepath parameters to a specific base directory.
+// Prevents path traversal attacks (e.g. filepath: "/etc/passwd").
+func pathGuard(baseDir string) gin.HandlerFunc {
+	absBase, _ := filepath.Abs(baseDir)
+	return func(c *gin.Context) {
+		if c.Request.Method != http.MethodPost {
+			c.Next()
+			return
+		}
+
+		// Read body, validate, then restore for downstream handlers
+		body, err := c.GetRawData()
+		if err != nil {
+			c.AbortWithStatusJSON(400, StandardResponse{Code: 400, Msg: "cannot read body"})
+			return
+		}
+		// Restore body
+		c.Request.Body = io.NopCloser(strings.NewReader(string(body)))
+
+		// Extract and validate filepath field
+		var peek struct {
+			Filepath string `json:"filepath"`
+		}
+		if sonic.Unmarshal(body, &peek) == nil && peek.Filepath != "" {
+			absPath, _ := filepath.Abs(peek.Filepath)
+			if !strings.HasPrefix(absPath, absBase+string(filepath.Separator)) && absPath != absBase {
+				c.AbortWithStatusJSON(403, StandardResponse{
+					Code: 403,
+					Msg:  fmt.Sprintf("filepath must be under %s", absBase),
+				})
+				return
+			}
+		}
+
+		c.Next()
+	}
+}
+
+// timeoutMiddleware aborts requests that exceed the configured duration.
+func timeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
+		defer cancel()
+		c.Request = c.Request.WithContext(ctx)
+		c.Next()
+	}
 }

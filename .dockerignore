@@ -2,6 +2,7 @@ pcaps
 testdir
 libs
 ceshi
+local_deps
 **/.git
 **/.idea
 .gitignore
@@ -13,3 +14,5 @@ LICENSE
 Dockerfile
 include/libpcap
 include/wireshark
+dev_env.sh
+dev.env

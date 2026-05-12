@@ -1,10 +1,15 @@
 package pkg
 
 /*
-#cgo pkg-config: glib-2.0
 #include "lib.h"
 #include "online.h"
 #include "offline.h"
+
+extern void GetDataCallback(char *data, int length, char *device_name);
+
+static void set_live_data_callback() {
+	setDataCallback((DataCallback)GetDataCallback);
+}
 */
 import "C"
 import (
@@ -46,6 +51,16 @@ func GetIfaceChannel(ifaceName string) <-chan FrameData {
 	mapMutex.RLock()
 	defer mapMutex.RUnlock()
 	return frameDataChanMap[ifaceName]
+}
+
+func closeIfaceChannel(interfaceName string) {
+	mapMutex.Lock()
+	defer mapMutex.Unlock()
+
+	if ch, ok := frameDataChanMap[interfaceName]; ok {
+		close(ch)
+		delete(frameDataChanMap, interfaceName)
+	}
 }
 
 // ParseIFace parses the JSON representation of interface lists.
@@ -167,12 +182,14 @@ func StartLivePacketCapture(interfaceName, bpfFilter string, packetCount, promis
 	}
 	frameDataChanMap[interfaceName] = make(chan FrameData, 1000)
 	mapMutex.Unlock()
+	defer closeIfaceChannel(interfaceName)
 
 	conf := NewConfig(opts...)
 	printCJson := 0
 	if conf.PrintCJson {
 		printCJson = 1
 	}
+	C.set_live_data_callback()
 
 	cIfName := C.CString(interfaceName)
 	cBpf := C.CString(bpfFilter)
@@ -188,10 +205,6 @@ func StartLivePacketCapture(interfaceName, bpfFilter string, packetCount, promis
 		C.int(promisc), C.int(timeout), C.int(printCJson), cConf)
 
 	if C.strlen(errMsg) != 0 {
-		// Cleanup on failure
-		mapMutex.Lock()
-		delete(frameDataChanMap, interfaceName)
-		mapMutex.Unlock()
 		return errors.Errorf("fail to capture packet live: %s", CChar2GoStr(errMsg))
 	}
 
@@ -211,14 +224,6 @@ func StopLivePacketCapture(interfaceName string) (err error) {
 	if C.strlen(errMsg) != 0 {
 		return errors.Errorf("fail to stop capture packet live: %s", CChar2GoStr(errMsg))
 	}
-
-	// Cleanup channel safely
-	mapMutex.Lock()
-	if ch, ok := frameDataChanMap[interfaceName]; ok {
-		close(ch)
-		delete(frameDataChanMap, interfaceName)
-	}
-	mapMutex.Unlock()
 
 	return nil
 }

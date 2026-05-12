@@ -1,28 +1,112 @@
 #!/bin/bash
+# ============================================================================
+# gowireshark macOS local development environment setup
+#
+# Steps: check/install deps -> build Wireshark/libpcap -> ninja install
+#        -> generate cgo_darwin.go + dev_env.sh
+# After completion, tests can be run directly from the IDE.
+#
+# Usage:
+#   ./init_mac_dev.sh
+#   source ./dev_env.sh
+#   go test -v -run TestEpanVersion ./pkg/
+# ============================================================================
 
-# --- 1. 路径与版本配置 ---
-PROJECT_ROOT=$(pwd)
+set -eo pipefail
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPS_DIR="$PROJECT_ROOT/local_deps"
+INSTALL_DIR="$DEPS_DIR/install"
 PKG_DIR="$PROJECT_ROOT/pkg"
 
-WIRESHARK_VER="4.6.4"
+WIRESHARK_VER="4.6.5"
 PCAP_VER="1.10.6"
 CJSON_VER="1.7.19"
 CHASH_VER="2.3.0"
 
-echo "==== 正在初始化 macOS 本地开发环境 (对齐 Dockerfile 逻辑) ===="
-mkdir -p "$DEPS_DIR/libs" "$DEPS_DIR/include/wireshark" "$DEPS_DIR/include/libpcap" "$PKG_DIR"
+JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
 
-# --- 2. 编译 Wireshark ---
-if [ ! -f "$DEPS_DIR/libs/libwireshark.dylib" ]; then
-    echo ">> 正在下载并构建 Wireshark..."
-    cd "$DEPS_DIR"
-    wget -N https://www.wireshark.org/download/src/wireshark-${WIRESHARK_VER}.tar.xz -O wireshark.tar.xz
-    tar -xf wireshark.tar.xz && mv wireshark-${WIRESHARK_VER} wireshark_src
+echo "==== gowireshark macOS dev environment setup ===="
 
-    mkdir -p wireshark_src/build && cd wireshark_src/build
-    # 对齐 Dockerfile 的 cmake 参数
+# --- 1. Dependency check ---
+if ! command -v brew >/dev/null 2>&1; then
+    echo "Error: Homebrew is required (https://brew.sh)" && exit 1
+fi
+
+BREW_PREFIX="$(brew --prefix)"
+
+# Set PKG_CONFIG_PATH (needed for library detection)
+export PKG_CONFIG_PATH="$BREW_PREFIX/lib/pkgconfig:$BREW_PREFIX/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+for keg in libxml2 curl openssl@3 zstd; do
+    if [ -d "$BREW_PREFIX/opt/$keg/lib/pkgconfig" ]; then
+        export PKG_CONFIG_PATH="$BREW_PREFIX/opt/$keg/lib/pkgconfig:$PKG_CONFIG_PATH"
+    fi
+done
+
+# Check if commands exist (regardless of source: brew, system, .app, etc.)
+missing=()
+
+# CLI tools: command_name:brew_package
+for pair in cmake:cmake ninja:ninja pkg-config:pkg-config bison:bison flex:flex; do
+    cmd="${pair%%:*}"
+    pkg="${pair##*:}"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        missing+=("$pkg")
+    fi
+done
+
+# Libraries: pkg-config_name:brew_package
+for pair in glib-2.0:glib libpcre2-8:pcre2 libgcrypt:libgcrypt libcares:c-ares \
+            speexdsp:speexdsp opus:opus libxml-2.0:libxml2 libzstd:zstd \
+            liblz4:lz4 libnghttp2:nghttp2 libmaxminddb:libmaxminddb libssh:libssh; do
+    pc="${pair%%:*}"
+    pkg="${pair##*:}"
+    if ! pkg-config --exists "$pc" 2>/dev/null; then
+        missing+=("$pkg")
+    fi
+done
+
+if [ "${#missing[@]}" -gt 0 ]; then
+    # Deduplicate
+    uniq_missing=($(printf '%s\n' "${missing[@]}" | sort -u))
+    echo ">> Installing missing dependencies: ${uniq_missing[*]}"
+    brew install "${uniq_missing[@]}"
+else
+    echo ">> All dependencies are ready."
+fi
+
+# bison/flex are keg-only, prepend to PATH
+for keg in bison flex; do
+    if [ -d "$BREW_PREFIX/opt/$keg/bin" ]; then
+        export PATH="$BREW_PREFIX/opt/$keg/bin:$PATH"
+    fi
+done
+
+fetch() {
+    echo ">> Downloading: $1"
+    curl -fL --retry 3 --connect-timeout 15 "$1" -o "$2"
+}
+
+mkdir -p "$DEPS_DIR" "$INSTALL_DIR" "$PKG_DIR"
+
+# --- 2. Build Wireshark ---
+if [ -f "$INSTALL_DIR/lib/libwireshark.dylib" ]; then
+    echo ">> Wireshark already built, skipping."
+else
+    echo ">> Building Wireshark ${WIRESHARK_VER}..."
+
+    if [ ! -d "$DEPS_DIR/wireshark_src" ]; then
+        fetch "https://www.wireshark.org/download/src/wireshark-${WIRESHARK_VER}.tar.xz" "$DEPS_DIR/wireshark.tar.xz"
+        tar -xf "$DEPS_DIR/wireshark.tar.xz" -C "$DEPS_DIR"
+        mv "$DEPS_DIR/wireshark-${WIRESHARK_VER}" "$DEPS_DIR/wireshark_src"
+        rm -f "$DEPS_DIR/wireshark.tar.xz"
+    fi
+
+    mkdir -p "$DEPS_DIR/wireshark_src/build"
+
     cmake -G Ninja \
+        -S "$DEPS_DIR/wireshark_src" \
+        -B "$DEPS_DIR/wireshark_src/build" \
         -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_wireshark=OFF \
         -DENABLE_LUA=OFF \
@@ -31,104 +115,117 @@ if [ ! -f "$DEPS_DIR/libs/libwireshark.dylib" ]; then
         -DENABLE_MAN_PAGES=OFF \
         -DDISABLE_GNUTLS=ON \
         -DENABLE_DOCS=OFF \
-        -DCMAKE_INSTALL_PREFIX="$DEPS_DIR/install" ..
-    ninja
+        -DENABLE_APPLICATION_BUNDLE=OFF \
+        -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR"
 
-    # 拷贝并修复 rpath (对齐 Dockerfile 路径映射)
-    cp run/lib*.dylib "$DEPS_DIR/libs/"
-    for lib in "$DEPS_DIR/libs"/*.dylib; do
-        # 1. 设置自身 id 为 rpath 相对路径
-        install_name_tool -id "@rpath/$(basename "$lib")" "$lib"
-        # 2. 修复依赖的其他库路径（关键：指向本地 libs 目录）
-        otool -L "$lib" | grep -E "(libwireshark|libwsutil|libwiretap|libpcap|libglib-2.0)" | awk '{print $1}' | while read -r dep; do
-            if [[ "$dep" != "@rpath/"* && -f "$DEPS_DIR/libs/$(basename "$dep")" ]]; then
-                install_name_tool -change "$dep" "@rpath/$(basename "$dep")" "$lib"
-            fi
-        done
-    done
+    ninja -C "$DEPS_DIR/wireshark_src/build" -j"$JOBS"
+    ninja -C "$DEPS_DIR/wireshark_src/build" install
 
-    # --- 资源同步优化：完全对齐 Dockerfile 结构 ---
-    echo ">> 同步资源文件 (epan/wiretap/wsutil)..."
-    cp ../*.h "$DEPS_DIR/include/wireshark/" 2>/dev/null
-    cp ./*.h "$DEPS_DIR/include/wireshark/" 2>/dev/null
-    cp -r ../include/* "$DEPS_DIR/include/wireshark/" 2>/dev/null
-
-    # 全量拷贝核心目录，确保 dissectors 和资源文件物理存在以解决 SIGSEGV
-    cp -r ../epan "$DEPS_DIR/include/wireshark/"
-    cp -r ../wiretap "$DEPS_DIR/include/wireshark/"
-    cp -r ../wsutil "$DEPS_DIR/include/wireshark/"
-
-    # 注意：不再执行 rm -rf wireshark_src，确保 CGO 编译时的深度搜索有效
-    echo ">> Wireshark 编译完成，保留源码目录以支持深度依赖搜索。"
-    cd "$PROJECT_ROOT"
+    echo ">> Wireshark installed."
 fi
 
-# --- 3. 编译 libpcap ---
-if [ ! -f "$DEPS_DIR/libs/libpcap.1.dylib" ]; then
-    echo ">> 构建 libpcap..."
-    cd "$DEPS_DIR"
-    wget -N http://www.tcpdump.org/release/libpcap-${PCAP_VER}.tar.gz -O pcap.tar.gz
-    tar -zxvf pcap.tar.gz && mv libpcap-${PCAP_VER} pcap_src
-    cd pcap_src && ./configure && make
+# --- 3. Build libpcap ---
+if [ -f "$INSTALL_DIR/lib/libpcap.1.dylib" ]; then
+    echo ">> libpcap already built, skipping."
+else
+    echo ">> Building libpcap ${PCAP_VER}..."
 
-    # 重命名对齐 Dockerfile 逻辑
-    cp libpcap.*.dylib "$DEPS_DIR/libs/libpcap.1.dylib" 2>/dev/null || cp libpcap.dylib "$DEPS_DIR/libs/libpcap.1.dylib"
-    ln -sf libpcap.1.dylib "$DEPS_DIR/libs/libpcap.dylib"
-    install_name_tool -id "@rpath/libpcap.1.dylib" "$DEPS_DIR/libs/libpcap.1.dylib"
-    # 修复 libpcap 依赖的系统库（如果有）
-    otool -L "$DEPS_DIR/libs/libpcap.1.dylib" | grep -E "(libSystem|BUNDLE)" | awk '{print $1}' | while read -r dep; do
-        if [[ "$dep" != "@rpath/"* && "$dep" != "/usr/lib/"* ]]; then
-            install_name_tool -change "$dep" "@rpath/$(basename "$dep")" "$DEPS_DIR/libs/libpcap.1.dylib"
-        fi
-    done
+    if [ ! -d "$DEPS_DIR/pcap_src" ]; then
+        fetch "https://www.tcpdump.org/release/libpcap-${PCAP_VER}.tar.gz" "$DEPS_DIR/pcap.tar.gz"
+        tar -xzf "$DEPS_DIR/pcap.tar.gz" -C "$DEPS_DIR"
+        mv "$DEPS_DIR/libpcap-${PCAP_VER}" "$DEPS_DIR/pcap_src"
+        rm -f "$DEPS_DIR/pcap.tar.gz"
+    fi
 
-    cp ./*.h "$DEPS_DIR/include/libpcap/"
-    cd "$PROJECT_ROOT"
+    (
+        cd "$DEPS_DIR/pcap_src"
+        ./configure --prefix="$INSTALL_DIR"
+        make -j"$JOBS"
+    )
+
+    mkdir -p "$INSTALL_DIR/lib" "$INSTALL_DIR/include"
+    real_lib="$(find "$DEPS_DIR/pcap_src" -maxdepth 1 -name 'libpcap.*.dylib' ! -name 'libpcap.dylib' | head -n1)"
+    if [ -z "$real_lib" ]; then
+        real_lib="$DEPS_DIR/pcap_src/libpcap.dylib"
+    fi
+    cp "$real_lib" "$INSTALL_DIR/lib/libpcap.1.dylib"
+    ln -sf libpcap.1.dylib "$INSTALL_DIR/lib/libpcap.dylib"
+    ln -sf libpcap.1.dylib "$INSTALL_DIR/lib/libpcap.A.dylib"
+    cp "$DEPS_DIR/pcap_src"/*.h "$INSTALL_DIR/include/"
+
+    echo ">> libpcap installed."
 fi
 
-# --- 4. 同步 C 桥接文件 (加速镜像) ---
-echo ">> 同步 C 桥接源码 (cJSON/uthash)..."
-GH_PROXY="https://ghproxy.net/https://raw.githubusercontent.com"
-cd "$PKG_DIR"
-wget -N "$GH_PROXY/DaveGamble/cJSON/v${CJSON_VER}/cJSON.c"
-wget -N "$GH_PROXY/DaveGamble/cJSON/v${CJSON_VER}/cJSON.h"
-wget -N "$GH_PROXY/troydhanson/uthash/v${CHASH_VER}/src/uthash.h"
+# --- 4. Sync header files (align with Dockerfile structure) ---
+WS_INC="$INSTALL_DIR/include/wireshark"
+if [ -d "$WS_INC/epan/dissectors" ]; then
+    echo ">> Headers already synced, skipping."
+else
+    echo ">> Syncing Wireshark headers..."
+    mkdir -p "$WS_INC"
+    cp "$DEPS_DIR/wireshark_src"/*.h "$WS_INC/" 2>/dev/null || true
+    cp "$DEPS_DIR/wireshark_src/build"/*.h "$WS_INC/" 2>/dev/null || true
+    cp -r "$DEPS_DIR/wireshark_src/include"/* "$WS_INC/" 2>/dev/null || true
+    # Full copy including dissectors subdirectory
+    cp -r "$DEPS_DIR/wireshark_src/epan" "$WS_INC/"
+    cp -r "$DEPS_DIR/wireshark_src/wiretap" "$WS_INC/"
+    cp -r "$DEPS_DIR/wireshark_src/wsutil" "$WS_INC/"
+    echo ">> Headers synced."
+fi
 
-# --- 5. 生成对齐 Dockerfile 的环境变量 ---
-echo "==== 环境变量生成中 ===="
+# --- 5. Sync C bridge source files ---
+GH_RAW="https://raw.githubusercontent.com"
+if [ -f "$PKG_DIR/cJSON.c" ] && [ -f "$PKG_DIR/cJSON.h" ] && [ -f "$PKG_DIR/uthash.h" ]; then
+    echo ">> C bridge sources already present, skipping."
+else
+    echo ">> Downloading C bridge sources..."
+    [ -f "$PKG_DIR/cJSON.c"  ] || fetch "$GH_RAW/DaveGamble/cJSON/v${CJSON_VER}/cJSON.c" "$PKG_DIR/cJSON.c"
+    [ -f "$PKG_DIR/cJSON.h"  ] || fetch "$GH_RAW/DaveGamble/cJSON/v${CJSON_VER}/cJSON.h" "$PKG_DIR/cJSON.h"
+    [ -f "$PKG_DIR/uthash.h" ] || fetch "$GH_RAW/troydhanson/uthash/v${CHASH_VER}/src/uthash.h" "$PKG_DIR/uthash.h"
+fi
 
-# 完全对齐 Dockerfile 的 CGO_CFLAGS
-CGO_INC="-I$DEPS_DIR/include/libpcap -I$DEPS_DIR/include/wireshark -I$DEPS_DIR/include/wireshark/epan -I$DEPS_DIR/include/wireshark/wiretap -I$DEPS_DIR/include/wireshark/wsutil -I$PKG_DIR"
-GOLAND_ENV="CGO_ENABLED=1;CGO_CFLAGS=$CGO_INC;CGO_LDFLAGS=-L$DEPS_DIR/libs -lwiretap -lwsutil -lwireshark -lpcap -lglib-2.0;DYLD_LIBRARY_PATH=$DEPS_DIR/libs;WIRESHARK_DATA_DIR=$DEPS_DIR/include/wireshark;WIRESHARK_LIB_DIR=$DEPS_DIR/libs;WIRESHARK_CONF_DIR=/tmp/gowireshark_conf"
+# --- 6. Generate pkg/cgo_darwin.go ---
+echo ">> Generating pkg/cgo_darwin.go..."
+GLIB_CFLAGS="$(pkg-config --cflags glib-2.0)"
+GLIB_LIBS="$(pkg-config --libs glib-2.0)"
 
-echo ">>> [GoLand] 请填入 Environment:"
-echo "$GOLAND_ENV"
-echo ""
-echo ">>> [GoLand] 请填入 Go tool arguments:"
-echo "-ldflags=\"-r $DEPS_DIR/libs\""
+CGO_CFLAGS="-I$INSTALL_DIR/include -I$WS_INC -I$WS_INC/epan -I$WS_INC/wiretap -I$WS_INC/wsutil $GLIB_CFLAGS"
+CGO_LDFLAGS="-L$INSTALL_DIR/lib -Wl,-rpath,$INSTALL_DIR/lib -lwiretap -lwsutil -lwireshark -lpcap $GLIB_LIBS"
 
-# --- 在 Wireshark 编译完成后添加 ---
-echo ">> 同步 Wireshark 运行时资源文件..."
-# 拷贝 share 目录（协议解析、配置等核心资源）
-cp -r ../share "$DEPS_DIR/"
-# 设置 WIRESHARK_DATA_DIR 包含 share 目录（关键）
-WIRESHARK_DATA_DIR="$DEPS_DIR/include/wireshark:$DEPS_DIR/share/wireshark"
-# 替换原环境变量中的 WIRESHARK_DATA_DIR
-GOLAND_ENV="CGO_ENABLED=1;CGO_CFLAGS=$CGO_INC;CGO_LDFLAGS=-L$DEPS_DIR/libs -lwiretap -lwsutil -lwireshark -lpcap -lglib-2.0;DYLD_LIBRARY_PATH=$DEPS_DIR/libs;WIRESHARK_DATA_DIR=$WIRESHARK_DATA_DIR;WIRESHARK_LIB_DIR=$DEPS_DIR/libs;WIRESHARK_CONF_DIR=/tmp/gowireshark_conf"
+cat > "$PKG_DIR/cgo_darwin.go" <<EOF
+//go:build darwin
 
-# 同时更新 dev_env.sh 中的 WIRESHARK_DATA_DIR
-cat > "$PROJECT_ROOT/dev_env.sh" <<EOF
-export CGO_ENABLED=1
-export CGO_CFLAGS="$CGO_INC"
-export CGO_LDFLAGS="-L$DEPS_DIR/libs -lwiretap -lwsutil -lwireshark -lpcap -lglib-2.0"
-export DYLD_LIBRARY_PATH="$DEPS_DIR/libs"
-export WIRESHARK_DATA_DIR="$WIRESHARK_DATA_DIR"  # 替换此行
-export WIRESHARK_LIB_DIR="$DEPS_DIR/libs"
-export WIRESHARK_CONF_DIR="/tmp/gowireshark_conf"
-mkdir -p /tmp/gowireshark_conf
-alias gotest='go test -v -ldflags="-r $DEPS_DIR/libs"'
-alias goclean='go clean -cache -testcache && rm -rf /Users/randolph/Library/Caches/JetBrains/GoLand*/tmp/GoLand/___*'
+// Code generated by init_mac_dev.sh. DO NOT EDIT.
+
+package pkg
+
+/*
+#cgo CFLAGS: $CGO_CFLAGS
+#cgo LDFLAGS: $CGO_LDFLAGS
+*/
+import "C"
 EOF
 
+# --- 7. Generate dev_env.sh ---
+echo ">> Generating dev_env.sh..."
+cat > "$PROJECT_ROOT/dev_env.sh" <<EOF
+#!/bin/bash
+# Runtime environment variables (generated by init_mac_dev.sh)
+# Usage: source ./dev_env.sh
+
+export CGO_ENABLED=1
+export DYLD_LIBRARY_PATH="$INSTALL_DIR/lib\${DYLD_LIBRARY_PATH:+:\$DYLD_LIBRARY_PATH}"
+export WIRESHARK_LIB_DIR="$INSTALL_DIR/lib"
+export WIRESHARK_DATA_DIR="$INSTALL_DIR/share/wireshark"
+export WIRESHARK_CONF_DIR="/tmp/gowireshark_conf"
+mkdir -p /tmp/gowireshark_conf
+EOF
 chmod +x "$PROJECT_ROOT/dev_env.sh"
-echo "==== 初始化成功！ ===="
+
+echo ""
+echo "==== Setup complete ===="
+echo ""
+echo "Usage:"
+echo "  source ./dev_env.sh"
+echo "  go test -v ./pkg/"
+echo ""
