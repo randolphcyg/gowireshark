@@ -6,8 +6,7 @@ services:
       context: .
       platforms:
         - linux/amd64
-    deploy:
-      replicas: 3
+    scale: 3
     environment:
       - AUTH_TOKEN=${AUTH_TOKEN:-}
       - PCAP_BASE_DIR=/app/pcaps
@@ -19,9 +18,8 @@ services:
 
   nginx:
     image: nginx:alpine
-    platform: linux/arm64
     ports:
-      - "18090:18090"
+      - "18090:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
