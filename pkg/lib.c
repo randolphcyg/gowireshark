@@ -286,7 +286,7 @@ static int pref_set(const char *name, const char *value) {
 }
 
 void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
-                     int desegmentSslApplicationData) {
+                     int desegmentSslApplicationData, const char *keylogFile) {
     /* Turn off fragmentation for some protocols if enabled */
     if (desegmentSslRecords) {
         pref_set("tls.desegment_ssl_records", "TRUE");
@@ -299,6 +299,13 @@ void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
     if (keysList != NULL && strlen(keysList) > 0) {
         if (!pref_set("tls.keys_list", keysList)) {
             fprintf(stderr, "Failed to set tls.keys_list\n");
+        }
+    }
+
+    /* Set the TLS keylog file (SSLKEYLOGFILE) for TLS 1.3 / ECDHE decryption */
+    if (keylogFile != NULL && strlen(keylogFile) > 0) {
+        if (!pref_set("tls.keylog_file", keylogFile)) {
+            fprintf(stderr, "Failed to set tls.keylog_file\n");
         }
     }
 

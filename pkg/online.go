@@ -27,9 +27,6 @@ var (
 	mapMutex         sync.RWMutex
 )
 
-// FrameDataChan is the public map for accessing capture channels
-var FrameDataChan = make(map[string]chan FrameData)
-
 // PcapAddr represents an individual address (including address, netmask, broadcast address, and destination address).
 type PcapAddr struct {
 	Addr      string `json:"addr,omitempty"`      // Address (could be IPv4, IPv6, MAC, etc.)
@@ -84,8 +81,7 @@ func GetIFaces() (iFaces []IFace, err error) {
 // GetIFaceNonblockStatus checks if a network interface is in non-blocking mode.
 func GetIFaceNonblockStatus(interfaceName string) (isNonblock bool, err error) {
 	if interfaceName == "" {
-		err = errors.Wrap(err, "interface name is blank")
-		return
+		return false, errors.New("interface name is blank")
 	}
 
 	cName := C.CString(interfaceName)
@@ -105,8 +101,7 @@ func GetIFaceNonblockStatus(interfaceName string) (isNonblock bool, err error) {
 // SetIFaceNonblockStatus sets the non-blocking mode for a network interface.
 func SetIFaceNonblockStatus(interfaceName string, isNonblock bool) (status bool, err error) {
 	if interfaceName == "" {
-		err = errors.Wrap(err, "interface name is blank")
-		return
+		return false, errors.New("interface name is blank")
 	}
 
 	cName := C.CString(interfaceName)

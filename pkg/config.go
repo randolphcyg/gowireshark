@@ -23,6 +23,7 @@ type TlsConf struct {
 	DesegmentSslRecords         bool
 	DesegmentSslApplicationData bool
 	KeysList                    []Key
+	KeylogFile                  string // Path to SSLKEYLOGFILE (for TLS 1.3 / ECDHE decryption)
 }
 
 type Conf struct {
@@ -113,6 +114,9 @@ func HandleConf(conf *Conf) string {
 		if conf.Tls.DesegmentSslApplicationData {
 			cConf["tls.desegment_ssl_application_data"] = true
 		}
+		if conf.Tls.KeylogFile != "" {
+			cConf["tls.keylog_file"] = conf.Tls.KeylogFile
+		}
 		if conf.Tls.KeysList != nil {
 			var keyValues []string
 			for _, key := range conf.Tls.KeysList {
@@ -130,7 +134,6 @@ func HandleConf(conf *Conf) string {
 					}
 				}
 
-				// [IP,port,protocol,KeyFile,pwd]
 				keyValue := fmt.Sprintf("%s", strings.Join(parts, ","))
 				keyValues = append(keyValues, keyValue)
 			}

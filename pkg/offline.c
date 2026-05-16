@@ -133,6 +133,7 @@ void close_cf() {
  */
 int init_cf(char *filepath, char *options) {
     char *keysList = NULL;
+    char *keylogFile = NULL;
     int desegmentSslRecords = 0;
     int desegmentSslApplicationData = 0;
     int printTcpStreams = 0;
@@ -151,6 +152,8 @@ int init_cf(char *filepath, char *options) {
             cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_records");
         const cJSON *desegmentSslApplicationDataJson =
             cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_application_data");
+        const cJSON *keylogFileJson =
+            cJSON_GetObjectItemCaseSensitive(json, "tls.keylog_file");
 
         const cJSON *printTcpStreamsJson =
             cJSON_GetObjectItemCaseSensitive(json, "printTcpStreams");
@@ -158,6 +161,11 @@ int init_cf(char *filepath, char *options) {
         // Copy keys list if present
         if (cJSON_IsString(keysListJson) && (keysListJson->valuestring != NULL)) {
             keysList = strdup(keysListJson->valuestring);
+        }
+
+        // Copy keylog file path if present
+        if (cJSON_IsString(keylogFileJson) && (keylogFileJson->valuestring != NULL)) {
+            keylogFile = strdup(keylogFileJson->valuestring);
         }
 
         // Set flags for desegment options
@@ -195,9 +203,12 @@ int init_cf(char *filepath, char *options) {
     };
 
     // Apply TLS preferences
-    tls_prefs_apply(keysList, desegmentSslRecords, desegmentSslApplicationData);
+    tls_prefs_apply(keysList, desegmentSslRecords, desegmentSslApplicationData, keylogFile);
     if (keysList != NULL) {
         free(keysList);
+    }
+    if (keylogFile != NULL) {
+        free(keylogFile);
     }
 
     // Free previous epan instance if exists, then create new one
@@ -726,6 +737,7 @@ void get_frames_by_idxs_cb(int *idxs, int idx_count, int printCJson, FrameCallba
     int err = 0;
     gchar *err_info = NULL;
     int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
     wtap_rec rec;
     wtap_rec_init(&rec, 1514);
     int current_idx_ptr = 0;
@@ -745,13 +757,19 @@ void get_frames_by_idxs_cb(int *idxs, int idx_count, int printCJson, FrameCallba
             break;
         }
 
-        // Match found
-        if (cf.count == idxs[current_idx_ptr]) {
-            frame_data fd;
-            frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+        // Maintain frame sequence for all frames (required for correct timestamps)
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
 
+        // Match found — full dissection
+        if (cf.count == idxs[current_idx_ptr]) {
             edt = epan_dissect_new(cf.epan, TRUE, TRUE);
             epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+
+            frame_data_set_after_dissect(&fd, &cum_bytes);
+            cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
 
             json_dumper dumper = {};
             dumper.output_string = g_string_new(NULL);
@@ -766,9 +784,14 @@ void get_frames_by_idxs_cb(int *idxs, int idx_count, int printCJson, FrameCallba
             if (dumper.output_string) g_string_free(dumper.output_string, TRUE);
             epan_dissect_free(edt);
 
-            // Move to next target. Note: Handles duplicates in idxs implicitly.
+            // Move to next target
             current_idx_ptr++;
+        } else {
+            // Non-target frame — still maintain sequence
+            frame_data_set_after_dissect(&fd, &cum_bytes);
+            cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
         }
+
         wtap_rec_reset(&rec);
     }
     close_cf();

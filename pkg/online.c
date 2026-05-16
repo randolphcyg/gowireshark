@@ -362,10 +362,18 @@ char *init_cf_live(capture_file *cf_live, char *options) {
             cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_records");
         const cJSON *desegmentSslApplicationDataJson =
             cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_application_data");
+        const cJSON *keylogFileJson =
+            cJSON_GetObjectItemCaseSensitive(json, "tls.keylog_file");
 
         // Copy keys list if present
         if (cJSON_IsString(keysListJson) && (keysListJson->valuestring != NULL)) {
             keysList = keysListJson->valuestring;
+        }
+
+        // Get keylog file path
+        const char *keylogFile = NULL;
+        if (cJSON_IsString(keylogFileJson) && (keylogFileJson->valuestring != NULL)) {
+            keylogFile = keylogFileJson->valuestring;
         }
 
         // Set flags for desegment options
@@ -373,7 +381,7 @@ char *init_cf_live(capture_file *cf_live, char *options) {
         desegmentSslApplicationData = cJSON_IsTrue(desegmentSslApplicationDataJson);
 
         // Apply TLS preferences
-        tls_prefs_apply(keysList, desegmentSslRecords, desegmentSslApplicationData);
+        tls_prefs_apply(keysList, desegmentSslRecords, desegmentSslApplicationData, keylogFile);
 
         cJSON_Delete(json);
     }
@@ -514,7 +522,7 @@ static bool send_data_to_wrap(struct device_map *device, int printCJson) {
 
     get_json_proto_tree(NULL, print_dissections_expanded, TRUE, NULL, PF_INCLUDE_CHILDREN,
                         &device->content.edt, &device->content.cf_live->cinfo,
-                        proto_node_group_children_by_json_key, &dumper);
+                        proto_node_group_children_by_unique, &dumper);
 
     // Get JSON string from json_dumper
     if (json_dumper_finish(&dumper)) {
@@ -590,7 +598,7 @@ static bool process_packet(struct device_map *device, gint64 offset,
 
     get_json_proto_tree(NULL, print_dissections_expanded, TRUE, NULL, PF_INCLUDE_CHILDREN,
                         &edt, &device->content.cf_live->cinfo,
-                        proto_node_group_children_by_json_key, &dumper);
+                        proto_node_group_children_by_unique, &dumper);
 
     bool success = false;
     if (json_dumper_finish(&dumper)) {

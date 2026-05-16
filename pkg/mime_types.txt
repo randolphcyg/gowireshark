@@ -1,106 +1,228 @@
-.html application/html
-.htm application/html
-.shtml application/x-server-parsed-html
+# MIME Types for file extraction
+# Format: .extension mime/type
+# Used to validate extracted filenames and infer extensions from Content-Type
+
+# --- Web ---
+.html text/html
+.htm text/html
+.shtml text/html
 .css text/css
-.xml application/xml
-.gif image/gif
-.jpeg image/jpeg
-.jpg image/jpeg
 .js application/javascript
-.atom application/atom+xml
-.rss application/rss+xml
-.mml application/mathml+xml
+.mjs application/javascript
+.json application/json
+.jsonld application/ld+json
+.xml application/xml
+.xhtml application/xhtml+xml
+.xsl application/xslt+xml
 .txt text/plain
-.jad text/vnd.sun.j2me.app-descriptor
-.wml text/vnd.wap.wml
-.htc text/x-component
+.csv text/csv
+.tsv text/tab-separated-values
+.md text/markdown
+.yaml application/x-yaml
+.yml application/x-yaml
+.toml application/toml
+.wasm application/wasm
+.map application/json
+
+# --- Images ---
 .png image/png
-.tif image/tiff
-.tiff image/tiff
-.wbmp image/vnd.wap.wbmp
+.jpg image/jpeg
+.jpeg image/jpeg
+.gif image/gif
+.bmp image/bmp
 .ico image/x-icon
 .cur image/x-icon
-.map image/x-icon
-.woff application/font-woff
-.woff2 application/font-woff2
-.jar application/java-archive
-.war application/java-archive
-.ear application/java-archive
-.hqx application/mac-binhex40
+.svg image/svg+xml
+.svgz image/svg+xml
+.webp image/webp
+.avif image/avif
+.apng image/apng
+.tif image/tiff
+.tiff image/tiff
+.heic image/heic
+.heif image/heif
+.jxl image/jxl
+.psd image/vnd.adobe.photoshop
+.raw image/x-raw
+.cr2 image/x-canon-cr2
+.nef image/x-nikon-nef
+.wbmp image/vnd.wap.wbmp
+
+# --- Audio ---
+.mp3 audio/mpeg
+.aac audio/aac
+.ogg audio/ogg
+.oga audio/ogg
+.opus audio/opus
+.flac audio/flac
+.wav audio/wav
+.wma audio/x-ms-wma
+.m4a audio/mp4
+.mid audio/midi
+.midi audio/midi
+.weba audio/webm
+.aiff audio/aiff
+.amr audio/amr
+
+# --- Video ---
+.mp4 video/mp4
+.m4v video/mp4
+.mpeg video/mpeg
+.mpg video/mpeg
+.avi video/x-msvideo
+.wmv video/x-ms-wmv
+.flv video/x-flv
+.webm video/webm
+.mkv video/x-matroska
+.mov video/quicktime
+.ogv video/ogg
+.3gp video/3gpp
+.3g2 video/3gpp2
+.ts video/mp2t
+.m3u8 application/vnd.apple.mpegurl
+
+# --- Documents ---
+.pdf application/pdf
 .doc application/msword
 .docx application/vnd.openxmlformats-officedocument.wordprocessingml.document
-.pdf application/pdf
-.ps application/postscript
-.eps application/postscript
-.ai application/postscript
-.rtf application/rtf
 .xls application/vnd.ms-excel
 .xlsx application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 .ppt application/vnd.ms-powerpoint
 .pptx application/vnd.openxmlformats-officedocument.presentationml.presentation
-.wmlc text/vnd.wap.wmlscript
-.7z application/x-7z-compressed
-.cco application/x-cocoa
-.jardiff application/x-java-archive-diff
-.jnlp application/x-java-jnlp-file
-.run application/x-makeself
-.pl application/x-perl
-.pm application/x-perl
-.prc application/x-pilot
-.pdb application/x-pilot
-.rar application/x-rar-compressed
-.rpm application/x-redhat-package-manager
-.sea application/x-sea
-.swf application/x-shockwave-flash
-.sit application/x-stuffit
-.tcl application/x-tcl
-.tk application/x-tcl
-.der application/x-x509-ca-cert
-.pem application/x-x509-ca-cert
-.crt application/x-x509-ca-cert
-.xpi application/x-xpinstall
-.xhtml application/xhtml+xml
-.xspf application/xspf+xml
-.zip application/zip
-.ocsp application/ocsp-request
-.ocsp application/ocsp-response
-.bin application/octet-stream
-.aac audio/aac
-.abw application/x-abiword
-.apng image/apng
-.arc application/x-freearc
-.avif image/avif
-.avi video/x-msvideo
-.azw application/vnd.amazon.ebook
-.bmp image/bmp
-.bz application/x-bzip
-.bz2 application/x-bzip2
-.cda application/x-cdf
-.csh application/x-csh
+.odt application/vnd.oasis.opendocument.text
+.ods application/vnd.oasis.opendocument.spreadsheet
+.odp application/vnd.oasis.opendocument.presentation
+.rtf application/rtf
 .epub application/epub+zip
-.gz application/gzip
-.ics text/calendar
-.jar application/java-archive
-.mid audio/midi
-.midi audio/x-midi
-.mp3 audio/mpeg
-.mpeg video/mp4
-.mpkg application/vnd.apple.installer+xml
-.oga audio/ogg
-.ogv video/ogg
-.ogx application/ogg
-.opus audio/opus
-.otf font/otf
-.svg image/svg+xml
-.tar application/x-tar
-.ts video/mp2t
-.ttf font/ttf
+.mobi application/x-mobipocket-ebook
+.ps application/postscript
+.eps application/postscript
+.ai application/postscript
+.tex application/x-tex
+.latex application/x-latex
+.pages application/vnd.apple.pages
+.numbers application/vnd.apple.numbers
+.key application/vnd.apple.keynote
 .vsd application/vnd.visio
-.wav audio/wav
-.weba audio/webm
-.webm video/webm
-.webp image/webp
-.xul application/vnd.mozilla.xul+xml
-.3gp video/3gpp
-.3g2 video/3gpp2
+
+# --- Archives ---
+.zip application/zip
+.rar application/vnd.rar
+.7z application/x-7z-compressed
+.tar application/x-tar
+.gz application/gzip
+.tgz application/gzip
+.bz2 application/x-bzip2
+.xz application/x-xz
+.zst application/zstd
+.lz4 application/x-lz4
+.cab application/vnd.ms-cab-compressed
+.iso application/x-iso9660-image
+.dmg application/x-apple-diskimage
+.deb application/vnd.debian.binary-package
+.rpm application/x-redhat-package-manager
+.apk application/vnd.android.package-archive
+.ipa application/x-ios-app
+.msi application/x-msi
+.pkg application/x-newton-compatible-pkg
+
+# --- Executables & Libraries ---
+.exe application/x-msdownload
+.dll application/x-msdownload
+.so application/x-sharedlib
+.dylib application/x-mach-binary
+.bin application/octet-stream
+.elf application/x-elf
+.class application/java-vm
+.jar application/java-archive
+.war application/java-archive
+.ear application/java-archive
+
+# --- Fonts ---
+.woff application/font-woff
+.woff2 font/woff2
+.ttf font/ttf
+.otf font/otf
+.eot application/vnd.ms-fontobject
+
+# --- Certificates & Security ---
+.pem application/x-pem-file
+.crt application/x-x509-ca-cert
+.cer application/x-x509-ca-cert
+.der application/x-x509-ca-cert
+.p12 application/x-pkcs12
+.pfx application/x-pkcs12
+.p7b application/x-pkcs7-certificates
+.p7c application/pkcs7-mime
+.crl application/pkix-crl
+
+# --- Data & Database ---
+.sql text/x-sql
+.sqlite application/vnd.sqlite3
+.db application/octet-stream
+.mdb application/x-msaccess
+.accdb application/msaccess
+
+# --- Configuration ---
+.ini text/plain
+.cfg text/plain
+.conf text/plain
+.properties text/x-java-properties
+.env text/plain
+
+# --- Programming ---
+.py text/x-python
+.rb text/x-ruby
+.java text/x-java-source
+.c text/x-c
+.cpp text/x-c++src
+.h text/x-c
+.go text/x-go
+.rs text/x-rust
+.swift text/x-swift
+.kt text/x-kotlin
+.sh application/x-sh
+.bash application/x-sh
+.bat application/x-msdos-program
+.ps1 application/x-powershell
+.php application/x-httpd-php
+
+# --- Firmware & Embedded ---
+.bin application/octet-stream
+.fw application/octet-stream
+.img application/octet-stream
+.rom application/octet-stream
+.hex application/octet-stream
 .npk application/octet-stream
+.trx application/octet-stream
+
+# --- Email ---
+.eml message/rfc822
+.msg application/vnd.ms-outlook
+.mbox application/mbox
+
+# --- CAD & 3D ---
+.stl model/stl
+.obj model/obj
+.gltf model/gltf+json
+.glb model/gltf-binary
+.step application/step
+.dwg application/acad
+
+# --- GIS ---
+.kml application/vnd.google-earth.kml+xml
+.kmz application/vnd.google-earth.kmz
+.gpx application/gpx+xml
+.geojson application/geo+json
+.shp application/x-esri-shape
+
+# --- Misc ---
+.swf application/x-shockwave-flash
+.xpi application/x-xpinstall
+.crx application/x-chrome-extension
+.torrent application/x-bittorrent
+.ics text/calendar
+.vcf text/vcard
+.pcap application/vnd.tcpdump.pcap
+.pcapng application/x-pcapng
+.cap application/vnd.tcpdump.pcap

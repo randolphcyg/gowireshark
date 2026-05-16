@@ -89,7 +89,22 @@ func getOptimalWorkerNum(taskSize int) int {
 	return cpuNum
 }
 
+// sortFrames sorts frames by frame number, safely handling nil Frame layers.
+func sortFrames(frames []*FrameData) {
+	slices.SortFunc(frames, func(a, b *FrameData) int {
+		an, bn := 0, 0
+		if a.BaseLayers.Frame != nil {
+			an = a.BaseLayers.Frame.Number
+		}
+		if b.BaseLayers.Frame != nil {
+			bn = b.BaseLayers.Frame.Number
+		}
+		return an - bn
+	})
+}
+
 // EpanMutex ensures thread safety for libwireshark's global state.
+// Exported for advanced use cases where callers need to coordinate with C-level operations.
 var EpanMutex = &sync.Mutex{}
 
 // init initializes the Wireshark environment once on startup.
@@ -99,10 +114,16 @@ func init() {
 	}
 }
 
-// IsFileExist check if a file path exists.
-func IsFileExist(path string) bool {
+// FileExists checks if a file path exists.
+func FileExists(path string) bool {
 	_, err := os.Lstat(path)
 	return !os.IsNotExist(err)
+}
+
+// IsFileExist is a deprecated alias for FileExists.
+// Deprecated: Use FileExists instead.
+func IsFileExist(path string) bool {
+	return FileExists(path)
 }
 
 // CChar2GoStr converts a C char* to a Go string.
@@ -122,7 +143,7 @@ func EpanPluginsSupported() int {
 
 // initCapFile initializes the capture file structure in C.
 func initCapFile(path string, opts ...Option) (conf *Conf, err error) {
-	if !IsFileExist(path) {
+	if !FileExists(path) {
 		err = errors.Wrap(ErrFileNotFound, path)
 		return
 	}
@@ -201,27 +222,69 @@ func ParseFrameData(src []byte) (frame *FrameData, err error) {
 	}
 
 	var layerErrors []error
-	parseLayer := func(layerFunc func() (any, error), setLayerFunc func(any)) {
-		val, err := layerFunc()
-		if err == nil {
-			setLayerFunc(val)
-		} else if !errors.Is(err, ErrLayerNotFound) {
-			layerErrors = append(layerErrors, err)
+
+	// Parse base layers — each method returns concrete type, nil on not-found
+	if v, e := frame.Layers.Frame(); e == nil {
+		frame.BaseLayers.Frame = v
+	} else if !errors.Is(e, ErrLayerNotFound) {
+		layerErrors = append(layerErrors, e)
+	}
+
+	if v, e := frame.Layers.WsCol(); e == nil {
+		frame.BaseLayers.WsCol = v
+	} else if !errors.Is(e, ErrLayerNotFound) {
+		layerErrors = append(layerErrors, e)
+	}
+
+	if v, e := frame.Layers.Eth(); e == nil {
+		frame.BaseLayers.Eth = v
+	} else if !errors.Is(e, ErrLayerNotFound) {
+		layerErrors = append(layerErrors, e)
+	}
+
+	if v, e := frame.Layers.Ip(); e == nil {
+		frame.BaseLayers.Ip = v
+	} else if !errors.Is(e, ErrLayerNotFound) {
+		layerErrors = append(layerErrors, e)
+	}
+
+	if v, e := frame.Layers.Udp(); e == nil {
+		frame.BaseLayers.Udp = v
+	} else if !errors.Is(e, ErrLayerNotFound) {
+		layerErrors = append(layerErrors, e)
+	}
+
+	if v, e := frame.Layers.Tcp(); e == nil {
+		frame.BaseLayers.Tcp = v
+	} else if !errors.Is(e, ErrLayerNotFound) {
+		layerErrors = append(layerErrors, e)
+	}
+
+	if v, e := frame.Layers.Http(); e == nil {
+		frame.BaseLayers.Http = v
+	} else if !errors.Is(e, ErrLayerNotFound) {
+		layerErrors = append(layerErrors, e)
+	}
+
+	if v, e := frame.Layers.Dns(); e == nil {
+		frame.BaseLayers.Dns = v
+	} else if !errors.Is(e, ErrLayerNotFound) {
+		layerErrors = append(layerErrors, e)
+	}
+
+	// Parse custom protocol layers via DefaultRegistry
+	if DefaultRegistry.Len() > 0 {
+		if customResults := DefaultRegistry.ParseAll(frame.Layers); len(customResults) > 0 {
+			frame.CustomLayers = customResults
 		}
 	}
 
-	// Parse specific layers
-	parseLayer(frame.Layers.WsCol, func(v any) { frame.BaseLayers.WsCol = v.(*WsCol) })
-	parseLayer(frame.Layers.Frame, func(v any) { frame.BaseLayers.Frame = v.(*Frame) })
-	parseLayer(frame.Layers.Eth, func(v any) { frame.BaseLayers.Eth = v.(*Eth) })
-	parseLayer(frame.Layers.Ip, func(v any) { frame.BaseLayers.Ip = v.(*Ip) })
-	parseLayer(frame.Layers.Udp, func(v any) { frame.BaseLayers.Udp = v.(*Udp) })
-	parseLayer(frame.Layers.Tcp, func(v any) { frame.BaseLayers.Tcp = v.(*Tcp) })
-	parseLayer(frame.Layers.Http, func(v any) { frame.BaseLayers.Http = v.([]*Http) })
-	parseLayer(frame.Layers.Dns, func(v any) { frame.BaseLayers.Dns = v.(*Dns) })
-
 	if len(layerErrors) > 0 {
-		return frame, errors.Errorf("frame:%d errors:%v", frame.BaseLayers.Frame.Number, layerErrors)
+		frameNum := 0
+		if frame.BaseLayers.Frame != nil {
+			frameNum = frame.BaseLayers.Frame.Number
+		}
+		return frame, errors.Errorf("frame:%d errors:%v", frameNum, layerErrors)
 	}
 
 	return frame, nil
@@ -351,9 +414,7 @@ func GetFramesByIdxs(path string, frameIdxs []int, opts ...Option) (frames []*Fr
 		frames = append(frames, f)
 	}
 
-	slices.SortFunc(frames, func(a, b *FrameData) int {
-		return a.BaseLayers.Frame.Number - b.BaseLayers.Frame.Number
-	})
+	sortFrames(frames)
 
 	if parseErr != nil {
 		return frames, parseErr
@@ -381,7 +442,7 @@ func ValidateFilter(filter string) error {
 // CountFrames returns the total number of frames in a pcap file.
 // This is a lightweight operation — reads packet headers without full dissection.
 func CountFrames(path string, opts ...Option) (int, error) {
-	if !IsFileExist(path) {
+	if !FileExists(path) {
 		return 0, errors.Wrap(ErrFileNotFound, path)
 	}
 
@@ -478,9 +539,7 @@ func GetAllFrames(path string, opts ...Option) (frames []*FrameData, err error) 
 	<-doneChan
 
 	// 7. Sort results
-	slices.SortFunc(frames, func(a, b *FrameData) int {
-		return a.BaseLayers.Frame.Number - b.BaseLayers.Frame.Number
-	})
+	sortFrames(frames)
 
 	if conf.Debug {
 		slog.Info("GetAllFrames Dissect end", "PCAP_FILE", path, "COUNT", len(frames))
@@ -498,7 +557,7 @@ func GetAllFrames(path string, opts ...Option) (frames []*FrameData, err error) 
 // No Go-side JSON unmarshal/marshal happens. Each frame is written as one line (NDJSON).
 // Returns the number of frames written.
 func StreamAllFrames(path string, w io.Writer, opts ...Option) (count int, err error) {
-	if !IsFileExist(path) {
+	if !FileExists(path) {
 		return 0, errors.Wrap(ErrFileNotFound, path)
 	}
 
@@ -648,9 +707,7 @@ func GetFramesByPage(path string, page, size int, opts ...Option) (frames []*Fra
 		return frames, hasMore, parseErr
 	}
 
-	slices.SortFunc(frames, func(a, b *FrameData) int {
-		return a.BaseLayers.Frame.Number - b.BaseLayers.Frame.Number
-	})
+	sortFrames(frames)
 
 	if conf.Debug {
 		slog.Info("Paged parsing completed", "fetched_count", len(frames), "page", page)
@@ -774,6 +831,10 @@ type FastStreamPayload struct {
 
 // GetStreamData With streaming read, the frame object is dropped immediately after the Payload is extracted
 func GetStreamData(path string, filter string, proto string, opts ...Option) (*StreamResult, error) {
+	if proto != "tcp" && proto != "udp" {
+		return nil, errors.Errorf("unsupported protocol: %q (must be \"tcp\" or \"udp\")", proto)
+	}
+
 	EpanMutex.Lock()
 	defer EpanMutex.Unlock()
 

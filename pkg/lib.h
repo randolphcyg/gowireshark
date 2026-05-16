@@ -41,9 +41,9 @@ bool init_env();
 // Helper to check if a JSON string represents an empty object
 bool is_empty_json(const char *json_str);
 
-// Apply TLS preferences (keys, desegmentation settings)
+// Apply TLS preferences (keys, desegmentation settings, keylog file)
 void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
-                     int desegmentSslApplicationData);
+                     int desegmentSslApplicationData, const char *keylogFile);
 
 // Extract hex data from a dissection result
 bool get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset, cJSON *cjson_hex, cJSON *cjson_ascii);

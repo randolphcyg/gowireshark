@@ -154,7 +154,9 @@ func TestParseCustomProtocol(t *testing.T) {
 	}
 
 	registry := NewParserRegistry()
-	registry.Register("mysql", &MySQLLayer{})
+	if err := registry.Register("mysql", &MySQLLayer{}); err != nil {
+		t.Fatal(err)
+	}
 
 	parsedLayer, err := registry.ParseProtocol("mysql", frame.Layers)
 	if err != nil {
@@ -168,4 +170,35 @@ func TestParseCustomProtocol(t *testing.T) {
 	}
 
 	t.Log("Parsed MySQL layer, mysql.user:", mysqlLayer.LoginRequest.User)
+}
+
+// TestDefaultRegistryIntegration demonstrates that parsers registered in DefaultRegistry
+// are automatically invoked during ParseFrameData.
+func TestDefaultRegistryIntegration(t *testing.T) {
+	pcapPath := getTestPcap(t)
+
+	// Register MySQL parser to DefaultRegistry
+	if err := DefaultRegistry.Register("mysql", &MySQLLayer{}); err != nil {
+		t.Fatal(err)
+	}
+	defer DefaultRegistry.Unregister("mysql")
+
+	// GetFrameByIdx internally calls ParseFrameData, which now invokes DefaultRegistry
+	frame, err := GetFrameByIdx(pcapPath, 1, PrintCJson(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// If the pcap contains MySQL traffic, CustomLayers should have the result
+	if frame.CustomLayers != nil {
+		if mysqlRaw, ok := frame.CustomLayers["mysql"]; ok {
+			mysqlLayer, ok := mysqlRaw.(*MySQLLayer)
+			if !ok {
+				t.Fatal("Type assertion to *MySQLLayer failed")
+			}
+			t.Log("Auto-parsed MySQL layer via DefaultRegistry, mysql.user:", mysqlLayer.LoginRequest.User)
+		}
+	} else {
+		t.Log("No custom layers parsed (expected if pcap does not contain MySQL traffic)")
+	}
 }
