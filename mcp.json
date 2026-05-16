@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "gowireshark": {
+      "command": "./bin/gowireshark-mcp",
+      "args": [],
+      "env": {
+        "GOWIRESHARK_BASE_DIR": "."
+      }
+    }
+  }
+}

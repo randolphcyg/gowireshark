@@ -222,3 +222,38 @@ func StopLivePacketCapture(interfaceName string) (err error) {
 
 	return nil
 }
+
+// CaptureToFile captures packets directly to a pcap file using libpcap's pcap_dump.
+// This produces a valid pcap file with full raw packet data — no dissection overhead.
+// The function blocks until the specified number of packets is captured or an error occurs.
+//
+// interfaceName: Network interface name (e.g., "eth0", "en0").
+// bpfFilter: BPF filter string (e.g., "tcp port 80"). Empty string for no filter.
+// packetCount: Number of packets to capture (-1 for infinite, use StopLivePacketCapture to stop).
+// promisc: 1 for promiscuous mode, 0 otherwise.
+// timeout: Read timeout in milliseconds.
+// outputPath: Path to the output pcap file.
+func CaptureToFile(interfaceName, bpfFilter string, packetCount, promisc, timeout int, outputPath string) error {
+	if interfaceName == "" {
+		return errors.New("interface name is blank")
+	}
+	if outputPath == "" {
+		return errors.New("output path is blank")
+	}
+
+	cIfName := C.CString(interfaceName)
+	cBpf := C.CString(bpfFilter)
+	cOutput := C.CString(outputPath)
+	defer func() {
+		C.free(unsafe.Pointer(cIfName))
+		C.free(unsafe.Pointer(cBpf))
+		C.free(unsafe.Pointer(cOutput))
+	}()
+
+	errMsg := C.capture_to_file(cIfName, cBpf, C.int(packetCount), C.int(promisc), C.int(timeout), cOutput)
+	if C.strlen(errMsg) != 0 {
+		return errors.Errorf("capture to file failed: %s", CChar2GoStr(errMsg))
+	}
+
+	return nil
+}

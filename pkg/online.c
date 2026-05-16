@@ -804,3 +804,70 @@ char *stop_dissect_capture_pkg(char *device_name) {
 
     return "";
 }
+
+/**
+ * Capture packets and save raw data directly to a pcap file.
+ * This uses pcap_dump for correct pcap format output.
+ * No dissection is performed — this is a fast raw capture to file.
+ *
+ *  @param device_name: network interface name
+ *  @param bpf_expr: BPF filter expression
+ *  @param num: number of packets to capture (-1 for infinite)
+ *  @param promisc: 1 for promiscuous mode, 0 otherwise
+ *  @param to_ms: read timeout in milliseconds
+ *  @param output_path: path to output pcap file
+ *  @return char*: empty string on success, error message on failure
+ */
+char *capture_to_file(char *device_name, char *bpf_expr, int num, int promisc, int to_ms,
+                      char *output_path) {
+    char err_buf[PCAP_ERRBUF_SIZE];
+
+    if (!device_name || !output_path) {
+        return "device_name and output_path are required";
+    }
+
+    // Open device
+    pcap_t *handle = pcap_open_live(device_name, SNAP_LEN, promisc, to_ms, err_buf);
+    if (!handle) {
+        return "pcap_open_live() failed";
+    }
+
+    // Apply BPF filter
+    if (bpf_expr && strlen(bpf_expr) > 0) {
+        struct bpf_program fp;
+        bpf_u_int32 mask = 0, net = 0;
+        pcap_lookupnet(device_name, &net, &mask, err_buf);
+
+        if (pcap_compile(handle, &fp, bpf_expr, 0, net) != 0) {
+            pcap_close(handle);
+            return "Could not compile BPF filter";
+        }
+        if (pcap_setfilter(handle, &fp) != 0) {
+            pcap_freecode(&fp);
+            pcap_close(handle);
+            return "Could not set BPF filter";
+        }
+        pcap_freecode(&fp);
+    }
+
+    // Open dump file
+    pcap_dumper_t *dumper = pcap_dump_open(handle, output_path);
+    if (!dumper) {
+        pcap_close(handle);
+        return "pcap_dump_open() failed";
+    }
+
+    // Capture and write packets
+    int loop_ret = pcap_loop(handle, num, (pcap_handler)pcap_dump, (u_char *)dumper);
+
+    // Cleanup
+    pcap_dump_flush(dumper);
+    pcap_dump_close(dumper);
+    pcap_close(handle);
+
+    if (loop_ret == PCAP_ERROR) {
+        return "pcap_loop error during capture";
+    }
+
+    return "";
+}

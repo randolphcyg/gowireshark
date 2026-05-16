@@ -33,3 +33,7 @@ char *stop_dissect_capture_pkg(char *device_name);
 typedef void (*DataCallback)(const char *, int, const char *);
 void GetDataCallback(char *data, int length, char *device_name);
 void setDataCallback(DataCallback callback);
+
+// Capture packets and save raw data to pcap file (no dissection, fast)
+char *capture_to_file(char *device_name, char *bpf_expr, int num, int promisc, int to_ms,
+                      char *output_path);

@@ -35,17 +35,30 @@ func main() {
 		slog.Warn("AUTH_TOKEN not set, running without authentication")
 	}
 
-	// Path restriction: only allow files under PCAP_BASE_DIR (default: /app/pcaps)
+	// Path restriction: only allow files under PCAP_BASE_DIR
+	// Default: ./pcaps relative to working directory (use /app/pcaps in Docker via env)
 	pcapBaseDir := os.Getenv("PCAP_BASE_DIR")
 	if pcapBaseDir == "" {
-		pcapBaseDir = "/app/pcaps"
+		pcapBaseDir = "./pcaps"
+	}
+	// Resolve relative path
+	if !filepath.IsAbs(pcapBaseDir) {
+		abs, _ := filepath.Abs(pcapBaseDir)
+		pcapBaseDir = abs
 	}
 	r.Use(pathGuard(pcapBaseDir))
 
 	// File extraction output directory
 	extractDir := os.Getenv("EXTRACT_DIR")
 	if extractDir == "" {
-		extractDir = "/app/extracted"
+		extractDir = os.Getenv("EXTRACT_FILE_DIR")
+	}
+	if extractDir == "" {
+		extractDir = "./extracted_files"
+	}
+	if !filepath.IsAbs(extractDir) {
+		abs, _ := filepath.Abs(extractDir)
+		extractDir = abs
 	}
 	pkg.ExtractFileDir = extractDir
 
@@ -80,6 +93,10 @@ func main() {
 
 		// File Extraction
 		api.POST("/extract/files", extractFiles)
+		api.DELETE("/extract/files", cleanExtractedFiles)
+
+		// Export
+		api.POST("/export/frames", exportFramesToFile)
 
 		// PCAP Upload
 		api.POST("/upload", uploadPcap)
@@ -87,6 +104,7 @@ func main() {
 		// Live Capture (online)
 		api.POST("/capture/start", startCapture)
 		api.POST("/capture/stop", stopCapture)
+		api.POST("/capture/to-pcap", captureToFile)
 		api.GET("/capture/stream/:interface", streamCapture)
 	}
 
@@ -159,6 +177,22 @@ type filterValidateRequest struct {
 
 type extractRequest struct {
 	baseRequest
+	CleanBefore bool `json:"cleanBefore"`
+}
+
+type exportRequest struct {
+	baseRequest
+	Format     string `json:"format" binding:"required"` // "json" or "csv"
+	OutputPath string `json:"outputPath"`                // optional, auto-generated if empty
+}
+
+type captureToFileRequest struct {
+	Interface   string `json:"interface" binding:"required"`
+	Filter      string `json:"filter"`
+	PacketCount int    `json:"packetCount"` // default: 100
+	Duration    int    `json:"duration"`    // max seconds, default: 10
+	Promisc     *bool  `json:"promisc"`     // default: true
+	OutputPath  string `json:"outputPath"`  // optional, auto-generated if empty
 }
 
 // --- Response DTOs ---
@@ -434,6 +468,14 @@ func extractFiles(c *gin.Context) {
 		return
 	}
 
+	// Clean before extraction if requested
+	if req.CleanBefore {
+		if err := cleanExtractDirectory(); err != nil {
+			HandleError(c, http.StatusInternalServerError, "clean failed", err)
+			return
+		}
+	}
+
 	frames, err := pkg.GetAllFrames(req.Filepath,
 		pkg.WithDebug(req.IsDebug),
 		pkg.IgnoreError(true),
@@ -450,7 +492,159 @@ func extractFiles(c *gin.Context) {
 		return
 	}
 
-	Success(c, ListData{List: extracted, Total: len(extracted)})
+	Success(c, gin.H{
+		"files":     extracted,
+		"count":     len(extracted),
+		"outputDir": pkg.ExtractFileDir,
+	})
+}
+
+func cleanExtractedFiles(c *gin.Context) {
+	removed, totalSize, err := cleanExtractDirectoryWithStats()
+	if err != nil {
+		HandleError(c, http.StatusInternalServerError, "clean failed", err)
+		return
+	}
+	Success(c, gin.H{
+		"outputDir":    pkg.ExtractFileDir,
+		"filesRemoved": removed,
+		"bytesFreed":   totalSize,
+	})
+}
+
+// --- Export Handler ---
+
+func exportFramesToFile(c *gin.Context) {
+	var req exportRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		HandleError(c, http.StatusBadRequest, "invalid param", err)
+		return
+	}
+
+	if req.Format != "json" && req.Format != "csv" {
+		HandleError(c, http.StatusBadRequest, "invalid format", fmt.Errorf("format must be 'json' or 'csv'"))
+		return
+	}
+
+	// Determine output path
+	outputPath := req.OutputPath
+	if outputPath == "" {
+		base := filepath.Base(req.Filepath)
+		base = base[:len(base)-len(filepath.Ext(base))]
+		outputPath = filepath.Join(pkg.ExtractFileDir, base+"."+req.Format)
+	}
+
+	frames, err := pkg.GetAllFrames(req.Filepath,
+		pkg.WithDebug(req.IsDebug),
+		pkg.IgnoreError(true),
+		pkg.WithBpfFilter(req.Filter),
+	)
+	if err != nil {
+		HandleError(c, http.StatusInternalServerError, "parse frames failed", err)
+		return
+	}
+
+	os.MkdirAll(filepath.Dir(outputPath), 0o755)
+
+	var writeErr error
+	switch req.Format {
+	case "json":
+		writeErr = writeExportJSON(outputPath, frames)
+	case "csv":
+		writeErr = writeExportCSV(outputPath, frames)
+	}
+	if writeErr != nil {
+		HandleError(c, http.StatusInternalServerError, "export failed", writeErr)
+		return
+	}
+
+	info, _ := os.Stat(outputPath)
+	var fileSize int64
+	if info != nil {
+		fileSize = info.Size()
+	}
+
+	Success(c, gin.H{
+		"sourcePcap":  req.Filepath,
+		"outputPath":  outputPath,
+		"format":      req.Format,
+		"framesCount": len(frames),
+		"fileSize":    fileSize,
+	})
+}
+
+// --- Capture to PCAP File Handler ---
+
+func captureToFile(c *gin.Context) {
+	var req captureToFileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		HandleError(c, http.StatusBadRequest, "invalid param", err)
+		return
+	}
+
+	// Defaults
+	if req.PacketCount <= 0 {
+		req.PacketCount = 100
+	}
+	if req.PacketCount > 100000 {
+		req.PacketCount = 100000
+	}
+	if req.Duration <= 0 {
+		req.Duration = 10
+	}
+	if req.Duration > 300 {
+		req.Duration = 300
+	}
+	promisc := 1
+	if req.Promisc != nil && !*req.Promisc {
+		promisc = 0
+	}
+
+	// Determine output path
+	outputPath := req.OutputPath
+	if outputPath == "" {
+		captureDir := filepath.Join(pkg.ExtractFileDir, "captures")
+		os.MkdirAll(captureDir, 0o755)
+		outputPath = filepath.Join(captureDir, fmt.Sprintf("capture_%s_%s.pcap",
+			req.Interface, time.Now().Format("20060102_150405")))
+	}
+	os.MkdirAll(filepath.Dir(outputPath), 0o755)
+
+	// Run capture with timeout
+	type result struct{ err error }
+	done := make(chan result, 1)
+
+	go func() {
+		err := pkg.CaptureToFile(req.Interface, req.Filter, req.PacketCount, promisc, 100, outputPath)
+		done <- result{err: err}
+	}()
+
+	select {
+	case res := <-done:
+		if res.err != nil {
+			HandleError(c, http.StatusInternalServerError, "capture failed", res.err)
+			return
+		}
+	case <-time.After(time.Duration(req.Duration) * time.Second):
+		_ = pkg.StopLivePacketCapture(req.Interface)
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+		}
+	}
+
+	info, err := os.Stat(outputPath)
+	if err != nil {
+		HandleError(c, http.StatusInternalServerError, "capture completed but file not found", err)
+		return
+	}
+
+	Success(c, gin.H{
+		"interface":  req.Interface,
+		"filter":     req.Filter,
+		"outputPath": outputPath,
+		"fileSize":   info.Size(),
+	})
 }
 
 // --- Protocol Statistics Handler ---
@@ -543,7 +737,7 @@ func uploadPcap(c *gin.Context) {
 	// Save to PCAP_BASE_DIR
 	pcapBaseDir := os.Getenv("PCAP_BASE_DIR")
 	if pcapBaseDir == "" {
-		pcapBaseDir = "/app/pcaps"
+		pcapBaseDir = "./pcaps"
 	}
 
 	// Sanitize filename
@@ -618,12 +812,19 @@ func startCapture(c *gin.Context) {
 		}
 	}()
 
-	// Wait briefly for channel to be created
-	time.Sleep(200 * time.Millisecond)
+	// Wait for channel to be created (retry with backoff)
+	var ch <-chan pkg.FrameData
+	for i := 0; i < 10; i++ {
+		time.Sleep(200 * time.Millisecond)
+		ch = pkg.GetIfaceChannel(req.Interface)
+		if ch != nil {
+			break
+		}
+	}
 
-	if pkg.GetIfaceChannel(req.Interface) == nil {
+	if ch == nil {
 		HandleError(c, http.StatusInternalServerError, "failed to start capture",
-			fmt.Errorf("channel not initialized for %s", req.Interface))
+			fmt.Errorf("channel not initialized for %s (may need root/sudo permissions)", req.Interface))
 		return
 	}
 
@@ -791,4 +992,103 @@ func timeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}
+}
+
+// --- File Utility Functions ---
+
+func cleanExtractDirectory() error {
+	if pkg.ExtractFileDir == "" {
+		return fmt.Errorf("extract file dir not configured")
+	}
+	entries, err := os.ReadDir(pkg.ExtractFileDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, entry := range entries {
+		os.RemoveAll(filepath.Join(pkg.ExtractFileDir, entry.Name()))
+	}
+	return nil
+}
+
+func cleanExtractDirectoryWithStats() (int, int64, error) {
+	if pkg.ExtractFileDir == "" {
+		return 0, 0, fmt.Errorf("extract file dir not configured")
+	}
+	entries, err := os.ReadDir(pkg.ExtractFileDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, 0, nil
+		}
+		return 0, 0, err
+	}
+	var removed int
+	var totalSize int64
+	for _, entry := range entries {
+		path := filepath.Join(pkg.ExtractFileDir, entry.Name())
+		if info, err := entry.Info(); err == nil {
+			totalSize += info.Size()
+		}
+		os.RemoveAll(path)
+		removed++
+	}
+	return removed, totalSize, nil
+}
+
+func writeExportJSON(path string, frames []*pkg.FrameData) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	data, err := sonic.MarshalIndent(frames, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	return err
+}
+
+func writeExportCSV(path string, frames []*pkg.FrameData) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	f.WriteString("No.,Time,Source,Destination,Protocol,Length,Info\n")
+	for _, frame := range frames {
+		no, ts, src, dst, proto, length, info := 0, "", "", "", "", 0, ""
+		if frame.BaseLayers.Frame != nil {
+			no = frame.BaseLayers.Frame.Number
+			length = frame.BaseLayers.Frame.Len
+			ts = frame.BaseLayers.Frame.TimeRelative
+		}
+		if frame.BaseLayers.WsCol != nil {
+			proto = frame.BaseLayers.WsCol.Protocol
+			info = frame.BaseLayers.WsCol.Info
+			if frame.BaseLayers.Ip == nil {
+				src = frame.BaseLayers.WsCol.DefSrc
+				dst = frame.BaseLayers.WsCol.DefDst
+			}
+		}
+		if frame.BaseLayers.Ip != nil {
+			src = frame.BaseLayers.Ip.Src
+			dst = frame.BaseLayers.Ip.Dst
+		}
+		// Escape CSV fields with commas/quotes
+		line := fmt.Sprintf("%d,%s,%s,%s,%s,%d,%s\n",
+			no, csvEscapeField(ts), csvEscapeField(src), csvEscapeField(dst),
+			csvEscapeField(proto), length, csvEscapeField(info))
+		f.WriteString(line)
+	}
+	return nil
+}
+
+func csvEscapeField(s string) string {
+	if strings.ContainsAny(s, ",\"\n\r") {
+		return "\"" + strings.ReplaceAll(s, "\"", "\"\"") + "\""
+	}
+	return s
 }
