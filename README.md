@@ -1,584 +1,188 @@
 # Gowireshark
 
-README: [English](https://github.com/randolphcyg/gowireshark/blob/main/README.md) | [中文](https://github.com/randolphcyg/gowireshark/blob/main/README-zh.md)
+`gowireshark` is a Go SDK around `libwireshark`. It owns packet dissection only: packet acquisition belongs in `gocapture`, HTTP composition in `gowireshark-server`, and user-facing entrypoints in CLI or agent tooling.
 
-- Provide the same packet processing capabilities as Wireshark for Go
-- Support offline and online (live capture) packet parsing
-- Multi-protocol file extraction (HTTP, FTP, TFTP, SMB, IMF)
-- TCP stream reassembly with real-time callbacks
-- Custom protocol parser extension via registry
-- Based on [Wireshark](https://www.wireshark.org/#download) and [libpcap](https://www.tcpdump.org/release/) shared libraries
+## Capabilities
 
----
+- Offline pcap / pcapng dissection with paginated access for large files
+- Frame, layer, hex, display-filter, and stream-follow helpers
+- Raw-packet dissection for callers that already own packet acquisition
+- Explicit custom-protocol registries for typed layer parsing
+- Optional `extract` and `reassembly` subpackages for higher-level helpers
 
-## Contents
+## Project family
 
-- [1. Installation](#1-installation)
-  - [1.1. Quick Start (Docker)](#11-quick-start-docker)
-  - [1.2. Local Development (macOS)](#12-local-development-macos)
-  - [1.3. Local Development (Windows)](#13-local-development-windows)
-  - [1.4. Local Development (Linux)](#14-local-development-linux)
-- [2. Usage](#2-usage)
-  - [2.1. Frame Dissection](#21-frame-dissection)
-  - [2.2. Live Capture](#22-live-capture)
-  - [2.3. TCP Stream Reassembly](#23-tcp-stream-reassembly)
-  - [2.4. File Extraction](#24-file-extraction)
-  - [2.5. Custom Protocol Parsing](#25-custom-protocol-parsing)
-- [3. Testing](#3-testing)
-- [4. Project Structure](#4-project-structure)
-- [5. Architecture](#5-architecture)
-- [6. Deployment](#6-deployment)
-- [7. API Reference](#7-api-reference)
-- [8. Roadmap](#8-roadmap)
+| Repository | Responsibility |
+| --- | --- |
+| `gowireshark` | libwireshark-backed dissection SDK |
+| `gocapture` | packet acquisition backends such as libpcap and DPDK |
+| `gowireshark-server` | HTTP composition layer |
+| `gowireshark-cli` | command-line frontend |
+| `gowireshark-agent-kit` | agent-facing usage materials |
 
----
+## Install
 
-## 1. Installation
-
-### 1.1. Quick Start (Docker)
-
-The recommended way to run gowireshark as a service. No local dependencies required.
-
-```shell
-# Build the image
-docker build -t gowireshark:latest . --platform linux/amd64
-
-# Run the service (mount your pcap directory)
-docker run -d \
-  --name gowireshark \
-  -p 18090:8090 \
-  -v $(pwd)/pcaps/:/app/pcaps/ \
-  gowireshark:latest
-```
-
-**API Examples:**
-
-```shell
-# Get Wireshark version
-curl http://localhost:18090/api/v1/version
-
-# Paginated frame query (recommended for large files)
-curl -X POST http://localhost:18090/api/v1/dissect/frames/page \
-  -H "Content-Type: application/json" \
-  -d '{"filepath": "/app/pcaps/sample.pcap", "page": 1, "size": 20}'
-
-# Extract files from pcap (HTTP, FTP, SMB, etc.)
-curl -X POST http://localhost:18090/api/v1/extract/files \
-  -H "Content-Type: application/json" \
-  -d '{"filepath": "/app/pcaps/sample.pcap"}'
-
-# Validate a display filter
-curl -X POST http://localhost:18090/api/v1/filter/validate \
-  -H "Content-Type: application/json" \
-  -d '{"filter": "tcp.port == 80"}'
-```
-
-### 1.2. Local Development (macOS)
-
-```shell
-# One-time setup: installs deps, builds Wireshark/libpcap, generates CGO config
-./init_mac_dev.sh
-
-# Load runtime environment
-source ./dev_env.sh
-
-# Run tests
-go test -v ./pkg/
-```
-
-Prerequisites: [Homebrew](https://brew.sh). The script handles everything else.
-
-### 1.3. Local Development (Windows)
-
-```powershell
-# One-time setup (run in PowerShell as Administrator)
-.\init_win_dev.ps1
-
-# Load runtime environment
-. .\dev_env.ps1
-
-# Run tests
-go test -v ./pkg/
-```
-
-Prerequisites: [MSYS2](https://www.msys2.org/) installed at `C:\msys64`, and [Npcap](https://npcap.com/#download) runtime driver.
-
-### 1.4. Local Development (Linux)
-
-```shell
-# Install dependencies (Ubuntu/Debian)
-sudo apt install -y libglib2.0-dev libpcap-dev
-
-# Use as a Go library
+```bash
 go get github.com/randolphcyg/gowireshark
 ```
 
-On Linux, `#cgo pkg-config: glib-2.0` is used automatically. For full local builds (compiling Wireshark from source), refer to the Dockerfile.
+`gowireshark` links against `libwireshark` through CGO, so a local Wireshark development environment is still required.
 
----
-
-## 2. Usage
-
-### 2.1. Frame Dissection
+## Quick start
 
 ```go
 package main
 
 import (
     "fmt"
-    "github.com/randolphcyg/gowireshark/pkg"
+
+    "github.com/randolphcyg/gowireshark"
 )
 
 func main() {
-    filepath := "/path/to/capture.pcap"
-
-    // Paginated access (recommended for large files)
-    frames, hasMore, err := pkg.GetFramesByPage(filepath, 1, 20)
+    frames, hasMore, err := gowireshark.FramesPage("capture.pcap", 1, 20)
     if err != nil {
         panic(err)
     }
-
-    fmt.Printf("Has more: %v\n", hasMore)
-    for _, frame := range frames {
-        fmt.Printf("Frame %d: %s → %s [%s]\n",
-            frame.BaseLayers.Frame.Number,
-            frame.BaseLayers.Ip.Src,
-            frame.BaseLayers.Ip.Dst,
-            frame.BaseLayers.WsCol.Protocol)
-    }
+    fmt.Println(len(frames), hasMore)
 }
 ```
 
-### 2.2. Live Capture
+### Session
+
+`Session` reuses one dissection configuration and frame index across multiple queries. Sequential scans reset the underlying reader between operations. Session methods are not safe for concurrent goroutines, and because libwireshark keeps process-global capture state, only one active `Session` may exist in a process at a time.
 
 ```go
-func capturePackets() {
-    ifaceName := "en0"
-
-    go pkg.StartLivePacketCapture(ifaceName, "tcp port 80", -1, 1, 100)
-
-    time.Sleep(100 * time.Millisecond)
-    ch := pkg.GetIfaceChannel(ifaceName)
-
-    for frame := range ch {
-        fmt.Printf("[%s] %s → %s\n",
-            frame.BaseLayers.WsCol.Protocol,
-            frame.BaseLayers.Ip.Src,
-            frame.BaseLayers.Ip.Dst)
-    }
+s, err := gowireshark.OpenSession("capture.pcap")
+if err != nil {
+    panic(err)
 }
+defer s.Close()
+
+count, _ := s.FrameCount(gowireshark.Query{Filter: "tcp"})
+fmt.Println("TCP frames:", count)
+
+frames, hasMore, _ := s.FramesPage(gowireshark.Query{Filter: "tcp"}, 1, 10)
+fmt.Println(len(frames), hasMore)
+
+err = s.WalkFrames(gowireshark.Query{Filter: "http"}, func(f *gowireshark.FrameData) error {
+    fmt.Println(f.BaseLayers.Frame.Number)
+    return nil
+})
+
+result, _ := s.FollowStream(gowireshark.Query{Filter: "tcp.stream eq 0"}, "tcp")
+fmt.Println("packets:", result.PacketCount, "client bytes:", result.ClientBytes)
 ```
 
-### 2.3. TCP Stream Reassembly
+- `FrameCount` and `FramesPage` results are cached per session by `(filter, page, size)`. Calling `Close()` clears the cache.
+- `WalkFrames` and `FollowStream` are not cached.
+
+The existing free functions (`FrameCount`, `FramesPage`, `WalkFrames`, `FollowStream`) remain available and create a temporary `Session` internally. They are convenient for one-shot calls; prefer `Session` when you plan multiple queries against the same pcap. Do not call those helpers while another `Session` is still active.
+
+### WalkFrames
+
+`WalkFrames` streams parsed frames through a callback instead of collecting them in memory. The `*FrameData` is only valid during the callback; do not retain it.
 
 ```go
-func reassembleTcpStreams() {
-    reassembler := pkg.NewTCPReassembler(
-        pkg.WithOnData(func(p pkg.Packet) {
-            fmt.Printf("Stream %d: %d bytes from %s\n",
-                p.StreamID, len(p.RawData), p.Src)
-        }),
-    )
-    handle := reassembler.RegisterCallback()
-    defer reassembler.UnregisterCallback(handle)
-
-    // Parse with TCP stream tap enabled
-    pkg.GetAllFrames("/path/to/file.pcap", pkg.PrintTcpStreams(true))
-
-    // Access reassembled streams
-    for streamID, packets := range reassembler.GetAllStreams() {
-        payload := pkg.ReassembleStreamPayload(packets)
-        duration := pkg.StreamDuration(packets)
-        fmt.Printf("Stream %d: %d bytes, %v duration\n",
-            streamID, len(payload), duration)
+var frameNumbers []int
+err := gowireshark.WalkFrames("capture.pcap", func(f *gowireshark.FrameData) error {
+    if f.BaseLayers.Frame != nil {
+        frameNumbers = append(frameNumbers, f.BaseLayers.Frame.Number)
     }
-}
+    return nil // return an error to stop early
+})
 ```
 
-### 2.4. File Extraction
+### FollowStream
+
+`FollowStream` extracts TCP or UDP payloads matching a display filter. Each `FollowPayload` includes a decoded `Bytes` field alongside the raw hex string.
 
 ```go
-func extractFiles() {
-    pkg.ExtractFileDir = "/tmp/extracted"
-
-    frames, _ := pkg.GetAllFrames("/path/to/file.pcap", pkg.IgnoreError(true))
-
-    // Multi-protocol extraction (HTTP, FTP, TFTP, SMB, IMF)
-    extracted, err := pkg.ExtractFiles(frames)
-    if err != nil {
-        panic(err)
-    }
-
-    for _, ef := range extracted {
-        fmt.Printf("[%s] %s (%d bytes) %s→%s\n",
-            ef.Protocol, ef.Filename, ef.Size, ef.SrcAddr, ef.DstAddr)
-    }
+result, err := gowireshark.FollowStream("capture.pcap", "tcp.stream eq 0", "tcp")
+if err != nil {
+    panic(err)
+}
+for _, p := range result.Payloads {
+    fmt.Printf("[%s] %d bytes\n", p.Dir, len(p.Bytes))
 }
 ```
 
-### 2.5. Custom Protocol Parsing
+### Analysis
+
+The `analysis` subpackage computes protocol and endpoint statistics. `WalkAnalyze` walks a pcap without holding all frames in memory.
 
 ```go
-// Define a parser for your protocol
-type MySQLLayer struct {
-    PacketLength string `json:"mysql.packet_length"`
-    User         string `json:"mysql.user"`
-}
+import "github.com/randolphcyg/gowireshark/analysis"
 
-func (p *MySQLLayer) Parse(layers pkg.Layers) (any, error) {
-    src, ok := layers["mysql"]
-    if !ok {
-        return nil, pkg.ErrLayerNotFound
-    }
-    // Parse from raw map...
-    return p, nil
+summary, err := analysis.WalkAnalyze("capture.pcap")
+if err != nil {
+    panic(err)
 }
-
-func init() {
-    // Register once at startup — automatically applied to all frame parsing
-    pkg.DefaultRegistry.Register("mysql", &MySQLLayer{})
+fmt.Printf("%d frames, %d bytes, %s duration\n",
+    summary.FrameCount, summary.ByteCount, summary.Duration)
+for _, proto := range summary.Protocols {
+    fmt.Printf("%s: %d (%.1f%%)\n", proto.Protocol, proto.FrameCount, proto.Percentage)
 }
-
-// After registration, frame.CustomLayers["mysql"] will contain parsed results
 ```
 
-See `pkg/*_test.go` for more examples including TLS decryption and display filter validation.
+You can also pass analysis over already-collected frames:
 
----
+```go
+frames, _ := gowireshark.Frames("capture.pcap")
+summary := analysis.Analyze(frames)
+```
 
-## 3. Testing
+## Raw packet dissection
 
-Tests auto-discover pcap files. Place any `.pcap` or `.pcapng` file in the `./pcaps/` directory:
+```go
+frame, err := gowireshark.DissectPacket(gowireshark.RawPacket{
+    Data:           ethernetFrame,
+    CaptureLength:  len(ethernetFrame),
+    OriginalLength: len(ethernetFrame),
+    LinkType:       gowireshark.LinkTypeEthernet,
+})
+```
 
-```shell
-# Place a test file
-cp ~/Downloads/sample.pcap ./pcaps/
+`LinkType` uses libpcap LINKTYPE / DLT numeric values; the SDK converts them to Wireshark encapsulations internally.
 
-# Run all tests (skip network-dependent tests if no traffic)
+## Optional helpers
+
+Use `github.com/randolphcyg/gowireshark/extract` when you want explicit file extraction into a caller-owned directory, and `github.com/randolphcyg/gowireshark/reassembly` when you want a TCP follow collector layered over the core dissection APIs.
+
+## Local development
+
+### macOS
+
+```bash
+./init_mac_dev.sh
 source ./dev_env.sh
-go test ./pkg/ -timeout=60s -count=1
-
-# Run specific test groups
-go test ./pkg/ -run TestGetAllFrames -v
-go test ./pkg/ -run TestExtractFiles -v
-go test ./pkg/ -run TestFollowTcpStream -v
-go test ./pkg/ -run TestLiveCapture -v
-
-# Benchmarks
-go test ./pkg/ -bench=BenchmarkParseFrameData -benchmem
-go test ./pkg/ -bench=BenchmarkGetAllFrames -benchmem
+go test ./...
 ```
 
-Alternatively, specify a file via environment variable:
+### Windows
 
-```shell
-export GOWIRESHARK_TEST_PCAP=/path/to/any.pcap
-go test ./pkg/ -v
+```powershell
+.\init_win_dev.ps1
+. .\dev_env.ps1
+go test ./...
 ```
 
-Tests that require specific protocols (MySQL, HTTPS, etc.) or network traffic will skip gracefully.
+### Linux
 
----
+Install Wireshark and GLib development packages for your distribution, then run:
 
-## 4. Project Structure
-
-```
-gowireshark/
-├── cmd/main.go              # HTTP service entry point (Gin)
-├── pkg/                     # Core library
-│   ├── lib.c/h              # C bridge: initialization, utilities
-│   ├── offline.c/go         # Offline pcap parsing (dissection, pagination, streaming)
-│   ├── online.c/go          # Live packet capture
-│   ├── reassembly.c/go      # TCP stream reassembly with tap callbacks
-│   ├── layers.go            # Protocol layer parsers (zero-copy from map)
-│   ├── registry.go          # Custom protocol parser registration (thread-safe)
-│   ├── extract.go           # Multi-protocol file extraction
-│   ├── config.go            # Options pattern (TLS, BPF filter, debug)
-│   ├── mime_types.txt       # 200+ MIME type mappings for file extraction
-│   ├── cgo_linux.go         # CGO flags for Linux
-│   └── *_test.go            # Comprehensive test suite
-├── init_mac_dev.sh          # macOS dev environment setup
-├── init_win_dev.ps1         # Windows dev environment setup
-├── Dockerfile               # Multi-stage production build
-├── docker-compose.yml       # Multi-replica deployment with Nginx
-└── pcaps/                   # Test pcap files (gitignored)
+```bash
+go test ./...
 ```
 
----
+## Tests
 
-## 5. Architecture
+Integration tests auto-discover `.pcap` / `.pcapng` fixtures under `./pcaps/`, or you can point at an exact file:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  cmd/main.go (HTTP API - Gin)                               │
-├─────────────────────────────────────────────────────────────┤
-│  pkg/offline.go    │  pkg/online.go    │  pkg/reassembly.go │
-│  (Offline Analysis)│  (Live Capture)   │  (TCP Reassembly)  │
-├─────────────────────────────────────────────────────────────┤
-│  pkg/layers.go (Protocol Parsing)  │  pkg/extract.go       │
-│  pkg/registry.go (Extensions)      │  (File Extraction)    │
-├─────────────────────────────────────────────────────────────┤
-│  CGO Bridge (callbacks, channels)                           │
-├─────────────────────────────────────────────────────────────┤
-│  offline.c         │  online.c         │  reassembly.c      │
-│  (libwireshark)    │  (libpcap+epan)   │  (tcp_follow tap)  │
-├─────────────────────────────────────────────────────────────┤
-│  lib.c (Shared: init_env, hex_data, tls_prefs)              │
-└─────────────────────────────────────────────────────────────┘
+```bash
+GOWIRESHARK_TEST_PCAP=/path/to/capture.pcap go test ./...
 ```
 
-**Key design decisions:**
-- `EpanMutex` serializes all libwireshark operations (epan is single-threaded by design)
-- C callbacks push JSON to Go channels; Go workers parse in parallel
-- `ParseFrameData` reads directly from `map[string]any` — no intermediate Marshal/Unmarshal
-- `DefaultRegistry` automatically applies custom parsers during frame dissection
-- File extraction is protocol-agnostic: each protocol extractor checks its layer key
+## License
 
----
-
-## 6. Deployment
-
-### Single Instance
-
-```shell
-docker run -d \
-  --name gowireshark \
-  -p 18090:8090 \
-  -e AUTH_TOKEN=your-secret \
-  -e PCAP_BASE_DIR=/app/pcaps \
-  -e EXTRACT_DIR=/app/extracted \
-  -v $(pwd)/pcaps/:/app/pcaps/ \
-  -v $(pwd)/extracted/:/app/extracted/ \
-  gowireshark:latest
-```
-
-### Multi-Instance (Docker Compose + Nginx)
-
-```shell
-AUTH_TOKEN=your-secret docker compose up -d --scale gowireshark=3
-```
-
-**Environment Variables:**
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AUTH_TOKEN` | _(empty, auth disabled)_ | Bearer token for API authentication |
-| `PCAP_BASE_DIR` | `/app/pcaps` | Restrict filepath access to this directory |
-| `EXTRACT_DIR` | `/app/extracted` | Output directory for extracted files |
-| `PORT` | `8090` | HTTP listen port |
-| `REQUEST_TIMEOUT` | `120s` | Maximum request processing time |
-
----
-
-## 7. API Reference
-
-All endpoints require `Authorization: Bearer <token>` header when `AUTH_TOKEN` is set.
-
-### System
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check (no auth) |
-| GET | `/api/v1/version` | Wireshark version info |
-| GET | `/api/v1/interfaces` | Available network interfaces |
-| POST | `/api/v1/filter/validate` | Validate display filter syntax |
-
-### Frame Dissection (Offline)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/dissect/frames` | All frames (auto NDJSON for >1000) |
-| POST | `/api/v1/dissect/frames/stream` | All frames, NDJSON streaming (zero-copy) |
-| POST | `/api/v1/dissect/frames/page` | Paginated frames (max 500/page) |
-| POST | `/api/v1/dissect/frames/idxs` | Random access by frame numbers (max 1000) |
-| POST | `/api/v1/dissect/frames/count` | Frame count (fast, no dissection) |
-| POST | `/api/v1/dissect/frames/hex` | Hex dump of a single frame |
-
-### Stream Follow
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/dissect/follow` | TCP/UDP stream reassembly |
-
-### File Extraction
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/extract/files` | Extract files from all supported protocols |
-
-### Upload
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/upload` | Upload a pcap file (multipart/form-data, field: `file`) |
-
-### Statistics
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/dissect/stats` | Protocol distribution statistics |
-
-### Live Capture
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/capture/start` | Start live capture on interface |
-| POST | `/api/v1/capture/stop` | Stop live capture |
-| GET | `/api/v1/capture/stream/:interface` | Stream packets (NDJSON, long-lived) |
-
-### Request Body (Common Fields)
-
-```json
-{
-  "filepath": "/app/pcaps/sample.pcap",
-  "filter": "tcp.port == 80",
-  "page": 1,
-  "size": 20,
-  "isDebug": false,
-  "ignoreErr": true
-}
-```
-
-### Response Format
-
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": { ... }
-}
-```
-
-Error responses use appropriate HTTP status codes (400, 403, 404, 500) with:
-
-```json
-{
-  "code": 500,
-  "msg": "parse failed",
-  "error": "detailed error message"
-}
-```
-
-### Streaming (NDJSON)
-
-Add `Accept: application/x-ndjson` header to `/dissect/frames` or `/dissect/frames/page` for zero-copy streaming. Each line is a complete JSON frame object.
-
-### File Extraction Response
-
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "list": [
-      {
-        "path": "/app/extracted/report.pdf",
-        "filename": "report.pdf",
-        "protocol": "http",
-        "size": 84790,
-        "srcAddr": "192.168.1.100",
-        "dstAddr": "10.0.0.1"
-      }
-    ],
-    "total": 1
-  }
-}
-```
-
-Supported extraction protocols: `http`, `ftp-data`, `tftp`, `smb`, `smb2`, `imf`
-
-### Upload Example
-
-```shell
-curl -X POST http://localhost:18090/api/v1/upload \
-  -F "file=@/path/to/capture.pcap"
-```
-
-Response:
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "filename": "capture.pcap",
-    "filepath": "/app/pcaps/capture.pcap",
-    "size": 1048576
-  }
-}
-```
-
-### Statistics Response
-
-```shell
-curl -X POST http://localhost:18090/api/v1/dissect/stats \
-  -H "Content-Type: application/json" \
-  -d '{"filepath": "/app/pcaps/sample.pcap"}'
-```
-
-```json
-{
-  "code": 0,
-  "msg": "ok",
-  "data": {
-    "totalFrames": 24632,
-    "totalBytes": 51283456,
-    "protocolCount": 12,
-    "protocols": [
-      {"protocol": "TCP", "count": 18200, "bytes": 48000000},
-      {"protocol": "UDP", "count": 5100, "bytes": 2800000},
-      {"protocol": "DNS", "count": 332, "bytes": 48000}
-    ]
-  }
-}
-```
-
-### TLS Decryption
-
-Supports both RSA private key (TLS 1.2) and SSLKEYLOGFILE (TLS 1.3):
-
-```shell
-# With RSA key
-curl -X POST http://localhost:18090/api/v1/dissect/frames/page \
-  -H "Content-Type: application/json" \
-  -d '{
-    "filepath": "/app/pcaps/https.pcap",
-    "page": 1, "size": 20,
-    "tls": {
-      "desegmentSslRecords": true,
-      "keysList": [{"port": 443, "keyFile": "/app/keys/server.key"}]
-    }
-  }'
-
-# With SSLKEYLOGFILE (TLS 1.3 / ECDHE)
-curl -X POST http://localhost:18090/api/v1/dissect/frames/page \
-  -H "Content-Type: application/json" \
-  -d '{
-    "filepath": "/app/pcaps/tls13.pcap",
-    "page": 1, "size": 20,
-    "tls": {
-      "keylogFile": "/app/keys/sslkeylog.txt"
-    }
-  }'
-```
-
----
-
-## 8. Roadmap
-
-- [x] Offline pcap file parsing with JSON output
-- [x] Hex data extraction from frames
-- [x] Live interface capture with real-time dissection
-- [x] Multi-device capture with per-device stop control
-- [x] TLS decryption with RSA keys (offline and live)
-- [x] Functional options pattern for API configuration
-- [x] Custom protocol parser registration (thread-safe, auto-integrated)
-- [x] Multi-protocol file extraction (HTTP, FTP, TFTP, SMB, IMF)
-- [x] TCP stream reassembly with real-time callbacks
-- [x] Zero-copy NDJSON streaming for large pcap files
-- [x] Display filter validation API
-- [x] Pagination with configurable limits
-- [x] Path traversal protection and filename sanitization
-- [x] Docker multi-replica deployment with Nginx load balancing
-- [x] PCAP file upload endpoint
-- [x] TLS keylog file support (SSLKEYLOGFILE for TLS 1.3 + ECDHE decryption)
-- [x] Protocol distribution statistics endpoint
+This project links against `libwireshark` and is distributed under the GNU General Public License v2. See `LICENSE`.
