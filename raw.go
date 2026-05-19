@@ -66,6 +66,9 @@ func DissectPacket(pkt RawPacket, opts ...Option) (*FrameData, error) {
 	}
 
 	conf := newConfig(opts...)
+	if err := validateDecodeAsRules(conf.DecodeAs); err != nil {
+		return nil, err
+	}
 	cOptions := C.CString(marshalConfig(conf))
 	defer C.free(unsafe.Pointer(cOptions))
 

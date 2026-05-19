@@ -107,6 +107,36 @@ for _, p := range result.Payloads {
 }
 ```
 
+### CLI / Agent evidence helpers
+
+`gowireshark` exposes stable primitives for CLI and agent tooling that need precise, reproducible evidence:
+
+```go
+frame, _ := gowireshark.FrameByIndex("capture.pcap", 42)
+frames, _ := gowireshark.FramesByIndices("capture.pcap", []int{42, 43})
+hex, _ := gowireshark.HexDataByIndex("capture.pcap", 42)
+
+streams, _ := gowireshark.Streams("capture.pcap")
+conversations, _ := gowireshark.Conversations("capture.pcap")
+timeline, _ := gowireshark.Timeline("capture.pcap")
+files, _ := gowireshark.Files("capture.pcap")
+_ = frame; _ = frames; _ = hex; _ = streams; _ = conversations; _ = timeline; _ = files
+
+selector := gowireshark.FrameSelector{Filter: "tcp.stream == 3"}
+_, _ = gowireshark.WritePcapSlice("capture.pcap", out, selector)
+bundle, _ := gowireshark.BuildEvidenceBundle("capture.pcap", selector)
+_ = bundle
+```
+
+Writer-style APIs support CLI-friendly output shaping:
+
+```go
+_, _ = gowireshark.WriteFramesJSONL("capture.pcap", out,
+    gowireshark.WithDisplayFilter("tcp"),
+    gowireshark.WithOutputFields([]string{"frame.number", "ip.src", "ip.dst", "tcp.stream"}),
+)
+```
+
 ### Analysis
 
 The `analysis` subpackage computes protocol and endpoint statistics. `WalkAnalyze` walks a pcap without holding all frames in memory.
@@ -144,6 +174,26 @@ frame, err := gowireshark.DissectPacket(gowireshark.RawPacket{
 ```
 
 `LinkType` uses libpcap LINKTYPE / DLT numeric values; the SDK converts them to Wireshark encapsulations internally.
+
+## Wireshark metadata, Expert Info, and Decode As
+
+```go
+_ = gowireshark.ValidateField("tcp.stream")
+field, _ := gowireshark.FieldInfo("http.request.uri")
+protocols, _ := gowireshark.Protocols()
+fields, _ := gowireshark.Fields()
+experts, _ := gowireshark.ExpertInfos("capture.pcap")
+```
+
+Force a dissector for traffic on a non-standard port:
+
+```go
+frames, err := gowireshark.Frames("capture.pcap",
+    gowireshark.WithDecodeAs([]gowireshark.DecodeAsRule{
+        {Table: "tcp.port", Selector: "8080", Protocol: "http"},
+    }),
+)
+```
 
 ## Optional helpers
 

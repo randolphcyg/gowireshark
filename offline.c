@@ -1,5 +1,9 @@
 #include "offline.h"
 #include "tcp_follow.h"
+#include <epan/expert.h>
+#include <stdlib.h>
+#include <string.h>
+#include <wsutil/value_string.h>
 
 // Global capture file variable
 capture_file cf;
@@ -7,6 +11,8 @@ capture_file cf;
 // --- Internal Helper Prototypes ---
 static void clean();
 static bool read_packet(epan_dissect_t **edt_r);
+static int apply_decode_as_rules(cJSON *rules);
+static void reset_decode_as_rules(void);
 
 typedef struct {
     GSList *src_list;
@@ -17,6 +23,18 @@ typedef struct {
     proto_node_children_grouper_func node_children_grouper;
     json_dumper *dumper;
 } write_json_data;
+
+typedef struct {
+    char *table;
+    uint32_t value;
+} decode_as_entry;
+
+static GArray *g_decode_as_entries = NULL;
+
+typedef struct {
+    FrameCallback callback;
+    int stop;
+} expert_callback_data;
 
 typedef void (*proto_node_value_writer)(proto_node *, write_json_data *);
 static void write_json_index(json_dumper *dumper, epan_dissect_t *edt);
@@ -33,10 +51,97 @@ static const char *proto_node_to_json_key(proto_node *node);
 
 // --- Cleanup Functions ---
 
+static int table_is_supported_uint_port(const char *table) {
+    return table != NULL &&
+           (strcmp(table, "tcp.port") == 0 ||
+            strcmp(table, "udp.port") == 0 ||
+            strcmp(table, "sctp.port") == 0);
+}
+
+static void reset_decode_as_rules(void) {
+    if (g_decode_as_entries == NULL) {
+        return;
+    }
+    for (guint i = 0; i < g_decode_as_entries->len; i++) {
+        decode_as_entry *entry = &g_array_index(g_decode_as_entries, decode_as_entry, i);
+        if (entry->table != NULL) {
+            dissector_reset_uint(entry->table, entry->value);
+            g_free(entry->table);
+            entry->table = NULL;
+        }
+    }
+    g_array_free(g_decode_as_entries, TRUE);
+    g_decode_as_entries = NULL;
+}
+
+static int apply_decode_as_rules(cJSON *rules) {
+    if (rules == NULL || !cJSON_IsArray(rules)) {
+        return 0;
+    }
+
+    cJSON *rule = NULL;
+    cJSON_ArrayForEach(rule, rules) {
+        const cJSON *table_json = cJSON_GetObjectItemCaseSensitive(rule, "table");
+        const cJSON *selector_json = cJSON_GetObjectItemCaseSensitive(rule, "selector");
+        const cJSON *protocol_json = cJSON_GetObjectItemCaseSensitive(rule, "protocol");
+        if (!cJSON_IsString(table_json) || !cJSON_IsString(selector_json) ||
+            !cJSON_IsString(protocol_json) ||
+            table_json->valuestring == NULL || selector_json->valuestring == NULL ||
+            protocol_json->valuestring == NULL) {
+            fprintf(stderr, "decode_as: invalid rule\n");
+            return -2;
+        }
+
+        const char *table_name = table_json->valuestring;
+        const char *selector = selector_json->valuestring;
+        const char *protocol = protocol_json->valuestring;
+
+        if (!table_is_supported_uint_port(table_name)) {
+            fprintf(stderr, "decode_as: unsupported table %s\n", table_name);
+            return -2;
+        }
+
+        char *end = NULL;
+        unsigned long value = strtoul(selector, &end, 10);
+        if (end == selector || *end != '\0' || value > 65535) {
+            fprintf(stderr, "decode_as: invalid selector %s\n", selector);
+            return -2;
+        }
+
+        dissector_table_t table = find_dissector_table(table_name);
+        if (table == NULL) {
+            fprintf(stderr, "decode_as: table not found %s\n", table_name);
+            return -2;
+        }
+
+        dissector_handle_t handle = find_dissector(protocol);
+        if (handle == NULL) {
+            handle = dissector_table_get_dissector_handle(table, protocol);
+        }
+        if (handle == NULL) {
+            fprintf(stderr, "decode_as: protocol not found %s\n", protocol);
+            return -2;
+        }
+
+        dissector_change_uint(table_name, (uint32_t)value, handle);
+
+        if (g_decode_as_entries == NULL) {
+            g_decode_as_entries = g_array_new(FALSE, TRUE, sizeof(decode_as_entry));
+        }
+        decode_as_entry entry = {
+            .table = g_strdup(table_name),
+            .value = (uint32_t)value,
+        };
+        g_array_append_val(g_decode_as_entries, entry);
+    }
+    return 0;
+}
+
 /**
  * Clean the capture file struct and epan mod.
  */
 static void clean() {
+    reset_decode_as_rules();
     if (cf.provider.frames != NULL) {
         /*
          * Free a frame_data_sequence and all the frame_data structures in it.
@@ -64,6 +169,7 @@ static void clean() {
  * Only the file handle and frame data are released.
  */
 static void close_cf() {
+    reset_decode_as_rules();
     cf.stop_flag = FALSE;
     if (cf.provider.wth) {
         wtap_close(cf.provider.wth);
@@ -217,26 +323,29 @@ int init_cf(char *filepath, char *options) {
     int desegmentSslRecords = 0;
     int desegmentSslApplicationData = 0;
     int printTcpStreams = 0;
+    cJSON *options_json = NULL;
+    cJSON *decodeAsJson = NULL;
 
     // handle conf
     if (!is_empty_json(options)) {
-        cJSON *json = cJSON_Parse(options);
-        if (json == NULL) {
+        options_json = cJSON_Parse(options);
+        if (options_json == NULL) {
             fprintf(stderr, "Error: Failed to parse options JSON.\n");
             return -1;
         }
 
         // Extract values from JSON
-        const cJSON *keysListJson = cJSON_GetObjectItemCaseSensitive(json, "tls.keys_list");
+        const cJSON *keysListJson = cJSON_GetObjectItemCaseSensitive(options_json, "tls.keys_list");
         const cJSON *desegmentSslRecordsJson =
-            cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_records");
+            cJSON_GetObjectItemCaseSensitive(options_json, "tls.desegment_ssl_records");
         const cJSON *desegmentSslApplicationDataJson =
-            cJSON_GetObjectItemCaseSensitive(json, "tls.desegment_ssl_application_data");
+            cJSON_GetObjectItemCaseSensitive(options_json, "tls.desegment_ssl_application_data");
         const cJSON *keylogFileJson =
-            cJSON_GetObjectItemCaseSensitive(json, "tls.keylog_file");
+            cJSON_GetObjectItemCaseSensitive(options_json, "tls.keylog_file");
 
         const cJSON *printTcpStreamsJson =
-            cJSON_GetObjectItemCaseSensitive(json, "printTcpStreams");
+            cJSON_GetObjectItemCaseSensitive(options_json, "printTcpStreams");
+        decodeAsJson = cJSON_GetObjectItemCaseSensitive(options_json, "decode_as");
 
         // Copy keys list if present
         if (cJSON_IsString(keysListJson) && (keysListJson->valuestring != NULL)) {
@@ -254,8 +363,6 @@ int init_cf(char *filepath, char *options) {
         desegmentSslApplicationData = cJSON_IsBool(desegmentSslApplicationDataJson) &&
                                       cJSON_IsTrue(desegmentSslApplicationDataJson);
         printTcpStreams = cJSON_IsBool(printTcpStreamsJson) && cJSON_IsTrue(printTcpStreamsJson);
-
-        cJSON_Delete(json);
     }
 
     int err = 0;
@@ -276,6 +383,9 @@ int init_cf(char *filepath, char *options) {
     cf.filename = g_strdup(filepath);
     cf.provider.wth = wtap_open_offline(cf.filename, WTAP_TYPE_AUTO, &err, &err_info, TRUE);
     if (err != 0 || cf.provider.wth == NULL) {
+        if (options_json != NULL) {
+            cJSON_Delete(options_json);
+        }
         clean();
         return err;
     }
@@ -313,6 +423,16 @@ int init_cf(char *filepath, char *options) {
     }
 
     prefs_p = epan_load_settings();
+    if (apply_decode_as_rules(decodeAsJson) != 0) {
+        if (options_json != NULL) {
+            cJSON_Delete(options_json);
+        }
+        close_cf();
+        return -2;
+    }
+    if (options_json != NULL) {
+        cJSON_Delete(options_json);
+    }
     build_column_format_array(&cf.cinfo, prefs_p->num_cols, TRUE);
     return 0;
 }
@@ -794,6 +914,93 @@ void get_all_frames_cb(int printCJson, char *filter_str, FrameCallback callback)
 
     if (dfcode != NULL) dfilter_free(dfcode);
     wtap_rec_cleanup(&rec);
+}
+
+static tap_packet_status expert_info_packet_cb(void *tapdata, packet_info *pinfo _U_,
+                                               epan_dissect_t *edt _U_, const void *pointer,
+                                               tap_flags_t flags _U_) {
+    expert_callback_data *data = (expert_callback_data *)tapdata;
+    const expert_info_t *ei = (const expert_info_t *)pointer;
+    const header_field_info *hfinfo = NULL;
+    const char *severity = NULL;
+    const char *group = NULL;
+
+    if (data == NULL || data->callback == NULL || ei == NULL) {
+        return TAP_PACKET_DONT_REDRAW;
+    }
+
+    if (ei->hf_index >= 0) {
+        hfinfo = proto_registrar_get_nth(ei->hf_index);
+    }
+    severity = try_val_to_str(ei->severity, expert_severity_vals);
+    group = try_val_to_str(ei->group, expert_group_vals);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "frameNumber", ei->packet_num);
+    cJSON_AddStringToObject(root, "severity", severity ? severity : "");
+    cJSON_AddStringToObject(root, "group", group ? group : "");
+    cJSON_AddStringToObject(root, "protocol", ei->protocol ? ei->protocol : "");
+    cJSON_AddStringToObject(root, "summary", ei->summary ? ei->summary : "");
+    cJSON_AddStringToObject(root, "message", ei->summary ? ei->summary : "");
+    cJSON_AddStringToObject(root, "field", hfinfo && hfinfo->abbrev ? hfinfo->abbrev : "");
+    cJSON_AddStringToObject(root, "name", hfinfo && hfinfo->name ? hfinfo->name : "");
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json != NULL) {
+        if (data->callback(json, (int)strlen(json), 0) != 0) {
+            data->stop = 1;
+        }
+        cJSON_free(json);
+    }
+    return TAP_PACKET_DONT_REDRAW;
+}
+
+int get_expert_infos_cb(const char *filter_str, FrameCallback callback) {
+    expert_callback_data data = {
+        .callback = callback,
+        .stop = 0,
+    };
+    GString *tap_error = register_tap_listener("expert", &data, filter_str, 0, NULL,
+                                               expert_info_packet_cb, NULL, NULL);
+    if (tap_error != NULL) {
+        fprintf(stderr, "expert tap registration failed: %s\n", tap_error->str);
+        g_string_free(tap_error, TRUE);
+        return -1;
+    }
+
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    while (!data.stop && wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        cf.count++;
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
+
+        epan_dissect_free(edt);
+        wtap_rec_reset(&rec);
+    }
+
+    remove_tap_listener(&data);
+    wtap_rec_cleanup(&rec);
+    if (err_info != NULL) {
+        g_free(err_info);
+    }
+    return err;
 }
 
 void get_frames_by_idxs_cb(int *idxs, int idx_count, int printCJson, FrameCallback callback) {

@@ -1,7 +1,7 @@
 package gowireshark
 
 import (
-	"fmt"
+	"io"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -269,7 +269,7 @@ func (s *Session) FollowStream(q Query, proto string) (*FollowResult, error) {
 		return nil, err
 	}
 	if proto != "tcp" && proto != "udp" {
-		return nil, fmt.Errorf("unsupported protocol: %q (must be \"tcp\" or \"udp\")", proto)
+		return nil, errors.Wrapf(ErrUnsupportedProtocol, "%q (must be \"tcp\" or \"udp\")", proto)
 	}
 
 	epanMu.Lock()
@@ -296,4 +296,96 @@ func (s *Session) parseOpts() []Option {
 		opts = append(opts, WithRegistry(s.conf.Registry))
 	}
 	return opts
+}
+
+// FrameByIndex returns one parsed frame by its 1-based frame number using the
+// already-open session.
+func (s *Session) FrameByIndex(frameIdx int) (*FrameData, error) {
+	if err := s.checkClosed(); err != nil {
+		return nil, err
+	}
+	epanMu.Lock()
+	defer epanMu.Unlock()
+	if err := sessionResetReadPosition(); err != nil {
+		return nil, err
+	}
+	return frameByIndexFromActiveConf(s.conf, frameIdx, s.parseOpts()...)
+}
+
+// FramesByIndices returns parsed frames for sorted unique 1-based frame numbers
+// using the already-open session.
+func (s *Session) FramesByIndices(frameIdxs []int) ([]*FrameData, error) {
+	if err := s.checkClosed(); err != nil {
+		return nil, err
+	}
+	epanMu.Lock()
+	if err := sessionResetReadPosition(); err != nil {
+		epanMu.Unlock()
+		return nil, err
+	}
+	frames, err := framesByIndicesFromConf(s.conf, frameIdxs, s.parseOpts()...)
+	epanMu.Unlock()
+	return frames, err
+}
+
+// HexDataByIndex returns the hex dump for one 1-based frame number using the
+// already-open session.
+func (s *Session) HexDataByIndex(frameIdx int) (*HexData, error) {
+	if err := s.checkClosed(); err != nil {
+		return nil, err
+	}
+	epanMu.Lock()
+	defer epanMu.Unlock()
+	if err := sessionResetReadPosition(); err != nil {
+		return nil, err
+	}
+	return hexDataByIndexFromActive(frameIdx)
+}
+
+// Streams returns TCP/UDP stream aggregates for this session's capture.
+func (s *Session) Streams(q Query) ([]StreamSummary, error) {
+	acc := newTrafficAccumulator()
+	if err := s.WalkFrames(q, func(f *FrameData) error { acc.addFrame(f); return nil }); err != nil {
+		return nil, err
+	}
+	return acc.streams(), nil
+}
+
+// Conversations returns directional 5-tuple aggregates for this session's capture.
+func (s *Session) Conversations(q Query) ([]ConversationSummary, error) {
+	acc := newTrafficAccumulator()
+	if err := s.WalkFrames(q, func(f *FrameData) error { acc.addFrame(f); return nil }); err != nil {
+		return nil, err
+	}
+	return acc.conversations(), nil
+}
+
+// WriteFrames writes selected frames as NDJSON using this session's capture.
+func (s *Session) WriteFrames(q Query, w io.Writer) (int, error) {
+	if err := s.checkClosed(); err != nil {
+		return 0, err
+	}
+	epanMu.Lock()
+	if err := sessionResetReadPosition(); err != nil {
+		epanMu.Unlock()
+		return 0, err
+	}
+	count, err := writeFramesFromConf(s.conf, q.Filter, w)
+	epanMu.Unlock()
+	return count, err
+}
+
+// WriteFramesPage writes one page of selected frames as NDJSON using this session's capture.
+func (s *Session) WriteFramesPage(q Query, page, size int, w io.Writer) (int, bool, error) {
+	if err := s.checkClosed(); err != nil {
+		return 0, false, err
+	}
+	epanMu.Lock()
+	if err := sessionResetReadPosition(); err != nil {
+		epanMu.Unlock()
+		return 0, false, err
+	}
+	count, hasMore, err := writeFramesPageFromConf(s.conf, q.Filter, page, size, w)
+	epanMu.Unlock()
+	return count, hasMore, err
 }

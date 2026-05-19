@@ -55,4 +55,7 @@ int count_frames(const char *filter_str);
 
 void get_stream_payloads_cb(const char *filter_str, const char *proto, FrameCallback callback);
 
+// Emit Wireshark Expert Info tap records as JSON through callback.
+int get_expert_infos_cb(const char *filter_str, FrameCallback callback);
+
 #endif  // OFFLINE_H

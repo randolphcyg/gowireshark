@@ -1,9 +1,109 @@
 #include "bridge.h"
+#include <inttypes.h>
+#include <string.h>
 
 void free_c_string(char *str) {
     if (str) {
         g_free(str);
     }
+}
+
+static void json_add_string(cJSON *obj, const char *key, const char *value) {
+    cJSON_AddStringToObject(obj, key, value ? value : "");
+}
+
+static cJSON *protocol_info_to_json(int proto_id) {
+    protocol_t *protocol = find_protocol_by_id(proto_id);
+    cJSON *obj = cJSON_CreateObject();
+
+    cJSON_AddNumberToObject(obj, "id", proto_id);
+    json_add_string(obj, "name", proto_get_protocol_name(proto_id));
+    json_add_string(obj, "shortName", protocol ? proto_get_protocol_short_name(protocol) : NULL);
+    json_add_string(obj, "longName", protocol ? proto_get_protocol_long_name(protocol) : NULL);
+    json_add_string(obj, "filterName", proto_get_protocol_filter_name(proto_id));
+    cJSON_AddBoolToObject(obj, "enabled", protocol ? proto_is_protocol_enabled(protocol) : FALSE);
+
+    return obj;
+}
+
+static cJSON *field_info_to_json(header_field_info *hfinfo) {
+    cJSON *obj = cJSON_CreateObject();
+    header_field_info *parent_hfinfo = NULL;
+
+    if (hfinfo == NULL) {
+        return obj;
+    }
+    if (hfinfo->parent >= 0) {
+        parent_hfinfo = proto_registrar_get_nth(hfinfo->parent);
+    }
+
+    cJSON_AddNumberToObject(obj, "id", hfinfo->id);
+    json_add_string(obj, "name", hfinfo->name);
+    json_add_string(obj, "abbrev", hfinfo->abbrev);
+    json_add_string(obj, "type", ftype_name(hfinfo->type));
+    json_add_string(obj, "display", proto_field_display_to_string(hfinfo->display));
+    json_add_string(obj, "blurb", hfinfo->blurb);
+    cJSON_AddNumberToObject(obj, "parentID", hfinfo->parent);
+    json_add_string(obj, "parentName", parent_hfinfo ? parent_hfinfo->name : NULL);
+    json_add_string(obj, "parentProtocol", parent_hfinfo ? parent_hfinfo->abbrev : NULL);
+    char bitmask[32];
+    snprintf(bitmask, sizeof(bitmask), "%" PRIu64, hfinfo->bitmask);
+    cJSON_AddStringToObject(obj, "bitmask", bitmask);
+    cJSON_AddBoolToObject(obj, "isProtocol", proto_registrar_is_protocol(hfinfo->id));
+
+    return obj;
+}
+
+char *gowireshark_protocols_json(void) {
+    cJSON *arr = cJSON_CreateArray();
+    void *proto_cookie = NULL;
+
+    for (int proto_id = proto_get_first_protocol(&proto_cookie); proto_id != -1;
+         proto_id = proto_get_next_protocol(&proto_cookie)) {
+        cJSON_AddItemToArray(arr, protocol_info_to_json(proto_id));
+    }
+
+    char *res = cJSON_PrintUnformatted(arr);
+    cJSON_Delete(arr);
+    return res;
+}
+
+char *gowireshark_fields_json(void) {
+    cJSON *arr = cJSON_CreateArray();
+    void *proto_cookie = NULL;
+
+    for (int proto_id = proto_get_first_protocol(&proto_cookie); proto_id != -1;
+         proto_id = proto_get_next_protocol(&proto_cookie)) {
+        void *field_cookie = NULL;
+        for (header_field_info *hfinfo = proto_get_first_protocol_field(proto_id, &field_cookie);
+             hfinfo != NULL;
+             hfinfo = proto_get_next_protocol_field(proto_id, &field_cookie)) {
+            if (hfinfo->same_name_prev_id != -1) {
+                continue;
+            }
+            cJSON_AddItemToArray(arr, field_info_to_json(hfinfo));
+        }
+    }
+
+    char *res = cJSON_PrintUnformatted(arr);
+    cJSON_Delete(arr);
+    return res;
+}
+
+char *gowireshark_field_json(const char *name) {
+    if (name == NULL || name[0] == '\0') {
+        return strdup("");
+    }
+
+    header_field_info *hfinfo = proto_registrar_get_byname(name);
+    if (hfinfo == NULL) {
+        return strdup("");
+    }
+
+    cJSON *obj = field_info_to_json(hfinfo);
+    char *res = cJSON_PrintUnformatted(obj);
+    cJSON_Delete(obj);
+    return res;
 }
 
 #define MAX_OFFSET_LEN 8  /* max length of hex offset of bytes */

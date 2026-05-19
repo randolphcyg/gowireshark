@@ -154,6 +154,9 @@ func initCapFile(path string, opts ...Option) (conf *config, err error) {
 	}
 
 	conf = newConfig(opts...)
+	if err = validateDecodeAsRules(conf.DecodeAs); err != nil {
+		return nil, err
+	}
 
 	cPath := C.CString(path)
 	cOptions := C.CString(marshalConfig(conf))
@@ -162,6 +165,10 @@ func initCapFile(path string, opts ...Option) (conf *config, err error) {
 
 	errNo := C.init_cf(cPath, cOptions)
 	if errNo != 0 {
+		if errNo == -2 {
+			err = ErrUnsupportedProtocol
+			return
+		}
 		err = errors.Wrap(ErrReadCaptureFile, strconv.Itoa(int(errNo)))
 		return
 	}
@@ -285,7 +292,7 @@ func ParseFrameData(src []byte, opts ...Option) (frame *FrameData, err error) {
 // FrameByIndex gets a single frame by its 1-based index.
 func FrameByIndex(path string, frameIdx int, opts ...Option) (frameData *FrameData, err error) {
 	if frameIdx < 1 {
-		return nil, errors.New("frameIdx must be >= 1")
+		return nil, errors.Wrap(ErrInvalidFrameIndex, "frameIdx must be >= 1")
 	}
 
 	epanMu.Lock()
@@ -314,6 +321,40 @@ func FrameByIndex(path string, frameIdx int, opts ...Option) (frameData *FrameDa
 	return
 }
 
+func frameByIndexFromActiveConf(conf *config, frameIdx int, parseOpts ...Option) (*FrameData, error) {
+	if frameIdx < 1 {
+		return nil, errors.Wrap(ErrInvalidFrameIndex, "frameIdx must be >= 1")
+	}
+	printCJson := 0
+	if conf.PrintCJSON {
+		printCJson = 1
+	}
+	srcFrame := C.proto_tree_in_json(C.int(frameIdx), C.int(printCJson))
+	if srcFrame == nil || C.strlen(srcFrame) == 0 {
+		if srcFrame != nil {
+			C.free_c_string(srcFrame)
+		}
+		return nil, ErrFrameNotFound
+	}
+	defer C.free_c_string(srcFrame)
+	return ParseFrameData([]byte(cString(srcFrame)), parseOpts...)
+}
+
+func hexDataByIndexFromActive(frameIdx int) (*HexData, error) {
+	if frameIdx < 1 {
+		return nil, errors.Wrap(ErrInvalidFrameIndex, "frameIdx must be >= 1")
+	}
+	srcHex := C.get_specific_frame_hex_data(C.int(frameIdx))
+	if srcHex == nil {
+		return nil, ErrFrameNotFound
+	}
+	defer C.free(unsafe.Pointer(srcHex))
+	if C.strlen(srcHex) == 0 {
+		return nil, ErrFrameNotFound
+	}
+	return parseHexData(cString(srcHex))
+}
+
 func removeNegativeAndZero(nums []int) []int {
 	var result []int
 	for _, num := range nums {
@@ -338,6 +379,14 @@ func FramesByIndices(path string, frameIdxs []int, opts ...Option) (frames []*Fr
 		return nil, err
 	}
 
+	return framesByIndicesFromConf(conf, frameIdxs, opts...)
+}
+
+func framesByIndicesFromConf(conf *config, frameIdxs []int, parseOpts ...Option) (frames []*FrameData, err error) {
+	if len(frameIdxs) == 0 {
+		return []*FrameData{}, nil
+	}
+
 	printCJson := 0
 	if conf.PrintCJSON {
 		printCJson = 1
@@ -349,7 +398,7 @@ func FramesByIndices(path string, frameIdxs []int, opts ...Option) (frames []*Fr
 	frameIdxs = slices.Compact(frameIdxs)
 
 	if len(frameIdxs) == 0 {
-		return []*FrameData{}, nil
+		return nil, ErrEmptySelection
 	}
 
 	// 2. Setup channel
@@ -368,7 +417,7 @@ func FramesByIndices(path string, frameIdxs []int, opts ...Option) (frames []*Fr
 		go func() {
 			defer parseWg.Done()
 			for jsonStr := range globalFrameChan {
-				frame, e := ParseFrameData(jsonStr, opts...)
+				frame, e := ParseFrameData(jsonStr, parseOpts...)
 				if e != nil {
 					if !conf.IgnoreErrors {
 						errMutex.Lock()
@@ -411,6 +460,9 @@ func FramesByIndices(path string, frameIdxs []int, opts ...Option) (frames []*Fr
 	if parseErr != nil {
 		return frames, parseErr
 	}
+	if len(frames) == 0 {
+		return frames, ErrEmptySelection
+	}
 
 	return frames, nil
 }
@@ -426,7 +478,7 @@ func ValidateFilter(filter string) error {
 	cErrMsg := C.validate_filter(cFilter)
 	if cErrMsg != nil {
 		defer C.free_c_string(cErrMsg)
-		return fmt.Errorf("Syntax error in display filter: %s", cString(cErrMsg))
+		return errors.Wrapf(ErrInvalidFilter, "%s", cString(cErrMsg))
 	}
 	return nil
 }
@@ -556,9 +608,12 @@ func WriteFrames(path string, w io.Writer, opts ...Option) (count int, err error
 	if err != nil {
 		return 0, err
 	}
+	return writeFramesFromConf(conf, conf.DisplayFilter, w)
+}
 
-	if conf.DisplayFilter != "" {
-		if err := ValidateFilter(conf.DisplayFilter); err != nil {
+func writeFramesFromConf(conf *config, filter string, w io.Writer) (count int, err error) {
+	if filter != "" {
+		if err := ValidateFilter(filter); err != nil {
 			return 0, err
 		}
 	}
@@ -570,11 +625,7 @@ func WriteFrames(path string, w io.Writer, opts ...Option) (count int, err error
 
 	var writeErr error
 	globalFrameSink = func(jsonBytes []byte) bool {
-		if _, e := w.Write(jsonBytes); e != nil {
-			writeErr = e
-			return false
-		}
-		if _, e := w.Write([]byte("\n")); e != nil {
+		if e := writeFrameJSONLine(w, jsonBytes, conf); e != nil {
 			writeErr = e
 			return false
 		}
@@ -583,7 +634,7 @@ func WriteFrames(path string, w io.Writer, opts ...Option) (count int, err error
 	}
 	defer func() { globalFrameSink = nil }()
 
-	cFilter := C.CString(conf.DisplayFilter)
+	cFilter := C.CString(filter)
 	defer C.free(unsafe.Pointer(cFilter))
 
 	C.call_get_all_frames_cb(C.int(printCJson), cFilter)
@@ -691,6 +742,17 @@ func framesPageFromConf(conf *config, filter string, page, size int, parseOpts .
 // unmarshal/marshal work.
 // Returns (framesWritten, hasMore, error).
 func WriteFramesPage(path string, page, size int, w io.Writer, opts ...Option) (count int, hasMore bool, err error) {
+	epanMu.Lock()
+	defer epanMu.Unlock()
+
+	conf, err := initCapFile(path, opts...)
+	if err != nil {
+		return 0, false, err
+	}
+	return writeFramesPageFromConf(conf, conf.DisplayFilter, page, size, w)
+}
+
+func writeFramesPageFromConf(conf *config, filter string, page, size int, w io.Writer) (count int, hasMore bool, err error) {
 	if page < 1 {
 		page = 1
 	}
@@ -701,16 +763,8 @@ func WriteFramesPage(path string, page, size int, w io.Writer, opts ...Option) (
 	fetchSize := size + 1
 	startFrameIdx := (page-1)*size + 1
 
-	epanMu.Lock()
-	defer epanMu.Unlock()
-
-	conf, err := initCapFile(path, opts...)
-	if err != nil {
-		return 0, false, err
-	}
-
-	if conf.DisplayFilter != "" {
-		if err := ValidateFilter(conf.DisplayFilter); err != nil {
+	if filter != "" {
+		if err := ValidateFilter(filter); err != nil {
 			return 0, false, err
 		}
 	}
@@ -728,11 +782,7 @@ func WriteFramesPage(path string, page, size int, w io.Writer, opts ...Option) (
 			// This is the extra frame for hasMore detection — don't write it.
 			return true
 		}
-		if _, e := w.Write(jsonBytes); e != nil {
-			writeErr = e
-			return false
-		}
-		if _, e := w.Write([]byte("\n")); e != nil {
+		if e := writeFrameJSONLine(w, jsonBytes, conf); e != nil {
 			writeErr = e
 			return false
 		}
@@ -741,7 +791,7 @@ func WriteFramesPage(path string, page, size int, w io.Writer, opts ...Option) (
 	}
 	defer func() { globalFrameSink = nil }()
 
-	cFilter := C.CString(conf.DisplayFilter)
+	cFilter := C.CString(filter)
 	defer C.free(unsafe.Pointer(cFilter))
 
 	C.call_get_frames_by_range(C.int(startFrameIdx), C.int(fetchSize), C.int(printCJson), cFilter)
@@ -862,7 +912,7 @@ func FollowStream(path string, displayFilter string, proto string, opts ...Optio
 
 func followStreamFromConf(displayFilter string, proto string) (*FollowResult, error) {
 	if proto != "tcp" && proto != "udp" {
-		return nil, errors.Errorf("unsupported protocol: %q (must be \"tcp\" or \"udp\")", proto)
+		return nil, errors.Wrapf(ErrUnsupportedProtocol, "%q (must be \"tcp\" or \"udp\")", proto)
 	}
 
 	effectiveFilter := proto

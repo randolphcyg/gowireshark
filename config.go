@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/bytedance/sonic"
@@ -26,12 +27,25 @@ type TLSConfig struct {
 	KeylogFile                  string
 }
 
+// DecodeAsRule forces a dissector table selector to use a protocol dissector.
+// The first supported selectors are uint port tables such as tcp.port,
+// udp.port, and sctp.port.
+type DecodeAsRule struct {
+	Table    string `json:"table"`
+	Selector string `json:"selector"`
+	Protocol string `json:"protocol"`
+}
+
 type config struct {
 	IgnoreErrors    bool
 	Debug           bool
 	PrintCJSON      bool
 	DisplayFilter   string
+	OutputFields    []string
+	CompactJSON     bool
+	RawJSON         bool
 	TLS             TLSConfig
+	DecodeAs        []DecodeAsRule
 	EnableTCPFollow bool
 	Registry        *ParserRegistry
 }
@@ -48,6 +62,30 @@ func withCJSONOutput(print bool) Option {
 	return func(c *config) { c.PrintCJSON = print }
 }
 
+// WithOutputFields limits writer-style JSON output to the requested Wireshark
+// field names. It is currently honored by WriteFrames and WriteFramesJSONL.
+func WithOutputFields(fields []string) Option {
+	return func(c *config) {
+		c.OutputFields = append([]string(nil), fields...)
+	}
+}
+
+// WithCompactJSON requests compact JSON output from writer-style APIs. NDJSON
+// writer APIs are compact by default; this option is kept for CLI-facing
+// configuration symmetry.
+func WithCompactJSON(compact bool) Option {
+	return func(c *config) { c.CompactJSON = compact }
+}
+
+// WithRawJSON asks libwireshark to include its raw C JSON representation when
+// supported by the underlying dissection path.
+func WithRawJSON(raw bool) Option {
+	return func(c *config) {
+		c.RawJSON = raw
+		c.PrintCJSON = raw
+	}
+}
+
 // WithTCPFollow enables tcp_follow tap collection during offline parsing.
 func WithTCPFollow(enabled bool) Option {
 	return func(c *config) { c.EnableTCPFollow = enabled }
@@ -56,6 +94,13 @@ func WithTCPFollow(enabled bool) Option {
 // WithTLS applies TLS dissection preferences.
 func WithTLS(tls TLSConfig) Option {
 	return func(c *config) { c.TLS = tls }
+}
+
+// WithDecodeAs applies Wireshark Decode As rules for one operation/session.
+func WithDecodeAs(rules []DecodeAsRule) Option {
+	return func(c *config) {
+		c.DecodeAs = append([]DecodeAsRule(nil), rules...)
+	}
 }
 
 // WithDebug enables debug logging in the underlying C layer.
@@ -86,10 +131,31 @@ func newConfig(opts ...Option) *config {
 	return conf
 }
 
+func validateDecodeAsRules(rules []DecodeAsRule) error {
+	for _, rule := range rules {
+		switch rule.Table {
+		case "tcp.port", "udp.port", "sctp.port":
+		default:
+			return fmt.Errorf("%w: decode-as table %q", ErrUnsupportedProtocol, rule.Table)
+		}
+		if rule.Protocol == "" {
+			return fmt.Errorf("%w: empty decode-as protocol", ErrUnsupportedProtocol)
+		}
+		port, err := strconv.Atoi(rule.Selector)
+		if err != nil || port < 0 || port > 65535 {
+			return fmt.Errorf("%w: decode-as selector %q", ErrUnsupportedProtocol, rule.Selector)
+		}
+	}
+	return nil
+}
+
 func marshalConfig(conf *config) string {
 	cConf := make(map[string]any)
 	if conf.EnableTCPFollow {
 		cConf["printTcpStreams"] = true
+	}
+	if len(conf.DecodeAs) > 0 {
+		cConf["decode_as"] = conf.DecodeAs
 	}
 	if !reflect.DeepEqual(conf.TLS, TLSConfig{}) {
 		if conf.TLS.DesegmentSSLRecords {

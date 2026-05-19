@@ -10,10 +10,12 @@
 #include <epan/epan_dissect.h>
 #include <epan/frame_data.h>
 #include <epan/frame_data_sequence.h>
+#include <epan/ftypes/ftypes.h>
 #include <epan/packet.h>
 #include <epan/prefs.h>
 #include <epan/print.h>
 #include <epan/print_stream.h>
+#include <epan/proto.h>
 #include <epan/tap.h>
 #include <epan/timestamp.h>
 #include <epan/tvbuff.h>
@@ -46,6 +48,12 @@ void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
 
 // Extract hex data from a dissection result
 bool get_hex_data(epan_dissect_t *edt, cJSON *cjson_offset, cJSON *cjson_hex, cJSON *cjson_ascii);
+
+// Registry metadata helpers. Returned strings are allocated with cJSON and
+// must be released with free().
+char *gowireshark_protocols_json(void);
+char *gowireshark_fields_json(void);
+char *gowireshark_field_json(const char *name);
 
 // Provider callbacks required by Wireshark's epan module
 const nstime_t *cap_file_provider_get_frame_ts(struct packet_provider_data *prov,
