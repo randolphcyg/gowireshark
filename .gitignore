@@ -3,6 +3,7 @@
 .vscode/
 .idea/
 .kiro/
+.trae
 
 # Native build outputs
 *.o
@@ -26,6 +27,11 @@ dev_env.sh
 dev_env.ps1
 dev.env
 
+# Local Agent / IDE configuration
+.trae/mcp.json
+.trae/*.local.json
+.codex/*.local.*
+
 # Local test fixtures and outputs
 pcaps/
 extracted_files/
@@ -35,5 +41,6 @@ bin/
 coverage.out
 *.coverprofile
 *.test
+/gowireshark
 /gowireshark-bench
 /gowireshark-bench-*

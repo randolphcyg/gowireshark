@@ -244,7 +244,12 @@ func TimelineBy(path string, bucket time.Duration, opts ...Option) ([]TimelineBu
 			continue
 		}
 		epoch, parseErr := strconv.ParseFloat(epochStr, 64)
-		if parseErr != nil || epoch <= 0 {
+		if parseErr != nil {
+			if t, err := time.Parse(time.RFC3339Nano, epochStr); err == nil {
+				epoch = float64(t.UnixNano()) / 1e9
+			}
+		}
+		if epoch <= 0 {
 			continue
 		}
 
