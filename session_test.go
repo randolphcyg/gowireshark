@@ -517,3 +517,166 @@ func TestSession_DifferentFiltersDontPolluteCount(t *testing.T) {
 		t.Fatalf("udp count (%d) > all (%d)", udpCount, allCount)
 	}
 }
+
+func TestSession_StreamsCache_NoMutationLeak(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, _ := OpenSession(pcap)
+	defer s.Close()
+
+	r1, err := s.Streams(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r1) == 0 {
+		t.Skip("no streams")
+	}
+
+	origProtocol := r1[0].Protocol
+	r1[0].Protocol = "CORRUPTED"
+
+	r2, err := s.Streams(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r2[0].Protocol != origProtocol {
+		t.Fatalf("cache polluted: expected %q got %q", origProtocol, r2[0].Protocol)
+	}
+}
+
+func TestSession_StreamsCache_CloseClears(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, _ := OpenSession(pcap)
+
+	_, err := s.Streams(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s.Close()
+
+	_, err = s.Streams(Query{})
+	if err != ErrSessionClosed {
+		t.Fatalf("expected ErrSessionClosed after close, got %v", err)
+	}
+}
+
+func TestSession_ExpertInfosCache_NoMutationLeak(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, _ := OpenSession(pcap)
+	defer s.Close()
+
+	r1, err := s.ExpertInfos(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r1) == 0 {
+		t.Skip("no expert infos")
+	}
+
+	origSummary := r1[0].Summary
+	r1[0].Summary = "CORRUPTED"
+
+	r2, err := s.ExpertInfos(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r2[0].Summary != origSummary {
+		t.Fatalf("cache polluted: expected %q got %q", origSummary, r2[0].Summary)
+	}
+}
+
+func TestSession_ExpertInfosCache_CloseClears(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, _ := OpenSession(pcap)
+
+	_, err := s.ExpertInfos(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s.Close()
+
+	_, err = s.ExpertInfos(Query{})
+	if err != ErrSessionClosed {
+		t.Fatalf("expected ErrSessionClosed after close, got %v", err)
+	}
+}
+
+func TestSession_FollowStreamCache_NoMutationLeak(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, _ := OpenSession(pcap)
+	defer s.Close()
+
+	r1, err := s.FollowStream(Query{Filter: "tcp.stream eq 0"}, "tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r1.Payloads) == 0 {
+		t.Skip("no follow stream payloads")
+	}
+
+	origPayloadLen := len(r1.Payloads[0].Bytes)
+	if origPayloadLen > 0 {
+		r1.Payloads[0].Bytes[0] = 0xFF
+	}
+
+	r2, err := s.FollowStream(Query{Filter: "tcp.stream eq 0"}, "tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r2.Payloads) != len(r1.Payloads) {
+		t.Fatalf("payload count mismatch: %d != %d", len(r2.Payloads), len(r1.Payloads))
+	}
+	if origPayloadLen > 0 && r2.Payloads[0].Bytes[0] == 0xFF {
+		t.Fatal("cache polluted: payload Bytes mutated through returned FollowResult")
+	}
+}
+
+func TestSession_FollowStreamCache_CloseClears(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, _ := OpenSession(pcap)
+
+	_, err := s.FollowStream(Query{Filter: "tcp.stream eq 0"}, "tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s.Close()
+
+	_, err = s.FollowStream(Query{Filter: "tcp.stream eq 0"}, "tcp")
+	if err != ErrSessionClosed {
+		t.Fatalf("expected ErrSessionClosed after close, got %v", err)
+	}
+}
+
+func TestSession_FramesPageCache_NoMutationLeak(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, _ := OpenSession(pcap)
+	defer s.Close()
+
+	r1, _, err := s.FramesPage(Query{}, 1, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r1) == 0 {
+		t.Skip("no frames")
+	}
+
+	origNum := r1[0].BaseLayers.Frame.Number
+	r1[0] = &FrameData{}
+
+	r2, _, err := s.FramesPage(Query{}, 1, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r2[0].BaseLayers.Frame.Number != origNum {
+		t.Fatalf("cache polluted: expected frame %d got %d", origNum, r2[0].BaseLayers.Frame.Number)
+	}
+}

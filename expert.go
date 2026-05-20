@@ -1,25 +1,5 @@
 package gowireshark
 
-/*
-#include "offline.h"
-#include <stdlib.h>
-
-extern int onFrameCallback(char *json, int len, int err);
-
-static int call_get_expert_infos_cb(char *filter) {
-    return get_expert_infos_cb(filter, onFrameCallback);
-}
-*/
-import "C"
-import (
-	"unsafe"
-
-	"github.com/bytedance/sonic"
-	"github.com/pkg/errors"
-)
-
-// ExpertInfo is one Wireshark Expert Info finding emitted by libwireshark's
-// expert tap during dissection.
 type ExpertInfo struct {
 	FrameNumber int    `json:"frameNumber"`
 	Severity    string `json:"severity,omitempty"`
@@ -49,6 +29,7 @@ func ExpertInfos(path string, opts ...Option) ([]ExpertInfo, error) {
 }
 
 // ExpertInfos returns Expert Info records for frames matched by q.
+// Results are cached by query filter.
 func (s *Session) ExpertInfos(q Query) ([]ExpertInfo, error) {
 	if err := s.checkClosed(); err != nil {
 		return nil, err
@@ -59,38 +40,25 @@ func (s *Session) ExpertInfos(q Query) ([]ExpertInfo, error) {
 		}
 	}
 
+	if v, ok := s.cache.getExpertInfos(q.Filter); ok {
+		return v, nil
+	}
+
 	epanMu.Lock()
 	defer epanMu.Unlock()
 
 	if err := sessionResetReadPosition(); err != nil {
 		return nil, err
 	}
-	return expertInfosFromActive(q.Filter)
+	infos, err := expertInfosFromActive(q.Filter)
+	if err != nil {
+		return nil, err
+	}
+
+	s.cache.setExpertInfos(q.Filter, infos)
+	return infos, nil
 }
 
 func expertInfosFromActive(filter string) ([]ExpertInfo, error) {
-	out := make([]ExpertInfo, 0)
-	var parseErr error
-
-	globalFrameSink = func(jsonBytes []byte) bool {
-		var info ExpertInfo
-		if err := sonic.Unmarshal(jsonBytes, &info); err != nil {
-			parseErr = err
-			return false
-		}
-		out = append(out, info)
-		return true
-	}
-	defer func() { globalFrameSink = nil }()
-
-	cFilter := C.CString(filter)
-	defer C.free(unsafe.Pointer(cFilter))
-
-	if ret := C.call_get_expert_infos_cb(cFilter); ret != 0 {
-		return out, errors.Wrapf(ErrReadCaptureFile, "expert tap failed: %d", int(ret))
-	}
-	if parseErr != nil {
-		return out, parseErr
-	}
-	return out, nil
+	return getExpertInfosBatch(filter)
 }

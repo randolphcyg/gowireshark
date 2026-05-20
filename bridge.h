@@ -18,6 +18,9 @@
 #include <epan/proto.h>
 #include <epan/tap.h>
 #include <epan/timestamp.h>
+#include <epan/conversation_table.h>
+#include <epan/export_object.h>
+#include <epan/srt_table.h>
 #include <epan/tvbuff.h>
 #include <glib.h>
 #include <stdio.h>
@@ -27,6 +30,8 @@
 #include <wsutil/nstime.h>
 #include <wsutil/privileges.h>
 #include <wsutil/wslog.h>
+#include <wsutil/filesystem.h>
+#include <epan/addr_resolv.h>
 
 // Callback function type for returning JSON strings to Go.
 // Return non-zero to stop the current C-side iteration early.
@@ -63,5 +68,8 @@ const char *cap_file_provider_get_interface_name(struct packet_provider_data *pr
 const char *cap_file_provider_get_interface_description(struct packet_provider_data *prov,
                                                         uint32_t interface_id,
                                                         unsigned section_number);
+
+// Check whether a protocol has an SRT (Service Response Time) table registered.
+int has_srt_table(const char *protocol);
 
 #endif  // BRIDGE_H

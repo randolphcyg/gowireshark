@@ -1,29 +1,40 @@
 package gowireshark
 
 import (
-	stderrors "errors"
 	"testing"
 
 	"github.com/randolphcyg/gowireshark/internal/testfixture"
 )
 
-func TestWithDecodeAsValidation(t *testing.T) {
+func TestWithDecodeAsIPProto_NowSupported(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	if _, err := Frames(pcap, WithDecodeAs([]DecodeAsRule{{
+	frames, err := Frames(pcap, WithDecodeAs([]DecodeAsRule{{
 		Table:    "ip.proto",
 		Selector: "6",
 		Protocol: "tcp",
-	}})); !stderrors.Is(err, ErrUnsupportedProtocol) {
-		t.Fatalf("unsupported decode-as table error=%v, want ErrUnsupportedProtocol", err)
+	}}))
+	if err != nil {
+		t.Fatalf("Frames with ip.proto decode-as: %v", err)
 	}
+	if len(frames) == 0 {
+		t.Fatal("expected non-empty frames with ip.proto decode-as")
+	}
+}
 
-	if _, err := Frames(pcap, WithDecodeAs([]DecodeAsRule{{
-		Table:    "tcp.port",
-		Selector: "99999",
+func TestWithDecodeAsMediaType_NowSupported(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	frames, err := Frames(pcap, WithDecodeAs([]DecodeAsRule{{
+		Table:    "media_type",
+		Selector: "application/json",
 		Protocol: "http",
-	}})); !stderrors.Is(err, ErrUnsupportedProtocol) {
-		t.Fatalf("invalid decode-as selector error=%v, want ErrUnsupportedProtocol", err)
+	}}))
+	if err != nil {
+		t.Fatalf("Frames with media_type decode-as: %v", err)
+	}
+	if len(frames) == 0 {
+		t.Fatal("expected non-empty frames with media_type decode-as")
 	}
 }
 
@@ -39,5 +50,18 @@ func TestWithDecodeAsDoesNotPolluteNextCall(t *testing.T) {
 	}
 	if _, err := Frames(pcap); err != nil {
 		t.Fatalf("Frames after decode-as: %v", err)
+	}
+}
+
+func TestWithDecodeAsUnsupportedTable(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	_, err := Frames(pcap, WithDecodeAs([]DecodeAsRule{{
+		Table:    "nonexistent.table",
+		Selector: "80",
+		Protocol: "http",
+	}}))
+	if err == nil {
+		t.Fatal("expected error for nonexistent decode-as table")
 	}
 }

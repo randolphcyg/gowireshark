@@ -58,4 +58,24 @@ void get_stream_payloads_cb(const char *filter_str, const char *proto, FrameCall
 // Emit Wireshark Expert Info tap records as JSON through callback.
 int get_expert_infos_cb(const char *filter_str, FrameCallback callback);
 
+// Emit Wireshark conversation tap records as JSON through callback.
+int get_tap_conversations_cb(const char *filter_str, const char *conv_type, FrameCallback callback);
+
+// Emit Wireshark endpoint tap records as JSON through callback.
+int get_tap_endpoints_cb(const char *filter_str, const char *endpoint_type, FrameCallback callback);
+
+// Emit Wireshark export object metadata as JSON through callback.
+int get_export_objects_cb(const char *filter_str, const char *protocol, FrameCallback callback);
+
+// Emit one Wireshark export object (with payload hex) as JSON through callback.
+int write_export_object_cb(const char *filter_str, const char *protocol,
+                           int packet_num, FrameCallback callback);
+
+// Emit Wireshark service response time statistics as JSON through callback.
+int get_service_response_times_cb(const char *filter_str, const char *protocol, FrameCallback callback);
+
+char *get_expert_infos_json(const char *filter_str);
+
+char *get_stream_payloads_json(const char *filter_str, const char *proto);
+
 #endif  // OFFLINE_H

@@ -26,15 +26,41 @@ typedef struct {
 
 typedef struct {
     char *table;
-    uint32_t value;
+    bool is_string;
+    union {
+        uint32_t uint_value;
+        char *string_value;
+    };
 } decode_as_entry;
 
 static GArray *g_decode_as_entries = NULL;
+
+static e_addr_resolve saved_gbl_resolv_flags;
+static bool gbl_resolv_saved = false;
+static char *saved_profile_name = NULL;
+
+static void restore_global_session_options(void) {
+    if (gbl_resolv_saved) {
+        memcpy(&gbl_resolv_flags, &saved_gbl_resolv_flags, sizeof(e_addr_resolve));
+        gbl_resolv_saved = false;
+    }
+    if (saved_profile_name != NULL) {
+        set_profile_name(saved_profile_name);
+        g_free(saved_profile_name);
+        saved_profile_name = NULL;
+    }
+}
 
 typedef struct {
     FrameCallback callback;
     int stop;
 } expert_callback_data;
+
+typedef struct {
+    FrameCallback callback;
+    const char *type_name;
+    int count;
+} conv_tap_callback_data;
 
 typedef void (*proto_node_value_writer)(proto_node *, write_json_data *);
 static void write_json_index(json_dumper *dumper, epan_dissect_t *edt);
@@ -51,11 +77,15 @@ static const char *proto_node_to_json_key(proto_node *node);
 
 // --- Cleanup Functions ---
 
-static int table_is_supported_uint_port(const char *table) {
-    return table != NULL &&
-           (strcmp(table, "tcp.port") == 0 ||
-            strcmp(table, "udp.port") == 0 ||
-            strcmp(table, "sctp.port") == 0);
+static int table_is_supported_decode_as(const char *table) {
+    if (table == NULL) return 0;
+
+    dissector_table_t dt = find_dissector_table(table);
+    if (dt == NULL) return 0;
+
+    ftenum_t ftype = dissector_table_get_type(dt);
+    return (ftype == FT_UINT8 || ftype == FT_UINT16 || ftype == FT_UINT24 ||
+            ftype == FT_UINT32 || ftype == FT_STRING);
 }
 
 static void reset_decode_as_rules(void) {
@@ -65,7 +95,13 @@ static void reset_decode_as_rules(void) {
     for (guint i = 0; i < g_decode_as_entries->len; i++) {
         decode_as_entry *entry = &g_array_index(g_decode_as_entries, decode_as_entry, i);
         if (entry->table != NULL) {
-            dissector_reset_uint(entry->table, entry->value);
+            if (entry->is_string && entry->string_value != NULL) {
+                dissector_reset_string(entry->table, entry->string_value);
+                g_free(entry->string_value);
+                entry->string_value = NULL;
+            } else {
+                dissector_reset_uint(entry->table, entry->uint_value);
+            }
             g_free(entry->table);
             entry->table = NULL;
         }
@@ -96,21 +132,15 @@ static int apply_decode_as_rules(cJSON *rules) {
         const char *selector = selector_json->valuestring;
         const char *protocol = protocol_json->valuestring;
 
-        if (!table_is_supported_uint_port(table_name)) {
-            fprintf(stderr, "decode_as: unsupported table %s\n", table_name);
-            return -2;
-        }
-
-        char *end = NULL;
-        unsigned long value = strtoul(selector, &end, 10);
-        if (end == selector || *end != '\0' || value > 65535) {
-            fprintf(stderr, "decode_as: invalid selector %s\n", selector);
-            return -2;
-        }
-
         dissector_table_t table = find_dissector_table(table_name);
         if (table == NULL) {
             fprintf(stderr, "decode_as: table not found %s\n", table_name);
+            return -2;
+        }
+
+        ftenum_t ftype = dissector_table_get_type(table);
+        if (!table_is_supported_decode_as(table_name)) {
+            fprintf(stderr, "decode_as: unsupported table %s (type=%d)\n", table_name, ftype);
             return -2;
         }
 
@@ -123,16 +153,50 @@ static int apply_decode_as_rules(cJSON *rules) {
             return -2;
         }
 
-        dissector_change_uint(table_name, (uint32_t)value, handle);
-
         if (g_decode_as_entries == NULL) {
             g_decode_as_entries = g_array_new(FALSE, TRUE, sizeof(decode_as_entry));
         }
-        decode_as_entry entry = {
-            .table = g_strdup(table_name),
-            .value = (uint32_t)value,
-        };
-        g_array_append_val(g_decode_as_entries, entry);
+
+        if (ftype == FT_STRING) {
+            dissector_change_string(table_name, selector, handle);
+
+            decode_as_entry entry = {
+                .table = g_strdup(table_name),
+                .is_string = true,
+                .string_value = g_strdup(selector),
+            };
+            g_array_append_val(g_decode_as_entries, entry);
+        } else {
+            char *end = NULL;
+            unsigned long value = strtoul(selector, &end, 0);
+            if (end == selector || *end != '\0') {
+                fprintf(stderr, "decode_as: invalid numeric selector %s\n", selector);
+                return -2;
+            }
+
+            unsigned long max_val = UINT32_MAX;
+            switch (ftype) {
+                case FT_UINT8:  max_val = 0xFF;        break;
+                case FT_UINT16: max_val = 0xFFFF;      break;
+                case FT_UINT24: max_val = 0xFFFFFF;    break;
+                case FT_UINT32: max_val = 0xFFFFFFFFUL; break;
+                default: break;
+            }
+            if (value > max_val) {
+                fprintf(stderr, "decode_as: selector %s out of range (max=%lu, type=%d)\n",
+                        selector, max_val, ftype);
+                return -2;
+            }
+
+            dissector_change_uint(table_name, (uint32_t)value, handle);
+
+            decode_as_entry entry = {
+                .table = g_strdup(table_name),
+                .is_string = false,
+                .uint_value = (uint32_t)value,
+            };
+            g_array_append_val(g_decode_as_entries, entry);
+        }
     }
     return 0;
 }
@@ -143,24 +207,18 @@ static int apply_decode_as_rules(cJSON *rules) {
 static void clean() {
     reset_decode_as_rules();
     if (cf.provider.frames != NULL) {
-        /*
-         * Free a frame_data_sequence and all the frame_data structures in it.
-         */
         free_frame_data_sequence(cf.provider.frames);
         cf.provider.frames = NULL;
     }
     if (cf.provider.wth != NULL) {
-        /** Closes any open file handles and frees the memory associated with wth.
-         */
         wtap_close(cf.provider.wth);
         cf.provider.wth = NULL;
     }
     if (cf.epan != NULL) {
         epan_free(cf.epan);
     }
-    /** cleanup the whole epan module, this is used to be called only once in a
-     * program */
     epan_cleanup();
+    restore_global_session_options();
 }
 
 /**
@@ -176,19 +234,14 @@ static void close_cf() {
         cf.provider.wth = NULL;
     }
 
-    /* We have no file open... */
     if (cf.filename != NULL) {
         g_free(cf.filename);
         cf.filename = NULL;
     }
 
-    /* ...which means we have no changes to that file to save. */
     cf.unsaved_changes = FALSE;
-
-    /* no open_routine type */
     cf.open_type = WTAP_TYPE_AUTO;
 
-    /* Clean up the record metadata. */
     wtap_rec_cleanup(&cf.rec);
 
     cf.rfcode = NULL;
@@ -201,12 +254,10 @@ static void close_cf() {
         cf.provider.frames_modified_blocks = NULL;
     }
 
-    /* No frames, no frame selected, no field in that frame selected. */
     cf.count = 0;
     cf.current_frame = NULL;
     cf.finfo_selected = NULL;
 
-    /* No frame link-layer types, either. */
     if (cf.linktypes != NULL) {
         g_array_free(cf.linktypes, TRUE);
         cf.linktypes = NULL;
@@ -220,7 +271,8 @@ static void close_cf() {
     epan_free(cf.epan);
     cf.epan = NULL;
 
-    /* We have no file open. */
+    restore_global_session_options();
+
     cf.state = FILE_CLOSED;
 }
 
@@ -325,12 +377,29 @@ int init_cf(char *filepath, char *options) {
     int printTcpStreams = 0;
     cJSON *options_json = NULL;
     cJSON *decodeAsJson = NULL;
+    const cJSON *nameResolutionJson = NULL;
+    const cJSON *preferencesJson = NULL;
+    const cJSON *profileJson = NULL;
+
+    if (!gbl_resolv_saved) {
+        memcpy(&saved_gbl_resolv_flags, &gbl_resolv_flags, sizeof(e_addr_resolve));
+        gbl_resolv_saved = true;
+    }
+    if (saved_profile_name != NULL) {
+        g_free(saved_profile_name);
+        saved_profile_name = NULL;
+    }
+    const char *current_profile = get_profile_name();
+    if (current_profile != NULL) {
+        saved_profile_name = g_strdup(current_profile);
+    }
 
     // handle conf
     if (!is_empty_json(options)) {
         options_json = cJSON_Parse(options);
         if (options_json == NULL) {
             fprintf(stderr, "Error: Failed to parse options JSON.\n");
+            restore_global_session_options();
             return -1;
         }
 
@@ -346,6 +415,9 @@ int init_cf(char *filepath, char *options) {
         const cJSON *printTcpStreamsJson =
             cJSON_GetObjectItemCaseSensitive(options_json, "printTcpStreams");
         decodeAsJson = cJSON_GetObjectItemCaseSensitive(options_json, "decode_as");
+        nameResolutionJson = cJSON_GetObjectItemCaseSensitive(options_json, "name_resolution");
+        preferencesJson = cJSON_GetObjectItemCaseSensitive(options_json, "preferences");
+        profileJson = cJSON_GetObjectItemCaseSensitive(options_json, "profile");
 
         // Copy keys list if present
         if (cJSON_IsString(keysListJson) && (keysListJson->valuestring != NULL)) {
@@ -363,6 +435,18 @@ int init_cf(char *filepath, char *options) {
         desegmentSslApplicationData = cJSON_IsBool(desegmentSslApplicationDataJson) &&
                                       cJSON_IsTrue(desegmentSslApplicationDataJson);
         printTcpStreams = cJSON_IsBool(printTcpStreamsJson) && cJSON_IsTrue(printTcpStreamsJson);
+
+        // Set profile early — must be before epan_load_settings
+        if (cJSON_IsString(profileJson) && profileJson->valuestring != NULL) {
+            const char *profile_name = profileJson->valuestring;
+            if (!profile_exists(profile_name, FALSE) && !profile_exists(profile_name, TRUE)) {
+                fprintf(stderr, "profile '%s' does not exist\n", profile_name);
+                cJSON_Delete(options_json);
+                restore_global_session_options();
+                return -3;
+            }
+            set_profile_name(profile_name);
+        }
     }
 
     int err = 0;
@@ -422,7 +506,52 @@ int init_cf(char *filepath, char *options) {
         setup_tcp_follow_tap();
     }
 
+    prefs_reset();
     prefs_p = epan_load_settings();
+
+    // Apply preferences overrides (equivalent to -o flags)
+    if (preferencesJson != NULL && cJSON_IsArray(preferencesJson)) {
+        cJSON *pref;
+        cJSON_ArrayForEach(pref, preferencesJson) {
+            const cJSON *pn = cJSON_GetObjectItemCaseSensitive(pref, "name");
+            const cJSON *pv = cJSON_GetObjectItemCaseSensitive(pref, "value");
+            if (cJSON_IsString(pn) && cJSON_IsString(pv) &&
+                pn->valuestring != NULL && pv->valuestring != NULL) {
+                char *prefarg = g_strdup_printf("%s:%s", pn->valuestring, pv->valuestring);
+                char *errmsg = NULL;
+                prefs_set_pref_e result = prefs_set_pref(prefarg, &errmsg);
+                if (result != PREFS_SET_OK) {
+                    fprintf(stderr, "prefs_set_pref(%s): %s\n", prefarg, errmsg ? errmsg : "unknown error");
+                    if (errmsg) g_free(errmsg);
+                    g_free(prefarg);
+                    if (options_json != NULL) {
+                        cJSON_Delete(options_json);
+                    }
+                    close_cf();
+                    return -4;
+                }
+                if (errmsg) g_free(errmsg);
+                g_free(prefarg);
+            }
+        }
+    }
+
+    // Apply name resolution flags
+    if (nameResolutionJson != NULL) {
+        const cJSON *macJ = cJSON_GetObjectItemCaseSensitive(nameResolutionJson, "mac");
+        const cJSON *netJ = cJSON_GetObjectItemCaseSensitive(nameResolutionJson, "network");
+        const cJSON *trJ = cJSON_GetObjectItemCaseSensitive(nameResolutionJson, "transport");
+        const cJSON *extJ = cJSON_GetObjectItemCaseSensitive(nameResolutionJson, "external");
+        if (cJSON_IsBool(macJ))
+            gbl_resolv_flags.mac_name = cJSON_IsTrue(macJ);
+        if (cJSON_IsBool(netJ))
+            gbl_resolv_flags.network_name = cJSON_IsTrue(netJ);
+        if (cJSON_IsBool(trJ))
+            gbl_resolv_flags.transport_name = cJSON_IsTrue(trJ);
+        if (cJSON_IsBool(extJ))
+            gbl_resolv_flags.use_external_net_name_resolver = cJSON_IsTrue(extJ);
+    }
+
     if (apply_decode_as_rules(decodeAsJson) != 0) {
         if (options_json != NULL) {
             cJSON_Delete(options_json);
@@ -916,6 +1045,219 @@ void get_all_frames_cb(int printCJson, char *filter_str, FrameCallback callback)
     wtap_rec_cleanup(&rec);
 }
 
+typedef struct {
+    cJSON *arr;
+} expert_batch_data;
+
+static tap_packet_status
+expert_info_batch_packet_cb(void *tapdata, packet_info *pinfo _U_,
+                            epan_dissect_t *edt _U_, const void *pointer,
+                            tap_flags_t flags _U_) {
+    expert_batch_data *data = (expert_batch_data *)tapdata;
+    const expert_info_t *ei = (const expert_info_t *)pointer;
+    const header_field_info *hfinfo = NULL;
+    const char *severity = NULL;
+    const char *group = NULL;
+
+    if (data == NULL || ei == NULL) {
+        return TAP_PACKET_DONT_REDRAW;
+    }
+
+    if (ei->hf_index >= 0) {
+        hfinfo = proto_registrar_get_nth(ei->hf_index);
+    }
+    severity = try_val_to_str(ei->severity, expert_severity_vals);
+    group = try_val_to_str(ei->group, expert_group_vals);
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "frameNumber", ei->packet_num);
+    cJSON_AddStringToObject(root, "severity", severity ? severity : "");
+    cJSON_AddStringToObject(root, "group", group ? group : "");
+    cJSON_AddStringToObject(root, "protocol", ei->protocol ? ei->protocol : "");
+    cJSON_AddStringToObject(root, "summary", ei->summary ? ei->summary : "");
+    cJSON_AddStringToObject(root, "message", ei->summary ? ei->summary : "");
+    cJSON_AddStringToObject(root, "field", hfinfo && hfinfo->abbrev ? hfinfo->abbrev : "");
+    cJSON_AddStringToObject(root, "name", hfinfo && hfinfo->name ? hfinfo->name : "");
+
+    cJSON_AddItemToArray(data->arr, root);
+    return TAP_PACKET_DONT_REDRAW;
+}
+
+char *get_expert_infos_json(const char *filter_str) {
+    expert_batch_data data;
+    data.arr = cJSON_CreateArray();
+
+    GString *tap_error = register_tap_listener("expert", &data, filter_str, 0, NULL,
+                                               expert_info_batch_packet_cb, NULL, NULL);
+    if (tap_error != NULL) {
+        fprintf(stderr, "expert tap registration failed: %s\n", tap_error->str);
+        g_string_free(tap_error, TRUE);
+        cJSON_Delete(data.arr);
+        return strdup("[]");
+    }
+
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        cf.count++;
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time,
+                                      &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis =
+            frame_data_sequence_add(cf.provider.frames, &fd);
+
+        epan_dissect_free(edt);
+        wtap_rec_reset(&rec);
+    }
+
+    remove_tap_listener(&data);
+    wtap_rec_cleanup(&rec);
+    if (err_info != NULL) {
+        g_free(err_info);
+    }
+
+    char *result = cJSON_PrintUnformatted(data.arr);
+    cJSON_Delete(data.arr);
+    return result;
+}
+
+char *get_stream_payloads_json(const char *filter_str, const char *proto) {
+    cJSON *result_arr = cJSON_CreateArray();
+
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    dfilter_t *dfcode = NULL;
+    df_error_t *df_err = NULL;
+    if (filter_str != NULL && strlen(filter_str) > 0) {
+        if (!dfilter_compile(filter_str, &dfcode, &df_err)) {
+            fprintf(stderr, "get_stream_payloads_json: invalid filter '%s': %s\n",
+                    filter_str, df_err ? df_err->msg : "unknown error");
+            if (df_err) df_error_free(&df_err);
+            wtap_rec_cleanup(&rec);
+            cJSON_Delete(result_arr);
+            return strdup("{\"matched_count\":0,\"payloads\":[],\"error\":\"invalid filter\"}");
+        }
+    }
+
+    int payload_id = proto_registrar_get_id_byname(
+        strcmp(proto, "tcp") == 0 ? "tcp.payload" : "udp.payload");
+    int matched_packets = 0;
+
+    while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        cf.count++;
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+
+        if (dfcode != NULL) epan_dissect_prime_with_dfilter(edt, dfcode);
+        if (payload_id != -1) epan_dissect_prime_with_hfid(edt, payload_id);
+
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time,
+                                      &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis =
+            frame_data_sequence_add(cf.provider.frames, &fd);
+
+        if (dfcode != NULL) {
+            if (!dfilter_apply_edt(dfcode, edt)) {
+                epan_dissect_free(edt);
+                wtap_rec_reset(&rec);
+                continue;
+            }
+        }
+
+        matched_packets++;
+
+        char src_ip[WS_INET6_ADDRSTRLEN] = {0};
+        char dst_ip[WS_INET6_ADDRSTRLEN] = {0};
+        address_to_str_buf(&edt->pi.src, src_ip, sizeof(src_ip));
+        address_to_str_buf(&edt->pi.dst, dst_ip, sizeof(dst_ip));
+        guint32 src_port = edt->pi.srcport;
+        guint32 dst_port = edt->pi.destport;
+
+        char *payload_hex = NULL;
+        if (payload_id != -1) {
+            GPtrArray *finfo_array = proto_get_finfo_ptr_array(edt->tree, payload_id);
+            if (finfo_array && finfo_array->len > 0) {
+                GString *hex_builder = g_string_new("");
+
+                for (guint i = 0; i < finfo_array->len; i++) {
+                    field_info *fi = (field_info *)g_ptr_array_index(finfo_array, i);
+                    if (fi && fi->value) {
+                        char *raw_repr = fvalue_to_string_repr(NULL, fi->value,
+                            FTREPR_JSON, fi->hfinfo->display);
+                        if (raw_repr) {
+                            char *r = raw_repr;
+                            char *w = raw_repr;
+                            while (*r) {
+                                if (*r != ':') { *w++ = *r; }
+                                r++;
+                            }
+                            *w = '\0';
+                            g_string_append(hex_builder, raw_repr);
+                            wmem_free(NULL, raw_repr);
+                        }
+                    }
+                }
+                payload_hex = g_string_free(hex_builder, FALSE);
+            }
+        }
+
+        if (payload_hex != NULL && strlen(payload_hex) > 0) {
+            cJSON *payload_obj = cJSON_CreateObject();
+            cJSON_AddStringToObject(payload_obj, "src", src_ip);
+            cJSON_AddStringToObject(payload_obj, "dst", dst_ip);
+            cJSON_AddNumberToObject(payload_obj, "srcport", src_port);
+            cJSON_AddNumberToObject(payload_obj, "dstport", dst_port);
+            cJSON_AddStringToObject(payload_obj, "payload", payload_hex);
+            cJSON_AddItemToArray(result_arr, payload_obj);
+        }
+
+        if (payload_hex != NULL) {
+            g_free(payload_hex);
+        }
+
+        epan_dissect_free(edt);
+        wtap_rec_reset(&rec);
+    }
+
+    if (dfcode != NULL) dfilter_free(dfcode);
+    wtap_rec_cleanup(&rec);
+
+    cJSON *wrapper = cJSON_CreateObject();
+    cJSON_AddNumberToObject(wrapper, "matched_count", matched_packets);
+    cJSON_AddItemToObject(wrapper, "payloads", result_arr);
+
+    char *json_output = cJSON_PrintUnformatted(wrapper);
+    cJSON_Delete(wrapper);
+    return json_output;
+}
+
 static tap_packet_status expert_info_packet_cb(void *tapdata, packet_info *pinfo _U_,
                                                epan_dissect_t *edt _U_, const void *pointer,
                                                tap_flags_t flags _U_) {
@@ -1000,6 +1342,452 @@ int get_expert_infos_cb(const char *filter_str, FrameCallback callback) {
     if (err_info != NULL) {
         g_free(err_info);
     }
+    return err;
+}
+
+static void conv_tap_draw_cb(void *tapdata) {
+    conv_hash_t *hash = (conv_hash_t *)tapdata;
+    conv_tap_callback_data *cb_data = (conv_tap_callback_data *)hash->user_data;
+
+    if (cb_data == NULL || cb_data->callback == NULL || hash->conv_array == NULL) {
+        return;
+    }
+
+    for (guint i = 0; i < hash->conv_array->len; i++) {
+        conv_item_t *item = &g_array_index(hash->conv_array, conv_item_t, i);
+
+        char src_addr[WS_INET6_ADDRSTRLEN];
+        char dst_addr[WS_INET6_ADDRSTRLEN];
+        address_to_str_buf(&item->src_address, src_addr, sizeof(src_addr));
+        address_to_str_buf(&item->dst_address, dst_addr, sizeof(dst_addr));
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "type", cb_data->type_name);
+        cJSON_AddStringToObject(root, "addr1", src_addr);
+        cJSON_AddNumberToObject(root, "port1", item->src_port);
+        cJSON_AddStringToObject(root, "addr2", dst_addr);
+        cJSON_AddNumberToObject(root, "port2", item->dst_port);
+        cJSON_AddNumberToObject(root, "packetsAB", (double)item->tx_frames);
+        cJSON_AddNumberToObject(root, "bytesAB", (double)item->tx_bytes);
+        cJSON_AddNumberToObject(root, "packetsBA", (double)item->rx_frames);
+        cJSON_AddNumberToObject(root, "bytesBA", (double)item->rx_bytes);
+        cJSON_AddNumberToObject(root, "totalPackets", (double)(item->tx_frames + item->rx_frames));
+        cJSON_AddNumberToObject(root, "totalBytes", (double)(item->tx_bytes + item->rx_bytes));
+        cJSON_AddNumberToObject(root, "startTime", nstime_to_sec(&item->start_time));
+        cJSON_AddNumberToObject(root, "duration",
+            nstime_to_sec(&item->stop_time) - nstime_to_sec(&item->start_time));
+
+        char *json = cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
+        if (json != NULL) {
+            int stop = cb_data->callback(json, (int)strlen(json), 0);
+            cb_data->count++;
+            cJSON_free(json);
+            if (stop != 0) break;
+        }
+    }
+}
+
+static void endpoint_tap_draw_cb(void *tapdata) {
+    conv_hash_t *hash = (conv_hash_t *)tapdata;
+    conv_tap_callback_data *cb_data = (conv_tap_callback_data *)hash->user_data;
+
+    if (cb_data == NULL || cb_data->callback == NULL || hash->conv_array == NULL) {
+        return;
+    }
+
+    for (guint i = 0; i < hash->conv_array->len; i++) {
+        endpoint_item_t *item = &g_array_index(hash->conv_array, endpoint_item_t, i);
+
+        char addr_str[WS_INET6_ADDRSTRLEN];
+        address_to_str_buf(&item->myaddress, addr_str, sizeof(addr_str));
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "type", cb_data->type_name);
+        cJSON_AddStringToObject(root, "address", addr_str);
+        cJSON_AddNumberToObject(root, "port", item->port);
+        cJSON_AddNumberToObject(root, "packets", (double)(item->tx_frames + item->rx_frames));
+        cJSON_AddNumberToObject(root, "bytes", (double)(item->tx_bytes + item->rx_bytes));
+
+        char *json = cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
+        if (json != NULL) {
+            int stop = cb_data->callback(json, (int)strlen(json), 0);
+            cb_data->count++;
+            cJSON_free(json);
+            if (stop != 0) break;
+        }
+    }
+}
+
+static int run_tap_scan(void) {
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        cf.count++;
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
+
+        epan_dissect_free(edt);
+        wtap_rec_reset(&rec);
+    }
+
+    wtap_rec_cleanup(&rec);
+    if (err_info != NULL) {
+        g_free(err_info);
+    }
+    return err;
+}
+
+int get_tap_conversations_cb(const char *filter_str, const char *conv_type, FrameCallback callback) {
+    int proto_id = proto_get_id_by_filter_name(conv_type);
+    if (proto_id == -1) {
+        fprintf(stderr, "conversation tap: unknown protocol %s\n", conv_type);
+        return -1;
+    }
+
+    register_ct_t *ct = get_conversation_by_proto_id(proto_id);
+    if (ct == NULL) {
+        fprintf(stderr, "conversation tap: no conversation table for %s\n", conv_type);
+        return -1;
+    }
+
+    conv_tap_callback_data cb_data = {
+        .callback = callback,
+        .type_name = conv_type,
+        .count = 0,
+    };
+
+    conv_hash_t hash;
+    memset(&hash, 0, sizeof(conv_hash_t));
+    hash.user_data = &cb_data;
+
+    const char *tap_name = proto_get_protocol_filter_name(proto_id);
+    GString *tap_error = register_tap_listener(tap_name, &hash, filter_str, 0, NULL,
+                                               get_conversation_packet_func(ct),
+                                               conv_tap_draw_cb, NULL);
+    if (tap_error != NULL) {
+        fprintf(stderr, "conversation tap registration failed: %s\n", tap_error->str);
+        g_string_free(tap_error, TRUE);
+        return -1;
+    }
+
+    int err = run_tap_scan();
+    draw_tap_listeners(TRUE);
+    remove_tap_listener(&hash);
+    reset_conversation_table_data(&hash);
+
+    return err;
+}
+
+int get_tap_endpoints_cb(const char *filter_str, const char *endpoint_type, FrameCallback callback) {
+    int proto_id = proto_get_id_by_filter_name(endpoint_type);
+    if (proto_id == -1) {
+        fprintf(stderr, "endpoint tap: unknown protocol %s\n", endpoint_type);
+        return -1;
+    }
+
+    register_ct_t *ct = get_conversation_by_proto_id(proto_id);
+    if (ct == NULL) {
+        fprintf(stderr, "endpoint tap: no conversation table for %s\n", endpoint_type);
+        return -1;
+    }
+
+    conv_tap_callback_data cb_data = {
+        .callback = callback,
+        .type_name = endpoint_type,
+        .count = 0,
+    };
+
+    conv_hash_t hash;
+    memset(&hash, 0, sizeof(conv_hash_t));
+    hash.user_data = &cb_data;
+
+    const char *tap_name = proto_get_protocol_filter_name(proto_id);
+    GString *tap_error = register_tap_listener(tap_name, &hash, filter_str, 0, NULL,
+                                               get_endpoint_packet_func(ct),
+                                               endpoint_tap_draw_cb, NULL);
+    if (tap_error != NULL) {
+        fprintf(stderr, "endpoint tap registration failed: %s\n", tap_error->str);
+        g_string_free(tap_error, TRUE);
+        return -1;
+    }
+
+    int err = run_tap_scan();
+    draw_tap_listeners(TRUE);
+    remove_tap_listener(&hash);
+    reset_endpoint_table_data(&hash);
+
+    return err;
+}
+
+typedef struct {
+    FrameCallback callback;
+    GSList *entries;
+} eo_callback_data;
+
+static void eo_add_entry_with_sha256(void *gui_data, export_object_entry_t *entry) {
+    eo_callback_data *data = (eo_callback_data *)gui_data;
+
+    char hostname_buf[256] = {0};
+    char content_type_buf[256] = {0};
+    char filename_buf[EXPORT_OBJECT_MAXFILELEN + 1] = {0};
+
+    if (entry->hostname) {
+        g_strlcpy(hostname_buf, entry->hostname, sizeof(hostname_buf));
+    }
+    if (entry->content_type) {
+        g_strlcpy(content_type_buf, entry->content_type, sizeof(content_type_buf));
+    }
+    if (entry->filename) {
+        g_strlcpy(filename_buf, entry->filename, sizeof(filename_buf));
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "packetNum", entry->pkt_num);
+    cJSON_AddStringToObject(root, "hostname", hostname_buf);
+    cJSON_AddStringToObject(root, "contentType", content_type_buf);
+    cJSON_AddStringToObject(root, "filename", filename_buf);
+    cJSON_AddNumberToObject(root, "length", (double)entry->payload_len);
+
+    gchar *sha256_hex = NULL;
+    if (entry->payload_data && entry->payload_len > 0) {
+        sha256_hex = g_compute_checksum_for_data(G_CHECKSUM_SHA256,
+            entry->payload_data, entry->payload_len);
+    }
+    cJSON_AddStringToObject(root, "sha256", sha256_hex ? sha256_hex : "");
+    if (sha256_hex) g_free(sha256_hex);
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json != NULL) {
+        data->callback(json, (int)strlen(json), 0);
+        cJSON_free(json);
+    }
+}
+
+static void eo_add_entry(void *gui_data, export_object_entry_t *entry) {
+    eo_callback_data *data = (eo_callback_data *)gui_data;
+
+    char hostname_buf[256] = {0};
+    char content_type_buf[256] = {0};
+    char filename_buf[EXPORT_OBJECT_MAXFILELEN + 1] = {0};
+
+    if (entry->hostname) {
+        g_strlcpy(hostname_buf, entry->hostname, sizeof(hostname_buf));
+    }
+    if (entry->content_type) {
+        g_strlcpy(content_type_buf, entry->content_type, sizeof(content_type_buf));
+    }
+    if (entry->filename) {
+        g_strlcpy(filename_buf, entry->filename, sizeof(filename_buf));
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "packetNum", entry->pkt_num);
+    cJSON_AddStringToObject(root, "hostname", hostname_buf);
+    cJSON_AddStringToObject(root, "contentType", content_type_buf);
+    cJSON_AddStringToObject(root, "filename", filename_buf);
+    cJSON_AddNumberToObject(root, "length", (double)entry->payload_len);
+
+    gchar *payload_hex = NULL;
+    if (entry->payload_data && entry->payload_len > 0) {
+        payload_hex = g_malloc(entry->payload_len * 2 + 1);
+        for (size_t i = 0; i < entry->payload_len; i++) {
+            g_snprintf(payload_hex + (i * 2), 3, "%02x", entry->payload_data[i]);
+        }
+        payload_hex[entry->payload_len * 2] = '\0';
+    }
+    cJSON_AddStringToObject(root, "payloadHex", payload_hex ? payload_hex : "");
+    if (payload_hex) g_free(payload_hex);
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json != NULL) {
+        data->callback(json, (int)strlen(json), 0);
+        cJSON_free(json);
+    }
+}
+
+int get_export_objects_cb(const char *filter_str, const char *protocol, FrameCallback callback) {
+    register_eo_t *eo = get_eo_by_name(protocol);
+    if (eo == NULL) {
+        fprintf(stderr, "export objects: unknown protocol %s\n", protocol);
+        return -1;
+    }
+
+    eo_callback_data cb_data = {
+        .callback = callback,
+        .entries = NULL,
+    };
+
+    export_object_list_t eo_list;
+    memset(&eo_list, 0, sizeof(export_object_list_t));
+    eo_list.add_entry = eo_add_entry_with_sha256;
+    eo_list.gui_data = &cb_data;
+
+    const char *tap_name = get_eo_tap_listener_name(eo);
+    tap_packet_cb packet_func = get_eo_packet_func(eo);
+
+    GString *tap_error = register_tap_listener(tap_name, &eo_list, filter_str,
+                                               TL_REQUIRES_NOTHING, NULL,
+                                               packet_func, NULL, NULL);
+    if (tap_error != NULL) {
+        fprintf(stderr, "export objects tap registration failed: %s\n", tap_error->str);
+        g_string_free(tap_error, TRUE);
+        return -1;
+    }
+
+    int err = run_tap_scan();
+    remove_tap_listener(&eo_list);
+
+    return err;
+}
+
+int write_export_object_cb(const char *filter_str, const char *protocol,
+                           int packet_num, FrameCallback callback) {
+    register_eo_t *eo = get_eo_by_name(protocol);
+    if (eo == NULL) {
+        fprintf(stderr, "export objects: unknown protocol %s\n", protocol);
+        return -1;
+    }
+
+    eo_callback_data cb_data = {
+        .callback = callback,
+        .entries = NULL,
+    };
+
+    export_object_list_t eo_list;
+    memset(&eo_list, 0, sizeof(export_object_list_t));
+    eo_list.add_entry = eo_add_entry;
+    eo_list.gui_data = &cb_data;
+
+    const char *tap_name = get_eo_tap_listener_name(eo);
+    tap_packet_cb packet_func = get_eo_packet_func(eo);
+
+    char *effective_filter = NULL;
+    if (filter_str != NULL && strlen(filter_str) > 0) {
+        effective_filter = g_strdup_printf("(%s) && (frame.number == %d)", filter_str, packet_num);
+    } else {
+        effective_filter = g_strdup_printf("frame.number == %d", packet_num);
+    }
+
+    GString *tap_error = register_tap_listener(tap_name, &eo_list, effective_filter,
+                                               TL_REQUIRES_NOTHING, NULL,
+                                               packet_func, NULL, NULL);
+    g_free(effective_filter);
+
+    if (tap_error != NULL) {
+        fprintf(stderr, "export objects tap registration failed: %s\n", tap_error->str);
+        g_string_free(tap_error, TRUE);
+        return -1;
+    }
+
+    int err = run_tap_scan();
+    remove_tap_listener(&eo_list);
+
+    return err;
+}
+
+typedef struct {
+    FrameCallback callback;
+    const char *protocol;
+} srt_callback_data;
+
+static void srt_draw_cb(void *arg) {
+    srt_data_t *data = (srt_data_t *)arg;
+    srt_callback_data *cb_data = (srt_callback_data *)data->user_data;
+
+    if (cb_data == NULL || cb_data->callback == NULL || data->srt_array == NULL) {
+        return;
+    }
+
+    for (guint i = 0; i < data->srt_array->len; i++) {
+        srt_stat_table *rst = g_array_index(data->srt_array, srt_stat_table *, i);
+        if (rst == NULL) continue;
+
+        for (int j = 0; j < rst->num_procs; j++) {
+            srt_procedure_t *proc = &rst->procedures[j];
+            if (proc->stats.num == 0) continue;
+
+            double min_val = nstime_to_sec(&proc->stats.min);
+            double max_val = nstime_to_sec(&proc->stats.max);
+            double avg_val = get_average(&proc->stats.tot, proc->stats.num);
+            double tot_val = nstime_to_sec(&proc->stats.tot);
+
+            cJSON *root = cJSON_CreateObject();
+            cJSON_AddStringToObject(root, "protocol", cb_data->protocol);
+            cJSON_AddStringToObject(root, "procedure", proc->procedure ? proc->procedure : "");
+            cJSON_AddNumberToObject(root, "calls", proc->stats.num);
+            cJSON_AddNumberToObject(root, "min", min_val);
+            cJSON_AddNumberToObject(root, "max", max_val);
+            cJSON_AddNumberToObject(root, "avg", avg_val);
+            cJSON_AddNumberToObject(root, "total", tot_val);
+
+            char *json = cJSON_PrintUnformatted(root);
+            cJSON_Delete(root);
+            if (json != NULL) {
+                cb_data->callback(json, (int)strlen(json), 0);
+                cJSON_free(json);
+            }
+        }
+    }
+}
+
+int get_service_response_times_cb(const char *filter_str, const char *protocol, FrameCallback callback) {
+    register_srt_t *srt = get_srt_table_by_name(protocol);
+    if (srt == NULL) {
+        fprintf(stderr, "srt: unknown protocol %s\n", protocol);
+        return -1;
+    }
+
+    srt_callback_data cb_data = {
+        .callback = callback,
+        .protocol = protocol,
+    };
+
+    GArray *srt_array = g_array_new(FALSE, TRUE, sizeof(srt_stat_table *));
+
+    srt_data_t srt_data;
+    memset(&srt_data, 0, sizeof(srt_data_t));
+    srt_data.srt_array = srt_array;
+    srt_data.user_data = &cb_data;
+
+    srt_table_dissector_init(srt, srt_array);
+
+    const char *tap_name = get_srt_tap_listener_name(srt);
+    tap_packet_cb packet_func = get_srt_packet_func(srt);
+
+    GString *tap_error = register_tap_listener(tap_name, &srt_data, filter_str,
+                                               TL_REQUIRES_NOTHING, NULL,
+                                               packet_func, srt_draw_cb, NULL);
+    if (tap_error != NULL) {
+        fprintf(stderr, "srt tap registration failed: %s\n", tap_error->str);
+        g_string_free(tap_error, TRUE);
+        free_srt_table(srt, srt_array);
+        return -2;
+    }
+
+    int err = run_tap_scan();
+    draw_tap_listeners(TRUE);
+    remove_tap_listener(&srt_data);
+    free_srt_table(srt, srt_array);
+
     return err;
 }
 

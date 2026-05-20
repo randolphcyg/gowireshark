@@ -1,25 +1,29 @@
 package gowireshark
 
 import (
+	"fmt"
+	"hash/fnv"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // StreamSummary describes one TCP or UDP stream observed in a capture.
 type StreamSummary struct {
-	Protocol   string   `json:"protocol"`
-	StreamID   int      `json:"streamId"`
-	SrcAddr    string   `json:"srcAddr"`
-	SrcPort    int      `json:"srcPort"`
-	DstAddr    string   `json:"dstAddr"`
-	DstPort    int      `json:"dstPort"`
-	FrameCount int      `json:"frameCount"`
-	ByteCount  int64    `json:"byteCount"`
-	StartEpoch float64  `json:"startEpoch"`
-	EndEpoch   float64  `json:"endEpoch"`
-	Duration   string   `json:"duration"`
-	Protocols  []string `json:"protocols"`
+	Protocol       string   `json:"protocol"`
+	ConversationID int      `json:"conversationId"`
+	StreamID       int      `json:"streamId"`
+	SrcAddr        string   `json:"srcAddr"`
+	SrcPort        int      `json:"srcPort"`
+	DstAddr        string   `json:"dstAddr"`
+	DstPort        int      `json:"dstPort"`
+	FrameCount     int      `json:"frameCount"`
+	ByteCount      int64    `json:"byteCount"`
+	StartEpoch     float64  `json:"startEpoch"`
+	EndEpoch       float64  `json:"endEpoch"`
+	Duration       string   `json:"duration"`
+	Protocols      []string `json:"protocols"`
 }
 
 // ConversationSummary describes one directional 5-tuple aggregate.
@@ -58,8 +62,18 @@ type FileObject struct {
 	DstAddr     string `json:"dstAddr,omitempty"`
 }
 
-// Streams walks a capture and returns TCP/UDP stream aggregates.
+// Streams walks a capture and returns TCP/UDP stream aggregates with real
+// Wireshark stream IDs (tcp.stream / udp.stream).
 func Streams(path string, opts ...Option) ([]StreamSummary, error) {
+	s, err := OpenSession(path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	return s.Streams(Query{Filter: extractFilter(opts)})
+}
+
+func StreamsSlow(path string, opts ...Option) ([]StreamSummary, error) {
 	acc := newTrafficAccumulator()
 	err := WalkFrames(path, func(f *FrameData) error {
 		acc.addFrame(f)
@@ -69,6 +83,122 @@ func Streams(path string, opts ...Option) ([]StreamSummary, error) {
 		return nil, err
 	}
 	return acc.streams(), nil
+}
+
+func fillStreamIDs(s *Session, q Query, streams []StreamSummary) {
+	fields := []string{"ip.src", "ip.dst",
+		"tcp.srcport", "tcp.dstport", "tcp.stream",
+		"udp.srcport", "udp.dstport", "udp.stream"}
+
+	rows, err := s.FieldsRows(q, fields)
+	if err != nil {
+		return
+	}
+
+	tcpHashToStream := map[uint32]int{}
+	udpHashToStream := map[uint32]int{}
+
+	for _, row := range rows {
+		tcpSID := row["tcp.stream"]
+		if tcpSID != "" {
+			srcPort, _ := strconv.Atoi(row["tcp.srcport"])
+			dstPort, _ := strconv.Atoi(row["tcp.dstport"])
+			a1, a2 := sortPair(row["ip.src"], uint32(srcPort), row["ip.dst"], uint32(dstPort))
+			h := streamHash(a1.Addr, a1.Port, a2.Addr, a2.Port)
+			if _, ok := tcpHashToStream[h]; !ok {
+				if sid, e := strconv.Atoi(tcpSID); e == nil {
+					tcpHashToStream[h] = sid
+				}
+			}
+		}
+
+		udpSID := row["udp.stream"]
+		if udpSID != "" {
+			srcPort, _ := strconv.Atoi(row["udp.srcport"])
+			dstPort, _ := strconv.Atoi(row["udp.dstport"])
+			a1, a2 := sortPair(row["ip.src"], uint32(srcPort), row["ip.dst"], uint32(dstPort))
+			h := streamHash(a1.Addr, a1.Port, a2.Addr, a2.Port)
+			if _, ok := udpHashToStream[h]; !ok {
+				if sid, e := strconv.Atoi(udpSID); e == nil {
+					udpHashToStream[h] = sid
+				}
+			}
+		}
+	}
+
+	for i := range streams {
+		st := &streams[i]
+		switch st.Protocol {
+		case "tcp":
+			if sid, ok := tcpHashToStream[uint32(st.ConversationID)]; ok {
+				st.StreamID = sid
+			}
+		case "udp":
+			if sid, ok := udpHashToStream[uint32(st.ConversationID)]; ok {
+				st.StreamID = sid
+			}
+		}
+	}
+}
+
+func tapConvsToStreams(convs []TapConversation, proto string) []StreamSummary {
+	out := make([]StreamSummary, 0, len(convs))
+	seen := make(map[uint32]bool, len(convs))
+
+	for _, c := range convs {
+		a1, a2 := sortPair(c.Addr1, c.Port1, c.Addr2, c.Port2)
+		id := streamHash(a1.Addr, a1.Port, a2.Addr, a2.Port)
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+
+		out = append(out, StreamSummary{
+			Protocol:       proto,
+			ConversationID: int(id),
+			StreamID:       -1,
+			SrcAddr:        a1.Addr,
+			SrcPort:        int(a1.Port),
+			DstAddr:        a2.Addr,
+			DstPort:        int(a2.Port),
+			FrameCount:     int(c.TotalPackets),
+			ByteCount:      int64(c.TotalBytes),
+			StartEpoch:     c.StartTime,
+			EndEpoch:       c.StartTime + c.Duration,
+			Duration:       formatDuration(c.Duration),
+			Protocols:      []string{proto},
+		})
+	}
+	return out
+}
+
+type addrPair struct {
+	Addr string
+	Port uint32
+}
+
+func sortPair(addr1 string, port1 uint32, addr2 string, port2 uint32) (addrPair, addrPair) {
+	if addr1 < addr2 || (addr1 == addr2 && port1 < port2) {
+		return addrPair{addr1, port1}, addrPair{addr2, port2}
+	}
+	return addrPair{addr2, port2}, addrPair{addr1, port1}
+}
+
+func streamHash(a1 string, p1 uint32, a2 string, p2 uint32) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(a1))
+	h.Write([]byte{0})
+	h.Write([]byte(fmt.Sprintf("%d", p1)))
+	h.Write([]byte{0})
+	h.Write([]byte(a2))
+	h.Write([]byte{0})
+	h.Write([]byte(fmt.Sprintf("%d", p2)))
+	return h.Sum32()
+}
+
+func formatDuration(seconds float64) string {
+	d := time.Duration(seconds * float64(time.Second))
+	return d.String()
 }
 
 // Conversations walks a capture and returns directional 5-tuple aggregates.
@@ -89,37 +219,56 @@ func Timeline(path string, opts ...Option) ([]TimelineBucket, error) {
 	return TimelineBy(path, time.Minute, opts...)
 }
 
-// TimelineBy walks a capture and groups traffic into caller-selected buckets.
+// TimelineBy walks a capture and groups traffic into caller-selected buckets
+// using fields-only extraction for performance.
 func TimelineBy(path string, bucket time.Duration, opts ...Option) ([]TimelineBucket, error) {
 	if bucket <= 0 {
 		bucket = time.Minute
 	}
+
+	fields := []string{"frame.time_epoch", "frame.len", "frame.protocols"}
+	rows, err := FieldsRows(path, fields, opts...)
+	if err != nil {
+		return nil, err
+	}
+
 	buckets := map[int64]*TimelineBucket{}
-	err := WalkFrames(path, func(f *FrameData) error {
-		if f == nil || f.BaseLayers.Frame == nil || f.BaseLayers.Frame.TimeEpoch <= 0 {
-			return nil
+	bucketSec := int64(bucket / time.Second)
+	if bucketSec <= 0 {
+		bucketSec = 1
+	}
+
+	for _, row := range rows {
+		epochStr := row["frame.time_epoch"]
+		if epochStr == "" {
+			continue
 		}
-		sec := int64(f.BaseLayers.Frame.TimeEpoch)
-		bucketSec := int64(bucket / time.Second)
-		if bucketSec <= 0 {
-			bucketSec = 1
+		epoch, parseErr := strconv.ParseFloat(epochStr, 64)
+		if parseErr != nil || epoch <= 0 {
+			continue
 		}
+
+		sec := int64(epoch)
 		start := sec - (sec % bucketSec)
+
 		b := buckets[start]
 		if b == nil {
 			b = &TimelineBucket{StartEpoch: start, EndEpoch: start + bucketSec, Protocols: map[string]int{}}
 			buckets[start] = b
 		}
 		b.FrameCount++
-		b.ByteCount += int64(f.BaseLayers.Frame.Len)
-		for _, proto := range protocolList(f.BaseLayers.Frame.Protocols) {
+
+		if lenStr := row["frame.len"]; lenStr != "" {
+			if l, e := strconv.Atoi(lenStr); e == nil {
+				b.ByteCount += int64(l)
+			}
+		}
+
+		for _, proto := range protocolList(row["frame.protocols"]) {
 			b.Protocols[proto]++
 		}
-		return nil
-	}, opts...)
-	if err != nil {
-		return nil, err
 	}
+
 	out := make([]TimelineBucket, 0, len(buckets))
 	for _, b := range buckets {
 		out = append(out, *b)
@@ -163,7 +312,9 @@ func (a *trafficAccumulator) addFrame(f *FrameData) {
 	sk := proto + ":" + itoa(streamID)
 	s := a.streamMap[sk]
 	if s == nil {
-		s = &StreamSummary{Protocol: proto, StreamID: streamID, SrcAddr: ip.Src, SrcPort: srcPort, DstAddr: ip.Dst, DstPort: dstPort, Protocols: protos}
+		a1, a2 := sortPair(ip.Src, uint32(srcPort), ip.Dst, uint32(dstPort))
+		convID := int(streamHash(a1.Addr, a1.Port, a2.Addr, a2.Port))
+		s = &StreamSummary{Protocol: proto, ConversationID: convID, StreamID: streamID, SrcAddr: ip.Src, SrcPort: srcPort, DstAddr: ip.Dst, DstPort: dstPort, Protocols: protos}
 		a.streamMap[sk] = s
 	}
 	updateStreamSummary(s, fr.TimeEpoch, byteCount, protos)

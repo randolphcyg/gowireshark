@@ -1,6 +1,7 @@
 #include "bridge.h"
 #include <inttypes.h>
 #include <string.h>
+#include <epan/expert.h>
 
 void free_c_string(char *str) {
     if (str) {
@@ -412,6 +413,10 @@ void tls_prefs_apply(const char *keysList, int desegmentSslRecords,
     /* Notify all registered modules that have had any of their preferences
      * changed */
     prefs_apply_all();
+}
+
+int has_srt_table(const char *protocol) {
+    return get_srt_table_by_name(protocol) != NULL;
 }
 
 // Helper function to check if JSON is empty

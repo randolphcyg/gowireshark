@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"strconv"
 	"strings"
 
 	"github.com/bytedance/sonic"
@@ -28,13 +27,35 @@ type TLSConfig struct {
 }
 
 // DecodeAsRule forces a dissector table selector to use a protocol dissector.
-// The first supported selectors are uint port tables such as tcp.port,
-// udp.port, and sctp.port.
+// Supports uint tables (tcp.port, udp.port, sctp.port, ssl.port, http2.tcp.port,
+// ethertype, ip.proto) and string tables (media_type).
 type DecodeAsRule struct {
 	Table    string `json:"table"`
 	Selector string `json:"selector"`
 	Protocol string `json:"protocol"`
 }
+
+// NameResolutionConfig controls Wireshark's address name resolution.
+type NameResolutionConfig struct {
+	MAC       bool `json:"mac"`
+	Network   bool `json:"network"`
+	Transport bool `json:"transport"`
+	External  bool `json:"external"`
+}
+
+// Preference sets one Wireshark preference (equivalent to -o flag).
+type Preference struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type ParseMode int
+
+const (
+	ParseBaseLayers     ParseMode = iota
+	ParseRawLayers
+	ParseSelectedLayers
+)
 
 type config struct {
 	IgnoreErrors    bool
@@ -48,6 +69,12 @@ type config struct {
 	DecodeAs        []DecodeAsRule
 	EnableTCPFollow bool
 	Registry        *ParserRegistry
+	NameResolution  *NameResolutionConfig
+	Preferences     []Preference
+	Profile         string
+	FieldOutput     FieldOutputOptions
+	ParseMode        ParseMode
+	SelectedLayers   []string
 }
 
 // Option customizes one dissection operation.
@@ -118,6 +145,29 @@ func WithRegistry(registry *ParserRegistry) Option {
 	return func(c *config) { c.Registry = registry }
 }
 
+// WithNameResolution controls libwireshark address name resolution flags.
+func WithNameResolution(cfg NameResolutionConfig) Option {
+	return func(c *config) { c.NameResolution = &cfg }
+}
+
+// WithPreferences sets arbitrary Wireshark preferences (equivalent to -o).
+func WithPreferences(prefs []Preference) Option {
+	return func(c *config) { c.Preferences = append([]Preference(nil), prefs...) }
+}
+
+// WithProfile selects a Wireshark configuration profile by name.
+func WithProfile(profile string) Option {
+	return func(c *config) { c.Profile = profile }
+}
+
+func WithParseMode(mode ParseMode) Option {
+	return func(c *config) { c.ParseMode = mode }
+}
+
+func WithSelectedLayers(layers []string) Option {
+	return func(c *config) { c.SelectedLayers = append([]string(nil), layers...) }
+}
+
 func defaultDebug() bool { return os.Getenv("DEBUG") == "true" }
 
 func newConfig(opts ...Option) *config {
@@ -133,17 +183,14 @@ func newConfig(opts ...Option) *config {
 
 func validateDecodeAsRules(rules []DecodeAsRule) error {
 	for _, rule := range rules {
-		switch rule.Table {
-		case "tcp.port", "udp.port", "sctp.port":
-		default:
-			return fmt.Errorf("%w: decode-as table %q", ErrUnsupportedProtocol, rule.Table)
+		if rule.Table == "" {
+			return fmt.Errorf("%w: empty decode-as table", ErrUnsupportedProtocol)
 		}
 		if rule.Protocol == "" {
 			return fmt.Errorf("%w: empty decode-as protocol", ErrUnsupportedProtocol)
 		}
-		port, err := strconv.Atoi(rule.Selector)
-		if err != nil || port < 0 || port > 65535 {
-			return fmt.Errorf("%w: decode-as selector %q", ErrUnsupportedProtocol, rule.Selector)
+		if rule.Selector == "" {
+			return fmt.Errorf("%w: empty decode-as selector", ErrUnsupportedProtocol)
 		}
 	}
 	return nil
@@ -186,6 +233,15 @@ func marshalConfig(conf *config) string {
 			}
 			cConf["tls.keys_list"] = strings.Join(keyValues, ";")
 		}
+	}
+	if conf.NameResolution != nil {
+		cConf["name_resolution"] = conf.NameResolution
+	}
+	if len(conf.Preferences) > 0 {
+		cConf["preferences"] = conf.Preferences
+	}
+	if conf.Profile != "" {
+		cConf["profile"] = conf.Profile
 	}
 	if len(cConf) == 0 {
 		return ""

@@ -1,6 +1,10 @@
 package gowireshark
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/randolphcyg/gowireshark/internal/testfixture"
+)
 
 func mockTrafficFrame(num int, proto string, stream int, src string, sport int, dst string, dport int, length int, ts float64, protocols string) *FrameData {
 	f := &FrameData{}
@@ -35,4 +39,234 @@ func TestTrafficAccumulatorStreamsAndConversations(t *testing.T) {
 	if convs[0].ByteCount != 200 {
 		t.Fatalf("expected largest conversation first, got %#v", convs[0])
 	}
+}
+
+func TestTrafficAccumulator_HasConversationID(t *testing.T) {
+	acc := newTrafficAccumulator()
+	acc.addFrame(mockTrafficFrame(1, "tcp", 5, "10.0.0.1", 1234, "10.0.0.2", 80, 100, 10, "eth:ip:tcp:http"))
+	acc.addFrame(mockTrafficFrame(2, "udp", 3, "10.0.0.3", 3333, "8.8.8.8", 53, 60, 20, "eth:ip:udp:dns"))
+
+	streams := acc.streams()
+	for _, s := range streams {
+		if s.ConversationID == 0 {
+			t.Fatalf("expected non-zero ConversationID for %s stream", s.Protocol)
+		}
+		if s.StreamID <= 0 {
+			t.Fatalf("expected non-zero positive StreamID for %s stream (slow path uses BaseLayers)", s.Protocol)
+		}
+	}
+}
+
+func TestStreams_ReturnsRealStreamID(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	streams, err := Streams(pcap)
+	if err != nil {
+		t.Fatalf("Streams: %v", err)
+	}
+	if len(streams) == 0 {
+		t.Skip("no TCP/UDP streams in test pcap")
+	}
+
+	tcpCount := 0
+	tcpWithStream := 0
+	tcpUnmapped := 0
+	udpCount := 0
+	udpWithStream := 0
+	udpUnmapped := 0
+
+	for _, st := range streams {
+		if st.ConversationID == 0 {
+			t.Fatalf("%s stream: ConversationID is zero", st.Protocol)
+		}
+		switch st.Protocol {
+		case "tcp":
+			tcpCount++
+			if st.StreamID >= 0 {
+				tcpWithStream++
+			}
+			if st.StreamID == -1 {
+				tcpUnmapped++
+			}
+		case "udp":
+			udpCount++
+			if st.StreamID >= 0 {
+				udpWithStream++
+			}
+			if st.StreamID == -1 {
+				udpUnmapped++
+			}
+		}
+		t.Logf("%s: convID=%d streamID=%d %s:%d → %s:%d",
+			st.Protocol, st.ConversationID, st.StreamID,
+			st.SrcAddr, st.SrcPort, st.DstAddr, st.DstPort)
+	}
+
+	if tcpCount > 0 {
+		t.Logf("TCP: %d/%d streams have real StreamID (%d unmapped)", tcpWithStream, tcpCount, tcpUnmapped)
+	}
+	if udpCount > 0 {
+		t.Logf("UDP: %d/%d streams have real StreamID (%d unmapped)", udpWithStream, udpCount, udpUnmapped)
+	}
+}
+
+func TestStreams_StreamIDCanFollow(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	streams, err := Streams(pcap)
+	if err != nil {
+		t.Fatalf("Streams: %v", err)
+	}
+
+	var firstTCP int
+	found := false
+	for _, st := range streams {
+		if st.Protocol == "tcp" && st.StreamID >= 0 {
+			firstTCP = st.StreamID
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Skip("no TCP streams with valid StreamID in test pcap")
+	}
+
+	result, err := FollowStream(pcap, "tcp.stream eq "+itoa(firstTCP), "tcp")
+	if err != nil {
+		t.Fatalf("FollowStream with real tcp.stream eq %d: %v", firstTCP, err)
+	}
+	if result == nil {
+		t.Fatal("FollowStream returned nil")
+	}
+	if result.PacketCount == 0 {
+		t.Fatalf("FollowStream for tcp.stream eq %d returned 0 packets", firstTCP)
+	}
+	t.Logf("tcp.stream eq %d: %d packets, %d client bytes, %d server bytes",
+		firstTCP, result.PacketCount, result.ClientBytes, result.ServerBytes)
+}
+
+func TestStreams_StreamIDCanFollowZero(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	streams, err := Streams(pcap)
+	if err != nil {
+		t.Fatalf("Streams: %v", err)
+	}
+
+	var zeroTCP *StreamSummary
+	for i := range streams {
+		if streams[i].Protocol == "tcp" && streams[i].StreamID == 0 {
+			zeroTCP = &streams[i]
+			break
+		}
+	}
+	if zeroTCP == nil {
+		t.Skip("no tcp.stream == 0 in test pcap")
+	}
+
+	result, err := FollowStream(pcap, "tcp.stream eq 0", "tcp")
+	if err != nil {
+		t.Fatalf("FollowStream with tcp.stream eq 0: %v", err)
+	}
+	if result == nil {
+		t.Fatal("FollowStream returned nil for tcp.stream eq 0")
+	}
+	if result.PacketCount == 0 {
+		t.Fatal("FollowStream for tcp.stream eq 0 returned 0 packets")
+	}
+	t.Logf("tcp.stream eq 0: %d packets, %d client bytes, %d server bytes",
+		result.PacketCount, result.ClientBytes, result.ServerBytes)
+}
+
+func TestStreams_UnmappedStreamIDIsMinusOne(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	streams, err := Streams(pcap)
+	if err != nil {
+		t.Fatalf("Streams: %v", err)
+	}
+	if len(streams) == 0 {
+		t.Skip("no TCP/UDP streams in test pcap")
+	}
+
+	for _, st := range streams {
+		if st.StreamID == 0 && st.Protocol == "" {
+			t.Fatal("StreamID == 0 should indicate a real Wireshark stream, not a sentinel value")
+		}
+	}
+
+	mappedCount := 0
+	unmappedCount := 0
+	for _, st := range streams {
+		if st.StreamID == -1 {
+			unmappedCount++
+		} else if st.StreamID >= 0 {
+			mappedCount++
+		} else {
+			t.Fatalf("%s stream: unexpected StreamID %d (must be >= 0 or -1)", st.Protocol, st.StreamID)
+		}
+	}
+
+	t.Logf("mapped=%d unmapped=%d total=%d", mappedCount, unmappedCount, len(streams))
+}
+
+func TestSession_Streams_UsesRealStreamID(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, _ := OpenSession(pcap)
+	defer s.Close()
+
+	streams, err := s.Streams(Query{})
+	if err != nil {
+		t.Fatalf("Session.Streams: %v", err)
+	}
+	if len(streams) == 0 {
+		t.Skip("no TCP/UDP streams in test pcap")
+	}
+
+	for _, st := range streams {
+		if st.ConversationID == 0 {
+			t.Fatalf("%s stream: ConversationID is zero", st.Protocol)
+		}
+	}
+
+	tcpCount := 0
+	tcpWithStream := 0
+	for _, st := range streams {
+		if st.Protocol == "tcp" {
+			tcpCount++
+			if st.StreamID >= 0 {
+				tcpWithStream++
+			}
+		}
+	}
+	if tcpCount > 0 && tcpWithStream == 0 {
+		t.Fatal("no TCP streams have real StreamID; fillStreamIDs may have failed entirely")
+	}
+	t.Logf("TCP: %d/%d streams have real StreamID", tcpWithStream, tcpCount)
+}
+
+func TestSession_StreamsCache(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, err := OpenSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	r1, err := s.Streams(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r2, err := s.Streams(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(r1) != len(r2) {
+		t.Fatalf("cached result length mismatch: %d vs %d", len(r1), len(r2))
+	}
+	t.Logf("cache hit: %d streams returned twice consistently", len(r1))
 }

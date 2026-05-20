@@ -79,14 +79,106 @@ func SelectedFrameNumbers(path string, selector FrameSelector, opts ...Option) (
 	return out, nil
 }
 
-// WritePcapSlice writes selected packets to w in libpcap format. Selection is
-// by 1-based frame numbers and/or Wireshark display filter.
+// WritePcapSlice writes selected packets to w in libpcap/pcapng format using
+// best-effort pcapgo conversion (not native wiretap). Selection is by 1-based
+// frame numbers and/or Wireshark display filter.
 func WritePcapSlice(path string, w io.Writer, selector FrameSelector, opts ...Option) (int, error) {
 	indices, err := SelectedFrameNumbers(path, selector, opts...)
 	if err != nil {
 		return 0, err
 	}
 	return writePcapSliceByIndices(path, w, indices)
+}
+
+// PcapSliceOptions controls output format and metadata preservation for
+// best-effort pcap slicing via pcapgo (not native wiretap).
+//
+// PreserveComments and PreserveInterfaces are NOT supported by the current
+// pcapgo implementation and will return ErrPreserveNotSupported if enabled.
+// Future native wiretap integration may add full metadata preservation.
+type PcapSliceOptions struct {
+	PreserveComments   bool
+	PreserveInterfaces bool
+	OutputFormat       string
+}
+
+// WritePcapSliceWithOptions writes selected packets to w with format control.
+// OutputFormat can be "pcap", "pcapng", or "same" (auto-detect from input).
+// This is a best-effort pcapgo-based implementation; PreserveComments and
+// PreserveInterfaces are not yet supported.
+func WritePcapSliceWithOptions(path string, w io.Writer, selector FrameSelector,
+	sliceOpts PcapSliceOptions, opts ...Option) (int, error) {
+	indices, err := SelectedFrameNumbers(path, selector, opts...)
+	if err != nil {
+		return 0, err
+	}
+	return writePcapSliceByIndicesWithOptions(path, w, indices, sliceOpts)
+}
+
+func writePcapSliceByIndicesWithOptions(path string, w io.Writer, indices []int, sliceOpts PcapSliceOptions) (int, error) {
+	if len(indices) == 0 {
+		return 0, ErrEmptySelection
+	}
+	if sliceOpts.PreserveComments || sliceOpts.PreserveInterfaces {
+		return 0, ErrPreserveNotSupported
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	forcePcap := sliceOpts.OutputFormat == "pcap"
+	forceNg := sliceOpts.OutputFormat == "pcapng"
+
+	br := bufio.NewReader(f)
+	reader, err := pcapgo.NewReader(br)
+	if err == nil && !forceNg {
+		writer := pcapgo.NewWriter(w)
+		if err := writer.WriteFileHeader(reader.Snaplen(), reader.LinkType()); err != nil {
+			return 0, err
+		}
+		return copySelectedPackets(reader, writer.WritePacket, indices)
+	}
+
+	if _, seekErr := f.Seek(0, io.SeekStart); seekErr != nil {
+		return 0, err
+	}
+	ngReader, ngErr := pcapgo.NewNgReader(f, pcapgo.NgReaderOptions{
+		WantMixedLinkType: false,
+	})
+	if ngErr != nil {
+		if forceNg {
+			return 0, errors.Wrap(ngErr, "failed to open as pcapng")
+		}
+		return 0, err
+	}
+
+	linkType := ngReader.LinkType()
+	if linkType == gplayers.LinkTypeNull && ngReader.NInterfaces() > 0 {
+		if intf, intfErr := ngReader.Interface(0); intfErr == nil {
+			linkType = intf.LinkType
+		}
+	}
+
+	if forcePcap {
+		writer := pcapgo.NewWriter(w)
+		if err := writer.WriteFileHeader(65535, linkType); err != nil {
+			return 0, err
+		}
+		return copySelectedPackets(ngReader, writer.WritePacket, indices)
+	}
+
+	ngWriter, err := pcapgo.NewNgWriter(w, linkType)
+	if err != nil {
+		return 0, err
+	}
+	count, err := copySelectedPackets(ngReader, ngWriter.WritePacket, indices)
+	flushErr := ngWriter.Flush()
+	if err != nil {
+		return count, err
+	}
+	return count, flushErr
 }
 
 // BuildEvidenceBundle gathers parsed frames, hex dumps, file metadata, and an

@@ -35,3 +35,5 @@ bin/
 coverage.out
 *.coverprofile
 *.test
+/gowireshark-bench
+/gowireshark-bench-*

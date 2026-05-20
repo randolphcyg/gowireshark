@@ -5,6 +5,7 @@ package gowireshark
 */
 import "C"
 import (
+	"strings"
 	"unsafe"
 
 	"github.com/bytedance/sonic"
@@ -50,6 +51,27 @@ func Protocols() ([]ProtocolInfo, error) {
 	var out []ProtocolInfo
 	if err := sonic.UnmarshalString(C.GoString(raw), &out); err != nil {
 		return nil, err
+	}
+	return out, nil
+}
+
+// SuggestFields returns field metadata for fields whose abbrev starts with prefix.
+// Results are limited to limit entries. Use limit=0 for no limit.
+func SuggestFields(prefix string, limit int) ([]FieldMetadata, error) {
+	all, err := Fields()
+	if err != nil {
+		return nil, err
+	}
+
+	prefix = strings.ToLower(prefix)
+	out := make([]FieldMetadata, 0)
+	for _, f := range all {
+		if strings.HasPrefix(strings.ToLower(f.Abbrev), prefix) {
+			out = append(out, f)
+			if limit > 0 && len(out) >= limit {
+				break
+			}
+		}
 	}
 	return out, nil
 }

@@ -74,8 +74,8 @@ result, _ := s.FollowStream(gowireshark.Query{Filter: "tcp.stream eq 0"}, "tcp")
 fmt.Println("packets:", result.PacketCount, "client bytes:", result.ClientBytes)
 ```
 
-- `FrameCount` and `FramesPage` results are cached per session by `(filter, page, size)`. Calling `Close()` clears the cache.
-- `WalkFrames` and `FollowStream` are not cached.
+- `FrameCount`, `FramesPage`, `Streams`, `ExpertInfos`, and `FollowStream` results are cached per session by `(filter)` or `(filter, proto)`. Calling `Close()` clears all caches.
+- `WalkFrames` is not cached.
 
 The existing free functions (`FrameCount`, `FramesPage`, `WalkFrames`, `FollowStream`) remain available and create a temporary `Session` internally. They are convenient for one-shot calls; prefer `Session` when you plan multiple queries against the same pcap. Do not call those helpers while another `Session` is still active.
 
@@ -194,6 +194,69 @@ frames, err := gowireshark.Frames("capture.pcap",
     }),
 )
 ```
+
+## Capability boundaries
+
+Several APIs depend on runtime libwireshark registration tables. Do not assume full protocol coverage equivalent to Wireshark GUI.
+
+### Session concurrency
+
+libwireshark keeps process-global capture state. Only **one active `Session`** may exist in a process at a time. Session methods are **not safe for concurrent goroutines**.
+
+For agent/server scenarios that need concurrent dissection:
+- Serialise all dissection into a single goroutine or queue
+- Or run multiple worker processes (one Session per process)
+- Do not attempt to use multiple `Session` instances concurrently within one process
+
+This is a fundamental Wireshark limitation, not a Go design choice.
+
+### Output formats (PDML / PSML / Text)
+
+`WriteDissection` with `OutputPDML`, `OutputPSML`, or `OutputText` is **not implemented** and returns an error. Only `OutputJSON`, `OutputJSONRaw`, and `OutputFields` are supported. These formats may be added in a future release if there is a use case that requires the native Wireshark XML/text output paths.
+
+### PcapNG metadata preserve
+
+`WritePcapSlice` / `WritePcapSliceWithOptions` produce best-effort pcap/pcapng via `pcapgo`. Native wiretap metadata-preserving pcapng slice (retaining comments, interface descriptions, custom blocks) is **not implemented**.
+
+```go
+_, err := gowireshark.WritePcapSliceWithOptions(pcap, &buf, selector,
+    gowireshark.PcapSliceOptions{PreserveInterfaces: true})
+// errors.Is(err, gowireshark.ErrPreserveNotSupported) == true
+```
+
+### Export Objects
+
+`ExportObjects` / `WriteExportObject` / `WriteExportObjects` use Wireshark's export-object tap. Currently only HTTP is exposed:
+
+```go
+gowireshark.SupportsExportObjects("http") // true
+gowireshark.SupportsExportObjects("smb")  // false
+```
+
+Calling with an unsupported protocol returns `ErrUnsupportedProtocol`. Use `SupportsExportObjects` to check before calling to avoid trial-and-error patterns.
+
+### Tap conversations / endpoints
+
+Tap `conversations` and `endpoints` currently cover `eth`, `ip`, `tcp`, and `udp`. Other protocol types (e.g. `wlan`, `fc`) are not implemented at the C layer.
+
+### Service Response Times (SRT)
+
+`ServiceResponseTimes` uses libwireshark runtime SRT tables. Support depends on which tables are registered in the linked Wireshark build; there is no hardcoded protocol list:
+
+```go
+gowireshark.SupportsServiceResponseTimes("smb")  // depends on runtime
+gowireshark.SupportsServiceResponseTimes("dns")  // depends on runtime
+```
+
+If no SRT table is registered for a protocol, `ServiceResponseTimes` returns `ErrUnsupportedProtocol`. Use `SupportsServiceResponseTimes` to probe at runtime.
+
+### Field extraction performance
+
+`FieldsRows` and `WriteDissection(OutputFields)`, including `WithFieldOutput`, generate a complete frame JSON per frame in C before Go-side field selection. This is **not** equivalent to tshark's native `-T fields` fast path where the C layer directly outputs only the requested fields. For use cases where WalkFrames-based aggregation is the bottleneck (stream_list, timeline), prefer the `FieldsRows` API over WalkFrames to avoid BaseLayers construction overhead. Pure-C field output is a planned future optimisation.
+
+### Stream identification
+
+`StreamSummary.StreamID` returns the real Wireshark protocol stream ID (`tcp.stream` / `udp.stream`) suitable for use in display filters like `"tcp.stream eq N"`. `StreamID == -1` indicates that the stream ID could not be resolved (e.g. IPv6 link-local addresses in `FieldsRows` output). Only values where `StreamID >= 0` should be used in display filters. `ConversationID` is an internal hash of the sorted 5-tuple, provided for correlation across tap results. Previous versions used the hash as StreamID; this is now fixed so that the stream-list → follow-stream evidence chain is correct.
 
 ## Optional helpers
 

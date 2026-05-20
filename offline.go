@@ -23,6 +23,26 @@ static void call_get_frames_by_idxs_cb(int *idxs, int count, int printCJson) {
 static void call_get_stream_payloads_cb(char *filter, char *proto) {
     get_stream_payloads_cb(filter, proto, onFrameCallback);
 }
+
+static int call_get_tap_conversations_cb(char *filter, char *conv_type) {
+    return get_tap_conversations_cb(filter, conv_type, onFrameCallback);
+}
+
+static int call_get_tap_endpoints_cb(char *filter, char *endpoint_type) {
+    return get_tap_endpoints_cb(filter, endpoint_type, onFrameCallback);
+}
+
+static int call_get_export_objects_cb(char *filter, char *protocol) {
+    return get_export_objects_cb(filter, protocol, onFrameCallback);
+}
+
+static int call_write_export_object_cb(char *filter, char *protocol, int packet_num) {
+    return write_export_object_cb(filter, protocol, packet_num, onFrameCallback);
+}
+
+static int call_get_service_response_times_cb(char *filter, char *protocol) {
+    return get_service_response_times_cb(filter, protocol, onFrameCallback);
+}
 */
 import "C"
 import (
@@ -169,6 +189,14 @@ func initCapFile(path string, opts ...Option) (conf *config, err error) {
 			err = ErrUnsupportedProtocol
 			return
 		}
+		if errNo == -3 {
+			err = ErrInvalidProfile
+			return
+		}
+		if errNo == -4 {
+			err = ErrInvalidPreference
+			return
+		}
 		err = errors.Wrap(ErrReadCaptureFile, strconv.Itoa(int(errNo)))
 		return
 	}
@@ -220,63 +248,88 @@ func ParseFrameData(src []byte, opts ...Option) (frame *FrameData, err error) {
 		return nil, ErrParseDissectionResult
 	}
 
+	conf := newConfig(opts...)
+	if conf.ParseMode == ParseRawLayers {
+		return frame, nil
+	}
+
 	var layerErrors []error
 
-	// Parse base layers — each method returns concrete type, nil on not-found
-	if v, e := frame.Layers.Frame(); e == nil {
-		frame.BaseLayers.Frame = v
-	} else if !errors.Is(e, ErrLayerNotFound) {
-		layerErrors = append(layerErrors, e)
-	}
+	if conf.ParseMode == ParseBaseLayers || conf.ParseMode == ParseSelectedLayers {
 
-	if v, e := frame.Layers.WSCol(); e == nil {
-		frame.BaseLayers.WSCol = v
-	} else if !errors.Is(e, ErrLayerNotFound) {
-		layerErrors = append(layerErrors, e)
-	}
-
-	if v, e := frame.Layers.ETH(); e == nil {
-		frame.BaseLayers.ETH = v
-	} else if !errors.Is(e, ErrLayerNotFound) {
-		layerErrors = append(layerErrors, e)
-	}
-
-	if v, e := frame.Layers.IP(); e == nil {
-		frame.BaseLayers.IP = v
-	} else if !errors.Is(e, ErrLayerNotFound) {
-		layerErrors = append(layerErrors, e)
-	}
-
-	if v, e := frame.Layers.UDP(); e == nil {
-		frame.BaseLayers.UDP = v
-	} else if !errors.Is(e, ErrLayerNotFound) {
-		layerErrors = append(layerErrors, e)
-	}
-
-	if v, e := frame.Layers.TCP(); e == nil {
-		frame.BaseLayers.TCP = v
-	} else if !errors.Is(e, ErrLayerNotFound) {
-		layerErrors = append(layerErrors, e)
-	}
-
-	if v, e := frame.Layers.HTTP(); e == nil {
-		frame.BaseLayers.HTTP = v
-	} else if !errors.Is(e, ErrLayerNotFound) {
-		layerErrors = append(layerErrors, e)
-	}
-
-	if v, e := frame.Layers.DNS(); e == nil {
-		frame.BaseLayers.DNS = v
-	} else if !errors.Is(e, ErrLayerNotFound) {
-		layerErrors = append(layerErrors, e)
-	}
-
-	conf := newConfig(opts...)
-	if conf.Registry != nil && conf.Registry.Len() > 0 {
-		if customResults := conf.Registry.ParseAll(frame.Layers); len(customResults) > 0 {
-			frame.CustomLayers = customResults
+		// Parse base layers — each method returns concrete type, nil on not-found
+		if shouldParseLayer(conf, "frame") {
+			if v, e := frame.Layers.Frame(); e == nil {
+				frame.BaseLayers.Frame = v
+			} else if !errors.Is(e, ErrLayerNotFound) {
+				layerErrors = append(layerErrors, e)
+			}
 		}
-	}
+
+		if shouldParseLayer(conf, "ws_col") {
+			if v, e := frame.Layers.WSCol(); e == nil {
+				frame.BaseLayers.WSCol = v
+			} else if !errors.Is(e, ErrLayerNotFound) {
+				layerErrors = append(layerErrors, e)
+			}
+		}
+
+		if shouldParseLayer(conf, "eth") {
+			if v, e := frame.Layers.ETH(); e == nil {
+				frame.BaseLayers.ETH = v
+			} else if !errors.Is(e, ErrLayerNotFound) {
+				layerErrors = append(layerErrors, e)
+			}
+		}
+
+		if shouldParseLayer(conf, "ip") {
+			if v, e := frame.Layers.IP(); e == nil {
+				frame.BaseLayers.IP = v
+			} else if !errors.Is(e, ErrLayerNotFound) {
+				layerErrors = append(layerErrors, e)
+			}
+		}
+
+		if shouldParseLayer(conf, "udp") {
+			if v, e := frame.Layers.UDP(); e == nil {
+				frame.BaseLayers.UDP = v
+			} else if !errors.Is(e, ErrLayerNotFound) {
+				layerErrors = append(layerErrors, e)
+			}
+		}
+
+		if shouldParseLayer(conf, "tcp") {
+			if v, e := frame.Layers.TCP(); e == nil {
+				frame.BaseLayers.TCP = v
+			} else if !errors.Is(e, ErrLayerNotFound) {
+				layerErrors = append(layerErrors, e)
+			}
+		}
+
+		if shouldParseLayer(conf, "http") {
+			if v, e := frame.Layers.HTTP(); e == nil {
+				frame.BaseLayers.HTTP = v
+			} else if !errors.Is(e, ErrLayerNotFound) {
+				layerErrors = append(layerErrors, e)
+			}
+		}
+
+		if shouldParseLayer(conf, "dns") {
+			if v, e := frame.Layers.DNS(); e == nil {
+				frame.BaseLayers.DNS = v
+			} else if !errors.Is(e, ErrLayerNotFound) {
+				layerErrors = append(layerErrors, e)
+			}
+		}
+
+		conf = newConfig(opts...)
+		if conf.Registry != nil && conf.Registry.Len() > 0 {
+			if customResults := conf.Registry.ParseAll(frame.Layers); len(customResults) > 0 {
+				frame.CustomLayers = customResults
+			}
+		}
+
+	} // end ParseBaseLayers block
 
 	if len(layerErrors) > 0 {
 		frameNum := 0
@@ -287,6 +340,18 @@ func ParseFrameData(src []byte, opts ...Option) (frame *FrameData, err error) {
 	}
 
 	return frame, nil
+}
+
+func shouldParseLayer(conf *config, layer string) bool {
+	if conf.ParseMode != ParseSelectedLayers {
+		return true
+	}
+	for _, l := range conf.SelectedLayers {
+		if strings.EqualFold(l, layer) {
+			return true
+		}
+	}
+	return false
 }
 
 // FrameByIndex gets a single frame by its 1-based index.
@@ -474,13 +539,107 @@ func ValidateFilter(filter string) error {
 	}
 	cFilter := C.CString(filter)
 	defer C.free(unsafe.Pointer(cFilter))
-
 	cErrMsg := C.validate_filter(cFilter)
 	if cErrMsg != nil {
 		defer C.free_c_string(cErrMsg)
 		return errors.Wrapf(ErrInvalidFilter, "%s", cString(cErrMsg))
 	}
 	return nil
+}
+
+// FilterValidationResult contains detailed display filter validation info.
+type FilterValidationResult struct {
+	Valid  bool     `json:"valid"`
+	Error  string   `json:"error,omitempty"`
+	Fields []string `json:"fields,omitempty"`
+}
+
+func extractFilterFields(filter string) []string {
+	seen := map[string]bool{}
+	var fields []string
+
+	start := -1
+	for i := 0; i < len(filter); i++ {
+		c := filter[i]
+		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(c >= '0' && c <= '9') || c == '_' || c == '.' {
+			if start < 0 {
+				start = i
+			}
+		} else {
+			if start >= 0 {
+				tok := filter[start:i]
+				start = -1
+				if isValidFilterFieldToken(tok) && !seen[tok] {
+					seen[tok] = true
+					fields = append(fields, tok)
+				}
+			}
+		}
+	}
+	if start >= 0 {
+		tok := filter[start:]
+		if isValidFilterFieldToken(tok) && !seen[tok] {
+			fields = append(fields, tok)
+		}
+	}
+	return fields
+}
+
+func isValidFilterFieldToken(tok string) bool {
+	if len(tok) == 0 || tok[0] == '.' || tok[len(tok)-1] == '.' {
+		return false
+	}
+	if !strings.ContainsRune(tok, '.') {
+		return false
+	}
+	if looksLikeIPv4(tok) {
+		return false
+	}
+	if ValidateField(tok) != nil {
+		return false
+	}
+	return true
+}
+
+func looksLikeIPv4(s string) bool {
+	parts := strings.Split(s, ".")
+	if len(parts) != 4 {
+		return false
+	}
+	for _, p := range parts {
+		if len(p) == 0 || len(p) > 3 {
+			return false
+		}
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 || n > 255 {
+			return false
+		}
+	}
+	return true
+}
+
+// ValidateDisplayFilterDetailed validates a display filter and returns structured feedback.
+func ValidateDisplayFilterDetailed(filter string) (*FilterValidationResult, error) {
+	if filter == "" {
+		return &FilterValidationResult{Valid: true}, nil
+	}
+
+	fields := extractFilterFields(filter)
+
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+
+	cErrMsg := C.validate_filter(cFilter)
+	if cErrMsg != nil {
+		defer C.free_c_string(cErrMsg)
+		return &FilterValidationResult{
+			Valid:  false,
+			Error:  cString(cErrMsg),
+			Fields: fields,
+		}, nil
+	}
+	return &FilterValidationResult{Valid: true, Fields: fields}, nil
 }
 
 // FrameCount returns the number of frames selected by the supplied options.
@@ -923,88 +1082,406 @@ func followStreamFromConf(displayFilter string, proto string) (*FollowResult, er
 		effectiveFilter = fmt.Sprintf("(%s) && (%s)", proto, displayFilter)
 	}
 
-	globalFrameChan = make(chan []byte, 1000)
-	resChan := make(chan *FollowResult, 1)
+	return getStreamPayloadsBatch(effectiveFilter, proto)
+}
 
-	go func() {
-		result := &FollowResult{
-			ClientNode: "Client",
-			ServerNode: "Server",
+// =======================
+// Tap Conversations / Endpoints
+// =======================
+
+// TapConversation describes one directional conversation from libwireshark's tap system.
+type TapConversation struct {
+	Type         string  `json:"type"`
+	Addr1        string  `json:"addr1"`
+	Port1        uint32  `json:"port1,omitempty"`
+	Addr2        string  `json:"addr2"`
+	Port2        uint32  `json:"port2,omitempty"`
+	PacketsAB    uint64  `json:"packetsAB"`
+	BytesAB      uint64  `json:"bytesAB"`
+	PacketsBA    uint64  `json:"packetsBA"`
+	BytesBA      uint64  `json:"bytesBA"`
+	TotalPackets uint64  `json:"totalPackets"`
+	TotalBytes   uint64  `json:"totalBytes"`
+	StartTime    float64 `json:"startTime"`
+	Duration     float64 `json:"duration"`
+}
+
+// TapEndpoint describes one endpoint from libwireshark's tap system.
+type TapEndpoint struct {
+	Type    string `json:"type"`
+	Address string `json:"address"`
+	Port    uint32 `json:"port,omitempty"`
+	Packets uint64 `json:"packets"`
+	Bytes   uint64 `json:"bytes"`
+}
+
+var supportedConvTypes = map[string]bool{
+	"eth": true,
+	"ip":  true,
+	"tcp": true,
+	"udp": true,
+}
+
+// TapConversations returns Wireshark conversation statistics for the given type.
+func TapConversations(path string, convType string, opts ...Option) ([]TapConversation, error) {
+	s, err := OpenSession(path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	return s.TapConversations(convType, Query{Filter: extractFilter(opts)})
+}
+
+// TapEndpoints returns Wireshark endpoint statistics for the given type.
+func TapEndpoints(path string, endpointType string, opts ...Option) ([]TapEndpoint, error) {
+	s, err := OpenSession(path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	return s.TapEndpoints(endpointType, Query{Filter: extractFilter(opts)})
+}
+
+func tapConversationsFromActive(convType string, filter string) ([]TapConversation, error) {
+	if !supportedConvTypes[convType] {
+		return nil, errors.Wrapf(ErrUnsupportedProtocol, "conversation type %q (must be eth/ip/tcp/udp)", convType)
+	}
+	if filter != "" {
+		if err := ValidateFilter(filter); err != nil {
+			return nil, err
 		}
-		clientPort := -1
-		currentDir := ""
+	}
 
-		var currentBuilder strings.Builder
+	out := make([]TapConversation, 0)
+	var parseErr error
 
-		for jsonStr := range globalFrameChan {
-			var fastFrame fastFollowPayload
-
-			if err := sonic.Unmarshal(jsonStr, &fastFrame); err != nil {
-				continue
-			}
-
-			if fastFrame.Summary {
-				result.PacketCount = fastFrame.MatchedCount
-				continue
-			}
-
-			if fastFrame.Payload == "" {
-				continue
-			}
-
-			if clientPort == -1 && fastFrame.SrcPort != 0 {
-				clientPort = fastFrame.SrcPort
-				result.ClientNode = fmt.Sprintf("%s:%d", fastFrame.Src, fastFrame.SrcPort)
-				result.ServerNode = fmt.Sprintf("%s:%d", fastFrame.Dst, fastFrame.DstPort)
-			}
-
-			dir := "server"
-			if fastFrame.SrcPort == clientPort {
-				dir = "client"
-			}
-
-			bytesLen := len(fastFrame.Payload) / 2
-			if dir == "client" {
-				result.ClientBytes += bytesLen
-			} else {
-				result.ServerBytes += bytesLen
-			}
-
-			if currentDir == "" {
-				currentDir = dir
-				currentBuilder.WriteString(fastFrame.Payload)
-			} else if currentDir == dir {
-				currentBuilder.WriteString(fastFrame.Payload)
-			} else {
-				result.Payloads = append(result.Payloads, newFollowPayload(currentDir, currentBuilder.String()))
-				currentDir = dir
-				currentBuilder.Reset()
-				currentBuilder.WriteString(fastFrame.Payload)
-			}
+	globalFrameSink = func(jsonBytes []byte) bool {
+		var conv TapConversation
+		if err := sonic.Unmarshal(jsonBytes, &conv); err != nil {
+			parseErr = err
+			return false
 		}
+		out = append(out, conv)
+		return true
+	}
+	defer func() { globalFrameSink = nil }()
 
-		if currentDir != "" {
-			result.Payloads = append(result.Payloads, newFollowPayload(currentDir, currentBuilder.String()))
+	cFilter := C.CString(filter)
+	cType := C.CString(convType)
+	defer C.free(unsafe.Pointer(cFilter))
+	defer C.free(unsafe.Pointer(cType))
+
+	if ret := C.call_get_tap_conversations_cb(cFilter, cType); ret != 0 {
+		return out, errors.Wrapf(ErrReadCaptureFile, "conversation tap failed: %d", int(ret))
+	}
+	if parseErr != nil {
+		return out, parseErr
+	}
+	return out, nil
+}
+
+func tapEndpointsFromActive(endpointType string, filter string) ([]TapEndpoint, error) {
+	if !supportedConvTypes[endpointType] {
+		return nil, errors.Wrapf(ErrUnsupportedProtocol, "endpoint type %q (must be eth/ip/tcp/udp)", endpointType)
+	}
+	if filter != "" {
+		if err := ValidateFilter(filter); err != nil {
+			return nil, err
 		}
-		if len(result.Payloads) == 0 {
-			result.Payloads = append(result.Payloads, FollowPayload{Dir: "client", HexData: ""})
+	}
+
+	out := make([]TapEndpoint, 0)
+	var parseErr error
+
+	globalFrameSink = func(jsonBytes []byte) bool {
+		var ep TapEndpoint
+		if err := sonic.Unmarshal(jsonBytes, &ep); err != nil {
+			parseErr = err
+			return false
 		}
+		out = append(out, ep)
+		return true
+	}
+	defer func() { globalFrameSink = nil }()
 
-		resChan <- result
-	}()
+	cFilter := C.CString(filter)
+	cType := C.CString(endpointType)
+	defer C.free(unsafe.Pointer(cFilter))
+	defer C.free(unsafe.Pointer(cType))
 
-	cFilter := C.CString(effectiveFilter)
-	cProto := C.CString(proto)
+	if ret := C.call_get_tap_endpoints_cb(cFilter, cType); ret != 0 {
+		return out, errors.Wrapf(ErrReadCaptureFile, "endpoint tap failed: %d", int(ret))
+	}
+	if parseErr != nil {
+		return out, parseErr
+	}
+	return out, nil
+}
+
+// =======================
+// Capability detection
+// =======================
+
+// SupportsExportObjects reports whether a protocol has an export-object tap
+// registered in the current libwireshark runtime.
+func SupportsExportObjects(protocol string) bool {
+	return supportedExportProtocols[protocol]
+}
+
+// SupportsServiceResponseTimes reports whether a protocol has an SRT
+// (Service Response Time) table registered in the current libwireshark
+// runtime.
+func SupportsServiceResponseTimes(protocol string) bool {
+	return hasSrtTable(protocol)
+}
+
+// =======================
+// Export Objects
+// =======================
+
+type fastExportObject struct {
+	PacketNum   int    `json:"packetNum"`
+	Hostname    string `json:"hostname,omitempty"`
+	ContentType string `json:"contentType,omitempty"`
+	Filename    string `json:"filename,omitempty"`
+	Length      int64  `json:"length"`
+	SHA256      string `json:"sha256,omitempty"`
+}
+
+type exportObjectWriteItem struct {
+	PacketNum   int    `json:"packetNum"`
+	Hostname    string `json:"hostname,omitempty"`
+	ContentType string `json:"contentType,omitempty"`
+	Filename    string `json:"filename,omitempty"`
+	Length      int64  `json:"length"`
+	PayloadHex  string `json:"payloadHex,omitempty"`
+}
+
+// ExportObject describes one file-like object found in a capture via Wireshark's export object tap.
+type ExportObject struct {
+	Protocol    string `json:"protocol"`
+	PacketNum   int    `json:"packetNum"`
+	Hostname    string `json:"hostname,omitempty"`
+	ContentType string `json:"contentType,omitempty"`
+	Filename    string `json:"filename,omitempty"`
+	Length      int64  `json:"length"`
+	SHA256      string `json:"sha256,omitempty"`
+}
+
+var supportedExportProtocols = map[string]bool{
+	"http": true,
+}
+
+func fastEOToExportObject(fast fastExportObject, protocol string) ExportObject {
+	return ExportObject{
+		Protocol:    protocol,
+		PacketNum:   fast.PacketNum,
+		Hostname:    fast.Hostname,
+		ContentType: fast.ContentType,
+		Filename:    fast.Filename,
+		Length:      fast.Length,
+		SHA256:      fast.SHA256,
+	}
+}
+
+// ExportObjects returns file objects found via Wireshark's export object tap.
+func ExportObjects(path string, protocol string, opts ...Option) ([]ExportObject, error) {
+	s, err := OpenSession(path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	return s.ExportObjects(protocol, Query{Filter: extractFilter(opts)})
+}
+
+// WriteExportObject writes the payload of one export object to w.
+func WriteExportObject(path string, protocol string, packetNum int, w io.Writer, opts ...Option) error {
+	s, err := OpenSession(path, opts...)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	return s.WriteExportObject(protocol, packetNum, w, Query{Filter: extractFilter(opts)})
+}
+
+func sanitizeFilename(name string) string {
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.ReplaceAll(name, "..", "_")
+	name = strings.ReplaceAll(name, "\x00", "")
+	if name == "" || name == "." {
+		return "unknown.bin"
+	}
+	return name
+}
+
+// WriteExportObjects writes all export objects for a protocol to dir.
+func WriteExportObjects(path string, protocol string, dir string, opts ...Option) ([]ExportObject, error) {
+	s, err := OpenSession(path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	return s.WriteExportObjects(protocol, dir, Query{Filter: extractFilter(opts)})
+}
+
+func exportObjectsFromActive(protocol string, filter string) ([]ExportObject, error) {
+	if !supportedExportProtocols[protocol] {
+		return nil, errors.Wrapf(ErrUnsupportedProtocol, "export protocol %q (must be http)", protocol)
+	}
+	if filter != "" {
+		if err := ValidateFilter(filter); err != nil {
+			return nil, err
+		}
+	}
+
+	out := make([]ExportObject, 0)
+	var parseErr error
+
+	globalFrameSink = func(jsonBytes []byte) bool {
+		var fast fastExportObject
+		if err := sonic.Unmarshal(jsonBytes, &fast); err != nil {
+			parseErr = err
+			return false
+		}
+		out = append(out, fastEOToExportObject(fast, protocol))
+		return true
+	}
+	defer func() { globalFrameSink = nil }()
+
+	cFilter := C.CString(filter)
+	cProto := C.CString(protocol)
 	defer C.free(unsafe.Pointer(cFilter))
 	defer C.free(unsafe.Pointer(cProto))
 
-	C.call_get_stream_payloads_cb(cFilter, cProto)
+	if ret := C.call_get_export_objects_cb(cFilter, cProto); ret != 0 {
+		return out, errors.Wrapf(ErrReadCaptureFile, "export objects tap failed: %d", int(ret))
+	}
+	if parseErr != nil {
+		return out, parseErr
+	}
+	return out, nil
+}
 
-	close(globalFrameChan)
-	globalFrameChan = nil
+func writeExportObjectFromActive(protocol string, packetNum int, filter string, w io.Writer) error {
+	if !supportedExportProtocols[protocol] {
+		return errors.Wrapf(ErrUnsupportedProtocol, "export protocol %q (must be http)", protocol)
+	}
+	if filter != "" {
+		if err := ValidateFilter(filter); err != nil {
+			return err
+		}
+	}
 
-	res := <-resChan
-	return res, nil
+	var foundData []byte
+	var found bool
+	var parseErr error
+
+	globalFrameSink = func(jsonBytes []byte) bool {
+		var item exportObjectWriteItem
+		if err := sonic.Unmarshal(jsonBytes, &item); err != nil {
+			parseErr = err
+			return false
+		}
+		if item.PacketNum == packetNum {
+			found = true
+			if item.PayloadHex != "" {
+				var err error
+				foundData, err = hex.DecodeString(item.PayloadHex)
+				if err != nil {
+					parseErr = err
+					return false
+				}
+			}
+		}
+		return true
+	}
+	defer func() { globalFrameSink = nil }()
+
+	cFilter := C.CString(filter)
+	cProto := C.CString(protocol)
+	defer C.free(unsafe.Pointer(cFilter))
+	defer C.free(unsafe.Pointer(cProto))
+
+	if ret := C.call_write_export_object_cb(cFilter, cProto, C.int(packetNum)); ret != 0 {
+		return errors.Wrapf(ErrReadCaptureFile, "export objects tap failed: %d", int(ret))
+	}
+	if parseErr != nil {
+		return parseErr
+	}
+	if !found {
+		return ErrFrameNotFound
+	}
+	_, err := w.Write(foundData)
+	return err
+}
+
+// =======================
+// Service Response Times (SRT)
+// =======================
+
+// SRTSummary describes one procedure's response-time statistics.
+type SRTSummary struct {
+	Protocol  string  `json:"protocol"`
+	Procedure string  `json:"procedure"`
+	Calls     uint32  `json:"calls"`
+	Min       float64 `json:"min"`
+	Max       float64 `json:"max"`
+	Avg       float64 `json:"avg"`
+	Total     float64 `json:"total"`
+}
+
+func hasSrtTable(protocol string) bool {
+	cProto := C.CString(protocol)
+	defer C.free(unsafe.Pointer(cProto))
+	return C.has_srt_table(cProto) != 0
+}
+
+// ServiceResponseTimes returns service response time statistics for a protocol.
+func ServiceResponseTimes(path string, protocol string, opts ...Option) ([]SRTSummary, error) {
+	s, err := OpenSession(path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	return s.ServiceResponseTimes(protocol, Query{Filter: extractFilter(opts)})
+}
+
+func serviceResponseTimesFromActive(protocol string, filter string) ([]SRTSummary, error) {
+	if !hasSrtTable(protocol) {
+		return nil, errors.Wrapf(ErrUnsupportedProtocol, "SRT protocol %q has no registered SRT table", protocol)
+	}
+	if filter != "" {
+		if err := ValidateFilter(filter); err != nil {
+			return nil, err
+		}
+	}
+
+	out := make([]SRTSummary, 0)
+	var parseErr error
+
+	globalFrameSink = func(jsonBytes []byte) bool {
+		var srt SRTSummary
+		if err := sonic.Unmarshal(jsonBytes, &srt); err != nil {
+			parseErr = err
+			return false
+		}
+		out = append(out, srt)
+		return true
+	}
+	defer func() { globalFrameSink = nil }()
+
+	cFilter := C.CString(filter)
+	cProto := C.CString(protocol)
+	defer C.free(unsafe.Pointer(cFilter))
+	defer C.free(unsafe.Pointer(cProto))
+
+	if ret := C.call_get_service_response_times_cb(cFilter, cProto); ret != 0 {
+		return out, errors.Wrapf(ErrReadCaptureFile, "SRT tap failed: %d", int(ret))
+	}
+	if parseErr != nil {
+		return out, parseErr
+	}
+	return out, nil
 }
 
 // =======================
@@ -1038,4 +1515,106 @@ func sessionFreeIndex() {
 
 func sessionDoClose() {
 	C.close_capture_file()
+}
+
+func sessionWalkAllFramesJSON(filter string) error {
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+	C.call_get_all_frames_cb(C.int(0), cFilter)
+	return nil
+}
+
+func getExpertInfosBatch(filter string) ([]ExpertInfo, error) {
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+
+	result := C.get_expert_infos_json(cFilter)
+	if result == nil {
+		return []ExpertInfo{}, nil
+	}
+	defer C.free_c_string(result)
+
+	var items []ExpertInfo
+	if err := sonic.Unmarshal([]byte(C.GoString(result)), &items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+type fastFollowPayloadBatch struct {
+	MatchedCount int                 `json:"matched_count"`
+	Payloads     []fastFollowPayload `json:"payloads"`
+}
+
+func getStreamPayloadsBatch(filter, proto string) (*FollowResult, error) {
+	cFilter := C.CString(filter)
+	cProto := C.CString(proto)
+	defer C.free(unsafe.Pointer(cFilter))
+	defer C.free(unsafe.Pointer(cProto))
+
+	result := C.get_stream_payloads_json(cFilter, cProto)
+	if result == nil {
+		return &FollowResult{}, nil
+	}
+	defer C.free_c_string(result)
+
+	var batch fastFollowPayloadBatch
+	if err := sonic.Unmarshal([]byte(C.GoString(result)), &batch); err != nil {
+		return nil, err
+	}
+
+	out := &FollowResult{
+		ClientNode: "Client",
+		ServerNode: "Server",
+	}
+	clientPort := -1
+	currentDir := ""
+	var currentBuilder strings.Builder
+
+	out.PacketCount = batch.MatchedCount
+
+	for _, fastFrame := range batch.Payloads {
+		if fastFrame.Payload == "" {
+			continue
+		}
+
+		if clientPort == -1 && fastFrame.SrcPort != 0 {
+			clientPort = fastFrame.SrcPort
+			out.ClientNode = fmt.Sprintf("%s:%d", fastFrame.Src, fastFrame.SrcPort)
+			out.ServerNode = fmt.Sprintf("%s:%d", fastFrame.Dst, fastFrame.DstPort)
+		}
+
+		dir := "server"
+		if fastFrame.SrcPort == clientPort {
+			dir = "client"
+		}
+
+		bytesLen := len(fastFrame.Payload) / 2
+		if dir == "client" {
+			out.ClientBytes += bytesLen
+		} else {
+			out.ServerBytes += bytesLen
+		}
+
+		if currentDir == "" {
+			currentDir = dir
+			currentBuilder.WriteString(fastFrame.Payload)
+		} else if currentDir == dir {
+			currentBuilder.WriteString(fastFrame.Payload)
+		} else {
+			out.Payloads = append(out.Payloads, newFollowPayload(currentDir, currentBuilder.String()))
+			currentDir = dir
+			currentBuilder.Reset()
+			currentBuilder.WriteString(fastFrame.Payload)
+		}
+	}
+
+	if currentDir != "" {
+		out.Payloads = append(out.Payloads, newFollowPayload(currentDir, currentBuilder.String()))
+	}
+	if len(out.Payloads) == 0 {
+		out.Payloads = append(out.Payloads, FollowPayload{Dir: "client", HexData: ""})
+	}
+
+	return out, nil
 }

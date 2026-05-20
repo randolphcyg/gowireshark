@@ -2,7 +2,7 @@
 
 `gowireshark` 是基于 `libwireshark` 的 Go SDK，只负责协议解析。抓包放在 `gocapture`，HTTP 组合放在 `gowireshark-server`，面向人或 Agent 的入口交给 CLI / agent-kit。
 
-## 能力边界
+## 能力
 
 - 离线 pcap / pcapng 解析，并支持大文件分页访问
 - frame、layer、hex、display filter、follow 等核心解析能力
@@ -62,8 +62,8 @@ result, _ := s.FollowStream(gowireshark.Query{Filter: "tcp.stream eq 0"}, "tcp")
 fmt.Println("packets:", result.PacketCount, "client bytes:", result.ClientBytes)
 ```
 
-- `FrameCount` 和 `FramesPage` 结果按 `(filter, page, size)` 缓存。`Close()` 会清空缓存。
-- `WalkFrames` 和 `FollowStream` 不做缓存。
+- `FrameCount`、`FramesPage`、`Streams`、`ExpertInfos`、`FollowStream` 结果按 `(filter)` 或 `(filter, proto)` 缓存。`Close()` 会清空所有缓存。
+- `WalkFrames` 不做缓存。
 
 旧版 free function（`FrameCount`、`FramesPage`、`WalkFrames`、`FollowStream`）保持可用，内部创建临时 `Session`。一次性调用时很方便；多次查询同一个 pcap 建议用 `Session`。已有外部 `Session` 尚未关闭时，不要再调用这些 helper。
 
@@ -87,6 +87,36 @@ result, err := gowireshark.FollowStream("capture.pcap", "tcp.stream eq 0", "tcp"
 for _, p := range result.Payloads {
     fmt.Printf("[%s] %d bytes\n", p.Dir, len(p.Bytes))
 }
+```
+
+### CLI / Agent 取证辅助
+
+`gowireshark` 提供面向 CLI 和 Agent 的稳定原始接口，用于精确、可复现的取证提取：
+
+```go
+frame, _ := gowireshark.FrameByIndex("capture.pcap", 42)
+frames, _ := gowireshark.FramesByIndices("capture.pcap", []int{42, 43})
+hex, _ := gowireshark.HexDataByIndex("capture.pcap", 42)
+
+streams, _ := gowireshark.Streams("capture.pcap")
+conversations, _ := gowireshark.Conversations("capture.pcap")
+timeline, _ := gowireshark.Timeline("capture.pcap")
+files, _ := gowireshark.Files("capture.pcap")
+_ = frame; _ = frames; _ = hex; _ = streams; _ = conversations; _ = timeline; _ = files
+
+selector := gowireshark.FrameSelector{Filter: "tcp.stream == 3"}
+_, _ = gowireshark.WritePcapSlice("capture.pcap", out, selector)
+bundle, _ := gowireshark.BuildEvidenceBundle("capture.pcap", selector)
+_ = bundle
+```
+
+Writer 风格 API 支持 CLI 友好的输出格式控制：
+
+```go
+_, _ = gowireshark.WriteFramesJSONL("capture.pcap", out,
+    gowireshark.WithDisplayFilter("tcp"),
+    gowireshark.WithOutputFields([]string{"frame.number", "ip.src", "ip.dst", "tcp.stream"}),
+)
 ```
 
 ### Analysis
@@ -123,6 +153,89 @@ frame, err := gowireshark.DissectPacket(gowireshark.RawPacket{
 ```
 
 `LinkType` 使用 libpcap LINKTYPE / DLT 数值，SDK 会在内部转换为 Wireshark 封装类型。
+
+## Wireshark 元数据、Expert Info 与 Decode As
+
+```go
+_ = gowireshark.ValidateField("tcp.stream")
+field, _ := gowireshark.FieldInfo("http.request.uri")
+protocols, _ := gowireshark.Protocols()
+fields, _ := gowireshark.Fields()
+experts, _ := gowireshark.ExpertInfos("capture.pcap")
+```
+
+对非标准端口的流量强制指定解析器：
+
+```go
+frames, err := gowireshark.Frames("capture.pcap",
+    gowireshark.WithDecodeAs([]gowireshark.DecodeAsRule{
+        {Table: "tcp.port", Selector: "8080", Protocol: "http"},
+    }),
+)
+```
+
+## 能力边界
+
+部分 API 依赖运行时 libwireshark 注册表，不要假定具备与 Wireshark GUI 同等的协议覆盖范围。
+
+### Session 并发
+
+libwireshark 保留进程级全局抓包状态。同一进程同一时间只允许**一个活跃 `Session`**。Session 方法**不支持多 goroutine 并发**。
+
+对于需要并发解析的 agent/server 场景：
+- 将所有解析序列化到单个 goroutine 或队列中
+- 或运行多个 worker 进程（每个进程一个 Session）
+- 不要尝试在单个进程内并发使用多个 `Session` 实例
+
+这是 Wireshark 的根本限制，而非 Go 设计选择。
+
+### 输出格式（PDML / PSML / Text）
+
+`WriteDissection` 使用 `OutputPDML`、`OutputPSML` 或 `OutputText` 时**尚未实现**，会返回错误。仅支持 `OutputJSON`、`OutputJSONRaw` 和 `OutputFields`。这些格式可能在将来有需要原生 Wireshark XML/文本输出路径的场景时加入。
+
+### PcapNG 元数据保留
+
+`WritePcapSlice` / `WritePcapSliceWithOptions` 通过 `pcapgo` 生成尽力而为的 pcap/pcapng 文件。原生 wiretap 保留元数据的 pcapng 切片（保留注释、接口描述、自定义块）**尚未实现**。
+
+```go
+_, err := gowireshark.WritePcapSliceWithOptions(pcap, &buf, selector,
+    gowireshark.PcapSliceOptions{PreserveInterfaces: true})
+// errors.Is(err, gowireshark.ErrPreserveNotSupported) == true
+```
+
+### Export Objects
+
+`ExportObjects` / `WriteExportObject` / `WriteExportObjects` 使用 Wireshark 的导出对象 tap。当前仅支持 HTTP：
+
+```go
+gowireshark.SupportsExportObjects("http") // true
+gowireshark.SupportsExportObjects("smb")  // false
+```
+
+使用不支持的协议会返回 `ErrUnsupportedProtocol`。建议调用前使用 `SupportsExportObjects` 检查，避免试错模式。
+
+### Tap Conversations / Endpoints
+
+Tap `conversations` 和 `endpoints` 当前覆盖 `eth`、`ip`、`tcp`、`udp`。其他协议类型（如 `wlan`、`fc`）C 层未实现。
+
+### Service Response Times（SRT）
+
+`ServiceResponseTimes` 使用 libwireshark 运行时 SRT 表。支持情况取决于链接的 Wireshark 构建中注册了哪些表；没有硬编码的协议列表：
+
+```go
+gowireshark.SupportsServiceResponseTimes("smb")  // 取决于运行时
+gowireshark.SupportsServiceResponseTimes("dns")  // 取决于运行时
+```
+
+如果某协议没有注册 SRT 表，`ServiceResponseTimes` 返回 `ErrUnsupportedProtocol`。使用 `SupportsServiceResponseTimes` 运行时探测。
+
+### 字段提取性能
+
+`FieldsRows` 和 `WriteDissection(OutputFields)`（包括 `WithFieldOutput`）在 C 层为每帧生成完整 JSON 后再在 Go 侧进行字段筛选。这**不是** tshark 原生 `-T fields` 快路径（C 层直接只输出请求的字段）。对于 WalkFrames 聚合成为瓶颈的场景（stream_list、timeline），建议使用 `FieldsRows` API 而非 WalkFrames，以避免 BaseLayers 构建开销。纯 C 层字段输出是计划中的未来优化。
+
+### Stream 标识
+
+`StreamSummary.StreamID` 返回真实的 Wireshark 协议流 ID（`tcp.stream` / `udp.stream`），可用于 display filter 如 `"tcp.stream eq N"`。`StreamID == -1` 表示流 ID 未能解析（例如 IPv6 链路本地地址在 `FieldsRows` 输出中无法匹配）。仅当 `StreamID >= 0` 时才可用于 display filter。`ConversationID` 是排序后五元组的内部哈希值，用于跨 tap 结果关联。早期版本曾将哈希值作为 StreamID；现已修正，确保 stream-list → follow-stream 取证链正确。
 
 ## 可选能力
 
