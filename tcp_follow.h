@@ -5,9 +5,12 @@
 #include <epan/follow.h>
 #include <epan/to_str.h>
 #include <stdint.h>
+
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#endif
 
 void setup_tcp_follow_tap();
 

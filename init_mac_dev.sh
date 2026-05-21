@@ -19,7 +19,7 @@ DEPS_DIR="$PROJECT_ROOT/local_deps"
 INSTALL_DIR="$DEPS_DIR/install"
 BRIDGE_DIR="$PROJECT_ROOT"
 
-WIRESHARK_VER="4.6.5"
+WIRESHARK_VER="4.6.6"
 CJSON_VER="1.7.19"
 
 JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
