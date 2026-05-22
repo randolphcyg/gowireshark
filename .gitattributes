@@ -1,8 +1,17 @@
-* text eol=lf
+* text=auto
 
-*.go text eol=lf
-*.c  text eol=lf
-*.h  text eol=lf
+*.go            text eol=lf
+*.c             text eol=lf
+*.h             text eol=lf
+*.sh            text eol=lf
+*.ps1           text eol=lf
+*.md            text eol=lf
+*.mod           text eol=lf
+*.sum           text eol=lf
+*.txt           text eol=lf
+.gitattributes  text eol=lf
+.clang-format   text eol=lf
+LICENSE         text eol=lf
 
-*.png binary
-*.so binary
+*.png           binary
+*.so            binary
