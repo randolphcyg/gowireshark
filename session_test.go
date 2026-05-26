@@ -1,9 +1,12 @@
 package gowireshark
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/randolphcyg/gowireshark/internal/testfixture"
 )
@@ -11,7 +14,7 @@ import (
 func TestSession_OpenClose(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
@@ -24,7 +27,7 @@ func TestSession_OpenClose(t *testing.T) {
 func TestSession_DoubleClose(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	s.Close()
 
 	if err := s.Close(); err != nil {
@@ -32,24 +35,26 @@ func TestSession_DoubleClose(t *testing.T) {
 	}
 }
 
-func TestSession_RejectsSecondActiveSession(t *testing.T) {
+func TestSession_SecondOpenCanBeCanceled(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
 	defer s.Close()
 
-	if _, err := OpenSession(pcap); err != ErrSessionActive {
-		t.Fatalf("expected ErrSessionActive, got %v", err)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if _, err := OpenSessionContext(ctx, pcap); err == nil {
+		t.Fatal("expected context timeout while session is active")
 	}
 }
 
 func TestSession_AllowsNewSessionAfterClose(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("first OpenSession: %v", err)
 	}
@@ -57,7 +62,7 @@ func TestSession_AllowsNewSessionAfterClose(t *testing.T) {
 		t.Fatalf("first Close: %v", err)
 	}
 
-	next, err := OpenSession(pcap)
+	next, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("second OpenSession: %v", err)
 	}
@@ -67,7 +72,7 @@ func TestSession_AllowsNewSessionAfterClose(t *testing.T) {
 func TestSession_ClosedPreventsUse(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	s.Close()
 
 	_, err := s.FrameCount(Query{})
@@ -94,7 +99,7 @@ func TestSession_ClosedPreventsUse(t *testing.T) {
 func TestSession_TotalFrames_MatchesCount(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	total := s.TotalFrames()
@@ -115,7 +120,7 @@ func TestSession_TotalFrames_MatchesCount(t *testing.T) {
 func TestSession_FrameCount_Consistent(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	count1, err := s.FrameCount(Query{})
@@ -140,7 +145,7 @@ func TestSession_FrameCount_Consistent(t *testing.T) {
 func TestSession_FrameCount_MatchesFreeFunc(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	sCount, err := s.FrameCount(Query{})
 	if err != nil {
 		t.Fatalf("session FrameCount: %v", err)
@@ -160,7 +165,7 @@ func TestSession_FrameCount_MatchesFreeFunc(t *testing.T) {
 func TestSession_FrameCount_WithFilter(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	allCount, _ := s.FrameCount(Query{})
@@ -177,7 +182,7 @@ func TestSession_FrameCount_WithFilter(t *testing.T) {
 func TestSession_FrameCount_Cache(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	s.FrameCount(Query{Filter: "tcp"})
@@ -190,7 +195,7 @@ func TestSession_FrameCount_Cache(t *testing.T) {
 func TestSession_FrameCount_NoFilterUsesIndex(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	count := s.TotalFrames()
@@ -209,7 +214,7 @@ func TestSession_FrameCount_NoFilterUsesIndex(t *testing.T) {
 func TestSession_FramesPage_Consistent(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	frames1, hasMore1, err := s.FramesPage(Query{}, 1, 10)
@@ -241,7 +246,7 @@ func TestSession_FramesPage_Consistent(t *testing.T) {
 func TestSession_FramesPage_MatchesFreeFunc(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	sFrames, sMore, err := s.FramesPage(Query{}, 1, 5)
 	if err != nil {
 		t.Fatalf("session FramesPage: %v", err)
@@ -264,7 +269,7 @@ func TestSession_FramesPage_MatchesFreeFunc(t *testing.T) {
 func TestSession_FramesPage_DifferentFiltersDontPollute(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	_, _, _ = s.FramesPage(Query{Filter: "tcp"}, 1, 5)
@@ -287,7 +292,7 @@ func TestSession_FramesPage_DifferentFiltersDontPollute(t *testing.T) {
 func TestSession_FramesPage_Cache(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	s.FramesPage(Query{Filter: "tcp"}, 2, 10)
@@ -304,7 +309,7 @@ func TestSession_FramesPage_Cache(t *testing.T) {
 func TestSession_WalkFrames_MatchesFreeFunc(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 
 	var sFrames []*FrameData
 	err := s.WalkFrames(Query{Filter: "tcp"}, func(f *FrameData) error {
@@ -345,7 +350,7 @@ func (e *walkStopError) Error() string { return "stop" }
 func TestSession_FollowStream_Consistent(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	r1, err := s.FollowStream(Query{Filter: "tcp.stream eq 0"}, "tcp")
@@ -366,7 +371,7 @@ func TestSession_FollowStream_Consistent(t *testing.T) {
 func TestSession_FollowStream_MatchesFreeFunc(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	sRes, err := s.FollowStream(Query{Filter: "tcp.stream eq 0"}, "tcp")
 	if err != nil {
 		t.Fatalf("session FollowStream: %v", err)
@@ -386,7 +391,7 @@ func TestSession_FollowStream_MatchesFreeFunc(t *testing.T) {
 func TestSession_MixedOperationsRemainConsistent(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
@@ -433,7 +438,7 @@ func TestSession_ResetReadPositionError(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	s, err := OpenSession(tmp)
+	s, err := openSession(tmp)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
@@ -449,7 +454,7 @@ func TestSession_ResetReadPositionError(t *testing.T) {
 }
 
 func TestSession_FileNotFound(t *testing.T) {
-	_, err := OpenSession("/nonexistent/pcap/file.pcap")
+	_, err := openSession("/nonexistent/pcap/file.pcap")
 	if err == nil {
 		t.Fatal("expected error for nonexistent file")
 	}
@@ -458,7 +463,7 @@ func TestSession_FileNotFound(t *testing.T) {
 func TestSession_InvalidFilterInQuery(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	_, err := s.FrameCount(Query{Filter: "!!invalid!!"})
@@ -470,7 +475,7 @@ func TestSession_InvalidFilterInQuery(t *testing.T) {
 func TestSession_ReuseWithoutReinit(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	total := s.TotalFrames()
@@ -499,7 +504,7 @@ func TestSession_ReuseWithoutReinit(t *testing.T) {
 func TestSession_DifferentFiltersDontPolluteCount(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	allCount, _ := s.FrameCount(Query{})
@@ -521,7 +526,7 @@ func TestSession_DifferentFiltersDontPolluteCount(t *testing.T) {
 func TestSession_StreamsCache_NoMutationLeak(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	r1, err := s.Streams(Query{})
@@ -547,7 +552,7 @@ func TestSession_StreamsCache_NoMutationLeak(t *testing.T) {
 func TestSession_StreamsCache_CloseClears(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 
 	_, err := s.Streams(Query{})
 	if err != nil {
@@ -565,7 +570,7 @@ func TestSession_StreamsCache_CloseClears(t *testing.T) {
 func TestSession_ExpertInfosCache_NoMutationLeak(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	r1, err := s.ExpertInfos(Query{})
@@ -591,7 +596,7 @@ func TestSession_ExpertInfosCache_NoMutationLeak(t *testing.T) {
 func TestSession_ExpertInfosCache_CloseClears(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 
 	_, err := s.ExpertInfos(Query{})
 	if err != nil {
@@ -609,7 +614,7 @@ func TestSession_ExpertInfosCache_CloseClears(t *testing.T) {
 func TestSession_FollowStreamCache_NoMutationLeak(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	r1, err := s.FollowStream(Query{Filter: "tcp.stream eq 0"}, "tcp")
@@ -640,7 +645,7 @@ func TestSession_FollowStreamCache_NoMutationLeak(t *testing.T) {
 func TestSession_FollowStreamCache_CloseClears(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 
 	_, err := s.FollowStream(Query{Filter: "tcp.stream eq 0"}, "tcp")
 	if err != nil {
@@ -658,7 +663,7 @@ func TestSession_FollowStreamCache_CloseClears(t *testing.T) {
 func TestSession_FramesPageCache_NoMutationLeak(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	r1, _, err := s.FramesPage(Query{}, 1, 5)
@@ -679,4 +684,578 @@ func TestSession_FramesPageCache_NoMutationLeak(t *testing.T) {
 	if r2[0].BaseLayers.Frame.Number != origNum {
 		t.Fatalf("cache polluted: expected frame %d got %d", origNum, r2[0].BaseLayers.Frame.Number)
 	}
+}
+
+func TestSession_ConcurrentOpenWaitsForGate(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession: %v", err)
+	}
+	defer s.Close()
+
+	done := make(chan error, 1)
+	go func() {
+		s2, e := OpenSessionContext(context.Background(), pcap)
+		if e == nil {
+			s2.Close()
+		}
+		done <- e
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("concurrent OpenSessionContext should block while session is active")
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	s.Close()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("concurrent OpenSessionContext after release: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("concurrent OpenSessionContext did not acquire gate after release")
+	}
+}
+
+func TestSession_OpenSessionContext_WaitsForGate(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		s2, e := OpenSessionContext(context.Background(), pcap)
+		if e != nil {
+			done <- e
+			return
+		}
+		s2.Close()
+		done <- nil
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("OpenSessionContext should block while session is active")
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	s.Close()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("OpenSessionContext after close: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("OpenSessionContext did not acquire gate after Close")
+	}
+}
+
+func TestSession_OpenSessionContext_ContextCancel(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession: %v", err)
+	}
+	defer s.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err = OpenSessionContext(ctx, pcap)
+	if err == nil {
+		t.Fatal("expected context.Canceled error")
+	}
+}
+
+func TestSession_OpenSessionContext_ContextTimeout(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession: %v", err)
+	}
+	defer s.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	_, err = OpenSessionContext(ctx, pcap)
+	if err == nil {
+		t.Fatal("expected context.DeadlineExceeded error")
+	}
+}
+
+func TestSession_FreeFuncWaitsWhenSessionActive(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		e := WalkFrames(pcap, func(_ *FrameData) error { return nil })
+		done <- e
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("WalkFrames should block while session is active")
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	s.Close()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("WalkFrames after release: %v", err)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("WalkFrames did not complete after gate release")
+	}
+}
+
+func TestSession_AllowsReopenAfterPantryCallback(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	panicWalkFn := func(_ *FrameData) error {
+		panic("intentional test panic")
+	}
+
+	func() {
+		defer func() { recover() }()
+		s, err := openSession(pcap)
+		if err != nil {
+			t.Fatalf("OpenSession: %v", err)
+		}
+		defer s.Close()
+
+		_ = s.WalkFrames(Query{Filter: "frame.number <= 1"}, panicWalkFn)
+	}()
+
+	s2, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession after panic: %v", err)
+	}
+	defer s2.Close()
+
+	total := s2.TotalFrames()
+	if total <= 0 {
+		t.Fatal("expected positive frame count after panic recovery")
+	}
+}
+
+func TestSession_SessionGateAcquireRelease(t *testing.T) {
+	if err := acquireSessionGate(context.Background()); err != nil {
+		t.Fatalf("acquire gate: %v", err)
+	}
+	releaseSessionGate()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := acquireSessionGate(ctx); err == nil {
+		t.Fatal("expected canceled context error")
+	}
+}
+
+func TestSession_PanicCallbackRecovery_GlobalStateCleanup(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	func() {
+		defer func() { recover() }()
+		s, err := openSession(pcap)
+		if err != nil {
+			t.Fatalf("OpenSession: %v", err)
+		}
+		defer s.Close()
+
+		panicWalkFn := func(_ *FrameData) error {
+			panic("intentional test panic for cleanup")
+		}
+		_ = s.WalkFrames(Query{Filter: "frame.number <= 2"}, panicWalkFn)
+	}()
+
+	if globalFrameSink != nil {
+		t.Fatal("globalFrameSink should be nil after panic recovery")
+	}
+	if globalFrameChan != nil {
+		t.Fatal("globalFrameChan should be nil after panic recovery")
+	}
+
+	s2, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession after panic cleanup: %v", err)
+	}
+	defer s2.Close()
+
+	frames, _, err := s2.FramesPage(Query{}, 1, 1)
+	if err != nil {
+		t.Fatalf("FramesPage after panic cleanup: %v", err)
+	}
+	if len(frames) != 1 {
+		t.Fatalf("expected 1 frame, got %d", len(frames))
+	}
+}
+
+func TestSession_FrameNumbers_NoFilter(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	numbers, err := s.FrameNumbers(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	total, err := s.FrameCount(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(numbers) != total {
+		t.Fatalf("FrameNumbers length: want %d got %d", total, len(numbers))
+	}
+	for i, n := range numbers {
+		if n != i+1 {
+			t.Fatalf("FrameNumbers[%d]: want %d got %d", i, i+1, n)
+		}
+	}
+}
+
+func TestSession_FrameNumbers_WithFilter(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	allNumbers, err := s.FrameNumbers(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tcpNumbers, err := s.FrameNumbers(Query{Filter: "tcp"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedCount, err := s.FrameCount(Query{Filter: "tcp"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tcpNumbers) != expectedCount {
+		t.Fatalf("FrameNumbers(tcp) length: want %d got %d", expectedCount, len(tcpNumbers))
+	}
+
+	allSet := make(map[int]bool, len(allNumbers))
+	for _, n := range allNumbers {
+		allSet[n] = true
+	}
+	for _, n := range tcpNumbers {
+		if !allSet[n] {
+			t.Fatalf("FrameNumbers(tcp) returned %d not in all numbers", n)
+		}
+	}
+}
+
+func TestSession_FrameNumbers_Cache(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	if _, err := s.FrameNumbers(Query{Filter: "tcp"}); err != nil {
+		t.Fatal(err)
+	}
+
+	nums2, err := s.FrameNumbers(Query{Filter: "tcp"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedCount, err := s.FrameCount(Query{Filter: "tcp"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(nums2) != expectedCount {
+		t.Fatalf("cache FrameNumbers(tcp): want %d got %d", expectedCount, len(nums2))
+	}
+}
+
+func TestSession_FrameNumbers_ClosedSession(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+
+	if _, err := s.FrameNumbers(Query{}); err != ErrSessionClosed {
+		t.Fatalf("expected ErrSessionClosed, got %v", err)
+	}
+}
+
+func TestSession_FrameNumbers_InvalidFilter(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	if _, err := s.FrameNumbers(Query{Filter: "!!invalid!!"}); err == nil {
+		t.Fatal("expected error for invalid filter")
+	}
+}
+
+func TestSession_TimelineBy(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	buckets, err := s.TimelineBy(Query{}, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	totalFrames := 0
+	totalBytes := int64(0)
+	for _, b := range buckets {
+		totalFrames += b.FrameCount
+		totalBytes += b.ByteCount
+	}
+
+	expectedCount, err := s.FrameCount(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if totalFrames != expectedCount {
+		t.Fatalf("total frames across buckets: want %d got %d", expectedCount, totalFrames)
+	}
+	if totalBytes <= 0 {
+		t.Fatal("expected non-zero bytes")
+	}
+}
+
+func TestSession_TimelineBy_MatchesFreeFunc(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sBuckets, err := s.TimelineBy(Query{}, time.Minute)
+	if err != nil {
+		s.Close()
+		t.Fatal(err)
+	}
+	s.Close()
+
+	fBuckets, err := TimelineBy(pcap, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(sBuckets) != len(fBuckets) {
+		t.Fatalf("buckets length mismatch: session=%d free=%d", len(sBuckets), len(fBuckets))
+	}
+
+	for i := range sBuckets {
+		if sBuckets[i].StartEpoch != fBuckets[i].StartEpoch {
+			t.Fatalf("bucket[%d] start: session=%d free=%d", i, sBuckets[i].StartEpoch, fBuckets[i].StartEpoch)
+		}
+		if sBuckets[i].FrameCount != fBuckets[i].FrameCount {
+			t.Fatalf("bucket[%d] FrameCount: session=%d free=%d", i, sBuckets[i].FrameCount, fBuckets[i].FrameCount)
+		}
+		if sBuckets[i].ByteCount != fBuckets[i].ByteCount {
+			t.Fatalf("bucket[%d] ByteCount: session=%d free=%d", i, sBuckets[i].ByteCount, fBuckets[i].ByteCount)
+		}
+	}
+}
+
+func TestSession_TimelineBy_ClosedSession(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+
+	if _, err := s.TimelineBy(Query{}, time.Minute); err != ErrSessionClosed {
+		t.Fatalf("expected ErrSessionClosed, got %v", err)
+	}
+}
+
+func TestSession_TimelineBy_SecondBuckets(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+
+	buckets, err := s.TimelineBy(Query{}, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, b := range buckets {
+		if b.EndEpoch-b.StartEpoch != 1 {
+			t.Fatalf("expected 1-second buckets, got %d..%d", b.StartEpoch, b.EndEpoch)
+		}
+	}
+}
+
+func TestRace_CloseConcurrentFrame(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 20; i++ {
+			_, _ = s.Frame(1)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		time.Sleep(10 * time.Millisecond)
+		_ = s.Close()
+	}()
+
+	wg.Wait()
+}
+
+func TestRace_CloseConcurrentFrameCount(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 20; i++ {
+			_, _ = s.FrameCount(Query{Filter: "tcp"})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		time.Sleep(10 * time.Millisecond)
+		_ = s.Close()
+	}()
+
+	wg.Wait()
+}
+
+func TestRace_CloseConcurrentFieldsRows(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 20; i++ {
+			_, _ = s.FieldsRows(Query{Filter: "frame.number <= 3"}, []string{"frame.number", "ip.src"})
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		time.Sleep(10 * time.Millisecond)
+		_ = s.Close()
+	}()
+
+	wg.Wait()
+}
+
+func TestRace_CloseConcurrentIterFrames(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 10; i++ {
+			iter, err := s.IterFrames(Query{Filter: "frame.number <= 3"})
+			if err != nil {
+				continue
+			}
+			for iter.Next() {
+				_ = iter.Frame()
+			}
+			_ = iter.Close()
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		time.Sleep(10 * time.Millisecond)
+		_ = s.Close()
+	}()
+
+	wg.Wait()
+}
+
+func TestRace_DoubleClose(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		_ = s.Close()
+	}()
+
+	go func() {
+		defer wg.Done()
+		_ = s.Close()
+	}()
+
+	wg.Wait()
 }

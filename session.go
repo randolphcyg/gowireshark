@@ -1,18 +1,21 @@
 package gowireshark
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
+	"strconv"
 	"sync"
+	"sync/atomic"
+	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/pkg/errors"
 )
 
-// Query holds per-call parameters that may vary between uses of a Session.
 type Query struct {
 	Filter string
 }
@@ -24,12 +27,16 @@ type cacheKey struct {
 }
 
 type sessionCache struct {
-	mu      sync.RWMutex
-	counts  map[string]int
-	pages   map[cacheKey]*pageCacheEntry
-	streams map[string][]StreamSummary
-	experts map[string][]ExpertInfo
-	follows map[followCacheKey]*FollowResult
+	mu           sync.RWMutex
+	opts         SessionCacheOptions
+	counts       map[string]int
+	numbers      map[string][]int
+	frameIndexes map[string]*FrameIndex
+	pages        map[cacheKey]*pageCacheEntry
+	pageOrder    []cacheKey
+	streams      map[string][]StreamSummary
+	experts      map[string][]ExpertInfo
+	follows      map[followCacheKey]*FollowResult
 }
 
 type pageCacheEntry struct {
@@ -42,17 +49,23 @@ type followCacheKey struct {
 	proto  string
 }
 
-func newSessionCache() *sessionCache {
+func newSessionCache(opts SessionCacheOptions) *sessionCache {
 	return &sessionCache{
-		counts:  make(map[string]int),
-		pages:   make(map[cacheKey]*pageCacheEntry),
-		streams: make(map[string][]StreamSummary),
-		experts: make(map[string][]ExpertInfo),
-		follows: make(map[followCacheKey]*FollowResult),
+		opts:         opts,
+		counts:       make(map[string]int),
+		numbers:      make(map[string][]int),
+		frameIndexes: make(map[string]*FrameIndex),
+		pages:        make(map[cacheKey]*pageCacheEntry),
+		streams:      make(map[string][]StreamSummary),
+		experts:      make(map[string][]ExpertInfo),
+		follows:      make(map[followCacheKey]*FollowResult),
 	}
 }
 
 func (c *sessionCache) getCount(filter string) (int, bool) {
+	if c.opts.Disable {
+		return 0, false
+	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	v, ok := c.counts[filter]
@@ -60,12 +73,84 @@ func (c *sessionCache) getCount(filter string) (int, bool) {
 }
 
 func (c *sessionCache) setCount(filter string, count int) {
+	if c.opts.Disable {
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.counts[filter] = count
 }
 
+func (c *sessionCache) getNumbers(filter string) ([]int, bool) {
+	if c.opts.Disable {
+		return nil, false
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	v, ok := c.numbers[filter]
+	if !ok {
+		return nil, false
+	}
+	cp := make([]int, len(v))
+	copy(cp, v)
+	return cp, true
+}
+
+func (c *sessionCache) setNumbers(filter string, numbers []int) {
+	if c.opts.Disable {
+		return
+	}
+	cp := make([]int, len(numbers))
+	copy(cp, numbers)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.numbers[filter] = cp
+}
+
+func (c *sessionCache) getFrameIndex(filter string) (*FrameIndex, bool) {
+	if c.opts.Disable {
+		return nil, false
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	idx, ok := c.frameIndexes[filter]
+	if !ok {
+		return nil, false
+	}
+	cp := make([]int, len(idx.FrameNumbers))
+	copy(cp, idx.FrameNumbers)
+	return &FrameIndex{
+		FrameNumbers: cp,
+		Filter:       idx.Filter,
+		TotalFrames:  idx.TotalFrames,
+	}, true
+}
+
+func (c *sessionCache) setFrameIndex(filter string, idx *FrameIndex) {
+	if c.opts.Disable {
+		return
+	}
+	cp := make([]int, len(idx.FrameNumbers))
+	copy(cp, idx.FrameNumbers)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.frameIndexes) >= c.opts.MaxIndexCount && c.opts.MaxIndexCount > 0 {
+		for k := range c.frameIndexes {
+			delete(c.frameIndexes, k)
+			break
+		}
+	}
+	c.frameIndexes[filter] = &FrameIndex{
+		FrameNumbers: cp,
+		Filter:       idx.Filter,
+		TotalFrames:  idx.TotalFrames,
+	}
+}
+
 func (c *sessionCache) getPage(filter string, page, size int) (*pageCacheEntry, bool) {
+	if c.opts.Disable {
+		return nil, false
+	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	v, ok := c.pages[cacheKey{filter, page, size}]
@@ -78,14 +163,30 @@ func (c *sessionCache) getPage(filter string, page, size int) (*pageCacheEntry, 
 }
 
 func (c *sessionCache) setPage(filter string, page, size int, frames []*FrameData, hasMore bool) {
+	if c.opts.Disable {
+		return
+	}
 	cp := make([]*FrameData, len(frames))
 	copy(cp, frames)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.pages[cacheKey{filter, page, size}] = &pageCacheEntry{frames: cp, hasMore: hasMore}
+	key := cacheKey{filter, page, size}
+	_, exists := c.pages[key]
+	c.pages[key] = &pageCacheEntry{frames: cp, hasMore: hasMore}
+	if !exists {
+		c.pageOrder = append(c.pageOrder, key)
+		if c.opts.MaxPages > 0 && len(c.pageOrder) > c.opts.MaxPages {
+			evict := c.pageOrder[0]
+			c.pageOrder = c.pageOrder[1:]
+			delete(c.pages, evict)
+		}
+	}
 }
 
 func (c *sessionCache) getStreams(filter string) ([]StreamSummary, bool) {
+	if c.opts.Disable {
+		return nil, false
+	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	v, ok := c.streams[filter]
@@ -98,6 +199,9 @@ func (c *sessionCache) getStreams(filter string) ([]StreamSummary, bool) {
 }
 
 func (c *sessionCache) setStreams(filter string, streams []StreamSummary) {
+	if c.opts.Disable {
+		return
+	}
 	cp := make([]StreamSummary, len(streams))
 	copy(cp, streams)
 	c.mu.Lock()
@@ -106,6 +210,9 @@ func (c *sessionCache) setStreams(filter string, streams []StreamSummary) {
 }
 
 func (c *sessionCache) getExpertInfos(filter string) ([]ExpertInfo, bool) {
+	if c.opts.Disable {
+		return nil, false
+	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	v, ok := c.experts[filter]
@@ -118,6 +225,9 @@ func (c *sessionCache) getExpertInfos(filter string) ([]ExpertInfo, bool) {
 }
 
 func (c *sessionCache) setExpertInfos(filter string, infos []ExpertInfo) {
+	if c.opts.Disable {
+		return
+	}
 	cp := make([]ExpertInfo, len(infos))
 	copy(cp, infos)
 	c.mu.Lock()
@@ -126,6 +236,9 @@ func (c *sessionCache) setExpertInfos(filter string, infos []ExpertInfo) {
 }
 
 func (c *sessionCache) getFollowStream(filter, proto string) (*FollowResult, bool) {
+	if c.opts.Disable {
+		return nil, false
+	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	v, ok := c.follows[followCacheKey{filter, proto}]
@@ -149,6 +262,15 @@ func (c *sessionCache) getFollowStream(filter, proto string) (*FollowResult, boo
 }
 
 func (c *sessionCache) setFollowStream(filter, proto string, r *FollowResult) {
+	if c.opts.Disable {
+		return
+	}
+	if c.opts.MaxFollowBytes > 0 {
+		totalBytes := r.ClientBytes + r.ServerBytes
+		if int64(totalBytes) > c.opts.MaxFollowBytes {
+			return
+		}
+	}
 	cp := &FollowResult{
 		Payloads:    make([]FollowPayload, len(r.Payloads)),
 		ClientNode:  r.ClientNode,
@@ -171,60 +293,72 @@ func (c *sessionCache) clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.counts = make(map[string]int)
+	c.numbers = make(map[string][]int)
+	c.frameIndexes = make(map[string]*FrameIndex)
 	c.pages = make(map[cacheKey]*pageCacheEntry)
+	c.pageOrder = nil
 	c.streams = make(map[string][]StreamSummary)
 	c.experts = make(map[string][]ExpertInfo)
 	c.follows = make(map[followCacheKey]*FollowResult)
 }
 
 var (
-	// ErrSessionClosed reports use of a session after Close.
 	ErrSessionClosed = errors.New("session is closed")
-	// ErrSessionActive reports an attempt to open a second process-wide session.
-	ErrSessionActive = errors.New("another session is already active")
 )
 
-var (
-	activeSessionMu sync.Mutex
-	activeSession   *Session
-)
+var sessionGate = make(chan struct{}, 1)
 
-// Session provides serial, reusable access to a single pcap file.
-// OpenSession builds a frame offset index and holds the Wireshark dissection
-// configuration for reuse. Sequential operations reset the underlying reader
-// before scanning again.
-//
-// Sessions are not safe for concurrent use by multiple goroutines. Because
-// libwireshark exposes process-global capture state, only one active Session may
-// exist in the process at a time.
-type Session struct {
-	conf       *config
-	cache      *sessionCache
-	frameCount int
-	closed     bool
+func init() {
+	sessionGate <- struct{}{}
 }
 
-// OpenSession opens a pcap file, applies options to the Wireshark session,
-// builds the frame offset index, and returns a reusable Session.
-//
-// Options that affect session-wide dissection (TLS keys, registry, follow
-// taps, etc.) are applied once here. Per-call display filters belong in Query.
-func OpenSession(path string, opts ...Option) (*Session, error) {
+func acquireSessionGate(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case <-sessionGate:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func releaseSessionGate() {
+	select {
+	case sessionGate <- struct{}{}:
+	default:
+	}
+}
+
+type Session struct {
+	conf              *config
+	cache             *sessionCache
+	frameCount        int
+	closed            atomic.Bool
+	path              string
+	mu                sync.RWMutex
+	readPositionDirty atomic.Bool
+}
+
+func OpenSessionContext(ctx context.Context, path string, opts ...Option) (*Session, error) {
 	if !fileExists(path) {
 		return nil, errors.Wrapf(ErrFileNotFound, "cannot open %q", path)
 	}
 
-	activeSessionMu.Lock()
-	if activeSession != nil {
-		activeSessionMu.Unlock()
-		return nil, ErrSessionActive
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if err := acquireSessionGate(ctx); err != nil {
+		return nil, err
 	}
 
 	conf := newConfig(opts...)
 
 	s := &Session{
 		conf:  conf,
-		cache: newSessionCache(),
+		cache: newSessionCache(conf.SessionCache),
+		path:  path,
 	}
 
 	epanMu.Lock()
@@ -232,7 +366,7 @@ func OpenSession(path string, opts ...Option) (*Session, error) {
 	_, err := initCapFile(path, opts...)
 	if err != nil {
 		epanMu.Unlock()
-		activeSessionMu.Unlock()
+		releaseSessionGate()
 		return nil, err
 	}
 
@@ -240,29 +374,24 @@ func OpenSession(path string, opts ...Option) (*Session, error) {
 	if err != nil {
 		sessionDoClose()
 		epanMu.Unlock()
-		activeSessionMu.Unlock()
+		releaseSessionGate()
 		return nil, err
 	}
 	s.frameCount = count
+	s.readPositionDirty.Store(true)
 
 	epanMu.Unlock()
-	activeSession = s
-	activeSessionMu.Unlock()
 
 	return s, nil
 }
 
-// Close releases Wireshark resources and clears cached results.
-// After Close, all methods return ErrSessionClosed.
-// Calling Close on an already-closed session is safe (no-op).
 func (s *Session) Close() error {
-	activeSessionMu.Lock()
-	defer activeSessionMu.Unlock()
-
-	if s.closed {
+	s.mu.Lock()
+	if s.closed.Load() {
+		s.mu.Unlock()
 		return nil
 	}
-	s.closed = true
+	s.closed.Store(true)
 
 	s.cache.clear()
 
@@ -271,28 +400,30 @@ func (s *Session) Close() error {
 	sessionDoClose()
 	epanMu.Unlock()
 
-	if activeSession == s {
-		activeSession = nil
-	}
+	s.mu.Unlock()
+
+	releaseSessionGate()
 
 	return nil
 }
 
-func (s *Session) checkClosed() error {
-	if s.closed {
-		return ErrSessionClosed
+func (s *Session) resetReadPosition() error {
+	if !s.readPositionDirty.Load() {
+		return nil
 	}
-	return nil
+	s.readPositionDirty.Store(false)
+	return sessionResetReadPosition()
 }
 
-// FrameCount returns the number of frames selected by the query filter.
-//
-// Without a filter this is O(1) — it returns the count from the offset index
-// built during OpenSession. With a filter, libwireshark must re-scan;
-// results are cached by filter.
 func (s *Session) FrameCount(q Query) (int, error) {
-	if err := s.checkClosed(); err != nil {
-		return 0, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.frameCountLocked(q)
+}
+
+func (s *Session) frameCountLocked(q Query) (int, error) {
+	if s.closed.Load() {
+		return 0, ErrSessionClosed
 	}
 
 	if q.Filter == "" {
@@ -308,22 +439,67 @@ func (s *Session) FrameCount(q Query) (int, error) {
 	}
 
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return 0, err
 	}
 	count := sessionCountFrames(q.Filter)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 
 	s.cache.setCount(q.Filter, count)
 	return count, nil
 }
 
-// FramesPage fetches a specific page of frames selected by the query filter.
-// Results are cached by (filter, page, size).
+func (s *Session) FrameNumbers(q Query) ([]int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.frameNumbersLocked(q)
+}
+
+func (s *Session) frameNumbersLocked(q Query) ([]int, error) {
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
+	}
+
+	if q.Filter == "" {
+		fc := s.frameCount
+		numbers := make([]int, fc)
+		for i := range numbers {
+			numbers[i] = i + 1
+		}
+		return numbers, nil
+	}
+
+	if err := ValidateFilter(q.Filter); err != nil {
+		return nil, err
+	}
+
+	if v, ok := s.cache.getNumbers(q.Filter); ok {
+		return v, nil
+	}
+
+	epanMu.Lock()
+	if err := s.resetReadPosition(); err != nil {
+		epanMu.Unlock()
+		return nil, err
+	}
+	numbers, err := sessionGetFrameNumbers(q.Filter)
+	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
+	if err != nil {
+		return nil, err
+	}
+
+	s.cache.setNumbers(q.Filter, numbers)
+	return numbers, nil
+}
+
 func (s *Session) FramesPage(q Query, page, size int) ([]*FrameData, bool, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, false, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, false, ErrSessionClosed
 	}
 
 	if page < 1 {
@@ -338,12 +514,13 @@ func (s *Session) FramesPage(q Query, page, size int) ([]*FrameData, bool, error
 	}
 
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return nil, false, err
 	}
 	frames, hasMore, err := framesPageFromConf(s.conf, q.Filter, page, size, s.parseOpts()...)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	if err != nil {
 		return nil, false, err
 	}
@@ -352,29 +529,33 @@ func (s *Session) FramesPage(q Query, page, size int) ([]*FrameData, bool, error
 	return frames, hasMore, nil
 }
 
-// WalkFrames walks all frames matched by the query filter, calling walkFn for each.
-// The FrameData passed to walkFn is only valid during the call; do not retain it.
-// WalkFrames results are not cached.
 func (s *Session) WalkFrames(q Query, walkFn func(*FrameData) error) error {
-	if err := s.checkClosed(); err != nil {
-		return err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.walkFramesLocked(q, walkFn)
+}
+
+func (s *Session) walkFramesLocked(q Query, walkFn func(*FrameData) error) error {
+	if s.closed.Load() {
+		return ErrSessionClosed
 	}
 
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return err
 	}
 	err := walkFramesFromConf(s.conf, q.Filter, walkFn, s.parseOpts()...)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	return err
 }
 
-// FollowStream extracts payloads for TCP or UDP packets selected by the query filter.
-// Results are cached by (filter, proto).
 func (s *Session) FollowStream(q Query, proto string) (*FollowResult, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
 	}
 	if proto != "tcp" && proto != "udp" {
 		return nil, errors.Wrapf(ErrUnsupportedProtocol, "%q (must be \"tcp\" or \"udp\")", proto)
@@ -385,12 +566,13 @@ func (s *Session) FollowStream(q Query, proto string) (*FollowResult, error) {
 	}
 
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return nil, err
 	}
 	res, err := followStreamFromConf(q.Filter, proto)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	if err != nil {
 		return nil, err
 	}
@@ -399,9 +581,11 @@ func (s *Session) FollowStream(q Query, proto string) (*FollowResult, error) {
 	return res, nil
 }
 
-// TotalFrames returns the unfiltered frame count from the index built at open time.
 func (s *Session) TotalFrames() int {
-	return s.frameCount
+	s.mu.RLock()
+	fc := s.frameCount
+	s.mu.RUnlock()
+	return fc
 }
 
 func (s *Session) parseOpts() []Option {
@@ -419,200 +603,334 @@ func (s *Session) parseOpts() []Option {
 	return opts
 }
 
-// FrameByIndex returns one parsed frame by its 1-based frame number using the
-// already-open session.
-func (s *Session) FrameByIndex(frameIdx int) (*FrameData, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
+func (s *Session) Frames(frameNums []int) ([]*FrameData, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
 	}
 	epanMu.Lock()
-	defer epanMu.Unlock()
-	if err := sessionResetReadPosition(); err != nil {
-		return nil, err
-	}
-	return frameByIndexFromActiveConf(s.conf, frameIdx, s.parseOpts()...)
-}
-
-// FramesByIndices returns parsed frames for sorted unique 1-based frame numbers
-// using the already-open session.
-func (s *Session) FramesByIndices(frameIdxs []int) ([]*FrameData, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
-	}
-	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return nil, err
 	}
-	frames, err := framesByIndicesFromConf(s.conf, frameIdxs, s.parseOpts()...)
+	frames, err := framesByIndicesFromConf(s.conf, frameNums, s.parseOpts()...)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	return frames, err
 }
 
-// HexDataByIndex returns the hex dump for one 1-based frame number using the
-// already-open session.
-func (s *Session) HexDataByIndex(frameIdx int) (*HexData, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
+func (s *Session) HexData(frameNum int) (*HexData, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
 	}
 	epanMu.Lock()
 	defer epanMu.Unlock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		return nil, err
 	}
-	return hexDataByIndexFromActive(frameIdx)
+	hd, err := hexDataByIndexFromActive(frameNum)
+	if err != nil {
+		return nil, err
+	}
+	s.readPositionDirty.Store(true)
+	return hd, nil
 }
 
-// Streams returns TCP/UDP stream aggregates with real Wireshark stream IDs
-// (tcp.stream / udp.stream). ConversationID is a hash of the sorted 5-tuple for
-// internal matching; StreamID is the protocol-level stream identifier that can be
-// used directly in display filters like "tcp.stream eq N".
-// StreamID is -1 when the stream ID could not be resolved from the capture.
-// Results are cached by query filter.
 func (s *Session) Streams(q Query) ([]StreamSummary, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
 	}
 
 	if v, ok := s.cache.getStreams(q.Filter); ok {
 		return v, nil
 	}
 
-	var all []StreamSummary
-
-	tcpConvs, tcpErr := s.TapConversations("tcp", q)
-	if tcpErr == nil {
-		all = append(all, tapConvsToStreams(tcpConvs, "tcp")...)
+	acc := newTrafficAccumulator()
+	if err := s.conversationsFastLocked(q, acc); err != nil {
+		return nil, err
 	}
-
-	udpConvs, udpErr := s.TapConversations("udp", q)
-	if udpErr == nil {
-		all = append(all, tapConvsToStreams(udpConvs, "udp")...)
-	}
-
-	if len(all) == 0 && (tcpErr != nil || udpErr != nil) {
-		return nil, combineErrors(tcpErr, udpErr)
-	}
-
-	fillStreamIDs(s, q, all)
-
-	slices.SortFunc(all, func(a, b StreamSummary) int {
-		if a.Protocol != b.Protocol {
-			return strings.Compare(a.Protocol, b.Protocol)
-		}
-		return a.ConversationID - b.ConversationID
-	})
+	all := acc.streams()
 
 	s.cache.setStreams(q.Filter, all)
 	return all, nil
 }
 
-// Conversations returns directional 5-tuple aggregates for this session's capture.
 func (s *Session) Conversations(q Query) ([]ConversationSummary, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
+	}
 	acc := newTrafficAccumulator()
-	if err := s.WalkFrames(q, func(f *FrameData) error { acc.addFrame(f); return nil }); err != nil {
+	if err := s.conversationsFastLocked(q, acc); err != nil {
+		s.readPositionDirty.Store(true)
 		return nil, err
 	}
 	return acc.conversations(), nil
 }
 
-// WriteFrames writes selected frames as NDJSON using this session's capture.
+func (s *Session) conversationsFastLocked(q Query, acc *trafficAccumulator) error {
+	epanMu.Lock()
+	defer epanMu.Unlock()
+	if err := s.resetReadPosition(); err != nil {
+		return err
+	}
+	var parseErr error
+	globalFrameSink = func(jsonBytes []byte) bool {
+		var row map[string]string
+		if err := sonic.Unmarshal(jsonBytes, &row); err != nil {
+			parseErr = err
+			return false
+		}
+		acc.addRow(row)
+		return true
+	}
+	defer cleanupGlobalState()
+	fields := []string{"frame.len", "frame.time_epoch", "frame.protocols",
+		"ip.src", "ip.dst",
+		"tcp.srcport", "tcp.dstport", "tcp.stream",
+		"udp.srcport", "udp.dstport", "udp.stream"}
+	if err := sessionWalkFieldsFast(q.Filter, fields); err != nil {
+		return err
+	}
+	s.readPositionDirty.Store(true)
+	if parseErr != nil {
+		return parseErr
+	}
+	return nil
+}
+
+type timelineRow struct {
+	T  string `json:"t"`
+	L  int    `json:"l"`
+	S  string `json:"s,omitempty"`
+	D  string `json:"d,omitempty"`
+	TS int    `json:"ts,omitempty"`
+	US int    `json:"us,omitempty"`
+	P  string `json:"p,omitempty"`
+}
+
+func (s *Session) TimelineBy(q Query, bucket time.Duration) ([]TimelineBucket, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
+	}
+
+	if bucket <= 0 {
+		bucket = time.Minute
+	}
+
+	epanMu.Lock()
+	if err := s.resetReadPosition(); err != nil {
+		epanMu.Unlock()
+		return nil, err
+	}
+	rawJSON, err := sessionGetTimelineJSON(q.Filter)
+	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
+	if err != nil {
+		return nil, err
+	}
+
+	var rows []timelineRow
+	if err := sonic.Unmarshal([]byte(rawJSON), &rows); err != nil {
+		return nil, errors.Wrap(err, "parse timeline JSON")
+	}
+
+	buckets := map[int64]*TimelineBucket{}
+	bucketSec := int64(bucket / time.Second)
+	if bucketSec <= 0 {
+		bucketSec = 1
+	}
+
+	for _, row := range rows {
+		if row.T == "" || row.L <= 0 {
+			continue
+		}
+		epoch, parseErr := strconv.ParseFloat(row.T, 64)
+		if parseErr != nil {
+			t, err := time.Parse(time.RFC3339Nano, row.T)
+			if err != nil {
+				continue
+			}
+			epoch = float64(t.UnixNano()) / 1e9
+		}
+		if epoch <= 0 {
+			continue
+		}
+		sec := int64(epoch)
+		start := sec - (sec % bucketSec)
+
+		b := buckets[start]
+		if b == nil {
+			b = &TimelineBucket{StartEpoch: start, EndEpoch: start + bucketSec, Protocols: map[string]int{}}
+			buckets[start] = b
+		}
+		b.FrameCount++
+		b.ByteCount += int64(row.L)
+
+		for _, proto := range protocolList(row.P) {
+			b.Protocols[proto]++
+		}
+	}
+
+	out := make([]TimelineBucket, 0, len(buckets))
+	for _, b := range buckets {
+		out = append(out, *b)
+	}
+	slices.SortFunc(out, func(a, b TimelineBucket) int { return int(a.StartEpoch - b.StartEpoch) })
+	return out, nil
+}
+
 func (s *Session) WriteFrames(q Query, w io.Writer) (int, error) {
-	if err := s.checkClosed(); err != nil {
-		return 0, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.writeFramesLocked(q, w)
+}
+
+func (s *Session) writeFramesLocked(q Query, w io.Writer) (int, error) {
+	if s.closed.Load() {
+		return 0, ErrSessionClosed
 	}
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return 0, err
 	}
 	count, err := writeFramesFromConf(s.conf, q.Filter, w)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	return count, err
 }
 
-// WriteFramesPage writes one page of selected frames as NDJSON using this session's capture.
-func (s *Session) WriteFramesPage(q Query, page, size int, w io.Writer) (int, bool, error) {
-	if err := s.checkClosed(); err != nil {
-		return 0, false, err
+func (s *Session) WriteFrameJSON(q Query, w io.Writer) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return 0, ErrSessionClosed
 	}
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
+		epanMu.Unlock()
+		return 0, err
+	}
+	count, err := writeFramesFromConf(s.conf, q.Filter, w)
+	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
+	return count, err
+}
+
+func (s *Session) WriteFramesPage(q Query, page, size int, w io.Writer) (int, bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return 0, false, ErrSessionClosed
+	}
+	epanMu.Lock()
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return 0, false, err
 	}
 	count, hasMore, err := writeFramesPageFromConf(s.conf, q.Filter, page, size, w)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	return count, hasMore, err
 }
 
-// TapConversations returns Wireshark conversation statistics for this session's capture.
 func (s *Session) TapConversations(convType string, q Query) ([]TapConversation, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.tapConversationsLocked(convType, q)
+}
+
+func (s *Session) tapConversationsLocked(convType string, q Query) ([]TapConversation, error) {
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
 	}
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return nil, err
 	}
 	res, err := tapConversationsFromActive(convType, q.Filter)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	return res, err
 }
 
-// TapEndpoints returns Wireshark endpoint statistics for this session's capture.
 func (s *Session) TapEndpoints(endpointType string, q Query) ([]TapEndpoint, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
 	}
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return nil, err
 	}
 	res, err := tapEndpointsFromActive(endpointType, q.Filter)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	return res, err
 }
 
-// ExportObjects returns Wireshark export objects for this session's capture.
 func (s *Session) ExportObjects(protocol string, q Query) ([]ExportObject, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.exportObjectsLocked(protocol, q)
+}
+
+func (s *Session) exportObjectsLocked(protocol string, q Query) ([]ExportObject, error) {
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
 	}
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return nil, err
 	}
 	res, err := exportObjectsFromActive(protocol, q.Filter)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	return res, err
 }
 
-// WriteExportObject writes the payload of one export object to w for this session's capture.
 func (s *Session) WriteExportObject(protocol string, packetNum int, w io.Writer, q Query) error {
-	if err := s.checkClosed(); err != nil {
-		return err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.writeExportObjectLocked(protocol, packetNum, w, q)
+}
+
+func (s *Session) writeExportObjectLocked(protocol string, packetNum int, w io.Writer, q Query) error {
+	if s.closed.Load() {
+		return ErrSessionClosed
 	}
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return err
 	}
 	err := writeExportObjectFromActive(protocol, packetNum, q.Filter, w)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	return err
 }
 
-// WriteExportObjects writes all export objects for a protocol to dir for this session's capture.
 func (s *Session) WriteExportObjects(protocol string, dir string, q Query) ([]ExportObject, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
 	}
 
-	objs, err := s.ExportObjects(protocol, q)
+	objs, err := s.exportObjectsLocked(protocol, q)
 	if err != nil {
 		return nil, err
 	}
@@ -646,7 +964,7 @@ func (s *Session) WriteExportObjects(protocol string, dir string, q Query) ([]Ex
 		if fErr != nil {
 			return out, fErr
 		}
-		wErr := s.WriteExportObject(protocol, obj.PacketNum, f, q)
+		wErr := s.writeExportObjectLocked(protocol, obj.PacketNum, f, q)
 		f.Close()
 		if wErr != nil {
 			os.Remove(fullPath)
@@ -657,18 +975,20 @@ func (s *Session) WriteExportObjects(protocol string, dir string, q Query) ([]Ex
 	return out, nil
 }
 
-// ServiceResponseTimes returns Wireshark SRT statistics for this session's capture.
 func (s *Session) ServiceResponseTimes(protocol string, q Query) ([]SRTSummary, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
 	}
 	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		epanMu.Unlock()
 		return nil, err
 	}
 	res, err := serviceResponseTimesFromActive(protocol, q.Filter)
 	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
 	return res, err
 }
 
@@ -680,4 +1000,115 @@ func combineErrors(a, b error) error {
 		return a
 	}
 	return b
+}
+
+func (s *Session) ProtocolHierarchy(q Query) ([]ProtocolHierarchyEntry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
+	}
+	epanMu.Lock()
+	if err := s.resetReadPosition(); err != nil {
+		epanMu.Unlock()
+		return nil, err
+	}
+	res, err := protocolHierarchyFromActive(q.Filter)
+	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
+	return res, err
+}
+
+func (s *Session) IOStats(q Query, interval time.Duration) ([]IOStatBucket, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
+	}
+	epanMu.Lock()
+	if err := s.resetReadPosition(); err != nil {
+		epanMu.Unlock()
+		return nil, err
+	}
+	res, err := ioStatsFromActive(q.Filter, interval.Seconds())
+	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
+	return res, err
+}
+
+func (s *Session) WriteDissection(w io.Writer, format OutputFormat, q Query, opts ...Option) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return 0, ErrSessionClosed
+	}
+	return s.writeDissection(w, format, q, opts...)
+}
+
+func (s *Session) resolveSelector(selector FrameSelector) ([]int, error) {
+	set := map[int]bool{}
+	for _, idx := range selector.Indices {
+		if idx < 1 {
+			return nil, errors.Wrapf(ErrInvalidFrameNumber, "%d", idx)
+		}
+		set[idx] = true
+	}
+	if selector.Range.Start != 0 || selector.Range.End != 0 {
+		if selector.Range.Start < 1 || selector.Range.End < selector.Range.Start {
+			return nil, errors.Wrapf(ErrInvalidFrameNumber, "range %d-%d", selector.Range.Start, selector.Range.End)
+		}
+		for i := selector.Range.Start; i <= selector.Range.End; i++ {
+			set[i] = true
+		}
+	}
+	if selector.Filter != "" {
+		if err := ValidateFilter(selector.Filter); err != nil {
+			return nil, err
+		}
+		numbers, err := s.frameNumbersLocked(Query{Filter: selector.Filter})
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range numbers {
+			set[n] = true
+		}
+	}
+	if len(set) == 0 {
+		return nil, ErrEmptySelection
+	}
+	out := make([]int, 0, len(set))
+	for idx := range set {
+		out = append(out, idx)
+	}
+	slices.Sort(out)
+	return out, nil
+}
+
+func (s *Session) WritePcapSlice(w io.Writer, selector FrameSelector) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return 0, ErrSessionClosed
+	}
+	indices, err := s.resolveSelector(selector)
+	if err != nil {
+		return 0, err
+	}
+	return writePcapSliceByIndices(s.path, w, indices)
+}
+
+func (s *Session) WritePcapSliceWithOptions(w io.Writer, selector FrameSelector, sliceOpts PcapSliceOptions) (int, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return 0, ErrSessionClosed
+	}
+	if !validPcapSliceOutputFormat(sliceOpts.OutputFormat) {
+		return 0, &OutputFormatError{Format: string(sliceOpts.OutputFormat), Message: "pcap slice output format"}
+	}
+	indices, err := s.resolveSelector(selector)
+	if err != nil {
+		return 0, err
+	}
+	return writePcapSliceByIndicesWithOptions(s.path, w, indices, sliceOpts)
 }

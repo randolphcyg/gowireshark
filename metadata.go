@@ -5,6 +5,7 @@ package gowireshark
 */
 import "C"
 import (
+	"context"
 	"strings"
 	"unsafe"
 
@@ -37,10 +38,15 @@ type FieldMetadata struct {
 	IsProtocol     bool   `json:"isProtocol"`
 }
 
-// Protocols returns libwireshark's registered protocol metadata.
-func Protocols() ([]ProtocolInfo, error) {
+func RuntimeProtocols(ctx context.Context) ([]ProtocolInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	epanMu.Lock()
 	defer epanMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	raw := C.gowireshark_protocols_json()
 	if raw == nil {
@@ -55,10 +61,8 @@ func Protocols() ([]ProtocolInfo, error) {
 	return out, nil
 }
 
-// SuggestFields returns field metadata for fields whose abbrev starts with prefix.
-// Results are limited to limit entries. Use limit=0 for no limit.
-func SuggestFields(prefix string, limit int) ([]FieldMetadata, error) {
-	all, err := Fields()
+func RuntimeSuggestFields(ctx context.Context, prefix string, limit int) ([]FieldMetadata, error) {
+	all, err := RuntimeFields(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -76,10 +80,15 @@ func SuggestFields(prefix string, limit int) ([]FieldMetadata, error) {
 	return out, nil
 }
 
-// Fields returns libwireshark's registered display-filter field metadata.
-func Fields() ([]FieldMetadata, error) {
+func RuntimeFields(ctx context.Context) ([]FieldMetadata, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	epanMu.Lock()
 	defer epanMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	raw := C.gowireshark_fields_json()
 	if raw == nil {
@@ -100,7 +109,7 @@ func Fields() ([]FieldMetadata, error) {
 // type to share the same exported identifier.
 func FieldInfo(name string) (*FieldMetadata, error) {
 	if name == "" {
-		return nil, errors.Wrap(ErrFieldNotFound, name)
+		return nil, errors.Wrap(ErrInvalidField, name)
 	}
 
 	epanMu.Lock()
@@ -111,12 +120,12 @@ func FieldInfo(name string) (*FieldMetadata, error) {
 
 	raw := C.gowireshark_field_json(cName)
 	if raw == nil {
-		return nil, errors.Wrap(ErrFieldNotFound, name)
+		return nil, errors.Wrap(ErrInvalidField, name)
 	}
 	defer C.free(unsafe.Pointer(raw))
 	rawGo := C.GoString(raw)
 	if rawGo == "" {
-		return nil, errors.Wrap(ErrFieldNotFound, name)
+		return nil, errors.Wrap(ErrInvalidField, name)
 	}
 
 	var out FieldMetadata
@@ -130,4 +139,191 @@ func FieldInfo(name string) (*FieldMetadata, error) {
 func ValidateField(name string) error {
 	_, err := FieldInfo(name)
 	return err
+}
+
+type VersionInfo struct {
+	Version         string `json:"version"`
+	CompiledVersion string `json:"compiledVersion"`
+	Copyright       string `json:"copyright"`
+}
+
+// RuntimeVersion returns structured version information from the linked
+// Wireshark runtime.
+func RuntimeVersion(ctx context.Context) (*VersionInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	epanMu.Lock()
+	defer epanMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	raw := C.gowireshark_version_json()
+	if raw == nil {
+		return nil, errors.New("version info unavailable")
+	}
+	defer C.free(unsafe.Pointer(raw))
+
+	var out VersionInfo
+	if err := sonic.UnmarshalString(C.GoString(raw), &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func RuntimeProfiles(ctx context.Context) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	epanMu.Lock()
+	defer epanMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	raw := C.gowireshark_profiles_json()
+	if raw == nil {
+		return nil, errors.New("profiles unavailable")
+	}
+	defer C.free(unsafe.Pointer(raw))
+
+	var out []string
+	if err := sonic.UnmarshalString(C.GoString(raw), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+type DecodeAsTable struct {
+	Name              string   `json:"name"`
+	TableName         string   `json:"tableName"`
+	NumItems          int      `json:"numItems"`
+	DefaultIndexValue int      `json:"defaultIndexValue"`
+	Choices           []string `json:"choices"`
+}
+
+func RuntimeDecodeAsTables(ctx context.Context) ([]DecodeAsTable, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	epanMu.Lock()
+	defer epanMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	raw := C.gowireshark_decode_as_tables_json()
+	if raw == nil {
+		return nil, errors.New("decode-as tables unavailable")
+	}
+	defer C.free(unsafe.Pointer(raw))
+
+	var out []DecodeAsTable
+	if err := sonic.UnmarshalString(C.GoString(raw), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func RuntimeDecodeAsChoices(ctx context.Context, table string) ([]string, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if table == "" {
+		return nil, &DecodeAsError{Table: table, Message: "table name is empty"}
+	}
+
+	tables, err := RuntimeDecodeAsTables(ctx)
+	if err != nil {
+		return nil, err
+	}
+	found := false
+	for _, tbl := range tables {
+		if tbl.TableName == table || tbl.Name == table {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, &DecodeAsError{Table: table, Message: "table not registered"}
+	}
+
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	epanMu.Lock()
+	defer epanMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	cTable := C.CString(table)
+	defer C.free(unsafe.Pointer(cTable))
+
+	raw := C.gowireshark_decode_as_choices_json(cTable)
+	if raw == nil {
+		return nil, &DecodeAsError{Table: table, Message: "choices unavailable"}
+	}
+	defer C.free(unsafe.Pointer(raw))
+
+	var out []string
+	if err := sonic.UnmarshalString(C.GoString(raw), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func RuntimeTapTypes(ctx context.Context) []string {
+	if err := ctx.Err(); err != nil {
+		return nil
+	}
+	epanMu.Lock()
+	defer epanMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil
+	}
+
+	raw := C.gowireshark_tap_types_json()
+	if raw == nil {
+		return nil
+	}
+	defer C.free(unsafe.Pointer(raw))
+
+	var out []string
+	if err := sonic.UnmarshalString(C.GoString(raw), &out); err != nil {
+		return nil
+	}
+	return out
+}
+
+type PreferenceInfo struct {
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	NumPrefs    int    `json:"numPrefs"`
+	Obsolete    bool   `json:"obsolete"`
+}
+
+func RuntimePreferences(ctx context.Context) ([]PreferenceInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	epanMu.Lock()
+	defer epanMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	raw := C.gowireshark_preferences_json()
+	if raw == nil {
+		return nil, errors.New("preferences unavailable")
+	}
+	defer C.free(unsafe.Pointer(raw))
+
+	var out []PreferenceInfo
+	if err := sonic.UnmarshalString(C.GoString(raw), &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }

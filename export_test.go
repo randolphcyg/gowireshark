@@ -71,7 +71,7 @@ func TestWriteExportObject(t *testing.T) {
 		t.Skip("empty export object, skipping WriteExportObject")
 	}
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestExportObjectsHTTP_EmptyPcap(t *testing.T) {
 func TestExportObjectsUnsupportedProtocol(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	_, err := ExportObjects(pcap, "smb")
+	_, err := ExportObjects(pcap, "bogus_proto")
 	if err == nil {
 		t.Fatal("expected error for unsupported protocol")
 	}
@@ -140,7 +140,7 @@ func TestSessionExportObjectsMatchesFreeFunction(t *testing.T) {
 		t.Fatalf("ExportObjects: %v", err)
 	}
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestWriteExportObjectToFile(t *testing.T) {
 func TestExportObjectsSessionClosed(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
@@ -212,5 +212,80 @@ func TestExportObjectsSessionClosed(t *testing.T) {
 	_, err = s.ExportObjects("http", Query{})
 	if err == nil {
 		t.Fatal("expected error for closed session")
+	}
+}
+
+func TestExportObjectProtocols(t *testing.T) {
+	protos := ExportObjectProtocols()
+	if len(protos) != 6 {
+		t.Fatalf("expected 6 protocols, got %d: %v", len(protos), protos)
+	}
+	expected := map[string]bool{
+		"http": true, "smb": true, "tftp": true,
+		"ftp-data": true, "imf": true, "dicom": true,
+	}
+	for _, p := range protos {
+		if !expected[p] {
+			t.Fatalf("unexpected protocol %q", p)
+		}
+	}
+}
+
+func TestSupportsExportObjects(t *testing.T) {
+	for _, p := range ExportObjectProtocols() {
+		if !SupportsExportObjects(p) {
+			t.Fatalf("SupportsExportObjects(%q) should be true", p)
+		}
+	}
+	if SupportsExportObjects("bogus_proto") {
+		t.Fatal("SupportsExportObjects(bogus_proto) should be false")
+	}
+}
+
+func TestExportObjectsExtProtocols_DoesNotCrash(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	protocols := []string{"smb", "tftp", "ftp-data", "imf", "dicom"}
+
+	for _, proto := range protocols {
+		t.Run(proto, func(t *testing.T) {
+			if !SupportsExportObjects(proto) {
+				t.Fatalf("%s should be supported", proto)
+			}
+			objs, err := ExportObjects(pcap, proto)
+			if err != nil {
+				t.Fatalf("ExportObjects %s: %v", proto, err)
+			}
+			for _, obj := range objs {
+				if obj.Protocol != proto {
+					t.Fatalf("expected protocol %q, got %q", proto, obj.Protocol)
+				}
+				if obj.PacketNum <= 0 {
+					t.Fatalf("invalid packetNum: %#v", obj)
+				}
+			}
+			t.Logf("%s: %d export objects", proto, len(objs))
+		})
+	}
+}
+
+func TestSessionExportObjectsExtProtocols(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession: %v", err)
+	}
+	defer s.Close()
+
+	protocols := []string{"smb", "tftp", "ftp-data", "imf", "dicom"}
+
+	for _, proto := range protocols {
+		t.Run(proto, func(t *testing.T) {
+			objs, err := s.ExportObjects(proto, Query{})
+			if err != nil {
+				t.Fatalf("Session.ExportObjects %s: %v", proto, err)
+			}
+			t.Logf("%s: %d export objects", proto, len(objs))
+		})
 	}
 }

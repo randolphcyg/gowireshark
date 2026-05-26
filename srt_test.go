@@ -71,7 +71,7 @@ func TestSessionSRTMatchesFreeFunction(t *testing.T) {
 		t.Fatalf("ServiceResponseTimes: %v", err)
 	}
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestSRTInvalidFilter(t *testing.T) {
 func TestSRTSessionClosed(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}

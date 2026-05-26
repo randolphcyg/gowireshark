@@ -1,6 +1,7 @@
 package gowireshark
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 	"slices"
@@ -65,24 +66,21 @@ type FileObject struct {
 // Streams walks a capture and returns TCP/UDP stream aggregates with real
 // Wireshark stream IDs (tcp.stream / udp.stream).
 func Streams(path string, opts ...Option) ([]StreamSummary, error) {
-	s, err := OpenSession(path, opts...)
+	return StreamsContext(context.Background(), path, opts...)
+}
+
+// StreamsContext returns TCP/UDP stream aggregates using the provided context
+// for session acquisition.
+func StreamsContext(ctx context.Context, path string, opts ...Option) ([]StreamSummary, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
 	defer s.Close()
-	return s.Streams(Query{Filter: extractFilter(opts)})
-}
-
-func StreamsSlow(path string, opts ...Option) ([]StreamSummary, error) {
-	acc := newTrafficAccumulator()
-	err := WalkFrames(path, func(f *FrameData) error {
-		acc.addFrame(f)
-		return nil
-	}, opts...)
-	if err != nil {
-		return nil, err
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
-	return acc.streams(), nil
+	return s.Streams(Query{Filter: extractFilter(opts)})
 }
 
 func fillStreamIDs(s *Session, q Query, streams []StreamSummary) {
@@ -203,93 +201,105 @@ func formatDuration(seconds float64) string {
 
 // Conversations walks a capture and returns directional 5-tuple aggregates.
 func Conversations(path string, opts ...Option) ([]ConversationSummary, error) {
-	acc := newTrafficAccumulator()
-	err := WalkFrames(path, func(f *FrameData) error {
-		acc.addFrame(f)
-		return nil
-	}, opts...)
+	return ConversationsContext(context.Background(), path, opts...)
+}
+
+// ConversationsContext walks a capture and returns directional 5-tuple
+// aggregates using the provided context for session acquisition.
+func ConversationsContext(ctx context.Context, path string, opts ...Option) ([]ConversationSummary, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return acc.conversations(), nil
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return s.Conversations(Query{Filter: extractFilter(opts)})
 }
 
 // Timeline walks a capture and groups traffic into one-minute buckets.
 func Timeline(path string, opts ...Option) ([]TimelineBucket, error) {
-	return TimelineBy(path, time.Minute, opts...)
+	return TimelineContext(context.Background(), path, opts...)
+}
+
+// TimelineContext groups traffic into one-minute buckets using the provided
+// context for session acquisition.
+func TimelineContext(ctx context.Context, path string, opts ...Option) ([]TimelineBucket, error) {
+	return TimelineByContext(ctx, path, time.Minute, opts...)
 }
 
 // TimelineBy walks a capture and groups traffic into caller-selected buckets
-// using fields-only extraction for performance.
+// using the C-level timeline fast path for performance.
 func TimelineBy(path string, bucket time.Duration, opts ...Option) ([]TimelineBucket, error) {
-	if bucket <= 0 {
-		bucket = time.Minute
-	}
+	return TimelineByContext(context.Background(), path, bucket, opts...)
+}
 
-	fields := []string{"frame.time_epoch", "frame.len", "frame.protocols"}
-	rows, err := FieldsRows(path, fields, opts...)
+// TimelineByContext walks a capture and groups traffic into caller-selected
+// buckets using the provided context for session acquisition.
+func TimelineByContext(ctx context.Context, path string, bucket time.Duration, opts ...Option) ([]TimelineBucket, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
-
-	buckets := map[int64]*TimelineBucket{}
-	bucketSec := int64(bucket / time.Second)
-	if bucketSec <= 0 {
-		bucketSec = 1
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
-
-	for _, row := range rows {
-		epochStr := row["frame.time_epoch"]
-		if epochStr == "" {
-			continue
-		}
-		epoch, parseErr := strconv.ParseFloat(epochStr, 64)
-		if parseErr != nil {
-			if t, err := time.Parse(time.RFC3339Nano, epochStr); err == nil {
-				epoch = float64(t.UnixNano()) / 1e9
-			}
-		}
-		if epoch <= 0 {
-			continue
-		}
-
-		sec := int64(epoch)
-		start := sec - (sec % bucketSec)
-
-		b := buckets[start]
-		if b == nil {
-			b = &TimelineBucket{StartEpoch: start, EndEpoch: start + bucketSec, Protocols: map[string]int{}}
-			buckets[start] = b
-		}
-		b.FrameCount++
-
-		if lenStr := row["frame.len"]; lenStr != "" {
-			if l, e := strconv.Atoi(lenStr); e == nil {
-				b.ByteCount += int64(l)
-			}
-		}
-
-		for _, proto := range protocolList(row["frame.protocols"]) {
-			b.Protocols[proto]++
-		}
-	}
-
-	out := make([]TimelineBucket, 0, len(buckets))
-	for _, b := range buckets {
-		out = append(out, *b)
-	}
-	slices.SortFunc(out, func(a, b TimelineBucket) int { return int(a.StartEpoch - b.StartEpoch) })
-	return out, nil
+	return s.TimelineBy(Query{Filter: extractFilter(opts)}, bucket)
 }
 
 // Files walks a capture and returns file-like metadata surfaced by dissectors.
+//
+// Files tries a field-only fast path first, extracting http.file_data,
+// http.content_type, and frame metadata via FieldsRows. If the field-only
+// extraction fails (e.g. because http.file_data is not exposed by the field
+// extractor), it falls back to a full WalkFrames + ParseFrameData scan.
 func Files(path string, opts ...Option) ([]FileObject, error) {
+	return FilesContext(context.Background(), path, opts...)
+}
+
+// FilesContext walks a capture and returns file-like metadata surfaced by
+// dissectors using the provided context for session acquisition.
+func FilesContext(ctx context.Context, path string, opts ...Option) ([]FileObject, error) {
+	s, sessErr := OpenSessionContext(ctx, path, opts...)
+	if sessErr != nil {
+		return nil, sessErr
+	}
+	defer s.Close()
+
+	q := Query{Filter: extractFilter(opts)}
+
+	fields := []string{"frame.number", "http.file_data", "http.content_type", "ip.src", "ip.dst"}
+	rows, fieldErr := s.FieldsRows(q, fields)
+	if fieldErr == nil {
+		var out []FileObject
+		for _, row := range rows {
+			fileData := row["http.file_data"]
+			if fileData == "" {
+				continue
+			}
+			fo := FileObject{
+				Protocol:    "http",
+				ContentType: row["http.content_type"],
+				Size:        int64(len(fileData) / 2),
+				SrcAddr:     row["ip.src"],
+				DstAddr:     row["ip.dst"],
+			}
+			if n, perr := strconv.Atoi(row["frame.number"]); perr == nil {
+				fo.FrameNumber = n
+			}
+			out = append(out, fo)
+		}
+		return out, nil
+	}
+
 	var out []FileObject
-	err := WalkFrames(path, func(f *FrameData) error {
+	walkErr := WalkFramesContext(ctx, path, func(f *FrameData) error {
 		out = append(out, filesFromFrame(f)...)
 		return nil
 	}, opts...)
-	return out, err
+	return out, walkErr
 }
 
 type trafficAccumulator struct {
@@ -311,26 +321,67 @@ func (a *trafficAccumulator) addFrame(f *FrameData) {
 	if !ok {
 		return
 	}
-	byteCount := int64(fr.Len)
-	protos := protocolList(fr.Protocols)
+	a.accumulate(proto, streamID, srcPort, dstPort, ip.Src, ip.Dst, fr.TimeEpoch, int64(fr.Len), fr.Protocols)
+}
+
+func (a *trafficAccumulator) addRow(row map[string]string) {
+	ipSrc := row["ip.src"]
+	ipDst := row["ip.dst"]
+	if ipSrc == "" || ipDst == "" {
+		return
+	}
+
+	byteCount, _ := strconv.ParseInt(row["frame.len"], 10, 64)
+	timeEpoch, _ := strconv.ParseFloat(row["frame.time_epoch"], 64)
+
+	tcpSrcPort, _ := strconv.Atoi(row["tcp.srcport"])
+	tcpDstPort, _ := strconv.Atoi(row["tcp.dstport"])
+	tcpStream, _ := strconv.Atoi(row["tcp.stream"])
+	udpSrcPort, _ := strconv.Atoi(row["udp.srcport"])
+	udpDstPort, _ := strconv.Atoi(row["udp.dstport"])
+	udpStream, _ := strconv.Atoi(row["udp.stream"])
+
+	var proto string
+	var streamID, srcPort, dstPort int
+	if tcpSrcPort > 0 {
+		proto = "tcp"
+		streamID = tcpStream
+		srcPort = tcpSrcPort
+		dstPort = tcpDstPort
+	} else if udpSrcPort > 0 {
+		proto = "udp"
+		streamID = udpStream
+		srcPort = udpSrcPort
+		dstPort = udpDstPort
+	} else {
+		return
+	}
+
+	a.accumulate(proto, streamID, srcPort, dstPort, ipSrc, ipDst, timeEpoch, byteCount, row["frame.protocols"])
+}
+
+func (a *trafficAccumulator) accumulate(proto string, streamID, srcPort, dstPort int,
+	srcAddr, dstAddr string, timeEpoch float64, byteCount int64, protocols string) {
+
+	protos := protocolList(protocols)
 
 	sk := proto + ":" + itoa(streamID)
 	s := a.streamMap[sk]
 	if s == nil {
-		a1, a2 := sortPair(ip.Src, uint32(srcPort), ip.Dst, uint32(dstPort))
+		a1, a2 := sortPair(srcAddr, uint32(srcPort), dstAddr, uint32(dstPort))
 		convID := int(streamHash(a1.Addr, a1.Port, a2.Addr, a2.Port))
-		s = &StreamSummary{Protocol: proto, ConversationID: convID, StreamID: streamID, SrcAddr: ip.Src, SrcPort: srcPort, DstAddr: ip.Dst, DstPort: dstPort, Protocols: protos}
+		s = &StreamSummary{Protocol: proto, ConversationID: convID, StreamID: streamID, SrcAddr: srcAddr, SrcPort: srcPort, DstAddr: dstAddr, DstPort: dstPort, Protocols: protos}
 		a.streamMap[sk] = s
 	}
-	updateStreamSummary(s, fr.TimeEpoch, byteCount, protos)
+	updateStreamSummary(s, timeEpoch, byteCount, protos)
 
-	ck := proto + ":" + ip.Src + ":" + itoa(srcPort) + ">" + ip.Dst + ":" + itoa(dstPort)
+	ck := proto + ":" + srcAddr + ":" + itoa(srcPort) + ">" + dstAddr + ":" + itoa(dstPort)
 	c := a.convMap[ck]
 	if c == nil {
-		c = &ConversationSummary{Protocol: proto, SrcAddr: ip.Src, SrcPort: srcPort, DstAddr: ip.Dst, DstPort: dstPort, Protocols: protos}
+		c = &ConversationSummary{Protocol: proto, SrcAddr: srcAddr, SrcPort: srcPort, DstAddr: dstAddr, DstPort: dstPort, Protocols: protos}
 		a.convMap[ck] = c
 	}
-	updateConversationSummary(c, fr.TimeEpoch, byteCount, protos)
+	updateConversationSummary(c, timeEpoch, byteCount, protos)
 }
 
 func (a *trafficAccumulator) streams() []StreamSummary {

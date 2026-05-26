@@ -28,7 +28,7 @@ func TestSessionExpertInfosMatchesFreeFunction(t *testing.T) {
 		t.Fatalf("ExpertInfos: %v", err)
 	}
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}

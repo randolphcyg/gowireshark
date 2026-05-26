@@ -213,7 +213,7 @@ func TestStreams_UnmappedStreamIDIsMinusOne(t *testing.T) {
 func TestSession_Streams_UsesRealStreamID(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, _ := OpenSession(pcap)
+	s, _ := openSession(pcap)
 	defer s.Close()
 
 	streams, err := s.Streams(Query{})
@@ -249,7 +249,7 @@ func TestSession_Streams_UsesRealStreamID(t *testing.T) {
 func TestSession_StreamsCache(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,4 +269,84 @@ func TestSession_StreamsCache(t *testing.T) {
 		t.Fatalf("cached result length mismatch: %d vs %d", len(r1), len(r2))
 	}
 	t.Logf("cache hit: %d streams returned twice consistently", len(r1))
+}
+
+func TestStreams_SortingStable(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession: %v", err)
+	}
+	defer s.Close()
+
+	r1, err := s.Streams(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r2, err := s.Streams(Query{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(r1) != len(r2) {
+		t.Fatalf("length mismatch: %d vs %d", len(r1), len(r2))
+	}
+	for i := range r1 {
+		if r1[i].ConversationID != r2[i].ConversationID ||
+			r1[i].Protocol != r2[i].Protocol {
+			t.Fatalf("sort mismatch at idx %d: r1=%s/%d, r2=%s/%d",
+				i, r1[i].Protocol, r1[i].ConversationID,
+				r2[i].Protocol, r2[i].ConversationID)
+		}
+	}
+}
+
+func TestStreams_TCPUDPMixedSort(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	streams, err := Streams(pcap)
+	if err != nil {
+		t.Fatalf("Streams: %v", err)
+	}
+	if len(streams) == 0 {
+		t.Skip("no TCP/UDP streams")
+	}
+
+	var lastProto string
+	for _, st := range streams {
+		if lastProto != "" && st.Protocol < lastProto {
+			t.Fatalf("protocol ordering broken: %s before %s", st.Protocol, lastProto)
+		}
+		lastProto = st.Protocol
+	}
+}
+
+func TestStreams_NoStreamIDIsMinusOne(t *testing.T) {
+	streams := []StreamSummary{
+		{Protocol: "tcp", ConversationID: 1, StreamID: -1},
+		{Protocol: "udp", ConversationID: 2, StreamID: -1},
+	}
+
+	for _, st := range streams {
+		if st.StreamID != -1 {
+			t.Fatalf("expected StreamID=-1 for unmapped stream, got %d", st.StreamID)
+		}
+	}
+}
+
+func TestFillStreamIDs_NoStreamSupport(t *testing.T) {
+	streams := []StreamSummary{
+		{Protocol: "tcp", ConversationID: 7777, StreamID: -1, SrcAddr: "10.0.0.1", SrcPort: 1234, DstAddr: "10.0.0.2", DstPort: 80},
+	}
+
+	for _, st := range streams {
+		if st.StreamID != -1 {
+			t.Fatalf("expected StreamID=-1 initially, got %d", st.StreamID)
+		}
+		if st.ConversationID == 0 {
+			t.Fatalf("expected non-zero ConversationID")
+		}
+	}
 }

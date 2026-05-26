@@ -1,6 +1,9 @@
 #include "offline.h"
 #include "tcp_follow.h"
+#include <epan/column-utils.h>
 #include <epan/expert.h>
+#include <inttypes.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wsutil/value_string.h>
@@ -931,6 +934,73 @@ char *get_specific_frame_hex_data(int num) {
 }
 
 /**
+ * Transfer proto tree to json format using frame index for seek.
+ * Falls back to sequential scan if index is not available or seek fails.
+ *
+ *  @param num the index of frame which you want to dissect
+ *  @return char of protocol tree dissect result
+ */
+char *proto_tree_in_json_seek(int num, int printCJson) {
+    if (!g_frame_index || num < 1 || num > g_frame_index_count) {
+        return proto_tree_in_json(num, printCJson);
+    }
+
+    int64_t data_offset = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    for (int i = 1; i < num; i++) {
+        if (!wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+            wtap_rec_cleanup(&rec);
+            return proto_tree_in_json(num, printCJson);
+        }
+        wtap_rec_reset(&rec);
+    }
+
+    if (!wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        wtap_rec_cleanup(&rec);
+        return proto_tree_in_json(num, printCJson);
+    }
+
+    cf.count = num;
+
+    frame_data fd;
+    frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+    epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+
+    frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);
+    cf.provider.ref = &fd;
+
+    guint32 cum_bytes = 0;
+    epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+    frame_data_set_after_dissect(&fd, &cum_bytes);
+    cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
+
+    json_dumper dumper = {};
+    dumper.output_string = g_string_new(NULL);
+    get_json_proto_tree(NULL, print_dissections_expanded, FALSE, NULL, PF_INCLUDE_CHILDREN, edt,
+                        &cf.cinfo, proto_node_group_children_by_unique, &dumper);
+
+    char *json_str = NULL;
+    if (json_dumper_finish(&dumper)) {
+        json_str = g_strdup(dumper.output_string->str);
+    }
+
+    if (dumper.output_string) g_string_free(dumper.output_string, TRUE);
+    epan_dissect_free(edt);
+    wtap_rec_cleanup(&rec);
+
+    if (printCJson) {
+        printf("%s\n", json_str ? json_str : "");
+    }
+
+    return json_str ? json_str : g_strdup("");
+}
+
+/**
  * Transfer proto tree to json format.
  *
  *  @param num the index of frame which you want to dissect
@@ -1353,6 +1423,8 @@ static void conv_tap_draw_cb(void *tapdata) {
         return;
     }
 
+    cJSON *arr = cJSON_CreateArray();
+
     for (guint i = 0; i < hash->conv_array->len; i++) {
         conv_item_t *item = &g_array_index(hash->conv_array, conv_item_t, i);
 
@@ -1377,14 +1449,15 @@ static void conv_tap_draw_cb(void *tapdata) {
         cJSON_AddNumberToObject(root, "duration",
             nstime_to_sec(&item->stop_time) - nstime_to_sec(&item->start_time));
 
-        char *json = cJSON_PrintUnformatted(root);
-        cJSON_Delete(root);
-        if (json != NULL) {
-            int stop = cb_data->callback(json, (int)strlen(json), 0);
-            cb_data->count++;
-            cJSON_free(json);
-            if (stop != 0) break;
-        }
+        cJSON_AddItemToArray(arr, root);
+        cb_data->count++;
+    }
+
+    char *json = cJSON_PrintUnformatted(arr);
+    cJSON_Delete(arr);
+    if (json != NULL) {
+        cb_data->callback(json, (int)strlen(json), 0);
+        cJSON_free(json);
     }
 }
 
@@ -1395,6 +1468,8 @@ static void endpoint_tap_draw_cb(void *tapdata) {
     if (cb_data == NULL || cb_data->callback == NULL || hash->conv_array == NULL) {
         return;
     }
+
+    cJSON *arr = cJSON_CreateArray();
 
     for (guint i = 0; i < hash->conv_array->len; i++) {
         endpoint_item_t *item = &g_array_index(hash->conv_array, endpoint_item_t, i);
@@ -1409,14 +1484,15 @@ static void endpoint_tap_draw_cb(void *tapdata) {
         cJSON_AddNumberToObject(root, "packets", (double)(item->tx_frames + item->rx_frames));
         cJSON_AddNumberToObject(root, "bytes", (double)(item->tx_bytes + item->rx_bytes));
 
-        char *json = cJSON_PrintUnformatted(root);
-        cJSON_Delete(root);
-        if (json != NULL) {
-            int stop = cb_data->callback(json, (int)strlen(json), 0);
-            cb_data->count++;
-            cJSON_free(json);
-            if (stop != 0) break;
-        }
+        cJSON_AddItemToArray(arr, root);
+        cb_data->count++;
+    }
+
+    char *json = cJSON_PrintUnformatted(arr);
+    cJSON_Delete(arr);
+    if (json != NULL) {
+        cb_data->callback(json, (int)strlen(json), 0);
+        cJSON_free(json);
     }
 }
 
@@ -1717,6 +1793,8 @@ static void srt_draw_cb(void *arg) {
         return;
     }
 
+    cJSON *arr = cJSON_CreateArray();
+
     for (guint i = 0; i < data->srt_array->len; i++) {
         srt_stat_table *rst = g_array_index(data->srt_array, srt_stat_table *, i);
         if (rst == NULL) continue;
@@ -1739,13 +1817,15 @@ static void srt_draw_cb(void *arg) {
             cJSON_AddNumberToObject(root, "avg", avg_val);
             cJSON_AddNumberToObject(root, "total", tot_val);
 
-            char *json = cJSON_PrintUnformatted(root);
-            cJSON_Delete(root);
-            if (json != NULL) {
-                cb_data->callback(json, (int)strlen(json), 0);
-                cJSON_free(json);
-            }
+            cJSON_AddItemToArray(arr, root);
         }
+    }
+
+    char *json = cJSON_PrintUnformatted(arr);
+    cJSON_Delete(arr);
+    if (json != NULL) {
+        cb_data->callback(json, (int)strlen(json), 0);
+        cJSON_free(json);
     }
 }
 
@@ -1787,6 +1867,282 @@ int get_service_response_times_cb(const char *filter_str, const char *protocol, 
     draw_tap_listeners(TRUE);
     remove_tap_listener(&srt_data);
     free_srt_table(srt, srt_array);
+
+    return err;
+}
+
+// =======================
+// Protocol Hierarchy Stats
+// =======================
+
+typedef struct {
+    char *protocol;
+    guint64 packets;
+    guint64 bytes;
+} ph_entry_t;
+
+int get_proto_hierarchy_cb(const char *filter_str, FrameCallback callback) {
+    int hf_protocols = proto_registrar_get_id_byname("frame.protocols");
+    int hf_len = proto_registrar_get_id_byname("frame.len");
+    if (hf_protocols == -1) {
+        fprintf(stderr, "proto hierarchy: cannot find frame.protocols\n");
+        return -1;
+    }
+
+    dfilter_t *dfcode = NULL;
+    if (filter_str && strlen(filter_str) > 0) {
+        df_error_t *df_err = NULL;
+        if (!dfilter_compile(filter_str, &dfcode, &df_err)) {
+            if (df_err) {
+                fprintf(stderr, "proto hierarchy: filter compile failed: %s\n", df_err->msg);
+                df_error_free(&df_err);
+            }
+            return -2;
+        }
+    }
+
+    GHashTable *stats = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        cf.count++;
+
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, FALSE);
+        epan_dissect_prime_with_hfid(edt, hf_protocols);
+        epan_dissect_prime_with_hfid(edt, hf_len);
+
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time,
+                                      &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+
+        if (dfcode) {
+            epan_dissect_prime_with_dfilter(edt, dfcode);
+        }
+
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, NULL);
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis =
+            frame_data_sequence_add(cf.provider.frames, &fd);
+
+        if (dfcode && !dfilter_apply_edt(dfcode, edt)) {
+            epan_dissect_free(edt);
+            wtap_rec_reset(&rec);
+            continue;
+        }
+
+        GPtrArray *pa = proto_get_finfo_ptr_array(edt->tree, hf_protocols);
+        if (pa && pa->len > 0) {
+            field_info *fi = (field_info *)g_ptr_array_index(pa, 0);
+            char *protos_str = fvalue_to_string_repr(NULL, fi->value, FTREPR_DISPLAY, fi->hfinfo->display);
+            if (protos_str) {
+                guint64 frame_bytes = 0;
+                GPtrArray *len_pa = proto_get_finfo_ptr_array(edt->tree, hf_len);
+                if (len_pa && len_pa->len > 0) {
+                    field_info *len_fi = (field_info *)g_ptr_array_index(len_pa, 0);
+                    frame_bytes = (guint64)fvalue_get_sinteger64(len_fi->value);
+                }
+
+                char *saveptr;
+                char *token = strtok_r(protos_str, ":", &saveptr);
+                while (token) {
+                    ph_entry_t *entry = (ph_entry_t *)g_hash_table_lookup(stats, token);
+                    if (!entry) {
+                        entry = (ph_entry_t *)g_new0(ph_entry_t, 1);
+                        entry->protocol = g_strdup(token);
+                        g_hash_table_insert(stats, entry->protocol, entry);
+                    }
+                    entry->packets++;
+                    entry->bytes += frame_bytes;
+                    token = strtok_r(NULL, ":", &saveptr);
+                }
+                g_free(protos_str);
+            }
+        }
+
+        epan_dissect_free(edt);
+        wtap_rec_reset(&rec);
+    }
+
+    if (dfcode) dfilter_free(dfcode);
+    wtap_rec_cleanup(&rec);
+    if (err_info) g_free(err_info);
+
+    if (err != 0) {
+        g_hash_table_destroy(stats);
+        return -3;
+    }
+
+    GHashTableIter iter;
+    g_hash_table_iter_init(&iter, stats);
+    gpointer key, value;
+
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        ph_entry_t *entry = (ph_entry_t *)value;
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "protocol", entry->protocol);
+        cJSON_AddNumberToObject(root, "packets", (double)entry->packets);
+        cJSON_AddNumberToObject(root, "bytes", (double)entry->bytes);
+
+        char *json = cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
+        if (json) {
+            callback(json, (int)strlen(json), 0);
+            cJSON_free(json);
+        }
+    }
+
+    g_hash_table_destroy(stats);
+
+    return err;
+}
+
+// ==================
+// IO Statistics
+// ==================
+
+int get_io_stats_cb(const char *filter_str, double interval, FrameCallback callback) {
+    if (interval <= 0.0) {
+        interval = 0.1;
+    }
+
+    dfilter_t *dfcode = NULL;
+    int has_filter = (filter_str && strlen(filter_str) > 0);
+    if (has_filter) {
+        df_error_t *df_err = NULL;
+        if (!dfilter_compile(filter_str, &dfcode, &df_err)) {
+            if (df_err) {
+                fprintf(stderr, "io_stats: filter compile failed: %s\n", df_err->msg);
+                df_error_free(&df_err);
+            }
+            return -2;
+        }
+    }
+
+    GArray *times = g_array_new(FALSE, FALSE, sizeof(double));
+    GArray *lengths = g_array_new(FALSE, FALSE, sizeof(guint64));
+
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    if (!has_filter) {
+        while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+            cf.count++;
+
+            double epoch = nstime_to_sec(&rec.ts);
+            guint64 len = (guint64)rec.rec_header.packet_header.len;
+
+            g_array_append_val(times, epoch);
+            g_array_append_val(lengths, len);
+
+            wtap_rec_reset(&rec);
+        }
+    } else {
+        guint32 cum_bytes = 0;
+        while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+            cf.count++;
+
+            frame_data fd;
+            frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+            epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, FALSE);
+            epan_dissect_prime_with_dfilter(edt, dfcode);
+
+            frame_data_set_before_dissect(&fd, &cf.elapsed_time,
+                                          &cf.provider.ref, cf.provider.prev_dis);
+            cf.provider.ref = &fd;
+            epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, NULL);
+            frame_data_set_after_dissect(&fd, &cum_bytes);
+            cf.provider.prev_cap = cf.provider.prev_dis =
+                frame_data_sequence_add(cf.provider.frames, &fd);
+
+            if (dfilter_apply_edt(dfcode, edt)) {
+                double epoch = nstime_to_sec(&rec.ts);
+                guint64 len = (guint64)rec.rec_header.packet_header.len;
+
+                g_array_append_val(times, epoch);
+                g_array_append_val(lengths, len);
+            }
+
+            epan_dissect_free(edt);
+            wtap_rec_reset(&rec);
+        }
+        dfilter_free(dfcode);
+    }
+
+    wtap_rec_cleanup(&rec);
+    if (err_info) g_free(err_info);
+
+    if (err != 0) {
+        g_array_free(times, TRUE);
+        g_array_free(lengths, TRUE);
+        return -3;
+    }
+
+    if (times->len == 0) {
+        g_array_free(times, TRUE);
+        g_array_free(lengths, TRUE);
+        return 0;
+    }
+
+    double min_t = g_array_index(times, double, 0);
+    double max_t = min_t;
+    for (guint i = 1; i < times->len; i++) {
+        double t = g_array_index(times, double, i);
+        if (t < min_t) min_t = t;
+        if (t > max_t) max_t = t;
+    }
+
+    int num_buckets = (int)ceil((max_t - min_t) / interval) + 1;
+    if (num_buckets < 1) num_buckets = 1;
+
+    guint64 *bucket_packets = g_new0(guint64, (gsize)num_buckets);
+    guint64 *bucket_bytes = g_new0(guint64, (gsize)num_buckets);
+
+    for (guint i = 0; i < times->len; i++) {
+        double t = g_array_index(times, double, i);
+        guint64 len = g_array_index(lengths, guint64, i);
+        int bucket = (int)((t - min_t) / interval);
+        if (bucket < 0) bucket = 0;
+        if (bucket >= num_buckets) bucket = num_buckets - 1;
+        bucket_packets[bucket]++;
+        bucket_bytes[bucket] += len;
+    }
+
+    for (int i = 0; i < num_buckets; i++) {
+        double bucket_time = min_t + i * interval;
+
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddNumberToObject(root, "t", bucket_time);
+        cJSON_AddNumberToObject(root, "packets", (double)bucket_packets[i]);
+        cJSON_AddNumberToObject(root, "bytes", (double)bucket_bytes[i]);
+
+        char *json = cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
+        if (json) {
+            callback(json, (int)strlen(json), 0);
+            cJSON_free(json);
+        }
+    }
+
+    g_free(bucket_packets);
+    g_free(bucket_bytes);
+    g_array_free(times, TRUE);
+    g_array_free(lengths, TRUE);
 
     return err;
 }
@@ -2073,6 +2429,263 @@ void get_frames_by_range(int start, int limit, int printCJson, const char *filte
     wtap_rec_cleanup(&rec);
 }
 
+int get_fields_rows_cb(const char **fields, int field_count, const char *filter_str, FrameCallback callback) {
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    dfilter_t *dfcode = NULL;
+    if (filter_str != NULL && strlen(filter_str) > 0) {
+        if (!dfilter_compile(filter_str, &dfcode, NULL)) {
+            wtap_rec_cleanup(&rec);
+            return -1;
+        }
+    }
+
+    int *hfids = g_new(int, field_count);
+    for (int i = 0; i < field_count; i++) {
+        hfids[i] = proto_registrar_get_id_byname(fields[i]);
+    }
+
+    while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        cf.count++;
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+
+        if (dfcode != NULL) epan_dissect_prime_with_dfilter(edt, dfcode);
+        for (int i = 0; i < field_count; i++) {
+            if (hfids[i] != -1) epan_dissect_prime_with_hfid(edt, hfids[i]);
+        }
+
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
+
+        if (dfcode != NULL) {
+            if (!dfilter_apply_edt(dfcode, edt)) {
+                epan_dissect_free(edt);
+                wtap_rec_reset(&rec);
+                continue;
+            }
+        }
+
+        cJSON *root = cJSON_CreateObject();
+        for (int i = 0; i < field_count; i++) {
+            if (strncmp(fields[i], "_ws.col.", 8) == 0) {
+                const char *col_name = fields[i] + 8;
+                gint col_type = -1;
+                if (strcmp(col_name, "number") == 0) col_type = COL_NUMBER;
+                else if (strcmp(col_name, "def_src") == 0) col_type = COL_DEF_SRC;
+                else if (strcmp(col_name, "def_dst") == 0) col_type = COL_DEF_DST;
+                else if (strcmp(col_name, "protocol") == 0) col_type = COL_PROTOCOL;
+                else if (strcmp(col_name, "packet_length") == 0) col_type = COL_PACKET_LENGTH;
+                else if (strcmp(col_name, "info") == 0) col_type = COL_INFO;
+
+                if (col_type >= 0) {
+                    const char *col_text = col_get_text(&cf.cinfo, col_type);
+                    if (col_text && col_text[0]) {
+                        cJSON_AddStringToObject(root, fields[i], col_text);
+                    }
+                }
+                continue;
+            }
+            if (hfids[i] == -1) continue;
+            GPtrArray *finfo_array = proto_get_finfo_ptr_array(edt->tree, hfids[i]);
+            if (finfo_array && finfo_array->len > 0) {
+                field_info *fi = (field_info *)g_ptr_array_index(finfo_array, 0);
+                char *repr = fvalue_to_string_repr(NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
+                if (repr) {
+                    cJSON_AddStringToObject(root, fields[i], repr);
+                    wmem_free(NULL, repr);
+                }
+            }
+        }
+
+        char *json = cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
+
+        if (json) {
+            if (callback(json, (int)strlen(json), 0) != 0) {
+                g_free(json);
+                epan_dissect_free(edt);
+                wtap_rec_reset(&rec);
+                break;
+            }
+            g_free(json);
+        }
+
+        epan_dissect_free(edt);
+        wtap_rec_reset(&rec);
+    }
+
+    g_free(hfids);
+    if (dfcode != NULL) dfilter_free(dfcode);
+    wtap_rec_cleanup(&rec);
+    return 0;
+}
+
+int get_fields_rows_occurrence_cb(const char **fields, int field_count,
+                                   const char *filter_str, int occurrence,
+                                   FrameCallback callback) {
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    dfilter_t *dfcode = NULL;
+    if (filter_str != NULL && strlen(filter_str) > 0) {
+        if (!dfilter_compile(filter_str, &dfcode, NULL)) {
+            wtap_rec_cleanup(&rec);
+            return -1;
+        }
+    }
+
+    int *hfids = g_new(int, field_count);
+    for (int i = 0; i < field_count; i++) {
+        hfids[i] = proto_registrar_get_id_byname(fields[i]);
+    }
+
+    while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        cf.count++;
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+
+        if (dfcode != NULL) epan_dissect_prime_with_dfilter(edt, dfcode);
+        for (int i = 0; i < field_count; i++) {
+            if (hfids[i] != -1) epan_dissect_prime_with_hfid(edt, hfids[i]);
+        }
+
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time, &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis = frame_data_sequence_add(cf.provider.frames, &fd);
+
+        if (dfcode != NULL) {
+            if (!dfilter_apply_edt(dfcode, edt)) {
+                epan_dissect_free(edt);
+                wtap_rec_reset(&rec);
+                continue;
+            }
+        }
+
+        cJSON *root = cJSON_CreateObject();
+
+        if (occurrence == 2) {
+            cJSON_AddNumberToObject(root, "_frame", cf.count);
+            cJSON *values_obj = cJSON_CreateObject();
+
+            for (int i = 0; i < field_count; i++) {
+                if (strncmp(fields[i], "_ws.col.", 8) == 0) {
+                    const char *col_name = fields[i] + 8;
+                    gint col_type = -1;
+                    if (strcmp(col_name, "number") == 0) col_type = COL_NUMBER;
+                    else if (strcmp(col_name, "def_src") == 0) col_type = COL_DEF_SRC;
+                    else if (strcmp(col_name, "def_dst") == 0) col_type = COL_DEF_DST;
+                    else if (strcmp(col_name, "protocol") == 0) col_type = COL_PROTOCOL;
+                    else if (strcmp(col_name, "packet_length") == 0) col_type = COL_PACKET_LENGTH;
+                    else if (strcmp(col_name, "info") == 0) col_type = COL_INFO;
+
+                    if (col_type >= 0) {
+                        const char *col_text = col_get_text(&cf.cinfo, col_type);
+                        if (col_text && col_text[0]) {
+                            cJSON *arr = cJSON_CreateArray();
+                            cJSON_AddItemToArray(arr, cJSON_CreateString(col_text));
+                            cJSON_AddItemToObject(values_obj, fields[i], arr);
+                        }
+                    }
+                    continue;
+                }
+                if (hfids[i] == -1) continue;
+                GPtrArray *finfo_array = proto_get_finfo_ptr_array(edt->tree, hfids[i]);
+                cJSON *arr = cJSON_CreateArray();
+                if (finfo_array && finfo_array->len > 0) {
+                    for (guint j = 0; j < finfo_array->len; j++) {
+                        field_info *fi = (field_info *)g_ptr_array_index(finfo_array, j);
+                        char *repr = fvalue_to_string_repr(NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
+                        if (repr) {
+                            cJSON_AddItemToArray(arr, cJSON_CreateString(repr));
+                            wmem_free(NULL, repr);
+                        }
+                    }
+                }
+                cJSON_AddItemToObject(values_obj, fields[i], arr);
+            }
+            cJSON_AddItemToObject(root, "_values", values_obj);
+        } else {
+            for (int i = 0; i < field_count; i++) {
+                if (strncmp(fields[i], "_ws.col.", 8) == 0) {
+                    const char *col_name = fields[i] + 8;
+                    gint col_type = -1;
+                    if (strcmp(col_name, "number") == 0) col_type = COL_NUMBER;
+                    else if (strcmp(col_name, "def_src") == 0) col_type = COL_DEF_SRC;
+                    else if (strcmp(col_name, "def_dst") == 0) col_type = COL_DEF_DST;
+                    else if (strcmp(col_name, "protocol") == 0) col_type = COL_PROTOCOL;
+                    else if (strcmp(col_name, "packet_length") == 0) col_type = COL_PACKET_LENGTH;
+                    else if (strcmp(col_name, "info") == 0) col_type = COL_INFO;
+
+                    if (col_type >= 0) {
+                        const char *col_text = col_get_text(&cf.cinfo, col_type);
+                        if (col_text && col_text[0]) {
+                            cJSON_AddStringToObject(root, fields[i], col_text);
+                        }
+                    }
+                    continue;
+                }
+                if (hfids[i] == -1) continue;
+                GPtrArray *finfo_array = proto_get_finfo_ptr_array(edt->tree, hfids[i]);
+                if (finfo_array && finfo_array->len > 0) {
+                    int idx = (occurrence == 1) ? ((int)finfo_array->len - 1) : 0;
+                    field_info *fi = (field_info *)g_ptr_array_index(finfo_array, idx);
+                    char *repr = fvalue_to_string_repr(NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
+                    if (repr) {
+                        cJSON_AddStringToObject(root, fields[i], repr);
+                        wmem_free(NULL, repr);
+                    }
+                }
+            }
+        }
+
+        char *json = cJSON_PrintUnformatted(root);
+        cJSON_Delete(root);
+
+        if (json) {
+            if (callback(json, (int)strlen(json), 0) != 0) {
+                g_free(json);
+                epan_dissect_free(edt);
+                wtap_rec_reset(&rec);
+                break;
+            }
+            g_free(json);
+        }
+
+        epan_dissect_free(edt);
+        wtap_rec_reset(&rec);
+    }
+
+    g_free(hfids);
+    if (dfcode != NULL) dfilter_free(dfcode);
+    wtap_rec_cleanup(&rec);
+    return 0;
+}
+
 void get_stream_payloads_cb(const char *filter_str, const char *proto, FrameCallback callback) {
     epan_dissect_t *edt;
     cf.count = 0;
@@ -2188,4 +2801,352 @@ void get_stream_payloads_cb(const char *filter_str, const char *proto, FrameCall
 
     if (dfcode != NULL) dfilter_free(dfcode);
     wtap_rec_cleanup(&rec);
+}
+
+int write_pcap_slice_native(const char *input_path, const char *output_path,
+                            const int *indices, int idx_count,
+                            const char *output_format) {
+    int err = 0;
+    gchar *err_info = NULL;
+
+    wtap *wth = wtap_open_offline(input_path, WTAP_TYPE_AUTO, &err, &err_info, TRUE);
+    if (!wth) {
+        fprintf(stderr, "write_pcap_slice_native: cannot open input %s: %s\n",
+                input_path, err_info ? err_info : "unknown");
+        if (err_info) g_free(err_info);
+        return err != 0 ? err : -1;
+    }
+
+    int file_type = wtap_file_type_subtype(wth);
+    if (output_format != NULL) {
+        if (strcmp(output_format, "pcap") == 0) {
+            file_type = wtap_pcap_file_type_subtype();
+        } else if (strcmp(output_format, "pcapng") == 0) {
+            file_type = wtap_pcapng_file_type_subtype();
+        }
+    }
+
+    wtap_dump_params params = WTAP_DUMP_PARAMS_INIT;
+    wtap_dump_params_init(&params, wth);
+
+    wtap_dumper *dh = wtap_dump_open(output_path, file_type, WTAP_UNCOMPRESSED,
+                                     &params, &err, &err_info);
+    if (!dh) {
+        fprintf(stderr, "write_pcap_slice_native: cannot open output %s: %s\n",
+                output_path, err_info ? err_info : "unknown");
+        if (err_info) g_free(err_info);
+        wtap_dump_params_cleanup(&params);
+        wtap_close(wth);
+        return err != 0 ? err : -1;
+    }
+
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+    int64_t byte_offset = 0;
+    int frame_no = 0;
+    int idx_ptr = 0;
+    int written = 0;
+    bool write_err = false;
+
+    while (idx_ptr < idx_count) {
+        if (!wtap_read(wth, &rec, &err, &err_info, &byte_offset)) {
+            break;
+        }
+        frame_no++;
+
+        if (frame_no < indices[idx_ptr]) {
+            wtap_rec_reset(&rec);
+            continue;
+        }
+
+        while (idx_ptr < idx_count && frame_no > indices[idx_ptr]) {
+            idx_ptr++;
+        }
+        if (idx_ptr >= idx_count) {
+            wtap_rec_reset(&rec);
+            break;
+        }
+
+        if (frame_no == indices[idx_ptr]) {
+            if (!wtap_dump(dh, &rec, &err, &err_info)) {
+                fprintf(stderr, "write_pcap_slice_native: write failed for frame %d: %s\n",
+                        frame_no, err_info ? err_info : "unknown");
+                write_err = true;
+                wtap_rec_reset(&rec);
+                break;
+            }
+            written++;
+            idx_ptr++;
+        }
+
+        wtap_rec_reset(&rec);
+    }
+
+    wtap_rec_cleanup(&rec);
+
+    if (write_err) {
+        bool needs_reload = false;
+        wtap_dump_close(dh, &needs_reload, NULL, NULL);
+        wtap_dump_params_cleanup(&params);
+        if (err_info) g_free(err_info);
+        wtap_close(wth);
+        return -1;
+    }
+
+    bool needs_reload = false;
+    gboolean close_ok = wtap_dump_close(dh, &needs_reload, &err, &err_info);
+    wtap_dump_params_cleanup(&params);
+
+    if (err_info != NULL) {
+        if (!close_ok) {
+            fprintf(stderr, "write_pcap_slice_native: close failed: %s\n", err_info);
+        }
+        g_free(err_info);
+        err_info = NULL;
+    }
+
+    wtap_close(wth);
+
+    if (!close_ok) {
+        return err != 0 ? err : -1;
+    }
+    if (written == 0) {
+        return -2;
+    }
+    return 0;
+}
+
+int get_frame_numbers_filtered(const char *filter_str, int **numbers_out) {
+    if (numbers_out == NULL) return -1;
+    *numbers_out = NULL;
+
+    if (filter_str == NULL || strlen(filter_str) == 0) return 0;
+
+    dfilter_t *dfcode = NULL;
+    df_error_t *df_err = NULL;
+    if (!dfilter_compile(filter_str, &dfcode, &df_err)) {
+        if (df_err) {
+            fprintf(stderr, "get_frame_numbers: filter compile failed: %s\n", df_err->msg);
+            df_error_free(&df_err);
+        }
+        return -1;
+    }
+
+    GArray *numbers = g_array_new(FALSE, FALSE, sizeof(int));
+
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+
+    while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        cf.count++;
+
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, FALSE);
+        epan_dissect_prime_with_dfilter(edt, dfcode);
+
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time,
+                                      &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, NULL);
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis =
+            frame_data_sequence_add(cf.provider.frames, &fd);
+
+        if (dfilter_apply_edt(dfcode, edt)) {
+            int fnum = cf.count;
+            g_array_append_val(numbers, fnum);
+        }
+
+        epan_dissect_free(edt);
+        wtap_rec_reset(&rec);
+    }
+
+    dfilter_free(dfcode);
+    wtap_rec_cleanup(&rec);
+    if (err_info != NULL) g_free(err_info);
+
+    int count = (int)numbers->len;
+    if (count == 0) {
+        g_array_free(numbers, TRUE);
+        return 0;
+    }
+    *numbers_out = (int *)g_array_free(numbers, FALSE);
+    return count;
+}
+
+// Minimal JSON string escaping: appends str to GString, escaping " and \.
+static void append_json_string(GString *gs, const char *str) {
+    if (!str) return;
+    for (const char *p = str; *p; p++) {
+        switch (*p) {
+        case '"':  g_string_append(gs, "\\\""); break;
+        case '\\': g_string_append(gs, "\\\\"); break;
+        case '\n': g_string_append(gs, "\\n");  break;
+        case '\r': g_string_append(gs, "\\r");  break;
+        case '\t': g_string_append(gs, "\\t");  break;
+        default:   g_string_append_c(gs, *p);   break;
+        }
+    }
+}
+
+char *get_timeline_json(const char *filter_str) {
+    dfilter_t *dfcode = NULL;
+    if (filter_str != NULL && strlen(filter_str) > 0) {
+        if (!dfilter_compile(filter_str, &dfcode, NULL)) {
+            return NULL;
+        }
+    }
+
+    const char *timeline_fields[] = {
+        "frame.time_epoch", "frame.len",
+        "ip.src", "ip.dst",
+        "tcp.stream", "udp.stream",
+        "frame.protocols",
+    };
+    int field_count = 7;
+    int hfids[7];
+    for (int i = 0; i < field_count; i++) {
+        hfids[i] = proto_registrar_get_id_byname(timeline_fields[i]);
+    }
+
+    GString *json = g_string_new("[");
+
+    cf.count = 0;
+    int err = 0;
+    gchar *err_info = NULL;
+    int64_t data_offset = 0;
+    guint32 cum_bytes = 0;
+    wtap_rec rec;
+    wtap_rec_init(&rec, 1514);
+    bool first = true;
+
+    while (wtap_read(cf.provider.wth, &rec, &err, &err_info, &data_offset)) {
+        cf.count++;
+
+        frame_data fd;
+        frame_data_init(&fd, cf.count, &rec, data_offset, 0);
+
+        epan_dissect_t *edt = epan_dissect_new(cf.epan, TRUE, TRUE);
+        if (dfcode != NULL) epan_dissect_prime_with_dfilter(edt, dfcode);
+        for (int i = 0; i < field_count; i++) {
+            if (hfids[i] != -1) epan_dissect_prime_with_hfid(edt, hfids[i]);
+        }
+
+        frame_data_set_before_dissect(&fd, &cf.elapsed_time,
+                                      &cf.provider.ref, cf.provider.prev_dis);
+        cf.provider.ref = &fd;
+        epan_dissect_run_with_taps(edt, cf.cd_t, &rec, &fd, &cf.cinfo);
+        frame_data_set_after_dissect(&fd, &cum_bytes);
+        cf.provider.prev_cap = cf.provider.prev_dis =
+            frame_data_sequence_add(cf.provider.frames, &fd);
+
+        if (dfcode != NULL) {
+            if (!dfilter_apply_edt(dfcode, edt)) {
+                epan_dissect_free(edt);
+                wtap_rec_reset(&rec);
+                continue;
+            }
+        }
+
+        const char *epoch_str = NULL;
+        int field_has_epoch = 0;
+        int field_has_len = 0;
+        double epoch_fval = 0.0;
+        int64_t len_fval = 0;
+        int64_t tcp_fval = -1;
+        int64_t udp_fval = -1;
+        const char *src_val = NULL;
+        const char *dst_val = NULL;
+        const char *protos_val = NULL;
+
+        for (int i = 0; i < field_count; i++) {
+            if (hfids[i] == -1) continue;
+            GPtrArray *finfo_array = proto_get_finfo_ptr_array(edt->tree, hfids[i]);
+            if (!finfo_array || finfo_array->len == 0) continue;
+            field_info *fi = (field_info *)g_ptr_array_index(finfo_array, 0);
+
+            switch (i) {
+            case 0: {
+                char *repr = fvalue_to_string_repr(NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
+                if (repr) epoch_str = repr;
+                epoch_fval = fvalue_get_floating(fi->value);
+                field_has_epoch = 1;
+                break;
+            }
+            case 1:
+                len_fval = fvalue_get_sinteger64(fi->value);
+                field_has_len = 1;
+                break;
+            case 2: {
+                char *repr = fvalue_to_string_repr(NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
+                if (repr) src_val = repr;
+                break;
+            }
+            case 3: {
+                char *repr = fvalue_to_string_repr(NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
+                if (repr) dst_val = repr;
+                break;
+            }
+            case 4:
+                tcp_fval = fvalue_get_sinteger64(fi->value);
+                break;
+            case 5:
+                udp_fval = fvalue_get_sinteger64(fi->value);
+                break;
+            case 6: {
+                char *repr = fvalue_to_string_repr(NULL, fi->value, FTREPR_JSON, fi->hfinfo->display);
+                if (repr) protos_val = repr;
+                break;
+            }
+            }
+        }
+
+        if (field_has_epoch && epoch_str && strlen(epoch_str) > 1 && field_has_len && len_fval > 0) {
+            if (!first) g_string_append_c(json, ',');
+            g_string_append_printf(json, "{\"t\":\"%s\",\"l\":%lld", epoch_str, (long long)len_fval);
+            if (src_val) {
+                g_string_append_printf(json, ",\"s\":\"");
+                append_json_string(json, src_val);
+                g_string_append_c(json, '"');
+            }
+            if (dst_val) {
+                g_string_append_printf(json, ",\"d\":\"");
+                append_json_string(json, dst_val);
+                g_string_append_c(json, '"');
+            }
+            if (tcp_fval >= 0) g_string_append_printf(json, ",\"ts\":%lld", (long long)tcp_fval);
+            if (udp_fval >= 0) g_string_append_printf(json, ",\"us\":%lld", (long long)udp_fval);
+            if (protos_val) {
+                g_string_append_printf(json, ",\"p\":\"");
+                append_json_string(json, protos_val);
+                g_string_append_c(json, '"');
+            }
+            g_string_append_c(json, '}');
+            first = false;
+        }
+
+        if (epoch_str) wmem_free(NULL, (gpointer)epoch_str);
+        if (src_val) wmem_free(NULL, (gpointer)src_val);
+        if (dst_val) wmem_free(NULL, (gpointer)dst_val);
+        if (protos_val) wmem_free(NULL, (gpointer)protos_val);
+
+        epan_dissect_free(edt);
+        wtap_rec_reset(&rec);
+    }
+
+    g_string_append_c(json, ']');
+
+    if (dfcode != NULL) dfilter_free(dfcode);
+    wtap_rec_cleanup(&rec);
+    if (err_info != NULL) g_free(err_info);
+
+    char *result = g_string_free(json, FALSE);
+    return result;
 }

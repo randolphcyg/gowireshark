@@ -1,5 +1,7 @@
 package gowireshark
 
+import "context"
+
 type ExpertInfo struct {
 	FrameNumber int    `json:"frameNumber"`
 	Severity    string `json:"severity,omitempty"`
@@ -13,26 +15,30 @@ type ExpertInfo struct {
 
 // ExpertInfos returns Expert Info records for frames matched by opts.
 func ExpertInfos(path string, opts ...Option) ([]ExpertInfo, error) {
-	epanMu.Lock()
-	defer epanMu.Unlock()
+	return ExpertInfosContext(context.Background(), path, opts...)
+}
 
-	conf, err := initCapFile(path, opts...)
+// ExpertInfosContext returns Expert Info records using the provided context for
+// session acquisition.
+func ExpertInfosContext(ctx context.Context, path string, opts ...Option) ([]ExpertInfo, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
-	if conf.DisplayFilter != "" {
-		if err := ValidateFilter(conf.DisplayFilter); err != nil {
-			return nil, err
-		}
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
-	return expertInfosFromActive(conf.DisplayFilter)
+	return s.ExpertInfos(Query{Filter: extractFilter(opts)})
 }
 
 // ExpertInfos returns Expert Info records for frames matched by q.
 // Results are cached by query filter.
 func (s *Session) ExpertInfos(q Query) ([]ExpertInfo, error) {
-	if err := s.checkClosed(); err != nil {
-		return nil, err
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.closed.Load() {
+		return nil, ErrSessionClosed
 	}
 	if q.Filter != "" {
 		if err := ValidateFilter(q.Filter); err != nil {
@@ -47,7 +53,7 @@ func (s *Session) ExpertInfos(q Query) ([]ExpertInfo, error) {
 	epanMu.Lock()
 	defer epanMu.Unlock()
 
-	if err := sessionResetReadPosition(); err != nil {
+	if err := s.resetReadPosition(); err != nil {
 		return nil, err
 	}
 	infos, err := expertInfosFromActive(q.Filter)

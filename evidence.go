@@ -2,6 +2,7 @@ package gowireshark
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"os"
 	"slices"
@@ -39,16 +40,22 @@ type EvidenceBundle struct {
 
 // SelectedFrameNumbers resolves a selector to sorted unique 1-based frame numbers.
 func SelectedFrameNumbers(path string, selector FrameSelector, opts ...Option) ([]int, error) {
+	return SelectedFrameNumbersContext(context.Background(), path, selector, opts...)
+}
+
+// SelectedFrameNumbersContext resolves a selector to sorted unique 1-based
+// frame numbers using context-aware helper paths.
+func SelectedFrameNumbersContext(ctx context.Context, path string, selector FrameSelector, opts ...Option) ([]int, error) {
 	set := map[int]bool{}
 	for _, idx := range selector.Indices {
 		if idx < 1 {
-			return nil, errors.Wrapf(ErrInvalidFrameIndex, "%d", idx)
+			return nil, errors.Wrapf(ErrInvalidFrameNumber, "%d", idx)
 		}
 		set[idx] = true
 	}
 	if selector.Range.Start != 0 || selector.Range.End != 0 {
 		if selector.Range.Start < 1 || selector.Range.End < selector.Range.Start {
-			return nil, errors.Wrapf(ErrInvalidFrameIndex, "range %d-%d", selector.Range.Start, selector.Range.End)
+			return nil, errors.Wrapf(ErrInvalidFrameNumber, "range %d-%d", selector.Range.Start, selector.Range.End)
 		}
 		for i := selector.Range.Start; i <= selector.Range.End; i++ {
 			set[i] = true
@@ -58,14 +65,12 @@ func SelectedFrameNumbers(path string, selector FrameSelector, opts ...Option) (
 		if err := ValidateFilter(selector.Filter); err != nil {
 			return nil, err
 		}
-		err := WalkFrames(path, func(f *FrameData) error {
-			if f != nil && f.BaseLayers.Frame != nil {
-				set[f.BaseLayers.Frame.Number] = true
-			}
-			return nil
-		}, append(opts, WithDisplayFilter(selector.Filter))...)
+		numbers, err := FrameNumbersContext(ctx, path, append(opts, WithDisplayFilter(selector.Filter))...)
 		if err != nil {
 			return nil, err
+		}
+		for _, n := range numbers {
+			set[n] = true
 		}
 	}
 	if len(set) == 0 {
@@ -83,7 +88,13 @@ func SelectedFrameNumbers(path string, selector FrameSelector, opts ...Option) (
 // best-effort pcapgo conversion (not native wiretap). Selection is by 1-based
 // frame numbers and/or Wireshark display filter.
 func WritePcapSlice(path string, w io.Writer, selector FrameSelector, opts ...Option) (int, error) {
-	indices, err := SelectedFrameNumbers(path, selector, opts...)
+	return WritePcapSliceContext(context.Background(), path, w, selector, opts...)
+}
+
+// WritePcapSliceContext writes selected packets using context-aware frame
+// selection. The packet copy itself is synchronous once selected.
+func WritePcapSliceContext(ctx context.Context, path string, w io.Writer, selector FrameSelector, opts ...Option) (int, error) {
+	indices, err := SelectedFrameNumbersContext(ctx, path, selector, opts...)
 	if err != nil {
 		return 0, err
 	}
@@ -91,36 +102,65 @@ func WritePcapSlice(path string, w io.Writer, selector FrameSelector, opts ...Op
 }
 
 // PcapSliceOptions controls output format and metadata preservation for
-// best-effort pcap slicing via pcapgo (not native wiretap).
-//
-// PreserveComments and PreserveInterfaces are NOT supported by the current
-// pcapgo implementation and will return ErrPreserveNotSupported if enabled.
-// Future native wiretap integration may add full metadata preservation.
+// pcap slicing. When PreserveComments or PreserveInterfaces is enabled,
+// native wiretap is used to fully preserve pcapng metadata (IDBs, NRBs,
+// packet comments, timestamp precision).
+type PcapOutputFormat string
+
+const (
+	PcapOutputSame   PcapOutputFormat = "same"
+	PcapOutputPcap   PcapOutputFormat = "pcap"
+	PcapOutputPcapNG PcapOutputFormat = "pcapng"
+)
+
 type PcapSliceOptions struct {
 	PreserveComments   bool
 	PreserveInterfaces bool
-	OutputFormat       string
+	OutputFormat       PcapOutputFormat
 }
 
 // WritePcapSliceWithOptions writes selected packets to w with format control.
-// OutputFormat can be "pcap", "pcapng", or "same" (auto-detect from input).
-// This is a best-effort pcapgo-based implementation; PreserveComments and
-// PreserveInterfaces are not yet supported.
+// OutputFormat can be PcapOutputPcap, PcapOutputPcapNG, or PcapOutputSame
+// (auto-detect from input).
+//
+// When PreserveComments or PreserveInterfaces is set to true, or when
+// OutputFormat is explicitly set, this uses native wiretap to fully preserve
+// interface description blocks, packet comments, timestamp precision, and
+// other pcapng metadata. Otherwise it falls back to a best-effort pcapgo path.
 func WritePcapSliceWithOptions(path string, w io.Writer, selector FrameSelector,
 	sliceOpts PcapSliceOptions, opts ...Option) (int, error) {
-	indices, err := SelectedFrameNumbers(path, selector, opts...)
+	return WritePcapSliceWithOptionsContext(context.Background(), path, w, selector, sliceOpts, opts...)
+}
+
+// WritePcapSliceWithOptionsContext writes selected packets with format control
+// using context-aware frame selection.
+func WritePcapSliceWithOptionsContext(ctx context.Context, path string, w io.Writer, selector FrameSelector,
+	sliceOpts PcapSliceOptions, opts ...Option) (int, error) {
+	if !validPcapSliceOutputFormat(sliceOpts.OutputFormat) {
+		return 0, &OutputFormatError{Format: string(sliceOpts.OutputFormat), Message: "pcap slice output format"}
+	}
+	indices, err := SelectedFrameNumbersContext(ctx, path, selector, opts...)
 	if err != nil {
 		return 0, err
 	}
 	return writePcapSliceByIndicesWithOptions(path, w, indices, sliceOpts)
 }
 
+func validPcapSliceOutputFormat(format PcapOutputFormat) bool {
+	switch format {
+	case "", PcapOutputSame, PcapOutputPcap, PcapOutputPcapNG:
+		return true
+	default:
+		return false
+	}
+}
+
 func writePcapSliceByIndicesWithOptions(path string, w io.Writer, indices []int, sliceOpts PcapSliceOptions) (int, error) {
 	if len(indices) == 0 {
 		return 0, ErrEmptySelection
 	}
-	if sliceOpts.PreserveComments || sliceOpts.PreserveInterfaces {
-		return 0, ErrPreserveNotSupported
+	if sliceOpts.PreserveComments || sliceOpts.PreserveInterfaces || sliceOpts.OutputFormat != "" {
+		return writePcapSliceNative(path, w, indices, string(sliceOpts.OutputFormat))
 	}
 	f, err := os.Open(path)
 	if err != nil {
@@ -128,8 +168,8 @@ func writePcapSliceByIndicesWithOptions(path string, w io.Writer, indices []int,
 	}
 	defer f.Close()
 
-	forcePcap := sliceOpts.OutputFormat == "pcap"
-	forceNg := sliceOpts.OutputFormat == "pcapng"
+	forcePcap := sliceOpts.OutputFormat == PcapOutputPcap
+	forceNg := sliceOpts.OutputFormat == PcapOutputPcapNG
 
 	br := bufio.NewReader(f)
 	reader, err := pcapgo.NewReader(br)
@@ -184,17 +224,23 @@ func writePcapSliceByIndicesWithOptions(path string, w io.Writer, indices []int,
 // BuildEvidenceBundle gathers parsed frames, hex dumps, file metadata, and an
 // optional followed stream into one evidence object.
 func BuildEvidenceBundle(path string, selector FrameSelector, opts ...Option) (*EvidenceBundle, error) {
-	indices, err := SelectedFrameNumbers(path, selector, opts...)
+	return BuildEvidenceBundleContext(context.Background(), path, selector, opts...)
+}
+
+// BuildEvidenceBundleContext gathers parsed frames, hex dumps, file metadata,
+// and an optional followed stream using context-aware helper paths.
+func BuildEvidenceBundleContext(ctx context.Context, path string, selector FrameSelector, opts ...Option) (*EvidenceBundle, error) {
+	indices, err := SelectedFrameNumbersContext(ctx, path, selector, opts...)
 	if err != nil {
 		return nil, err
 	}
-	frames, err := FramesByIndices(path, indices, opts...)
+	frames, err := FramesByNumbersContext(ctx, path, indices, opts...)
 	if err != nil {
 		return nil, err
 	}
 	bundle := &EvidenceBundle{Selector: selector, Frames: frames}
 	for _, idx := range indices {
-		h, err := HexDataByIndex(path, idx, opts...)
+		h, err := HexDataByFrameNumberContext(ctx, path, idx, opts...)
 		if err == nil && h != nil {
 			bundle.Hex = append(bundle.Hex, h)
 		}
@@ -204,9 +250,9 @@ func BuildEvidenceBundle(path string, selector FrameSelector, opts ...Option) (*
 	}
 	if selector.Filter != "" {
 		if hasProtocol(frames, "tcp") {
-			bundle.Follow, _ = FollowStream(path, selector.Filter, "tcp", opts...)
+			bundle.Follow, _ = FollowStreamContext(ctx, path, selector.Filter, "tcp", opts...)
 		} else if hasProtocol(frames, "udp") {
-			bundle.Follow, _ = FollowStream(path, selector.Filter, "udp", opts...)
+			bundle.Follow, _ = FollowStreamContext(ctx, path, selector.Filter, "udp", opts...)
 		}
 	}
 	return bundle, nil

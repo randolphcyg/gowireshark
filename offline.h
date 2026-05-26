@@ -28,6 +28,10 @@ void free_frame_index(void);
 // Dissect a specific frame and return its JSON representation.
 char *proto_tree_in_json(int num, int printCJson);
 
+// Like proto_tree_in_json but uses frame index for O(1) seek when available.
+// Falls back to sequential scan if index is not built or seek fails.
+char *proto_tree_in_json_seek(int num, int printCJson);
+
 // Dissect a specific frame and return its Hex Data JSON.
 char *get_specific_frame_hex_data(int num);
 
@@ -74,8 +78,43 @@ int write_export_object_cb(const char *filter_str, const char *protocol,
 // Emit Wireshark service response time statistics as JSON through callback.
 int get_service_response_times_cb(const char *filter_str, const char *protocol, FrameCallback callback);
 
+// Emit only the requested fields for each frame through callback.
+// Each callback invocation receives a compact JSON object, e.g.
+// {"frame.number":"1","ip.src":"10.0.0.1"}.
+// Returns 0 on success, -1 on filter compile error.
+int get_fields_rows_cb(const char **fields, int field_count, const char *filter_str, FrameCallback callback);
+
+// Emit only the requested fields with occurrence selection.
+// occurrence: 0 = first, 1 = last, 2 = all.
+// For all occurrences, JSON is {"_frame": N, "_values": {"field":["val1","val2",...]}}.
+// Returns 0 on success, -1 on filter compile error.
+int get_fields_rows_occurrence_cb(const char **fields, int field_count, const char *filter_str, int occurrence, FrameCallback callback);
+
 char *get_expert_infos_json(const char *filter_str);
 
 char *get_stream_payloads_json(const char *filter_str, const char *proto);
+
+// Write selected frames to a pcap/pcapng file using native wiretap.
+// Preserves all metadata: IDBs, NRBs, packet comments, timestamps.
+// output_format: "pcap", "pcapng", or NULL/"" for same-as-input.
+// Returns 0 on success, >0 for wiretap error, -1 for other error, -2 for no frames.
+int write_pcap_slice_native(const char *input_path, const char *output_path,
+                            const int *indices, int idx_count,
+                            const char *output_format);
+
+// Collect frame numbers matching a display filter. No JSON is generated.
+// Returns count of matching frames, -1 if filter compile fails.
+// *numbers_out is allocated with g_malloc; caller must g_free.
+int get_frame_numbers_filtered(const char *filter_str, int **numbers_out);
+
+// Extract timeline fields into a compact JSON array string.
+// Fields: t=frame.time_epoch, l=frame.len, s=ip.src, d=ip.dst,
+//         ts=tcp.stream, us=udp.stream, p=frame.protocols
+// Returns g_malloc'd string; caller must g_free. NULL on error.
+char *get_timeline_json(const char *filter_str);
+
+int get_proto_hierarchy_cb(const char *filter_str, FrameCallback callback);
+
+int get_io_stats_cb(const char *filter_str, double interval, FrameCallback callback);
 
 #endif  // OFFLINE_H

@@ -12,7 +12,7 @@ import (
 func TestParseETH(t *testing.T) {
 	pcapPath := testfixture.Pcap(t)
 
-	frame, err := FrameByIndex(pcapPath, 1, withCJSONOutput(true), WithDebug(true))
+	frame, err := FrameByNumberContext(t.Context(), pcapPath, 1, withCJSONOutput(true), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestParseHTTPs(t *testing.T) {
 		},
 	}
 
-	frame, err := FrameByIndex(pcapPath, 1,
+	frame, err := FrameByNumberContext(t.Context(), pcapPath, 1,
 		withCJSONOutput(true), WithTLS(tls), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
@@ -149,7 +149,7 @@ func (p *MySQLLayer) Parse(layers Layers) (any, error) {
 func TestParseCustomProtocol(t *testing.T) {
 	pcapPath := testfixture.Pcap(t)
 
-	frame, err := FrameByIndex(pcapPath, 1, withCJSONOutput(true), WithDebug(true))
+	frame, err := FrameByNumberContext(t.Context(), pcapPath, 1, withCJSONOutput(true), WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestRegistryIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	frame, err := FrameByIndex(pcapPath, 1, withCJSONOutput(true), WithRegistry(registry))
+	frame, err := FrameByNumberContext(t.Context(), pcapPath, 1, withCJSONOutput(true), WithRegistry(registry))
 	if err != nil {
 		t.Fatal(err)
 	}

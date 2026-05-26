@@ -110,7 +110,7 @@ func TestSessionTapConversationsMatchesFreeFunction(t *testing.T) {
 		t.Fatalf("TapConversations: %v", err)
 	}
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestSessionTapEndpointsMatchesFreeFunction(t *testing.T) {
 		t.Fatalf("TapEndpoints: %v", err)
 	}
 
-	s, err := OpenSession(pcap)
+	s, err := openSession(pcap)
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
 	}
@@ -172,5 +172,114 @@ func TestTapConversationsInvalidFilter(t *testing.T) {
 	_, err := TapConversations(pcap, "tcp", WithDisplayFilter("bogus_field == 42"))
 	if err == nil {
 		t.Fatal("expected error for invalid filter")
+	}
+}
+
+func TestProtocolHierarchy_DoesNotCrash(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	entries, err := ProtocolHierarchy(pcap)
+	if err != nil {
+		t.Fatalf("ProtocolHierarchy: %v", err)
+	}
+	if len(entries) == 0 {
+		t.Fatal("expected at least one protocol hierarchy entry")
+	}
+	for _, e := range entries {
+		if e.Protocol == "" {
+			t.Fatalf("empty protocol name in entry: %+v", e)
+		}
+		if e.Packets == 0 {
+			t.Fatalf("zero packets for protocol %q", e.Protocol)
+		}
+	}
+	t.Logf("found %d protocol entries", len(entries))
+}
+
+func TestProtocolHierarchy_WithFilter(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	all, err := ProtocolHierarchy(pcap)
+	if err != nil {
+		t.Fatalf("ProtocolHierarchy all: %v", err)
+	}
+	filtered, err := ProtocolHierarchy(pcap, WithDisplayFilter("frame.number == 1"))
+	if err != nil {
+		t.Fatalf("ProtocolHierarchy filtered: %v", err)
+	}
+	if len(filtered) == 0 {
+		t.Fatal("expected at least one entry with filter frame.number==1")
+	}
+	for _, fe := range filtered {
+		found := false
+		for _, ae := range all {
+			if ae.Protocol == fe.Protocol {
+				if fe.Packets > ae.Packets {
+					t.Fatalf("filtered packets %d > all packets %d for protocol %q",
+						fe.Packets, ae.Packets, fe.Protocol)
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("filtered protocol %q not found in all entries", fe.Protocol)
+		}
+	}
+}
+
+func TestSessionProtocolHierarchy_MatchesFreeFunction(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	freeEntries, err := ProtocolHierarchy(pcap, WithDisplayFilter("frame.number <= 5"))
+	if err != nil {
+		t.Fatalf("ProtocolHierarchy: %v", err)
+	}
+
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession: %v", err)
+	}
+	defer s.Close()
+
+	sessionEntries, err := s.ProtocolHierarchy(Query{Filter: "frame.number <= 5"})
+	if err != nil {
+		t.Fatalf("Session.ProtocolHierarchy: %v", err)
+	}
+
+	if len(freeEntries) != len(sessionEntries) {
+		t.Fatalf("free len %d != session len %d", len(freeEntries), len(sessionEntries))
+	}
+	for i := range freeEntries {
+		if freeEntries[i].Protocol != sessionEntries[i].Protocol ||
+			freeEntries[i].Packets != sessionEntries[i].Packets ||
+			freeEntries[i].Bytes != sessionEntries[i].Bytes {
+			t.Fatalf("mismatch at index %d: free=%+v session=%+v",
+				i, freeEntries[i], sessionEntries[i])
+		}
+	}
+}
+
+func TestProtocolHierarchy_InvalidFilter(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	_, err := ProtocolHierarchy(pcap, WithDisplayFilter("bogus_field == 42"))
+	if err == nil {
+		t.Fatal("expected error for invalid filter")
+	}
+}
+
+func TestProtocolHierarchy_ClosedSession(t *testing.T) {
+	pcap := testfixture.Pcap(t)
+
+	s, err := openSession(pcap)
+	if err != nil {
+		t.Fatalf("OpenSession: %v", err)
+	}
+	s.Close()
+
+	_, err = s.ProtocolHierarchy(Query{})
+	if err == nil {
+		t.Fatal("expected error for closed session")
 	}
 }

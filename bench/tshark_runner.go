@@ -13,11 +13,11 @@ import (
 )
 
 type TsharkRunner struct {
-	pcap  string
+	pcap   string
 	tshark string
 
-	frameCount int
-	hasTCP     bool
+	frameCount  int
+	hasTCP      bool
 	initialized bool
 }
 
@@ -150,6 +150,20 @@ func (r *TsharkRunner) StreamListAll() (records int, bytesOut int64, err error) 
 	return records, bytesOut, nil
 }
 
+func (r *TsharkRunner) Fields(fields []string) (records int, bytesOut int64, err error) {
+	args := []string{"-r", r.pcap, "-T", "fields"}
+	for _, f := range fields {
+		args = append(args, "-e", f)
+	}
+	out, execErr := r.runTshark(args...)
+	if execErr != nil {
+		return 0, 0, execErr
+	}
+	bytesOut = int64(len(out))
+	records = countLines(out)
+	return records, bytesOut, nil
+}
+
 func (r *TsharkRunner) PcapSlice(tmpDir string, maxFrames int) (records int, bytesOut int64, err error) {
 	outFile := filepath.Join(tmpDir, "tshark_slice.pcap")
 	defer os.Remove(outFile)
@@ -185,6 +199,104 @@ func (r *TsharkRunner) FrameCount() int {
 func (r *TsharkRunner) HasTCP() bool {
 	_ = r.init()
 	return r.hasTCP
+}
+
+func (r *TsharkRunner) IOStats(intervalSecs float64) (records int, bytesOut int64, err error) {
+	interval := fmt.Sprintf("%.1f", intervalSecs)
+	out, execErr := r.runTshark("-r", r.pcap, "-q", "-z", "io,stat,"+interval)
+	if execErr != nil {
+		return 0, 0, execErr
+	}
+	bytesOut = int64(len(out))
+	records = countLines(out)
+	return records, bytesOut, nil
+}
+
+func (r *TsharkRunner) ProtocolHierarchy() (records int, bytesOut int64, err error) {
+	out, execErr := r.runTshark("-r", r.pcap, "-q", "-z", "io,phs")
+	if execErr != nil {
+		return 0, 0, execErr
+	}
+	bytesOut = int64(len(out))
+	records = countLines(out)
+	return records, bytesOut, nil
+}
+
+func (r *TsharkRunner) ServiceResponseTimes(protocol string) (records int, bytesOut int64, err error) {
+	stat := fmt.Sprintf("%s,srt", protocol)
+	out, execErr := r.runTshark("-r", r.pcap, "-q", "-z", stat)
+	if execErr != nil {
+		return 0, 0, execErr
+	}
+	bytesOut = int64(len(out))
+	records = countLines(out)
+	return records, bytesOut, nil
+}
+
+func (r *TsharkRunner) WriteDissectionText() (records int, bytesOut int64, err error) {
+	out, execErr := r.runTshark("-r", r.pcap, "-V")
+	if execErr != nil {
+		return 0, 0, execErr
+	}
+	bytesOut = int64(len(out))
+	records = countLines(out)
+	return records, bytesOut, nil
+}
+
+func (r *TsharkRunner) WriteDissectionPDML() (records int, bytesOut int64, err error) {
+	out, execErr := r.runTshark("-r", r.pcap, "-T", "pdml")
+	if execErr != nil {
+		return 0, 0, execErr
+	}
+	bytesOut = int64(len(out))
+	records = countLines(out)
+	return records, bytesOut, nil
+}
+
+func (r *TsharkRunner) Timeline() (records int, bytesOut int64, err error) {
+	out, execErr := r.runTshark("-r", r.pcap, "-T", "fields", "-e", "frame.time_epoch", "-e", "frame.len")
+	if execErr != nil {
+		return 0, 0, execErr
+	}
+	bytesOut = int64(len(out))
+	records = countLines(out)
+	return records, bytesOut, nil
+}
+
+func (r *TsharkRunner) TapConversations(convType string) (records int, bytesOut int64, err error) {
+	stat := fmt.Sprintf("conv,%s", convType)
+	out, execErr := r.runTshark("-r", r.pcap, "-q", "-z", stat)
+	if execErr != nil {
+		return 0, 0, execErr
+	}
+	bytesOut = int64(len(out))
+	records = countLines(out)
+	return records, bytesOut, nil
+}
+
+func (r *TsharkRunner) TapEndpoints(endpointType string) (records int, bytesOut int64, err error) {
+	stat := fmt.Sprintf("endpoints,%s", endpointType)
+	out, execErr := r.runTshark("-r", r.pcap, "-q", "-z", stat)
+	if execErr != nil {
+		return 0, 0, execErr
+	}
+	bytesOut = int64(len(out))
+	records = countLines(out)
+	return records, bytesOut, nil
+}
+
+func (r *TsharkRunner) FrameNumbers(filter string) (records int, bytesOut int64, err error) {
+	args := []string{"-r", r.pcap, "-T", "fields", "-e", "frame.number"}
+	if filter != "" {
+		args = append(args, "-Y", filter)
+	}
+	out, execErr := r.runTshark(args...)
+	if execErr != nil {
+		return 0, 0, execErr
+	}
+	bytesOut = int64(len(out))
+	records = countLines(out)
+	return records, bytesOut, nil
 }
 
 func (r *TsharkRunner) runTshark(args ...string) (string, error) {

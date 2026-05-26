@@ -1,6 +1,6 @@
 # Gowireshark
 
-`gowireshark` is a Go SDK around `libwireshark`. It owns packet dissection only: packet acquisition belongs in `gocapture`, HTTP composition in `gowireshark-server`, and user-facing entrypoints in CLI or agent tooling.
+`gowireshark` is a Go SDK around `libwireshark`. It owns packet dissection only: packet acquisition belongs in `gocapture`, HTTP composition in `gowireshark-server`, and CLI, MCP, and agent-facing documentation live in `gowireshark-cli`.
 
 ## Capabilities
 
@@ -17,8 +17,7 @@
 | `gowireshark` | libwireshark-backed dissection SDK |
 | `gocapture` | packet acquisition backends such as libpcap and DPDK |
 | `gowireshark-server` | HTTP composition layer |
-| `gowireshark-cli` | command-line frontend |
-| `gowireshark-agent-kit` | agent-facing usage materials |
+| `gowireshark-cli` | command-line frontend, MCP server, and agent-facing docs |
 
 ## Install
 
@@ -48,12 +47,24 @@ func main() {
 }
 ```
 
+## Core API quick index
+
+- Session lifecycle: `OpenSessionContext`, `Session.Close`; a context controls waiting for the single process-wide libwireshark session gate.
+- Context helpers: every one-shot SDK helper has a `*Context` variant, including `FramesContext`, `WriteFramesContext`, `FollowStreamContext`, `StreamsContext`, `ExportObjectsContext`, and `IOStatsContext`.
+- Field extraction: `FieldsRows` with `WithFieldOccurrence(OccurrenceFirst|OccurrenceLast)` for scalar rows, `FieldsRowsValues` for all occurrences.
+- Frame index: frame numbers are always Wireshark 1-based numbers. Use `FrameByNumberContext`, `FramesByNumbersContext`, `HexDataByFrameNumberContext`, `Session.Frame`, `Session.Frames`, and `Session.HexData`.
+- Iterators: `IterFrames`, `IterFieldsRows`, `IterFrameJSON` for large captures and streaming consumers.
+- Output formats: `WriteDissection` with JSON, raw JSON, fields, PDML, PSML, and text SDK-compatible writers.
+- Pcap slicing: `WritePcapSlice` for best-effort output, `WritePcapSliceWithOptions` with `PcapOutputPcap`, `PcapOutputPcapNG`, or `PcapOutputSame` for native wiretap output.
+- Capability discovery: `RuntimeVersion`, `RuntimeProtocols`, `RuntimeFields`, `RuntimeSuggestFields`, `RuntimePreferences`, `RuntimeProfiles`, `RuntimeDecodeAsTables`, `RuntimeDecodeAsChoices`, `RuntimeTapTypes`, `RuntimeExportObjectProtocols` — all are context-first with cancellation support. Thin wrappers that use `context.Background()` are available for simpler call sites.
+- Error handling: branch with sentinel errors through `errors.Is`; use structured errors such as `DisplayFilterError`, `FieldError`, `DecodeAsError`, `OutputFormatError`, and `WiretapError` through `errors.As`.
+
 ### Session
 
 `Session` reuses one dissection configuration and frame index across multiple queries. Sequential scans reset the underlying reader between operations. Session methods are not safe for concurrent goroutines, and because libwireshark keeps process-global capture state, only one active `Session` may exist in a process at a time.
 
 ```go
-s, err := gowireshark.OpenSession("capture.pcap")
+s, err := gowireshark.OpenSessionContext(context.Background(), "capture.pcap")
 if err != nil {
     panic(err)
 }
@@ -112,9 +123,11 @@ for _, p := range result.Payloads {
 `gowireshark` exposes stable primitives for CLI and agent tooling that need precise, reproducible evidence:
 
 ```go
-frame, _ := gowireshark.FrameByIndex("capture.pcap", 42)
-frames, _ := gowireshark.FramesByIndices("capture.pcap", []int{42, 43})
-hex, _ := gowireshark.HexDataByIndex("capture.pcap", 42)
+s, _ := gowireshark.OpenSessionContext(context.Background(), "capture.pcap")
+defer s.Close()
+frame, _ := s.Frame(42)
+frames, _ := gowireshark.FramesByNumbersContext(context.Background(), "capture.pcap", []int{42, 43})
+hex, _ := gowireshark.HexDataByFrameNumberContext(context.Background(), "capture.pcap", 42)
 
 streams, _ := gowireshark.Streams("capture.pcap")
 conversations, _ := gowireshark.Conversations("capture.pcap")
@@ -131,7 +144,7 @@ _ = bundle
 Writer-style APIs support CLI-friendly output shaping:
 
 ```go
-_, _ = gowireshark.WriteFramesJSONL("capture.pcap", out,
+_, _ = gowireshark.WriteFramesContext(context.Background(), "capture.pcap", out,
     gowireshark.WithDisplayFilter("tcp"),
     gowireshark.WithOutputFields([]string{"frame.number", "ip.src", "ip.dst", "tcp.stream"}),
 )
@@ -180,8 +193,9 @@ frame, err := gowireshark.DissectPacket(gowireshark.RawPacket{
 ```go
 _ = gowireshark.ValidateField("tcp.stream")
 field, _ := gowireshark.FieldInfo("http.request.uri")
-protocols, _ := gowireshark.Protocols()
-fields, _ := gowireshark.Fields()
+protocols, _ := gowireshark.RuntimeProtocols(context.Background())
+fields, _ := gowireshark.RuntimeFields(context.Background())
+suggestions, _ := gowireshark.RuntimeSuggestFields(context.Background(), "tcp", 10)
 experts, _ := gowireshark.ExpertInfos("capture.pcap")
 ```
 
@@ -201,43 +215,50 @@ Several APIs depend on runtime libwireshark registration tables. Do not assume f
 
 ### Session concurrency
 
-libwireshark keeps process-global capture state. Only **one active `Session`** may exist in a process at a time. Session methods are **not safe for concurrent goroutines**.
+libwireshark keeps process-global capture state guarded by two package-level primitives:
 
-For agent/server scenarios that need concurrent dissection:
-- Serialise all dissection into a single goroutine or queue
-- Or run multiple worker processes (one Session per process)
-- Do not attempt to use multiple `Session` instances concurrently within one process
+- **`sessionGate`** ensures only one active `Session` may exist in a process at a time. Any attempt to open a second `Session` (including internally by free functions) blocks until the first is `Close()`d or the context is cancelled.
+- **`epanMu`** serialises all C-level calls (dissection, scanning, tap operations) within the process, so that C global state is never touched concurrently.
 
-This is a fundamental Wireshark limitation, not a Go design choice.
+Session methods are **not safe for concurrent goroutines** beyond the serialisation that `epanMu` provides. If you need concurrent dissection, serialise all calls into a single goroutine or use separate processes.
 
 ### Output formats (PDML / PSML / Text)
 
-`WriteDissection` with `OutputPDML`, `OutputPSML`, or `OutputText` is **not implemented** and returns an error. Only `OutputJSON`, `OutputJSONRaw`, and `OutputFields` are supported. These formats may be added in a future release if there is a use case that requires the native Wireshark XML/text output paths.
+`WriteDissection` supports `OutputJSON`, `OutputJSONRaw`, `OutputFields`, `OutputPDML`, `OutputPSML`, and `OutputText`.
+
+- **`OutputText`** and **`OutputPSML`** use C-level streaming writers that extract only summary columns (frame number, protocol, source, destination, info) without generating full frame JSON. These are the recommended text output paths for performance.
+- **`OutputPDML`** is an SDK-compatible renderer built from parsed `FrameData`; it is a high-cost full-tree output. Prefer field-only or text/PSML paths for bulk output. PDML native streaming is planned for a future release.
+- **`OutputFields`** and **`WriteFieldsRows`** use C-level field-only extraction and are the fastest output paths.
+- All formats are valid structured output for Go callers, but are not byte-for-byte equivalent to `tshark -T pdml`, `tshark -T psml`, or `tshark -V`.
 
 ### PcapNG metadata preserve
 
-`WritePcapSlice` / `WritePcapSliceWithOptions` produce best-effort pcap/pcapng via `pcapgo`. Native wiretap metadata-preserving pcapng slice (retaining comments, interface descriptions, custom blocks) is **not implemented**.
+`WritePcapSlice` uses a best-effort `pcapgo` path by default. `WritePcapSliceWithOptions` switches to native wiretap when `PreserveComments`, `PreserveInterfaces`, or an explicit `OutputFormat` is set, preserving pcapng interface metadata, packet comments, timestamp precision, and link-layer metadata where supported by the linked Wireshark/wiretap runtime.
 
 ```go
-_, err := gowireshark.WritePcapSliceWithOptions(pcap, &buf, selector,
-    gowireshark.PcapSliceOptions{PreserveInterfaces: true})
-// errors.Is(err, gowireshark.ErrPreserveNotSupported) == true
+count, err := gowireshark.WritePcapSliceWithOptions(pcap, &buf, selector,
+    gowireshark.PcapSliceOptions{
+        PreserveInterfaces: true,
+        OutputFormat: gowireshark.PcapOutputPcapNG,
+    })
+_ = count
+_ = err
 ```
 
 ### Export Objects
 
-`ExportObjects` / `WriteExportObject` / `WriteExportObjects` use Wireshark's export-object tap. Currently only HTTP is exposed:
+`ExportObjects` / `WriteExportObject` / `WriteExportObjects` use Wireshark's export-object tap. Supported protocol names are exposed by `ExportObjectProtocols` and currently include HTTP, SMB, TFTP, FTP-DATA, IMF, and DICOM when available in the linked runtime:
 
 ```go
 gowireshark.SupportsExportObjects("http") // true
-gowireshark.SupportsExportObjects("smb")  // false
+gowireshark.SupportsExportObjects("smb")  // true
 ```
 
 Calling with an unsupported protocol returns `ErrUnsupportedProtocol`. Use `SupportsExportObjects` to check before calling to avoid trial-and-error patterns.
 
 ### Tap conversations / endpoints
 
-Tap `conversations` and `endpoints` currently cover `eth`, `ip`, `tcp`, and `udp`. Other protocol types (e.g. `wlan`, `fc`) are not implemented at the C layer.
+Tap `conversations` and `endpoints` cover the protocol types returned by `TapTypes`. Support depends on the linked Wireshark runtime and the C tap implementation; unsupported types return `ErrUnsupportedProtocol`.
 
 ### Service Response Times (SRT)
 
@@ -252,7 +273,27 @@ If no SRT table is registered for a protocol, `ServiceResponseTimes` returns `Er
 
 ### Field extraction performance
 
-`FieldsRows` and `WriteDissection(OutputFields)`, including `WithFieldOutput`, generate a complete frame JSON per frame in C before Go-side field selection. This is **not** equivalent to tshark's native `-T fields` fast path where the C layer directly outputs only the requested fields. For use cases where WalkFrames-based aggregation is the bottleneck (stream_list, timeline), prefer the `FieldsRows` API over WalkFrames to avoid BaseLayers construction overhead. Pure-C field output is a planned future optimisation.
+- `FieldsRows`, `IterFieldsRows` (includes `Values() []string` fast path), and `WriteFieldsRows` are the fastest field extraction APIs. They use C-level field-only callback and the `Values()` method returns values in field order without map allocation. Multi-value fields return the first occurrence by default; pass `WithFieldOccurrence(OccurrenceLast)` to return the last scalar occurrence. `FieldsRowsValues` returns all occurrences as structured slices. Scalar field APIs intentionally reject `OccurrenceAll`; use `FieldsRowsValues` for structured multi-value output.
+
+**Lightweight iterator / writer paths:**
+
+- `Session.IterFrameJSON(q)` streams raw frame JSON bytes without `ParseFrameData` overhead. For callers that need original JSON, this is significantly cheaper than `IterFrames()`.
+- `Session.WriteFrameJSON(q, w)` writes raw frame JSON directly to an `io.Writer` using the same streaming fast path.
+- `IterFrames()` returns full `FrameData` objects (higher cost); prefer `IterFrameJSON()` when you only need raw JSON.
+
+**Large-file recommendation (in order of preference):**
+
+1. `IterFrameJSON` / `IterFieldsRows` — stream frames one at a time without parsing or materialising full frame trees
+2. `WriteFrameJSON` / `WriteFieldsRows` / `WriteDissection(OutputFields|OutputText|OutputPSML)` — write directly to `io.Writer`
+3. `FieldsRows` with narrow display filter — field-only extraction for targeted queries
+4. `Session` cache with `FramesPage` — paginated access reuses cached results
+5. Use `Frames()` / `IterFrames()` / `OutputPDML` cautiously — they build full `FrameData` trees and are the most expensive paths
+
+**Frame lookup performance:**
+
+`Session.Frame(n)`, `Session.Frames(nums)`, and `Session.HexData(n)` use a frame index built during the first scan. Mid-position and end-of-file lookups use sequential `wtap_read` to skip intermediate frames (metadata only, no dissection) and only fully dissect the target frame. This is faster than a full sequential scan but does not use random-access seek; a native `wtap_seek_read` fallback is documented for future work.
+
+The `Session` tracks a conservative read-position dirty flag: the first sequential scan skips the C-level reset, and subsequent scans reset only when the position has been moved. This speeds up repeated same-pcap queries when the filter does not change.
 
 ### Stream identification
 

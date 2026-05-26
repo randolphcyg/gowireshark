@@ -3,6 +3,7 @@
 .vscode/
 .idea/
 .kiro/
+.codegraph/
 .trae
 
 # Native build outputs

@@ -43,9 +43,38 @@ static int call_write_export_object_cb(char *filter, char *protocol, int packet_
 static int call_get_service_response_times_cb(char *filter, char *protocol) {
     return get_service_response_times_cb(filter, protocol, onFrameCallback);
 }
+
+static int call_get_fields_rows_cb(char **fields, int field_count, char *filter) {
+    return get_fields_rows_cb((const char **)fields, field_count, filter, onFrameCallback);
+}
+
+static int call_get_fields_rows_occurrence_cb(char **fields, int field_count, char *filter, int occurrence) {
+    return get_fields_rows_occurrence_cb((const char **)fields, field_count, filter, occurrence, onFrameCallback);
+}
+
+static int call_write_pcap_slice_native(char *input_path, char *output_path, int *indices, int idx_count, char *output_format) {
+    return write_pcap_slice_native(input_path, output_path, indices, idx_count, output_format);
+}
+
+static int call_get_frame_numbers_filtered(char *filter_str, int **numbers_out) {
+    return get_frame_numbers_filtered(filter_str, numbers_out);
+}
+
+static char *call_get_timeline_json(char *filter_str) {
+    return get_timeline_json(filter_str);
+}
+
+static int call_get_proto_hierarchy_cb(char *filter_str) {
+    return get_proto_hierarchy_cb(filter_str, onFrameCallback);
+}
+
+static int call_get_io_stats_cb(char *filter_str, double interval) {
+    return get_io_stats_cb(filter_str, interval, onFrameCallback);
+}
 */
 import "C"
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -56,6 +85,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/bytedance/sonic"
@@ -70,6 +100,11 @@ var (
 	globalFrameSink func([]byte) bool
 )
 
+func cleanupGlobalState() {
+	globalFrameSink = nil
+	globalFrameChan = nil
+}
+
 // onFrameCallback
 // This function is called from C. It copies the JSON string to Go memory and pushes it to the channel.
 //
@@ -78,6 +113,7 @@ func onFrameCallback(jsonStr *C.char, length C.int, errCode C.int) C.int {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("Panic in onFrameCallback", "err", r)
+			cleanupGlobalState()
 		}
 	}()
 
@@ -156,11 +192,6 @@ func fileExists(path string) bool {
 	return err == nil
 }
 
-// Version returns the version of the EPAN module.
-func Version() string {
-	return C.GoString((*C.char)(C.epan_get_version()))
-}
-
 // PluginsSupported reports whether the linked EPAN build supports plugins.
 func PluginsSupported() bool {
 	return C.epan_plugins_supported() != 0
@@ -217,24 +248,23 @@ func parseHexData(src string) (hexData *HexData, err error) {
 	return
 }
 
-// HexDataByIndex retrieves hex dump for a specific frame index.
-func HexDataByIndex(path string, frameIdx int, opts ...Option) (hexData *HexData, err error) {
-	epanMu.Lock()
-	defer epanMu.Unlock()
+// HexDataByFrameNumber retrieves the hex dump for a 1-based Wireshark frame number.
+func HexDataByFrameNumber(path string, frameNum int, opts ...Option) (*HexData, error) {
+	return HexDataByFrameNumberContext(context.Background(), path, frameNum, opts...)
+}
 
-	_, err = initCapFile(path, opts...)
+// HexDataByFrameNumberContext retrieves the hex dump for a 1-based Wireshark
+// frame number using the provided context for session acquisition.
+func HexDataByFrameNumberContext(ctx context.Context, path string, frameNum int, opts ...Option) (*HexData, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
-		return
+		return nil, err
 	}
-
-	srcHex := C.get_specific_frame_hex_data(C.int(frameIdx))
-	if srcHex != nil {
-		defer C.free(unsafe.Pointer(srcHex))
-		if C.strlen(srcHex) > 0 {
-			hexData, err = parseHexData(cString(srcHex))
-		}
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
-	return
+	return s.HexData(frameNum)
 }
 
 // ParseFrameData parses the JSON representation of a dissected frame.
@@ -354,47 +384,36 @@ func shouldParseLayer(conf *config, layer string) bool {
 	return false
 }
 
-// FrameByIndex gets a single frame by its 1-based index.
-func FrameByIndex(path string, frameIdx int, opts ...Option) (frameData *FrameData, err error) {
-	if frameIdx < 1 {
-		return nil, errors.Wrap(ErrInvalidFrameIndex, "frameIdx must be >= 1")
+// FrameByNumberContext gets a single frame by its 1-based Wireshark frame
+// number using the provided context for session acquisition.
+func FrameByNumberContext(ctx context.Context, path string, frameNum int, opts ...Option) (*FrameData, error) {
+	if frameNum < 1 {
+		return nil, errors.Wrap(ErrInvalidFrameNumber, "frame number must be >= 1")
 	}
 
-	epanMu.Lock()
-	defer epanMu.Unlock()
-
-	conf, err := initCapFile(path, opts...)
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
-		return
+		return nil, err
 	}
-
-	printCJson := 0
-	if conf.PrintCJSON {
-		printCJson = 1
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
-
-	srcFrame := C.proto_tree_in_json(C.int(frameIdx), C.int(printCJson))
-	if srcFrame == nil || C.strlen(srcFrame) == 0 {
-		if srcFrame != nil {
-			C.free_c_string(srcFrame)
-		}
-		return nil, ErrFrameNotFound
-	}
-	defer C.free_c_string(srcFrame)
-
-	frameData, err = ParseFrameData([]byte(cString(srcFrame)), opts...)
-	return
+	return s.Frame(frameNum)
 }
 
 func frameByIndexFromActiveConf(conf *config, frameIdx int, parseOpts ...Option) (*FrameData, error) {
 	if frameIdx < 1 {
-		return nil, errors.Wrap(ErrInvalidFrameIndex, "frameIdx must be >= 1")
+		return nil, errors.Wrap(ErrInvalidFrameNumber, "frameIdx must be >= 1")
 	}
 	printCJson := 0
 	if conf.PrintCJSON {
 		printCJson = 1
 	}
-	srcFrame := C.proto_tree_in_json(C.int(frameIdx), C.int(printCJson))
+
+	var srcFrame *C.char
+	srcFrame = C.proto_tree_in_json_seek(C.int(frameIdx), C.int(printCJson))
+
 	if srcFrame == nil || C.strlen(srcFrame) == 0 {
 		if srcFrame != nil {
 			C.free_c_string(srcFrame)
@@ -407,7 +426,7 @@ func frameByIndexFromActiveConf(conf *config, frameIdx int, parseOpts ...Option)
 
 func hexDataByIndexFromActive(frameIdx int) (*HexData, error) {
 	if frameIdx < 1 {
-		return nil, errors.Wrap(ErrInvalidFrameIndex, "frameIdx must be >= 1")
+		return nil, errors.Wrap(ErrInvalidFrameNumber, "frameIdx must be >= 1")
 	}
 	srcHex := C.get_specific_frame_hex_data(C.int(frameIdx))
 	if srcHex == nil {
@@ -430,21 +449,28 @@ func removeNegativeAndZero(nums []int) []int {
 	return result
 }
 
-// FramesByIndices fetches specific frames efficiently using a single pass.
-func FramesByIndices(path string, frameIdxs []int, opts ...Option) (frames []*FrameData, err error) {
-	if len(frameIdxs) == 0 {
+// FramesByNumbers fetches specific 1-based Wireshark frame numbers efficiently
+// using a single pass.
+func FramesByNumbers(path string, frameNums []int, opts ...Option) ([]*FrameData, error) {
+	return FramesByNumbersContext(context.Background(), path, frameNums, opts...)
+}
+
+// FramesByNumbersContext fetches specific 1-based Wireshark frame numbers
+// using the provided context for session acquisition.
+func FramesByNumbersContext(ctx context.Context, path string, frameNums []int, opts ...Option) ([]*FrameData, error) {
+	if len(frameNums) == 0 {
 		return []*FrameData{}, nil
 	}
 
-	epanMu.Lock()
-	defer epanMu.Unlock()
-
-	conf, err := initCapFile(path, opts...)
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
-
-	return framesByIndicesFromConf(conf, frameIdxs, opts...)
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return s.Frames(frameNums)
 }
 
 func framesByIndicesFromConf(conf *config, frameIdxs []int, parseOpts ...Option) (frames []*FrameData, err error) {
@@ -467,7 +493,9 @@ func framesByIndicesFromConf(conf *config, frameIdxs []int, parseOpts ...Option)
 	}
 
 	// 2. Setup channel
-	globalFrameChan = make(chan []byte, len(frameIdxs))
+	frameChan := make(chan []byte, len(frameIdxs))
+	globalFrameChan = frameChan
+	defer cleanupGlobalState()
 
 	// 3. Start parsing consumer
 	var parseWg sync.WaitGroup
@@ -481,7 +509,7 @@ func framesByIndicesFromConf(conf *config, frameIdxs []int, parseOpts ...Option)
 	for i := 0; i < workerNum; i++ {
 		go func() {
 			defer parseWg.Done()
-			for jsonStr := range globalFrameChan {
+			for jsonStr := range frameChan {
 				frame, e := ParseFrameData(jsonStr, parseOpts...)
 				if e != nil {
 					if !conf.IgnoreErrors {
@@ -489,7 +517,7 @@ func framesByIndicesFromConf(conf *config, frameIdxs []int, parseOpts ...Option)
 						parseErr = e
 						errMutex.Unlock()
 					} else {
-						slog.Warn("FramesByIndices Parse Error", "err", e)
+						slog.Warn("FramesByNumbers Parse Error", "err", e)
 					}
 					continue
 				}
@@ -510,8 +538,7 @@ func framesByIndicesFromConf(conf *config, frameIdxs []int, parseOpts ...Option)
 	C.call_get_frames_by_idxs_cb(cIdxs, cCount, C.int(printCJson))
 
 	// 6. Cleanup
-	close(globalFrameChan)
-	globalFrameChan = nil
+	close(frameChan)
 
 	parseWg.Wait()
 	close(resultChan)
@@ -542,7 +569,7 @@ func ValidateFilter(filter string) error {
 	cErrMsg := C.validate_filter(cFilter)
 	if cErrMsg != nil {
 		defer C.free_c_string(cErrMsg)
-		return errors.Wrapf(ErrInvalidFilter, "%s", cString(cErrMsg))
+		return &DisplayFilterError{Filter: filter, Message: cString(cErrMsg)}
 	}
 	return nil
 }
@@ -643,14 +670,43 @@ func ValidateDisplayFilterDetailed(filter string) (*FilterValidationResult, erro
 }
 
 // FrameCount returns the number of frames selected by the supplied options.
-// This is a convenience wrapper that creates a temporary Session.
+// Without a filter this is O(1).
 func FrameCount(path string, opts ...Option) (int, error) {
-	s, err := OpenSession(path, opts...)
+	return FrameCountContext(context.Background(), path, opts...)
+}
+
+// FrameCountContext returns the number of frames selected by the supplied
+// options using the provided context for session acquisition.
+func FrameCountContext(ctx context.Context, path string, opts ...Option) (int, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return 0, err
 	}
 	defer s.Close()
+	if ctx.Err() != nil {
+		return 0, ctx.Err()
+	}
 	return s.FrameCount(Query{Filter: extractFilter(opts)})
+}
+
+// FrameNumbers returns sorted 1-based frame numbers matching the supplied
+// options. Without a filter this is O(1).
+func FrameNumbers(path string, opts ...Option) ([]int, error) {
+	return FrameNumbersContext(context.Background(), path, opts...)
+}
+
+// FrameNumbersContext returns sorted 1-based frame numbers matching the
+// supplied options using the provided context for session acquisition.
+func FrameNumbersContext(ctx context.Context, path string, opts ...Option) ([]int, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return s.FrameNumbers(Query{Filter: extractFilter(opts)})
 }
 
 func extractFilter(opts []Option) string {
@@ -658,96 +714,30 @@ func extractFilter(opts []Option) string {
 }
 
 // Frames fetches all frames efficiently.
-func Frames(path string, opts ...Option) (frames []*FrameData, err error) {
-	frames = make([]*FrameData, 0)
+func Frames(path string, opts ...Option) ([]*FrameData, error) {
+	return FramesContext(context.Background(), path, opts...)
+}
 
-	epanMu.Lock()
-	defer epanMu.Unlock()
-
-	conf, err := initCapFile(path, opts...)
+// FramesContext fetches all frames using the provided context for session
+// acquisition. Prefer WalkFramesContext or IterFrames for large captures.
+func FramesContext(ctx context.Context, path string, opts ...Option) ([]*FrameData, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
-
-	if conf.DisplayFilter != "" {
-		if err := ValidateFilter(conf.DisplayFilter); err != nil {
-			return frames, err
-		}
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
-	printCJson := 0
-	if conf.PrintCJSON {
-		printCJson = 1
+	var frames []*FrameData
+	walkErr := s.WalkFrames(Query{Filter: extractFilter(opts)}, func(f *FrameData) error {
+		frames = append(frames, f)
+		return nil
+	})
+	if walkErr != nil {
+		return frames, walkErr
 	}
-
-	// 1. Setup channel
-	globalFrameChan = make(chan []byte, 1000)
-
-	// 2. Start concurrent parsers
-	var parseWg sync.WaitGroup
-	var parseErr error
-	var errMutex sync.Mutex
-	resultChan := make(chan *FrameData, 1000)
-
-	workerNum := runtime.NumCPU()
-	if workerNum < 1 {
-		workerNum = 1
-	}
-
-	parseWg.Add(workerNum)
-	for i := 0; i < workerNum; i++ {
-		go func() {
-			defer parseWg.Done()
-			for jsonStr := range globalFrameChan {
-				frame, e := ParseFrameData(jsonStr, opts...)
-				if e != nil {
-					if !conf.IgnoreErrors {
-						errMutex.Lock()
-						parseErr = e
-						errMutex.Unlock()
-					}
-					continue
-				}
-				resultChan <- frame
-			}
-		}()
-	}
-
-	// 3. Collector
-	doneChan := make(chan struct{})
-	go func() {
-		for f := range resultChan {
-			frames = append(frames, f)
-		}
-		close(doneChan)
-	}()
-
-	cFilter := C.CString(conf.DisplayFilter)
-	defer C.free(unsafe.Pointer(cFilter))
-
-	// 4. Call C function
-	C.call_get_all_frames_cb(C.int(printCJson), cFilter)
-
-	// 5. Cleanup
-	close(globalFrameChan)
-	globalFrameChan = nil
-
-	// 6. Wait for workers
-	parseWg.Wait()
-	close(resultChan)
-	<-doneChan
-
-	// 7. Sort results
-	sortFrames(frames)
-
-	if conf.Debug {
-		slog.Info("Frames Dissect end", "PCAP_FILE", path, "COUNT", len(frames))
-	}
-
-	if parseErr != nil {
-		return frames, parseErr
-	}
-
 	return frames, nil
 }
 
@@ -755,19 +745,22 @@ func Frames(path string, opts ...Option) (frames []*FrameData, err error) {
 // It avoids Go-side JSON unmarshal/marshal work; C produces JSON, Go copies the bytes,
 // then writes NDJSON to the caller-owned writer.
 // Returns the number of frames written.
-func WriteFrames(path string, w io.Writer, opts ...Option) (count int, err error) {
-	if !fileExists(path) {
-		return 0, errors.Wrap(ErrFileNotFound, path)
-	}
+func WriteFrames(path string, w io.Writer, opts ...Option) (int, error) {
+	return WriteFramesContext(context.Background(), path, w, opts...)
+}
 
-	epanMu.Lock()
-	defer epanMu.Unlock()
-
-	conf, err := initCapFile(path, opts...)
+// WriteFramesContext writes selected frames as NDJSON using the provided
+// context for session acquisition.
+func WriteFramesContext(ctx context.Context, path string, w io.Writer, opts ...Option) (int, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return 0, err
 	}
-	return writeFramesFromConf(conf, conf.DisplayFilter, w)
+	defer s.Close()
+	if ctx.Err() != nil {
+		return 0, ctx.Err()
+	}
+	return s.WriteFrames(Query{Filter: extractFilter(opts)}, w)
 }
 
 func writeFramesFromConf(conf *config, filter string, w io.Writer) (count int, err error) {
@@ -791,7 +784,7 @@ func writeFramesFromConf(conf *config, filter string, w io.Writer) (count int, e
 		count++
 		return true
 	}
-	defer func() { globalFrameSink = nil }()
+	defer cleanupGlobalState()
 
 	cFilter := C.CString(filter)
 	defer C.free(unsafe.Pointer(cFilter))
@@ -808,11 +801,20 @@ func writeFramesFromConf(conf *config, filter string, w io.Writer) (count int, e
 //
 // This is a convenience wrapper that creates a temporary Session.
 func FramesPage(path string, page, size int, opts ...Option) ([]*FrameData, bool, error) {
-	s, err := OpenSession(path, opts...)
+	return FramesPageContext(context.Background(), path, page, size, opts...)
+}
+
+// FramesPageContext fetches a specific page of frames using the provided
+// context for session acquisition.
+func FramesPageContext(ctx context.Context, path string, page, size int, opts ...Option) ([]*FrameData, bool, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, false, err
 	}
 	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, false, ctx.Err()
+	}
 	return s.FramesPage(Query{Filter: extractFilter(opts)}, page, size)
 }
 
@@ -833,7 +835,9 @@ func framesPageFromConf(conf *config, filter string, page, size int, parseOpts .
 		printCJson = 1
 	}
 
-	globalFrameChan = make(chan []byte, fetchSize)
+	frameChan := make(chan []byte, fetchSize)
+	globalFrameChan = frameChan
+	defer cleanupGlobalState()
 
 	var parseWg sync.WaitGroup
 	var parseErr error
@@ -846,7 +850,7 @@ func framesPageFromConf(conf *config, filter string, page, size int, parseOpts .
 	for i := 0; i < workerNum; i++ {
 		go func() {
 			defer parseWg.Done()
-			for jsonStr := range globalFrameChan {
+			for jsonStr := range frameChan {
 				f, e := ParseFrameData(jsonStr, parseOpts...)
 				if e != nil {
 					if !conf.IgnoreErrors {
@@ -866,8 +870,7 @@ func framesPageFromConf(conf *config, filter string, page, size int, parseOpts .
 
 	C.call_get_frames_by_range(C.int(startFrameIdx), C.int(fetchSize), C.int(printCJson), cFilter)
 
-	close(globalFrameChan)
-	globalFrameChan = nil
+	close(frameChan)
 
 	parseWg.Wait()
 	close(resultChan)
@@ -900,15 +903,21 @@ func framesPageFromConf(conf *config, filter string, page, size int, parseOpts .
 // It writes each selected frame's raw JSON directly to w without Go-side
 // unmarshal/marshal work.
 // Returns (framesWritten, hasMore, error).
-func WriteFramesPage(path string, page, size int, w io.Writer, opts ...Option) (count int, hasMore bool, err error) {
-	epanMu.Lock()
-	defer epanMu.Unlock()
+func WriteFramesPage(path string, page, size int, w io.Writer, opts ...Option) (int, bool, error) {
+	return WriteFramesPageContext(context.Background(), path, page, size, w, opts...)
+}
 
-	conf, err := initCapFile(path, opts...)
+// WriteFramesPageContext is the NDJSON writer counterpart to FramesPageContext.
+func WriteFramesPageContext(ctx context.Context, path string, page, size int, w io.Writer, opts ...Option) (int, bool, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return 0, false, err
 	}
-	return writeFramesPageFromConf(conf, conf.DisplayFilter, page, size, w)
+	defer s.Close()
+	if ctx.Err() != nil {
+		return 0, false, ctx.Err()
+	}
+	return s.WriteFramesPage(Query{Filter: extractFilter(opts)}, page, size, w)
 }
 
 func writeFramesPageFromConf(conf *config, filter string, page, size int, w io.Writer) (count int, hasMore bool, err error) {
@@ -948,7 +957,7 @@ func writeFramesPageFromConf(conf *config, filter string, page, size int, w io.W
 		count++
 		return true
 	}
-	defer func() { globalFrameSink = nil }()
+	defer cleanupGlobalState()
 
 	cFilter := C.CString(filter)
 	defer C.free(unsafe.Pointer(cFilter))
@@ -970,12 +979,48 @@ func writeFramesPageFromConf(conf *config, filter string, page, size int, w io.W
 //
 // This is a convenience wrapper that creates a temporary Session.
 func WalkFrames(path string, walkFn func(*FrameData) error, opts ...Option) error {
-	s, err := OpenSession(path, opts...)
+	s, err := OpenSessionContext(context.Background(), path, opts...)
 	if err != nil {
 		return err
 	}
 	defer s.Close()
 	return s.WalkFrames(Query{Filter: extractFilter(opts)}, walkFn)
+}
+
+func WalkFramesContext(ctx context.Context, path string, walkFn func(*FrameData) error, opts ...Option) error {
+	s, err := OpenSessionContext(ctx, path, opts...)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return s.WalkFrames(Query{Filter: extractFilter(opts)}, walkFn)
+}
+
+func WriteDissectionContext(ctx context.Context, path string, w io.Writer, format OutputFormat, opts ...Option) (int, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
+	if err != nil {
+		return 0, err
+	}
+	defer s.Close()
+	if ctx.Err() != nil {
+		return 0, ctx.Err()
+	}
+	return s.writeDissection(w, format, Query{Filter: extractFilter(opts)}, opts...)
+}
+
+func FieldsRowsContext(ctx context.Context, path string, fields []string, opts ...Option) ([]FieldRow, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return s.FieldsRows(Query{Filter: extractFilter(opts)}, fields, opts...)
 }
 
 func walkFramesFromConf(conf *config, filter string, walkFn func(*FrameData) error, parseOpts ...Option) error {
@@ -1007,7 +1052,7 @@ func walkFramesFromConf(conf *config, filter string, walkFn func(*FrameData) err
 		}
 		return true
 	}
-	defer func() { globalFrameSink = nil }()
+	defer cleanupGlobalState()
 
 	cFilter := C.CString(filter)
 	defer C.free(unsafe.Pointer(cFilter))
@@ -1061,11 +1106,20 @@ type fastFollowPayload struct {
 //
 // This is a convenience wrapper that creates a temporary Session.
 func FollowStream(path string, displayFilter string, proto string, opts ...Option) (*FollowResult, error) {
-	s, err := OpenSession(path, opts...)
+	return FollowStreamContext(context.Background(), path, displayFilter, proto, opts...)
+}
+
+// FollowStreamContext extracts payloads using the provided context for session
+// acquisition.
+func FollowStreamContext(ctx context.Context, path string, displayFilter string, proto string, opts ...Option) (*FollowResult, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
 	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	return s.FollowStream(Query{Filter: displayFilter}, proto)
 }
 
@@ -1124,21 +1178,39 @@ var supportedConvTypes = map[string]bool{
 
 // TapConversations returns Wireshark conversation statistics for the given type.
 func TapConversations(path string, convType string, opts ...Option) ([]TapConversation, error) {
-	s, err := OpenSession(path, opts...)
+	return TapConversationsContext(context.Background(), path, convType, opts...)
+}
+
+// TapConversationsContext returns Wireshark conversation statistics using the
+// provided context for session acquisition.
+func TapConversationsContext(ctx context.Context, path string, convType string, opts ...Option) ([]TapConversation, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
 	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	return s.TapConversations(convType, Query{Filter: extractFilter(opts)})
 }
 
 // TapEndpoints returns Wireshark endpoint statistics for the given type.
 func TapEndpoints(path string, endpointType string, opts ...Option) ([]TapEndpoint, error) {
-	s, err := OpenSession(path, opts...)
+	return TapEndpointsContext(context.Background(), path, endpointType, opts...)
+}
+
+// TapEndpointsContext returns Wireshark endpoint statistics using the provided
+// context for session acquisition.
+func TapEndpointsContext(ctx context.Context, path string, endpointType string, opts ...Option) ([]TapEndpoint, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
 	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	return s.TapEndpoints(endpointType, Query{Filter: extractFilter(opts)})
 }
 
@@ -1152,19 +1224,17 @@ func tapConversationsFromActive(convType string, filter string) ([]TapConversati
 		}
 	}
 
-	out := make([]TapConversation, 0)
+	var out []TapConversation
 	var parseErr error
 
 	globalFrameSink = func(jsonBytes []byte) bool {
-		var conv TapConversation
-		if err := sonic.Unmarshal(jsonBytes, &conv); err != nil {
+		if err := sonic.Unmarshal(jsonBytes, &out); err != nil {
 			parseErr = err
 			return false
 		}
-		out = append(out, conv)
 		return true
 	}
-	defer func() { globalFrameSink = nil }()
+	defer cleanupGlobalState()
 
 	cFilter := C.CString(filter)
 	cType := C.CString(convType)
@@ -1190,19 +1260,17 @@ func tapEndpointsFromActive(endpointType string, filter string) ([]TapEndpoint, 
 		}
 	}
 
-	out := make([]TapEndpoint, 0)
+	var out []TapEndpoint
 	var parseErr error
 
 	globalFrameSink = func(jsonBytes []byte) bool {
-		var ep TapEndpoint
-		if err := sonic.Unmarshal(jsonBytes, &ep); err != nil {
+		if err := sonic.Unmarshal(jsonBytes, &out); err != nil {
 			parseErr = err
 			return false
 		}
-		out = append(out, ep)
 		return true
 	}
-	defer func() { globalFrameSink = nil }()
+	defer cleanupGlobalState()
 
 	cFilter := C.CString(filter)
 	cType := C.CString(endpointType)
@@ -1226,6 +1294,11 @@ func tapEndpointsFromActive(endpointType string, filter string) ([]TapEndpoint, 
 // registered in the current libwireshark runtime.
 func SupportsExportObjects(protocol string) bool {
 	return supportedExportProtocols[protocol]
+}
+
+// ExportObjectProtocols returns the list of supported export-object protocols.
+func ExportObjectProtocols() []string {
+	return []string{"http", "smb", "tftp", "ftp-data", "imf", "dicom"}
 }
 
 // SupportsServiceResponseTimes reports whether a protocol has an SRT
@@ -1269,7 +1342,12 @@ type ExportObject struct {
 }
 
 var supportedExportProtocols = map[string]bool{
-	"http": true,
+	"http":     true,
+	"smb":      true,
+	"tftp":     true,
+	"ftp-data": true,
+	"imf":      true,
+	"dicom":    true,
 }
 
 func fastEOToExportObject(fast fastExportObject, protocol string) ExportObject {
@@ -1286,21 +1364,39 @@ func fastEOToExportObject(fast fastExportObject, protocol string) ExportObject {
 
 // ExportObjects returns file objects found via Wireshark's export object tap.
 func ExportObjects(path string, protocol string, opts ...Option) ([]ExportObject, error) {
-	s, err := OpenSession(path, opts...)
+	return ExportObjectsContext(context.Background(), path, protocol, opts...)
+}
+
+// ExportObjectsContext returns file objects found via Wireshark's export object
+// tap using the provided context for session acquisition.
+func ExportObjectsContext(ctx context.Context, path string, protocol string, opts ...Option) ([]ExportObject, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
 	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	return s.ExportObjects(protocol, Query{Filter: extractFilter(opts)})
 }
 
 // WriteExportObject writes the payload of one export object to w.
 func WriteExportObject(path string, protocol string, packetNum int, w io.Writer, opts ...Option) error {
-	s, err := OpenSession(path, opts...)
+	return WriteExportObjectContext(context.Background(), path, protocol, packetNum, w, opts...)
+}
+
+// WriteExportObjectContext writes the payload of one export object using the
+// provided context for session acquisition.
+func WriteExportObjectContext(ctx context.Context, path string, protocol string, packetNum int, w io.Writer, opts ...Option) error {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return err
 	}
 	defer s.Close()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	return s.WriteExportObject(protocol, packetNum, w, Query{Filter: extractFilter(opts)})
 }
 
@@ -1316,17 +1412,27 @@ func sanitizeFilename(name string) string {
 
 // WriteExportObjects writes all export objects for a protocol to dir.
 func WriteExportObjects(path string, protocol string, dir string, opts ...Option) ([]ExportObject, error) {
-	s, err := OpenSession(path, opts...)
+	return WriteExportObjectsContext(context.Background(), path, protocol, dir, opts...)
+}
+
+// WriteExportObjectsContext writes all export objects for a protocol using the
+// provided context for session acquisition.
+func WriteExportObjectsContext(ctx context.Context, path string, protocol string, dir string, opts ...Option) ([]ExportObject, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
 	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	return s.WriteExportObjects(protocol, dir, Query{Filter: extractFilter(opts)})
 }
 
 func exportObjectsFromActive(protocol string, filter string) ([]ExportObject, error) {
 	if !supportedExportProtocols[protocol] {
-		return nil, errors.Wrapf(ErrUnsupportedProtocol, "export protocol %q (must be http)", protocol)
+		return nil, errors.Wrapf(ErrUnsupportedProtocol,
+			"export protocol %q (supported: http, smb, tftp, ftp-data, imf, dicom)", protocol)
 	}
 	if filter != "" {
 		if err := ValidateFilter(filter); err != nil {
@@ -1346,7 +1452,7 @@ func exportObjectsFromActive(protocol string, filter string) ([]ExportObject, er
 		out = append(out, fastEOToExportObject(fast, protocol))
 		return true
 	}
-	defer func() { globalFrameSink = nil }()
+	defer cleanupGlobalState()
 
 	cFilter := C.CString(filter)
 	cProto := C.CString(protocol)
@@ -1364,7 +1470,8 @@ func exportObjectsFromActive(protocol string, filter string) ([]ExportObject, er
 
 func writeExportObjectFromActive(protocol string, packetNum int, filter string, w io.Writer) error {
 	if !supportedExportProtocols[protocol] {
-		return errors.Wrapf(ErrUnsupportedProtocol, "export protocol %q (must be http)", protocol)
+		return errors.Wrapf(ErrUnsupportedProtocol,
+			"export protocol %q (supported: http, smb, tftp, ftp-data, imf, dicom)", protocol)
 	}
 	if filter != "" {
 		if err := ValidateFilter(filter); err != nil {
@@ -1395,7 +1502,7 @@ func writeExportObjectFromActive(protocol string, packetNum int, filter string, 
 		}
 		return true
 	}
-	defer func() { globalFrameSink = nil }()
+	defer cleanupGlobalState()
 
 	cFilter := C.CString(filter)
 	cProto := C.CString(protocol)
@@ -1436,13 +1543,41 @@ func hasSrtTable(protocol string) bool {
 	return C.has_srt_table(cProto) != 0
 }
 
-// ServiceResponseTimes returns service response time statistics for a protocol.
-func ServiceResponseTimes(path string, protocol string, opts ...Option) ([]SRTSummary, error) {
-	s, err := OpenSession(path, opts...)
+// ProtocolHierarchy returns Wireshark protocol hierarchy statistics.
+func ProtocolHierarchy(path string, opts ...Option) ([]ProtocolHierarchyEntry, error) {
+	return ProtocolHierarchyContext(context.Background(), path, opts...)
+}
+
+// ProtocolHierarchyContext returns Wireshark protocol hierarchy statistics using
+// the provided context for session acquisition.
+func ProtocolHierarchyContext(ctx context.Context, path string, opts ...Option) ([]ProtocolHierarchyEntry, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
 	if err != nil {
 		return nil, err
 	}
 	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return s.ProtocolHierarchy(Query{Filter: extractFilter(opts)})
+}
+
+// ServiceResponseTimes returns service response time statistics for a protocol.
+func ServiceResponseTimes(path string, protocol string, opts ...Option) ([]SRTSummary, error) {
+	return ServiceResponseTimesContext(context.Background(), path, protocol, opts...)
+}
+
+// ServiceResponseTimesContext returns service response time statistics using the
+// provided context for session acquisition.
+func ServiceResponseTimesContext(ctx context.Context, path string, protocol string, opts ...Option) ([]SRTSummary, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	return s.ServiceResponseTimes(protocol, Query{Filter: extractFilter(opts)})
 }
 
@@ -1456,19 +1591,17 @@ func serviceResponseTimesFromActive(protocol string, filter string) ([]SRTSummar
 		}
 	}
 
-	out := make([]SRTSummary, 0)
+	var out []SRTSummary
 	var parseErr error
 
 	globalFrameSink = func(jsonBytes []byte) bool {
-		var srt SRTSummary
-		if err := sonic.Unmarshal(jsonBytes, &srt); err != nil {
+		if err := sonic.Unmarshal(jsonBytes, &out); err != nil {
 			parseErr = err
 			return false
 		}
-		out = append(out, srt)
 		return true
 	}
-	defer func() { globalFrameSink = nil }()
+	defer cleanupGlobalState()
 
 	cFilter := C.CString(filter)
 	cProto := C.CString(protocol)
@@ -1482,6 +1615,109 @@ func serviceResponseTimesFromActive(protocol string, filter string) ([]SRTSummar
 		return out, parseErr
 	}
 	return out, nil
+}
+
+// ProtocolHierarchyEntry statistics entry for one protocol in the protocol hierarchy
+type ProtocolHierarchyEntry struct {
+	Protocol string `json:"protocol"`
+	Packets  uint64 `json:"packets"`
+	Bytes    uint64 `json:"bytes"`
+}
+
+func protocolHierarchyFromActive(filter string) ([]ProtocolHierarchyEntry, error) {
+	if filter != "" {
+		if err := ValidateFilter(filter); err != nil {
+			return nil, err
+		}
+	}
+
+	out := make([]ProtocolHierarchyEntry, 0)
+	var parseErr error
+
+	globalFrameSink = func(jsonBytes []byte) bool {
+		var entry ProtocolHierarchyEntry
+		if err := sonic.Unmarshal(jsonBytes, &entry); err != nil {
+			parseErr = err
+			return false
+		}
+		out = append(out, entry)
+		return true
+	}
+	defer cleanupGlobalState()
+
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+
+	if ret := C.call_get_proto_hierarchy_cb(cFilter); ret != 0 {
+		if parseErr != nil {
+			return nil, parseErr
+		}
+		return nil, errors.Wrap(ErrReadCaptureFile, "protocol hierarchy tap scan failed")
+	}
+
+	return out, nil
+}
+
+type IOStatBucket struct {
+	Time    float64 `json:"t"`
+	Packets uint64  `json:"packets"`
+	Bytes   uint64  `json:"bytes"`
+}
+
+func ioStatsFromActive(filter string, intervalSecs float64) ([]IOStatBucket, error) {
+	if filter != "" {
+		if err := ValidateFilter(filter); err != nil {
+			return nil, err
+		}
+	}
+
+	out := make([]IOStatBucket, 0)
+	var parseErr error
+
+	globalFrameSink = func(jsonBytes []byte) bool {
+		var bucket IOStatBucket
+		if err := sonic.Unmarshal(jsonBytes, &bucket); err != nil {
+			parseErr = err
+			return false
+		}
+		out = append(out, bucket)
+		return true
+	}
+	defer cleanupGlobalState()
+
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+
+	ret := C.call_get_io_stats_cb(cFilter, C.double(intervalSecs))
+	if parseErr != nil {
+		return nil, parseErr
+	}
+	if ret < 0 {
+		if ret == -2 {
+			return nil, &DisplayFilterError{Filter: filter, Message: "filter compile failed"}
+		}
+		return nil, errors.Wrap(ErrReadCaptureFile, "io stats scan failed")
+	}
+
+	return out, nil
+}
+
+func IOStats(path string, interval time.Duration, opts ...Option) ([]IOStatBucket, error) {
+	return IOStatsContext(context.Background(), path, interval, opts...)
+}
+
+// IOStatsContext returns IO statistics using the provided context for session
+// acquisition.
+func IOStatsContext(ctx context.Context, path string, interval time.Duration, opts ...Option) ([]IOStatBucket, error) {
+	s, err := OpenSessionContext(ctx, path, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer s.Close()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return s.IOStats(Query{Filter: extractFilter(opts)}, interval)
 }
 
 // =======================
@@ -1501,6 +1737,41 @@ func sessionCountFrames(filter string) int {
 	return int(C.count_frames(cFilter))
 }
 
+func sessionGetFrameNumbers(filter string) ([]int, error) {
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+
+	var cNumbers *C.int
+	count := C.call_get_frame_numbers_filtered(cFilter, &cNumbers)
+
+	if count < 0 {
+		return nil, errors.New("filter compile error")
+	}
+	if count == 0 {
+		return []int{}, nil
+	}
+	defer C.g_free(C.gpointer(unsafe.Pointer(cNumbers)))
+
+	numbers := make([]int, count)
+	for i := range numbers {
+		ptr := (*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(cNumbers)) + uintptr(i)*unsafe.Sizeof(*cNumbers)))
+		numbers[i] = int(*ptr)
+	}
+	return numbers, nil
+}
+
+func sessionGetTimelineJSON(filter string) (string, error) {
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+
+	cjson := C.call_get_timeline_json(cFilter)
+	if cjson == nil {
+		return "", errors.New("timeline extraction failed")
+	}
+	defer C.g_free(C.gpointer(unsafe.Pointer(cjson)))
+	return C.GoString(cjson), nil
+}
+
 func sessionBuildIndex() (int, error) {
 	count := int(C.build_frame_index())
 	if count < 0 {
@@ -1517,10 +1788,104 @@ func sessionDoClose() {
 	C.close_capture_file()
 }
 
+func writePcapSliceNative(path string, w io.Writer, indices []int, outputFormat string) (int, error) {
+	tmp, err := os.CreateTemp("", "gowireshark-pcap-slice-")
+	if err != nil {
+		return 0, errors.Wrap(err, "create temp file")
+	}
+	tmpPath := tmp.Name()
+	tmp.Close()
+	defer os.Remove(tmpPath)
+
+	cInputPath := C.CString(path)
+	cOutputPath := C.CString(tmpPath)
+	defer C.free(unsafe.Pointer(cInputPath))
+	defer C.free(unsafe.Pointer(cOutputPath))
+
+	var cOutputFormat *C.char
+	if outputFormat != "" {
+		cOutputFormat = C.CString(outputFormat)
+		defer C.free(unsafe.Pointer(cOutputFormat))
+	}
+
+	cIndicesSlice := make([]C.int, len(indices))
+	for i, v := range indices {
+		cIndicesSlice[i] = C.int(v)
+	}
+	cIndices := (*C.int)(unsafe.Pointer(&cIndicesSlice[0]))
+	cCount := C.int(len(indices))
+
+	epanMu.Lock()
+	defer epanMu.Unlock()
+	ret := C.call_write_pcap_slice_native(cInputPath, cOutputPath, cIndices, cCount, cOutputFormat)
+
+	if ret < 0 {
+		if ret == -2 {
+			return 0, ErrEmptySelection
+		}
+		return 0, &WiretapError{
+			Operation: "native pcap slice",
+			Code:      int(ret),
+			Message:   "wiretap writer returned an error",
+			Err:       ErrReadCaptureFile,
+		}
+	}
+
+	out, err := os.Open(tmpPath)
+	if err != nil {
+		return 0, errors.Wrap(err, "open temp output")
+	}
+	defer out.Close()
+	n, err := io.Copy(w, out)
+	if err != nil {
+		return int(n), errors.Wrap(err, "copy pcap output")
+	}
+	return len(indices), nil
+}
+
 func sessionWalkAllFramesJSON(filter string) error {
 	cFilter := C.CString(filter)
 	defer C.free(unsafe.Pointer(cFilter))
 	C.call_get_all_frames_cb(C.int(0), cFilter)
+	return nil
+}
+
+func sessionWalkFieldsFast(filter string, fields []string) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	cFields := make([]*C.char, len(fields))
+	for i, f := range fields {
+		cFields[i] = C.CString(f)
+		defer C.free(unsafe.Pointer(cFields[i]))
+	}
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+	ret := C.call_get_fields_rows_cb(&cFields[0], C.int(len(fields)), cFilter)
+	if ret != 0 {
+		return errors.Wrapf(ErrInvalidDisplayFilter, "filter compile failed: %q", filter)
+	}
+	return nil
+}
+
+func sessionWalkFieldsOccurrence(filter string, fields []string, occurrence int) error {
+	if occurrence == 0 {
+		return sessionWalkFieldsFast(filter, fields)
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	cFields := make([]*C.char, len(fields))
+	for i, f := range fields {
+		cFields[i] = C.CString(f)
+		defer C.free(unsafe.Pointer(cFields[i]))
+	}
+	cFilter := C.CString(filter)
+	defer C.free(unsafe.Pointer(cFilter))
+	ret := C.call_get_fields_rows_occurrence_cb(&cFields[0], C.int(len(fields)), cFilter, C.int(occurrence))
+	if ret != 0 {
+		return errors.Wrapf(ErrInvalidDisplayFilter, "filter compile failed: %q", filter)
+	}
 	return nil
 }
 

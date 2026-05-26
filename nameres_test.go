@@ -87,7 +87,7 @@ func TestWithProfile_Nonexistent(t *testing.T) {
 func TestWithPreferences_Session(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, err := OpenSession(pcap, WithPreferences([]Preference{
+	s, err := openSession(pcap, WithPreferences([]Preference{
 		{Name: "tcp.desegment_tcp_streams", Value: "TRUE"},
 	}))
 	if err != nil {
@@ -107,7 +107,7 @@ func TestWithPreferences_Session(t *testing.T) {
 func TestWithNameResolution_Session(t *testing.T) {
 	pcap := testfixture.Pcap(t)
 
-	s, err := OpenSession(pcap, WithNameResolution(NameResolutionConfig{
+	s, err := openSession(pcap, WithNameResolution(NameResolutionConfig{
 		Network:   true,
 		Transport: true,
 	}))

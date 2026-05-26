@@ -1,6 +1,7 @@
 package gowireshark
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -61,7 +62,7 @@ func TestValidateDisplayFilterDetailed_NonExistentField(t *testing.T) {
 }
 
 func TestSuggestFields_IPPrefix(t *testing.T) {
-	fields, err := SuggestFields("ip.", 20)
+	fields, err := RuntimeSuggestFields(context.Background(), "ip.", 20)
 	if err != nil {
 		t.Fatalf("SuggestFields: %v", err)
 	}
@@ -81,7 +82,7 @@ func TestSuggestFields_IPPrefix(t *testing.T) {
 }
 
 func TestSuggestFields_NoMatch(t *testing.T) {
-	fields, err := SuggestFields("zzz.no.such.field.prefix", 10)
+	fields, err := RuntimeSuggestFields(context.Background(), "zzz.no.such.field.prefix", 10)
 	if err != nil {
 		t.Fatalf("SuggestFields: %v", err)
 	}
@@ -91,7 +92,7 @@ func TestSuggestFields_NoMatch(t *testing.T) {
 }
 
 func TestSuggestFields_Limit(t *testing.T) {
-	fields5, err := SuggestFields("frame.", 5)
+	fields5, err := RuntimeSuggestFields(context.Background(), "frame.", 5)
 	if err != nil {
 		t.Fatalf("SuggestFields: %v", err)
 	}
@@ -99,7 +100,7 @@ func TestSuggestFields_Limit(t *testing.T) {
 		t.Fatalf("limit=5 returned %d fields", len(fields5))
 	}
 
-	fieldsUnlimited, err := SuggestFields("frame.", 0)
+	fieldsUnlimited, err := RuntimeSuggestFields(context.Background(), "frame.", 0)
 	if err != nil {
 		t.Fatalf("SuggestFields: %v", err)
 	}
@@ -110,11 +111,11 @@ func TestSuggestFields_Limit(t *testing.T) {
 }
 
 func TestSuggestFields_CaseInsensitive(t *testing.T) {
-	lower, err := SuggestFields("tcp.stream", 1)
+	lower, err := RuntimeSuggestFields(context.Background(), "tcp.stream", 1)
 	if err != nil {
 		t.Fatalf("SuggestFields lowercase: %v", err)
 	}
-	upper, err := SuggestFields("TCP.STREAM", 1)
+	upper, err := RuntimeSuggestFields(context.Background(), "TCP.STREAM", 1)
 	if err != nil {
 		t.Fatalf("SuggestFields uppercase: %v", err)
 	}

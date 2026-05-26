@@ -45,7 +45,7 @@ func TestDissectPacketMatchesOfflineFrame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	offlineFrame, err := FrameByIndex(pcapPath, 1)
+	offlineFrame, err := FrameByNumberContext(t.Context(), pcapPath, 1)
 	if err != nil {
 		t.Fatal(err)
 	}

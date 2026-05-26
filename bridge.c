@@ -1,7 +1,11 @@
 #include "bridge.h"
 #include <inttypes.h>
 #include <string.h>
+#include <dirent.h>
 #include <epan/expert.h>
+#include <epan/decode_as.h>
+#include <epan/prefs-int.h>
+#include <wsutil/version_info.h>
 
 void free_c_string(char *str) {
     if (str) {
@@ -435,4 +439,167 @@ bool is_empty_json(const char *json_str) {
 
     cJSON_Delete(json);
     return is_empty;
+}
+
+char *gowireshark_version_json(void) {
+    cJSON *obj = cJSON_CreateObject();
+
+    const char *epan_ver = epan_get_version();
+    cJSON_AddStringToObject(obj, "version", epan_ver ? epan_ver : "");
+
+    GString *compiled = get_compiled_version_info(NULL);
+    if (compiled) {
+        cJSON_AddStringToObject(obj, "compiledVersion", compiled->str);
+        g_string_free(compiled, TRUE);
+    } else {
+        cJSON_AddStringToObject(obj, "compiledVersion", "");
+    }
+
+    const char *copyright = get_copyright_info();
+    cJSON_AddStringToObject(obj, "copyright", copyright ? copyright : "");
+
+    char *res = cJSON_PrintUnformatted(obj);
+    cJSON_Delete(obj);
+    return res;
+}
+
+char *gowireshark_profiles_json(void) {
+    cJSON *arr = cJSON_CreateArray();
+
+    char *profiles_dir = get_profiles_dir();
+    if (profiles_dir == NULL) {
+        cJSON_Delete(arr);
+        return cJSON_PrintUnformatted(arr);
+    }
+
+    GDir *dir = g_dir_open(profiles_dir, 0, NULL);
+    g_free(profiles_dir);
+
+    if (dir == NULL) {
+        cJSON_Delete(arr);
+        return cJSON_PrintUnformatted(arr);
+    }
+
+    const char *name;
+    while ((name = g_dir_read_name(dir)) != NULL) {
+        cJSON_AddItemToArray(arr, cJSON_CreateString(name));
+    }
+
+    g_dir_close(dir);
+
+    char *res = cJSON_PrintUnformatted(arr);
+    cJSON_Delete(arr);
+    return res;
+}
+
+static void decode_as_choices_collector(const char *table_name _U_, const char *proto_name, void *value _U_, void *user_data) {
+    cJSON *arr = (cJSON *)user_data;
+    cJSON_AddItemToArray(arr, cJSON_CreateString(proto_name ? proto_name : ""));
+}
+
+char *gowireshark_decode_as_tables_json(void) {
+    cJSON *arr = cJSON_CreateArray();
+
+    if (decode_as_list == NULL) {
+        char *res = cJSON_PrintUnformatted(arr);
+        cJSON_Delete(arr);
+        return res;
+    }
+
+    for (GList *cur = decode_as_list; cur != NULL; cur = cur->next) {
+        decode_as_t *entry = (decode_as_t *)cur->data;
+        if (entry == NULL) continue;
+
+        cJSON *obj = cJSON_CreateObject();
+        cJSON_AddStringToObject(obj, "name", entry->name ? entry->name : "");
+        cJSON_AddStringToObject(obj, "tableName", entry->table_name ? entry->table_name : "");
+        cJSON_AddNumberToObject(obj, "numItems", entry->num_items);
+        cJSON_AddNumberToObject(obj, "defaultIndexValue", entry->default_index_value);
+
+        cJSON *choices = cJSON_CreateArray();
+        if (entry->populate_list) {
+            entry->populate_list(entry->table_name, decode_as_choices_collector, choices);
+        }
+        cJSON_AddItemToObject(obj, "choices", choices);
+
+        cJSON_AddItemToArray(arr, obj);
+    }
+
+    char *res = cJSON_PrintUnformatted(arr);
+    cJSON_Delete(arr);
+    return res;
+}
+
+char *gowireshark_decode_as_choices_json(const char *table_name) {
+    cJSON *arr = cJSON_CreateArray();
+    if (table_name == NULL || table_name[0] == '\0' || decode_as_list == NULL) {
+        cJSON_Delete(arr);
+        return cJSON_PrintUnformatted(arr);
+    }
+
+    for (GList *cur = decode_as_list; cur != NULL; cur = cur->next) {
+        decode_as_t *entry = (decode_as_t *)cur->data;
+        if (entry == NULL || entry->table_name == NULL) continue;
+        if (strcmp(entry->table_name, table_name) != 0) continue;
+
+        if (entry->populate_list) {
+            entry->populate_list(table_name, decode_as_choices_collector, arr);
+        }
+        break;
+    }
+
+    char *res = cJSON_PrintUnformatted(arr);
+    cJSON_Delete(arr);
+    return res;
+}
+
+char *gowireshark_tap_types_json(void) {
+    cJSON *arr = cJSON_CreateArray();
+
+    const char *known_taps[] = {
+        "frame", "rtp", "expert", "wlan", "eth", "ip", "ipv6",
+        "tcp", "udp", "sctp", "arp", "icmp", "icmpv6",
+        "diameter", "camel", "credentials", "gsm_a", "rlc_lte", "mac_lte",
+        "http", "sip", "smb", "rpc", "wsp",
+        "voip", "flow", "hosts", "rtd", "rpcprogs",
+        NULL
+    };
+
+    for (const char **tap_name = known_taps; *tap_name != NULL; tap_name++) {
+        if (find_tap_id(*tap_name) != 0) {
+            cJSON_AddItemToArray(arr, cJSON_CreateString(*tap_name));
+        }
+    }
+
+    char *res = cJSON_PrintUnformatted(arr);
+    cJSON_Delete(arr);
+    return res;
+}
+
+static unsigned pref_collector_cb(module_t *module, void *user_data) {
+    cJSON *arr = (cJSON *)user_data;
+    if (module == NULL) return 0;
+
+    cJSON *obj = cJSON_CreateObject();
+    cJSON_AddStringToObject(obj, "name", module->name ? module->name : "");
+    cJSON_AddStringToObject(obj, "title", module->title ? module->title : "");
+    cJSON_AddStringToObject(obj, "description", module->description ? module->description : "");
+    cJSON_AddNumberToObject(obj, "numPrefs", module->numprefs);
+    cJSON_AddBoolToObject(obj, "obsolete", module->obsolete);
+
+    cJSON_AddItemToArray(arr, obj);
+
+    if (module->submodules) {
+        prefs_modules_foreach_submodules(module, pref_collector_cb, arr);
+    }
+
+    return 0;
+}
+
+char *gowireshark_preferences_json(void) {
+    cJSON *arr = cJSON_CreateArray();
+    prefs_modules_foreach(pref_collector_cb, arr);
+    char *res = cJSON_PrintUnformatted(arr);
+    cJSON_Delete(arr);
+    return res;
 }

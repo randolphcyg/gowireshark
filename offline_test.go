@@ -13,17 +13,21 @@ import (
 )
 
 // Test environment initialization, checking if plugins are supported.
-func TestVersion(t *testing.T) {
-	t.Logf("Wireshark Version: %s %t", Version(), PluginsSupported())
+func TestRuntimeVersionAndPlugins(t *testing.T) {
+	v, err := RuntimeVersion(t.Context())
+	if err != nil {
+		t.Fatalf("RuntimeVersion: %v", err)
+	}
+	t.Logf("Wireshark Version: %s %t", v.Version, PluginsSupported())
 }
 
-// TestFrameByIndex_LeakCheck serves as a basic memory leak check and logic verification.
-func TestFrameByIndex_LeakCheck(t *testing.T) {
+// TestFrameByNumber_LeakCheck serves as a basic memory leak check and logic verification.
+func TestFrameByNumber_LeakCheck(t *testing.T) {
 	pcapFile := testfixture.Pcap(t)
 
 	start := time.Now()
 	for i := 1; i <= 100; i++ {
-		frame, err := FrameByIndex(pcapFile, i)
+		frame, err := FrameByNumberContext(t.Context(), pcapFile, i)
 		if err != nil {
 			t.Fatalf("Failed to get frame %d: %v", i, err)
 		}
@@ -31,7 +35,7 @@ func TestFrameByIndex_LeakCheck(t *testing.T) {
 			t.Fatalf("Frame %d is nil", i)
 		}
 		if frame.BaseLayers.Frame.Number != i {
-			t.Errorf("Frame index mismatch. Expected %d, got %d", i, frame.BaseLayers.Frame.Number)
+			t.Errorf("Frame number mismatch. Expected %d, got %d", i, frame.BaseLayers.Frame.Number)
 		}
 	}
 	t.Logf("Processed 100 frames individually in %v", time.Since(start))
@@ -46,11 +50,11 @@ func BenchmarkParseFrameData(b *testing.B) {
 	}
 }
 
-// TestHexDataByIndex tests retrieving the hex dump of a specific frame.
-func TestHexDataByIndex(t *testing.T) {
+// TestHexDataByFrameNumber tests retrieving the hex dump of a specific frame.
+func TestHexDataByFrameNumber(t *testing.T) {
 	pcapFile := testfixture.Pcap(t)
 
-	hexData, err := HexDataByIndex(pcapFile, 1)
+	hexData, err := HexDataByFrameNumber(pcapFile, 1)
 	if err != nil || hexData == nil {
 		t.Fatal(err)
 	}
@@ -59,16 +63,16 @@ func TestHexDataByIndex(t *testing.T) {
 	}
 }
 
-// TestFrameByIndex tests dissecting a single frame by its index.
-func TestFrameByIndex(t *testing.T) {
+// TestFrameByNumber tests dissecting a single frame by its frame number.
+func TestFrameByNumber(t *testing.T) {
 	pcapFile := testfixture.Pcap(t)
 
-	frame, err := FrameByIndex(pcapFile, 1, WithDebug(true))
+	frame, err := FrameByNumberContext(t.Context(), pcapFile, 1, WithDebug(true))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Log("# Frame index:", frame.BaseLayers.Frame.Number)
+	t.Log("# Frame number:", frame.BaseLayers.Frame.Number)
 	t.Log("Protocol:", frame.BaseLayers.WSCol.Protocol)
 
 	if frame.BaseLayers.IP != nil {
@@ -76,8 +80,8 @@ func TestFrameByIndex(t *testing.T) {
 		t.Log("IP Dst:", frame.BaseLayers.IP.Dst)
 	}
 
-	if _, err := FrameByIndex(pcapFile, 999999); !stderrors.Is(err, ErrFrameNotFound) {
-		t.Fatalf("FrameByIndex out-of-range error=%v, want ErrFrameNotFound", err)
+	if _, err := FrameByNumberContext(t.Context(), pcapFile, 999999); !stderrors.Is(err, ErrInvalidFrameNumber) {
+		t.Fatalf("FrameByNumberContext out-of-range error=%v, want ErrInvalidFrameNumber", err)
 	}
 }
 
@@ -103,8 +107,8 @@ func TestFrames_Correctness(t *testing.T) {
 	}
 }
 
-// TestFramesByIndices_Random tests random access capabilities.
-func TestFramesByIndices_Random(t *testing.T) {
+// TestFramesByNumbers_Random tests random access capabilities.
+func TestFramesByNumbers_Random(t *testing.T) {
 	pcapFile := testfixture.Pcap(t)
 
 	targets := []int{1, 3, 5, 10, 999999}
@@ -113,9 +117,9 @@ func TestFramesByIndices_Random(t *testing.T) {
 		targetsMap[v] = true
 	}
 
-	frames, err := FramesByIndices(pcapFile, targets, WithDebug(true))
+	frames, err := FramesByNumbers(pcapFile, targets, WithDebug(true))
 	if err != nil {
-		t.Fatalf("FramesByIndices failed: %v", err)
+		t.Fatalf("FramesByNumbers failed: %v", err)
 	}
 	if len(frames) == 0 {
 		t.Fatalf("Expected some frames, got 0")
@@ -319,12 +323,12 @@ func BenchmarkFramesPageDeep(b *testing.B) {
 	}
 }
 
-func BenchmarkFramesByIndices_Sparse(b *testing.B) {
+func BenchmarkFramesByNumbers_Sparse(b *testing.B) {
 	pcapFile := testfixture.Pcap(b)
 	idxs := []int{1, 10, 50}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := FramesByIndices(pcapFile, idxs)
+		_, err := FramesByNumbers(pcapFile, idxs)
 		if err != nil {
 			b.Fatal(err)
 		}

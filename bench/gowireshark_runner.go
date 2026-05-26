@@ -2,9 +2,13 @@ package bench
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/randolphcyg/gowireshark"
 )
@@ -18,13 +22,13 @@ func NewGowiresharkRunner(pcap string) *GowiresharkRunner {
 }
 
 func (r *GowiresharkRunner) FrameLookupCold(frameNum int) (records int, bytesOut int64, err error) {
-	s, openErr := gowireshark.OpenSession(r.pcap)
+	s, openErr := gowireshark.OpenSessionContext(context.Background(), r.pcap)
 	if openErr != nil {
 		return 0, 0, openErr
 	}
 	defer s.Close()
 
-	f, fErr := s.FrameByIndex(frameNum)
+	f, fErr := s.Frame(frameNum)
 	if fErr != nil {
 		return 0, 0, fErr
 	}
@@ -82,7 +86,7 @@ func (r *GowiresharkRunner) StreamListUDPCold() (records int, bytesOut int64, er
 }
 
 func (r *GowiresharkRunner) streamListColdByProto(proto string) (records int, bytesOut int64, err error) {
-	s, openErr := gowireshark.OpenSession(r.pcap)
+	s, openErr := gowireshark.OpenSessionContext(context.Background(), r.pcap)
 	if openErr != nil {
 		return 0, 0, openErr
 	}
@@ -116,6 +120,55 @@ func (r *GowiresharkRunner) FollowStreamColdReal(streamFilter string) (records i
 	return result.PacketCount, int64(payloadBytes), nil
 }
 
+func (r *GowiresharkRunner) FieldsCold(fields []string) (records int, bytesOut int64, err error) {
+	rows, err := gowireshark.FieldsRows(r.pcap, fields)
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, row := range rows {
+		for _, f := range fields {
+			buf.WriteString(row[f])
+			buf.WriteByte('\t')
+		}
+		buf.WriteByte('\n')
+	}
+	return len(rows), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) FieldsRowsOccurrenceCold(fields []string, occurrence gowireshark.FieldOccurrence) (records int, bytesOut int64, err error) {
+	rows, err := gowireshark.FieldsRows(r.pcap, fields, gowireshark.WithFieldOccurrence(occurrence))
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, row := range rows {
+		for _, f := range fields {
+			buf.WriteString(row[f])
+			buf.WriteByte('\t')
+		}
+		buf.WriteByte('\n')
+	}
+	return len(rows), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) FieldsRowsValuesCold(fields []string) (records int, bytesOut int64, err error) {
+	rows, err := gowireshark.FieldsRowsValues(r.pcap, fields)
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, row := range rows {
+		buf.WriteString(strconv.Itoa(row.FrameNumber))
+		for _, f := range fields {
+			buf.WriteByte('\t')
+			buf.WriteString(strings.Join(row.Values[f], ","))
+		}
+		buf.WriteByte('\n')
+	}
+	return len(rows), int64(buf.Len()), nil
+}
+
 func (r *GowiresharkRunner) PcapSliceCold(maxFrames int) (records int, bytesOut int64, err error) {
 	buf := &bytes.Buffer{}
 	count, err := gowireshark.WritePcapSlice(r.pcap, buf, gowireshark.FrameSelector{
@@ -123,6 +176,154 @@ func (r *GowiresharkRunner) PcapSliceCold(maxFrames int) (records int, bytesOut 
 	})
 	if err != nil {
 		return 0, 0, err
+	}
+	return count, int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) FrameNumbersCold(filter string) (records int, bytesOut int64, err error) {
+	var opts []gowireshark.Option
+	if filter != "" {
+		opts = append(opts, gowireshark.WithDisplayFilter(filter))
+	}
+	nums, err := gowireshark.FrameNumbers(r.pcap, opts...)
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, n := range nums {
+		buf.WriteString(itoa(n))
+		buf.WriteByte('\n')
+	}
+	return len(nums), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) TimelineCold() (records int, bytesOut int64, err error) {
+	buckets, err := gowireshark.Timeline(r.pcap)
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, b := range buckets {
+		fmt.Fprintf(buf, "%d\t%d\t%d\n", b.StartEpoch, b.FrameCount, b.ByteCount)
+	}
+	return len(buckets), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) IOStatsCold(intervalSecs float64) (records int, bytesOut int64, err error) {
+	buckets, err := gowireshark.IOStats(r.pcap, time.Duration(intervalSecs*float64(time.Second)))
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, b := range buckets {
+		fmt.Fprintf(buf, "%.3f\t%d\t%d\n", b.Time, b.Packets, b.Bytes)
+	}
+	return len(buckets), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) ProtocolHierarchyCold() (records int, bytesOut int64, err error) {
+	entries, err := gowireshark.ProtocolHierarchy(r.pcap)
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, e := range entries {
+		fmt.Fprintf(buf, "%s\t%d\t%d\n", e.Protocol, e.Packets, e.Bytes)
+	}
+	return len(entries), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) ServiceResponseTimesCold(protocol string) (records int, bytesOut int64, err error) {
+	entries, err := gowireshark.ServiceResponseTimes(r.pcap, protocol)
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, e := range entries {
+		fmt.Fprintf(buf, "%s\t%d\t%.3f\t%.3f\n", e.Procedure, e.Calls, e.Min, e.Avg)
+	}
+	return len(entries), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) WriteDissectionTextCold() (records int, bytesOut int64, err error) {
+	buf := &bytes.Buffer{}
+	count, err := gowireshark.WriteDissectionContext(context.Background(),
+		r.pcap, buf, gowireshark.OutputText)
+	_ = count
+	if err != nil {
+		return 0, 0, err
+	}
+	return countLines(buf.String()), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) WriteDissectionPDMLCold() (records int, bytesOut int64, err error) {
+	buf := &bytes.Buffer{}
+	count, err := gowireshark.WriteDissectionContext(context.Background(),
+		r.pcap, buf, gowireshark.OutputPDML)
+	_ = count
+	if err != nil {
+		return 0, 0, err
+	}
+	return countLines(buf.String()), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) TapConversationsCold(convType string) (records int, bytesOut int64, err error) {
+	convs, err := gowireshark.TapConversations(r.pcap, convType)
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, c := range convs {
+		fmt.Fprintf(buf, "%s\t%s:%d->%s:%d\t%d\t%d\n", convType, c.Addr1, c.Port1, c.Addr2, c.Port2, c.TotalPackets, c.TotalBytes)
+	}
+	return len(convs), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) TapEndpointsCold(endpointType string) (records int, bytesOut int64, err error) {
+	endpoints, err := gowireshark.TapEndpoints(r.pcap, endpointType)
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, ep := range endpoints {
+		fmt.Fprintf(buf, "%s\t%s:%d\t%d\n", endpointType, ep.Address, ep.Port, ep.Packets)
+	}
+	return len(endpoints), int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) IterFramesCold() (records int, bytesOut int64, err error) {
+	s, openErr := gowireshark.OpenSessionContext(context.Background(), r.pcap)
+	if openErr != nil {
+		return 0, 0, openErr
+	}
+	defer s.Close()
+
+	iter, iterErr := s.IterFrames(gowireshark.Query{})
+	if iterErr != nil {
+		return 0, 0, iterErr
+	}
+	count := 0
+	for iter.Next() {
+		_ = iter.Frame()
+		count++
+	}
+	if cerr := iter.Close(); cerr != nil {
+		return count, 0, cerr
+	}
+	return count, 0, nil
+}
+
+func (r *GowiresharkRunner) WriteFieldsRowsCold(fields []string) (records int, bytesOut int64, err error) {
+	s, openErr := gowireshark.OpenSessionContext(context.Background(), r.pcap)
+	if openErr != nil {
+		return 0, 0, openErr
+	}
+	defer s.Close()
+
+	buf := &bytes.Buffer{}
+	count, writeErr := s.WriteFieldsRows(gowireshark.Query{}, fields, buf)
+	if writeErr != nil {
+		return 0, 0, writeErr
 	}
 	return count, int64(buf.Len()), nil
 }
@@ -143,7 +344,7 @@ func (ws *WarmSession) Setup() error {
 	if ws.sess != nil {
 		return nil
 	}
-	s, err := gowireshark.OpenSession(ws.pcap)
+	s, err := gowireshark.OpenSessionContext(context.Background(), ws.pcap)
 	if err != nil {
 		return err
 	}
@@ -163,7 +364,7 @@ func (ws *WarmSession) Teardown() {
 func (ws *WarmSession) FrameLookup(frameNum int) (records int, bytesOut int64, err error) {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
-	f, fErr := ws.sess.FrameByIndex(frameNum)
+	f, fErr := ws.sess.Frame(frameNum)
 	if fErr != nil {
 		return 0, 0, fErr
 	}
@@ -259,31 +460,293 @@ func (r *GowiresharkRunner) FirstTCPStream() int {
 
 func (ws *WarmSession) PcapSlice(maxFrames int) (records int, bytesOut int64, err error) {
 	ws.mu.Lock()
-
-	var indices []int
-	err = ws.sess.WalkFrames(gowireshark.Query{Filter: "frame.number <= 100"}, func(f *gowireshark.FrameData) error {
-		if f != nil && f.BaseLayers.Frame != nil {
-			indices = append(indices, f.BaseLayers.Frame.Number)
-		}
-		return nil
-	})
-	ws.mu.Unlock()
-
-	if err != nil {
-		return 0, 0, err
-	}
-	if len(indices) == 0 {
-		return 0, 0, gowireshark.ErrEmptySelection
-	}
+	defer ws.mu.Unlock()
 
 	buf := &bytes.Buffer{}
-	count, err := gowireshark.WritePcapSlice(ws.pcap, buf, gowireshark.FrameSelector{
-		Indices: indices,
+	count, err := ws.sess.WritePcapSlice(buf, gowireshark.FrameSelector{
+		Filter: "frame.number <= 100",
 	})
 	if err != nil {
 		return 0, 0, err
 	}
 	return count, int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) Fields(fields []string) (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	rows, err := ws.sess.FieldsRows(gowireshark.Query{}, fields)
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, row := range rows {
+		for _, f := range fields {
+			buf.WriteString(row[f])
+			buf.WriteByte('\t')
+		}
+		buf.WriteByte('\n')
+	}
+	return len(rows), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) FieldsRowsOccurrence(fields []string, occurrence gowireshark.FieldOccurrence) (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	rows, err := ws.sess.FieldsRows(gowireshark.Query{}, fields, gowireshark.WithFieldOccurrence(occurrence))
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, row := range rows {
+		for _, f := range fields {
+			buf.WriteString(row[f])
+			buf.WriteByte('\t')
+		}
+		buf.WriteByte('\n')
+	}
+	return len(rows), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) FieldsRowsValues(fields []string) (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	rows, err := ws.sess.FieldsRowsValues(gowireshark.Query{}, fields)
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, row := range rows {
+		buf.WriteString(strconv.Itoa(row.FrameNumber))
+		for _, f := range fields {
+			buf.WriteByte('\t')
+			buf.WriteString(strings.Join(row.Values[f], ","))
+		}
+		buf.WriteByte('\n')
+	}
+	return len(rows), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) FrameNumbers(filter string) (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	nums, err := ws.sess.FrameNumbers(gowireshark.Query{Filter: filter})
+	ws.mu.Unlock()
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, n := range nums {
+		buf.WriteString(itoa(n))
+		buf.WriteByte('\n')
+	}
+	return len(nums), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) Timeline() (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	buckets, err := ws.sess.TimelineBy(gowireshark.Query{}, time.Second)
+	ws.mu.Unlock()
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, b := range buckets {
+		fmt.Fprintf(buf, "%d\t%d\t%d\n", b.StartEpoch, b.FrameCount, b.ByteCount)
+	}
+	return len(buckets), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) IOStats(intervalSecs float64) (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	buckets, err := ws.sess.IOStats(gowireshark.Query{}, time.Duration(intervalSecs*float64(time.Second)))
+	ws.mu.Unlock()
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, b := range buckets {
+		fmt.Fprintf(buf, "%.3f\t%d\t%d\n", b.Time, b.Packets, b.Bytes)
+	}
+	return len(buckets), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) ProtocolHierarchy() (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	entries, err := ws.sess.ProtocolHierarchy(gowireshark.Query{})
+	ws.mu.Unlock()
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, e := range entries {
+		fmt.Fprintf(buf, "%s\t%d\t%d\n", e.Protocol, e.Packets, e.Bytes)
+	}
+	return len(entries), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) ServiceResponseTimes(protocol string) (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	entries, err := ws.sess.ServiceResponseTimes(protocol, gowireshark.Query{})
+	ws.mu.Unlock()
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, e := range entries {
+		fmt.Fprintf(buf, "%s\t%d\t%.3f\t%.3f\n", e.Procedure, e.Calls, e.Min, e.Avg)
+	}
+	return len(entries), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) WriteDissectionText() (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	buf := &bytes.Buffer{}
+	count, err := ws.sess.WriteDissection(buf, gowireshark.OutputText, gowireshark.Query{})
+	_ = count
+	if err != nil {
+		return 0, 0, err
+	}
+	return countLines(buf.String()), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) WriteDissectionPDML() (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	buf := &bytes.Buffer{}
+	count, err := ws.sess.WriteDissection(buf, gowireshark.OutputPDML, gowireshark.Query{})
+	_ = count
+	if err != nil {
+		return 0, 0, err
+	}
+	return countLines(buf.String()), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) TapConversations(convType string) (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	convs, err := ws.sess.TapConversations(convType, gowireshark.Query{})
+	ws.mu.Unlock()
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, c := range convs {
+		fmt.Fprintf(buf, "%s\t%s:%d->%s:%d\t%d\t%d\n", convType, c.Addr1, c.Port1, c.Addr2, c.Port2, c.TotalPackets, c.TotalBytes)
+	}
+	return len(convs), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) TapEndpoints(endpointType string) (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	endpoints, err := ws.sess.TapEndpoints(endpointType, gowireshark.Query{})
+	ws.mu.Unlock()
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, ep := range endpoints {
+		fmt.Fprintf(buf, "%s\t%s:%d\t%d\n", endpointType, ep.Address, ep.Port, ep.Packets)
+	}
+	return len(endpoints), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) IterFrames() (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	iter, iterErr := ws.sess.IterFrames(gowireshark.Query{})
+	ws.mu.Unlock()
+	if iterErr != nil {
+		return 0, 0, iterErr
+	}
+	count := 0
+	for iter.Next() {
+		_ = iter.Frame()
+		count++
+	}
+	if cerr := iter.Close(); cerr != nil {
+		return count, 0, cerr
+	}
+	return count, 0, nil
+}
+
+func (ws *WarmSession) WriteFieldsRows(fields []string) (records int, bytesOut int64, err error) {
+	ws.mu.Lock()
+	buf := &bytes.Buffer{}
+	count, err := ws.sess.WriteFieldsRows(gowireshark.Query{}, fields, buf)
+	ws.mu.Unlock()
+	if err != nil {
+		return 0, 0, err
+	}
+	return count, int64(buf.Len()), nil
+}
+
+func (r *GowiresharkRunner) IterFrameJSONCold() (records int, bytesOut int64, err error) {
+	s, openErr := gowireshark.OpenSessionContext(context.Background(), r.pcap)
+	if openErr != nil {
+		return 0, 0, openErr
+	}
+	defer s.Close()
+
+	iter, iterErr := s.IterFrameJSON(gowireshark.Query{})
+	if iterErr != nil {
+		return 0, 0, iterErr
+	}
+	count := 0
+	byteCount := 0
+	for iter.Next() {
+		byteCount += len(iter.JSON())
+		count++
+	}
+	if cerr := iter.Close(); cerr != nil {
+		return count, 0, cerr
+	}
+	return count, int64(byteCount), nil
+}
+
+func (ws *WarmSession) IterFrameJSON() (records int, bytesOut int64, err error) {
+	iter, iterErr := ws.sess.IterFrameJSON(gowireshark.Query{})
+	if iterErr != nil {
+		return 0, 0, iterErr
+	}
+	count := 0
+	byteCount := 0
+	for iter.Next() {
+		byteCount += len(iter.JSON())
+		count++
+	}
+	if cerr := iter.Close(); cerr != nil {
+		return count, 0, cerr
+	}
+	return count, int64(byteCount), nil
+}
+
+func (r *GowiresharkRunner) ConversationsCold() (records int, bytesOut int64, err error) {
+	s, openErr := gowireshark.OpenSessionContext(context.Background(), r.pcap)
+	if openErr != nil {
+		return 0, 0, openErr
+	}
+	defer s.Close()
+
+	convs, err := s.Conversations(gowireshark.Query{})
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, c := range convs {
+		fmt.Fprintf(buf, "%s\t%s:%d->%s:%d\t%d\t%d\n", c.Protocol, c.SrcAddr, c.SrcPort, c.DstAddr, c.DstPort, c.FrameCount, c.ByteCount)
+	}
+	return len(convs), int64(buf.Len()), nil
+}
+
+func (ws *WarmSession) Conversations() (records int, bytesOut int64, err error) {
+	convs, err := ws.sess.Conversations(gowireshark.Query{})
+	if err != nil {
+		return 0, 0, err
+	}
+	buf := &bytes.Buffer{}
+	for _, c := range convs {
+		fmt.Fprintf(buf, "%s\t%s:%d->%s:%d\t%d\t%d\n", c.Protocol, c.SrcAddr, c.SrcPort, c.DstAddr, c.DstPort, c.FrameCount, c.ByteCount)
+	}
+	return len(convs), int64(buf.Len()), nil
 }
 
 func (r *GowiresharkRunner) frameCountFromSession() int {
@@ -332,7 +795,7 @@ func (r *GowiresharkRunner) firstTCPStreamFromSession() int {
 }
 
 func (r *GowiresharkRunner) openSession() (*gowireshark.Session, error) {
-	return gowireshark.OpenSession(r.pcap)
+	return gowireshark.OpenSessionContext(context.Background(), r.pcap)
 }
 
 func marshalFrameData(w io.Writer, f *gowireshark.FrameData) error {

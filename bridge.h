@@ -60,6 +60,14 @@ char *gowireshark_protocols_json(void);
 char *gowireshark_fields_json(void);
 char *gowireshark_field_json(const char *name);
 
+// Version information helpers
+char *gowireshark_version_json(void);
+char *gowireshark_profiles_json(void);
+char *gowireshark_decode_as_tables_json(void);
+char *gowireshark_decode_as_choices_json(const char *table_name);
+char *gowireshark_tap_types_json(void);
+char *gowireshark_preferences_json(void);
+
 // Provider callbacks required by Wireshark's epan module
 const nstime_t *cap_file_provider_get_frame_ts(struct packet_provider_data *prov,
                                                uint32_t frame_num);

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 
+	"github.com/bytedance/sonic"
 	"github.com/randolphcyg/gowireshark/bench"
 )
 
@@ -49,7 +49,7 @@ func main() {
 		output = bench.ToMarkdown(results)
 	default:
 		out := bench.ToJSON(results, pcap, tsharkVer)
-		data, err := json.MarshalIndent(out, "", "  ")
+		data, err := sonic.MarshalIndent(out, "", "  ")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "json marshal:", err)
 			os.Exit(1)
@@ -92,10 +92,23 @@ func runAllCases(pcap, tshark string, iterations int) []bench.BenchResult {
 	results = append(results, runColdStreamListUDP(pcap, iterations)...)
 	results = append(results, runColdPcapSlice(pcap, iterations)...)
 
+	results = append(results, runColdFrameNumbers(pcap, iterations)...)
+	results = append(results, runColdTimeline(pcap, iterations)...)
+	results = append(results, runColdIOStats(pcap, iterations)...)
+	results = append(results, runColdProtocolHierarchy(pcap, iterations)...)
+	results = append(results, runColdSRT(pcap, iterations)...)
+	results = append(results, runColdTapConversations(pcap, iterations)...)
+	results = append(results, runColdTapEndpoints(pcap, iterations)...)
+	results = append(results, runColdWriteDissection(pcap, iterations)...)
+	results = append(results, runColdIterFrames(pcap, iterations)...)
+	results = append(results, runColdWriteFieldsRows(pcap, iterations)...)
+
 	results = append(results, runWarmAll(pcap, 1, mid, last, hasTCP, tcpStream, iterations)...)
+	results = append(results, runWarmNew(pcap, iterations)...)
 
 	if tshark != "" {
 		results = append(results, runTsharkAll(pcap, tshark, 1, mid, last, hasTCP, tcpStream, iterations)...)
+		results = append(results, runTsharkNew(pcap, tshark, iterations)...)
 	} else {
 		results = append(results, bench.SkippedResult("frame_lookup_first", "tshark_subprocess", "tshark not found"))
 		results = append(results, bench.SkippedResult("frame_lookup_mid", "tshark_subprocess", "tshark not found"))
@@ -236,4 +249,126 @@ func tsharkVersion(tshark string) string {
 		return "unknown"
 	}
 	return out
+}
+
+func runColdFrameNumbers(pcap string, iterations int) []bench.BenchResult {
+	gr := bench.NewGowiresharkRunner(pcap)
+	return []bench.BenchResult{
+		bench.RunTimedCase("frame_numbers_nofilter", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.FrameNumbersCold("") }),
+		bench.RunTimedCase("frame_numbers_filter", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.FrameNumbersCold("ip") }),
+	}
+}
+
+func runColdTimeline(pcap string, iterations int) []bench.BenchResult {
+	gr := bench.NewGowiresharkRunner(pcap)
+	return []bench.BenchResult{
+		bench.RunTimedCase("timeline", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.TimelineCold() }),
+	}
+}
+
+func runColdIOStats(pcap string, iterations int) []bench.BenchResult {
+	gr := bench.NewGowiresharkRunner(pcap)
+	return []bench.BenchResult{
+		bench.RunTimedCase("io_stats", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.IOStatsCold(1.0) }),
+	}
+}
+
+func runColdProtocolHierarchy(pcap string, iterations int) []bench.BenchResult {
+	gr := bench.NewGowiresharkRunner(pcap)
+	return []bench.BenchResult{
+		bench.RunTimedCase("proto_hierarchy", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.ProtocolHierarchyCold() }),
+	}
+}
+
+func runColdSRT(pcap string, iterations int) []bench.BenchResult {
+	gr := bench.NewGowiresharkRunner(pcap)
+	return []bench.BenchResult{
+		bench.RunTimedCase("srt_smb", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.ServiceResponseTimesCold("smb") }),
+	}
+}
+
+func runColdTapConversations(pcap string, iterations int) []bench.BenchResult {
+	gr := bench.NewGowiresharkRunner(pcap)
+	return []bench.BenchResult{
+		bench.RunTimedCase("tap_conv_ip", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.TapConversationsCold("ip") }),
+		bench.RunTimedCase("tap_conv_tcp", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.TapConversationsCold("tcp") }),
+	}
+}
+
+func runColdTapEndpoints(pcap string, iterations int) []bench.BenchResult {
+	gr := bench.NewGowiresharkRunner(pcap)
+	return []bench.BenchResult{
+		bench.RunTimedCase("tap_endpoints_ip", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.TapEndpointsCold("ip") }),
+	}
+}
+
+func runColdWriteDissection(pcap string, iterations int) []bench.BenchResult {
+	gr := bench.NewGowiresharkRunner(pcap)
+	return []bench.BenchResult{
+		bench.RunTimedCase("write_text", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.WriteDissectionTextCold() }),
+		bench.RunTimedCase("write_pdml", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.WriteDissectionPDMLCold() }),
+	}
+}
+
+func runColdIterFrames(pcap string, iterations int) []bench.BenchResult {
+	gr := bench.NewGowiresharkRunner(pcap)
+	return []bench.BenchResult{
+		bench.RunTimedCase("iter_frames", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.IterFramesCold() }),
+	}
+}
+
+func runColdWriteFieldsRows(pcap string, iterations int) []bench.BenchResult {
+	gr := bench.NewGowiresharkRunner(pcap)
+	fields := []string{"frame.number", "frame.len", "ip.src", "ip.dst"}
+	return []bench.BenchResult{
+		bench.RunTimedCase("write_fields_rows", "gowireshark_cold", iterations, func() (int, int64, error) { return gr.WriteFieldsRowsCold(fields) }),
+	}
+}
+
+func runWarmNew(pcap string, iterations int) []bench.BenchResult {
+	var results []bench.BenchResult
+
+	warm := bench.NewWarmSession(pcap)
+	if err := warm.Setup(); err != nil {
+		results = append(results, bench.BenchResult{Name: "frame_numbers_nofilter", Runner: "gowireshark_warm", Error: err.Error()})
+		return results
+	}
+	defer warm.Teardown()
+
+	results = append(results, bench.RunTimedCase("frame_numbers_nofilter", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.FrameNumbers("") }))
+	results = append(results, bench.RunTimedCase("frame_numbers_filter", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.FrameNumbers("ip") }))
+	results = append(results, bench.RunTimedCase("timeline", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.Timeline() }))
+	results = append(results, bench.RunTimedCase("io_stats", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.IOStats(1.0) }))
+	results = append(results, bench.RunTimedCase("proto_hierarchy", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.ProtocolHierarchy() }))
+	results = append(results, bench.RunTimedCase("srt_smb", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.ServiceResponseTimes("smb") }))
+	results = append(results, bench.RunTimedCase("tap_conv_ip", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.TapConversations("ip") }))
+	results = append(results, bench.RunTimedCase("tap_conv_tcp", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.TapConversations("tcp") }))
+	results = append(results, bench.RunTimedCase("tap_endpoints_ip", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.TapEndpoints("ip") }))
+	results = append(results, bench.RunTimedCase("write_text", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.WriteDissectionText() }))
+	results = append(results, bench.RunTimedCase("write_pdml", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.WriteDissectionPDML() }))
+	results = append(results, bench.RunTimedCase("iter_frames", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.IterFrames() }))
+	fields := []string{"frame.number", "frame.len", "ip.src", "ip.dst"}
+	results = append(results, bench.RunTimedCase("write_fields_rows", "gowireshark_warm", iterations, func() (int, int64, error) { return warm.WriteFieldsRows(fields) }))
+
+	return results
+}
+
+func runTsharkNew(pcap, tshark string, iterations int) []bench.BenchResult {
+	var results []bench.BenchResult
+
+	tr := bench.NewTsharkRunner(pcap, tshark)
+
+	results = append(results, bench.RunTimedCase("frame_numbers_nofilter", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.FrameNumbers("") }))
+	results = append(results, bench.RunTimedCase("frame_numbers_filter", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.FrameNumbers("ip") }))
+	results = append(results, bench.RunTimedCase("timeline", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.Timeline() }))
+	results = append(results, bench.RunTimedCase("io_stats", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.IOStats(1.0) }))
+	results = append(results, bench.RunTimedCase("proto_hierarchy", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.ProtocolHierarchy() }))
+	results = append(results, bench.RunTimedCase("srt_smb", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.ServiceResponseTimes("smb") }))
+	results = append(results, bench.RunTimedCase("tap_conv_ip", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.TapConversations("ip") }))
+	results = append(results, bench.RunTimedCase("tap_conv_tcp", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.TapConversations("tcp") }))
+	results = append(results, bench.RunTimedCase("tap_endpoints_ip", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.TapEndpoints("ip") }))
+	results = append(results, bench.RunTimedCase("write_text", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.WriteDissectionText() }))
+	results = append(results, bench.RunTimedCase("write_pdml", "tshark_subprocess", iterations, func() (int, int64, error) { return tr.WriteDissectionPDML() }))
+
+	return results
 }

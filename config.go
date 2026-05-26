@@ -49,10 +49,18 @@ type Preference struct {
 	Value string `json:"value"`
 }
 
+// SessionCacheOptions controls in-memory cache behavior for Session operations.
+type SessionCacheOptions struct {
+	MaxPages       int
+	MaxFollowBytes int64
+	MaxIndexCount  int // max number of FrameIndex entries to retain (0 = unlimited)
+	Disable        bool
+}
+
 type ParseMode int
 
 const (
-	ParseBaseLayers     ParseMode = iota
+	ParseBaseLayers ParseMode = iota
 	ParseRawLayers
 	ParseSelectedLayers
 )
@@ -73,8 +81,10 @@ type config struct {
 	Preferences     []Preference
 	Profile         string
 	FieldOutput     FieldOutputOptions
-	ParseMode        ParseMode
-	SelectedLayers   []string
+	FieldOccurrence FieldOccurrence
+	ParseMode       ParseMode
+	SelectedLayers  []string
+	SessionCache    SessionCacheOptions
 }
 
 // Option customizes one dissection operation.
@@ -160,12 +170,24 @@ func WithProfile(profile string) Option {
 	return func(c *config) { c.Profile = profile }
 }
 
+// WithFieldOccurrence selects which occurrence FieldsRows returns for
+// multi-value fields. OccurrenceAll is intentionally rejected by FieldsRows;
+// use FieldsRowsValues for structured multi-value output.
+func WithFieldOccurrence(occurrence FieldOccurrence) Option {
+	return func(c *config) { c.FieldOccurrence = occurrence }
+}
+
 func WithParseMode(mode ParseMode) Option {
 	return func(c *config) { c.ParseMode = mode }
 }
 
 func WithSelectedLayers(layers []string) Option {
 	return func(c *config) { c.SelectedLayers = append([]string(nil), layers...) }
+}
+
+// WithSessionCache controls Session-level caching behavior.
+func WithSessionCache(opts SessionCacheOptions) Option {
+	return func(c *config) { c.SessionCache = opts }
 }
 
 func defaultDebug() bool { return os.Getenv("DEBUG") == "true" }

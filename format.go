@@ -1,23 +1,27 @@
 package gowireshark
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
+	"github.com/bytedance/sonic"
 	"github.com/pkg/errors"
 )
 
-// TsharkOutputFormat maps to tshark -T flags.
-type TsharkOutputFormat string
+// OutputFormat controls how frame dissection is rendered.
+type OutputFormat string
 
 const (
-	OutputJSON    TsharkOutputFormat = "json"
-	OutputJSONRaw TsharkOutputFormat = "jsonraw"
-	OutputFields  TsharkOutputFormat = "fields"
-	OutputPDML    TsharkOutputFormat = "pdml"
-	OutputPSML    TsharkOutputFormat = "psml"
-	OutputText    TsharkOutputFormat = "text"
+	// PDML, PSML, and Text use the SDK renderer — they are not byte-for-byte tshark equivalents.
+	OutputJSON    OutputFormat = "json"
+	OutputJSONRaw OutputFormat = "jsonraw"
+	OutputFields  OutputFormat = "fields"
+	OutputPDML    OutputFormat = "pdml"
+	OutputPSML    OutputFormat = "psml"
+	OutputText    OutputFormat = "text"
 )
 
 // FieldOutputOptions controls field-level output (tshark -e / -E flags).
@@ -26,25 +30,20 @@ type FieldOutputOptions struct {
 	Separator  string
 	Header     bool
 	Quote      bool
-	Occurrence string
+	Occurrence FieldOccurrence
 }
 
 // WriteDissection writes frame dissections from path to w in the requested
 // output format, applying field options when format is OutputFields.
 //
-// OutputFields mode generates complete frame JSON per frame in C before
-// Go-side field selection. This is not equivalent to tshark's native
-// -T fields fast path. For programmatic field extraction use FieldsRows.
-func WriteDissection(path string, w io.Writer, format TsharkOutputFormat, opts ...Option) (int, error) {
-	s, err := OpenSession(path, opts...)
-	if err != nil {
-		return 0, err
-	}
-	defer s.Close()
-	return s.writeDissection(w, format, Query{Filter: extractFilter(opts)}, opts...)
+// OutputFields mode uses a C-level field-only fast path that extracts only
+// the requested fields without generating the full frame JSON proto tree.
+// For programmatic field extraction use FieldsRows.
+func WriteDissection(path string, w io.Writer, format OutputFormat, opts ...Option) (int, error) {
+	return WriteDissectionContext(context.Background(), path, w, format, opts...)
 }
 
-func (s *Session) writeDissection(w io.Writer, format TsharkOutputFormat, q Query, opts ...Option) (int, error) {
+func (s *Session) writeDissection(w io.Writer, format OutputFormat, q Query, opts ...Option) (int, error) {
 	conf := newConfig(opts...)
 
 	switch format {
@@ -55,16 +54,16 @@ func (s *Session) writeDissection(w io.Writer, format TsharkOutputFormat, q Quer
 	case OutputText:
 		return s.writeText(w, q)
 	case OutputPDML:
-		return 0, errors.New("PDML output not yet implemented (requires C-level pdml writer)")
+		return s.writePDML(w, q)
 	case OutputPSML:
-		return 0, errors.New("PSML output not yet implemented (requires C-level psml writer)")
+		return s.writePSML(w, q)
 	default:
-		return 0, errors.Errorf("unknown output format: %q", format)
+		return 0, &OutputFormatError{Format: string(format), Message: "unknown dissection output format"}
 	}
 }
 
 func (s *Session) writeNDJSON(w io.Writer, q Query) (int, error) {
-	count, err := s.WriteFrames(q, w)
+	count, err := s.writeFramesLocked(q, w)
 	if err != nil {
 		return count, err
 	}
@@ -74,7 +73,11 @@ func (s *Session) writeNDJSON(w io.Writer, q Query) (int, error) {
 func (s *Session) writeFields(w io.Writer, q Query, conf *config) (int, error) {
 	fo := conf.FieldOutput
 	if len(fo.Fields) == 0 {
-		return 0, errors.New("field output requires at least one field in FieldOutputOptions.Fields")
+		return 0, errors.Wrap(ErrInvalidField, "field output requires at least one field in FieldOutputOptions.Fields")
+	}
+
+	if err := ValidateFilter(q.Filter); err != nil {
+		return 0, err
 	}
 
 	sep := fo.Separator
@@ -82,26 +85,53 @@ func (s *Session) writeFields(w io.Writer, q Query, conf *config) (int, error) {
 		sep = "\t"
 	}
 
-	count := 0
 	if fo.Header {
 		if _, err := w.Write([]byte(strings.Join(fo.Fields, sep) + "\n")); err != nil {
 			return 0, err
 		}
 	}
 
+	epanMu.Lock()
+	if err := s.resetReadPosition(); err != nil {
+		epanMu.Unlock()
+		return 0, err
+	}
+
+	count, writeErr := writeFieldsFast(q.Filter, fo, sep, w)
+	epanMu.Unlock()
+	s.readPositionDirty.Store(true)
+
+	if writeErr != nil {
+		return count, writeErr
+	}
+	return count, nil
+}
+
+func writeFieldsFast(filter string, fo FieldOutputOptions, sep string, w io.Writer) (int, error) {
+	occurrence, err := normalizeScalarFieldOccurrence(fo.Occurrence)
+	if err != nil {
+		return 0, errors.Wrap(err, "OutputFields")
+	}
+
+	count := 0
 	var writeErr error
+
+	occ := 0
+	if occurrence == OccurrenceLast {
+		occ = 1
+	}
+
 	globalFrameSink = func(jsonBytes []byte) bool {
-		selected, fErr := selectOutputFields(jsonBytes, fo.Fields)
-		if fErr != nil {
-			writeErr = fErr
+		var row map[string]string
+		if uErr := sonic.Unmarshal(jsonBytes, &row); uErr != nil {
+			writeErr = uErr
 			return false
 		}
 		parts := make([]string, len(fo.Fields))
 		for i, field := range fo.Fields {
-			if v, ok := selected[field]; ok {
-				val := formatFieldValue(v)
+			if val, ok := row[field]; ok {
 				if fo.Quote {
-					val = fmt.Sprintf("%q", val)[1 : len(val)-1]
+					val = strconv.Quote(val)
 				}
 				parts[i] = val
 			}
@@ -114,20 +144,12 @@ func (s *Session) writeFields(w io.Writer, q Query, conf *config) (int, error) {
 		count++
 		return true
 	}
-	defer func() { globalFrameSink = nil }()
+	defer cleanupGlobalState()
 
-	epanMu.Lock()
-	if err := sessionResetReadPosition(); err != nil {
-		epanMu.Unlock()
+	if err := sessionWalkFieldsOccurrence(filter, fo.Fields, occ); err != nil {
 		return count, err
 	}
-	sessionWalkAllFramesJSON(q.Filter)
-	epanMu.Unlock()
-
-	if writeErr != nil {
-		return count, writeErr
-	}
-	return count, nil
+	return count, writeErr
 }
 
 func formatFieldValue(v any) string {
@@ -141,10 +163,6 @@ func formatFieldValue(v any) string {
 	default:
 		return fmt.Sprintf("%v", x)
 	}
-}
-
-func (s *Session) writeText(w io.Writer, q Query) (int, error) {
-	return 0, errors.New("text output not yet implemented (requires column-based formatting)")
 }
 
 // WithFieldOutput sets field-level output options for use with WriteDissection
