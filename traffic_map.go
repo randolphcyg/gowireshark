@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// StreamSummary is STABLE.
 // StreamSummary describes one TCP or UDP stream observed in a capture.
 type StreamSummary struct {
 	Protocol       string   `json:"protocol"`
@@ -27,6 +28,7 @@ type StreamSummary struct {
 	Protocols      []string `json:"protocols"`
 }
 
+// ConversationSummary is STABLE.
 // ConversationSummary describes one directional 5-tuple aggregate.
 type ConversationSummary struct {
 	Protocol   string   `json:"protocol"`
@@ -42,6 +44,7 @@ type ConversationSummary struct {
 	Protocols  []string `json:"protocols"`
 }
 
+// TimelineBucket is STABLE.
 // TimelineBucket summarizes traffic in one wall-clock interval.
 type TimelineBucket struct {
 	StartEpoch int64          `json:"startEpoch"`
@@ -51,6 +54,7 @@ type TimelineBucket struct {
 	Protocols  map[string]int `json:"protocols"`
 }
 
+// FileObject is STABLE.
 // FileObject describes file-like data observed in protocol dissections without
 // writing the object to disk.
 type FileObject struct {
@@ -294,11 +298,14 @@ func FilesContext(ctx context.Context, path string, opts ...Option) ([]FileObjec
 		return out, nil
 	}
 
+	// Reuse the already-open Session instead of calling WalkFramesContext,
+	// which would try to OpenSessionContext again and deadlock on sessionGate
+	// (the single in-process Session token is held by s until defer s.Close()).
 	var out []FileObject
-	walkErr := WalkFramesContext(ctx, path, func(f *FrameData) error {
+	walkErr := s.WalkFrames(q, func(f *FrameData) error {
 		out = append(out, filesFromFrame(f)...)
 		return nil
-	}, opts...)
+	})
 	return out, walkErr
 }
 
@@ -365,7 +372,7 @@ func (a *trafficAccumulator) accumulate(proto string, streamID, srcPort, dstPort
 
 	protos := protocolList(protocols)
 
-	sk := proto + ":" + itoa(streamID)
+	sk := proto + ":" + strconv.Itoa(streamID)
 	s := a.streamMap[sk]
 	if s == nil {
 		a1, a2 := sortPair(srcAddr, uint32(srcPort), dstAddr, uint32(dstPort))
@@ -375,7 +382,7 @@ func (a *trafficAccumulator) accumulate(proto string, streamID, srcPort, dstPort
 	}
 	updateStreamSummary(s, timeEpoch, byteCount, protos)
 
-	ck := proto + ":" + srcAddr + ":" + itoa(srcPort) + ">" + dstAddr + ":" + itoa(dstPort)
+	ck := proto + ":" + srcAddr + ":" + strconv.Itoa(srcPort) + ">" + dstAddr + ":" + strconv.Itoa(dstPort)
 	c := a.convMap[ck]
 	if c == nil {
 		c = &ConversationSummary{Protocol: proto, SrcAddr: srcAddr, SrcPort: srcPort, DstAddr: dstAddr, DstPort: dstPort, Protocols: protos}
@@ -502,26 +509,4 @@ func filesFromFrame(f *FrameData) []FileObject {
 		}
 	}
 	return out
-}
-
-func itoa(i int) string {
-	if i == 0 {
-		return "0"
-	}
-	neg := i < 0
-	if neg {
-		i = -i
-	}
-	var buf [20]byte
-	pos := len(buf)
-	for i > 0 {
-		pos--
-		buf[pos] = byte('0' + i%10)
-		i /= 10
-	}
-	if neg {
-		pos--
-		buf[pos] = '-'
-	}
-	return string(buf[pos:])
 }

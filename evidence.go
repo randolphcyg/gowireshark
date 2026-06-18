@@ -28,6 +28,7 @@ type FrameSelector struct {
 	Range   FrameRange `json:"range,omitempty"`
 }
 
+// EvidenceBundle is STABLE.
 // EvidenceBundle is a compact, reproducible evidence object for a selected set
 // of frames and optional stream/file context.
 type EvidenceBundle struct {

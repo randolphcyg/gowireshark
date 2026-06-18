@@ -9,6 +9,7 @@ import (
 	"github.com/bytedance/sonic"
 )
 
+// TLSKey is STABLE.
 // TLSKey configures one legacy TLS key-list entry.
 type TLSKey struct {
 	IP       string
@@ -18,6 +19,7 @@ type TLSKey struct {
 	Password string
 }
 
+// TLSConfig is STABLE.
 // TLSConfig controls Wireshark TLS dissection preferences.
 type TLSConfig struct {
 	DesegmentSSLRecords         bool
@@ -26,6 +28,7 @@ type TLSConfig struct {
 	KeylogFile                  string
 }
 
+// DecodeAsRule is STABLE.
 // DecodeAsRule forces a dissector table selector to use a protocol dissector.
 // Supports uint tables (tcp.port, udp.port, sctp.port, ssl.port, http2.tcp.port,
 // ethertype, ip.proto) and string tables (media_type).
@@ -35,6 +38,7 @@ type DecodeAsRule struct {
 	Protocol string `json:"protocol"`
 }
 
+// NameResolutionConfig is STABLE.
 // NameResolutionConfig controls Wireshark's address name resolution.
 type NameResolutionConfig struct {
 	MAC       bool `json:"mac"`
@@ -43,12 +47,14 @@ type NameResolutionConfig struct {
 	External  bool `json:"external"`
 }
 
+// Preference is STABLE.
 // Preference sets one Wireshark preference (equivalent to -o flag).
 type Preference struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
 
+// SessionCacheOptions is STABLE.
 // SessionCacheOptions controls in-memory cache behavior for Session operations.
 type SessionCacheOptions struct {
 	MaxPages       int
@@ -57,6 +63,7 @@ type SessionCacheOptions struct {
 	Disable        bool
 }
 
+// ParseMode is STABLE.
 type ParseMode int
 
 const (
@@ -87,6 +94,7 @@ type config struct {
 	SessionCache    SessionCacheOptions
 }
 
+// Option is STABLE.
 // Option customizes one dissection operation.
 type Option func(*config)
 

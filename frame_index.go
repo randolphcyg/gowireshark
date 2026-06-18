@@ -1,5 +1,6 @@
 package gowireshark
 
+// FrameIndex is STABLE.
 type FrameIndex struct {
 	FrameNumbers []int
 	Filter       string

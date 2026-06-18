@@ -2,6 +2,7 @@ package gowireshark
 
 import "context"
 
+// ExpertInfo is STABLE.
 type ExpertInfo struct {
 	FrameNumber int    `json:"frameNumber"`
 	Severity    string `json:"severity,omitempty"`

@@ -278,13 +278,13 @@ If no SRT table is registered for a protocol, `ServiceResponseTimes` returns `Er
 **Lightweight iterator / writer paths:**
 
 - `Session.IterFrameJSON(q)` streams raw frame JSON bytes without `ParseFrameData` overhead. For callers that need original JSON, this is significantly cheaper than `IterFrames()`.
-- `Session.WriteFrameJSON(q, w)` writes raw frame JSON directly to an `io.Writer` using the same streaming fast path.
+- `Session.WriteFrames(q, w)` writes raw frame JSON directly to an `io.Writer` using the same streaming fast path.
 - `IterFrames()` returns full `FrameData` objects (higher cost); prefer `IterFrameJSON()` when you only need raw JSON.
 
 **Large-file recommendation (in order of preference):**
 
 1. `IterFrameJSON` / `IterFieldsRows` — stream frames one at a time without parsing or materialising full frame trees
-2. `WriteFrameJSON` / `WriteFieldsRows` / `WriteDissection(OutputFields|OutputText|OutputPSML)` — write directly to `io.Writer`
+2. `WriteFrames` / `WriteFieldsRows` / `WriteDissection(OutputFields|OutputText|OutputPSML)` — write directly to `io.Writer`
 3. `FieldsRows` with narrow display filter — field-only extraction for targeted queries
 4. `Session` cache with `FramesPage` — paginated access reuses cached results
 5. Use `Frames()` / `IterFrames()` / `OutputPDML` cautiously — they build full `FrameData` trees and are the most expensive paths

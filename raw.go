@@ -19,6 +19,7 @@ const (
 	LinkTypeEthernet LinkType = 1
 )
 
+// RawPacket is STABLE.
 // RawPacket is a packet captured outside gowireshark and handed to libwireshark for dissection.
 type RawPacket struct {
 	Data           []byte

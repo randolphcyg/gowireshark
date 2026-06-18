@@ -11,11 +11,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+// OutputFormat is STABLE.
 // OutputFormat controls how frame dissection is rendered.
 type OutputFormat string
 
 const (
 	// PDML, PSML, and Text use the SDK renderer — they are not byte-for-byte tshark equivalents.
+	//
+	// OutputPDML is the most expensive format: it walks every frame through the
+	// full FrameData materialisation path before rendering. For large captures
+	// prefer WriteFrames / WriteFramesJSONL or IterFrameJSON instead.
 	OutputJSON    OutputFormat = "json"
 	OutputJSONRaw OutputFormat = "jsonraw"
 	OutputFields  OutputFormat = "fields"
@@ -24,6 +29,7 @@ const (
 	OutputText    OutputFormat = "text"
 )
 
+// FieldOutputOptions is STABLE.
 // FieldOutputOptions controls field-level output (tshark -e / -E flags).
 type FieldOutputOptions struct {
 	Fields     []string

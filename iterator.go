@@ -30,6 +30,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// FrameIterator is STABLE.
 type FrameIterator interface {
 	Next() bool
 	Frame() *FrameData
@@ -37,6 +38,7 @@ type FrameIterator interface {
 	Close() error
 }
 
+// FrameJSONIterator is STABLE.
 type FrameJSONIterator interface {
 	Next() bool
 	JSON() []byte
@@ -44,6 +46,7 @@ type FrameJSONIterator interface {
 	Close() error
 }
 
+// FieldRowIterator is STABLE.
 type FieldRowIterator interface {
 	Next() bool
 	Row() FieldRow

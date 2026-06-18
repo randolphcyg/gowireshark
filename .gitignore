@@ -43,5 +43,4 @@ coverage.out
 *.coverprofile
 *.test
 /gowireshark
-/gowireshark-bench
-/gowireshark-bench-*
+.workbuddy/

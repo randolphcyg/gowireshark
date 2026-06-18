@@ -20,6 +20,7 @@ var (
 // Layers contains the raw Wireshark protocol tree keyed by layer name.
 type Layers map[string]any
 
+// FrameData is STABLE.
 // FrameData is the parsed dissection result for one frame.
 type FrameData struct {
 	Index      string   `json:"_index"`

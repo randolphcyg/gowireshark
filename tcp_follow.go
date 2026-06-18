@@ -19,6 +19,7 @@ import (
 
 var errParseTCPFollowPacket = errors.New("failed to parse tcp follow packet")
 
+// TCPFollowPacket is STABLE.
 // TCPFollowPacket is one payload fragment emitted by Wireshark's tcp_follow tap.
 type TCPFollowPacket struct {
 	StreamID  uint32  `json:"stream_id"`
@@ -30,9 +31,11 @@ type TCPFollowPacket struct {
 	RawData   []byte  `json:"-"`
 }
 
+// TCPFollowHandler is STABLE.
 // TCPFollowHandler receives decoded payload fragments from the tcp_follow tap.
 type TCPFollowHandler func(TCPFollowPacket)
 
+// TCPFollowRegistration is STABLE.
 // TCPFollowRegistration owns one active tcp_follow callback registration.
 type TCPFollowRegistration struct {
 	handle cgo.Handle

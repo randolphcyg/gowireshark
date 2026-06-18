@@ -17,6 +17,7 @@ var (
 	ErrProtocolNotFound = errors.New("protocol not registered")
 )
 
+// ProtocolParser is STABLE.
 // ProtocolParser defines the interface for parsing a custom protocol layer.
 // Implementations should extract protocol-specific fields from the raw Layers map.
 type ProtocolParser interface {
@@ -24,6 +25,7 @@ type ProtocolParser interface {
 	Parse(layers Layers) (any, error)
 }
 
+// ParserRegistry is STABLE.
 // ParserRegistry manages registered protocol parsers.
 // It is safe for concurrent use.
 type ParserRegistry struct {

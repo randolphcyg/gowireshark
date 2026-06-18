@@ -1,6 +1,7 @@
 package gowireshark
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/randolphcyg/gowireshark/internal/testfixture"
@@ -131,7 +132,7 @@ func TestStreams_StreamIDCanFollow(t *testing.T) {
 		t.Skip("no TCP streams with valid StreamID in test pcap")
 	}
 
-	result, err := FollowStream(pcap, "tcp.stream eq "+itoa(firstTCP), "tcp")
+	result, err := FollowStream(pcap, "tcp.stream eq "+strconv.Itoa(firstTCP), "tcp")
 	if err != nil {
 		t.Fatalf("FollowStream with real tcp.stream eq %d: %v", firstTCP, err)
 	}

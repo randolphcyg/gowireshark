@@ -257,13 +257,13 @@ gowireshark.SupportsServiceResponseTimes("dns")  // 取决于运行时
 **轻量 iterator / writer 路径：**
 
 - `Session.IterFrameJSON(q)` 流式返回原始帧 JSON bytes，避免 `ParseFrameData` 开销。调用者只需原始 JSON 时，比 `IterFrames()` 显著更高效。
-- `Session.WriteFrameJSON(q, w)` 使用相同的 streaming fast path 直接写入 `io.Writer`。
+- `Session.WriteFrames(q, w)` 使用相同的 streaming fast path 直接写入 `io.Writer`。
 - `IterFrames()` 返回完整 `FrameData` 对象（较高成本）；只需原始 JSON 时优先使用 `IterFrameJSON()`。
 
 **大文件推荐路径（按优先级排序）：**
 
 1. `IterFrameJSON` / `IterFieldsRows` — 逐帧流式消费，不解析或物化完整帧树
-2. `WriteFrameJSON` / `WriteFieldsRows` / `WriteDissection(OutputFields|OutputText|OutputPSML)` — 直接写入 `io.Writer`
+2. `WriteFrames` / `WriteFieldsRows` / `WriteDissection(OutputFields|OutputText|OutputPSML)` — 直接写入 `io.Writer`
 3. `FieldsRows` 配合窄 display filter — 面向精确查询的 field-only 提取
 4. `Session` 缓存配合 `FramesPage` — 分页访问复用已缓存结果
 5. 谨慎使用 `Frames()` / `IterFrames()` / `OutputPDML` — 它们构建完整 `FrameData` 树，是成本最高的路径
