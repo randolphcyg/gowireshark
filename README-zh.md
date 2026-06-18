@@ -1,6 +1,6 @@
 # Gowireshark
 
-`gowireshark` 是基于 `libwireshark` 的 Go SDK，只负责协议解析。抓包放在 `gocapture`，HTTP 组合放在 `gowireshark-server`，命令行、MCP 与 Agent 使用文档放在 `gowireshark-cli`。
+`gowireshark` 是基于 `libwireshark` 的 Go SDK，只负责协议解析。抓包放在 `gocapture`，HTTP 组合放在 `gowireshark-server`，命令行、MCP 与 Agent 使用文档放在 `epan`。
 
 ## 能力
 
@@ -17,7 +17,7 @@
 | `gowireshark` | 基于 libwireshark 的解析 SDK |
 | `gocapture` | libpcap、DPDK 等抓包后端 |
 | `gowireshark-server` | HTTP 组合层 |
-| `gowireshark-cli` | 命令行入口、MCP 服务与 Agent 使用文档 |
+| `epan` | 命令行入口、MCP 服务与 Agent 使用文档 |
 
 ## 安装
 

@@ -1,6 +1,6 @@
 # Gowireshark
 
-`gowireshark` is a Go SDK around `libwireshark`. It owns packet dissection only: packet acquisition belongs in `gocapture`, HTTP composition in `gowireshark-server`, and CLI, MCP, and agent-facing documentation live in `gowireshark-cli`.
+`gowireshark` is a Go SDK around `libwireshark`. It owns packet dissection only: packet acquisition belongs in `gocapture`, HTTP composition in `gowireshark-server`, and CLI, MCP, and agent-facing documentation live in `epan`.
 
 ## Capabilities
 
@@ -17,7 +17,7 @@
 | `gowireshark` | libwireshark-backed dissection SDK |
 | `gocapture` | packet acquisition backends such as libpcap and DPDK |
 | `gowireshark-server` | HTTP composition layer |
-| `gowireshark-cli` | command-line frontend, MCP server, and agent-facing docs |
+| `epan` | command-line frontend, MCP server, and agent-facing docs |
 
 ## Install
 
